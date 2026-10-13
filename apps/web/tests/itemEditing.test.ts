@@ -655,8 +655,13 @@ describe('Web V3: desktop-native layout (the window is used)', () => {
     assert.match(css, /\.itemDetail \.itemInfo \{\s*position: sticky;/);
   });
 
-  it('the editor: picture (5) beside the fields (7), pickers across the full width in readable tiles', () => {
-    assert.match(css, /\.reviewTop \{\s*grid-template-columns: minmax\(280px, 5fr\) minmax\(0, 7fr\);\s*max-width: none;/);
+  it('the editor: picture (about 43%, at most 576px) beside the top-aligned fields, pickers across the full width in readable tiles', () => {
+    assert.match(css, /\.reviewTop \{\s*grid-template-columns: minmax\(0, min\(43%, 576px\)\) minmax\(0, 1fr\);\s*column-gap: 24px;\s*align-items: start;\s*max-width: none;/);
+    // the picture is one 16:10 frame sized by its column - never a height cap that flattens it into a banner
+    assert.match(css, /\.reviewTop \.itemMedia \{\s*width: 100%;\s*aspect-ratio: 16 \/ 10;\s*\}/);
+    assert.doesNotMatch(css, /\.reviewTop \.itemMedia \{[^}]*max-height/);
+    // a narrower window stacks the picture (and its photo buttons) above the fields, at most 576px wide
+    assert.match(css, /@media \(max-width: 959px\) \{\s*\.reviewTop \{\s*grid-template-columns: minmax\(0, 1fr\);[^}]*\}\s*\.reviewTop \.photoWorkspace \{\s*max-width: 576px;/);
     assert.match(css, /\.choiceList \{\s*grid-template-columns: repeat\(auto-fill, minmax\(220px, 1fr\)\);/);
   });
 
@@ -703,7 +708,8 @@ describe('Web V4: a content workspace', () => {
   it('Item Detail with a picture: a 180px thumbnail beside title / site / open icon, then grouped rows - one component for sheet and page', () => {
     const content = source('app/(app)/items/[itemId]/ItemDetailContent.tsx');
     assert.match(content, /const hasImage = photoUrl !== null;/);
-    assert.match(content, /\{hasImage \? \(\s*<div className=\{styles\.quickThumb\}>/);
+    assert.match(content, /<QuickThumb dictionary=\{dictionary\} photoUrl=\{hasImage \? photoUrl : null\} siteId=\{siteId\} \/>/);
+    assert.match(content, /return photoUrl !== null \? \(\s*<div className=\{styles\.quickThumb\}>/);
     assert.match(css, /\.quickThumb \{[^}]*width: 180px;[^}]*height: 135px;/);
     assert.match(css, /\.quickTitle \{[^}]*-webkit-line-clamp: 3;/);
     assert.match(css, /\.quickGroup \{\s*display: grid;\s*grid-template-columns: 112px minmax\(0, 1fr\);[^}]*border-top: 1px solid var\(--app-divider\);/);

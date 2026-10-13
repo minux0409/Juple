@@ -26,6 +26,19 @@ export function QuickDetailSheet({
   readonly lockedBy: number | null;
   readonly fromCollectionId: number | null;
 }) {
+  const router = useRouter();
+  return (
+    <QuickSheetFrame>
+      <ItemDetailContent fromCollectionId={fromCollectionId} itemIdParam={itemIdParam} lockedBy={lockedBy} onLeave={() => router.back()} />
+    </QuickSheetFrame>
+  );
+}
+
+/**
+ * The sheet itself, shared by every Quick Detail (my link: QuickDetailSheet; another member's link in a Collection:
+ * SharedItemQuickSheet): the dialog, its bar with 닫기, and the scrolling content. Closing goes back one entry in the history.
+ */
+export function QuickSheetFrame({ children }: { readonly children: React.ReactNode }) {
   const { dictionary } = useSignedInApp();
   const router = useRouter();
   const ref = useRef<HTMLDialogElement>(null);
@@ -69,9 +82,7 @@ export function QuickDetailSheet({
             <Glyph name="Close" size={20} />
           </button>
         </header>
-        <div className={styles.quickScroll}>
-          <ItemDetailContent fromCollectionId={fromCollectionId} itemIdParam={itemIdParam} lockedBy={lockedBy} onLeave={close} />
-        </div>
+        <div className={styles.quickScroll}>{children}</div>
       </div>
     </dialog>
   );

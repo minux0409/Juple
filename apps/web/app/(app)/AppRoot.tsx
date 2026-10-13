@@ -49,6 +49,8 @@ interface SignedInApp {
   /** A page found the session gone (AuthExpiredError): sign out locally and show the landing page. */
   readonly onSessionLost: () => void;
   readonly signOut: () => void;
+  /** The host of the canonical Collection share links (null = not configured: nothing pasted is taken for one). */
+  readonly publicWebHost: string | null;
 }
 
 const SignedInAppContext = createContext<SignedInApp | null>(null);
@@ -204,7 +206,8 @@ export function AppRoot({
     setNotice(null);
     setStatus('redirecting');
     try {
-      await msal.loginRedirect({ scopes: apiScopes(config) });
+      // Back to exactly the page that asked (e.g. a /shared/{publicId} share link opened while signed out) once Entra is done.
+      await msal.loginRedirect({ scopes: apiScopes(config), redirectStartPage: window.location.href });
     } catch (error) {
       reportSignInError('loginRedirect', error);
       setNotice(signInFailureMessage(error, dictionary));
@@ -277,9 +280,10 @@ export function AppRoot({
             reauthenticate,
             onSessionLost,
             signOut,
+            publicWebHost: config?.publicWebHost ?? null,
           }
         : null,
-    [account, api, clearReauthentication, dictionary, entitlement, language, languagePreference, onSessionLost, profile, reauthenticate, reauthentication, setLanguagePreference, signOut, storeSubscription],
+    [account, api, clearReauthentication, config, dictionary, entitlement, language, languagePreference, onSessionLost, profile, reauthenticate, reauthentication, setLanguagePreference, signOut, storeSubscription],
   );
 
   const content = (() => {

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { getAppDictionary } from '../lib/appDictionary.ts';
@@ -23,6 +24,7 @@ import {
   formatNotificationTime,
   groupNotifications,
   markAllRowsRead,
+  notificationGroupOf,
   markRowRead,
   notificationGlyphOf,
   notificationLeadingOf,
@@ -348,5 +350,73 @@ describe('notification strings and scope', () => {
     for (const file of ['app/(app)/notifications/NotificationBell.tsx', 'app/(app)/notifications/NotificationsView.tsx', 'app/(app)/notifications/useNotificationActions.ts', 'lib/notifications.ts', 'lib/notificationState.ts', 'app/(app)/AppShell.tsx']) {
       assert.doesNotMatch(read(file), /serviceWorker|Notification\.requestPermission|PushManager/, file);
     }
+  });
+});
+
+describe('date groups: one helper for the bell panel and the 알림 page (the mobile local-calendar rules)', () => {
+  const local = (y: number, m: number, d: number, h = 0, min = 0) => new Date(y, m - 1, d, h, min).toISOString();
+  const keys = (now: Date, ...times: string[]) => times.map(createdAtUtc => notificationGroupOf(createdAtUtc, now));
+
+  it('today / yesterday are calendar dates, not 24 hours', () => {
+    const justAfterMidnight = new Date(2026, 9, 13, 0, 30);
+    assert.deepEqual(keys(justAfterMidnight, local(2026, 10, 13, 0, 1), local(2026, 10, 12, 23, 50), local(2026, 10, 12, 0, 0)), ['today', 'yesterday', 'yesterday'], '40 minutes ago but before midnight is 어제');
+    const evening = new Date(2026, 9, 13, 20, 0);
+    assert.equal(notificationGroupOf(local(2026, 10, 13, 0, 1), evening), 'today', '20 hours ago on the same date is 오늘');
+    assert.equal(notificationGroupOf(local(2026, 10, 12, 23, 59), evening), 'yesterday');
+    assert.equal(notificationGroupOf(local(2026, 10, 11, 23, 59), evening), 'last7Days', 'the day before yesterday is no longer 어제');
+  });
+
+  it('최근 7일 / 최근 30일 / 이전 알림 start at local midnights 7 and 30 days back, each row in exactly one group', () => {
+    const now = new Date(2026, 9, 13, 9, 0);
+    assert.deepEqual(keys(now, local(2026, 10, 6, 0, 0), local(2026, 10, 5, 23, 59)), ['last7Days', 'last30Days']);
+    assert.deepEqual(keys(now, local(2026, 9, 13, 0, 0), local(2026, 9, 12, 23, 59)), ['last30Days', 'older']);
+  });
+
+  it('month and year boundaries', () => {
+    const newYear = new Date(2027, 0, 1, 0, 10);
+    assert.deepEqual(
+      keys(newYear, local(2027, 1, 1, 0, 0), local(2026, 12, 31, 23, 59), local(2026, 12, 25, 0, 0), local(2026, 12, 24, 23, 59), local(2026, 12, 2, 0, 0), local(2026, 12, 1, 23, 59)),
+      ['today', 'yesterday', 'last7Days', 'last30Days', 'last30Days', 'older'],
+    );
+    const marchFirst = new Date(2027, 2, 1, 8, 0);
+    assert.equal(notificationGroupOf(local(2027, 2, 28, 23, 0), marchFirst), 'yesterday', 'February has 28 days');
+  });
+
+  it('the browser\'s own time zone decides the date (same instant, different groups; DST never shifts a day)', () => {
+    const script = `
+      import { notificationGroupOf } from ${JSON.stringify(new URL('../lib/notifications.ts', import.meta.url).href)};
+      const now = new Date(process.argv[1]);
+      console.log(JSON.stringify(process.argv.slice(2).map(at => notificationGroupOf(at, now))));`;
+    const run = (tz: string, now: string, ...at: string[]) => {
+      const out = execFileSync(process.execPath, ['--input-type=module', '-e', script, now, ...at], { env: { ...process.env, TZ: tz }, encoding: 'utf8' });
+      return JSON.parse(out.trim().split('\n').pop()!);
+    };
+    // 2026-10-12 15:30 UTC is 10-13 00:30 in Seoul but 10-12 08:30 in Los Angeles; the alert came at 10-12 14:50 UTC.
+    assert.deepEqual(run('Asia/Seoul', '2026-10-12T15:30:00Z', '2026-10-12T14:50:00Z'), ['yesterday'], 'Seoul: before its midnight');
+    assert.deepEqual(run('America/Los_Angeles', '2026-10-12T15:30:00Z', '2026-10-12T14:50:00Z'), ['today'], 'Los Angeles: the same date');
+    // New York leaves DST on 2026-11-01: 11-02 00:30 EST; an alert at 11-01 00:10 EDT (more than 24 h before) is still 어제.
+    assert.deepEqual(run('America/New_York', '2026-11-02T05:30:00Z', '2026-11-01T04:10:00Z', '2026-10-31T23:00:00Z'), ['yesterday', 'last7Days']);
+  });
+
+  it('only groups that have rows, in order; rows keep the newest-first order inside a group', () => {
+    const now = new Date(2026, 9, 13, 12, 0);
+    const groups = groupNotifications([row(9, { createdAtUtc: local(2026, 10, 13, 11, 0) }), row(8, { createdAtUtc: local(2026, 10, 13, 9, 0) }), row(7, { createdAtUtc: local(2026, 9, 20, 9, 0) }), row(6, { createdAtUtc: local(2026, 8, 1, 9, 0) })], now);
+    assert.deepEqual(groups.map(group => group.key), ['today', 'last30Days', 'older'], 'no empty 어제 / 최근 7일 heading');
+    assert.deepEqual(groups[0]!.items.map(item => item.id), [9, 8]);
+  });
+
+  it('the bell panel groups its own loaded rows with the same helper and labels as the 알림 page - no second date rule', () => {
+    const bell = read('app/(app)/notifications/NotificationBell.tsx');
+    const page = read('app/(app)/notifications/NotificationsView.tsx');
+    for (const source of [bell, page]) {
+      assert.match(source, /groupNotifications\(items\)\.map\(group =>/);
+      assert.match(source, /dictionary\[GROUP_LABEL_KEYS\[group\.key\]\]/);
+      assert.doesNotMatch(source, /getFullYear|getDate\(|86_?400_?000|24 \* 60 \* 60/, 'no date arithmetic outside lib/notifications.ts');
+    }
+    assert.match(bell, /<h3 className=\{styles\.bellGroupHeading\} id=\{`\$\{headingId\}-\$\{group\.key\}`\}>/);
+    assert.match(bell, /notificationsPagePath\(\{ limit: POPOVER_NOTIFICATION_LIMIT, locale \}\)/, 'the panel still loads only its newest few');
+    const css = read('app/(app)/app.module.css');
+    assert.match(css, /\.bellGroupHeading \{[^}]*font-size: 12px;/);
+    assert.match(css, /\.bellGroup > \.notificationList \{\s*border-top: 1px solid var\(--app-divider\);/);
   });
 });

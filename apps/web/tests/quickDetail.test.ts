@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
+import { getAppDictionary } from '../lib/appDictionary.ts';
 
 const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const css = source('app/(app)/app.module.css');
@@ -60,7 +61,8 @@ describe('Quick Detail sheet: behaviour', () => {
     assert.match(content, /state\.kind === 'gated' && lockedBy !== null && itemId !== null\) \{\s*return <GatedLink/);
     assert.doesNotMatch(content, /\/permanent/);
     assert.match(content, /\{item\.memo\?\.trim\(\) \? \(/, 'the memo only when it is written (nothing invented)');
-    assert.match(content, /\{hasImage \? \(\s*<div className=\{styles\.quickThumb\}>/, 'the picture only when there is one');
+    assert.match(content, /<QuickThumb dictionary=\{dictionary\} photoUrl=\{hasImage \? photoUrl : null\} siteId=\{siteId\} \/>/, 'the picture only when there is one');
+    assert.match(content, /return photoUrl !== null \? \(\s*<div className=\{styles\.quickThumb\}>/);
   });
 
   it('after 삭제 the lists under the sheet read themselves again; 수정 goes back to the details and tells them too', () => {
@@ -108,8 +110,31 @@ describe('Quick Detail sheet: size and responsiveness', () => {
     assert.match(css, /@media \(max-width: 859px\) \{\s*\.quickSheet\[open\] \{\s*padding: 0;\s*\}\s*\.quickPanel \{\s*width: 100%;[^}]*max-height: 90vh;[^}]*border-radius: 24px 24px 0 0;/);
   });
 
-  it('the footer is sticky inside the sheet; the standalone page is a compact centred column (no 7:5 workspace)', () => {
-    assert.match(css, /\.quickFooter \{\s*position: sticky;\s*bottom: 0;/);
+  it('the link actions are one vertical icon-only stack beside the name (링크 열기, 수정, 삭제 / 컬렉션에서 제거) - no action footer', () => {
+    const content = source('app/(app)/items/[itemId]/ItemDetailContent.tsx');
+    const stack = content.slice(content.indexOf('className={styles.quickActions}'), content.indexOf('</div>', content.indexOf('className={styles.quickActions}')));
+    const open = stack.indexOf('name="ExternalLink"');
+    const edit = stack.indexOf('name="Edit"');
+    const remove = stack.indexOf('name="Trash"');
+    assert.ok(open > 0 && open < edit && edit < remove, 'order: open, edit, then the destructive action');
+    // icon-only, each named for assistive technology and with a tooltip
+    assert.match(stack, /aria-label=\{dictionary\.openLink\}[^>]*title=\{dictionary\.openLink\}/);
+    assert.match(stack, /aria-label=\{dictionary\.edit\}[\s\S]*?title=\{dictionary\.edit\}/);
+    assert.match(stack, /aria-label=\{removeFromCollection \? dictionary\.removeFromCollectionAction : dictionary\.delete\}[\s\S]*?title=\{removeFromCollection \? dictionary\.removeFromCollectionAction : dictionary\.delete\}/);
+    assert.doesNotMatch(stack, /\{dictionary\.(openLink|edit|delete|removeFromCollection)\}\s*</, 'no visible text in the buttons');
+    // the context decides what the destructive action does - unchanged: a Collection membership, never the link itself, there
+    assert.match(content, /const request = removeFromCollection\s*\? api<void>\(\{ method: 'DELETE', path: `\/api\/v1\/collections\/\$\{fromCollectionId\}\/items\/\$\{itemId\}`/);
+    assert.match(content, /<ConfirmDialog[\s\S]*?destructive[\s\S]*?onConfirm=\{run\}/);
+    assert.match(stack, /href=\{itemEditHref\(itemId, search\)\}/);
+    // no second set of the same actions
+    assert.doesNotMatch(content, /quickFooter|OpenLinkButton/);
+    assert.doesNotMatch(css, /\.quickFooter|\.quickOpenIcon/);
+    assert.match(css, /\.quickActions \{\s*display: flex;\s*flex: 0 0 44px;\s*flex-direction: column;\s*gap: 8px;/);
+    assert.match(css, /\.quickActionButton,\s*\.quickActionDanger \{[^}]*width: 44px;[^}]*height: 44px;/);
+    assert.equal(getAppDictionary('ko').removeFromCollectionAction, '컬렉션에서 제거');
+  });
+
+  it('the standalone page is a compact centred column (no 7:5 workspace)', () => {
     assert.match(css, /\.quickPage \{[^}]*max-width: 1040px;[^}]*margin-inline: auto;/);
     assert.doesNotMatch(source('app/(app)/items/[itemId]/ItemDetailsView.tsx'), /detailWorkspace/);
   });
@@ -147,7 +172,9 @@ describe('새 링크 검토 (/items/new) is never a Quick Detail sheet', () => {
     assert.match(form, /<form className=\{styles\.addLinkPanel\} noValidate onSubmit=\{submit\}>/, 'Enter submits the form');
     assert.match(form, /<button className=\{styles\.primaryAction\} disabled=\{!value\.trim\(\)\} type="submit">/, 'Save is a submit button of the same form');
     assert.match(form, /const url = normalizeEnteredUrl\(value\);[\s\S]*openReview\(url\);/);
-    assert.doesNotMatch(home, /router\.(push|replace)|useRouter/);
+    // The one client navigation on Home is a Juple Collection share link going to its Collection flow - never the review.
+    assert.deepEqual(home.match(/router\.(push|replace)\([^)]*\)/g), ['router.push(destination.href)']);
+    assert.match(home, /const destination = collectionShareDestination\(shareLink\);\s*if \(destination\.kind === 'inApp'\) \{\s*router\.push\(destination\.href\);/);
   });
 
   it('no soft navigation to the review exists anywhere in the app; the intercepting route loads a non-item address for real', () => {
@@ -165,5 +192,37 @@ describe('새 링크 검토 (/items/new) is never a Quick Detail sheet', () => {
     assert.match(source('app/(app)/items/[itemId]/page.tsx'), /<ItemDetailsView/);
     assert.ok(existsSync(new URL('../app/(app)/items/[itemId]/edit/page.tsx', import.meta.url)));
     assert.doesNotMatch(source('app/(app)/@modal/(.)items/[itemId]/page.tsx'), /edit/);
+  });
+});
+
+describe('Quick Detail sheet: another member\'s link in a Collection (no context opens a full page any more)', () => {
+  const intercept = source('app/(app)/@modal/(.)collections/[collectionId]/items/[itemId]/page.tsx');
+  const content = source('app/(app)/collections/[collectionId]/items/[itemId]/SharedItemContent.tsx');
+
+  it('its in-app address /collections/{id}/items/{itemId} is intercepted into the same sheet frame; typed / reloaded stays standalone', () => {
+    assert.match(intercept, /<QuickSheetFrame key=\{`\$\{collectionId\}\/\$\{itemId\}`\}>\s*<SharedItemQuickContent collectionIdParam=\{collectionId\} itemIdParam=\{itemId\} \/>/);
+    assert.match(intercept, /parseRouteId\(collectionId\) === null \|\| parseRouteId\(itemId\) === null\) \{\s*return <NotAnItem \/>;/);
+    // the standalone route is untouched
+    assert.match(source('app/(app)/collections/[collectionId]/items/[itemId]/page.tsx'), /<SharedItemView collectionIdParam=\{collectionId\} itemIdParam=\{itemId\}/);
+    // a Collection card still routes another member's link to its Collection-scoped address (never /items/{id}: not theirs)
+    assert.match(source('lib/savedLinks.ts'), /href: mine \? itemHref\(entry\.itemId\) : sharedItemHref\(collectionId, entry\.itemId\)/);
+    // one sheet for both: my link (QuickDetailSheet) and another member's share the frame (dialog, bar, 닫기 = back)
+    const sheet = source('app/(app)/items/[itemId]/QuickDetailSheet.tsx');
+    assert.match(sheet, /<QuickSheetFrame>\s*<ItemDetailContent /);
+    assert.match(sheet, /export function QuickSheetFrame\(\{ children \}/);
+  });
+
+  it('read IN the Collection (its gate first, the visit grant), read-only: 링크 열기 is the only action, then who added it and when', () => {
+    assert.match(content, /api<SharedCollectionItem>\(\{ path: sharedItemPath\(collectionId, itemId\), headers: unlockHeaders\(collectionId\) \}\)/);
+    const actions = content.slice(content.indexOf('className={styles.quickActions}'), content.indexOf('</div>', content.indexOf('className={styles.quickActions}')));
+    assert.match(actions, /aria-label=\{dictionary\.openLink\}[^>]*title=\{dictionary\.openLink\}/);
+    assert.doesNotMatch(content, /itemEditHref|dictionary\.edit\b|dictionary\.delete\b|removeFromCollection|method: 'DELETE'/);
+    assert.match(content, /dictionary\.addedBy[\s\S]*dictionary\.savedAt[\s\S]*dictionary\.sharedItemReadOnly/);
+    // the standalone page reads it the same way (one hook)
+    assert.match(source('app/(app)/collections/[collectionId]/items/[itemId]/SharedItemView.tsx'), /useSharedItem\(collectionIdParam, itemIdParam\)/);
+  });
+
+  it('/items/new is still opened by a full navigation (never a sheet)', () => {
+    assert.match(source('app/(app)/HomeView.tsx'), /openReview\(url\)/);
   });
 });

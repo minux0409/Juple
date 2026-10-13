@@ -12,6 +12,12 @@ export interface WebAppConfig {
   readonly entraClientId: string;
   readonly entraApiScope: string;
   readonly webBaseUrl: string;
+  /**
+   * The host of the canonical Collection share links (https://<host>/c/{publicId}) - the Backend's PublicWeb:BaseUrl host, the
+   * mobile JUPLE_PUBLIC_WEB_HOST. Optional: without it no pasted link is recognized as a Collection link here (the server still
+   * refuses to save one as an ordinary link).
+   */
+  readonly publicWebHost: string | null;
 }
 
 export type WebAppConfigResult =
@@ -26,10 +32,18 @@ export const WEB_APP_CONFIG_ENV = {
   entraClientId: 'JUPLE_ENTRA_WEB_CLIENT_ID',
   entraApiScope: 'JUPLE_ENTRA_API_SCOPE',
   webBaseUrl: 'JUPLE_WEB_BASE_URL',
+  publicWebHost: 'JUPLE_PUBLIC_WEB_HOST',
 } as const;
 
 /** Same default as the public viewer (app/c/[publicId]/page.tsx): the local Backend. */
 const DEFAULT_API_BASE_URL = 'http://localhost:5092';
+
+/** A bare host name (no scheme, path, port or user info) - anything else is no host. */
+const PUBLIC_WEB_HOST_PATTERN = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/i;
+
+function parsePublicWebHost(value: string | undefined): string | null {
+  return value && PUBLIC_WEB_HOST_PATTERN.test(value) ? value.toLowerCase() : null;
+}
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
@@ -70,6 +84,7 @@ export function readWebAppConfig(env: Readonly<Record<string, string | undefined
       entraClientId: clientId!,
       entraApiScope: apiScope!,
       webBaseUrl: trimTrailingSlash(webBaseUrl!),
+      publicWebHost: parsePublicWebHost(value(WEB_APP_CONFIG_ENV.publicWebHost)),
     },
   };
 }

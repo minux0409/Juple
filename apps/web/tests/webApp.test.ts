@@ -23,6 +23,7 @@ const DEV_ENV = {
   JUPLE_ENTRA_WEB_CLIENT_ID: 'd70ac03c-811e-4535-868e-9cb94d66db64',
   JUPLE_ENTRA_API_SCOPE: 'api://14bcc3b7-7b37-4051-9e40-63cc2a5ffc8b/access_as_user',
   JUPLE_WEB_BASE_URL: 'http://localhost:3000/',
+  JUPLE_PUBLIC_WEB_HOST: 'Dev.Juple.co.kr',
 };
 
 describe('web app runtime config', () => {
@@ -37,6 +38,7 @@ describe('web app runtime config', () => {
       entraClientId: 'd70ac03c-811e-4535-868e-9cb94d66db64',
       entraApiScope: 'api://14bcc3b7-7b37-4051-9e40-63cc2a5ffc8b/access_as_user',
       webBaseUrl: 'http://localhost:3000',
+      publicWebHost: 'dev.juple.co.kr',
     });
     assert.equal(redirectUriFor(result.config), 'http://localhost:3000/auth/callback');
     // The name-based authority host AND the tenant's GUID-based issuer host (msal-browser 5 issuer validation).
@@ -144,7 +146,7 @@ describe('session states', () => {
 
 describe('routes: the public viewer and legal pages never require sign-in', () => {
   it('only the signed-in app routes require sign-in', () => {
-    for (const path of ['/', '/archive', '/collections/', '/collections/12', '/collections/12/items/34', '/items/34', '/me', '/me/settings', '/me/subscription', '/me/account', '/me/friends', '/me/trash', '/notifications']) {
+    for (const path of ['/', '/archive', '/collections/', '/collections/12', '/collections/12/items/34', '/items/34', '/me', '/me/settings', '/me/subscription', '/me/account', '/me/friends', '/me/trash', '/notifications', '/shared/AbCdEfGh12345678']) {
       assert.equal(requiresSignIn(path), true, path);
     }
     for (const path of ['/c/AbCdEfGh12345678', '/privacy', '/terms', '/account-deletion', '/auth/callback', '/.well-known/assetlinks.json']) {
@@ -155,7 +157,7 @@ describe('routes: the public viewer and legal pages never require sign-in', () =
   it('the (app) route group holds only the signed-in pages; the public viewer, legal pages and the redirect bridge live outside it', () => {
     const group = new URL('../app/(app)/', import.meta.url);
     const routeDirs = readdirSync(group, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
-    assert.deepEqual(routeDirs, ['@modal', 'archive', 'collections', 'items', 'me', 'notifications']);
+    assert.deepEqual(routeDirs, ['@modal', 'archive', 'collections', 'items', 'me', 'notifications', 'shared']);
     for (const outside of ['c/[publicId]/page.tsx', 'privacy/page.tsx', 'terms/page.tsx', 'account-deletion/page.tsx', 'auth/callback/page.tsx']) {
       assert.ok(existsSync(new URL(`../app/${outside}`, import.meta.url)), outside);
     }

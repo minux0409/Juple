@@ -39,6 +39,7 @@ const WEB_ONLY: Readonly<Record<'ko' | 'en', WebOnlyStrings>> = {
     notificationsSeeAll: '모두 보기',
     notificationsAppOnly: '이 알림은 Juple 앱에서 열 수 있어요.',
     notificationsReadAllFailed: '모두 읽음으로 표시하지 못했어요. 다시 시도해 주세요.',
+    removeFromCollectionAction: '컬렉션에서 제거',
   },
   en: {
     brandTagline: 'Save the links you find, organize them, and find them again.',
@@ -71,6 +72,7 @@ const WEB_ONLY: Readonly<Record<'ko' | 'en', WebOnlyStrings>> = {
     notificationsSeeAll: 'See all',
     notificationsAppOnly: 'Open this notification in the Juple app.',
     notificationsReadAllFailed: "Couldn't mark all as read. Please try again.",
+    removeFromCollectionAction: 'Remove from collection',
   },
 };
 

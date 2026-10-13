@@ -93,21 +93,8 @@ export function usableMetadataTitle(url: string, title: string | null): string |
   return isYouTube && (normalized === 'youtube' || normalized === '- youtube') ? null : trimmed;
 }
 
-/** The server refused to save a Juple Collection share link as an ordinary link (mobile COLLECTION_SHARE_URL_NOT_SAVABLE_CODE). */
-export const COLLECTION_SHARE_URL_NOT_SAVABLE_CODE = 'collectionShareUrlNotSavableAsLink';
-
-const PUBLIC_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
-
-/** The public id of a share link the server just recognized as one (mobile publicIdFromServerVerifiedShareUrl). */
-export function publicIdFromShareUrl(value: string): string | null {
-  try {
-    const match = /^\/c\/([^/]+)\/?$/.exec(new URL(value.trim()).pathname);
-    const publicId = match ? decodeURIComponent(match[1]) : null;
-    return publicId !== null && PUBLIC_ID_PATTERN.test(publicId) ? publicId : null;
-  } catch {
-    return null;
-  }
-}
+/** A Juple Collection share link the server refused to save as an ordinary link (one set of rules: lib/collectionShareUrl.ts). */
+export { COLLECTION_SHARE_URL_NOT_SAVABLE_CODE } from './collectionShareUrl.ts';
 
 /** Mobile NewLinkReview getSaveErrorMessage. */
 export function saveErrorMessage(error: unknown, dictionary: AppDictionary): string {

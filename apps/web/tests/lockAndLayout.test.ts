@@ -116,7 +116,7 @@ describe('locked Collections on the Web', () => {
       assert.ok(details.includes(call), call);
     }
     assert.match(details, /\/participants` \}\)/, 'participants need no grant (membership is not content)');
-    assert.match(source('app/(app)/collections/[collectionId]/items/[itemId]/SharedItemView.tsx'), /headers: unlockHeaders\(collectionId\)/);
+    assert.match(source('app/(app)/collections/[collectionId]/items/[itemId]/SharedItemContent.tsx'), /headers: unlockHeaders\(collectionId\)/);
     assert.match(source('app/(app)/collections/[collectionId]/edit/EditCollectionView.tsx'), /updateCollection\(api, collection, draft, dictionary, unlockHeaders\(collection\.id\)\)/);
   });
 

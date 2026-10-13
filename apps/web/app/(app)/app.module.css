@@ -2148,9 +2148,11 @@ a.imageBody:hover .imageTile img {
   box-shadow: var(--shadow-card);
 }
 
+/* The picture is a 16:10 frame sized by its column (see the editor block below) - never a height cap, which would flatten the frame into a
+   banner on a wide window. */
 .reviewTop .itemMedia {
+  width: 100%;
   aspect-ratio: 16 / 10;
-  max-height: clamp(120px, 22vh, 200px);
 }
 
 .reviewTop .itemInfo {
@@ -2907,6 +2909,23 @@ a.imageBody:hover .imageTile img {
   border-top: 1px solid var(--app-divider);
 }
 
+/* The bell panel's date groups: a small secondary heading over a hairline, the rows unchanged below it; a little air between groups. */
+.bellGroup + .bellGroup {
+  margin-top: 4px;
+}
+
+.bellGroupHeading {
+  margin: 0;
+  padding: 12px 16px 6px;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.bellGroup > .notificationList {
+  border-top: 1px solid var(--app-divider);
+}
+
 /* One row: [who / what] the sentence + time · Collection [my link's thumbnail] [unread dot] */
 .notificationRow,
 .notificationRowUnread {
@@ -3036,6 +3055,83 @@ a.imageBody:hover .imageTile img {
   font-weight: 700;
   line-height: 20px;
   text-align: center;
+}
+
+/* ======================================================================================================================
+   공유 링크로 연 컬렉션 (/shared/{publicId}) - the mobile 컬렉션 추가 / 참가 요청 / 승인 대기 중 dialog as one centred card
+   ==================================================================================================================== */
+.shareEntryPage {
+  display: flex;
+  justify-content: center;
+  padding-top: clamp(24px, 8vh, 96px);
+}
+
+.shareEntryCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: min(100%, 420px);
+  padding: 28px 24px 24px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+  box-shadow: var(--shadow-card);
+  text-align: center;
+}
+
+.shareEntryCard > .textInput {
+  width: 100%;
+}
+
+.shareEntryTitle {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.shareEntryTile,
+.shareEntryTileDim {
+  margin-top: 4px;
+}
+
+.shareEntryTileDim {
+  opacity: 0.45;
+}
+
+.shareEntryTileSkeleton {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-lg);
+}
+
+.shareEntryName {
+  margin: 0;
+  max-width: 100%;
+  font-size: 18px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.shareEntryMessage {
+  margin: 0;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.shareEntryActions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.shareEntryActions > button {
+  flex: 1 1 120px;
+  justify-content: center;
 }
 
 /* ======================================================================================================================
@@ -3914,10 +4010,26 @@ ul.settingsCard {
   box-shadow: var(--shadow-card);
 }
 
-/* the editor: the picture beside the fields on a wide window, pickers across the full width */
+/* the editor: the picture beside the fields on a wide window, pickers across the full width. The picture column is about 43% of the
+   row, but at most 576px wide - so its 16:10 frame is at most 360px tall on a very wide window; the fields take the rest, top-aligned. */
 .reviewTop {
-  grid-template-columns: minmax(280px, 5fr) minmax(0, 7fr);
+  grid-template-columns: minmax(0, min(43%, 576px)) minmax(0, 1fr);
+  column-gap: 24px;
+  align-items: start;
   max-width: none;
+}
+
+/* below a small desktop width (960px - a 1024px window keeps two columns even with a scrollbar) the picture goes above the fields, with its
+   photo buttons right under it, at most 576px wide */
+@media (max-width: 959px) {
+  .reviewTop {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 20px;
+  }
+
+  .reviewTop .photoWorkspace {
+    max-width: 576px;
+  }
 }
 
 .reviewSections {
@@ -5324,22 +5436,51 @@ ul.friendGrid > * + * {
   white-space: nowrap;
 }
 
-.quickOpenIcon {
+/* The link's actions beside its name: one fixed 44px column (링크 열기, 수정, 삭제 / 컬렉션에서 제거), so the name always keeps the
+   remaining width. The sheet's 닫기 stays in its own bar above. */
+.quickActions {
+  display: flex;
+  flex: 0 0 44px;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quickActionButton,
+.quickActionDanger {
   display: inline-flex;
-  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   width: 44px;
   height: 44px;
+  padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+  background: var(--app-surface);
   color: var(--text);
+  font: inherit;
   text-decoration: none;
+  cursor: pointer;
 }
 
-.quickOpenIcon:hover {
+.quickActionDanger {
+  color: var(--danger);
+}
+
+.quickActionButton:hover,
+.quickActionButton:focus-visible {
   border-color: var(--brand);
   color: var(--brand);
+}
+
+.quickActionDanger:hover:not(:disabled),
+.quickActionDanger:focus-visible {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.quickActionDanger:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .quickGroups {
@@ -5376,24 +5517,11 @@ ul.friendGrid > * + * {
   overflow-wrap: anywhere;
 }
 
-.quickFooter {
-  position: sticky;
-  bottom: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) 0 var(--space-5);
-  border-top: 1px solid var(--app-divider);
-  background: var(--app-surface);
-}
-
-.quickFooter > div {
-  display: flex;
-}
-
-.quickFooter .dangerAction {
-  margin-inline-start: auto;
+/* No action footer (the actions are beside the name): the sheet's content simply ends with its own bottom space - and starts a little
+   below the sheet's bar, so the bar's 닫기 never reads as part of the link's action column under it. */
+.quickScroll > .quickContent {
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-5);
 }
 
 .quickSkeleton {
@@ -5428,11 +5556,6 @@ ul.friendGrid > * + * {
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--app-surface);
-}
-
-.quickPageCard .quickFooter {
-  position: static;
-  padding-bottom: 0;
 }
 
 @keyframes quickRise {

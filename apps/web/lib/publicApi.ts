@@ -7,6 +7,10 @@ export interface PublicCollection {
   readonly isLocked: boolean;
   /** false: a PRIVATE link (공용 컬렉션 OFF) - only the name is known and no content is served. Absent (older API) = public. */
   readonly isPublic?: boolean;
+  /** The Collection's tile (its icon / color / photo) - only once the name is known; never any of its content. */
+  readonly icon?: string | null;
+  readonly color?: string | null;
+  readonly iconImageUrl?: string | null;
 }
 
 /**

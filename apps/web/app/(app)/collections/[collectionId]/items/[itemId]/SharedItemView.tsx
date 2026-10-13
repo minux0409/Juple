@@ -1,26 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import type { AppDictionary } from '../../../../../../lib/appI18n';
-import { isSessionLost } from '../../../../../../lib/authSession';
-import { contentGateOf, isNotFound } from '../../../../../../lib/collectionDetails';
-import { adderLabel, sharedItemPath, type SharedCollectionItem } from '../../../../../../lib/itemDetails';
-import { unlockHeaders } from '../../../../../../lib/collectionUnlock';
-import { collectionHref, displayTitleOf, formatLinkTimestamp, isSafeHttpUrl, parseRouteId } from '../../../../../../lib/savedLinks';
+import { adderLabel } from '../../../../../../lib/itemDetails';
+import { collectionHref, displayTitleOf, formatLinkTimestamp, isSafeHttpUrl } from '../../../../../../lib/savedLinks';
 import { useSignedInApp } from '../../../../AppRoot';
 import { Glyph } from '../../../../Glyph';
 import { BackButton, LoadFailed, Notice } from '../../../../PageStates';
 import { ItemDetailSkeleton } from '../../../../Skeletons';
 import { linkTitleText } from '../../../../SavedLinkList';
 import { ItemPhoto, OpenLinkButton, SourceRow } from '../../../../ItemParts';
+import { adderText, useSharedItem } from './SharedItemContent';
 import styles from '../../../../app.module.css';
-
-type State =
-  | { readonly kind: 'loading' }
-  | { readonly kind: 'failed' }
-  | { readonly kind: 'notFound' }
-  | { readonly kind: 'gated'; readonly gate: 'lock' | 'sharePassword' }
-  | { readonly kind: 'loaded'; readonly item: SharedCollectionItem };
 
 /**
  * Another member's link in a shared Collection - the mobile CollectionSharedItemScreen: only what the Collection shares (title, link,
@@ -28,39 +17,8 @@ type State =
  * comments are not part of this Web round.
  */
 export function SharedItemView({ collectionIdParam, itemIdParam }: { readonly collectionIdParam: string; readonly itemIdParam: string }) {
-  const { api, dictionary, locale, onSessionLost } = useSignedInApp();
-  const collectionId = parseRouteId(collectionIdParam);
-  const itemId = parseRouteId(itemIdParam);
-  const [state, setState] = useState<State>(collectionId === null || itemId === null ? { kind: 'notFound' } : { kind: 'loading' });
-  const [reloadToken, setReloadToken] = useState(0);
-
-  useEffect(() => {
-    if (collectionId === null || itemId === null) {
-      return undefined;
-    }
-    let ignore = false;
-    api<SharedCollectionItem>({ path: sharedItemPath(collectionId, itemId), headers: unlockHeaders(collectionId) }).then(
-      item => {
-        if (!ignore) {
-          setState({ kind: 'loaded', item });
-        }
-      },
-      error => {
-        if (ignore) {
-          return;
-        }
-        if (isSessionLost(error)) {
-          onSessionLost();
-          return;
-        }
-        const gate = contentGateOf(error);
-        setState(gate ? { kind: 'gated', gate } : isNotFound(error) ? { kind: 'notFound' } : { kind: 'failed' });
-      },
-    );
-    return () => {
-      ignore = true;
-    };
-  }, [api, collectionId, itemId, onSessionLost, reloadToken]);
+  const { dictionary, locale } = useSignedInApp();
+  const { collectionId, state, reload } = useSharedItem(collectionIdParam, itemIdParam);
 
   const back = <BackButton dictionary={dictionary} fallbackHref={collectionId === null ? '/collections' : collectionHref(collectionId)} />;
 
@@ -77,10 +35,7 @@ export function SharedItemView({ collectionIdParam, itemIdParam }: { readonly co
           <LoadFailed
             dictionary={dictionary}
             message={dictionary.sharedItemLoadFailed}
-            onRetry={() => {
-              setState({ kind: 'loading' });
-              setReloadToken(token => token + 1);
-            }}
+            onRetry={reload}
           />
         ) : null}
       </section>
@@ -132,8 +87,4 @@ export function SharedItemView({ collectionIdParam, itemIdParam }: { readonly co
       </article>
     </section>
   );
-}
-
-function adderText(adder: NonNullable<ReturnType<typeof adderLabel>>, dictionary: AppDictionary): string {
-  return adder.kind === 'me' ? dictionary.addedByMe : adder.kind === 'publicLink' ? dictionary.addedViaPublicLink : adder.name;
 }

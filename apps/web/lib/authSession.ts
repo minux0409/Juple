@@ -32,7 +32,7 @@ export function isSessionLost(error: unknown): boolean {
 export const SIGNED_IN_ROUTES = ['/', '/archive', '/collections', '/me', '/notifications'] as const;
 
 /** The signed-in pages below a route: a Collection (/collections/{id}, another member's link in it), a link (/items/{id}) and 내 페이지's pages (/me/settings, /me/friends, ...). */
-export const SIGNED_IN_ROUTE_PREFIXES = ['/collections/', '/items/', '/me/'] as const;
+export const SIGNED_IN_ROUTE_PREFIXES = ['/collections/', '/items/', '/me/', '/shared/'] as const;
 
 export function requiresSignIn(pathname: string): boolean {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;

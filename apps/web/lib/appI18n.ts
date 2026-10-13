@@ -130,6 +130,7 @@ export interface WebOnlyStrings {
   readonly notificationsSeeAll: string;
   readonly notificationsAppOnly: string;
   readonly notificationsReadAllFailed: string;
+  readonly removeFromCollectionAction: string;
 }
 
 export type AppDictionary = WebOnlyStrings & Readonly<Record<MobileStringKey, string>>;

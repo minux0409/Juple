@@ -16,7 +16,6 @@ import { ConfirmDialog } from '../../ConfirmDialog';
 import { CollectionGlyph, Glyph } from '../../Glyph';
 import { LinkImage } from '../../LinkImage';
 import { LoadFailed, Notice } from '../../PageStates';
-import { OpenLinkButton } from '../../ItemParts';
 import { SiteIcon } from '../../SiteIcon';
 import { linkTitleText } from '../../SavedLinkList';
 import { GatedLink } from './GatedLink';
@@ -121,23 +120,7 @@ export function ItemDetailContent({
   return (
     <article className={styles.quickContent} data-item-detail>
       <div className={styles.quickTop}>
-        {hasImage ? (
-          <div className={styles.quickThumb}>
-            <LinkImage
-              alt={dictionary.representativePhoto}
-              fallback={
-                <span aria-hidden className={styles.quickThumbFallback}>
-                  <SiteIcon siteId={siteId} size={40} />
-                </span>
-              }
-              src={photoUrl}
-            />
-          </div>
-        ) : (
-          <span aria-hidden className={styles.quickSiteTile}>
-            <SiteIcon siteId={siteId} size={32} />
-          </span>
-        )}
+        <QuickThumb dictionary={dictionary} photoUrl={hasImage ? photoUrl : null} siteId={siteId} />
         <div className={styles.quickHead}>
           <h2 className={styles.quickTitle} dir={technical ? 'ltr' : 'auto'}>
             {linkTitleText(title, dictionary)}
@@ -147,11 +130,37 @@ export function ItemDetailContent({
             <span>{site}</span>
           </p>
         </div>
-        {isSafeHttpUrl(item.url) ? (
-          <a aria-label={dictionary.openLink} className={styles.quickOpenIcon} href={item.url} rel="noopener noreferrer" target="_blank" title={dictionary.openLink}>
-            <Glyph name="ExternalLink" size={20} />
-          </a>
-        ) : null}
+        {/* The link's actions, one icon-only column beside its name: 링크 열기, 수정, then 삭제 - or, opened from a Collection,
+            컬렉션에서 제거 (only that membership; the link itself stays). The sheet's own 닫기 is in its bar, apart from these. */}
+        <div className={styles.quickActions}>
+          {isSafeHttpUrl(item.url) ? (
+            <a aria-label={dictionary.openLink} className={styles.quickActionButton} href={item.url} rel="noopener noreferrer" target="_blank" title={dictionary.openLink}>
+              <Glyph name="ExternalLink" size={20} />
+            </a>
+          ) : null}
+          <Link
+            aria-label={dictionary.edit}
+            className={styles.quickActionButton}
+            href={itemEditHref(itemId, search)}
+            onClick={() => {
+              // The editor comes back by going back to these details (their data is read again there).
+              markEditOpenedFromDetails();
+            }}
+            title={dictionary.edit}
+          >
+            <Glyph name="Edit" size={20} />
+          </Link>
+          <button
+            aria-label={removeFromCollection ? dictionary.removeFromCollectionAction : dictionary.delete}
+            className={styles.quickActionDanger}
+            disabled={busy}
+            onClick={() => setConfirming(true)}
+            title={removeFromCollection ? dictionary.removeFromCollectionAction : dictionary.delete}
+            type="button"
+          >
+            <Glyph name="Trash" size={20} />
+          </button>
+        </div>
       </div>
 
       <dl className={styles.quickGroups}>
@@ -193,24 +202,6 @@ export function ItemDetailContent({
           {actionError}
         </p>
       ) : null}
-      <div className={styles.quickFooter}>
-        <OpenLinkButton dictionary={dictionary} url={item.url} />
-        <Link
-          className={styles.settingsAction}
-          href={itemEditHref(itemId, search)}
-          onClick={() => {
-            // The editor comes back by going back to these details (their data is read again there).
-            markEditOpenedFromDetails();
-          }}
-        >
-          <Glyph name="Edit" size={16} />
-          {dictionary.edit}
-        </Link>
-        <button className={`${styles.dangerAction} ${styles.dangerQuiet}`} disabled={busy} onClick={() => setConfirming(true)} type="button">
-          <Glyph name="Trash" size={16} />
-          {removeFromCollection ? dictionary.removeFromCollection : dictionary.delete}
-        </button>
-      </div>
       <ConfirmDialog
         busy={busy}
         cancelLabel={dictionary.cancel}
@@ -223,6 +214,27 @@ export function ItemDetailContent({
         title={removeFromCollection ? dictionary.unlinkConfirmTitle : dictionary.itemDeleteConfirmTitle}
       />
     </article>
+  );
+}
+
+/** The head of a link's details: its picture, or - without one - a compact badge of its site instead of an empty media frame. */
+export function QuickThumb({ photoUrl, siteId, dictionary }: { readonly photoUrl: string | null; readonly siteId: ReturnType<typeof siteIdOf>; readonly dictionary: AppDictionary }) {
+  return photoUrl !== null ? (
+    <div className={styles.quickThumb}>
+      <LinkImage
+        alt={dictionary.representativePhoto}
+        fallback={
+          <span aria-hidden className={styles.quickThumbFallback}>
+            <SiteIcon siteId={siteId} size={40} />
+          </span>
+        }
+        src={photoUrl}
+      />
+    </div>
+  ) : (
+    <span aria-hidden className={styles.quickSiteTile}>
+      <SiteIcon siteId={siteId} size={32} />
+    </span>
   );
 }
 

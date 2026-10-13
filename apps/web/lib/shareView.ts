@@ -4,6 +4,7 @@ import {
   LOCKED,
   type PublicCollectionItem,
 } from './publicApi.ts';
+import { hasVisibleProfile, isPublicShare } from './sharedCollectionEntry.ts';
 
 export const ITEMS_PAGE_LIMIT = 50;
 
@@ -47,12 +48,12 @@ export async function loadShareView(
     if (collection === null) {
       return { kind: 'notFound' };
     }
-    if (collection.name === null) {
+    if (!hasVisibleProfile(collection)) {
       return { kind: 'locked' };
     }
 
     // 공용 컬렉션 OFF: nothing of the content is requested, let alone shown.
-    if (collection.isPublic === false) {
+    if (!isPublicShare(collection)) {
       return { kind: 'private', name: collection.name };
     }
 

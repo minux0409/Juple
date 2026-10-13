@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useItemsChanged } from './useItemsChanged';
 import { formatMessage, type AppDictionary } from '../../lib/appI18n';
@@ -8,6 +9,7 @@ import { isSessionLost } from '../../lib/authSession';
 import type { CollectionsPage, CollectionSummary } from '../../lib/collectionsView';
 import { homeCountPath, homeHistoryPath } from '../../lib/homeItems';
 import { exactCollectionCount, FAVORITE_SHORTCUT_COUNT, summaryCollectionsPath } from '../../lib/homeSummary';
+import { classifyCollectionShareUrl, collectionShareDestination } from '../../lib/collectionShareUrl';
 import { normalizeEnteredUrl, openReview } from '../../lib/newLink';
 import { collectionHref, formatLinkTimestamp, historyLinkView, parseViewMode, VIEW_MODE_STORAGE_KEYS, type ItemHistoryPage, type LinkView } from '../../lib/savedLinks';
 import { useSignedInApp } from './AppRoot';
@@ -223,7 +225,8 @@ function SummaryCards({ summary, todayCount, dictionary }: { readonly summary: S
 
 /** The mobile Home URL field + 저장, as the page's main panel: checks the text (a bare http(s) URL, or the first one in pasted text) and opens the review. */
 function AddLinkForm() {
-  const { dictionary } = useSignedInApp();
+  const { dictionary, publicWebHost } = useSignedInApp();
+  const router = useRouter();
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | null>(null);
   const submit = (event: React.FormEvent) => {
@@ -238,6 +241,18 @@ function AddLinkForm() {
     }
     setError(null);
     setValue('');
+    // A Juple Collection share link (of ANY Juple environment) is never an ordinary link (the mobile Home): this environment's link opens
+    // its Collection flow here (member, 추가 or 참가 요청); another environment's link goes to that environment, which decides itself.
+    const shareLink = classifyCollectionShareUrl(url, publicWebHost);
+    if (shareLink) {
+      const destination = collectionShareDestination(shareLink);
+      if (destination.kind === 'inApp') {
+        router.push(destination.href);
+      } else {
+        window.location.assign(destination.url);
+      }
+      return;
+    }
     // A full page navigation: see openReview (/items/new is never a Quick Detail sheet).
     openReview(url);
   };

@@ -132,12 +132,13 @@ describe('Home: adding a link (the mobile Home -> 새 링크 검토 flow)', asyn
     assert.match(review, /disabled=\{isSaving\} type="submit"/, '선택 안 함 is the starting state, so Save is always available');
   });
 
-  it('the metadata title is never a YouTube placeholder; a share link opens its Collection', () => {
+  it('the metadata title is never a YouTube placeholder; a share link opens its Collection', async () => {
     assert.equal(link.usableMetadataTitle('https://www.youtube.com/watch?v=1', ' - YouTube'), null);
     assert.equal(link.usableMetadataTitle('https://example.com', 'YouTube'), 'YouTube');
     assert.equal(link.usableMetadataTitle('https://a.test', '  '), null);
-    assert.equal(link.publicIdFromShareUrl('https://dev.juple.co.kr/c/AbCdEfGh12345678'), 'AbCdEfGh12345678');
-    assert.equal(link.publicIdFromShareUrl('https://dev.juple.co.kr/c/x'), null);
+    const share = await import('../lib/collectionShareUrl.ts');
+    assert.deepEqual(share.refusedShareUrlDestination('https://dev.juple.co.kr/c/AbCdEfGh12345678', 'dev.juple.co.kr'), { kind: 'inApp', href: '/shared/AbCdEfGh12345678' });
+    assert.equal(share.refusedShareUrlDestination('https://dev.juple.co.kr/c/x', 'dev.juple.co.kr'), null);
   });
 
   it('the save outcome says the link was saved and what the chosen Collections did (mobile formatSaveOutcomeMessage)', () => {

@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import { isSessionLost } from '../../../lib/authSession';
 import { getUnreadCount, refreshUnreadCount, setUnreadCount, shouldAutoRefresh, subscribeUnreadCount } from '../../../lib/notificationState';
-import { bellLabel, formatBadgeCount, notificationsPagePath, POPOVER_NOTIFICATION_LIMIT, type AppNotification, type NotificationsPage } from '../../../lib/notifications';
+import { bellLabel, formatBadgeCount, GROUP_LABEL_KEYS, groupNotifications, notificationsPagePath, POPOVER_NOTIFICATION_LIMIT, type AppNotification, type NotificationsPage } from '../../../lib/notifications';
 import { useSignedInApp } from '../AppRoot';
 import { Glyph } from '../Glyph';
 import { NotificationRow, NotificationSkeleton } from './NotificationRow';
@@ -214,24 +214,31 @@ export function NotificationBell() {
               </div>
             ) : null}
             {panel.kind === 'loaded' && items.length === 0 ? <p className={styles.bellEmpty}>{dictionary.notificationsEmpty}</p> : null}
-            {items.length > 0 ? (
-              <ul className={styles.notificationList}>
-                {items.map(item => (
-                  <li key={item.id}>
-                    <NotificationRow
-                      compact
-                      dictionary={dictionary}
-                      locale={locale}
-                      notification={item}
-                      onOpen={() => {
-                        setNotice(null);
-                        openNotification(item, setRows).then(showOutcome);
-                      }}
-                    />
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+            {/* The same groups as the 알림 page and the mobile app (one helper, the viewer's local calendar), over the rows this panel
+                loaded - only groups that have one. */}
+            {groupNotifications(items).map(group => (
+              <section aria-labelledby={`${headingId}-${group.key}`} className={styles.bellGroup} key={group.key}>
+                <h3 className={styles.bellGroupHeading} id={`${headingId}-${group.key}`}>
+                  {dictionary[GROUP_LABEL_KEYS[group.key]]}
+                </h3>
+                <ul className={styles.notificationList}>
+                  {group.items.map(item => (
+                    <li key={item.id}>
+                      <NotificationRow
+                        compact
+                        dictionary={dictionary}
+                        locale={locale}
+                        notification={item}
+                        onOpen={() => {
+                          setNotice(null);
+                          openNotification(item, setRows).then(showOutcome);
+                        }}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
           </div>
           <Link className={styles.bellPanelFooter} href="/notifications" onClick={() => setOpenOn(null)}>
             {dictionary.notificationsSeeAll}

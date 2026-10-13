@@ -5,11 +5,11 @@ import { useEffect, useRef, useState } from 'react';
 import { ApiHttpError } from '../../../../lib/appApi';
 import { isSessionLost } from '../../../../lib/authSession';
 import { loadDestinations } from '../../../../lib/collectionDestinations';
+import { classifyCollectionShareUrl, collectionShareDestination, refusedShareUrlDestination, type CollectionShareDestination } from '../../../../lib/collectionShareUrl';
 import type { CollectionSummary } from '../../../../lib/collectionsView';
 import {
   COLLECTION_SHARE_URL_NOT_SAVABLE_CODE,
   isHttpUrl,
-  publicIdFromShareUrl,
   saveErrorMessage,
   saveInboxEntryBody,
   saveOutcomeMessage,
@@ -32,9 +32,24 @@ import styles from '../../app.module.css';
  * decision), a memo, and the preview image the server found. Save creates the link once; a retry of the same link replays it.
  */
 export function NewLinkReviewView({ url }: { readonly url: string }) {
-  const { api, dictionary, onSessionLost } = useSignedInApp();
+  const { api, dictionary, onSessionLost, publicWebHost } = useSignedInApp();
   const router = useRouter();
   const valid = isHttpUrl(url);
+  // A Juple Collection share link (of ANY Juple environment) is never reviewed or saved as a link (the mobile NewLinkReview): it goes to
+  // the Collection flow at once - this environment's /shared, or the other environment's own address. Nothing is resolved or offered;
+  // neither destination ever comes back here, so this cannot loop.
+  const shareLink = classifyCollectionShareUrl(url, publicWebHost);
+  const shareTarget = shareLink ? collectionShareDestination(shareLink) : null;
+  const shareTargetKind = shareTarget?.kind ?? null;
+  const shareTargetAddress = shareTarget ? (shareTarget.kind === 'inApp' ? shareTarget.href : shareTarget.url) : null;
+  /** Leaves for a Collection share link's destination, replacing this page in the history (Back never returns to a review of it). */
+  const leaveFor = (destination: CollectionShareDestination) => {
+    if (destination.kind === 'inApp') {
+      router.replace(destination.href);
+    } else {
+      window.location.replace(destination.url);
+    }
+  };
   const [title, setTitle] = useState('');
   const [memo, setMemo] = useState('');
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
@@ -54,7 +69,15 @@ export function NewLinkReviewView({ url }: { readonly url: string }) {
   const titleTouched = useRef(false);
 
   useEffect(() => {
-    if (!valid) {
+    if (shareTargetKind === 'inApp' && shareTargetAddress) {
+      router.replace(shareTargetAddress);
+    } else if (shareTargetKind === 'otherEnvironment' && shareTargetAddress) {
+      window.location.replace(shareTargetAddress);
+    }
+  }, [router, shareTargetAddress, shareTargetKind]);
+
+  useEffect(() => {
+    if (!valid || shareTargetKind) {
       return undefined;
     }
     let ignore = false;
@@ -102,9 +125,12 @@ export function NewLinkReviewView({ url }: { readonly url: string }) {
     return () => {
       ignore = true;
     };
-  }, [api, onSessionLost, url, valid]);
+  }, [api, onSessionLost, shareTargetKind, url, valid]);
 
   const back = <BackButton dictionary={dictionary} fallbackHref="/" />;
+  if (shareTargetKind) {
+    return null;
+  }
   if (!valid) {
     return (
       <section className={styles.page}>
@@ -164,9 +190,9 @@ export function NewLinkReviewView({ url }: { readonly url: string }) {
       }
       // A Juple Collection share link is never saved as an ordinary link: it opens the Collection instead.
       if (caught instanceof ApiHttpError && caught.status === 400 && caught.code === COLLECTION_SHARE_URL_NOT_SAVABLE_CODE) {
-        const publicId = publicIdFromShareUrl(url);
-        if (publicId) {
-          router.replace(`/c/${encodeURIComponent(publicId)}`);
+        const destination = refusedShareUrlDestination(url, publicWebHost);
+        if (destination) {
+          leaveFor(destination);
           return;
         }
         setError(dictionary.collectionLinkNotSavable);
