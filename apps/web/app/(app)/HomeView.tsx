@@ -7,9 +7,9 @@ import { useItemsChanged } from './useItemsChanged';
 import { affectsList, removesFromList } from '../../lib/itemChanges';
 import { formatMessage, type AppDictionary } from '../../lib/appI18n';
 import { isSessionLost } from '../../lib/authSession';
-import type { CollectionsPage, CollectionSummary } from '../../lib/collectionsView';
+import type { CollectionSummary } from '../../lib/collectionsView';
 import { homeCountPath, homeHistoryPath } from '../../lib/homeItems';
-import { exactCollectionCount, FAVORITE_SHORTCUT_COUNT, summaryCollectionsPath } from '../../lib/homeSummary';
+import { HOME_SUMMARY_PATH, parseHomeSummary } from '../../lib/homeSummary';
 import { classifyCollectionShareUrl, collectionShareDestination } from '../../lib/collectionShareUrl';
 import { normalizeEnteredUrl, openReview } from '../../lib/newLink';
 import { collectionHref, formatLinkTimestamp, historyLinkView, parseViewMode, VIEW_MODE_STORAGE_KEYS, type ItemHistoryPage, type LinkView } from '../../lib/savedLinks';
@@ -101,20 +101,22 @@ export function HomeView() {
     };
   }, [api, onSessionLost, reloadToken]);
 
-  // The side summary is best effort: a scope that cannot be read just shows no number.
+  // The side summary is best effort: if it cannot be read Home just shows no numbers. ONE read gives the three exact counts and
+  // the favorite shortcuts (it replaced three full Collection lists read in parallel at every Home visit).
   useEffect(() => {
     let ignore = false;
-    const read = (scope: 'all' | 'favorites' | 'shared') => api<CollectionsPage>({ path: summaryCollectionsPath(scope) }).then(page => page, () => null);
-    Promise.all([read('all'), read('favorites'), read('shared')]).then(([all, favorites, shared]) => {
-      if (!ignore) {
-        setSummary({
-          all: all ? exactCollectionCount(all) : null,
-          favorites: favorites ? exactCollectionCount(favorites) : null,
-          shared: shared ? exactCollectionCount(shared) : null,
-          favoriteShortcuts: favorites ? favorites.items.slice(0, FAVORITE_SHORTCUT_COUNT) : [],
-        });
-      }
-    });
+    api<unknown>({ path: HOME_SUMMARY_PATH }).then(
+      raw => {
+        if (!ignore) {
+          setSummary(parseHomeSummary(raw));
+        }
+      },
+      () => {
+        if (!ignore) {
+          setSummary(null);
+        }
+      },
+    );
     return () => {
       ignore = true;
     };

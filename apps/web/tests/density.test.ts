@@ -1,17 +1,56 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
-import { exactCollectionCount, FAVORITE_SHORTCUT_COUNT, summaryCollectionsPath } from '../lib/homeSummary.ts';
+import { FAVORITE_SHORTCUT_COUNT, HOME_SUMMARY_PATH, parseHomeSummary } from '../lib/homeSummary.ts';
 
 const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 describe('Web-native layout: only real data fills the space', () => {
-  it('a Collections number is shown only when exact (the whole list in one page - the API has no total count)', () => {
-    assert.equal(exactCollectionCount({ items: [{}, {}, {}] as never, nextCursor: null }), 3);
-    assert.equal(exactCollectionCount({ items: [{}, {}] as never, nextCursor: 'more' }), null, 'more pages = no number, never a guess');
-    const path = new URL(summaryCollectionsPath('favorites'), 'http://x');
-    assert.deepEqual(Object.fromEntries(path.searchParams), { scope: 'favorites', limit: '50' });
+  it('Home reads its Collections numbers and shortcuts with ONE exact summary, not three lists', () => {
+    assert.equal(HOME_SUMMARY_PATH, '/api/v1/home/summary');
     assert.ok(FAVORITE_SHORTCUT_COUNT >= 4 && FAVORITE_SHORTCUT_COUNT <= 6);
+    const parsed = parseHomeSummary({
+      collectionCount: 12,
+      favoriteCollectionCount: 7,
+      sharedCollectionCount: 2,
+      favoriteCollections: [
+        { id: 5, name: 'Trip', itemCount: 3, icon: 'Folder', color: 'TRIP', iconImageUrl: 'https://img.example/a', iconImageVersion: 'v1' },
+        { id: 4, name: '책', itemCount: 0, icon: 'Book', color: null, iconImageUrl: null, iconImageVersion: null },
+      ],
+    });
+    assert.deepEqual(parsed && { all: parsed.all, favorites: parsed.favorites, shared: parsed.shared }, { all: 12, favorites: 7, shared: 2 });
+    assert.deepEqual(
+      parsed?.favoriteShortcuts.map(entry => [entry.id, entry.name, entry.itemCount, entry.isFavorite]),
+      [
+        [5, 'Trip', 3, true],
+        [4, '책', 0, true],
+      ],
+    );
+    assert.equal(parsed?.favoriteShortcuts[0].iconImageUrl, 'https://img.example/a');
+    assert.equal(parsed?.favoriteShortcuts[1].iconImageUrl, null);
+    // Zero is a real answer; anything malformed is no summary (Home shows no numbers - never a guess).
+    assert.equal(parseHomeSummary({ collectionCount: 0, favoriteCollectionCount: 0, sharedCollectionCount: 0, favoriteCollections: [] })?.all, 0);
+    const bad = [
+      null,
+      'x',
+      {},
+      { collectionCount: -1, favoriteCollectionCount: 0, sharedCollectionCount: 0, favoriteCollections: [] },
+      { collectionCount: 1, favoriteCollectionCount: 0, sharedCollectionCount: 0 },
+      { collectionCount: 1.5, favoriteCollectionCount: 0, sharedCollectionCount: 0, favoriteCollections: [] },
+    ];
+    for (const value of bad) {
+      assert.equal(parseHomeSummary(value), null);
+    }
+    // A malformed shortcut is skipped, and never more than the page shows.
+    const many = Array.from({ length: 9 }, (_, index) => ({ id: index + 1, name: `c${index}`, itemCount: 1, icon: 'Folder', color: null }));
+    const capped = parseHomeSummary({ collectionCount: 9, favoriteCollectionCount: 9, sharedCollectionCount: 0, favoriteCollections: [{ id: 'bad' }, ...many] });
+    assert.equal(capped?.favoriteShortcuts.length, FAVORITE_SHORTCUT_COUNT);
+  });
+
+  it('HomeView makes one summary request and no longer reads the three Collection scopes', () => {
+    const home = source('app/(app)/HomeView.tsx');
+    assert.match(home, /api<unknown>\(\{ path: HOME_SUMMARY_PATH \}\)/);
+    assert.doesNotMatch(home, /scope: |summaryCollectionsPath|exactCollectionCount|\/api\/v1\/collections/);
   });
 
   it('Home: the add panel and today\'s links in the main column; exact counts, the two existing destinations and favorites beside them', () => {

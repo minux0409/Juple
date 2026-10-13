@@ -48,6 +48,18 @@ public interface ICollectionStore
         Task.FromResult(new CollectionPage([], null));
 
     /// <summary>
+    /// Home's Collections summary in a small, fixed number of statements - never a list per scope: the exact number of the caller's
+    /// Collections in the All / Favorites / Shared scopes (same definitions as <see cref="ListByScopeAsync"/>) and the first
+    /// <paramref name="favoriteLimit"/> favorite Collections (newest first, like the list).
+    /// </summary>
+    Task<HomeSummary.HomeCollectionsSummary> GetHomeSummaryAsync(
+        long userId,
+        int favoriteLimit,
+        CancellationToken cancellationToken = default) =>
+        // Same defaulted-member convention as ListSharedAsync - only CollectionStore implements it.
+        Task.FromResult(HomeSummary.HomeCollectionsSummary.Empty);
+
+    /// <summary>
     /// One page of the caller's Collections in the given scope (see CollectionListScope), in a
     /// single ordering (CreatedAtUtc DESC, Id DESC) across owned and shared rows - so a mixed list
     /// is paged by the server, never merged by the client. Every row carries the caller's AccessRole,

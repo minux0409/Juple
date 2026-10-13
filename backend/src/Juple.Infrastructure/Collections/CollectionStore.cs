@@ -1,4 +1,5 @@
 ﻿using Juple.Application.Collections;
+using Juple.Application.Collections.HomeSummary;
 using Juple.Application.Collections.ListCollections;
 using Juple.Application.Collections.MergeCollections;
 using Juple.Application.Collections.Public;
@@ -76,6 +77,95 @@ public sealed class CollectionStore(
         int limit,
         CancellationToken cancellationToken = default) =>
         ListPageAsync(userId, AccessibleCollections(userId, scope), itemId, excludeItemId, cursor, limit, cancellationToken);
+
+    /// <summary>
+    /// Home's summary: at most TWO statements however many Collections the caller has (the old Home read three full lists,
+    /// about twelve statements, to show three numbers and six shortcuts).
+    ///  1. The three counts in one aggregate over the same accessible set the list scopes use (owned + shared with the
+    ///     caller, each once): All = every row, Favorites = the caller's own favorite mark (the owner's column, a member's
+    ///     CollectionFavorites row), Shared = shared with the caller, or the caller's own that has a member or an active
+    ///     모든 사용자 link - exactly <see cref="AccessibleCollections"/>'s definitions, so a number always equals the length of
+    ///     the list behind it. No per-row projection (no participants, pending counts, passwords, unread counts).
+    ///  2. Only when there is a favorite: the first few, newest first, with just what a shortcut draws.
+    /// </summary>
+    public async Task<HomeCollectionsSummary> GetHomeSummaryAsync(
+        long userId,
+        int favoriteLimit,
+        CancellationToken cancellationToken = default)
+    {
+        var flags = AccessibleCollections(userId, CollectionListScope.All).Select(collection => new
+        {
+            IsFavorite = collection.UserId == userId
+                ? collection.IsFavorite
+                : dbContext.CollectionFavorites.Any(
+                    favorite => favorite.UserId == userId && favorite.CollectionId == collection.Id),
+            IsShared = collection.UserId != userId
+                || dbContext.CollectionCollaborators.Any(collaborator => collaborator.CollectionId == collection.Id)
+                || dbContext.CollectionShares.Any(share => share.CollectionId == collection.Id && share.IsActive && share.IsPublic),
+        });
+
+        var counts = await flags
+            .GroupBy(_ => 1)
+            .Select(group => new
+            {
+                Total = group.Count(),
+                Favorites = group.Count(flag => flag.IsFavorite),
+                Shared = group.Count(flag => flag.IsShared),
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (counts is null || counts.Total == 0)
+        {
+            return HomeCollectionsSummary.Empty;
+        }
+
+        if (counts.Favorites == 0 || favoriteLimit <= 0)
+        {
+            return new HomeCollectionsSummary(counts.Total, counts.Favorites, counts.Shared, []);
+        }
+
+        var rows = await AccessibleCollections(userId, CollectionListScope.Favorites)
+            .OrderByDescending(collection => collection.CreatedAtUtc)
+            .ThenByDescending(collection => collection.Id)
+            .Select(collection => new
+            {
+                collection.Id,
+                OwnerUserId = collection.UserId,
+                collection.Name,
+                // The same count the Collections list reports: memberships whose Item is not in the trash.
+                ItemCount = dbContext.CollectionItems
+                    .Where(membership => membership.CollectionId == collection.Id)
+                    .Count(membership => dbContext.Items.Any(
+                        item => item.Id == membership.ItemId && item.DeletedAtUtc == null)),
+                collection.Icon,
+                collection.Color,
+                collection.IconImageBlobName,
+            })
+            .Take(favoriteLimit)
+            .ToListAsync(cancellationToken);
+
+        var shortcuts = new List<HomeFavoriteCollectionDto>(rows.Count);
+        foreach (var row in rows)
+        {
+            string? iconUrl = null;
+            if (iconImageStorage is not null && row.IconImageBlobName is not null)
+            {
+                // Signed for the Owner's own prefix, locally (no query, no network call) - like the Collections list.
+                iconUrl = (await iconImageStorage.CreateCollectionIconReadUrlAsync(row.OwnerUserId, row.IconImageBlobName, cancellationToken))?.ToString();
+            }
+
+            shortcuts.Add(new HomeFavoriteCollectionDto(
+                row.Id,
+                row.Name,
+                row.ItemCount,
+                row.Icon.ToString(),
+                row.Color,
+                iconUrl,
+                iconUrl is not null ? CollectionIconImageVersion.From(row.IconImageBlobName!) : null));
+        }
+
+        return new HomeCollectionsSummary(counts.Total, counts.Favorites, counts.Shared, shortcuts);
+    }
 
     /// <summary>
     /// The caller's active Collections in a scope: owned ones, ones shared with them (as a
