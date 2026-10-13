@@ -104,6 +104,7 @@ public static class DependencyInjection
         services.AddScoped<IInstagramMetadataRetryService, InstagramMetadataRetryService>();
         services.AddScoped<IRecentlyOpenedItemStore, RecentlyOpenedItemStore>();
         services.AddScoped<ICollectionStore, CollectionStore>();
+        services.AddScoped<Juple.Infrastructure.Persistence.Warmup.IQueryWarmupSource, Juple.Infrastructure.Persistence.Warmup.HotQueryWarmupSource>();
         services.AddScoped<ICollectionItemStore, CollectionStore>();
         services.AddScoped<Juple.Application.Collections.RemoveItemFromCollection.ICollectionContributedLinkStore, CollectionStore>();
         services.AddScoped<ICollectionWriteTransactions, CollectionWriteTransactions>();

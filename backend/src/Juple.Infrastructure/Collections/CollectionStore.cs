@@ -14,6 +14,7 @@ using Juple.Domain.Collections;
 using Juple.Domain.Notifications;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
+using Juple.Infrastructure.Persistence.Warmup;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -54,7 +55,7 @@ public sealed class CollectionStore(
             query = query.Where(collection => collection.IsFavorite == requestedIsFavorite);
         }
 
-        return ListPageAsync(userId, query, itemId, excludeItemId, cursor, limit, cancellationToken);
+        return ListPageAsync(userId, query, itemId, excludeItemId, cursor, limit, sink: null, cancellationToken);
     }
 
     /// <summary>"공유 컬렉션": shared with the caller, or the caller's own currently-shared ones (see AccessibleCollections).</summary>
@@ -66,7 +67,7 @@ public sealed class CollectionStore(
         int limit,
         CancellationToken cancellationToken = default) =>
         ListPageAsync(
-            userId, AccessibleCollections(userId, CollectionListScope.Shared), itemId, excludeItemId, cursor, limit, cancellationToken);
+            userId, AccessibleCollections(userId, CollectionListScope.Shared), itemId, excludeItemId, cursor, limit, sink: null, cancellationToken);
 
     public Task<CollectionPage> ListByScopeAsync(
         long userId,
@@ -76,7 +77,14 @@ public sealed class CollectionStore(
         CollectionPageCursor? cursor,
         int limit,
         CancellationToken cancellationToken = default) =>
-        ListPageAsync(userId, AccessibleCollections(userId, scope), itemId, excludeItemId, cursor, limit, cancellationToken);
+        ListPageAsync(userId, AccessibleCollections(userId, scope), itemId, excludeItemId, cursor, limit, sink: null, cancellationToken);
+
+    /// <summary>
+    /// The first page of each scope the app opens first, translated only (start-up warm-up, no database access) - the SAME query the
+    /// list runs (<see cref="ListPageAsync"/> with a sink), never a copy.
+    /// </summary>
+    internal async Task TranslateListQueriesAsync(QueryTranslationSink sink, CollectionListScope scope, CancellationToken cancellationToken) =>
+        await ListPageAsync(0, AccessibleCollections(0, scope), itemId: null, excludeItemId: null, cursor: null, limit: 24, sink, cancellationToken);
 
     /// <summary>
     /// Home's summary: at most TWO statements however many Collections the caller has (the old Home read three full lists,
@@ -88,10 +96,21 @@ public sealed class CollectionStore(
     ///     the list behind it. No per-row projection (no participants, pending counts, passwords, unread counts).
     ///  2. Only when there is a favorite: the first few, newest first, with just what a shortcut draws.
     /// </summary>
-    public async Task<HomeCollectionsSummary> GetHomeSummaryAsync(
+    public Task<HomeCollectionsSummary> GetHomeSummaryAsync(
         long userId,
         int favoriteLimit,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        GetHomeSummaryCoreAsync(userId, favoriteLimit, sink: null, cancellationToken);
+
+    /// <summary>Home's two statements, translated only (start-up warm-up) - see <see cref="QueryTranslationSink"/>.</summary>
+    internal Task TranslateHomeSummaryAsync(QueryTranslationSink sink, CancellationToken cancellationToken) =>
+        GetHomeSummaryCoreAsync(0, IHomeCollectionsSummaryService.FavoriteShortcutLimit, sink, cancellationToken);
+
+    private async Task<HomeCollectionsSummary> GetHomeSummaryCoreAsync(
+        long userId,
+        int favoriteLimit,
+        QueryTranslationSink? sink,
+        CancellationToken cancellationToken)
     {
         var flags = AccessibleCollections(userId, CollectionListScope.All).Select(collection => new
         {
@@ -104,27 +123,15 @@ public sealed class CollectionStore(
                 || dbContext.CollectionShares.Any(share => share.CollectionId == collection.Id && share.IsActive && share.IsPublic),
         });
 
-        var counts = await flags
+        var countsQuery = flags
             .GroupBy(_ => 1)
             .Select(group => new
             {
                 Total = group.Count(),
                 Favorites = group.Count(flag => flag.IsFavorite),
                 Shared = group.Count(flag => flag.IsShared),
-            })
-            .SingleOrDefaultAsync(cancellationToken);
-
-        if (counts is null || counts.Total == 0)
-        {
-            return HomeCollectionsSummary.Empty;
-        }
-
-        if (counts.Favorites == 0 || favoriteLimit <= 0)
-        {
-            return new HomeCollectionsSummary(counts.Total, counts.Favorites, counts.Shared, []);
-        }
-
-        var rows = await AccessibleCollections(userId, CollectionListScope.Favorites)
+            });
+        var favoritesQuery = AccessibleCollections(userId, CollectionListScope.Favorites)
             .OrderByDescending(collection => collection.CreatedAtUtc)
             .ThenByDescending(collection => collection.Id)
             .Select(collection => new
@@ -141,8 +148,26 @@ public sealed class CollectionStore(
                 collection.Color,
                 collection.IconImageBlobName,
             })
-            .Take(favoriteLimit)
-            .ToListAsync(cancellationToken);
+            .Take(favoriteLimit);
+        if (sink is not null)
+        {
+            sink.Capture(countsQuery);
+            sink.Capture(favoritesQuery);
+            return HomeCollectionsSummary.Empty;
+        }
+
+        var counts = await countsQuery.SingleOrDefaultAsync(cancellationToken);
+        if (counts is null || counts.Total == 0)
+        {
+            return HomeCollectionsSummary.Empty;
+        }
+
+        if (counts.Favorites == 0 || favoriteLimit <= 0)
+        {
+            return new HomeCollectionsSummary(counts.Total, counts.Favorites, counts.Shared, []);
+        }
+
+        var rows = await favoritesQuery.ToListAsync(cancellationToken);
 
         var shortcuts = new List<HomeFavoriteCollectionDto>(rows.Count);
         foreach (var row in rows)
@@ -224,6 +249,7 @@ public sealed class CollectionStore(
         long? excludeItemId,
         CollectionPageCursor? cursor,
         int limit,
+        QueryTranslationSink? sink,
         CancellationToken cancellationToken)
     {
         // A filter on the caller's accessible Collections, not a lookup of the Item itself - a
@@ -254,11 +280,17 @@ public sealed class CollectionStore(
                 || (collection.CreatedAtUtc == cursor.CreatedAtUtc && collection.Id < cursor.Id));
         }
 
-        var rows = await ProjectRows(userId, query
+        var pageQuery = ProjectRows(userId, query
                 .OrderByDescending(collection => collection.CreatedAtUtc)
                 .ThenByDescending(collection => collection.Id))
-            .Take(limit + 1)
-            .ToListAsync(cancellationToken);
+            .Take(limit + 1);
+        if (sink is not null)
+        {
+            sink.Capture(pageQuery);
+            return new CollectionPage([], null);
+        }
+
+        var rows = await pageQuery.ToListAsync(cancellationToken);
 
         var hasMore = rows.Count > limit;
         var pageItems = await ToDtosAsync(userId, hasMore ? rows.GetRange(0, limit) : rows, cancellationToken);

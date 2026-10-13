@@ -6,6 +6,7 @@ using Juple.Domain.Collections;
 using Juple.Domain.Items;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
+using Juple.Infrastructure.Persistence.Warmup;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -713,14 +714,29 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         return rows.Select(row => new NameOrderKey(row.Id, row.SavedAtUtc, row.Bucket, row.Key)).ToList();
     }
 
-    public async Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetByDateRangeAsync(
+    public Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetByDateRangeAsync(
         long userId,
         DateTimeOffset fromUtc,
         DateTimeOffset toUtc,
         ItemHistoryPageCursor? cursor,
         int limit,
         string? searchPattern = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        GetByDateRangeCoreAsync(userId, fromUtc, toUtc, cursor, limit, searchPattern, sink: null, cancellationToken);
+
+    /// <summary>
+    /// The date-range page. With a <paramref name="sink"/> it only builds the query it would run and hands it to the sink (start-up
+    /// warm-up: translation, no database access) - the same expression, never a copy.
+    /// </summary>
+    internal async Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetByDateRangeCoreAsync(
+        long userId,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        ItemHistoryPageCursor? cursor,
+        int limit,
+        string? searchPattern,
+        QueryTranslationSink? sink,
+        CancellationToken cancellationToken)
     {
         // Same shape as GetHistoryAsync, plus the [fromUtc, toUtc) date-range predicate - unbounded
         // (all-of-a-day) responses are not acceptable for a production API, so this uses the exact
@@ -803,7 +819,14 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                     .FirstOrDefault(),
             };
 
-        var page = await pagedQuery.Take(limit + 1).ToListAsync(cancellationToken);
+        var limitedQuery = pagedQuery.Take(limit + 1);
+        if (sink is not null)
+        {
+            sink.Capture(limitedQuery);
+            return (new ItemHistoryPage([], null), new Dictionary<long, ItemRepresentativeImageRef>(), new Dictionary<long, ItemRepresentativeImageRef>());
+        }
+
+        var page = await limitedQuery.ToListAsync(cancellationToken);
 
         var hasMore = page.Count > limit;
         var pageRows = hasMore ? page.GetRange(0, limit) : page;
@@ -847,6 +870,21 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         return (new ItemHistoryPage(items, nextCursor), representativeImages, coverImages);
     }
 
+    /// <summary>The Home history page and the Home count, translated only (start-up warm-up) - see <see cref="QueryTranslationSink"/>.</summary>
+    internal async Task TranslateHomeQueriesAsync(QueryTranslationSink sink, string what, CancellationToken cancellationToken)
+    {
+        var from = DateTimeOffset.UnixEpoch;
+        var to = from.AddDays(1);
+        if (what == "history")
+        {
+            await GetByDateRangeCoreAsync(0, from, to, cursor: null, limit: 30, searchPattern: null, sink, cancellationToken);
+        }
+        else
+        {
+            sink.Capture(HistoryRangeCountQuery(0, SerializeWindows([(from, to)])));
+        }
+    }
+
     public async Task<DateTimeOffset?> GetOldestSavedAtUtcAsync(long userId, DateTimeOffset beforeUtc, CancellationToken cancellationToken = default) =>
         await dbContext.Items
             .AsNoTracking()
@@ -868,9 +906,24 @@ public sealed class ItemStore(JupleDbContext dbContext) :
             return [];
         }
 
-        var windows = System.Text.Json.JsonSerializer.Serialize(
+        var windows = SerializeWindows(ranges);
+        var rows = await HistoryRangeCountQuery(userId, windows).ToListAsync(cancellationToken);
+
+        var counts = new int[ranges.Count];
+        foreach (var row in rows)
+        {
+            counts[row.Idx] = row.Count;
+        }
+
+        return counts;
+    }
+
+    private static string SerializeWindows(IEnumerable<(DateTimeOffset FromUtc, DateTimeOffset ToUtc)> ranges) =>
+        System.Text.Json.JsonSerializer.Serialize(
             ranges.Select((range, index) => new { i = index, f = range.FromUtc, t = range.ToUtc }));
-        var rows = await dbContext.Database
+
+    private IQueryable<HistoryRangeCount> HistoryRangeCountQuery(long userId, string windows) =>
+        dbContext.Database
             .SqlQueryRaw<HistoryRangeCount>(
                 """
                 SELECT w.[Idx], (
@@ -881,17 +934,7 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                 FROM OPENJSON(@windows) WITH ([Idx] int '$.i', [FromUtc] datetimeoffset '$.f', [ToUtc] datetimeoffset '$.t') AS w
                 """,
                 new SqlParameter("@userId", userId),
-                new SqlParameter("@windows", windows))
-            .ToListAsync(cancellationToken);
-
-        var counts = new int[ranges.Count];
-        foreach (var row in rows)
-        {
-            counts[row.Idx] = row.Count;
-        }
-
-        return counts;
-    }
+                new SqlParameter("@windows", windows));
 
     private sealed class HistoryRangeCount
     {

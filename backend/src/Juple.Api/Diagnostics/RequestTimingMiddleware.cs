@@ -88,14 +88,14 @@ public static class RequestTimingMarks
 /// </summary>
 public sealed class RequestTimingMiddleware(RequestDelegate next, ILogger<RequestTimingMiddleware> logger, IOptions<RequestTimingOptions> options)
 {
-    // Frequent platform probes - not user requests.
+    // Frequent platform probes (/health liveness, /health/ready readiness) - not user requests.
     private const string HealthPath = "/health";
 
     private readonly int _slowThresholdMs = Math.Max(1, options.Value.SlowRequestThresholdMs);
 
     public async Task InvokeAsync(HttpContext context)
     {
-        if (context.Request.Path.Equals(HealthPath, StringComparison.OrdinalIgnoreCase))
+        if (context.Request.Path.StartsWithSegments(HealthPath, StringComparison.OrdinalIgnoreCase))
         {
             await next(context);
             return;

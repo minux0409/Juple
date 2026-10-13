@@ -116,6 +116,18 @@ param requestTimingEnabled bool = false
 @description('A request at or above this many ms is logged as a Warning (RequestTiming:SlowRequestThresholdMs). Only used when requestTimingEnabled.')
 param requestTimingSlowThresholdMs int = 500
 
+@description('Turns on the start-up warm-up of the API (StartupWarmup:Enabled; Juple.Api/Warmup): authentication metadata, the EF model, a few SQL connections opened at once and the hot query shapes (translated only - no command runs, no data is read) are prepared right after the process starts, and /health/ready turns healthy only when that is done. Default false (nothing changes). Dev turns it on.')
+param startupWarmupEnabled bool = false
+
+@description('How many SQL connections the warm-up opens AT THE SAME TIME to fill the pool (StartupWarmup:ConnectionPoolSize, capped at 16 by the API). Only used when startupWarmupEnabled.')
+param startupWarmupConnectionPoolSize int = 4
+
+@description('The warm-up budget in seconds (StartupWarmup:TimeoutSeconds). When it is over the instance becomes ready anyway (degraded, logged as an error) - readiness is never held back for good. Only used when startupWarmupEnabled.')
+param startupWarmupTimeoutSeconds int = 45
+
+@description('The path of the Readiness probe. Default /health (the liveness endpoint - unchanged for an environment that does not set it). With the warm-up on, /health/ready: the replica receives traffic only after the warm-up finished. Never point it at /health/ready for an image that predates that endpoint (it would never become ready).')
+param readinessProbePath string = '/health'
+
 @description('Optional log level for the Microsoft.IdentityModel category (Logging:LogLevel:Microsoft.IdentityModel), e.g. Warning to drop the four Information lines every successful token validation writes (IDX10234 / 10239 / 10242 / 10245) while keeping every warning and error. Empty (default) = the default of the API itself.')
 param identityModelLogLevel string = ''
 
@@ -413,6 +425,23 @@ var diagnosticsEnv = concat(
       ]
 )
 
+var startupWarmupEnv = startupWarmupEnabled
+  ? [
+      {
+        name: 'StartupWarmup__Enabled'
+        value: 'true'
+      }
+      {
+        name: 'StartupWarmup__ConnectionPoolSize'
+        value: string(startupWarmupConnectionPoolSize)
+      }
+      {
+        name: 'StartupWarmup__TimeoutSeconds'
+        value: string(startupWarmupTimeoutSeconds)
+      }
+    ]
+  : []
+
 var hasCustomDomain = !empty(customDomainName) && !empty(managedCertificateName)
 var managedCertificateResourceId = hasCustomDomain
   ? resourceId('Microsoft.App/managedEnvironments/managedCertificates', containerAppsEnvironmentName, managedCertificateName)
@@ -622,7 +651,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'PublicWeb__BaseUrl'
               value: publicWebBaseUrl
             }
-          ], authenticatedWebEnv, mobileVersionPolicyEnv, billingEnv, observabilityEnv, diagnosticsEnv)
+          ], authenticatedWebEnv, mobileVersionPolicyEnv, billingEnv, observabilityEnv, diagnosticsEnv, startupWarmupEnv)
           probes: [
             {
               type: 'Liveness'
@@ -638,7 +667,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               type: 'Readiness'
               httpGet: {
-                path: '/health'
+                path: readinessProbePath
                 port: 8080
               }
               initialDelaySeconds: 5

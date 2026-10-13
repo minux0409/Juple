@@ -96,6 +96,13 @@ param minReplicas = 1
 // Dev diagnostics: one structured timing line per request (route template / status / elapsed / SQL totals) in the Container App console
 // log -> Log Analytics, and only warnings and errors from the IdentityModel token-validation chatter. Production does not set these.
 param requestTimingEnabled = true
+// Start-up warm-up (measured on Dev 2026-10-13: the first signed-in traffic after a start took 9-12 s - authentication metadata,
+// EF model / first query translation, new SQL connections - and the first Home after it still 0.6-1.1 s per query shape). Prepared
+// before readiness; /health/ready gates traffic. Production does not set these (its Readiness probe stays on /health).
+param startupWarmupEnabled = true
+param startupWarmupConnectionPoolSize = 4
+param startupWarmupTimeoutSeconds = 45
+param readinessProbePath = '/health/ready'
 param requestTimingSlowThresholdMs = 500
 param identityModelLogLevel = 'Warning'
 

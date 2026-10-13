@@ -47,10 +47,13 @@ public sealed class NotificationInboxStore(JupleDbContext dbContext) : INotifica
     }
 
     public Task<int> CountUnreadAsync(long userId, CancellationToken cancellationToken = default) =>
+        UnreadQuery(userId).CountAsync(cancellationToken);
+
+    /// <summary>The rows the bell counts. Shared with the start-up query warm-up (translation only).</summary>
+    internal IQueryable<Notification> UnreadQuery(long userId) =>
         dbContext.Notifications
             .Where(notification => notification.UserId == userId && notification.ReadAtUtc == null)
-            .Where(IsInboxRow)
-            .CountAsync(cancellationToken);
+            .Where(IsInboxRow);
 
     public async Task<bool> DeleteAsync(long userId, long notificationId, CancellationToken cancellationToken = default) =>
         await dbContext.Notifications

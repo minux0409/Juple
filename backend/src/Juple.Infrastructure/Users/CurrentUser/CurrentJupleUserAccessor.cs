@@ -12,14 +12,17 @@ public sealed class CurrentJupleUserAccessor(JupleDbContext dbContext) : ICurren
         ExternalIdentityPrincipal externalIdentity,
         CancellationToken cancellationToken = default)
     {
-        var currentUser = await (
-            from identity in dbContext.Set<ExternalIdentity>()
-            join user in dbContext.Users on identity.UserId equals user.Id
-            where identity.TenantId == externalIdentity.TenantId
-                && identity.ObjectId == externalIdentity.ObjectId
-            select new CurrentJupleUser(user.Id, user.TimeZoneId, user.Plan))
+        var currentUser = await Query(dbContext, externalIdentity.TenantId, externalIdentity.ObjectId)
             .SingleOrDefaultAsync(cancellationToken);
 
         return currentUser ?? throw new CurrentJupleUserNotFoundException();
     }
+
+    /// <summary>The one query every authenticated request runs first. Shared with the start-up query warm-up (translation only).</summary>
+    internal static IQueryable<CurrentJupleUser> Query(JupleDbContext dbContext, Guid tenantId, Guid objectId) =>
+        from identity in dbContext.Set<ExternalIdentity>()
+        join user in dbContext.Users on identity.UserId equals user.Id
+        where identity.TenantId == tenantId
+            && identity.ObjectId == objectId
+        select new CurrentJupleUser(user.Id, user.TimeZoneId, user.Plan);
 }

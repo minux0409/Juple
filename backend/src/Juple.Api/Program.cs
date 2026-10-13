@@ -2,6 +2,8 @@ using Juple.Infrastructure;
 using Juple.Api.Authentication;
 using Juple.Api.Configuration;
 using Juple.Api.Diagnostics;
+using Juple.Api.Warmup;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Juple.Api.Public;
 using System.Threading.RateLimiting;
 using Juple.Api.Collections;
@@ -115,6 +117,20 @@ if (!isOutsideHttpApi
     // Sends the committed outbox events' wake-up signals to Service Bus in the background (the
     // requests only hand them to an in-process channel - see NotificationSignalPump).
     builder.Services.AddHostedService<Juple.Api.Notifications.NotificationSignalPublisherService>();
+}
+
+if (!isOutsideHttpApi)
+{
+    // HTTP API only: the start-up warm-up (off unless StartupWarmup:Enabled). It runs right after the host starts - never before the
+    // listener, so /health (liveness) answers throughout - and /health/ready turns healthy when it is done. See StartupWarmupRunner.
+    builder.Services.Configure<StartupWarmupOptions>(builder.Configuration.GetSection(StartupWarmupOptions.SectionName));
+    builder.Services.AddSingleton<StartupWarmupState>();
+    builder.Services.AddSingleton<IStartupWarmupTask, AuthMetadataWarmupTask>();
+    builder.Services.AddSingleton<IStartupWarmupTask, EfModelWarmupTask>();
+    builder.Services.AddSingleton<IStartupWarmupTask, ConnectionPoolWarmupTask>();
+    builder.Services.AddSingleton<IStartupWarmupTask, QueryCompilationWarmupTask>();
+    builder.Services.AddSingleton<StartupWarmupRunner>();
+    builder.Services.AddHostedService<StartupWarmupHostedService>();
 }
 
 if (!isOutsideHttpApi)
@@ -329,7 +345,13 @@ builder.Services.AddRateLimiter(options =>
             RateLimitPolicies.PublicUnlockPartitionKey(httpContext),
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
-builder.Services.AddHealthChecks();
+var healthChecks = builder.Services.AddHealthChecks();
+if (!isOutsideHttpApi)
+{
+    // Readiness (/health/ready) is the start-up warm-up's state. Tagged "ready" so the liveness endpoint /health - which keeps its
+    // meaning "the process answers" - never runs it.
+    healthChecks.AddCheck<StartupWarmupReadinessCheck>("startup-warmup", tags: ["ready"]);
+}
 builder.Services.AddOpenApi();
 
 // PublicWeb: scoped to PublicCollectionsController alone (see its [EnableCors] attribute). Left with
@@ -476,7 +498,9 @@ if (requestTimingEnabled)
 app.UseAuthorization();
 app.UseRateLimiter();
 app.MapControllers();
-app.MapHealthChecks("/health");
+// /health: liveness - the process answers (unchanged meaning; the warm-up check is excluded). /health/ready: the warm-up is done.
+app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = check => !check.Tags.Contains("ready") });
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
 
 app.Run();
 return 0;
