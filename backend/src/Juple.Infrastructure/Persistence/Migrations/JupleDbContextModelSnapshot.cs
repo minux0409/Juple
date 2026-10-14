@@ -1808,6 +1808,115 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Juple.Domain.Safety.ContentReport", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("CollectionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Details")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long?>("ReporterUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Resolution")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTimeOffset?>("ReviewedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<long>("TargetId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("TargetType")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<long?>("TargetUserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReporterUserId")
+                        .HasDatabaseName("IX_ContentReports_ReporterUserId");
+
+                    b.HasIndex("TargetUserId")
+                        .HasDatabaseName("IX_ContentReports_TargetUserId");
+
+                    b.HasIndex("Status", "Id")
+                        .HasDatabaseName("IX_ContentReports_Status_Id");
+
+                    b.HasIndex("ReporterUserId", "TargetType", "TargetId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ContentReports_OpenPerReporterTarget")
+                        .HasFilter("[Status] = 'Pending' AND [ReporterUserId] IS NOT NULL");
+
+                    b.ToTable("ContentReports", "safety", t =>
+                        {
+                            t.HasCheckConstraint("CK_ContentReports_Reason_Valid", "[Reason] IN ('Spam', 'Harassment', 'HateOrAbuse', 'SexualOrInappropriate', 'Illegal', 'ScamOrMaliciousLink', 'IntellectualProperty', 'Other')");
+
+                            t.HasCheckConstraint("CK_ContentReports_Review_Consistent", "([Status] = 'Pending' AND [ReviewedAtUtc] IS NULL) OR ([Status] <> 'Pending' AND [ReviewedAtUtc] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_ContentReports_Status_Valid", "[Status] IN ('Pending', 'Reviewed', 'Dismissed', 'Actioned')");
+
+                            t.HasCheckConstraint("CK_ContentReports_TargetType_Valid", "[TargetType] IN ('User', 'Collection', 'Item', 'Comment')");
+                        });
+                });
+
+            modelBuilder.Entity("Juple.Domain.Safety.UserBlock", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BlockedUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BlockerUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BlockedUserId", "BlockerUserId")
+                        .HasDatabaseName("IX_UserBlocks_Blocked_Blocker");
+
+                    b.HasIndex("BlockerUserId", "BlockedUserId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_UserBlocks_Blocker_Blocked");
+
+                    b.ToTable("UserBlocks", "safety", t =>
+                        {
+                            t.HasCheckConstraint("CK_UserBlocks_NotSelf", "[BlockerUserId] <> [BlockedUserId]");
+                        });
+                });
+
             modelBuilder.Entity("Juple.Domain.Support.SupportInquiry", b =>
                 {
                     b.Property<long>("Id")
@@ -1933,6 +2042,10 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("AcceptedTermsVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
@@ -1969,6 +2082,9 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset?>("TermsAcceptedAtUtc")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<string>("TimeZoneId")
                         .IsRequired()
@@ -2448,6 +2564,21 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.HasOne("Juple.Domain.Users.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Safety.UserBlock", b =>
+                {
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("BlockedUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("BlockerUserId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
                 });

@@ -124,6 +124,20 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext, TimeProvider?
                 .Where(inquiry => inquiry.UserId == userId)
                 .ExecuteDeleteAsync(cancellationToken);
 
+            // Safety. A block is a relation that belongs to the two accounts: it goes when either is deleted. Reports are moderation
+            // evidence and are NOT deleted with their reporter or their subject: the reporter's user id is cleared (the report stays,
+            // anonymously) and so is the id of the person it was about. The terms acceptance lives on the user row and goes with it.
+            // Retention of the remaining report rows is an open review item (docs/ugc-moderation.md, docs/data-retention.md).
+            await dbContext.UserBlocks
+                .Where(block => block.BlockerUserId == userId || block.BlockedUserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+            await dbContext.ContentReports
+                .Where(report => report.ReporterUserId == userId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(report => report.ReporterUserId, (long?)null), cancellationToken);
+            await dbContext.ContentReports
+                .Where(report => report.TargetUserId == userId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(report => report.TargetUserId, (long?)null), cancellationToken);
+
             // Billing. Deleting a Juple account does NOT cancel a store subscription, so its store purchases are DETACHED, not
             // deleted: UserId becomes null and DetachedAtUtc records when, keeping only the minimal identity (the token hash and its
             // sealed handle) needed to stop token reuse, reconcile with the store and allow a verified restore. The opaque Google

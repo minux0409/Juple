@@ -135,7 +135,8 @@ public sealed class FriendService(
     IUserDirectoryStore userDirectory,
     IFriendStore friendStore,
     TimeProvider timeProvider,
-    ISocialNotificationPublisher? notifications = null) : IFriendService
+    ISocialNotificationPublisher? notifications = null,
+    Juple.Application.Safety.IUserBlockPolicy? blocks = null) : IFriendService
 {
     /// <summary>Pending requests are few by nature; a generous fixed cap instead of paging.</summary>
     public const int MaxRequestsListed = 200;
@@ -154,6 +155,12 @@ public sealed class FriendService(
         if (targetUserId == userId)
         {
             throw new InvalidFriendRequestException("jupleId", "You cannot send a friend request to yourself.");
+        }
+
+        // Nobody is asked to be a friend across a block (either direction).
+        if (blocks is not null)
+        {
+            await blocks.EnsureNotBlockedAsync(userId, targetUserId, cancellationToken);
         }
 
         await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);

@@ -210,6 +210,8 @@ public sealed class CollectionsController(
         }
     }
 
+    [Juple.Api.Safety.RequireTermsAcceptance]
+
     [HttpPost]
     public async Task<IActionResult> CreateAsync(CreateCollectionRequest request, CancellationToken cancellationToken)
     {
@@ -593,6 +595,7 @@ public sealed class CollectionsController(
     /// on right now (409 publicLinkInactive otherwise, and nobody is sent anything). Unknown or
     /// malformed IDs come back in notFound; one's own ID is skipped.
     /// </summary>
+    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPost("{id:long}/share/link/send")]
     [EnableRateLimiting(RateLimitPolicies.CollectionInvite)]
     public Task<IActionResult> SendShareLinkAsync(
@@ -1107,6 +1110,7 @@ public sealed class CollectionsController(
     /// Invites the user with this exact Juple ID - as a Contributor (공동작업, the default) or a
     /// Viewer (보기 전용 공유, role "viewer"); they must accept it themselves.
     /// </summary>
+    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPost("{id:long}/invitations")]
     [CollectionPermission(CollectionPermission.ManageCollaborators, requireUnlock: true)]
     [EnableRateLimiting(RateLimitPolicies.CollectionInvite)]
@@ -1263,6 +1267,7 @@ public sealed class CollectionsController(
     /// linkAlreadyInCollection / linkAlreadyPending for a proposal of a link that is already there or
     /// already waiting.
     /// </summary>
+    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPut("{id:long}/items/{itemId:long}")]
     public Task<IActionResult> AddItemAsync(long id, long itemId, CancellationToken cancellationToken, [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
         ExecuteAsync(
@@ -1276,6 +1281,7 @@ public sealed class CollectionsController(
     /// toggle: the app calls DELETE to take it back). reactionKey must be one of the catalog keys (400
     /// otherwise). Answers the link's reactions as they are now.
     /// </summary>
+    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPut("{id:long}/items/{itemId:long}/reaction")]
     public Task<IActionResult> SetReactionAsync(
         long id,
@@ -1323,6 +1329,7 @@ public sealed class CollectionsController(
             cancellationToken);
 
     /// <summary>Adds the caller's comment (trimmed, 1..1000 characters, 400 otherwise); answers it as stored.</summary>
+    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPost("{id:long}/items/{itemId:long}/comments")]
     public Task<IActionResult> AddCommentAsync(
         long id,
@@ -1356,6 +1363,7 @@ public sealed class CollectionsController(
             cancellationToken);
 
     /// <summary>Hearts a comment for the caller. Idempotent (a repeat is the same answer): {liked: true, likeCount}. 404 for a comment that is not a live one of this link.</summary>
+    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPut("{id:long}/items/{itemId:long}/comments/{commentId:long}/like")]
     public Task<IActionResult> LikeCommentAsync(
         long id,
@@ -1387,6 +1395,7 @@ public sealed class CollectionsController(
     /// Edits the words of the caller's OWN comment (same 1..1000 rule); answers it as stored now, replies and hearts intact.
     /// 403 for somebody else's comment (the Owner included), 404 for a missing or deleted one. Never notifies anybody.
     /// </summary>
+    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPut("{id:long}/items/{itemId:long}/comments/{commentId:long}")]
     public Task<IActionResult> EditCommentAsync(
         long id,

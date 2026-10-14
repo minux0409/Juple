@@ -54,6 +54,11 @@ public sealed class User
 
     public DateTimeOffset? TrialEndsAtUtc { get; private set; }
 
+    /// <summary>The Terms of Service version this person agreed to (null = never). Compared with the CURRENT version by the server before any user-generated content is created.</summary>
+    public string? AcceptedTermsVersion { get; private set; }
+
+    public DateTimeOffset? TermsAcceptedAtUtc { get; private set; }
+
     public DateTimeOffset CreatedAtUtc { get; private set; }
 
     public DateTimeOffset UpdatedAtUtc { get; private set; }
@@ -65,6 +70,12 @@ public sealed class User
     public void RegeneratePublicCodeBeforeCreate()
     {
         PublicCode = UserPublicCode.Generate();
+    }
+
+    public void AcceptTerms(string version, DateTimeOffset acceptedAtUtc)
+    {
+        AcceptedTermsVersion = version;
+        TermsAcceptedAtUtc = acceptedAtUtc;
     }
 
     /// <summary>Records the trial window (only ever the ledger's original one - see EntitlementService).</summary>

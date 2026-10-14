@@ -24,6 +24,7 @@ public sealed class InboxController : ControllerBase
     /// original contract (just the link, the plain entry body). unlockTokens: collectionId → grant, one per locked
     /// destination. With collectionIds the body also carries what happened in the Collections.
     /// </summary>
+    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPost]
     public async Task<IActionResult> SaveAsync(
         SaveInboxEntryRequest request,

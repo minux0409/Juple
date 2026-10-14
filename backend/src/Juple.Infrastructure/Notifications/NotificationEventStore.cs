@@ -81,6 +81,12 @@ public sealed class NotificationEventStore(JupleDbContext dbContext) : INotifica
 
             default:
                 var single = await ResolveSingleAsync(notificationEvent, cancellationToken);
+                // Nobody is told about a person they blocked (or who blocked them) - also for an event queued before the block was set.
+                if (single is { ActorUserId: { } singleActor } && await IsBlockedAsync(singleActor, single.UserId, cancellationToken))
+                {
+                    single = null;
+                }
+
                 var ids = await CommitPageAsync(notificationEvent.Id, single is null ? [] : [single], null, completed: true, nowUtc, lease, cancellationToken);
                 return new MaterializedPage(ids, true, []);
         }
@@ -230,6 +236,12 @@ public sealed class NotificationEventStore(JupleDbContext dbContext) : INotifica
         var recipients = page
             .Where(userId => userId != notificationEvent.ActorUserId && userId != notificationEvent.SkipUserId)
             .ToList();
+        // ... and not those who blocked the actor or were blocked by them.
+        if (notificationEvent.ActorUserId is { } audienceActor && recipients.Count > 0)
+        {
+            var hidden = await BlockedWithAsync(audienceActor, recipients, cancellationToken);
+            recipients = recipients.Where(userId => !hidden.Contains(userId)).ToList();
+        }
         // Turning a Collection's 알림 off never removes a recipient here: the Inbox row (history, unread) is always recorded.
         // Only the Push is decided later, at dispatch (PushDispatchStore), from the preference as it is then.
 
@@ -294,6 +306,23 @@ public sealed class NotificationEventStore(JupleDbContext dbContext) : INotifica
                 dbContext.ChangeTracker.Clear();
             }
         }
+    }
+
+    private Task<bool> IsBlockedAsync(long actorUserId, long recipientUserId, CancellationToken cancellationToken) =>
+        dbContext.UserBlocks.AsNoTracking().AnyAsync(
+            block => (block.BlockerUserId == actorUserId && block.BlockedUserId == recipientUserId)
+                || (block.BlockerUserId == recipientUserId && block.BlockedUserId == actorUserId),
+            cancellationToken);
+
+    /// <summary>Which of the candidates blocked the actor or were blocked by the actor (one query per page).</summary>
+    private async Task<HashSet<long>> BlockedWithAsync(long actorUserId, IReadOnlyCollection<long> candidates, CancellationToken cancellationToken)
+    {
+        var rows = await dbContext.UserBlocks.AsNoTracking()
+            .Where(block => (block.BlockerUserId == actorUserId && candidates.Contains(block.BlockedUserId))
+                || (block.BlockedUserId == actorUserId && candidates.Contains(block.BlockerUserId)))
+            .Select(block => block.BlockerUserId == actorUserId ? block.BlockedUserId : block.BlockerUserId)
+            .ToListAsync(cancellationToken);
+        return rows.ToHashSet();
     }
 
     /// <summary>The one notification of a single-recipient event, or null when nobody is to be told (anymore).</summary>

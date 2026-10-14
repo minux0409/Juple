@@ -79,6 +79,10 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
 
     public DbSet<Juple.Domain.Support.SupportInquiry> SupportInquiries => Set<Juple.Domain.Support.SupportInquiry>();
 
+    public DbSet<Juple.Domain.Safety.ContentReport> ContentReports => Set<Juple.Domain.Safety.ContentReport>();
+
+    public DbSet<Juple.Domain.Safety.UserBlock> UserBlocks => Set<Juple.Domain.Safety.UserBlock>();
+
     public DbSet<Juple.Domain.Billing.TrialLedgerEntry> TrialLedger => Set<Juple.Domain.Billing.TrialLedgerEntry>();
 
     public DbSet<Juple.Domain.Billing.StorePurchase> StorePurchases => Set<Juple.Domain.Billing.StorePurchase>();

@@ -1,4 +1,5 @@
-using Juple.Application.Collections.Comments;
+﻿using Juple.Application.Collections.Comments;
+using Juple.Infrastructure.Safety;
 using Juple.Application.Users.Profile;
 using Juple.Domain.Collections;
 using Juple.Infrastructure.Persistence;
@@ -22,8 +23,10 @@ public sealed class CollectionItemCommentStore(JupleDbContext dbContext, IUserPr
             return null;
         }
 
+        // Words of somebody the viewer blocked are not shown to the viewer (a block never deletes them - others still see them).
         var comments = dbContext.CollectionItemComments.AsNoTracking()
-            .Where(comment => comment.CollectionId == collectionId && comment.ItemId == itemId);
+            .Where(comment => comment.CollectionId == collectionId && comment.ItemId == itemId)
+            .Where(comment => comment.UserId == null || !dbContext.UserBlocks.Any(block => block.BlockerUserId == userId && block.BlockedUserId == comment.UserId));
         // Every LIVE comment of the link, replies included (a placeholder is not a comment anybody wrote).
         var totalCount = await comments.CountAsync(comment => comment.DeletedAtUtc == null, cancellationToken);
         if (totalCount == 0)
@@ -67,9 +70,11 @@ public sealed class CollectionItemCommentStore(JupleDbContext dbContext, IUserPr
         }
 
         var replies = dbContext.CollectionItemComments.AsNoTracking()
-            .Where(comment => comment.CollectionId == collectionId && comment.ItemId == itemId && comment.RootCommentId == rootCommentId);
+            .Where(comment => comment.CollectionId == collectionId && comment.ItemId == itemId && comment.RootCommentId == rootCommentId)
+            .Where(comment => comment.UserId == null || !dbContext.UserBlocks.Any(block => block.BlockerUserId == userId && block.BlockedUserId == comment.UserId));
         var rootExists = await dbContext.CollectionItemComments.AsNoTracking()
-            .AnyAsync(comment => comment.Id == rootCommentId && comment.CollectionId == collectionId && comment.ItemId == itemId && comment.RootCommentId == null, cancellationToken);
+            .AnyAsync(comment => comment.Id == rootCommentId && comment.CollectionId == collectionId && comment.ItemId == itemId && comment.RootCommentId == null
+                && (comment.UserId == null || !dbContext.UserBlocks.Any(block => block.BlockerUserId == userId && block.BlockedUserId == comment.UserId)), cancellationToken);
         if (!rootExists)
         {
             return null;
@@ -120,10 +125,15 @@ public sealed class CollectionItemCommentStore(JupleDbContext dbContext, IUserPr
                 return null;
             }
 
+            // Answering somebody who blocked (or was blocked by) the caller is not an interaction anyone agreed to.
+            await BlockGuard.EnsureNotBlockedAsync(dbContext, userId, parent.UserId, cancellationToken);
             comment = new CollectionItemComment(parent, userId, body, nowUtc);
         }
         else
         {
+            // A top-level comment tells the link's owner - so a block between the two stops it.
+            var itemOwnerId = await dbContext.Items.AsNoTracking().Where(item => item.Id == itemId).Select(item => (long?)item.UserId).FirstOrDefaultAsync(cancellationToken);
+            await BlockGuard.EnsureNotBlockedAsync(dbContext, userId, itemOwnerId, cancellationToken);
             comment = new CollectionItemComment(collectionId, itemId, userId, body, nowUtc);
         }
 
@@ -276,6 +286,8 @@ public sealed class CollectionItemCommentStore(JupleDbContext dbContext, IUserPr
         var changed = false;
         if (liked)
         {
+            // Hearts are a message to the author: blocked either way means no new heart (taking one back is always allowed).
+            await BlockGuard.EnsureNotBlockedAsync(dbContext, userId, author.UserId, cancellationToken);
             if (!await dbContext.CollectionItemCommentLikes.AnyAsync(like => like.CommentId == commentId && like.UserId == userId, cancellationToken))
             {
                 var like = new CollectionItemCommentLike(commentId, userId, nowUtc);

@@ -50,6 +50,7 @@ public sealed class FriendsController(
             cancellationToken);
 
     /// <summary>Exact Juple ID only; shares the Juple ID lookup rate limit (per signed-in user).</summary>
+    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPost("requests")]
     [EnableRateLimiting(RateLimitPolicies.JupleIdLookup)]
     public Task<IActionResult> SendRequestAsync(SendFriendRequestRequest request, CancellationToken cancellationToken) =>
@@ -57,6 +58,8 @@ public sealed class FriendsController(
             userId => friendService.SendRequestAsync(userId, request.JupleId, cancellationToken),
             created => Ok(created),
             cancellationToken);
+
+    [Juple.Api.Safety.RequireTermsAcceptance]
 
     [HttpPost("requests/{requestId:long}/accept")]
     public Task<IActionResult> AcceptAsync(long requestId, CancellationToken cancellationToken) =>
@@ -132,6 +135,11 @@ public sealed class FriendsController(
         catch (JupleIdNotFoundException)
         {
             return NotFound();
+        }
+        catch (Juple.Application.Safety.UserBlockedException blocked)
+        {
+            // Blocked by the caller: they know. Blocked by the other person: the Juple ID simply is not found.
+            return blocked.BlockedByCaller ? Juple.Api.Safety.SafetyProblems.BlockedByYou() : NotFound();
         }
         catch (FriendNotFoundException exception)
         {

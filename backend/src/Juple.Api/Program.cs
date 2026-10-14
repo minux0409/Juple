@@ -1,4 +1,4 @@
-using Juple.Infrastructure;
+﻿using Juple.Infrastructure;
 using Juple.Api.Authentication;
 using Juple.Api.Configuration;
 using Juple.Api.Diagnostics;
@@ -170,6 +170,15 @@ builder.Services.AddScoped<ICurrentUserBootstrapService, CurrentUserBootstrapSer
 builder.Services.AddScoped<IDeleteAccountService, DeleteAccountService>();
 builder.Services.AddScoped<IInboxEntrySaveService, InboxEntrySaveService>();
 builder.Services.AddScoped<Juple.Application.Support.ISupportInquiryService, Juple.Application.Support.SupportInquiryService>();
+builder.Services.AddSingleton(new Juple.Application.Safety.TermsOptions
+{
+    CurrentVersion = builder.Configuration["Terms:CurrentVersion"] is { Length: > 0 } termsVersion ? termsVersion : Juple.Application.Safety.TermsOptions.DefaultVersion,
+    EnforceAcceptance = builder.Configuration.GetValue("Terms:EnforceAcceptance", true),
+});
+builder.Services.AddScoped<Juple.Application.Safety.ITermsConsentService, Juple.Application.Safety.TermsConsentService>();
+builder.Services.AddScoped<Juple.Application.Safety.IReportService, Juple.Application.Safety.ReportService>();
+builder.Services.AddScoped<Juple.Application.Safety.IUserBlockService, Juple.Application.Safety.UserBlockService>();
+builder.Services.AddScoped<Juple.Application.Safety.IUserBlockPolicy, Juple.Application.Safety.UserBlockPolicy>();
 builder.Services.AddScoped<Juple.Application.Items.GetItemDetail.IItemCollectionContextGate, Juple.Application.Items.GetItemDetail.ItemCollectionContextGate>();
 builder.Services.AddScoped<ISaveInboxEntryToCollectionsService, SaveInboxEntryToCollectionsService>();
 builder.Services.AddSingleton<Juple.Application.Collections.Public.ICollectionShareUrlDetector, Juple.Api.Configuration.ConfiguredCollectionShareUrlDetector>();
@@ -299,7 +308,9 @@ builder.Services.AddAuthorizationBuilder()
             && Guid.TryParse(context.User.GetObjectId(), out _));
     });
 
-builder.Services.AddControllers();
+// A block between two people stops an interaction wherever a service raises UserBlockedException (comments, hearts, reactions, invitations,
+// joins): one mapping for all controllers instead of a catch in each.
+builder.Services.AddControllers(options => options.Filters.Add<Juple.Api.Safety.UserBlockedExceptionFilter>());
 builder.Services.AddProblemDetails();
 
 // First rate limiting in this API (built into ASP.NET Core - no package). These in-process
@@ -345,6 +356,15 @@ builder.Services.AddRateLimiter(options =>
             RateLimitPolicies.IdentityPartitionKey(httpContext),
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(15), QueueLimit = 0 }));
     // Sending a support inquiry: per identity, so one account cannot fill the support queue.
+    // Reporting and (un)blocking: per identity, so one account cannot flood the moderation queue or toggle blocks in a loop.
+    options.AddPolicy(RateLimitPolicies.ReportCreate, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            RateLimitPolicies.IdentityPartitionKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
+    options.AddPolicy(RateLimitPolicies.BlockChange, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            RateLimitPolicies.IdentityPartitionKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
     options.AddPolicy(RateLimitPolicies.SupportInquiryCreate, httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             RateLimitPolicies.IdentityPartitionKey(httpContext),

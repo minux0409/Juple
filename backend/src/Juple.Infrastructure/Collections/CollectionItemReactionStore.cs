@@ -1,6 +1,7 @@
-using Juple.Application.Collections.Reactions;
+﻿using Juple.Application.Collections.Reactions;
 using Juple.Domain.Collections;
 using Juple.Infrastructure.Persistence;
+using Juple.Infrastructure.Safety;
 using Juple.Infrastructure.Persistence.SqlServer;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,6 +21,10 @@ public sealed class CollectionItemReactionStore(JupleDbContext dbContext) : ICol
         {
             return CollectionReactionWrite.NotALink;
         }
+
+        // A reaction is a message to the link's owner (they are told): a block between the two stops it.
+        var ownerUserId = await dbContext.Items.AsNoTracking().Where(item => item.Id == itemId).Select(item => (long?)item.UserId).FirstOrDefaultAsync(cancellationToken);
+        await BlockGuard.EnsureNotBlockedAsync(dbContext, userId, ownerUserId, cancellationToken);
 
         // Two writes of the same person racing end with exactly one row: the UPDATE rewrites the row if
         // it holds another reaction; a row that already holds this one is left alone; otherwise the

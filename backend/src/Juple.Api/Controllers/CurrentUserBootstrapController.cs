@@ -1,10 +1,11 @@
-using Juple.Api.Authentication;
+﻿using Juple.Api.Authentication;
 using Juple.Api.Billing;
 using Juple.Api.Collections;
 using Juple.Api.Configuration;
 using Juple.Application.Collections.Locking;
 using Juple.Domain.Billing;
 using Juple.Application.Identity;
+using Juple.Application.Users.CurrentUser;
 using Juple.Application.Users.BootstrapCurrentUser;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,6 +25,8 @@ public sealed class CurrentUserBootstrapController : ControllerBase
         [FromServices] IExternalIdentityAccessor externalIdentityAccessor,
         [FromServices] ICurrentUserBootstrapService bootstrapService,
         [FromServices] IOptions<MobileVersionPolicyOptions> versionPolicy,
+        [FromServices] ICurrentJupleUserAccessor currentUserAccessor,
+        [FromServices] Juple.Application.Safety.ITermsConsentService termsService,
         CancellationToken cancellationToken)
     {
         try
@@ -32,7 +35,11 @@ public sealed class CurrentUserBootstrapController : ControllerBase
                 externalIdentityAccessor.GetRequired(),
                 new BootstrapCurrentUserCommand(request.PreferredLocale, request.TimeZoneId, AuthenticationTimeClaim.Read(User)),
                 cancellationToken);
-            return Ok(new BootstrapCurrentUserResponse(result.Plan.ToString(), result.TimeZoneId, EntitlementResponse.From(result.Entitlement), MobileVersionPolicyResponse.From(versionPolicy.Value), StoreSubscriptionResponse.From(result.StoreSubscription)));
+            // The Terms status rides on the call every launch already makes: the app shows its acceptance screen from it (the server still
+            // enforces the acceptance on every content write - this is only what the screen needs).
+            var currentUser = await currentUserAccessor.GetRequiredAsync(externalIdentityAccessor.GetRequired(), cancellationToken);
+            var terms = await termsService.GetStatusAsync(currentUser.UserId, cancellationToken);
+            return Ok(new BootstrapCurrentUserResponse(result.Plan.ToString(), result.TimeZoneId, EntitlementResponse.From(result.Entitlement), MobileVersionPolicyResponse.From(versionPolicy.Value), StoreSubscriptionResponse.From(result.StoreSubscription), TermsStatusResponse.From(terms)));
         }
         catch (AccountDeletionPendingException)
         {
@@ -63,7 +70,15 @@ public sealed class CurrentUserBootstrapController : ControllerBase
         string TimeZoneId,
         EntitlementResponse Entitlement,
         MobileVersionPolicyResponse MobileVersionPolicy,
-        StoreSubscriptionResponse StoreSubscription);
+        StoreSubscriptionResponse StoreSubscription,
+        TermsStatusResponse? Terms = null);
+
+    /// <summary>Which Terms of Service version is current and whether this person accepted it (additive; an older client ignores it).</summary>
+    public sealed record TermsStatusResponse(string CurrentVersion, string? AcceptedVersion, DateTimeOffset? AcceptedAtUtc, bool IsAccepted)
+    {
+        public static TermsStatusResponse From(Juple.Application.Safety.TermsStatusDto status) =>
+            new(status.CurrentVersion, status.AcceptedVersion, status.AcceptedAtUtc, status.IsAccepted);
+    }
 
     /// <summary>
     /// Whether the account owns a verified store subscription (additive; an older client ignores it) - NOT the same as Entitlement: with the

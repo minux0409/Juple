@@ -11,6 +11,8 @@ public static class RateLimitPolicies
     public const string CollectionLockPassword = "collection-lock-password";
     public const string CollectionInvite = "collection-invite";
     public const string SupportInquiryCreate = "support-inquiry-create";
+    public const string ReportCreate = "report-create";
+    public const string BlockChange = "block-change";
 
     /// <summary>Google Play billing catalog / verify / restore: per signed-in identity (the public RTDN webhook has none, on purpose).</summary>
     public const string BillingGoogle = "billing-google";

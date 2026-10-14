@@ -43,6 +43,13 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(user => user.TrialEndsAtUtc)
             .HasColumnType("datetimeoffset");
 
+        builder.Property(user => user.AcceptedTermsVersion)
+            .HasColumnType("nvarchar(32)")
+            .HasMaxLength(32);
+
+        builder.Property(user => user.TermsAcceptedAtUtc)
+            .HasColumnType("datetimeoffset");
+
         builder.Property(user => user.CreatedAtUtc)
             .HasColumnType("datetimeoffset")
             .IsRequired();

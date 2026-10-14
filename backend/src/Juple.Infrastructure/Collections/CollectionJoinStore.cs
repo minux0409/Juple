@@ -1,8 +1,9 @@
-using Juple.Application.Collections.Join;
+﻿using Juple.Application.Collections.Join;
 using Juple.Application.Collections.Public;
 using Juple.Application.Users.Profile;
 using Juple.Domain.Collections;
 using Juple.Infrastructure.Persistence;
+using Juple.Infrastructure.Safety;
 using Juple.Infrastructure.Persistence.SqlServer;
 using Microsoft.EntityFrameworkCore;
 
@@ -50,6 +51,9 @@ public sealed class CollectionJoinStore(
         {
             return new CollectionJoinStoreResult(CollectionJoinStoreStatus.Unavailable);
         }
+
+        // A join request goes to the Owner: nothing across a block (either direction).
+        await BlockGuard.EnsureNotBlockedAsync(dbContext, userId, ownerUserId, cancellationToken);
 
         if (ownerUserId == userId)
         {
@@ -123,6 +127,9 @@ public sealed class CollectionJoinStore(
         {
             return new CollectionJoinStoreResult(CollectionJoinStoreStatus.Unavailable);
         }
+
+        // Saving a public Collection makes the person a member of the Owner's Collection: not across a block.
+        await BlockGuard.EnsureNotBlockedAsync(dbContext, userId, ownerUserId, cancellationToken);
 
         if (ownerUserId == userId)
         {
@@ -242,6 +249,9 @@ public sealed class CollectionJoinStore(
         {
             throw new CollectionJoinRequestNotFoundException();
         }
+
+        // Approving makes the requester a member: not across a block set after the request.
+        await BlockGuard.EnsureNotBlockedAsync(dbContext, ownerUserId, request.RequesterUserId, cancellationToken);
 
         // The link as it is NOW: a request cannot be approved once the link was turned off or its contents became public (then nobody needs approval).
         var isPublic = await dbContext.CollectionShares.AsNoTracking()

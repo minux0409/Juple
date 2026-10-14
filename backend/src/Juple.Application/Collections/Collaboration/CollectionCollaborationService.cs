@@ -16,11 +16,18 @@ public sealed class CollectionCollaborationService(
     ICollectionCollaborationStore collaborationStore,
     TimeProvider timeProvider,
     ISocialNotificationPublisher? notifications = null,
-    IUserProfileImageStorage? profileImageStorage = null) : ICollectionCollaborationService
+    IUserProfileImageStorage? profileImageStorage = null,
+    Juple.Application.Safety.IUserBlockPolicy? blocks = null) : ICollectionCollaborationService
 {
     public async Task<JupleIdLookupResult> LookupAsync(long userId, string? jupleId, CancellationToken cancellationToken = default)
     {
         var (targetUserId, publicCode) = await ResolveAsync(jupleId, cancellationToken);
+        // A person on either side of a block is not findable by Juple ID (the lookup answers exactly as for an unknown ID).
+        if (blocks is not null && await blocks.AreBlockedAsync(userId, targetUserId, cancellationToken))
+        {
+            throw new JupleIdNotFoundException();
+        }
+
         var image = await profileImageStorage.ResolveProfileImageAsync(
             targetUserId, await userDirectory.GetProfileImageBlobNameAsync(targetUserId, cancellationToken), cancellationToken);
         return new JupleIdLookupResult(

@@ -4,6 +4,7 @@ using Juple.Application.Users.Profile;
 using Juple.Domain.Collections;
 using Juple.Domain.Notifications;
 using Juple.Infrastructure.Persistence;
+using Juple.Infrastructure.Safety;
 using Juple.Infrastructure.Persistence.SqlServer;
 using Microsoft.EntityFrameworkCore;
 
@@ -28,6 +29,9 @@ public sealed class CollectionCollaborationStore(
         }
 
         await RequireRoleMatchesPublicShareAsync(collectionId, role, cancellationToken);
+
+        // Nobody is invited across a block (either direction).
+        await BlockGuard.EnsureNotBlockedAsync(dbContext, ownerUserId, invitedUserId, cancellationToken);
 
         if (await dbContext.CollectionCollaborators.AnyAsync(
                 collaborator => collaborator.CollectionId == collectionId && collaborator.UserId == invitedUserId,
@@ -384,10 +388,14 @@ public sealed class CollectionCollaborationStore(
             ?? throw new CollectionInvitationNotFoundException();
 
         await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
-        if (await CollectionRowLock.LockActiveAsync(dbContext, collectionId, cancellationToken) is null)
+        var collectionOwnerId = await CollectionRowLock.LockActiveAsync(dbContext, collectionId, cancellationToken);
+        if (collectionOwnerId is null)
         {
             throw new CollectionInvitationNotFoundException();
         }
+
+        // A block set after the invitation was sent still stops it from being accepted.
+        await BlockGuard.EnsureNotBlockedAsync(dbContext, userId, collectionOwnerId, cancellationToken);
 
         var invitation = await dbContext.CollectionInvitations.FirstAsync(entry => entry.Id == invitationId, cancellationToken);
         // Decide on the row as it is now, under the Collection lock - never on a copy this context
