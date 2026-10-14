@@ -161,7 +161,7 @@ export function privacyDocument(config: LegalOperatorConfig): LegalDocument {
         blocks: [
           p('**계정과 로그인**'),
           ul(
-            '로그인은 Microsoft Entra External ID를 통해 이루어지며 이메일, Google, Apple 로그인을 지원합니다. Juple 서버는 로그인 제공자가 부여한 식별 값(테넌트·사용자 식별자)만 계정과 연결하며, 이메일 주소·비밀번호는 Juple 서버에 저장하지 않습니다. 이메일 등은 로그인 제공자가 처리합니다.',
+            '회원 가입과 로그인은 이메일 주소와 비밀번호로 하며, Microsoft Entra External ID를 통해 이루어집니다. Juple 서버는 Microsoft Entra External ID가 부여한 식별 값(테넌트·사용자 식별자)만 계정과 연결하며, 이메일 주소·비밀번호는 Juple 서버에 저장하지 않습니다. 이메일 주소와 비밀번호는 Microsoft Entra External ID가 처리합니다.',
             'Juple이 만드는 값: 무작위 Juple ID. 이용자가 입력하는 값: 닉네임(선택), 프로필 사진(선택). 언어와 시간대 설정.',
           ),
           p('**직접 저장하거나 입력하는 콘텐츠**'),
@@ -198,7 +198,7 @@ export function privacyDocument(config: LegalOperatorConfig): LegalDocument {
         blocks: [
           p('서비스 제공을 위해 다음 사업자의 서비스를 이용하며, 각 사업자는 아래 목적의 범위에서 정보를 처리합니다.'),
           ul(
-            'Microsoft(Microsoft Entra External ID): 회원 가입·로그인과 본인 확인. 로그인에 쓰는 이메일 주소와 선택한 로그인 방식(Google, Apple)의 계정 정보, 로그인 식별자를 처리합니다.',
+            'Microsoft(Microsoft Entra External ID): 회원 가입·로그인과 본인 확인. 로그인에 쓰는 이메일 주소와 비밀번호, 로그인 식별자를 처리합니다.',
             'Microsoft(Azure): 서버, 데이터베이스, 파일 저장소, 운영 로그의 호스팅. 이 방침의 1항 정보를 저장·처리합니다(대한민국 리전).',
             'Google(Firebase Cloud Messaging): 푸시 알림 전송. 푸시 토큰과 알림 내용을 처리합니다.',
             'Google(Google Play): 구독 결제, 갱신, 해지, 환불. 결제 정보는 Google Play가 처리하며, Juple은 구독 확인을 위해 구매 토큰과 구독 상태를 Google Play에 조회합니다.',
@@ -234,7 +234,7 @@ export function privacyDocument(config: LegalOperatorConfig): LegalDocument {
             '구독 구매 기록(프로필과 분리): 결제 확인과 복원, 토큰 재사용 방지를 위한 최소 정보',
             '무료 이용 기간 중복 방지용 해시와 이용 기간',
             '운영 로그(최대 30일)',
-            '로그인 제공자(Microsoft Entra External ID 및 선택한 로그인 방식)에 있는 계정 정보: Juple 계정 삭제로 지워지지 않습니다.',
+            'Microsoft Entra External ID에 있는 로그인 계정 정보(이메일 주소 등): Juple 계정 삭제로 지워지지 않습니다.',
           ),
           p('계정을 삭제해도 Google Play 구독은 자동으로 해지되지 않습니다. 먼저 Google Play에서 구독을 해지해 주세요.'),
         ],
@@ -288,7 +288,7 @@ export function termsDocument(config: LegalOperatorConfig): LegalDocument {
         title: '2. 계정',
         blocks: [
           ul(
-            '계정은 로그인 제공자를 통해 만들며, 로그인 수단의 보안은 이용자가 관리합니다.',
+            '계정은 이메일 주소와 비밀번호로 만들며(로그인은 Microsoft Entra External ID를 통해 이루어집니다), 이메일 계정과 비밀번호의 보안은 이용자가 관리합니다.',
             '계정은 이용자 본인만 사용할 수 있습니다.',
             '이용자는 앱에서 언제든 계정을 삭제할 수 있으며, 삭제되는 범위는 개인정보처리방침과 계정 삭제 안내에 따릅니다.',
           ),
@@ -406,7 +406,7 @@ export function accountDeletionDocument(config: LegalOperatorConfig): LegalDocum
                 p(`**삭제 요청 이메일: ${config.supportEmail}**`),
                 p('메일 제목에 "Juple 계정 삭제 요청"이라고 적고, 본문에 다음을 알려 주세요.'),
                 ul(
-                  '로그인에 사용한 방법(이메일, Google 또는 Apple)과 가입에 사용한 이메일 주소',
+                  '가입과 로그인에 사용한 이메일 주소',
                   '알고 있다면 Juple ID',
                   '계정과 저장한 데이터를 모두 삭제하길 원한다는 내용',
                 ),
@@ -467,7 +467,7 @@ export function accountDeletionDocument(config: LegalOperatorConfig): LegalDocum
           ul(
             '구독 구매 기록(프로필과 분리): 계정을 삭제해도 Google Play 구독은 자동으로 해지되지 않습니다. 결제 확인과 복원, 구매 토큰 재사용 방지를 위해 최소 정보(구매 식별 해시, 상태, 날짜, 암호화된 구매 값)가 계정과 분리되어 남습니다. 암호화된 구매 값은 구독 종료 후 180일, 나머지 최소 정보는 구독 종료 후 최대 5년 이내에 삭제합니다.',
             '무료 이용 기간 중복 방지 기록: 같은 로그인 정보로 다시 가입해 무료 이용 기간을 반복하지 못하게 하는 변환값(해시)과 이용 기간만 남습니다. 이름·이메일은 없습니다. 이용 기간 종료 후 24개월까지 보관합니다.',
-            '로그인 계정 정보: 이메일 등 로그인에 쓰는 정보는 로그인 제공자(Microsoft Entra External ID 및 선택한 로그인 방식)에 있으며 Juple 계정 삭제로 지워지지 않습니다.',
+            '로그인 계정 정보: 이메일 주소 등 로그인에 쓰는 정보는 Microsoft Entra External ID에 있으며 Juple 계정 삭제로 지워지지 않습니다.',
             '운영 로그: 최대 30일 보관 후 삭제됩니다. 로그에는 내부 식별자가 포함될 수 있으며 비밀번호나 결제 토큰은 포함되지 않습니다.',
           ),
         ],

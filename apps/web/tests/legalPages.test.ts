@@ -72,7 +72,7 @@ describe('legal text', () => {
 
   it('account deletion offers a clear e-mail request path for people who cannot use the app', () => {
     const deletion = text(accountDeletionDocument(noOperator));
-    for (const phrase of ['jupleinfo@gmail.com', 'Juple 계정 삭제 요청', '로그인에 사용한 방법', 'Juple ID', '앱을 사용할 수 없는 경우']) {
+    for (const phrase of ['jupleinfo@gmail.com', 'Juple 계정 삭제 요청', '가입과 로그인에 사용한 이메일 주소', 'Juple ID', '앱을 사용할 수 없는 경우']) {
       assert.ok(deletion.includes(phrase), phrase);
     }
     assert.doesNotMatch(deletion, /다시 설치하고/);
