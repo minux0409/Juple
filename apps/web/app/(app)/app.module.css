@@ -6678,6 +6678,213 @@ button.reactionChipMine:hover {
 }
 
 /* ======================================================================================================================
+   Juple identity - the app icon's own colours (orange -> coral -> magenta -> violet -> blue), used SPARINGLY: a soft wash behind the
+   page, the logotype, the active destination, the primary action, the title icons, empty states and the dialog edge. Text and focus
+   keep the readable brand blue; no colour carries meaning alone; nothing moves except a 150ms hover / appear transition.
+   ==================================================================================================================== */
+.shell,
+.centered,
+.toastHost {
+  --juple-orange: #fea248;
+  --juple-coral: #fd616b;
+  --juple-magenta: #f133c5;
+  --juple-violet: #6751fc;
+  --juple-blue: #51a1fd;
+  --brand-gradient: linear-gradient(135deg, var(--juple-orange) 0%, var(--juple-coral) 28%, var(--juple-magenta) 55%, var(--juple-violet) 80%, var(--juple-blue) 100%);
+  --brand-gradient-soft: linear-gradient(135deg, rgba(254, 162, 72, 0.16), rgba(253, 97, 107, 0.13) 30%, rgba(241, 51, 197, 0.1) 58%, rgba(103, 81, 252, 0.13) 82%, rgba(81, 161, 253, 0.16));
+  /* White text on it stays above 4.5:1 (violet -> brand blue); the full gradient is for decoration only. */
+  --brand-wash: linear-gradient(135deg, rgba(254, 162, 72, 0.09), rgba(253, 97, 107, 0.07) 30%, rgba(241, 51, 197, 0.06) 58%, rgba(103, 81, 252, 0.08) 82%, rgba(81, 161, 253, 0.09));
+  --brand-cta: linear-gradient(135deg, #7a4dff 0%, #3366cc 100%);
+  --brand-line: rgba(103, 81, 252, 0.2);
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.shell {
+  background:
+    radial-gradient(900px 440px at 100% -8%, rgba(103, 81, 252, 0.075), transparent 62%),
+    radial-gradient(760px 380px at 18% -10%, rgba(253, 97, 107, 0.06), transparent 60%),
+    var(--app-background);
+}
+
+@media (prefers-color-scheme: dark) {
+  .shell,
+  .centered,
+  .toastHost {
+    --brand-gradient-soft: linear-gradient(135deg, rgba(254, 162, 72, 0.16), rgba(253, 97, 107, 0.14) 30%, rgba(241, 51, 197, 0.12) 58%, rgba(103, 81, 252, 0.18) 82%, rgba(81, 161, 253, 0.18));
+    --brand-line: rgba(122, 162, 255, 0.28);
+    --brand-wash: linear-gradient(135deg, rgba(254, 162, 72, 0.1), rgba(253, 97, 107, 0.09) 30%, rgba(241, 51, 197, 0.08) 58%, rgba(103, 81, 252, 0.12) 82%, rgba(81, 161, 253, 0.12));
+  }
+
+  .shell {
+    background:
+      radial-gradient(900px 440px at 100% -8%, rgba(103, 81, 252, 0.14), transparent 62%),
+      radial-gradient(760px 380px at 18% -10%, rgba(253, 97, 107, 0.09), transparent 60%),
+      var(--app-background);
+  }
+}
+
+/* side bar: the logotype carries the icon's gradient; the active destination is a soft wash with a thin accent bar */
+.sidebarBrand > span {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: -0.01em;
+}
+
+.navLink,
+.navLinkActive {
+  position: relative;
+  transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out);
+}
+
+.navLinkActive {
+  background: var(--brand-gradient-soft);
+  color: var(--brand);
+}
+
+/* On the side bar (wide screens) a thin accent bar at the start edge: a background layer, no generated content. */
+@media (min-width: 861px) {
+  .navLinkActive {
+    background: linear-gradient(180deg, var(--juple-coral), var(--juple-violet)) left center / 3px 56% no-repeat, var(--brand-gradient-soft);
+  }
+
+  [dir='rtl'] .navLinkActive {
+    background-position: right center, 0 0;
+  }
+}
+
+.pageTitleIcon {
+  background: var(--brand-gradient-soft);
+  box-shadow: inset 0 0 0 1px var(--brand-line);
+}
+
+.pageTitle {
+  letter-spacing: -0.015em;
+}
+
+/* primary action: violet -> brand blue; the same height / radius as before */
+.primaryAction,
+.primaryButton {
+  background: var(--brand-cta);
+  box-shadow: 0 1px 2px rgba(51, 102, 204, 0.25);
+  transition: filter 150ms var(--ease-out), box-shadow 150ms var(--ease-out), transform 150ms var(--ease-out);
+}
+
+.primaryAction:hover:not(:disabled),
+.primaryButton:hover:not(:disabled) {
+  filter: brightness(1.06);
+  box-shadow: 0 4px 14px rgba(103, 81, 252, 0.28);
+}
+
+.primaryAction:active:not(:disabled),
+.primaryButton:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.primaryAction:disabled {
+  background: var(--brand-soft);
+  box-shadow: none;
+}
+
+/* cards: one radius / border (unchanged), a quiet lift on hover */
+.linkCard,
+.collectionCard,
+.settingsCard {
+  transition: border-color 150ms var(--ease-out), box-shadow 150ms var(--ease-out), transform 150ms var(--ease-out);
+}
+
+.linkCard:has(a:hover),
+.collectionCard:has(a:hover) {
+  transform: translateY(-1px);
+}
+
+.inlineState,
+.emptyState {
+  background: var(--brand-wash) top / 100% 96px no-repeat, var(--app-surface);
+}
+
+/* the rounded shell gets the icon's gradient as a 3px edge: a background layer (clipped by the shell's radius), no generated content */
+.dialog,
+.friendPickerDialog,
+.reactionPicker {
+  background: var(--brand-gradient) top / 100% 3px no-repeat, var(--surface);
+}
+
+.panelDialog {
+  background: var(--brand-gradient) top / 100% 3px no-repeat, var(--app-surface);
+}
+
+.panelDialog .panelHeader {
+  background: var(--brand-gradient) top / 100% 3px no-repeat, var(--app-surface);
+  padding-top: calc(16px + 3px);
+}
+
+.dialog[open],
+.panelDialog[open],
+.friendPickerDialog[open],
+.reactionPicker[open] {
+  animation: dialogIn 160ms var(--ease-out);
+}
+
+@keyframes dialogIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* signed out / state screens */
+.centered {
+  background:
+    radial-gradient(760px 420px at 85% 0%, rgba(103, 81, 252, 0.12), transparent 62%),
+    radial-gradient(680px 380px at 10% 8%, rgba(253, 97, 107, 0.1), transparent 60%),
+    radial-gradient(520px 320px at 50% 100%, rgba(81, 161, 253, 0.1), transparent 60%),
+    var(--app-background);
+}
+
+.landingCard {
+  box-shadow: var(--shadow-floating);
+}
+
+.brandName {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .linkCard,
+  .collectionCard,
+  .settingsCard,
+  .navLink,
+  .navLinkActive,
+  .primaryAction,
+  .primaryButton {
+    transition: none;
+  }
+
+  .linkCard:has(a:hover),
+  .collectionCard:has(a:hover),
+  .primaryAction:active:not(:disabled),
+  .primaryButton:active:not(:disabled) {
+    transform: none;
+  }
+
+  .dialog[open],
+  .panelDialog[open],
+  .friendPickerDialog[open],
+  .reactionPicker[open] {
+    animation: none;
+  }
+}
+
+/* ======================================================================================================================
    고객센터: the inquiry list, the form and the details
    ==================================================================================================================== */
 .supportIntro {
