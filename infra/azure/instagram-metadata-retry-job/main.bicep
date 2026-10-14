@@ -51,6 +51,9 @@ param keyVaultUri string = ''
 @description('UTC cron expression - Container Apps Job schedules are always UTC, never local/server time (same convention as the other Job templates). Default: every minute - InstagramMetadataRetryService schedules its first and second backend attempts roughly 1 and 5 minutes after an Item is saved (see FirstAttemptDelay/SecondAttemptDelay), so this needs finer granularity than the 5-minute Blob cleanup Job to actually land attempts close to when they become due.')
 param cronExpression string = '* * * * *'
 
+@description('false keeps the Job (image, secret, identity, settings) but turns it into a Manual-trigger Job: nothing runs on a schedule and nothing is billed, and `az containerapp job start` can still run one pass by hand. Dev sets false outside Instagram metadata testing (cost review 2026-10-14: every-minute executions were the largest single Dev cost). Default true = scheduled, as before.')
+param scheduleEnabled bool = true
+
 @description('Wall-clock ceiling for one Job execution. Kept well under the 1-minute schedule interval so a slow execution cannot still be running when the next one is due - correctness against overlap does not depend on this either way (InstagramMetadataRetryStore.TryClaimAsync already makes double-processing the same task impossible), but there is no reason to invite it routinely.')
 param replicaTimeoutSeconds int = 45
 
@@ -82,7 +85,7 @@ var sqlConnectionStringSecret = sqlConnectionStringFromKeyVault
 // Fail-closed connection string source (see ../app/sql-connection-source-guard.bicep): vault mode needs the vault
 // URI and must not also receive a value; parameter mode needs the value. Only 0/1 flags reach the guard.
 module sqlConnectionSourceVaultGuard '../app/sql-connection-source-guard.bicep' = if (sqlConnectionStringFromKeyVault) {
-  name: 'juple-${environmentName}-instagram-metadata-retry-job-sql-source-vault-guard'
+  name: 'juple-${environmentName}-ig-retry-job-sql-source-vault-guard'
   params: {
     #disable-next-line BCP329
     keyVaultUriProvided: empty(keyVaultUri) ? 0 : 1
@@ -92,7 +95,7 @@ module sqlConnectionSourceVaultGuard '../app/sql-connection-source-guard.bicep' 
 }
 
 module sqlConnectionSourceParameterGuard '../app/sql-connection-source-guard.bicep' = if (!sqlConnectionStringFromKeyVault) {
-  name: 'juple-${environmentName}-instagram-metadata-retry-job-sql-source-parameter-guard'
+  name: 'juple-${environmentName}-ig-retry-job-sql-source-parameter-guard'
   params: {
     #disable-next-line BCP329
     connectionStringSupplied: empty(sqlConnectionString) ? 0 : 1
@@ -111,17 +114,25 @@ resource instagramMetadataRetryJob 'Microsoft.App/jobs@2024-03-01' = {
   properties: {
     environmentId: containerAppsEnvironmentId
     configuration: {
-      triggerType: 'Schedule'
+      triggerType: scheduleEnabled ? 'Schedule' : 'Manual'
       replicaTimeout: replicaTimeoutSeconds
       replicaRetryLimit: replicaRetryLimit
-      scheduleTriggerConfig: {
-        // One replica per execution, and exactly one completion required - a retry pass is a
-        // single sequential loop over due tasks (see InstagramMetadataRetryService.RunOnceAsync),
-        // not a fan-out workload.
-        cronExpression: cronExpression
-        parallelism: 1
-        replicaCompletionCount: 1
-      }
+      // One replica per execution, and exactly one completion required - a retry pass is a
+      // single sequential loop over due tasks (see InstagramMetadataRetryService.RunOnceAsync),
+      // not a fan-out workload.
+      scheduleTriggerConfig: scheduleEnabled
+        ? {
+            cronExpression: cronExpression
+            parallelism: 1
+            replicaCompletionCount: 1
+          }
+        : null
+      manualTriggerConfig: scheduleEnabled
+        ? null
+        : {
+            parallelism: 1
+            replicaCompletionCount: 1
+          }
       // ACR pull via the Managed Identity's AcrPull role (granted in ../foundation/resources.bicep,
       // shared with the API Container App and the other Jobs) - no username/password secret.
       registries: [

@@ -295,7 +295,11 @@ az deployment group create `
     containerAppsEnvironmentId=$foundation.containerAppsEnvironmentId.value `
     managedIdentityResourceId=$foundation.managedIdentityResourceId.value `
     sqlConnectionString=$env:SQL_CONNECTION_STRING `
-    firebaseServiceAccountKeyJson=@<repo 밖 Firebase service-account JSON 파일 경로>
+    firebaseServiceAccountKeyJson=@<repo 밖 Firebase service-account JSON 파일 경로> `
+    cronExpression='*/5 * * * *'
+# Dev는 5분 주기다(2026-10-14 비용 점검: 매분 실행이 Dev 비용의 큰 몫). 평소 Push는 notification worker(Service Bus)가
+# 보내고 이 Job은 복구 경로라 Dev에서 최대 5분 복구 지연은 허용한다. Production은 prod.bicepparam이 cron을 지정하지 않아
+# template 기본값(매분)을 그대로 쓴다.
 
 # 5. Blob cleanup Job (resource group scope) - Push Job과 완전히 별개 리소스/secret 네임스페이스.
 # Firebase 관련 parameter가 전혀 없다 - 이 Job은 FCM/Push와 무관하다(아래 "Blob cleanup scheduled
@@ -315,16 +319,12 @@ az deployment group create `
 # 5.5 Instagram metadata retry Job (resource group scope) - Blob cleanup Job과 완전히 별개
 # 리소스/secret 네임스페이스. Blob Storage/Firebase 관련 parameter가 전혀 없다 - 이 Job은 SQL
 # 접근과 (API Container App과 동일한) outbound HTTPS만 필요하다(아래 "Instagram metadata retry
-# scheduled Job" 참고).
+# scheduled Job" 참고). Dev 값은 `instagram-metadata-retry-job/dev.bicepparam`에 있다 - 평소에는
+# `scheduleEnabled = false`(Manual trigger: Job은 남아 있지만 스케줄 실행/과금 없음, 2026-10-14 비용 점검).
+# Instagram metadata 테스트 때만 true로 바꿔 다시 배포하거나 `az containerapp job start`로 한 번 실행한다.
 az deployment group create `
   --resource-group $foundation.resourceGroupName.value `
-  --template-file infra/azure/instagram-metadata-retry-job/main.bicep `
-  --parameters `
-    acrLoginServer=$foundation.acrLoginServer.value `
-    imageTag=<App과 동일한 tag> `
-    containerAppsEnvironmentId=$foundation.containerAppsEnvironmentId.value `
-    managedIdentityResourceId=$foundation.managedIdentityResourceId.value `
-    sqlConnectionString=$env:SQL_CONNECTION_STRING
+  --parameters infra/azure/instagram-metadata-retry-job/dev.bicepparam
 
 # 6. Web (resource group scope) - apps/web (Public Collection Sharing Web Viewer), API/Job과
 # 완전히 별개 리소스/이미지, secret 없음. 이미지는 환경과 무관하게 빌드된다 - build-arg가

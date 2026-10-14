@@ -105,6 +105,11 @@ param startupWarmupTimeoutSeconds = 45
 param readinessProbePath = '/health/ready'
 param requestTimingSlowThresholdMs = 500
 param identityModelLogLevel = 'Warning'
+// Everyday Dev log volume (cost review 2026-10-14: EF's per-command Information log was ~94% of the API's Log Analytics ingest). Only
+// slow requests (>= 500 ms, Warning) are kept from the timing log; failed SQL commands still log as errors. While investigating
+// performance, set requestTimingLogLevel = 'Information' (every request) and, if the SQL text is needed, efCommandLogLevel = 'Information'.
+param efCommandLogLevel = 'Warning'
+param requestTimingLogLevel = 'Warning'
 
 // The Public Web Viewer origin CollectionsController composes every share URL against - confirmed
 // live via `az containerapp show` (PublicWeb__BaseUrl). A fixed fact about Dev today (the same

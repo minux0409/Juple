@@ -131,6 +131,12 @@ param readinessProbePath string = '/health'
 @description('Optional log level for the Microsoft.IdentityModel category (Logging:LogLevel:Microsoft.IdentityModel), e.g. Warning to drop the four Information lines every successful token validation writes (IDX10234 / 10239 / 10242 / 10245) while keeping every warning and error. Empty (default) = the default of the API itself.')
 param identityModelLogLevel string = ''
 
+@description('Optional log level for EF Core\'s per-command log (Logging:LogLevel:Microsoft.EntityFrameworkCore.Database.Command), e.g. Warning to drop the Information "Executed DbCommand" line (with its SQL text) written for every command while keeping failed-command errors. Empty (default) = the default of the API itself. The RequestTiming SQL totals come from an interceptor, not from this log, so they are unaffected.')
+param efCommandLogLevel string = ''
+
+@description('Optional log level for the request timing log (Logging:LogLevel:Juple.Api.Diagnostics.RequestTimingMiddleware). Warning keeps only the requests at or above requestTimingSlowThresholdMs (the middleware writes those as Warning, the rest as Information); set Information (or leave empty) while investigating. Only meaningful when requestTimingEnabled.')
+param requestTimingLogLevel string = ''
+
 @description('Kept small on purpose - a personal Dev/dogfooding environment has no horizontal-scale need yet.')
 param maxReplicas int = 1
 
@@ -421,6 +427,22 @@ var diagnosticsEnv = concat(
         {
           name: 'Logging__LogLevel__Microsoft.IdentityModel'
           value: identityModelLogLevel
+        }
+      ],
+  empty(efCommandLogLevel)
+    ? []
+    : [
+        {
+          name: 'Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command'
+          value: efCommandLogLevel
+        }
+      ],
+  empty(requestTimingLogLevel)
+    ? []
+    : [
+        {
+          name: 'Logging__LogLevel__Juple.Api.Diagnostics.RequestTimingMiddleware'
+          value: requestTimingLogLevel
         }
       ]
 )
