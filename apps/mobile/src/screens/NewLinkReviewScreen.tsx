@@ -292,10 +292,12 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately mount-only, see remarks above.
   }, []);
 
-  // The new link goes to the Collections chosen here - any number of them (Item ↔ Collection is many-to-many), or
-  // explicitly none. Nothing is chosen on arrival: Save waits for a deliberate decision.
+  // The new link goes to the Collections chosen here - any number of them (Item ↔ Collection is many-to-many), or none.
+  // A new link ALWAYS starts on 선택 안 함 (never a remembered / first / favorite Collection); only a deliberate tap - or a share
+  // aimed at one Collection by the person (a direct-share shortcut, below) - puts it in a Collection. Un-checking the last
+  // Collection returns to 선택 안 함, so Save never waits for a decision.
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<number>>(new Set());
-  const [isNoneChosen, setIsNoneChosen] = useState(false);
+  const [isNoneChosen, setIsNoneChosen] = useState(true);
   const hasDestinationDecision = isNoneChosen || selectedIds.size > 0;
 
   const check = (collectionId: number) => {
@@ -335,11 +337,12 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   const toggleCollection = (option: Collection) => {
     if (selectedIds.has(option.id)) {
       // Unchecking changes nothing on the server yet - no password is needed for it.
-      setSelectedIds(previous => {
-        const next = new Set(previous);
-        next.delete(option.id);
-        return next;
-      });
+      const remaining = new Set(selectedIds);
+      remaining.delete(option.id);
+      setSelectedIds(remaining);
+      if (remaining.size === 0) {
+        setIsNoneChosen(true);
+      }
       return;
     }
     // Checking reads the Collection's CURRENT state first (never the list snapshot): locked now → its password;

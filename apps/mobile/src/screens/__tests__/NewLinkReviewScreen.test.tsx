@@ -85,13 +85,43 @@ describe('링크 저장 - the existing 컬렉션 선택 chooser, many Collection
     expect(tree.root.findAll(candidate => candidate.props.children === i18n.t('quickSaveComposer.categoryNone')).length).toBeGreaterThan(0);
   });
 
-  it('starts with nothing chosen: Save is disabled and no memo field yet', async () => {
+  it('a new link starts on 선택 안 함: no Collection is checked, Save is possible, nothing is saved yet', async () => {
     const { tree } = await render();
-    expect(saveButton(tree).props.disabled).toBe(true);
-    expect(node(tree, 'category-picker-none').props.accessibilityState.selected).toBe(false);
+    expect(node(tree, 'category-picker-none').props.accessibilityState.selected).toBe(true);
     expect([3, 4, 5].some(id => isChecked(tree, id))).toBe(false);
-    expect(exists(tree, 'save-memo-composer')).toBe(false);
+    expect(saveButton(tree).props.disabled).toBe(false);
     expect(saveInboxEntryToCollections).not.toHaveBeenCalled();
+  });
+
+  it('saving without touching the chooser saves the link into NO Collection', async () => {
+    const { tree } = await render();
+    await save(tree);
+    expect(savedWith()[3]).toEqual([]);
+  });
+
+  it('every new review starts on 선택 안 함 - whatever an earlier review had checked (no remembered Collection)', async () => {
+    const first = await render();
+    await tap(first.tree, 'category-picker-option-3');
+    expect(isChecked(first.tree, 3)).toBe(true);
+    const second = await render();
+    expect(node(second.tree, 'category-picker-none').props.accessibilityState.selected).toBe(true);
+    expect([3, 4, 5].some(id => isChecked(second.tree, id))).toBe(false);
+  });
+
+  it('a Collection checked on purpose is the one the link is saved into', async () => {
+    const { tree } = await render();
+    await tap(tree, 'category-picker-option-4');
+    expect(node(tree, 'category-picker-none').props.accessibilityState.selected).toBe(false);
+    await save(tree);
+    expect(savedWith()[3]).toEqual([4]);
+  });
+
+  it('un-checking the last checked Collection returns to 선택 안 함', async () => {
+    const { tree } = await render();
+    await tap(tree, 'category-picker-option-3');
+    await tap(tree, 'category-picker-option-3');
+    expect(node(tree, 'category-picker-none').props.accessibilityState.selected).toBe(true);
+    expect(saveButton(tree).props.disabled).toBe(false);
   });
 
   it('checks several Collections (each read fresh from the server), and a second tap unchecks one', async () => {
@@ -226,12 +256,12 @@ describe('링크 저장 - the existing 컬렉션 선택 chooser, many Collection
       expect(isChecked(tree, 4)).toBe(false);
     });
 
-    it('the current state cannot be read: nothing is checked and Save stays disabled', async () => {
+    it('the current state cannot be read: nothing is checked and the link stays on 선택 안 함', async () => {
       jest.mocked(getCollection).mockRejectedValueOnce(new Error('offline'));
       const { tree } = await render();
       await tap(tree, 'category-picker-option-3');
       expect(isChecked(tree, 3)).toBe(false);
-      expect(saveButton(tree).props.disabled).toBe(true);
+      expect(node(tree, 'category-picker-none').props.accessibilityState.selected).toBe(true);
     });
   });
 
@@ -242,7 +272,7 @@ describe('링크 저장 - the existing 컬렉션 선택 chooser, many Collection
 
     const locked = await render({ preselectedCollectionId: 5 });
     expect(isChecked(locked.tree, 5)).toBe(false);
-    expect(saveButton(locked.tree).props.disabled).toBe(true);
+    expect(node(locked.tree, 'category-picker-none').props.accessibilityState.selected).toBe(true);
   });
 
   it('keyboard-safe layout: the chooser fills the room, the memo and Save are a sticky bar under it', async () => {
@@ -263,8 +293,8 @@ describe('링크 저장 - the existing 컬렉션 선택 chooser, many Collection
     const { tree } = await render();
     expect(tree.root.findAllByType(Image).some(image => image.props.source?.uri === 'https://example.com/preview.jpg')).toBe(true);
     expect(tree.root.findAll(candidate => candidate.props.testID === 'save-link-title')[0].props.children).toBe('Resolved title');
-    // The only text field on this screen is the memo (once a destination is chosen) - no title or URL editor.
-    expect(tree.root.findAllByType(TextInput)).toHaveLength(0);
+    // The only text field on this screen is the memo - no title or URL editor.
+    expect(tree.root.findAllByType(TextInput)).toHaveLength(1);
     await tap(tree, 'category-picker-none');
     await save(tree);
     expect(updateItemDetails).toHaveBeenCalledWith(expect.any(Function), 55, { title: 'Resolved title', memo: '' });
@@ -359,13 +389,10 @@ describe('링크 저장 - the existing 컬렉션 선택 chooser, many Collection
     });
   });
 
-  it('keeps an incoming share conflict visible when Save is not possible yet, and can discard the draft', async () => {
+  it('an incoming share conflict can discard the draft (nothing saved) and opens the new link', async () => {
     const { tree, navigation } = await render();
     await act(async () => { getActiveNewLinkReviewDraft()!.onConflictingShare({ id: 'next', text: 'https://example.com/next', receivedAtEpochMs: Date.now(), initialTitle: null, preselectedCollectionId: null, draftTitle: null, draftCollectionId: null }); });
     const dialog = tree.root.findAllByType(ConfirmDialog).find(item => item.props.visible && item.props.title === i18n.t('item.activeDraftConflictTitle'))!;
-    await act(async () => { dialog.props.onCancel(); });
-    expect(saveInboxEntryToCollections).not.toHaveBeenCalled();
-    expect(dialog.props.visible).toBe(true);
     await act(async () => { dialog.props.onConfirm(); });
     expect(navigation.replace).toHaveBeenCalledWith('NewLinkReview', expect.objectContaining({ url: 'https://example.com/next' }));
   });
