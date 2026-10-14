@@ -248,6 +248,25 @@ describe('NotificationsScreen', () => {
     expect((renderer.root.findByType(SectionList).props.sections as { title: string }[]).map(section => section.title)).toEqual(['오늘', '어제', '최근 7일', '최근 30일', '이전 알림']);
   });
 
+  it('an Instagram preview whose signed URL has already expired is not requested - the row is like one without a preview', async () => {
+    // oe 60000000 = 2021-01-14 (long past), F0000000 = 2097-08-05 (far future): no clock control needed.
+    const live = 'https://scontent-ssn1-1.cdninstagram.com/v/p.jpg?oh=00_sig&oe=F0000000';
+    jest.mocked(getNotifications).mockResolvedValue(page([
+      row(3, { previewImageUrl: 'https://scontent-ssn1-1.cdninstagram.com/v/p.jpg?oh=00_sig&oe=60000000' }),
+      row(2, { previewImageUrl: live }),
+      row(1, { previewImageUrl: 'https://img.test/other.jpg?oe=60000000' }),
+    ]));
+    const renderer = await render();
+
+    expect(byTestId(renderer, 'notification-preview-3')).toHaveLength(0);
+    expect(rowIds(renderer)).toEqual([3, 2, 1]);
+    expect(byTestId(renderer, 'notification-row-3')).toHaveLength(1);
+    const preview = (id: number) => renderer.root.findAll(node => node.props.testID === `notification-preview-${id}` && node.props.source)[0];
+    expect(preview(2).props.source).toEqual({ uri: live });
+    // Not a Meta CDN URL: requested as before (fail-open).
+    expect(preview(1).props.source).toEqual({ uri: 'https://img.test/other.jpg?oe=60000000' });
+  });
+
   it('shows the thumbnail of my own link only for the types that are about one, and swipe-delete removes just that row', async () => {
     jest.mocked(getNotifications).mockResolvedValue(page([
       row(3, { previewImageUrl: 'https://img.test/a.jpg' }),

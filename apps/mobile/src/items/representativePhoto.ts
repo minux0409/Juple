@@ -1,4 +1,5 @@
 import type { ItemImage } from '../images/api/imagesApi';
+import { usablePreviewImageUrl } from './usablePreviewImageUrl';
 
 /**
  * An Item's one representative photo (대표 사진): the user's own photo when there is one, otherwise
@@ -18,12 +19,15 @@ export function resolveRepresentativePhoto(
   previewImageUrl: string | null,
   images: readonly ItemImage[],
   coverImageId: number | null,
+  nowMs: number = Date.now(),
 ): RepresentativePhoto | null {
   const own = images.find(image => image.id === coverImageId) ?? images[0];
   if (own) {
     return { kind: 'uploaded', image: own };
   }
-  return previewImageUrl ? { kind: 'auto', url: previewImageUrl } : null;
+  // An already-expired Instagram (Meta CDN) preview counts as none - the "no photo" state, never an empty box.
+  const preview = usablePreviewImageUrl(previewImageUrl, nowMs);
+  return preview ? { kind: 'auto', url: preview } : null;
 }
 
 export function representativePhotoUrl(photo: RepresentativePhoto | null): string | null {

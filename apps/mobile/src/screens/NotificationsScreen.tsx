@@ -11,6 +11,7 @@ import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { UserAvatar } from '../components/UserAvatar';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
 import { BellIcon } from '../icons/BellIcon';
+import { usablePreviewImageUrl } from '../items/usablePreviewImageUrl';
 import type { RootStackParamList } from '../navigation/RootStack';
 import type { AppNotification } from '../notifications/notificationsApi';
 import { formatNotificationExactTime, formatNotificationTime, groupNotifications, type NotificationGroupKey } from '../notifications/notificationGroups';
@@ -222,7 +223,8 @@ function NotificationRow({ notification, onPress, onDelete }: {
     notification.collectionName,
     formatNotificationExactTime(notification.createdAtUtc),
   ].filter(Boolean).join(', ');
-  const previewUrl = PREVIEW_TYPES.has(notification.type) ? notification.previewImageUrl : null;
+  // An already-expired Instagram (Meta CDN) preview is never requested: the row is the same as one without a preview.
+  const previewUrl = PREVIEW_TYPES.has(notification.type) ? usablePreviewImageUrl(notification.previewImageUrl) : null;
 
   return (
     <SwipeableItemRow

@@ -1,5 +1,5 @@
 import type { RepresentativeImage } from '../images/api/imagesApi';
-import { isExpiredMetaPreviewUrl } from './metaPreviewExpiry';
+import { usablePreviewImageUrl } from './usablePreviewImageUrl';
 
 export interface EffectiveThumbnailSourceItem {
   readonly coverImage: RepresentativeImage | null;
@@ -27,6 +27,5 @@ export function resolveEffectiveThumbnailUrl(item: EffectiveThumbnailSourceItem,
   if (ownPhoto != null) {
     return ownPhoto;
   }
-  const preview = item.previewImageUrl ?? null;
-  return preview !== null && isExpiredMetaPreviewUrl(preview, nowMs) ? null : preview;
+  return usablePreviewImageUrl(item.previewImageUrl, nowMs);
 }

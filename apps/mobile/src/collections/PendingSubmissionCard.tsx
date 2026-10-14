@@ -8,6 +8,7 @@ import { GlobeIcon } from '../icons/GlobeIcon';
 import { ShareIcon } from '../icons/ShareIcon';
 import { UserIcon } from '../icons/UserIcon';
 import { getHostnameFromUrl } from '../items/savedLinkPrimaryText';
+import { usablePreviewImageUrl } from '../items/usablePreviewImageUrl';
 import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
 import { personLabel } from './api/collaborationApi';
 import type { CollectionItemAdder } from './api/collectionsApi';
@@ -79,6 +80,8 @@ export function PendingSubmissionCard({ row, variant, trailing, actionStrip, emb
   const time = formatCommentTime(row.submittedAtUtc, t);
   const contextName = row.collectionName ? row.collectionName : row.collectionName === null ? t('submissions.sharedCollectionShort') : null;
   const ContextIcon = row.collectionName ? FolderIcon : ShareIcon;
+  // An already-expired Instagram (Meta CDN) preview is never requested: the card shows its globe placeholder.
+  const previewImageUrl = usablePreviewImageUrl(row.previewImageUrl);
 
   return (
     <View style={[styles.card, embedded && styles.cardEmbedded]} testID={variant === 'owner' ? `submission-${row.submissionId}` : `my-submission-${row.submissionId}`}>
@@ -89,8 +92,8 @@ export function PendingSubmissionCard({ row, variant, trailing, actionStrip, emb
           style={styles.info}
           testID={variant === 'mine' ? `my-submission-info-${row.submissionId}` : undefined}
         >
-        {row.previewImageUrl ? (
-          <Image source={{ uri: row.previewImageUrl }} style={styles.thumbnail} testID={`submission-thumbnail-${row.submissionId}`} />
+        {previewImageUrl ? (
+          <Image source={{ uri: previewImageUrl }} style={styles.thumbnail} testID={`submission-thumbnail-${row.submissionId}`} />
         ) : (
           <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}>
             <GlobeIcon color={colors.textSecondary} size={22} />

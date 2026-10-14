@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Image, StyleSheet, TextInput, View } from 'react-native';
+import { usablePreviewImageUrl } from '../items/usablePreviewImageUrl';
 import { cardShadow, colors, radii, spacing } from '../theme/tokens';
 
 interface ContentPreviewCardProps {
@@ -32,9 +33,11 @@ export function ContentPreviewCard({
   titleHint,
   children,
 }: ContentPreviewCardProps) {
+  // An already-expired Instagram (Meta CDN) preview is never requested: the card simply has no picture.
+  const imageUrl = usablePreviewImageUrl(previewImageUrl);
   return (
     <View style={styles.card}>
-      {previewImageUrl ? <Image source={{ uri: previewImageUrl }} style={styles.image} /> : null}
+      {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.image} /> : null}
       <View style={styles.body}>
         <TextInput
           accessibilityLabel={titleAccessibilityLabel}

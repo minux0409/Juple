@@ -274,6 +274,20 @@ describe('ItemDetailsScreen', () => {
       expect(byId(renderer, 'item-details-open-url')).toHaveLength(1);
     });
 
+    it('A. an Instagram preview whose signed URL has already expired is never requested - the no-photo look, not an empty box', async () => {
+      // oe 60000000 = 2021-01-14 (long past), F0000000 = 2097-08-05 (far future): no clock control needed.
+      jest.mocked(getItemDetails).mockResolvedValue(makeItemDetails({ url: 'https://www.instagram.com/p/abc/', previewImageUrl: 'https://scontent-ssn1-1.cdninstagram.com/v/p.jpg?oh=00_sig&oe=60000000' }));
+      const expired = await renderScreen();
+      expect(byId(expired, 'item-details-thumbnail')).toHaveLength(0);
+      expect(byId(expired, 'item-details-thumbnail-fallback')).toHaveLength(1);
+      expect(expired.root.findAllByType(require('react-native').Image)).toHaveLength(0);
+
+      const live = 'https://scontent-ssn1-1.cdninstagram.com/v/p.jpg?oh=00_sig&oe=F0000000';
+      jest.mocked(getItemDetails).mockResolvedValue(makeItemDetails({ url: 'https://www.instagram.com/p/abc/', previewImageUrl: live }));
+      const valid = await renderScreen();
+      expect(byId(valid, 'item-details-thumbnail')[0].props.source).toEqual({ uri: live });
+    });
+
     it('A. a long Korean/English title is held to about three lines (it scrolls inside its field)', async () => {
       const longTitle = '아주 긴 한국어 제목과 A very long English title that keeps going '.repeat(8);
       jest.mocked(getItemDetails).mockResolvedValue(makeItemDetails({ title: longTitle }));
