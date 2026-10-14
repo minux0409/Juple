@@ -40,22 +40,22 @@ describe('새 링크 검토: 새 컬렉션 (the Collection editor and create req
   });
 
   it('it is the same editor and the same create request as the Collections page - no second form or API', () => {
-    assert.match(picker, /import \{ createCollection, DEFAULT_COLLECTION_COLOR \} from '..\/..\/lib\/collectionEditor'/);
-    assert.match(picker, /<CollectionEditor[\s\S]*mode="create"/);
+    assert.match(picker, /import \{ createCollection \} from '..\/..\/lib\/collectionEditor'/);
+    assert.match(source('app/(app)/collections/NewCollectionDialog.tsx'), /<CollectionEditor[\s\S]*layout="dialog"[\s\S]*mode="create"/);
     assert.match(picker, /createCollection\(api, draft, dictionary\)/);
   });
 
   it('its submit never reaches the link form around it (a created Collection must not save the link)', () => {
-    assert.match(picker, /<div onSubmit=\{event => event\.stopPropagation\(\)\}>\s*<CollectionEditor/);
+    assert.match(source('app/(app)/collections/NewCollectionDialog.tsx'), /onSubmit=\{event => event\.stopPropagation\(\)\}>\s*<CollectionEditor/);
     // ... and it is drawn in the page body: a <form> nested in another <form> does not submit on its own (found on DEV)
     assert.match(picker, /closest\('main'\) \?\? document\.body/);
-    assert.match(picker, /createPortal\(\s*<Modal[\s\S]*creating\.host/);
+    assert.match(picker, /createPortal\(\s*<NewCollectionDialog[\s\S]*creating\.host/);
   });
 
   it('a failure stays in the dialog with the name error, a lost session is handled, the draft is kept', () => {
     assert.match(picker, /error: outcome\.message, busy: false/);
     assert.match(picker, /isSessionLost\(outcome\.error\)/);
-    assert.match(picker, /creating\.busy \? undefined : setCreating\(null\)/);
+    assert.match(source('app/(app)/collections/NewCollectionDialog.tsx'), /if \(!busy\) \{\s*onClose\(\);/);
   });
 
   it('the review adds the new Collection to its list and selects it, keeping what was chosen', () => {
@@ -65,6 +65,32 @@ describe('새 링크 검토: 새 컬렉션 (the Collection editor and create req
 
   it('the link editor and the destination dialog do not get the button (only the review was asked for)', () => {
     assert.doesNotMatch(source('app/(app)/DestinationDialog.tsx'), /onCreated/);
+  });
+});
+
+describe('새 컬렉션 dialog: one shell, normal flow, its own tokens', () => {
+  const dialog = source('app/(app)/collections/NewCollectionDialog.tsx');
+  const editor = source('app/(app)/collections/CollectionEditor.tsx');
+
+  it('is a single native dialog: head, a scrolling body, a foot with 취소 / 만들기 (the page editor is untouched)', () => {
+    assert.match(dialog, /<dialog[\s\S]*styles\.dialogHead[\s\S]*<CollectionEditor/);
+    assert.match(editor, /layout === 'dialog'[\s\S]*styles\.dialogBody[\s\S]*styles\.dialogFoot/);
+    assert.match(editor, /<form className=\{styles\.editorForm\}[\s\S]*styles\.editorAside/);
+    // the fields and the actions are the same pieces for both layouts - one validation, one set of icons / colours
+    assert.equal((editor.match(/COLLECTION_ICON_KEYS\.map/g) ?? []).length, 1);
+    assert.equal((editor.match(/COLLECTION_COLOR_KEYS\.map/g) ?? []).length, 1);
+    assert.match(css, /\.dialog \{[^}]*overflow: hidden/);
+    assert.match(rule('.dialogBody') ?? '', /overflow-y: auto/);
+    assert.match(rule('.editorDialogForm') ?? '', /flex-direction: column/);
+  });
+
+  it('nothing in it is positioned by hand, and it carries the colour tokens itself (light and dark)', () => {
+    for (const selector of ['.collectionDialog', '.collectionDialogBody', '.editorDialogForm', '.editorDialogFields', '.editorDialogFoot']) {
+      assert.doesNotMatch(rule(selector) ?? '', /position:\s*(absolute|fixed)/, selector);
+    }
+    assert.match(css, /\.toastHost,\s*\.collectionDialog \{\s*--app-background/);
+    assert.match(css, /@media \(prefers-color-scheme: dark\) \{\s*\.shell,\s*\.centered,\s*\.toastHost,\s*\.collectionDialog \{/);
+    assert.match(rule('.collectionDialog') ?? '', /width: min\(560px, calc\(100vw - 32px\)\)/);
   });
 });
 

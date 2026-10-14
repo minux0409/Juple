@@ -36,6 +36,7 @@ export function CollectionEditor({
   error,
   onSubmit,
   onCancel,
+  layout = 'page',
 }: {
   /** create: 새 컬렉션; edit: 수정; clone: 내 컬렉션으로 복제 (a new Collection of mine started from a shared one). One form for all three. */
   readonly mode: 'create' | 'edit' | 'clone';
@@ -48,6 +49,11 @@ export function CollectionEditor({
   readonly error: string | null;
   readonly onSubmit: (draft: CollectionDraft) => void;
   readonly onCancel: () => void;
+  /**
+   * page: the preview beside the fields, actions under them (the Collections pages). dialog: ONE column inside a dialog shell - the
+   * fields scroll in the dialog's body, the error and the actions stay in its foot, and there is no preview (no room for it).
+   */
+  readonly layout?: 'page' | 'dialog';
 }) {
   const [name, setName] = useState(initial.name);
   const [icon, setIcon] = useState(initial.icon);
@@ -75,23 +81,8 @@ export function CollectionEditor({
     }
   };
 
-  return (
-    <form className={styles.editorForm} noValidate onSubmit={submit}>
-      {/* What the Collection will look like - only what is chosen here (tile, color, photo, name); nothing else is invented. */}
-      <aside aria-hidden className={styles.editorAside}>
-        <div className={styles.collectionTile} style={{ background: tile.background, color: tile.icon, width: 112, height: 112, borderRadius: 28 }}>
-          {previewImage ? (
-            // eslint-disable-next-line @next/next/no-img-element -- a local preview or the Collection's own photo
-            <img alt="" src={previewImage} />
-          ) : (
-            <CollectionGlyph icon={icon} size={56} />
-          )}
-        </div>
-        <p className={name.trim() ? styles.editorPreviewName : styles.editorPreviewNameEmpty} dir="auto">
-          {name.trim() || dictionary.collectionNamePlaceholder}
-        </p>
-      </aside>
-      <div className={styles.editorMain}>
+  const fields = (
+    <>
         <label className={styles.field}>
           <span className={styles.fieldLabel}>{dictionary.collectionNamePlaceholder}</span>
           <input
@@ -183,7 +174,10 @@ export function CollectionEditor({
             />
           </label>
         </fieldset>
-
+    </>
+  );
+  const footer = (
+    <>
         {error ? <p className={styles.fieldError} role="alert">{error}</p> : null}
         <div className={styles.formActions}>
           <button className={styles.settingsAction} disabled={isSubmitting} onClick={onCancel} type="button">
@@ -193,6 +187,37 @@ export function CollectionEditor({
             {isSubmitting ? dictionary.saving : mode === 'create' ? dictionary.collectionCreateAction : mode === 'clone' ? dictionary.cloneSubmit : dictionary.save}
           </button>
         </div>
+    </>
+  );
+
+  if (layout === 'dialog') {
+    return (
+      <form className={styles.editorDialogForm} noValidate onSubmit={submit}>
+        <div className={`${styles.dialogBody} ${styles.editorDialogFields}`}>{fields}</div>
+        <div className={`${styles.formActions} ${styles.dialogFoot} ${styles.editorDialogFoot}`}>{footer}</div>
+      </form>
+    );
+  }
+
+  return (
+    <form className={styles.editorForm} noValidate onSubmit={submit}>
+      {/* What the Collection will look like - only what is chosen here (tile, color, photo, name); nothing else is invented. */}
+      <aside aria-hidden className={styles.editorAside}>
+        <div className={styles.collectionTile} style={{ background: tile.background, color: tile.icon, width: 112, height: 112, borderRadius: 28 }}>
+          {previewImage ? (
+            // eslint-disable-next-line @next/next/no-img-element -- a local preview or the Collection's own photo
+            <img alt="" src={previewImage} />
+          ) : (
+            <CollectionGlyph icon={icon} size={56} />
+          )}
+        </div>
+        <p className={name.trim() ? styles.editorPreviewName : styles.editorPreviewNameEmpty} dir="auto">
+          {name.trim() || dictionary.collectionNamePlaceholder}
+        </p>
+      </aside>
+      <div className={styles.editorMain}>
+        {fields}
+        {footer}
       </div>
     </form>
   );

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { isSessionLost } from '../../lib/authSession';
 import { resolveFreshCollectionAccess } from '../../lib/collectionDestinations';
-import { createCollection, DEFAULT_COLLECTION_COLOR } from '../../lib/collectionEditor';
+import { createCollection } from '../../lib/collectionEditor';
 import { collectionContentGate, type CollectionContentGate } from '../../lib/collectionGate';
 import { COLLECTION_SEARCH_DEBOUNCE_MS, filterCollectionsByName } from '../../lib/collectionPicker';
 import { isSharedWithMe } from '../../lib/collectionSharing';
@@ -12,10 +12,9 @@ import { isCollectionLocked, type CollectionSummary } from '../../lib/collection
 import type { PickerUnlockSession } from '../../lib/pickerUnlockSession';
 import { useSignedInApp } from './AppRoot';
 import { UnlockPanel } from './collections/[collectionId]/UnlockPanel';
-import { CollectionEditor } from './collections/CollectionEditor';
+import { NewCollectionDialog } from './collections/NewCollectionDialog';
 import { CollectionTileView } from './collections/CollectionsView';
 import { Glyph } from './Glyph';
-import { Modal } from './Modal';
 import { PasswordDialog } from './PasswordDialog';
 import { CollectionSkeleton } from './Skeletons';
 import styles from './app.module.css';
@@ -304,21 +303,7 @@ export function CollectionPicker({
           save the link. */}
       {onCreated && creating !== null
         ? createPortal(
-            <Modal closeLabel={dictionary.close} onClose={() => (creating.busy ? undefined : setCreating(null))} open title={dictionary.collectionCreate}>
-              <div onSubmit={event => event.stopPropagation()}>
-                <CollectionEditor
-                  collectionId={0}
-                  dictionary={dictionary}
-                  error={creating.error}
-                  initial={{ name: '', icon: 'Folder', color: DEFAULT_COLLECTION_COLOR }}
-                  initialImageUrl={null}
-                  isSubmitting={creating.busy}
-                  mode="create"
-                  onCancel={() => setCreating(null)}
-                  onSubmit={submitNew}
-                />
-              </div>
-            </Modal>,
+            <NewCollectionDialog busy={creating.busy} dictionary={dictionary} error={creating.error} onClose={() => setCreating(null)} onSubmit={submitNew} />,
             creating.host,
           )
         : null}

@@ -12,7 +12,8 @@
    ==================================================================================================================== */
 .shell,
 .centered,
-.toastHost {
+.toastHost,
+.collectionDialog {
   --app-background: #f7f9fc;
   --app-surface: #ffffff;
   --app-surface-muted: #f1f4f9;
@@ -99,7 +100,8 @@
 @media (prefers-color-scheme: dark) {
   .shell,
   .centered,
-  .toastHost {
+  .toastHost,
+  .collectionDialog {
     --app-background: #101318;
     --app-surface: #181c23;
     --app-surface-muted: #20252e;
@@ -7257,20 +7259,41 @@ button.reactionChipMine:hover {
   min-height: 44px;
 }
 
-/* The editor inside a dialog (new Collection while reviewing a link): one column - the 520px panel is too narrow for the page's two */
-.panelDialog .editorForm {
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-4);
-  padding: var(--space-4);
-  border: 0;
-}
-
-/* the live preview (a 112px tile) has no room here: the chosen icon and colour already show in the pickers themselves */
-.panelDialog .editorAside {
-  display: none;
-}
-
 .fieldSelect .floatingPanel {
   max-height: min(400px, 60vh);
   max-height: min(400px, 60dvh);
+}
+
+/* 새 컬렉션 dialog (the new-link review): one shell - head, a body that scrolls, a foot that stays. It carries its own colour tokens, so it
+   looks the same wherever it is drawn. */
+.collectionDialog {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.collectionDialogBody,
+.editorDialogForm {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.editorDialogFields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-4);
+  padding-bottom: var(--space-4);
+}
+
+.editorDialogFoot {
+  flex: 0 0 auto;
+  padding: var(--space-3) var(--space-5) var(--space-5);
+  flex-direction: column;
+  align-items: stretch;
+  border-top: 1px solid var(--border);
+}
+
+.editorDialogFoot .formActions {
+  justify-content: flex-end;
 }
