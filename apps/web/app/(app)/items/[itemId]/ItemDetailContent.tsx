@@ -6,13 +6,14 @@ import type { AppDictionary } from '../../../../lib/appI18n';
 import { isSessionLost } from '../../../../lib/authSession';
 import { collectionTile, type CollectionSummary } from '../../../../lib/collectionsView';
 import { unlockHeaders, unlockTokenFor } from '../../../../lib/collectionUnlock';
-import { grantHeaders, isCollaborationActive, membershipPath, moveStrategy, replicatePath, replicateResultMessage, transferPath, type ReplicateResult } from '../../../../lib/collectionOperations';
+import { grantHeaders, isCollaborationActive, itemRestorePath, membershipPath, moveStrategy, moveUndoPath, replicatePath, replicateResultMessage, transferPath, type ReplicateResult } from '../../../../lib/collectionOperations';
 import { representativePhotoUrl, type ItemImage } from '../../../../lib/itemDetails';
 import { itemContextSearch, itemDeleteErrorMessage, itemEditHref, membershipErrorMessage } from '../../../../lib/itemEdit';
 import { notifyItemsChanged } from '../../../../lib/itemChanges';
 import { markEditOpenedFromDetails } from '../../../../lib/itemOverlay';
 import { collectionHref, displayTitleOf, formatLinkTimestamp, isSafeHttpUrl, parseRouteId, siteIdOf, siteOf } from '../../../../lib/savedLinks';
 import { useSignedInApp } from '../../AppRoot';
+import { useToast } from '../../Toaster';
 import { ItemCollaboration } from '../../ItemCollaboration';
 import { ConfirmDialog } from '../../ConfirmDialog';
 import { DestinationDialog, type PickedDestination } from '../../DestinationDialog';
@@ -54,6 +55,7 @@ export function ItemDetailContent({
   readonly onGone?: () => void;
 }) {
   const { api, dictionary, locale, onSessionLost } = useSignedInApp();
+  const toast = useToast();
   const itemId = parseRouteId(itemIdParam);
   const { state, images, collections, reload, reloadCollections, unlock } = useItemRecord(itemId, lockedBy);
   const [confirming, setConfirming] = useState(false);
@@ -133,10 +135,19 @@ export function ItemDetailContent({
   const moveTo = async (target: PickedDestination) => {
     const source = collections.kind === 'loaded' ? collections.items.find(entry => entry.id === fromCollectionId) : undefined;
     let moved = false;
+    // The atomic move has a server-side reverse (mobile's undoTransferCollectionItem); the add-then-remove way has none, so it offers none.
+    let undoMove: (() => Promise<void>) | null = null;
     if (source && moveStrategy(source, target.collection) === 'atomic') {
       try {
-        await api<unknown>({ method: 'POST', path: transferPath(fromCollectionId as number, itemId), body: { targetCollectionId: target.collection.id }, headers: grantHeaders(unlockTokenFor(fromCollectionId as number), target.unlockToken) });
+        const sourceId = fromCollectionId as number;
+        const headers = grantHeaders(unlockTokenFor(sourceId), target.unlockToken);
+        const result = await api<{ readonly targetMembershipCreated?: boolean } | undefined>({ method: 'POST', path: transferPath(sourceId, itemId), body: { targetCollectionId: target.collection.id }, headers });
         moved = true;
+        const targetMembershipCreated = result?.targetMembershipCreated === true;
+        undoMove = async () => {
+          await api<void>({ method: 'POST', path: moveUndoPath(sourceId, itemId), body: { targetCollectionId: target.collection.id, targetMembershipCreated }, headers });
+          notifyItemsChanged({ kind: 'refresh' });
+        };
       } catch (caught) {
         if (!isCollaborationActive(caught)) {
           throw caught;
@@ -148,6 +159,9 @@ export function ItemDetailContent({
       await api<void>({ method: 'DELETE', path: membershipPath(fromCollectionId as number, itemId), headers: unlockHeaders(fromCollectionId as number) });
     }
     // Only this Collection's membership went (the atomic transfer or the add + remove): the link stays in 보관함 / Home.
+    if (undoMove) {
+      toast.showUndo({ message: dictionary.toastMoved, errorMessage: dictionary.toastUndoMoveError, undo: undoMove });
+    }
     notifyItemsChanged({ kind: 'removedFromCollection', itemId, collectionId: fromCollectionId as number });
     onLeave();
   };
@@ -158,6 +172,8 @@ export function ItemDetailContent({
     }
     setBusy(true);
     setActionError(null);
+    // The grant of this visit is taken now as well: the sheet closes and the Collection's page may forget it before 되돌리기 is pressed.
+    const undoHeaders = fromCollectionId !== null ? unlockHeaders(fromCollectionId) : undefined;
     const request = removeFromCollection
       ? api<void>({ method: 'DELETE', path: `/api/v1/collections/${fromCollectionId}/items/${itemId}`, headers: unlockHeaders(fromCollectionId) })
       : api<void>({ method: 'DELETE', path: `/api/v1/items/${itemId}` });
@@ -167,6 +183,26 @@ export function ItemDetailContent({
         // Two different facts: the link is gone everywhere, or only this Collection's membership went.
         notifyItemsChanged(
           fromCollectionId !== null ? { kind: 'removedFromCollection', itemId, collectionId: fromCollectionId } : { kind: 'deleted', itemId },
+        );
+        // Mobile's snackbar: the result is already on screen; 되돌리기 uses the server's own reverse of exactly this action.
+        toast.showUndo(
+          fromCollectionId !== null
+            ? {
+                message: dictionary.toastRemovedFromCollection,
+                errorMessage: dictionary.toastUndoRemoveError,
+                undo: async () => {
+                  await api<unknown>({ method: 'PUT', path: membershipPath(fromCollectionId, itemId), headers: undoHeaders });
+                  notifyItemsChanged({ kind: 'refresh' });
+                },
+              }
+            : {
+                message: dictionary.toastDeleted,
+                errorMessage: dictionary.toastUndoDeleteError,
+                undo: async () => {
+                  await api<void>({ method: 'POST', path: itemRestorePath(itemId) });
+                  notifyItemsChanged({ kind: 'refresh' });
+                },
+              },
         );
         onLeave();
       },

@@ -11,7 +11,8 @@
    Tokens
    ==================================================================================================================== */
 .shell,
-.centered {
+.centered,
+.toastHost {
   --app-background: #f7f9fc;
   --app-surface: #ffffff;
   --app-surface-muted: #f1f4f9;
@@ -97,7 +98,8 @@
 
 @media (prefers-color-scheme: dark) {
   .shell,
-  .centered {
+  .centered,
+  .toastHost {
     --app-background: #101318;
     --app-surface: #181c23;
     --app-surface-muted: #20252e;
@@ -6571,5 +6573,107 @@ button.reactionChipMine:hover {
   background: none;
   color: inherit;
   cursor: pointer;
+}
+
+/* ======================================================================================================================
+   Snackbar (the 되돌리기 offer of a reversible action, and short notices) - above every page and the Quick Detail sheet
+   ==================================================================================================================== */
+.toastHost {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 60;
+  display: flex;
+  justify-content: center;
+  padding: 0 var(--space-4) calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: min(520px, 100%);
+  min-height: 52px;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-radius: var(--radius-lg);
+  /* An inverse surface, so it reads over any page in light and dark. */
+  background: var(--app-text);
+  color: var(--app-surface);
+  box-shadow: 0 8px 28px rgba(16, 24, 40, 0.28);
+  pointer-events: auto;
+  animation: toastIn 160ms ease-out;
+}
+
+.toastError {
+  background: var(--danger);
+  color: #ffffff;
+}
+
+.toastText {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.toastAction,
+.toastClose {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  min-width: 40px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.toastAction {
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.toastAction:hover:not(:disabled) {
+  filter: brightness(0.96);
+}
+
+.toastAction:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.toastClose:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.toastHost :where(button):focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
 }
 

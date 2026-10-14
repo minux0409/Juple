@@ -53,9 +53,9 @@ describe('review page: Collection search and the picker box', () => {
   it('Save is the form\'s own sticky footer (never fixed to the window); one shared header spacing rule', () => {
     const css = source('app/(app)/app.module.css');
     assert.match(css, /\.reviewFooter \{\s*position: sticky;\s*bottom: 0;/);
-    // Only the pill / ⋯ menu panel is fixed (to escape a scrolling list) - never a form footer.
+    // Only the pill / ⋯ menu panel and the 되돌리기 snackbar (a notice over the window) are fixed - never a form footer.
     const fixedRules = [...css.matchAll(/([^{}]+)\{[^{}]*position: fixed/g)].map(match => match[1].trim().split('\n').pop());
-    assert.deepEqual(fixedRules, ['.floatingPanel']);
+    assert.deepEqual(fixedRules, ['.floatingPanel', '.toastHost']);
     assert.match(css, /\.pageHeader,\s*\.detailHeader \{\s*margin-bottom: var\(--header-gap\);/);
     assert.match(source('app/(app)/ItemForm.tsx'), /className=\{styles\.reviewFooter\}/);
   });

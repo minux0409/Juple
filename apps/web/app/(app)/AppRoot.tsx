@@ -28,6 +28,7 @@ import { settleReauthenticationFailure } from '../../lib/reauthFailure';
 import { parseEntitlement, parseStoreSubscription, type Entitlement, type StoreSubscription } from '../../lib/subscription';
 import type { WebAppConfig } from '../../lib/webAppConfig';
 import { AppShell } from './AppShell';
+import { ToastProvider } from './Toaster';
 import { CenteredMessage, Landing } from './Landing';
 
 interface SignedInApp {
@@ -340,7 +341,9 @@ export function AppRoot({
     }
     return (
       <SignedInAppContext.Provider value={signedInApp}>
-        <AppShell>{children}</AppShell>
+        <ToastProvider>
+          <AppShell>{children}</AppShell>
+        </ToastProvider>
       </SignedInAppContext.Provider>
     );
   })();

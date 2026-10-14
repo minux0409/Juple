@@ -289,3 +289,13 @@ export function clearMergeUndo(undoOperationId: string): void {
     pendingMergeUndo = null;
   }
 }
+
+/** POST - reverses a trashed link (mobile restoreItem); the same call 삭제 이력's 복원 makes. */
+export function itemRestorePath(itemId: number): string {
+  return `/api/v1/items/${itemId}/restore`;
+}
+
+/** POST { targetCollectionId, targetMembershipCreated } - reverses an atomic move (mobile undoTransferCollectionItem). */
+export function moveUndoPath(sourceCollectionId: number, itemId: number): string {
+  return `/api/v1/collections/${sourceCollectionId}/items/${itemId}/move/undo`;
+}
