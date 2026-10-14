@@ -81,14 +81,16 @@ describe('comments on a link - profile taps, edit and delete through the real sc
 
     act(() => longPress(renderer, 'comment-1'));
     expect(labels(renderer)).toEqual(['수정하기', '삭제하기']);
-    expect(renderer.root.findAll(node => node.props.testID === 'comment-2' && typeof node.props.onLongPress === 'function')).toHaveLength(0);
+    // Somebody else's comment has a menu now - with 신고 only (never 수정하기 / 삭제하기).
+    act(() => longPress(renderer, 'comment-2'));
+    expect(labels(renderer)).toEqual(['신고']);
   });
 
   it('the Owner: 삭제하기 only on somebody else\'s comment, both on their own', async () => {
     const { renderer } = await mount(true);
 
     act(() => longPress(renderer, 'comment-2'));
-    expect(labels(renderer)).toEqual(['삭제하기']);
+    expect(labels(renderer)).toEqual(['삭제하기', '신고']);
   });
 
   it('수정하기 → the composer switches to 댓글 수정 with the words → 수정 saves in place through the edit API', async () => {

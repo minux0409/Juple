@@ -9,11 +9,13 @@ import { usePersonProfile } from '../friends/PersonProfileModal';
 import { useItemComments } from '../comments/useItemComments';
 import { useAppToast } from '../components/AppToast';
 import { useMessageDialog } from '../components/useMessageDialog';
+import { ReportModal } from '../safety/ReportModal';
 import { ReactionChips } from '../reactions/ReactionChips';
 import { ReactionPickerDialog } from '../reactions/ReactionPickerDialog';
 import { useRecentReactions } from '../reactions/recentReactions';
 import type { ReactionCount } from '../reactions/reactionCatalog';
 import { useItemReactions } from '../reactions/useItemReactions';
+import type { ReportTarget } from '../safety/safetyApi';
 
 /** What the server sent with a link of a Collection: the counts and the caller's own reaction. */
 export interface CollaborationRow {
@@ -58,6 +60,7 @@ export function useItemCollaboration({ collectionId, itemId, isCollectionOwner, 
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const { showNotificationToast } = useAppToast();
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   // A failed EDIT is the result of something the person just did with text they typed: a centered message, not a toast.
   const { showMessage, messageDialog } = useMessageDialog();
   const unlockToken = () => getCollectionUnlockToken(collectionId);
@@ -141,6 +144,7 @@ export function useItemCollaboration({ collectionId, itemId, isCollectionOwner, 
             comments.loadPrevious().catch(() => undefined);
           }}
           onReply={comments.startReply}
+          onReport={target => setReportTarget({ type: 'Comment', commentId: target.id })}
           onRetry={() => {
             comments.load().catch(() => undefined);
           }}
@@ -154,6 +158,14 @@ export function useItemCollaboration({ collectionId, itemId, isCollectionOwner, 
           totalCount={comments.totalCount}
         />
         {profileModal}
+        <ReportModal
+          onClose={() => setReportTarget(null)}
+          onReported={alreadyReported => {
+            setReportTarget(null);
+            showMessage(t(alreadyReported ? 'safety.reportAlready' : 'safety.reportReceived'));
+          }}
+          target={reportTarget}
+        />
         {messageDialog}
       </>
     ),

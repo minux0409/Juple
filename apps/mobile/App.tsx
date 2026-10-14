@@ -11,6 +11,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import { AppToastProvider } from './src/components/AppToast';
 import { AppUpdateGate } from './src/appUpdate/AppUpdateGate';
+import { TermsGate } from './src/safety/TermsGate';
 import { useCollectionShortcutBootstrapSync } from './src/categories/useCollectionShortcutBootstrapSync';
 // Runs i18next.init() at module load, before RootStack ever renders, so there is no untranslated
 // first frame - see src/i18n/index.ts.
@@ -61,6 +62,7 @@ function App() {
             <PushRegistrationSync />
             <CollectionShortcutSync />
             <AppUpdateGate />
+            <TermsGate />
             <AppToastProvider>
               <AppNavigation />
               {/* Above the navigator: the in-app banner for a Push received in the foreground. */}

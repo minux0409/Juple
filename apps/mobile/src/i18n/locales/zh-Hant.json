@@ -1154,5 +1154,41 @@
         "body": "「我的」中有個人檔案和 Juple ID、語言、快速儲存、好友、合集鎖定、刪除記錄和帳號管理。聯絡支援請前往客戶中心。\n\n在帳號管理中可以查看登入方式並刪除帳號。刪除帳號會永久刪除你的帳號和資料。"
       }
     }
+  },
+  "safety": {
+    "termsTitle": "服務條款",
+    "termsBody": "在儲存連結或與他人分享之前，請閱讀並同意服務條款。條款說明哪些行為不被允許，以及檢舉和封鎖的運作方式。",
+    "termsViewTerms": "檢視服務條款",
+    "termsViewPrivacy": "檢視隱私權政策",
+    "termsAgree": "我同意服務條款。",
+    "termsContinue": "同意並繼續",
+    "termsLater": "稍後再說",
+    "termsSaveFailed": "無法儲存你的同意。請再試一次。",
+    "report": "檢舉",
+    "reportReasonTitle": "你為什麼要檢舉？",
+    "reasonSpam": "垃圾訊息",
+    "reasonHarassment": "騷擾或霸凌",
+    "reasonHateOrAbuse": "仇恨或辱罵",
+    "reasonSexualOrInappropriate": "色情或不當內容",
+    "reasonIllegal": "違法內容",
+    "reasonScamOrMaliciousLink": "詐騙或惡意連結",
+    "reasonIntellectualProperty": "侵犯著作權或權利",
+    "reasonOther": "其他",
+    "reportDetailsPlaceholder": "請告訴我們更多資訊（選填）",
+    "reportSubmit": "送出檢舉",
+    "reportReceived": "已收到你的檢舉。",
+    "reportAlready": "你已檢舉過此內容，我們會進行審查。",
+    "reportFailed": "無法送出檢舉。請再試一次。",
+    "block": "封鎖",
+    "blockTitle": "要封鎖此使用者嗎？",
+    "blockMessage": "封鎖後，你們之間的好友邀請和部分互動將受到限制。你可以隨時在設定中解除封鎖。",
+    "blockedDone": "已封鎖該使用者。",
+    "blockFailed": "無法封鎖該使用者。請再試一次。",
+    "unblock": "解除封鎖",
+    "unblockedDone": "已解除封鎖。",
+    "blockedUsers": "已封鎖的使用者",
+    "blockedUsersEmpty": "你還沒有封鎖任何人。",
+    "userBlockedByYou": "你已封鎖此使用者。解除封鎖後才能互動。",
+    "interactionNotAllowed": "無法執行此操作。"
   }
 }

@@ -11,6 +11,8 @@ import { CheckIcon } from '../icons/CheckIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { FRIEND_NOTE_MAX_STORAGE_LENGTH, removeFriend, setFriendNote, type Friend } from './api/friendsApi';
+import { blockUser } from '../safety/safetyApi';
+import { ReportModal } from '../safety/ReportModal';
 import { atJupleId } from './friendIdentity';
 
 interface FriendDetailModalProps {
@@ -19,6 +21,8 @@ interface FriendDetailModalProps {
   /** The server's updated friend after a saved note - the list shows it at once. */
   readonly onChanged: (friend: Friend) => void;
   readonly onRemoved: (friendshipId: number) => void;
+  /** The person was blocked from here (the friendship ended with it): the list refreshes. */
+  readonly onBlocked?: (friendshipId: number) => void;
 }
 
 /**
@@ -27,7 +31,7 @@ interface FriendDetailModalProps {
  * then 친구 삭제 behind a confirmation. While saving, removing or confirming it cannot be dismissed by
  * accident; a failed save keeps both the typed text and the note the list still shows.
  */
-export function FriendDetailModal({ friend, onClose, onChanged, onRemoved }: FriendDetailModalProps) {
+export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onBlocked }: FriendDetailModalProps) {
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const [note, setNote] = useState('');
@@ -35,6 +39,10 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved }: Fri
   const [isRemoving, setIsRemoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isRemoveConfirmVisible, setIsRemoveConfirmVisible] = useState(false);
+  const [isReporting, setIsReporting] = useState(false);
+  const [isBlockConfirmVisible, setIsBlockConfirmVisible] = useState(false);
+  const [isBlocking, setIsBlocking] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const friendshipId = friend?.friendshipId;
   useEffect(() => {
@@ -80,8 +88,26 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved }: Fri
     }
   };
 
+  const block = async () => {
+    setIsBlockConfirmVisible(false);
+    if (isBlocking) {
+      return;
+    }
+    setIsBlocking(true);
+    setError(null);
+    try {
+      await blockUser(authenticatedRequest, friend.jupleId);
+      onBlocked?.(friend.friendshipId);
+      onRemoved(friend.friendshipId);
+    } catch {
+      setError(t('safety.blockFailed'));
+    } finally {
+      setIsBlocking(false);
+    }
+  };
+
   const hasNickname = !!friend.displayName?.trim();
-  const isBusy = isSaving || isRemoving;
+  const isBusy = isSaving || isRemoving || isBlocking;
 
   return (
     <>
@@ -159,8 +185,34 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved }: Fri
               </>
             )}
           </Pressable>
+
+          {/* 신고 / 차단: the other person's account - never shown for oneself (this modal is only ever a friend). */}
+          <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => setIsReporting(true)} style={[styles.actionButton, styles.safetyButton, isBusy && styles.disabled]} testID="friend-report">
+            <Text numberOfLines={2} style={[styles.actionLabel, styles.safetyLabel]}>{t('safety.report')}</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => setIsBlockConfirmVisible(true)} style={[styles.actionButton, styles.safetyButton, isBusy && styles.disabled]} testID="friend-block">
+            {isBlocking ? <ActivityIndicator color={colors.danger} size="small" /> : <Text numberOfLines={2} style={[styles.actionLabel, styles.removeLabel]}>{t('safety.block')}</Text>}
+          </Pressable>
+          {notice ? <Text accessibilityLiveRegion="polite" style={styles.notice} testID="friend-detail-notice">{notice}</Text> : null}
         </ScrollView>
       </AppModal>
+      <ReportModal
+        onClose={() => setIsReporting(false)}
+        onReported={alreadyReported => {
+          setIsReporting(false);
+          setNotice(t(alreadyReported ? 'safety.reportAlready' : 'safety.reportReceived'));
+        }}
+        target={isReporting ? { type: 'User', jupleId: friend.jupleId } : null}
+      />
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('safety.block')}
+        message={t('safety.blockMessage')}
+        onCancel={() => setIsBlockConfirmVisible(false)}
+        onConfirm={() => { block().catch(() => undefined); }}
+        title={t('safety.blockTitle')}
+        visible={isBlockConfirmVisible}
+      />
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('friends.remove')}
@@ -216,5 +268,8 @@ const styles = StyleSheet.create({
   primaryLabel: { color: colors.surface },
   disabled: { opacity: 0.45 },
   removeButton: { borderColor: colors.danger },
+  safetyButton: { borderColor: colors.border, marginTop: spacing.sm },
+  safetyLabel: { color: colors.textPrimary },
+  notice: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.sm, textAlign: 'center' },
   removeLabel: { color: colors.danger },
 });

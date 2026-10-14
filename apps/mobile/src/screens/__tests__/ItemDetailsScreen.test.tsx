@@ -1415,12 +1415,20 @@ describe('ItemDetailsScreen', () => {
       const thread = () =>
         jest.mocked(getItemComments).mockResolvedValue({ items: [comment(1), comment(2, { isMe: true })], previousCursor: null, totalCount: 2 });
 
+      /** The labels of the menu a comment's long-press opens - somebody else's comment offers 신고 and (only to the Collection's Owner) 삭제하기. */
+      const menuLabelsOf = async (renderer: Parameters<typeof commentMenuTrigger>[0], id: number) => {
+        const { ActionMenuDialog } = require('../../components/ActionMenuDialog');
+        await act(async () => commentMenuTrigger(renderer, id)!.props.onLongPress());
+        return (renderer.root.findAllByType(ActionMenuDialog).find((dialog: ReactTestRenderer.ReactTestInstance) => dialog.props.visible)!.props.actions as { label: string }[]).map(action => action.label);
+      };
+
+
       it('my link in someone elses Collection (canRemove, not the Collection owner): I delete my own comment, never another participants', async () => {
         thread();
         const renderer = await renderFrom({ collectionId: 9, canRemove: true, isCollectionOwner: false, isCollaborative: true });
 
         expect(has(renderer, 'comment-composer')).toBe(true);
-        expect(commentMenuTrigger(renderer, 1)).toBeUndefined();
+        expect(await menuLabelsOf(renderer, 1)).toEqual(['신고']);
         expect(commentMenuTrigger(renderer, 2)).toBeDefined();
       });
 
@@ -1438,7 +1446,7 @@ describe('ItemDetailsScreen', () => {
         expect(commentMenuTrigger(ownerOnly, 1)).toBeDefined();
 
         const removeOnly = await renderFrom({ collectionId: 9, canRemove: true, isCollectionOwner: false, isCollaborative: true });
-        expect(commentMenuTrigger(removeOnly, 1)).toBeUndefined();
+        expect(await menuLabelsOf(removeOnly, 1)).toEqual(['신고']);
       });
     });
   });

@@ -1154,5 +1154,41 @@
         "body": "My Page has your profile and Juple ID, language, Quick Save, Friends, Collection lock, Recently Deleted and account management. Contact support from Customer Center.\n\nIn Manage account you can see how you sign in and delete your account, which permanently deletes your account and data."
       }
     }
+  },
+  "safety": {
+    "termsTitle": "Terms of Service",
+    "termsBody": "Before you save links or share with other people, please read and agree to the Terms of Service. They explain what is not allowed and how reports and blocking work.",
+    "termsViewTerms": "View Terms of Service",
+    "termsViewPrivacy": "View Privacy Policy",
+    "termsAgree": "I agree to the Terms of Service.",
+    "termsContinue": "Agree and continue",
+    "termsLater": "Not now",
+    "termsSaveFailed": "Couldn't save your agreement. Please try again.",
+    "report": "Report",
+    "reportReasonTitle": "Why are you reporting this?",
+    "reasonSpam": "Spam",
+    "reasonHarassment": "Harassment or bullying",
+    "reasonHateOrAbuse": "Hate or abuse",
+    "reasonSexualOrInappropriate": "Sexual or inappropriate content",
+    "reasonIllegal": "Illegal content",
+    "reasonScamOrMaliciousLink": "Scam or malicious link",
+    "reasonIntellectualProperty": "Copyright or rights violation",
+    "reasonOther": "Something else",
+    "reportDetailsPlaceholder": "Tell us more (optional)",
+    "reportSubmit": "Send report",
+    "reportReceived": "Your report was received.",
+    "reportAlready": "You've already reported this. We'll review it.",
+    "reportFailed": "Couldn't send the report. Please try again.",
+    "block": "Block",
+    "blockTitle": "Block this user?",
+    "blockMessage": "If you block this user, friend requests and some interactions between you will be restricted. You can unblock them in Settings.",
+    "blockedDone": "User blocked.",
+    "blockFailed": "Couldn't block this user. Please try again.",
+    "unblock": "Unblock",
+    "unblockedDone": "User unblocked.",
+    "blockedUsers": "Blocked users",
+    "blockedUsersEmpty": "You haven't blocked anyone.",
+    "userBlockedByYou": "You blocked this user. Unblock them to interact.",
+    "interactionNotAllowed": "This action isn't available."
   }
 }

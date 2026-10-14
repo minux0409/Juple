@@ -4,8 +4,11 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { AppModal } from '../components/AppModal';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { UserAvatar } from '../components/UserAvatar';
+import { blockUser } from '../safety/safetyApi';
+import { ReportModal } from '../safety/ReportModal';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { FriendDetailModal } from './FriendDetailModal';
 import { getFriendRequestErrorMessage } from './AddFriendModal';
@@ -124,6 +127,26 @@ export function PersonProfileModal({ person, relationship, onClose, onRequestSen
   const authenticatedRequest = useAuthenticatedApi();
   const [isSending, setIsSending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [isReporting, setIsReporting] = useState(false);
+  const [isBlockConfirmVisible, setIsBlockConfirmVisible] = useState(false);
+  const [isBlocking, setIsBlocking] = useState(false);
+
+  const block = async () => {
+    setIsBlockConfirmVisible(false);
+    if (isBlocking) {
+      return;
+    }
+    setIsBlocking(true);
+    setMessage(null);
+    try {
+      await blockUser(authenticatedRequest, person.jupleId);
+      onClose();
+    } catch {
+      setMessage(t('safety.blockFailed'));
+    } finally {
+      setIsBlocking(false);
+    }
+  };
 
   const send = async () => {
     if (isSending) {
@@ -172,7 +195,34 @@ export function PersonProfileModal({ person, relationship, onClose, onRequestSen
           <LoadFailureState compact onRetry={onRetry} testID="person-profile-error" />
         ) : null}
         {message ? <Text accessibilityLiveRegion="polite" style={styles.message} testID="person-profile-message">{message}</Text> : null}
+        {relationship !== 'self' ? (
+          <>
+            <Pressable accessibilityRole="button" disabled={isSending || isBlocking} onPress={() => setIsReporting(true)} style={styles.secondaryButton} testID="person-profile-report">
+              <Text numberOfLines={2} style={styles.secondaryLabel}>{t('safety.report')}</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" disabled={isSending || isBlocking} onPress={() => setIsBlockConfirmVisible(true)} style={styles.secondaryButton} testID="person-profile-block">
+              <Text numberOfLines={2} style={[styles.secondaryLabel, styles.dangerLabel]}>{t('safety.block')}</Text>
+            </Pressable>
+          </>
+        ) : null}
       </View>
+      <ReportModal
+        onClose={() => setIsReporting(false)}
+        onReported={alreadyReported => {
+          setIsReporting(false);
+          setMessage(t(alreadyReported ? 'safety.reportAlready' : 'safety.reportReceived'));
+        }}
+        target={isReporting ? { type: 'User', jupleId: person.jupleId } : null}
+      />
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('safety.block')}
+        message={t('safety.blockMessage')}
+        onCancel={() => setIsBlockConfirmVisible(false)}
+        onConfirm={() => { block().catch(() => undefined); }}
+        title={t('safety.blockTitle')}
+        visible={isBlockConfirmVisible}
+      />
     </AppModal>
   );
 }
@@ -188,4 +238,5 @@ const styles = StyleSheet.create({
   primaryLabel: { color: colors.surface, fontSize: 14, fontWeight: '700', textAlign: 'center' },
   secondaryButton: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   secondaryLabel: { color: colors.textPrimary, fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  dangerLabel: { color: colors.danger },
 });

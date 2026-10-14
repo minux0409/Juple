@@ -1154,5 +1154,41 @@
         "body": "マイページでは、プロフィールとJuple ID、言語、クイック保存、友だち、コレクションのロック、削除履歴、アカウント管理を確認できます。お問い合わせはカスタマーセンターから行えます。\n\nアカウント管理では、ログイン方法の確認とアカウントの削除ができます。アカウントを削除すると、アカウントと保存したデータは完全に削除されます。"
       }
     }
+  },
+  "safety": {
+    "termsTitle": "利用規約",
+    "termsBody": "リンクを保存したり他の人と共有したりする前に、利用規約をお読みのうえ同意してください。禁止事項や、通報・ブロックの仕組みを説明しています。",
+    "termsViewTerms": "利用規約を見る",
+    "termsViewPrivacy": "プライバシーポリシーを見る",
+    "termsAgree": "利用規約に同意します。",
+    "termsContinue": "同意して続ける",
+    "termsLater": "今はしない",
+    "termsSaveFailed": "同意を保存できませんでした。もう一度お試しください。",
+    "report": "通報",
+    "reportReasonTitle": "通報の理由を選んでください",
+    "reasonSpam": "スパム",
+    "reasonHarassment": "嫌がらせ・いじめ",
+    "reasonHateOrAbuse": "ヘイトまたは中傷",
+    "reasonSexualOrInappropriate": "性的または不適切なコンテンツ",
+    "reasonIllegal": "違法なコンテンツ",
+    "reasonScamOrMaliciousLink": "詐欺または悪意のあるリンク",
+    "reasonIntellectualProperty": "著作権・権利の侵害",
+    "reasonOther": "その他",
+    "reportDetailsPlaceholder": "詳細を教えてください（任意）",
+    "reportSubmit": "通報する",
+    "reportReceived": "通報を受け付けました。",
+    "reportAlready": "すでに通報済みです。内容を確認します。",
+    "reportFailed": "通報を送信できませんでした。もう一度お試しください。",
+    "block": "ブロック",
+    "blockTitle": "このユーザーをブロックしますか？",
+    "blockMessage": "ブロックすると、フレンドリクエストなどお互いのやり取りが一部制限されます。ブロックは設定からいつでも解除できます。",
+    "blockedDone": "ユーザーをブロックしました。",
+    "blockFailed": "ブロックできませんでした。もう一度お試しください。",
+    "unblock": "ブロックを解除",
+    "unblockedDone": "ブロックを解除しました。",
+    "blockedUsers": "ブロックしたユーザー",
+    "blockedUsersEmpty": "ブロックしたユーザーはいません。",
+    "userBlockedByYou": "このユーザーをブロックしています。やり取りするにはブロックを解除してください。",
+    "interactionNotAllowed": "この操作はできません。"
   }
 }

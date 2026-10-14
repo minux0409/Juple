@@ -1154,5 +1154,41 @@
         "body": "Halaman Saya berisi profil dan Juple ID, bahasa, Simpan cepat, Teman, Kunci koleksi, Baru Dihapus, dan pengelolaan akun. Hubungi dukungan dari Pusat Bantuan.\n\nDi Kelola akun, Anda bisa melihat cara masuk dan menghapus akun; menghapus akun menghapus permanen akun dan data Anda."
       }
     }
+  },
+  "safety": {
+    "termsTitle": "Ketentuan Layanan",
+    "termsBody": "Sebelum menyimpan tautan atau membagikannya kepada orang lain, baca dan setujui Ketentuan Layanan. Ketentuan ini menjelaskan apa yang tidak diizinkan serta cara kerja laporan dan pemblokiran.",
+    "termsViewTerms": "Lihat Ketentuan Layanan",
+    "termsViewPrivacy": "Lihat Kebijakan Privasi",
+    "termsAgree": "Saya menyetujui Ketentuan Layanan.",
+    "termsContinue": "Setuju dan lanjutkan",
+    "termsLater": "Nanti saja",
+    "termsSaveFailed": "Persetujuan Anda tidak dapat disimpan. Silakan coba lagi.",
+    "report": "Laporkan",
+    "reportReasonTitle": "Mengapa Anda melaporkan ini?",
+    "reasonSpam": "Spam",
+    "reasonHarassment": "Pelecehan atau perundungan",
+    "reasonHateOrAbuse": "Kebencian atau pelecehan verbal",
+    "reasonSexualOrInappropriate": "Konten seksual atau tidak pantas",
+    "reasonIllegal": "Konten ilegal",
+    "reasonScamOrMaliciousLink": "Penipuan atau tautan berbahaya",
+    "reasonIntellectualProperty": "Pelanggaran hak cipta atau hak lain",
+    "reasonOther": "Lainnya",
+    "reportDetailsPlaceholder": "Ceritakan lebih lanjut (opsional)",
+    "reportSubmit": "Kirim laporan",
+    "reportReceived": "Laporan Anda telah diterima.",
+    "reportAlready": "Anda sudah melaporkan ini. Kami akan meninjaunya.",
+    "reportFailed": "Laporan tidak dapat dikirim. Silakan coba lagi.",
+    "block": "Blokir",
+    "blockTitle": "Blokir pengguna ini?",
+    "blockMessage": "Jika Anda memblokir pengguna ini, permintaan pertemanan dan beberapa interaksi di antara Anda akan dibatasi. Anda dapat membuka blokir di Pengaturan.",
+    "blockedDone": "Pengguna diblokir.",
+    "blockFailed": "Pengguna tidak dapat diblokir. Silakan coba lagi.",
+    "unblock": "Buka blokir",
+    "unblockedDone": "Blokir pengguna dibuka.",
+    "blockedUsers": "Pengguna yang diblokir",
+    "blockedUsersEmpty": "Anda belum memblokir siapa pun.",
+    "userBlockedByYou": "Anda memblokir pengguna ini. Buka blokir untuk berinteraksi.",
+    "interactionNotAllowed": "Tindakan ini tidak tersedia."
   }
 }

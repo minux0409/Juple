@@ -1154,5 +1154,41 @@
         "body": "Minha página tem seu perfil e ID Juple, idioma, Salvamento rápido, Amigos, Bloqueio de coleções, Excluídos recentemente e o gerenciamento da conta. Fale com o suporte pela Central de ajuda.\n\nEm Gerenciar conta você vê como faz login e pode excluir sua conta, o que exclui de vez sua conta e seus dados."
       }
     }
+  },
+  "safety": {
+    "termsTitle": "Termos de Serviço",
+    "termsBody": "Antes de salvar links ou compartilhar com outras pessoas, leia e aceite os Termos de Serviço. Eles explicam o que não é permitido e como funcionam as denúncias e os bloqueios.",
+    "termsViewTerms": "Ver Termos de Serviço",
+    "termsViewPrivacy": "Ver Política de Privacidade",
+    "termsAgree": "Eu aceito os Termos de Serviço.",
+    "termsContinue": "Aceitar e continuar",
+    "termsLater": "Agora não",
+    "termsSaveFailed": "Não foi possível salvar sua aceitação. Tente novamente.",
+    "report": "Denunciar",
+    "reportReasonTitle": "Por que você está denunciando?",
+    "reasonSpam": "Spam",
+    "reasonHarassment": "Assédio ou bullying",
+    "reasonHateOrAbuse": "Ódio ou abuso",
+    "reasonSexualOrInappropriate": "Conteúdo sexual ou inadequado",
+    "reasonIllegal": "Conteúdo ilegal",
+    "reasonScamOrMaliciousLink": "Golpe ou link malicioso",
+    "reasonIntellectualProperty": "Violação de direitos autorais",
+    "reasonOther": "Outro motivo",
+    "reportDetailsPlaceholder": "Conte mais (opcional)",
+    "reportSubmit": "Enviar denúncia",
+    "reportReceived": "Sua denúncia foi recebida.",
+    "reportAlready": "Você já denunciou isso. Vamos analisar.",
+    "reportFailed": "Não foi possível enviar a denúncia. Tente novamente.",
+    "block": "Bloquear",
+    "blockTitle": "Bloquear este usuário?",
+    "blockMessage": "Se você bloquear este usuário, pedidos de amizade e algumas interações entre vocês serão restringidos. Você pode desbloquear em Configurações.",
+    "blockedDone": "Usuário bloqueado.",
+    "blockFailed": "Não foi possível bloquear o usuário. Tente novamente.",
+    "unblock": "Desbloquear",
+    "unblockedDone": "Usuário desbloqueado.",
+    "blockedUsers": "Usuários bloqueados",
+    "blockedUsersEmpty": "Você não bloqueou ninguém.",
+    "userBlockedByYou": "Você bloqueou este usuário. Desbloqueie para interagir.",
+    "interactionNotAllowed": "Esta ação não está disponível."
   }
 }

@@ -1154,5 +1154,41 @@
         "body": "“我的”中有个人资料和 Juple ID、语言、快速保存、好友、合集锁定、删除记录和账户管理。联系支持请前往客户中心。\n\n在账户管理中可以查看登录方式并删除账户。删除账户会永久删除你的账户和数据。"
       }
     }
+  },
+  "safety": {
+    "termsTitle": "服务条款",
+    "termsBody": "在保存链接或与他人分享之前，请阅读并同意服务条款。条款说明了哪些行为不被允许，以及举报和屏蔽的运作方式。",
+    "termsViewTerms": "查看服务条款",
+    "termsViewPrivacy": "查看隐私政策",
+    "termsAgree": "我同意服务条款。",
+    "termsContinue": "同意并继续",
+    "termsLater": "暂不",
+    "termsSaveFailed": "无法保存你的同意。请重试。",
+    "report": "举报",
+    "reportReasonTitle": "你为什么要举报？",
+    "reasonSpam": "垃圾信息",
+    "reasonHarassment": "骚扰或欺凌",
+    "reasonHateOrAbuse": "仇恨或辱骂",
+    "reasonSexualOrInappropriate": "色情或不当内容",
+    "reasonIllegal": "违法内容",
+    "reasonScamOrMaliciousLink": "诈骗或恶意链接",
+    "reasonIntellectualProperty": "侵犯版权或权利",
+    "reasonOther": "其他",
+    "reportDetailsPlaceholder": "请告诉我们更多信息（可选）",
+    "reportSubmit": "提交举报",
+    "reportReceived": "已收到你的举报。",
+    "reportAlready": "你已举报过此内容，我们会进行审核。",
+    "reportFailed": "无法发送举报。请重试。",
+    "block": "屏蔽",
+    "blockTitle": "要屏蔽此用户吗？",
+    "blockMessage": "屏蔽后，你们之间的好友请求和部分互动将受到限制。你可以随时在设置中取消屏蔽。",
+    "blockedDone": "已屏蔽该用户。",
+    "blockFailed": "无法屏蔽该用户。请重试。",
+    "unblock": "取消屏蔽",
+    "unblockedDone": "已取消屏蔽。",
+    "blockedUsers": "已屏蔽的用户",
+    "blockedUsersEmpty": "你还没有屏蔽任何人。",
+    "userBlockedByYou": "你已屏蔽此用户。取消屏蔽后才能互动。",
+    "interactionNotAllowed": "无法执行此操作。"
   }
 }

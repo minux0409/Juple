@@ -1154,5 +1154,41 @@
         "body": "Mein Bereich enthält dein Profil und deine Juple-ID, Sprache, Schnellspeichern, Freunde, Sammlungssperre, Kürzlich gelöscht und die Kontoverwaltung. Den Support erreichst du über das Kundencenter.\n\nUnter Konto verwalten siehst du, wie du dich anmeldest, und kannst dein Konto löschen. Das löscht dein Konto und deine Daten endgültig."
       }
     }
+  },
+  "safety": {
+    "termsTitle": "Nutzungsbedingungen",
+    "termsBody": "Bevor du Links speicherst oder mit anderen teilst, lies bitte die Nutzungsbedingungen und stimme ihnen zu. Sie erklären, was nicht erlaubt ist und wie Meldungen und Blockieren funktionieren.",
+    "termsViewTerms": "Nutzungsbedingungen ansehen",
+    "termsViewPrivacy": "Datenschutzerklärung ansehen",
+    "termsAgree": "Ich stimme den Nutzungsbedingungen zu.",
+    "termsContinue": "Zustimmen und weiter",
+    "termsLater": "Jetzt nicht",
+    "termsSaveFailed": "Deine Zustimmung konnte nicht gespeichert werden. Bitte versuche es erneut.",
+    "report": "Melden",
+    "reportReasonTitle": "Warum meldest du das?",
+    "reasonSpam": "Spam",
+    "reasonHarassment": "Belästigung oder Mobbing",
+    "reasonHateOrAbuse": "Hass oder Beleidigung",
+    "reasonSexualOrInappropriate": "Sexuelle oder unangemessene Inhalte",
+    "reasonIllegal": "Illegale Inhalte",
+    "reasonScamOrMaliciousLink": "Betrug oder schädlicher Link",
+    "reasonIntellectualProperty": "Urheberrechts- oder Rechteverletzung",
+    "reasonOther": "Etwas anderes",
+    "reportDetailsPlaceholder": "Erzähl uns mehr (optional)",
+    "reportSubmit": "Meldung senden",
+    "reportReceived": "Deine Meldung ist eingegangen.",
+    "reportAlready": "Du hast das bereits gemeldet. Wir prüfen es.",
+    "reportFailed": "Die Meldung konnte nicht gesendet werden. Bitte versuche es erneut.",
+    "block": "Blockieren",
+    "blockTitle": "Diese Person blockieren?",
+    "blockMessage": "Wenn du diese Person blockierst, werden Freundschaftsanfragen und einige Interaktionen zwischen euch eingeschränkt. Du kannst die Blockierung in den Einstellungen aufheben.",
+    "blockedDone": "Person blockiert.",
+    "blockFailed": "Die Person konnte nicht blockiert werden. Bitte versuche es erneut.",
+    "unblock": "Blockierung aufheben",
+    "unblockedDone": "Blockierung aufgehoben.",
+    "blockedUsers": "Blockierte Personen",
+    "blockedUsersEmpty": "Du hast niemanden blockiert.",
+    "userBlockedByYou": "Du hast diese Person blockiert. Hebe die Blockierung auf, um zu interagieren.",
+    "interactionNotAllowed": "Diese Aktion ist nicht verfügbar."
   }
 }

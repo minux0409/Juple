@@ -1154,5 +1154,41 @@
         "body": "Il mio profilo contiene il tuo profilo e ID Juple, lingua, Salvataggio rapido, Amici, Blocco raccolte, Eliminati di recente e gestione dell’account. Contatta l’assistenza dal Centro assistenza.\n\nIn Gestisci account puoi vedere come accedi ed eliminare il tuo account, il che elimina definitivamente account e dati."
       }
     }
+  },
+  "safety": {
+    "termsTitle": "Termini di servizio",
+    "termsBody": "Prima di salvare link o condividere con altre persone, leggi e accetta i Termini di servizio. Spiegano cosa non è consentito e come funzionano segnalazioni e blocchi.",
+    "termsViewTerms": "Vedi i Termini di servizio",
+    "termsViewPrivacy": "Vedi l'Informativa sulla privacy",
+    "termsAgree": "Accetto i Termini di servizio.",
+    "termsContinue": "Accetta e continua",
+    "termsLater": "Non ora",
+    "termsSaveFailed": "Impossibile salvare la tua accettazione. Riprova.",
+    "report": "Segnala",
+    "reportReasonTitle": "Perché lo stai segnalando?",
+    "reasonSpam": "Spam",
+    "reasonHarassment": "Molestie o bullismo",
+    "reasonHateOrAbuse": "Odio o abusi",
+    "reasonSexualOrInappropriate": "Contenuti sessuali o inappropriati",
+    "reasonIllegal": "Contenuti illegali",
+    "reasonScamOrMaliciousLink": "Truffa o link dannoso",
+    "reasonIntellectualProperty": "Violazione del diritto d'autore",
+    "reasonOther": "Altro",
+    "reportDetailsPlaceholder": "Dicci di più (facoltativo)",
+    "reportSubmit": "Invia segnalazione",
+    "reportReceived": "La tua segnalazione è stata ricevuta.",
+    "reportAlready": "Hai già segnalato questo contenuto. Lo esamineremo.",
+    "reportFailed": "Impossibile inviare la segnalazione. Riprova.",
+    "block": "Blocca",
+    "blockTitle": "Bloccare questo utente?",
+    "blockMessage": "Se blocchi questo utente, le richieste di amicizia e alcune interazioni tra voi saranno limitate. Puoi sbloccarlo dalle Impostazioni.",
+    "blockedDone": "Utente bloccato.",
+    "blockFailed": "Impossibile bloccare l'utente. Riprova.",
+    "unblock": "Sblocca",
+    "unblockedDone": "Utente sbloccato.",
+    "blockedUsers": "Utenti bloccati",
+    "blockedUsersEmpty": "Non hai bloccato nessuno.",
+    "userBlockedByYou": "Hai bloccato questo utente. Sbloccalo per interagire.",
+    "interactionNotAllowed": "Questa azione non è disponibile."
   }
 }

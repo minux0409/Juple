@@ -30,6 +30,8 @@ interface CommentListProps {
   readonly threads?: Readonly<Record<number, ThreadState>>;
   readonly onReply?: (comment: ItemComment) => void;
   readonly onToggleLike?: (comment: ItemComment) => void;
+  /** 신고: offered (long-press) on somebody else's live comment - never the caller's own. */
+  readonly onReport?: (comment: ItemComment) => void;
   readonly onToggleReplies?: (rootCommentId: number) => void;
   readonly onLoadMoreReplies?: (rootCommentId: number) => void;
   readonly onRetryReplies?: (rootCommentId: number) => void;
@@ -59,6 +61,7 @@ export function CommentList({
   threads,
   onReply,
   onToggleLike,
+  onReport,
   onToggleReplies,
   onLoadMoreReplies,
   onRetryReplies,
@@ -71,12 +74,14 @@ export function CommentList({
   // deletes their own and the Collection's Owner any. A deleted placeholder has neither.
   const canEdit = (comment: ItemComment) => onEdit !== undefined && !comment.isDeleted && comment.author.isMe;
   const canDelete = (comment: ItemComment) => !comment.isDeleted && (canDeleteAny || comment.author.isMe);
+  const canReport = (comment: ItemComment) => onReport !== undefined && !comment.isDeleted && !comment.author.isMe;
   const menuActions = (comment: ItemComment | null) =>
     comment === null
       ? []
       : [
           ...(canEdit(comment) ? [{ label: t('comments.edit'), icon: EditIcon, onPress: () => { setMenuFor(null); onEdit?.(comment); } }] : []),
           ...(canDelete(comment) ? [{ label: t('comments.deleteAction'), destructive: true, icon: TrashIcon, onPress: () => { setConfirmFor(comment); setMenuFor(null); } }] : []),
+          ...(canReport(comment) ? [{ label: t('safety.report'), onPress: () => { setMenuFor(null); onReport?.(comment); } }] : []),
         ];
 
   const row = (comment: ItemComment, isReply: boolean) => (
@@ -85,7 +90,7 @@ export function CommentList({
       isReply={isReply}
       key={comment.id}
       // No long-press (and never an empty menu) on a comment the caller may not change.
-      onLongPress={canEdit(comment) || canDelete(comment) ? setMenuFor : undefined}
+      onLongPress={canEdit(comment) || canDelete(comment) || canReport(comment) ? setMenuFor : undefined}
       onOpenProfile={onOpenProfile}
       onReply={onReply}
       onToggleLike={onToggleLike}

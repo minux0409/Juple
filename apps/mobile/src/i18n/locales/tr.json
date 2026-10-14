@@ -1154,5 +1154,41 @@
         "body": "Sayfam'da profiliniz ve Juple ID, dil, Hızlı kaydet, Arkadaşlar, Koleksiyon kilidi, Son Silinenler ve hesap yönetimi yer alır. Destek için Müşteri Merkezi'ni kullanın.\n\nHesabı yönet bölümünde nasıl giriş yaptığınızı görebilir ve hesabınızı silebilirsiniz; hesap silmek hesabınızı ve verilerinizi kalıcı olarak siler."
       }
     }
+  },
+  "safety": {
+    "termsTitle": "Hizmet Şartları",
+    "termsBody": "Bağlantı kaydetmeden veya başkalarıyla paylaşmadan önce lütfen Hizmet Şartları’nı okuyup kabul edin. Şartlar nelerin yasak olduğunu ve şikâyet ile engellemenin nasıl işlediğini açıklar.",
+    "termsViewTerms": "Hizmet Şartları’nı görüntüle",
+    "termsViewPrivacy": "Gizlilik Politikası’nı görüntüle",
+    "termsAgree": "Hizmet Şartları’nı kabul ediyorum.",
+    "termsContinue": "Kabul et ve devam et",
+    "termsLater": "Şimdi değil",
+    "termsSaveFailed": "Onayınız kaydedilemedi. Lütfen tekrar deneyin.",
+    "report": "Şikâyet et",
+    "reportReasonTitle": "Neden şikâyet ediyorsunuz?",
+    "reasonSpam": "Spam",
+    "reasonHarassment": "Taciz veya zorbalık",
+    "reasonHateOrAbuse": "Nefret veya hakaret",
+    "reasonSexualOrInappropriate": "Cinsel veya uygunsuz içerik",
+    "reasonIllegal": "Yasa dışı içerik",
+    "reasonScamOrMaliciousLink": "Dolandırıcılık veya kötü amaçlı bağlantı",
+    "reasonIntellectualProperty": "Telif hakkı veya hak ihlali",
+    "reasonOther": "Başka bir neden",
+    "reportDetailsPlaceholder": "Bize daha fazla bilgi verin (isteğe bağlı)",
+    "reportSubmit": "Şikâyeti gönder",
+    "reportReceived": "Şikâyetiniz alındı.",
+    "reportAlready": "Bunu zaten şikâyet ettiniz. İnceleyeceğiz.",
+    "reportFailed": "Şikâyet gönderilemedi. Lütfen tekrar deneyin.",
+    "block": "Engelle",
+    "blockTitle": "Bu kullanıcı engellensin mi?",
+    "blockMessage": "Bu kullanıcıyı engellerseniz arkadaşlık istekleri ve aranızdaki bazı etkileşimler kısıtlanır. Engeli Ayarlar’dan kaldırabilirsiniz.",
+    "blockedDone": "Kullanıcı engellendi.",
+    "blockFailed": "Kullanıcı engellenemedi. Lütfen tekrar deneyin.",
+    "unblock": "Engeli kaldır",
+    "unblockedDone": "Engel kaldırıldı.",
+    "blockedUsers": "Engellenen kullanıcılar",
+    "blockedUsersEmpty": "Kimseyi engellemediniz.",
+    "userBlockedByYou": "Bu kullanıcıyı engellediniz. Etkileşim için engeli kaldırın.",
+    "interactionNotAllowed": "Bu işlem kullanılamıyor."
   }
 }

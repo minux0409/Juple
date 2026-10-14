@@ -314,7 +314,7 @@ describe('CollectionDetailsScreen - Viewer (보기 전용)', () => {
     }
     // [★] [🔔] [⋯]: their own 새 링크 알림 is the bell; the ⋯ holds only copying into their own Collection.
     expect(headerButtonIds(top)).toEqual(['collection-details-favorite', 'collection-details-notifications', 'collection-details-more']);
-    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine'), i18n.t('collections.leaveAction')]);
+    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine'), i18n.t('safety.report'), i18n.t('collections.leaveAction')]);
     const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
     expect(menu.findAllByType(BellIcon)).toHaveLength(0);
     expect(menu.findAllByType(CopyIcon)).toHaveLength(1);
@@ -533,7 +533,7 @@ describe('CollectionDetailsScreen - shared with me: 새 링크 알림 and 내 �
     // Nothing to copy yet, so the ⋯ holds only 컬렉션에서 나가기 (a member can always leave) - their own bell is still there.
     const top = header(renderer);
     expect(headerButtonIds(top)).toEqual(['collection-details-favorite', 'collection-details-notifications', 'collection-details-more']);
-    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.leaveAction')]);
+    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('safety.report'), i18n.t('collections.leaveAction')]);
   });
 });
 
@@ -1179,7 +1179,7 @@ describe('CollectionDetailsScreen - Contributor', () => {
     }
     // Their own bell in the header; the ⋯ holds only copying into their own Collection.
     expect(headerButtonIds(top)).toContain('collection-details-notifications');
-    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine'), i18n.t('collections.leaveAction')]);
+    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine'), i18n.t('safety.report'), i18n.t('collections.leaveAction')]);
     expect(hasLabel(top, i18n.t('collections.addFavorite'))).toBe(true);
     expect(top.root.findAllByType(Switch)).toHaveLength(0);
     // Share management is never even queried for a Contributor.

@@ -83,6 +83,7 @@ import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { ActionMenuDialog, type ActionMenuDialogAction } from '../components/ActionMenuDialog';
+import { ReportModal } from '../safety/ReportModal';
 import { ParticipantAvatarStack } from '../components/ParticipantAvatarStack';
 import { QuickReactionBar } from '../reactions/QuickReactionBar';
 import { ReactionChips } from '../reactions/ReactionChips';
@@ -683,6 +684,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // Owner-only control below is hidden for a Contributor, and the server independently refuses
   // them (403) regardless.
   const isOwner = collection !== null && !isSharedWithMe(collection);
+  const [isReportingCollection, setIsReportingCollection] = useState(false);
 
   // Whatever this screen learns about the Collection (opened, renamed, locked, role changed) also keeps its app shortcut
   // right - a renamed one gets the new label, a locked or read-only one is removed - with no request of its own.
@@ -1676,6 +1678,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
             setSelectAllForCopyCount(null);
             setSelectedItemIds(new Set());
           }) }]),
+        // Somebody else's Collection: it can be reported (never the caller's own - the Owner has no such entry).
+        { label: t('safety.report'), onPress: closeCollectionMenuThen(() => setIsReportingCollection(true)) },
         // An active member can always leave on their own (the Owner cannot - they delete instead).
         { label: t('collections.leaveAction'), destructive: true, icon: LogoutIcon, onPress: closeCollectionMenuThen(() => setIsLeaveConfirmVisible(true)) },
       ];
@@ -2165,6 +2169,14 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         cancelLabel={t('common.cancel')}
         onCancel={() => { setIsItemActionMenuVisible(false); setActionMenuItem(null); }}
         visible={isItemActionMenuVisible}
+      />
+      <ReportModal
+        onClose={() => setIsReportingCollection(false)}
+        onReported={alreadyReported => {
+          setIsReportingCollection(false);
+          showNotificationToast(t(alreadyReported ? 'safety.reportAlready' : 'safety.reportReceived'));
+        }}
+        target={isReportingCollection ? { type: 'Collection', collectionId } : null}
       />
       <ActionMenuDialog
         actions={collectionMenuActions}

@@ -1154,5 +1154,41 @@
         "body": "내 페이지에서 프로필과 Juple ID, 언어, 빠른 저장, 친구, 컬렉션 잠금, 삭제 이력, 계정 관리를 볼 수 있어요. 문의는 고객센터에서 해요.\n\n계정 관리에서는 로그인 방법을 확인하고 계정을 삭제할 수 있어요. 계정을 삭제하면 계정과 저장한 데이터가 영구적으로 삭제돼요."
       }
     }
+  },
+  "safety": {
+    "termsTitle": "이용약관",
+    "termsBody": "링크를 저장하거나 다른 사람과 공유하기 전에 이용약관을 읽고 동의해 주세요. 허용되지 않는 행위와 신고·차단 방식이 안내되어 있습니다.",
+    "termsViewTerms": "이용약관 보기",
+    "termsViewPrivacy": "개인정보처리방침 보기",
+    "termsAgree": "이용약관에 동의합니다.",
+    "termsContinue": "동의하고 계속",
+    "termsLater": "나중에",
+    "termsSaveFailed": "동의를 저장하지 못했어요. 다시 시도해 주세요.",
+    "report": "신고",
+    "reportReasonTitle": "신고하는 이유가 무엇인가요?",
+    "reasonSpam": "스팸",
+    "reasonHarassment": "괴롭힘 또는 따돌림",
+    "reasonHateOrAbuse": "혐오 또는 악용",
+    "reasonSexualOrInappropriate": "선정적이거나 부적절한 콘텐츠",
+    "reasonIllegal": "불법 콘텐츠",
+    "reasonScamOrMaliciousLink": "사기 또는 악성 링크",
+    "reasonIntellectualProperty": "저작권 또는 권리 침해",
+    "reasonOther": "기타",
+    "reportDetailsPlaceholder": "자세한 내용을 알려 주세요 (선택)",
+    "reportSubmit": "신고하기",
+    "reportReceived": "신고가 접수되었습니다.",
+    "reportAlready": "이미 신고한 대상이에요. 검토할게요.",
+    "reportFailed": "신고를 보내지 못했어요. 다시 시도해 주세요.",
+    "block": "차단",
+    "blockTitle": "이 사용자를 차단하시겠습니까?",
+    "blockMessage": "이 사용자를 차단하면 서로 친구 요청 및 일부 상호작용이 제한됩니다. 설정에서 언제든 차단을 해제할 수 있어요.",
+    "blockedDone": "사용자를 차단했습니다.",
+    "blockFailed": "사용자를 차단하지 못했어요. 다시 시도해 주세요.",
+    "unblock": "차단 해제",
+    "unblockedDone": "차단을 해제했습니다.",
+    "blockedUsers": "차단한 사용자",
+    "blockedUsersEmpty": "차단한 사용자가 없어요.",
+    "userBlockedByYou": "이 사용자를 차단했어요. 상호작용하려면 차단을 해제해 주세요.",
+    "interactionNotAllowed": "이 작업은 할 수 없어요."
   }
 }

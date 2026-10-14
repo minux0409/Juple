@@ -378,7 +378,8 @@ describe('CollectionSharedItemScreen - comments', () => {
     jest.mocked(getItemComments).mockResolvedValue({ items: [comment(1), comment(2, { isMe: true })], previousCursor: null, totalCount: 2 });
     jest.mocked(deleteItemComment).mockResolvedValue(undefined);
     const renderer = await renderWith();
-    expect(commentMenuTrigger(renderer, 1)).toBeUndefined();
+    // Somebody else's comment has a menu too, but only 신고 is in it.
+    expect(commentMenuTrigger(renderer, 1)).toBeDefined();
 
     await act(async () => commentMenuTrigger(renderer, 2).props.onLongPress());
     await act(async () => renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!.props.actions.find((action: { label: string }) => action.label === '삭제하기').onPress());
@@ -396,8 +397,10 @@ describe('CollectionSharedItemScreen - comments', () => {
     jest.mocked(getItemComments).mockResolvedValue({ items: [comment(1), comment(2)], previousCursor: null, totalCount: 2 });
 
     const asMember = await renderWith();
-    expect(commentMenuTrigger(asMember, 1)).toBeUndefined();
-    expect(commentMenuTrigger(asMember, 2)).toBeUndefined();
+    // A member's menu on somebody else's comment holds only 신고 - never 삭제하기.
+    await act(async () => commentMenuTrigger(asMember, 2).props.onLongPress());
+    const memberActions = asMember.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!.props.actions as { label: string }[];
+    expect(memberActions.map(action => action.label)).toEqual(['신고']);
 
     const asOwner = await renderWith({ isCollectionOwner: true });
     expect(commentMenuTrigger(asOwner, 1)).toBeDefined();

@@ -1154,5 +1154,41 @@
         "body": "Mon compte regroupe votre profil et ID Juple, la langue, l’Enregistrement rapide, les Amis, le Verrouillage des collections, Supprimés récemment et la gestion du compte. Contactez l’assistance depuis le Centre d'aide.\n\nDans Gérer le compte, vous pouvez voir comment vous vous connectez et supprimer votre compte, ce qui supprime définitivement votre compte et vos données."
       }
     }
+  },
+  "safety": {
+    "termsTitle": "Conditions d'utilisation",
+    "termsBody": "Avant d'enregistrer des liens ou de les partager avec d'autres personnes, lisez et acceptez les Conditions d'utilisation. Elles expliquent ce qui n'est pas autorisé et comment fonctionnent les signalements et les blocages.",
+    "termsViewTerms": "Voir les Conditions d'utilisation",
+    "termsViewPrivacy": "Voir la Politique de confidentialité",
+    "termsAgree": "J'accepte les Conditions d'utilisation.",
+    "termsContinue": "Accepter et continuer",
+    "termsLater": "Pas maintenant",
+    "termsSaveFailed": "Impossible d'enregistrer votre acceptation. Veuillez réessayer.",
+    "report": "Signaler",
+    "reportReasonTitle": "Pourquoi signalez-vous ceci ?",
+    "reasonSpam": "Spam",
+    "reasonHarassment": "Harcèlement ou intimidation",
+    "reasonHateOrAbuse": "Haine ou abus",
+    "reasonSexualOrInappropriate": "Contenu sexuel ou inapproprié",
+    "reasonIllegal": "Contenu illégal",
+    "reasonScamOrMaliciousLink": "Arnaque ou lien malveillant",
+    "reasonIntellectualProperty": "Atteinte au droit d'auteur",
+    "reasonOther": "Autre",
+    "reportDetailsPlaceholder": "Dites-nous-en plus (facultatif)",
+    "reportSubmit": "Envoyer le signalement",
+    "reportReceived": "Votre signalement a bien été reçu.",
+    "reportAlready": "Vous avez déjà signalé ceci. Nous allons l’examiner.",
+    "reportFailed": "Impossible d'envoyer le signalement. Veuillez réessayer.",
+    "block": "Bloquer",
+    "blockTitle": "Bloquer cet utilisateur ?",
+    "blockMessage": "Si vous bloquez cet utilisateur, les demandes d'ami et certaines interactions entre vous seront restreintes. Vous pouvez le débloquer dans les Réglages.",
+    "blockedDone": "Utilisateur bloqué.",
+    "blockFailed": "Impossible de bloquer cet utilisateur. Veuillez réessayer.",
+    "unblock": "Débloquer",
+    "unblockedDone": "Utilisateur débloqué.",
+    "blockedUsers": "Utilisateurs bloqués",
+    "blockedUsersEmpty": "Vous n'avez bloqué personne.",
+    "userBlockedByYou": "Vous avez bloqué cet utilisateur. Débloquez-le pour interagir.",
+    "interactionNotAllowed": "Cette action n'est pas disponible."
   }
 }
