@@ -286,20 +286,19 @@ az deployment group create `
 # firebaseServiceAccountKeyJson도 같은 이유로 @<file> 문법으로 전달한다 - 사용자가 이미
 # repo 밖(local-only)에 저장해 둔 실제 Firebase service-account JSON 파일 경로를 그대로 가리키면 되고,
 # 파일 내용을 셸 변수에 대입하거나 화면에 붙여넣는 중간 단계 자체가 없다.
+# Dev 값(cron 포함)은 `infra/azure/job/dev.bicepparam`에 고정되어 있다 - 나머지 live 값/SQL connection string은
+# App(3번)과 같은 JUPLE_APP_* 환경변수에서 읽고, Firebase JSON만 파일 그대로 inline override로 얹는다(override를
+# 빠뜨리면 firebase-credential-source-guard가 배포를 거부한다).
+$env:JUPLE_APP_IMAGE_TAG = '<App과 동일한 tag>'
+$env:JUPLE_APP_SQL_CONNECTION_STRING = $env:SQL_CONNECTION_STRING
 az deployment group create `
   --resource-group $foundation.resourceGroupName.value `
-  --template-file infra/azure/job/main.bicep `
-  --parameters `
-    acrLoginServer=$foundation.acrLoginServer.value `
-    imageTag=<App과 동일한 tag> `
-    containerAppsEnvironmentId=$foundation.containerAppsEnvironmentId.value `
-    managedIdentityResourceId=$foundation.managedIdentityResourceId.value `
-    sqlConnectionString=$env:SQL_CONNECTION_STRING `
-    firebaseServiceAccountKeyJson=@<repo 밖 Firebase service-account JSON 파일 경로> `
-    cronExpression='*/5 * * * *'
+  --parameters infra/azure/job/dev.bicepparam `
+  --parameters firebaseServiceAccountKeyJson=@<repo 밖 Firebase service-account JSON 파일 경로>
 # Dev는 5분 주기다(2026-10-14 비용 점검: 매분 실행이 Dev 비용의 큰 몫). 평소 Push는 notification worker(Service Bus)가
-# 보내고 이 Job은 복구 경로라 Dev에서 최대 5분 복구 지연은 허용한다. Production은 prod.bicepparam이 cron을 지정하지 않아
-# template 기본값(매분)을 그대로 쓴다.
+# 보내고 이 Job은 복구 경로라 Dev에서 최대 5분 복구 지연은 허용한다. `--template-file infra/azure/job/main.bicep`로
+# 직접 배포하면 template 기본값(매분)으로 되돌아가므로 Dev에서는 쓰지 않는다. Production은 prod.bicepparam이 cron을
+# 지정하지 않아 template 기본값(매분)을 그대로 쓴다.
 
 # 5. Blob cleanup Job (resource group scope) - Push Job과 완전히 별개 리소스/secret 네임스페이스.
 # Firebase 관련 parameter가 전혀 없다 - 이 Job은 FCM/Push와 무관하다(아래 "Blob cleanup scheduled
