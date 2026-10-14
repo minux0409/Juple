@@ -41,8 +41,8 @@ export function PasswordDialog({
       }}
       ref={ref}
     >
-      {open ? children : null}
-      <div className={styles.formActions}>
+      <div className={styles.dialogBody}>{open ? children : null}</div>
+      <div className={`${styles.formActions} ${styles.dialogFoot}`}>
         <button className={styles.settingsAction} onClick={onCancel} type="button">
           {cancelLabel}
         </button>

@@ -53,11 +53,17 @@ export function ConfirmDialog({
       }}
       ref={ref}
     >
-      <h2 className={styles.dialogTitle} id="confirm-dialog-title">
-        {title}
-      </h2>
-      {message ? <p className={styles.dialogMessage}>{message}</p> : null}
-      <div className={styles.formActions}>
+      <div className={styles.dialogHead}>
+        <h2 className={styles.dialogTitle} id="confirm-dialog-title">
+          {title}
+        </h2>
+      </div>
+      {message ? (
+        <div className={styles.dialogBody}>
+          <p className={styles.dialogMessage}>{message}</p>
+        </div>
+      ) : null}
+      <div className={`${styles.formActions} ${styles.dialogFoot}`}>
         <button className={styles.settingsAction} disabled={busy} onClick={onCancel} type="button">
           {cancelLabel}
         </button>

@@ -1934,14 +1934,66 @@ a.imageBody:hover .imageTile img {
 }
 
 /* the confirmation dialog (mobile ConfirmDialog) */
+/* One shell for every message / confirm / password dialog: the rounded surface itself never scrolls (overflow hidden - no scrollbar can
+   poke out of the corners); title and actions stay put and only the body between them scrolls. */
 .dialog {
   width: min(480px, calc(100vw - 32px));
-  padding: var(--space-5);
+  max-height: min(85vh, 640px);
+  max-height: min(85dvh, 640px);
+  padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background: var(--surface);
   color: var(--text);
   box-shadow: var(--shadow-floating);
+  overflow: hidden;
+}
+
+.dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.dialogHead {
+  flex: 0 0 auto;
+  padding: var(--space-5) var(--space-5) 0;
+  min-width: 0;
+}
+
+.dialogBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  padding: 0 var(--space-5);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* user-provided text (a Collection name, a URL) wraps instead of pushing the dialog wider */
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.dialogHead + .dialogBody {
+  padding-top: 0;
+}
+
+.dialogBody:first-child {
+  padding-top: var(--space-5);
+}
+
+.dialog > .dialogFoot {
+  flex: 0 0 auto;
+  padding: var(--space-3) var(--space-5) var(--space-5);
+}
+
+/* The other centred dialogs share the same rule: the shell clips, an inner part scrolls. */
+.friendPickerDialog,
+.reactionPicker {
+  overflow: hidden;
+}
+
+.friendPickList {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .dialog::backdrop {
@@ -6327,6 +6379,9 @@ button.reactionChipMine:hover {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* a long Collection name or URL wraps inside the panel instead of widening it */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* ======================================================================================================================
@@ -6517,3 +6572,4 @@ button.reactionChipMine:hover {
   color: inherit;
   cursor: pointer;
 }
+
