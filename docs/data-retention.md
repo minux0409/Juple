@@ -36,9 +36,10 @@ Everything else (links, memos, Collections, photos, comments, friends, support i
 
 | Remaining | Content | Why | Ends |
 |---|---|---|---|
-| `billing.TrialLedger` | HMAC of tenant+object id, trial window. No email, name, Juple ID. No FK to users | so deleting and re-registering does not restart the trial | 24 months after the trial ended |
+| `billing.TrialLedger` | HMAC of tenant+object id **and** (v26, Entra deletion enabled) HMAC of the lower-cased sign-in email, trial window. No email, name, Juple ID. No FK to users | so deleting and re-registering does not restart the trial | 24 months after the trial ended |
 | `billing.StorePurchases` (detached: `UserId` null, `DetachedAtUtc`) | token hash, product, state, dates, sealed token | deleting an account does not cancel the Google subscription; needed to stop token reuse, to reconcile while paying and to allow a verified restore | token 180 days / row 5 years after the purchase ended |
-| Sign-in identity at Microsoft Entra External ID | email, provider, name (outside Juple) | **not deleted** - see section 5 | until removed at the identity provider |
+| Sign-in identity at Microsoft Entra External ID | email, provider, name (outside Juple) | **deleted with the account** when `EntraAccountDeletion:Enabled` (v26; Microsoft soft delete, 30 days in the tenant's deleted items) - see section 5 and `docs/account-deletion-entra.md` | 30 days after deletion (Microsoft) |
+| `users.PendingEntraIdentityDeletions` | tenant id + object id, attempt count, error code | only so a deletion that could not reach Entra at once can be retried | removed as soon as Entra confirms (normally seconds) |
 | Logs | internal ids, billing event ids; never tokens | platform | 30 days |
 
 Removed immediately: profile, all links/Collections/memos/comments/friends/notifications/push devices/support data, the Google account-id mapping (`GoogleAccountLinks`). Photos: durable Blob cleanup (confirmed by a second sweep).
@@ -53,16 +54,16 @@ Removed immediately: profile, all links/Collections/memos/comments/friends/notif
 - **Periodic reconcile** selects only rows with a handle; a purged row is a long-ended purchase with nothing to re-check, and reconcile returns "not taken" if it is ever reached.
 - Covered by unit and integration tests (purged restore, re-presented token reuses the same row, another account still gets 409).
 
-## 5. Trial ledger and the Entra identity
+## 5. Trial ledger and the Entra identity (updated for v26 - Entra deletion)
 
-- **Key:** `HMAC-SHA256(Billing:TrialIdentityHashKey, "juple-trial-v1|tenantId|objectId")`, tenant/object read from the access token (`HttpContextExternalIdentityAccessor`). Not email-based.
-- **Dependency on Entra:** re-signup protection works only while the same person signs in with the **same Entra object id**. Deleting the Entra user would give a new object id on the next sign-in -> a new hash -> a fresh trial. So keeping the Entra object is what makes the ledger meaningful today.
-- **Entra deletion by the backend:** there is **no Microsoft Graph client, no Graph permission and no app/managed-identity grant to Entra anywhere** in the backend or `infra/`. The Juple API only validates tokens (`Microsoft.Identity.Web`). Deleting an External ID user would need a Graph call with `User.ReadWrite.All` (application permission, or `User.DeleteRestore.All`) granted to a service principal or workload identity in the External ID tenant, admin-consented. That is a tenant-wide power (read/write/delete every user), so it would be a high-impact credential in the API's trust boundary; a narrower design would be a separate, tightly scoped Job/function. **Nothing was changed or requested in Azure/Entra.**
-- **Re-signup semantics, Email vs Google:** a deleted-then-recreated Entra user gets a new object id regardless of method. With the Entra user kept, signing in again with the same method returns the same object id (so a new Juple account, the original trial window). A different method (e.g. Google instead of email) is a different Entra user unless linked, so it is a different identity and a new trial; that gap exists today and is not specific to deletion.
-- **Known trial-identity gaps (open, deliberately not solved in the retention round; a separate "trial identity" round owns them):**
-  1. **Entra identity deleted, then re-registered -> a new object id -> a new hash -> a fresh 30-day trial is possible.** For this reason no Entra deletion code, Graph permission or Azure/Entra change has been added.
-  2. **A different sign-in identity/provider that yields a separate object id (for example Google instead of email, or a second Entra user) -> a new trial is possible.** The ledger identifies an Entra object, not a person.
-- **If the Entra user must be deleted (full erasure):** keep the ledger working first by migrating the key to something that survives the object id (for example an HMAC of a verified, normalized email), which stores more personal data, **[REVIEW REQUIRED]**; or accept that trial reuse becomes possible after full erasure. Not implemented; first release keeps option A (keep identity, disclose, offer deletion on request through support).
+- **Deletion:** with `EntraAccountDeletion:Enabled`, deleting a Juple account also deletes the Entra External ID user (Graph `DELETE /users/{id}`, application permission
+  `User.ReadWrite.All` on an app registration in the customer tenant; design, ordering, retry and credential in `docs/account-deletion-entra.md`). The old email + password cannot sign in again.
+- **Keys:** the existing `HMAC-SHA256(Billing:TrialIdentityHashKey, "juple-trial-v1|tenantId|objectId")` entry is unchanged. Because the object id does not survive a deletion any more,
+  the same table also holds `HMAC-SHA256(key, "juple-trial-email-v1|" + lower(trim(email)))` + the window, written at deletion (never overwriting) and applied to a new account of the same
+  email at sign-up. Only a keyed hash is stored, never the address; retention is the ledger's (24 months after the trial ended).
+- **[REVIEW REQUIRED]** unchanged from before: whether a keyed email hash is personal data, the privacy-policy wording and the retention period are legal/privacy decisions not made here.
+- **Remaining gaps:** a different sign-in method or a different email gives a new trial (the ledger recognises an email, not a person). With Entra deletion off, behaviour is as before
+  (object-id ledger only).
 
 ## 6. Open items
 

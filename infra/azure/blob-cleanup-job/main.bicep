@@ -77,6 +77,14 @@ param replicaTimeoutSeconds int = 240
 @description('Kept at 0, unlike ../job/main.bicep\'s Push dispatch Job (which uses 1): the next scheduled execution, five minutes away at most, already serves as the retry for a whole-container failure here, and BlobCleanupService\'s own per-task failure handling (RecordFailedAttemptAsync, leaving the task pending) already covers a single cleanup task failing without blocking the rest of that same run. An immediate whole-Job retry on top of that would mostly just risk overlapping the next scheduled run for no correctness benefit.')
 param replicaRetryLimit int = 0
 
+@description('Finishes pending Entra sign-in account deletions (the same pass as the blob cleanup). Off by default; same settings as ../app/main.bicep. Needs the customer tenant id, the deletion app registration client id and its secret value.')
+param entraAccountDeletionEnabled bool = false
+param entraAccountDeletionTenantId string = ''
+param entraAccountDeletionClientId string = ''
+
+@secure()
+param entraAccountDeletionClientSecret string = ''
+
 @description('Smallest Consumption-plan cpu/memory pairing, same as ../app/main.bicep and ../job/main.bicep - listing/deleting a Dev-scale number of Blobs under a handful of pending prefixes needs nothing larger.')
 param containerCpu string = '0.25'
 param containerMemory string = '0.5Gi'
@@ -167,9 +175,14 @@ resource blobCleanupJob 'Microsoft.App/jobs@2024-03-01' = {
           identity: managedIdentityResourceId
         }
       ]
-      secrets: [
+      secrets: concat([
         sqlConnectionStringSecret
-      ]
+      ], entraAccountDeletionEnabled ? [
+        {
+          name: 'entra-deletion-client-secret'
+          value: entraAccountDeletionClientSecret
+        }
+      ] : [])
     }
     template: {
       containers: [
@@ -188,7 +201,7 @@ resource blobCleanupJob 'Microsoft.App/jobs@2024-03-01' = {
             cpu: json(containerCpu)
             memory: containerMemory
           }
-          env: [
+          env: concat([
             {
               name: 'ConnectionStrings__JupleDatabase'
               secretRef: 'sql-connection-string'
@@ -210,7 +223,24 @@ resource blobCleanupJob 'Microsoft.App/jobs@2024-03-01' = {
               name: 'AZURE_CLIENT_ID'
               value: managedIdentityClientId
             }
-          ]
+          ], entraAccountDeletionEnabled ? [
+            {
+              name: 'EntraAccountDeletion__Enabled'
+              value: 'true'
+            }
+            {
+              name: 'EntraAccountDeletion__TenantId'
+              value: entraAccountDeletionTenantId
+            }
+            {
+              name: 'EntraAccountDeletion__ClientId'
+              value: entraAccountDeletionClientId
+            }
+            {
+              name: 'EntraAccountDeletion__ClientSecret'
+              secretRef: 'entra-deletion-client-secret'
+            }
+          ] : [])
         }
       ]
     }

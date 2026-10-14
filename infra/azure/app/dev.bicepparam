@@ -164,3 +164,11 @@ param billingKeyVaultUri = 'https://kv-juple-dev-lg4zigc62h2.vault.azure.net/'
 param serviceBusNamespaceFqdn = 'sb-juple-dev-lg4zigc62h2qg.servicebus.windows.net'
 param billingEventsServiceBusNamespace = 'sb-juple-dev-lg4zigc62h2qg.servicebus.windows.net'
 // billingProgramEnabled stays at main.bicep's default (false) - live Dev has no Billing__ProgramEnabled.
+
+// Entra sign-in account deletion (docs/auth-session-lifecycle.md): the Dev External ID tenant and the Dev deletion app registration are
+// public identifiers; its client secret is NOT a literal - set JUPLE_APP_ENTRA_DELETION_CLIENT_SECRET in the deploying shell (it exists
+// only as a Container Apps secret; an empty value fails the deployment's secret validation rather than blanking the live one silently).
+param entraAccountDeletionEnabled = true
+param entraAccountDeletionTenantId = 'd2e79a05-cf5f-43ab-86d2-717e025a74b1'
+param entraAccountDeletionClientId = '0006055e-a22e-43da-b6c4-28995e2ae5f5'
+param entraAccountDeletionClientSecret = readEnvironmentVariable('JUPLE_APP_ENTRA_DELETION_CLIENT_SECRET', '')

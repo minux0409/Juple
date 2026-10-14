@@ -5,6 +5,9 @@ Anything marked **to verify** has not been observed and must be measured on DEV 
 
 ## 1. Account deletion and re-creation
 
+> **Superseded (same round):** the Entra user is now deleted together with the Juple account - see `docs/account-deletion-entra.md`. The text
+> below records the analysis that led there; the "Entra identity is kept" choice and the open design decision at its end no longer apply.
+
 ### What happens today
 
 | Question | Answer |

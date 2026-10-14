@@ -233,6 +233,16 @@ param billingProgramEnabled bool = false
 param billingProgramStartAtUtc string = ''
 
 // The API\'s own keys: either the three values (parameter mode) or three Key Vault references (vault mode).
+@description('Deletes the Microsoft Entra External ID sign-in account together with the Juple account (see docs/auth-session-lifecycle.md). Off by default: account deletion then removes Juple data only. When true it needs the customer tenant id, the deletion app registration client id and its client secret (entraAccountDeletionClientSecret, or the Key Vault secret named by entraAccountDeletionClientSecretName when apiKeysFromKeyVault).')
+param entraAccountDeletionEnabled bool = false
+param entraAccountDeletionTenantId string = ''
+param entraAccountDeletionClientId string = ''
+
+@secure()
+@description('The deletion app registration client secret as a value (Dev). Leave empty when apiKeysFromKeyVault: the secret is then read from Key Vault. Never committed.')
+param entraAccountDeletionClientSecret string = ''
+param entraAccountDeletionClientSecretName string = 'entra-account-deletion-client-secret'
+
 // Names and order are the same in both modes, so the Container App's env secretRefs never change.
 var apiKeySecretsFromParameters = [
   {
@@ -268,6 +278,42 @@ var apiKeySecretsFromKeyVault = [
 ]
 
 var apiKeySecrets = apiKeysFromKeyVault ? apiKeySecretsFromKeyVault : apiKeySecretsFromParameters
+
+var entraDeletionSecrets = entraAccountDeletionEnabled
+  ? [
+      apiKeysFromKeyVault
+        ? {
+            name: 'entra-deletion-client-secret'
+            keyVaultUrl: '${billingKeyVaultUri}secrets/${entraAccountDeletionClientSecretName}'
+            identity: managedIdentityResourceId
+          }
+        : {
+            name: 'entra-deletion-client-secret'
+            value: entraAccountDeletionClientSecret
+          }
+    ]
+  : []
+
+var entraDeletionEnv = entraAccountDeletionEnabled
+  ? [
+      {
+        name: 'EntraAccountDeletion__Enabled'
+        value: 'true'
+      }
+      {
+        name: 'EntraAccountDeletion__TenantId'
+        value: entraAccountDeletionTenantId
+      }
+      {
+        name: 'EntraAccountDeletion__ClientId'
+        value: entraAccountDeletionClientId
+      }
+      {
+        name: 'EntraAccountDeletion__ClientSecret'
+        secretRef: 'entra-deletion-client-secret'
+      }
+    ]
+  : []
 
 var billingSecrets = concat(
   googleBillingEnabled
@@ -591,7 +637,8 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           sqlConnectionStringSecret
         ],
         apiKeySecrets,
-        billingSecrets
+        billingSecrets,
+        entraDeletionSecrets
       )
     }
     template: {
@@ -673,7 +720,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'PublicWeb__BaseUrl'
               value: publicWebBaseUrl
             }
-          ], authenticatedWebEnv, mobileVersionPolicyEnv, billingEnv, observabilityEnv, diagnosticsEnv, startupWarmupEnv)
+          ], authenticatedWebEnv, mobileVersionPolicyEnv, billingEnv, entraDeletionEnv, observabilityEnv, diagnosticsEnv, startupWarmupEnv)
           probes: [
             {
               type: 'Liveness'
