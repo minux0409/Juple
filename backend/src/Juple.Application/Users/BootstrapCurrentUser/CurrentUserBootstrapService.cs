@@ -1,5 +1,6 @@
 using System.Globalization;
 using Juple.Application.Billing;
+using Juple.Application.Users.DeleteAccount;
 using Juple.Application.Collections.Locking;
 using Juple.Application.Identity;
 using Juple.Domain.Users;
@@ -9,7 +10,12 @@ namespace Juple.Application.Users.BootstrapCurrentUser;
 public sealed class CurrentUserBootstrapService(
     ICurrentUserProvisioningStore provisioningStore,
     IEntitlementService entitlementService,
-    TimeProvider timeProvider) : ICurrentUserBootstrapService
+    TimeProvider timeProvider,
+    EntraAccountDeletionOptions entraOptions,
+    IEntraIdentityDeletionService entraDeletionService,
+    IEntraIdentityDirectory entraDirectory,
+    ITrialIdentityHasher trialIdentityHasher,
+    ITrialEmailLedger trialEmailLedger) : ICurrentUserBootstrapService
 {
     private const int PreferredLocaleMaxLength = 35;
     private const int TimeZoneIdMaxLength = 100;
@@ -56,6 +62,13 @@ public sealed class CurrentUserBootstrapService(
         // An EXISTING account returned above is never gated.
         RecentAuthentication.Require(command.AuthenticatedAtUtc, utcNow);
 
+        // The account this identity used to have is being deleted and its sign-in account is not gone yet: the old password must not
+        // yield a fresh account. (A pending deletion is finished here first when it can be - see IsStillPendingAsync.)
+        if (entraOptions.Enabled && await entraDeletionService.IsStillPendingAsync(externalIdentity, cancellationToken))
+        {
+            throw new AccountDeletionPendingException();
+        }
+
         var createdPlan = await provisioningStore.CreateAsync(
             new CurrentUserBootstrapData(
                 externalIdentity,
@@ -64,11 +77,37 @@ public sealed class CurrentUserBootstrapService(
                 DefaultCurrencyCode: null,
                 utcNow),
             cancellationToken);
+        await InheritTrialWindowAsync(externalIdentity, cancellationToken);
         return new CurrentUserBootstrapResult(
             createdPlan,
             timeZoneId,
             await entitlementService.GetForIdentityAsync(externalIdentity, cancellationToken),
             await entitlementService.GetStoreSubscriptionForIdentityAsync(externalIdentity, cancellationToken));
+    }
+
+    /// <summary>
+    /// A person who deleted their account and signs up again has a NEW Entra object id but the same email: the trial window kept under
+    /// the keyed email hash is given back, never a fresh 30 days. Best effort - a directory outage must not block a sign-up.
+    /// </summary>
+    private async Task InheritTrialWindowAsync(ExternalIdentityPrincipal externalIdentity, CancellationToken cancellationToken)
+    {
+        if (!entraOptions.Enabled)
+        {
+            return;
+        }
+
+        try
+        {
+            var emailHash = trialIdentityHasher.HashEmail(await entraDirectory.GetSignInEmailAsync(externalIdentity, cancellationToken));
+            if (emailHash is not null)
+            {
+                await trialEmailLedger.InheritAsync(externalIdentity, emailHash, cancellationToken);
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // Left without inheritance; the account still gets a window by the normal rules.
+        }
     }
 
     private static string NormalizePreferredLocale(string? preferredLocale)

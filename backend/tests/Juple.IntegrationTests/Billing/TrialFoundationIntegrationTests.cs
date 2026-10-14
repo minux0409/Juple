@@ -82,7 +82,15 @@ public sealed class TrialFoundationIntegrationTests : IAsyncLifetime
     {
         var time = new StubTime(now);
         var entitlements = new EntitlementService(Options(enabled), new EntitlementStore(db), new TrialIdentityHasher(Options(enabled)), time);
-        return new CurrentUserBootstrapService(new CurrentUserProvisioningStore(db), entitlements, time);
+        return new CurrentUserBootstrapService(
+            new CurrentUserProvisioningStore(db),
+            entitlements,
+            time,
+            new Juple.Application.Users.DeleteAccount.EntraAccountDeletionOptions(), // Entra account deletion is off here: these tests are about the object-id ledger
+            new Juple.IntegrationTests.Users.NeverPending(),
+            new Juple.IntegrationTests.Users.SilentEntraDirectory(),
+            new TrialIdentityHasher(Options(enabled)),
+            new Juple.IntegrationTests.Users.NoInheritance());
     }
 
     /// <summary>An already-provisioned account, as existing users are: created at <paramref name="createdAt"/>, no trial yet.</summary>

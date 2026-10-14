@@ -8,6 +8,23 @@ public interface ITrialIdentityHasher
 {
     /// <summary>The 32-byte keyed hash of an external identity - the only form in which it is ever stored for the trial ledger.</summary>
     byte[] Hash(ExternalIdentityPrincipal externalIdentity);
+
+    /// <summary>
+    /// The 32-byte keyed hash of a sign-in email address, or null when the hashing key is not configured (the subscription program is
+    /// off) or the address is empty. The Entra object id changes when the same person deletes their account and signs up again;
+    /// the email does not, so this is what lets a returning person be recognised without ever storing the address itself.
+    /// </summary>
+    byte[]? HashEmail(string? email);
+}
+
+/// <summary>Remembers / re-applies the free-trial window under the keyed email hash (see <see cref="ITrialIdentityHasher.HashEmail"/>).</summary>
+public interface ITrialEmailLedger
+{
+    /// <summary>
+    /// For a brand-new account (named by its external identity): when the email hash is already in the ledger, the account gets that ORIGINAL window instead of a
+    /// fresh one. A no-op when the hash is unknown or the account already has a window.
+    /// </summary>
+    Task InheritAsync(ExternalIdentityPrincipal identity, byte[] emailHash, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -29,6 +46,20 @@ public sealed class TrialIdentityHasher(BillingOptions options) : ITrialIdentity
         }
 
         var canonical = $"{DomainPrefix}|{externalIdentity.TenantId:D}|{externalIdentity.ObjectId:D}";
+        return HMACSHA256.HashData(key, Encoding.UTF8.GetBytes(canonical));
+    }
+
+    public const string EmailDomainPrefix = "juple-trial-email-v1";
+
+    public byte[]? HashEmail(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email) || !TryDecodeKey(options.TrialIdentityHashKey, out var key))
+        {
+            return null;
+        }
+
+        // Case-insensitive and trimmed - nothing smarter (no plus-address or dot folding): an address is what the person typed.
+        var canonical = $"{EmailDomainPrefix}|{email.Trim().ToLowerInvariant()}";
         return HMACSHA256.HashData(key, Encoding.UTF8.GetBytes(canonical));
     }
 

@@ -186,8 +186,82 @@ public sealed class CurrentUserBootstrapServiceTests
         Assert.Empty(store.CreatedUsers);
     }
 
-    private static CurrentUserBootstrapService CreateService(FakeProvisioningStore store) =>
-        new(store, new ProgramNotLaunchedEntitlements(), new FixedTimeProvider());
+    private static CurrentUserBootstrapService CreateService(
+        FakeProvisioningStore store,
+        Juple.Application.Users.DeleteAccount.EntraAccountDeletionOptions? options = null,
+        EntraTestDoubles.FakeDeletionService? deletion = null,
+        EntraTestDoubles.FakeDirectory? directory = null,
+        EntraTestDoubles.FakeTrialEmailLedger? ledger = null) =>
+        new(store, new ProgramNotLaunchedEntitlements(), new FixedTimeProvider(),
+            options ?? new Juple.Application.Users.DeleteAccount.EntraAccountDeletionOptions(),
+            deletion ?? new EntraTestDoubles.FakeDeletionService(),
+            directory ?? new EntraTestDoubles.FakeDirectory(),
+            EntraTestDoubles.Hasher(),
+            ledger ?? new EntraTestDoubles.FakeTrialEmailLedger());
+
+    [Fact]
+    public async Task BootstrapAsync_NewIdentityWhoseEntraDeletionIsStillPending_IsRefused_NothingCreated()
+    {
+        // The previous account was deleted but its sign-in account is not gone yet: the old password must not yield a new account.
+        var store = new FakeProvisioningStore();
+        var service = CreateService(store, EntraTestDoubles.EnabledOptions(), new EntraTestDoubles.FakeDeletionService { Pending = true });
+
+        await Assert.ThrowsAsync<AccountDeletionPendingException>(
+            () => service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul", Now.AddMinutes(-1))));
+
+        Assert.Empty(store.CreatedUsers);
+    }
+
+    [Fact]
+    public async Task BootstrapAsync_ExistingAccount_IsNeverBlockedByAPendingDeletionCheck()
+    {
+        var store = new FakeProvisioningStore { ExistingPlan = UserPlan.Free };
+        var service = CreateService(store, EntraTestDoubles.EnabledOptions(), new EntraTestDoubles.FakeDeletionService { Pending = true });
+
+        var result = await service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul"));
+
+        Assert.Equal(UserPlan.Free, result.Plan);
+    }
+
+    [Fact]
+    public async Task BootstrapAsync_NewAccountOfAReturningEmail_InheritsTheRememberedTrialByEmailHash()
+    {
+        var store = new FakeProvisioningStore();
+        var ledger = new EntraTestDoubles.FakeTrialEmailLedger();
+        var service = CreateService(store, EntraTestDoubles.EnabledOptions(), null, new EntraTestDoubles.FakeDirectory { Email = "Returning@Example.com" }, ledger);
+
+        await service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul", Now.AddMinutes(-1)));
+
+        var inherited = Assert.Single(ledger.Inherited);
+        Assert.Equal(ExternalIdentity, inherited.Identity);
+        Assert.Equal(EntraTestDoubles.Hasher().HashEmail("returning@example.com"), inherited.Hash);
+    }
+
+    [Fact]
+    public async Task BootstrapAsync_WhenTheDirectoryCannotAnswerTheEmail_StillCreatesTheAccount()
+    {
+        var store = new FakeProvisioningStore();
+        var ledger = new EntraTestDoubles.FakeTrialEmailLedger();
+        var service = CreateService(store, EntraTestDoubles.EnabledOptions(), null, new EntraTestDoubles.FakeDirectory { Email = null }, ledger);
+
+        await service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul", Now.AddMinutes(-1)));
+
+        Assert.Single(store.CreatedUsers);
+        Assert.Empty(ledger.Inherited);
+    }
+
+    [Fact]
+    public async Task BootstrapAsync_WhenEntraDeletionIsDisabled_NeverTouchesTheDirectoryOrLedger()
+    {
+        var store = new FakeProvisioningStore();
+        var ledger = new EntraTestDoubles.FakeTrialEmailLedger();
+        var service = CreateService(store, null, new EntraTestDoubles.FakeDeletionService { Pending = true }, new EntraTestDoubles.FakeDirectory { Email = "a@b.com" }, ledger);
+
+        await service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul", Now.AddMinutes(-1)));
+
+        Assert.Single(store.CreatedUsers);
+        Assert.Empty(ledger.Inherited);
+    }
 
     // The subscription program is not launched in these tests: access is unrestricted and no status is claimed.
     private sealed class ProgramNotLaunchedEntitlements : Juple.Application.Billing.IEntitlementService

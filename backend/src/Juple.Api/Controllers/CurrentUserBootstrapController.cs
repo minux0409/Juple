@@ -34,6 +34,10 @@ public sealed class CurrentUserBootstrapController : ControllerBase
                 cancellationToken);
             return Ok(new BootstrapCurrentUserResponse(result.Plan.ToString(), result.TimeZoneId, EntitlementResponse.From(result.Entitlement), MobileVersionPolicyResponse.From(versionPolicy.Value), StoreSubscriptionResponse.From(result.StoreSubscription)));
         }
+        catch (AccountDeletionPendingException)
+        {
+            return CollectionProblems.Create(StatusCodes.Status409Conflict, "The previous account is still being deleted.", "accountDeletionPending");
+        }
         catch (RecentAuthenticationRequiredException)
         {
             // Creating the account needs a sign-in that just happened - see CurrentUserBootstrapService.

@@ -1,5 +1,9 @@
-﻿using Juple.Application.Users.DeleteAccount;
+﻿using Juple.Application.Identity;
+using Juple.Application.Users.DeleteAccount;
+using Juple.Domain.Billing;
+using Juple.Domain.Identity;
 using Juple.Domain.Images;
+using Juple.Domain.Users;
 using Juple.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,12 +11,29 @@ namespace Juple.Infrastructure.Users.DeleteAccount;
 
 public sealed class AccountDeletionStore(JupleDbContext dbContext, TimeProvider? timeProvider = null) : IAccountDeletionStore
 {
+    public async Task<ExternalIdentityPrincipal?> GetExternalIdentityAsync(long userId, CancellationToken cancellationToken = default)
+    {
+        var identity = await dbContext.Set<ExternalIdentity>().AsNoTracking()
+            .Where(candidate => candidate.UserId == userId)
+            .Select(candidate => new { candidate.TenantId, candidate.ObjectId })
+            .FirstOrDefaultAsync(cancellationToken);
+        return identity is null ? null : new ExternalIdentityPrincipal(identity.TenantId, identity.ObjectId);
+    }
+
     public async Task<long> DeleteAllDataAsync(
         long userId,
         string blobCleanupPrefix,
         DateTimeOffset createdAtUtc,
+        CancellationToken cancellationToken = default) =>
+        (await DeleteAllDataAsync(userId, new AccountDeletionPlan(blobCleanupPrefix, createdAtUtc, false, null), cancellationToken)).BlobCleanupTaskId;
+
+    public async Task<AccountDeletionResult> DeleteAllDataAsync(
+        long userId,
+        AccountDeletionPlan plan,
         CancellationToken cancellationToken = default)
     {
+        var blobCleanupPrefix = plan.BlobCleanupPrefix;
+        var createdAtUtc = plan.CreatedAtUtc;
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         try
@@ -24,6 +45,39 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext, TimeProvider?
             var cleanupTask = new AccountDeletionBlobCleanup(blobCleanupPrefix, createdAtUtc);
             dbContext.AccountDeletionBlobCleanups.Add(cleanupTask);
             await dbContext.SaveChangesAsync(cancellationToken);
+
+            // The Entra sign-in account to delete after this commit: registered in the same transaction, from the stored identity of
+            // THIS user (so it rolls back with a failed deletion, and no id ever comes from a request).
+            PendingEntraIdentityDeletion? entraTask = null;
+            if (plan.RegisterEntraIdentityDeletion)
+            {
+                var identity = await dbContext.Set<ExternalIdentity>().AsNoTracking()
+                    .Where(candidate => candidate.UserId == userId)
+                    .Select(candidate => new { candidate.TenantId, candidate.ObjectId })
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (identity is not null)
+                {
+                    entraTask = new PendingEntraIdentityDeletion(identity.TenantId, identity.ObjectId, createdAtUtc);
+                    dbContext.Set<PendingEntraIdentityDeletion>().Add(entraTask);
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                }
+            }
+
+            // Free-trial memory: the Entra object id will not survive the deletion above, the email does. Only a keyed hash and the
+            // window are kept (the same ledger, so the same retention); an existing entry for this hash is never overwritten.
+            if (plan.TrialEmailHash is { } emailHash)
+            {
+                var window = await dbContext.Users.AsNoTracking()
+                    .Where(user => user.Id == userId && user.TrialStartedAtUtc != null && user.TrialEndsAtUtc != null)
+                    .Select(user => new { Start = user.TrialStartedAtUtc!.Value, End = user.TrialEndsAtUtc!.Value })
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (window is not null
+                    && !await dbContext.Set<TrialLedgerEntry>().AnyAsync(entry => entry.IdentityHash == emailHash, cancellationToken))
+                {
+                    dbContext.Set<TrialLedgerEntry>().Add(new TrialLedgerEntry(emailHash, window.Start, window.End, createdAtUtc));
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                }
+            }
 
             // Every direct UserId FK in the schema is DeleteBehavior.NoAction except
             // ExternalIdentity (Cascade from User) - so each of these tables must be explicitly
@@ -220,7 +274,7 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext, TimeProvider?
                 .ExecuteDeleteAsync(cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
-            return cleanupTask.Id;
+            return new AccountDeletionResult(cleanupTask.Id, entraTask?.Id);
         }
         catch
         {

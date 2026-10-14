@@ -1,6 +1,9 @@
+using Juple.Application.Billing;
+using Juple.Application.Identity;
 using Juple.Application.Images;
 using Juple.Application.Images.BlobCleanup;
 using Juple.Application.Users.DeleteAccount;
+using static Juple.UnitTests.Users.EntraTestDoubles;
 
 namespace Juple.UnitTests.Users;
 
@@ -14,7 +17,7 @@ public sealed class DeleteAccountServiceTests
         var deletionStore = new FakeAccountDeletionStore();
         var imageStorage = new FakeItemImageStorage();
         var blobCleanupService = new FakeBlobCleanupService();
-        var service = new DeleteAccountService(deletionStore, imageStorage, blobCleanupService, NewTimeProvider());
+        var service = NewService(deletionStore, imageStorage, blobCleanupService);
 
         await service.DeleteAsync(userId: 17);
 
@@ -30,7 +33,7 @@ public sealed class DeleteAccountServiceTests
         var deletionStore = new FakeAccountDeletionStore { CallOrder = callOrder, CleanupTaskIdToReturn = 41 };
         var imageStorage = new FakeItemImageStorage();
         var blobCleanupService = new FakeBlobCleanupService { CallOrder = callOrder };
-        var service = new DeleteAccountService(deletionStore, imageStorage, blobCleanupService, NewTimeProvider());
+        var service = NewService(deletionStore, imageStorage, blobCleanupService);
 
         await service.DeleteAsync(17);
 
@@ -44,7 +47,7 @@ public sealed class DeleteAccountServiceTests
         var deletionStore = new FakeAccountDeletionStore { ThrowOnDelete = true };
         var imageStorage = new FakeItemImageStorage();
         var blobCleanupService = new FakeBlobCleanupService();
-        var service = new DeleteAccountService(deletionStore, imageStorage, blobCleanupService, NewTimeProvider());
+        var service = NewService(deletionStore, imageStorage, blobCleanupService);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.DeleteAsync(17));
 
@@ -60,7 +63,7 @@ public sealed class DeleteAccountServiceTests
         var deletionStore = new FakeAccountDeletionStore();
         var imageStorage = new FakeItemImageStorage();
         var blobCleanupService = new FakeBlobCleanupService { TryCleanupResult = false };
-        var service = new DeleteAccountService(deletionStore, imageStorage, blobCleanupService, NewTimeProvider());
+        var service = NewService(deletionStore, imageStorage, blobCleanupService);
 
         await service.DeleteAsync(17);
     }
@@ -70,7 +73,7 @@ public sealed class DeleteAccountServiceTests
     {
         var deletionStore = new FakeAccountDeletionStore();
         var blobCleanupService = new FakeBlobCleanupService();
-        var service = new DeleteAccountService(deletionStore, new FakeItemImageStorage(), blobCleanupService, NewTimeProvider());
+        var service = NewService(deletionStore, new FakeItemImageStorage(), blobCleanupService);
 
         await service.DeleteRecentlyAuthenticatedAsync(17, authenticatedAtUtc: Now.AddMinutes(-1));
 
@@ -92,7 +95,7 @@ public sealed class DeleteAccountServiceTests
     {
         var deletionStore = new FakeAccountDeletionStore();
         var blobCleanupService = new FakeBlobCleanupService();
-        var service = new DeleteAccountService(deletionStore, new FakeItemImageStorage(), blobCleanupService, NewTimeProvider());
+        var service = NewService(deletionStore, new FakeItemImageStorage(), blobCleanupService);
 
         await Assert.ThrowsAsync<Juple.Application.Collections.Locking.RecentAuthenticationRequiredException>(
             () => service.DeleteRecentlyAuthenticatedAsync(17, authenticatedAtUtc));
@@ -100,6 +103,102 @@ public sealed class DeleteAccountServiceTests
         Assert.Null(deletionStore.LastUserId);
         Assert.Null(blobCleanupService.LastTryCleanupCall);
     }
+
+    [Fact]
+    public async Task DeleteAsync_WhenEntraDeletionIsDisabled_BehavesAsBefore_NoTaskNoDirectoryCall()
+    {
+        var store = new FakeAccountDeletionStore { Identity = CustomerIdentity, EntraTaskIdToReturn = 5 };
+        var directory = new FakeDirectory { Email = "a@b.com" };
+        var entraDeletion = new FakeDeletionService();
+        var service = NewService(store, new FakeItemImageStorage(), new FakeBlobCleanupService(), new EntraAccountDeletionOptions(), directory, entraDeletion);
+
+        await service.DeleteAsync(17);
+
+        Assert.False(store.LastPlan!.RegisterEntraIdentityDeletion);
+        Assert.Null(store.LastPlan.TrialEmailHash);
+        Assert.Empty(entraDeletion.Completed);
+        Assert.Empty(directory.Deleted);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenEnabled_RegistersTheTaskWithTheSqlDeletion_AndOnlyThenDeletesTheEntraUser()
+    {
+        var store = new FakeAccountDeletionStore { Identity = CustomerIdentity, EntraTaskIdToReturn = 77 };
+        var entraDeletion = new FakeDeletionService();
+        var entitlements = new FakeEntitlements();
+        var service = NewService(store, new FakeItemImageStorage(), new FakeBlobCleanupService(), EnabledOptions(), new FakeDirectory { Email = "Person@Example.com" }, entraDeletion, null, entitlements);
+
+        await service.DeleteAsync(17);
+
+        Assert.True(store.LastPlan!.RegisterEntraIdentityDeletion);
+        Assert.Equal([77L], entraDeletion.Completed);
+        // The trial window is settled first, then remembered under the keyed email hash (case-insensitive).
+        Assert.Equal([17L], entitlements.SettledUsers);
+        Assert.Equal(Hasher().HashEmail("person@example.com"), store.LastPlan.TrialEmailHash);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_ADifferentTenantsIdentity_IsNeverHandedToTheDirectory()
+    {
+        var store = new FakeAccountDeletionStore { Identity = new ExternalIdentityPrincipal(Guid.NewGuid(), Guid.NewGuid()), EntraTaskIdToReturn = 9 };
+        var entraDeletion = new FakeDeletionService();
+        var service = NewService(store, new FakeItemImageStorage(), new FakeBlobCleanupService(), EnabledOptions(), new FakeDirectory { Email = "a@b.com" }, entraDeletion);
+
+        await service.DeleteAsync(17);
+
+        Assert.False(store.LastPlan!.RegisterEntraIdentityDeletion);
+        Assert.Empty(entraDeletion.Completed);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenTheEmailOrTrialLookupFails_StillDeletes_WithoutTrialMemory()
+    {
+        var store = new FakeAccountDeletionStore { Identity = CustomerIdentity, EntraTaskIdToReturn = 3 };
+        var service = NewService(store, new FakeItemImageStorage(), new FakeBlobCleanupService(), EnabledOptions(), new FakeDirectory { Email = "a@b.com" }, null, null, new FakeEntitlements { Throw = true });
+
+        await service.DeleteAsync(17);
+
+        Assert.True(store.LastPlan!.RegisterEntraIdentityDeletion);
+        Assert.Null(store.LastPlan.TrialEmailHash);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WithoutAHashKey_OrEmail_RemembersNoTrialHash()
+    {
+        var withoutKey = new FakeAccountDeletionStore { Identity = CustomerIdentity };
+        await NewService(withoutKey, new FakeItemImageStorage(), new FakeBlobCleanupService(), EnabledOptions(), new FakeDirectory { Email = "a@b.com" }, null, HasherWithoutKey()).DeleteAsync(17);
+        Assert.Null(withoutKey.LastPlan!.TrialEmailHash);
+
+        var withoutEmail = new FakeAccountDeletionStore { Identity = CustomerIdentity };
+        await NewService(withoutEmail, new FakeItemImageStorage(), new FakeBlobCleanupService(), EnabledOptions(), new FakeDirectory { Email = null }).DeleteAsync(17);
+        Assert.Null(withoutEmail.LastPlan!.TrialEmailHash);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenSqlDeletionFails_NeverCallsEntra()
+    {
+        var store = new FakeAccountDeletionStore { Identity = CustomerIdentity, ThrowOnDelete = true, EntraTaskIdToReturn = 4 };
+        var entraDeletion = new FakeDeletionService();
+        var service = NewService(store, new FakeItemImageStorage(), new FakeBlobCleanupService(), EnabledOptions(), null, entraDeletion);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.DeleteAsync(17));
+
+        Assert.Empty(entraDeletion.Completed);
+    }
+
+    private static DeleteAccountService NewService(
+        IAccountDeletionStore store,
+        IItemImageStorage storage,
+        IBlobCleanupService blobCleanup,
+        EntraAccountDeletionOptions? options = null,
+        FakeDirectory? directory = null,
+        FakeDeletionService? entraDeletion = null,
+        ITrialIdentityHasher? hasher = null,
+        FakeEntitlements? entitlements = null) =>
+        new(store, storage, blobCleanup, directory ?? new FakeDirectory(), entraDeletion ?? new FakeDeletionService(),
+            hasher ?? Hasher(), entitlements ?? new FakeEntitlements(), options ?? new EntraAccountDeletionOptions(), NewTimeProvider());
+
+    private static readonly ExternalIdentityPrincipal CustomerIdentity = new(CustomerTenant, Guid.Parse("11111111-2222-3333-4444-555555555555"));
 
     private static FakeTimeProvider NewTimeProvider() => new(Now);
 
@@ -121,6 +220,22 @@ public sealed class DeleteAccountServiceTests
         public string? LastBlobCleanupPrefix { get; private set; }
 
         public DateTimeOffset? LastCreatedAtUtc { get; private set; }
+
+        public ExternalIdentityPrincipal? Identity { get; init; }
+
+        public AccountDeletionPlan? LastPlan { get; private set; }
+
+        public long? EntraTaskIdToReturn { get; init; }
+
+        public Task<ExternalIdentityPrincipal?> GetExternalIdentityAsync(long userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Identity);
+
+        public async Task<AccountDeletionResult> DeleteAllDataAsync(long userId, AccountDeletionPlan plan, CancellationToken cancellationToken = default)
+        {
+            LastPlan = plan;
+            var blobTaskId = await DeleteAllDataAsync(userId, plan.BlobCleanupPrefix, plan.CreatedAtUtc, cancellationToken);
+            return new AccountDeletionResult(blobTaskId, plan.RegisterEntraIdentityDeletion ? EntraTaskIdToReturn : null);
+        }
 
         public Task<long> DeleteAllDataAsync(
             long userId, string blobCleanupPrefix, DateTimeOffset createdAtUtc,

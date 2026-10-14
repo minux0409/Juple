@@ -89,6 +89,20 @@ public static class DependencyInjection
 
         services.AddSingleton<Juple.Infrastructure.Billing.ServiceBusBillingConsumer>();
         services.AddScoped<IAccountDeletionStore, AccountDeletionStore>();
+        services.AddScoped<IEntraIdentityDeletionStore, Juple.Infrastructure.Users.DeleteAccount.EntraIdentityDeletionStore>();
+        services.AddScoped<IEntraIdentityDeletionService, Juple.Infrastructure.Users.DeleteAccount.EntraIdentityDeletionService>();
+        services.AddScoped<Juple.Application.Billing.ITrialEmailLedger, Juple.Infrastructure.Users.DeleteAccount.TrialEmailLedger>();
+        var entraDeletionOptions = configuration.GetSection(EntraAccountDeletionOptions.SectionName).Get<EntraAccountDeletionOptions>() ?? new EntraAccountDeletionOptions();
+        services.AddSingleton(entraDeletionOptions);
+        if (entraDeletionOptions.Enabled)
+        {
+            services.AddHttpClient<IEntraIdentityDirectory, Juple.Infrastructure.Users.DeleteAccount.EntraGraphIdentityDirectory>(client => client.Timeout = TimeSpan.FromSeconds(20));
+        }
+        else
+        {
+            services.AddSingleton<IEntraIdentityDirectory, Juple.Infrastructure.Users.DeleteAccount.DisabledEntraIdentityDirectory>();
+        }
+
         services.AddScoped<IAccountDeletionBlobCleanupStore, AccountDeletionBlobCleanupStore>();
         services.AddScoped<IBlobCleanupService, BlobCleanupService>();
         services.AddScoped<IInboxEntryStore, ItemStore>();

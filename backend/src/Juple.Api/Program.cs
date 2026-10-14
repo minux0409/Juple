@@ -146,6 +146,15 @@ builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 // The subscription program switch (default OFF - nobody restricted, no trial consumed). Validated at API startup below.
 var billingOptions = builder.Configuration.GetSection("Billing").Get<Juple.Application.Billing.BillingOptions>() ?? new Juple.Application.Billing.BillingOptions();
 builder.Services.AddSingleton(billingOptions);
+{
+    // A half-configured Entra account deletion would silently never delete the sign-in account: refuse to start instead.
+    var entraDeletionOptionsError = (builder.Configuration.GetSection(Juple.Application.Users.DeleteAccount.EntraAccountDeletionOptions.SectionName)
+        .Get<Juple.Application.Users.DeleteAccount.EntraAccountDeletionOptions>() ?? new()).Validate();
+    if (entraDeletionOptionsError is not null)
+    {
+        throw new InvalidOperationException(entraDeletionOptionsError);
+    }
+}
 if (isBillingWorker)
 {
     // Enabled: the billing-events consumer. Disabled: an idle placeholder - no Service Bus processor, Google client or key is built.
@@ -542,7 +551,13 @@ static async Task<int> RunBlobCleanupRetryOnceAsync(IServiceProvider rootService
         logger.LogInformation(
             "Blob cleanup retry complete. Pending={Pending} Succeeded={Succeeded} Deferred={Deferred} Failed={Failed}",
             result.Pending, result.Succeeded, result.Deferred, result.Failed);
-        return 0;
+
+        // The same scheduled pass also finishes any Entra sign-in account deletion that did not succeed right away (idempotent).
+        var entraResult = await scope.ServiceProvider.GetRequiredService<Juple.Application.Users.DeleteAccount.IEntraIdentityDeletionService>().RunPendingAsync();
+        logger.LogInformation(
+            "Entra identity deletion retry complete. Pending={Pending} Succeeded={Succeeded} Failed={Failed}",
+            entraResult.Pending, entraResult.Succeeded, entraResult.Failed);
+        return entraResult.Failed == 0 ? 0 : 1;
     }
     catch (Exception exception)
     {
