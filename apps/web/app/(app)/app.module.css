@@ -7197,6 +7197,66 @@ button.reactionChipMine:hover {
   gap: var(--space-2);
 }
 
+/* PillListbox as a form field (the customer-center inquiry type): the field's size and focus ring, Juple's own open list */
+.fieldSelect {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+
+.fieldSelectButton {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--field-height);
+  padding: 0 40px 0 var(--space-3);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-control);
+  background: var(--app-surface);
+  color: var(--app-text);
+  font: inherit;
+  font-size: var(--text-body);
+  text-align: start;
+  cursor: pointer;
+  transition: border-color 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
+}
+
+.fieldSelectButton:hover:not([aria-disabled='true']),
+.fieldSelectButton[aria-expanded='true'] {
+  border-color: var(--brand);
+}
+
+.fieldSelectButton:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.fieldSelectButton[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.fieldSelect .pillButtonLabel {
+  flex: 1 1 auto;
+}
+
+.fieldSelect .roleControlChevron {
+  inset-inline-end: var(--space-3);
+}
+
+/* every floating list stays inside a short window and scrolls inside itself */
+.floatingPanel {
+  max-height: min(320px, 60vh);
+  max-height: min(320px, 60dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.fieldSelect .floatingRow {
+  min-height: 44px;
+}
+
 /* The editor inside a dialog (new Collection while reviewing a link): one column - the 520px panel is too narrow for the page's two */
 .panelDialog .editorForm {
   grid-template-columns: minmax(0, 1fr);
@@ -7208,4 +7268,9 @@ button.reactionChipMine:hover {
 /* the live preview (a 112px tile) has no room here: the chosen icon and colour already show in the pickers themselves */
 .panelDialog .editorAside {
   display: none;
+}
+
+.fieldSelect .floatingPanel {
+  max-height: min(400px, 60vh);
+  max-height: min(400px, 60dvh);
 }

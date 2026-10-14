@@ -39,7 +39,9 @@ function useFloating(open: boolean, onClose: () => void) {
     const above = box.bottom + GAP + height > window.innerHeight && box.top - GAP - height > 0;
     const rtl = getComputedStyle(trigger).direction === 'rtl';
     const left = rtl ? box.left : box.right - width;
-    setPlacement({ top: above ? box.top - GAP - height : box.bottom + GAP, left: Math.max(8, Math.min(left, window.innerWidth - width - 8)), minWidth: box.width, above });
+    // Never taller than the window allows: it is kept inside the viewport vertically as well as horizontally.
+    const top = above ? box.top - GAP - height : box.bottom + GAP;
+    setPlacement({ top: Math.max(8, Math.min(top, window.innerHeight - height - 8)), left: Math.max(8, Math.min(left, window.innerWidth - width - 8)), minWidth: box.width, above });
   }, [open]);
 
   useEffect(() => {
@@ -80,7 +82,8 @@ export interface ListOption<T extends string> {
  * A choice drawn as a pill with a chevron that opens a small panel in the same look (the participant role): a real button +
  * listbox (aria-haspopup / aria-expanded / aria-controls, aria-activedescendant, options with aria-selected), operated with the arrows,
  * Home / End, Enter / Space and Escape, and closed by a click outside. The chosen row carries a check. Fixed width - a longer label or
- * the busy state never moves the row it sits in.
+ * the busy state never moves the row it sits in. `variant="field"` is the same control drawn as a form field (full width, labelled by a
+ * <label htmlFor={id}>) - the Juple replacement for a native <select>, whose open list is the browser's own.
  */
 export function PillListbox<T extends string>({
   value,
@@ -89,6 +92,8 @@ export function PillListbox<T extends string>({
   label,
   disabled = false,
   busy = false,
+  variant = 'pill',
+  id,
 }: {
   readonly value: T;
   readonly options: readonly ListOption<T>[];
@@ -97,7 +102,11 @@ export function PillListbox<T extends string>({
   readonly label: string;
   readonly disabled?: boolean;
   readonly busy?: boolean;
+  readonly variant?: 'pill' | 'field';
+  /** The trigger's id, for a <label htmlFor> (field variant). */
+  readonly id?: string;
 }) {
+  const field = variant === 'field';
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const listId = useId();
@@ -161,14 +170,15 @@ export function PillListbox<T extends string>({
   };
 
   return (
-    <span aria-busy={busy} className={busy ? `${styles.roleControl} ${styles.roleControlBusy}` : styles.roleControl} data-role-control>
+    <span aria-busy={busy} className={field ? styles.fieldSelect : busy ? `${styles.roleControl} ${styles.roleControlBusy}` : styles.roleControl} data-role-control={field ? undefined : true} data-field-select={field ? true : undefined}>
       <button
         aria-controls={open ? listId : undefined}
         aria-expanded={open}
         aria-haspopup="listbox"
-        aria-label={`${label}: ${current?.label ?? ''}`}
+        aria-label={field ? undefined : `${label}: ${current?.label ?? ''}`}
         aria-disabled={disabled || undefined}
-        className={styles.pillButton}
+        className={field ? styles.fieldSelectButton : styles.pillButton}
+        id={id}
         onClick={() => {
           if (disabled) {
             return;

@@ -17,6 +17,7 @@ import {
 } from '../../../../../lib/support';
 import { useSignedInApp } from '../../../AppRoot';
 import { Glyph } from '../../../Glyph';
+import { PillListbox } from '../../../Popover';
 import { useToast } from '../../../Toaster';
 import { SettingsPage } from '../../SettingsPage';
 import styles from '../../../app.module.css';
@@ -82,21 +83,16 @@ export function NewInquiry() {
           <label className={styles.fieldLabel} htmlFor={typeId}>
             {dictionary.inquiryTypeLabel} <span aria-label={dictionary.inquiryRequired} className={styles.requiredMark}>*</span>
           </label>
-          <select
-            className={styles.selectInput}
+          {/* Juple's own listbox (not the browser's select element, whose open list is the operating system's); the value is still the API's type name. */}
+          <PillListbox<'' | SupportInquiryType>
             disabled={submitting}
             id={typeId}
-            onChange={event => setType(isSupportInquiryType(event.target.value) ? event.target.value : null)}
-            required
+            label={dictionary.inquiryTypeLabel}
+            onChange={next => setType(isSupportInquiryType(next) ? next : null)}
+            options={[{ value: '', label: dictionary.inquiryTypePlaceholder }, ...SUPPORT_INQUIRY_TYPES.map(candidate => ({ value: candidate, label: inquiryTypeLabel(candidate, dictionary) }))]}
             value={type ?? ''}
-          >
-            <option value="">{dictionary.inquiryTypePlaceholder}</option>
-            {SUPPORT_INQUIRY_TYPES.map(candidate => (
-              <option key={candidate} value={candidate}>
-                {inquiryTypeLabel(candidate, dictionary)}
-              </option>
-            ))}
-          </select>
+            variant="field"
+          />
         </div>
 
         <div className={styles.fieldBlock}>
