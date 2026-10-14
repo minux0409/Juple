@@ -7166,6 +7166,35 @@ button.reactionChipMine:hover {
   color: var(--brand);
 }
 
+/* Profile photo: the picture is the first way to change it, the actions sit beside it (under it on a narrow window) */
+.profileEditAvatar {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.profilePhotoPick {
+  position: relative;
+  display: inline-flex;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.profilePhotoPick:focus-within {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
+
+.profilePhotoPick:hover {
+  box-shadow: 0 0 0 3px var(--brand-soft);
+}
+
+.profilePhotoActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 /* The editor inside a dialog (new Collection while reviewing a link): one column - the 520px panel is too narrow for the page's two */
 .panelDialog .editorForm {
   grid-template-columns: minmax(0, 1fr);

@@ -14,11 +14,14 @@ export function LinkImage({
   fallback,
   className,
   alt = '',
+  eager = false,
 }: {
   readonly src: string | null;
   readonly fallback: React.ReactNode;
   readonly className?: string;
   readonly alt?: string;
+  /** A picture that is on screen right now and local (a picked file's preview): no lazy loading. */
+  readonly eager?: boolean;
 }) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   // An already-expired Meta CDN preview (Instagram) is certain to be refused: the fallback right away, no request.
@@ -28,6 +31,6 @@ export function LinkImage({
   }
   return (
     // eslint-disable-next-line @next/next/no-img-element -- remote link previews / short-lived read URLs, not optimizable assets
-    <img alt={alt} className={className} decoding="async" loading="lazy" onError={() => setFailedSrc(src)} referrerPolicy="no-referrer" src={src} />
+    <img alt={alt} className={className} decoding="async" loading={eager ? 'eager' : 'lazy'} onError={() => setFailedSrc(src)} referrerPolicy="no-referrer" src={src} />
   );
 }

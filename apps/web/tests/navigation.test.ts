@@ -113,9 +113,11 @@ describe('내 페이지: nested settings - app side bar | inner settings list | 
 
   it('saving stays on /me (no navigation), the form shows the saved value; cancel restores the saved name', () => {
     assert.doesNotMatch(view, /useRouter|router\.(push|back|replace)/);
-    assert.match(view, /updateProfile\(updated\);\s*setNickname\(updated\.displayName \?\? ''\);\s*setIsSaving\(false\);\s*setSaved\(true\);/);
-    assert.match(view, /onClick=\{\(\) => \{\s*setNickname\(profile\.displayName \?\? ''\);/);
-    assert.match(view, /disabled=\{isSaving \|\| nickname === \(profile\.displayName \?\? ''\)\}/);
+    // the nickname, then (when one was picked) the photo; both feed the shared profile at once, then "saved" shows
+    assert.match(view, /updateProfile\(updated\);\s*setNickname\(updated\.displayName \?\? ''\);/);
+    assert.match(view, /setPickedPhoto\(null\);\s*\} catch[\s\S]*?setSaved\(true\);/);
+    assert.match(view, /onClick=\{\(\) => \{\s*setNickname\(profile\.displayName \?\? ''\);\s*setPickedPhoto\(null\);/);
+    assert.match(view, /disabled=\{busy \|\| \(!nicknameChanged && !pickedPhoto\)\}/);
   });
 
   it('로그아웃 is the settings rail\'s bottom action block: [로그아웃] divider [계정 삭제], asking first; nowhere else', () => {
