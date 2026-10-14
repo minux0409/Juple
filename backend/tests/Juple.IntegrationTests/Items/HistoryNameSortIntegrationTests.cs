@@ -6,6 +6,7 @@ using Juple.Infrastructure.Items;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Users.DeleteAccount;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Juple.IntegrationTests.Items;
 
@@ -61,9 +62,9 @@ public sealed class HistoryNameSortIntegrationTests : IAsyncLifetime
         return item.Id;
     }
 
-    private async Task<Collection> AddCollectionAsync(long ownerId, bool locked)
+    private async Task<Collection> AddCollectionAsync(long ownerId, bool locked, string? name = null)
     {
-        var collection = new Collection(ownerId, locked ? "Private" : "Open", "PRIVATE", CollectionIcon.Folder, Base);
+        var collection = new Collection(ownerId, name ?? (locked ? "Private" : "Open"), (name ?? (locked ? "Private" : "Open")).ToUpperInvariant(), CollectionIcon.Folder, Base);
         if (locked)
         {
             collection.Lock(Base);
@@ -254,6 +255,115 @@ public sealed class HistoryNameSortIntegrationTests : IAsyncLifetime
 
         Assert.Equal(["Aardvark mine", "Zebra"], Names(all));
         Assert.All(all, item => Assert.False(item.IsCollectionLocked));
+    }
+
+    [Fact]
+    public async Task NameOrder_LinkInSeveralGatedCollections_IsListedOnce_AndAnOpenOneDoesNotUngateIt()
+    {
+        var lockedA = await AddCollectionAsync(_userId, locked: true, "Locked A");
+        var lockedB = await AddCollectionAsync(_userId, locked: true, "Locked B");
+        var open = await AddCollectionAsync(_userId, locked: false, "Open");
+        var hidden = await AddItemAsync(_userId, "https://secret.example/p", "Aardvark hidden", 1);
+        await LinkAsync(lockedA.Id, hidden, _userId);
+        await LinkAsync(lockedB.Id, hidden, _userId);
+        await LinkAsync(open.Id, hidden, _userId);
+        var visible = await AddItemAsync(_userId, "https://x.example/1", "Visible in an open Collection", 2);
+        await LinkAsync(open.Id, visible, _userId);
+
+        var paged = await ReadAllAsync(1);
+
+        // One row per link however many gated Collections hold it; gated wins over the open membership, and the open
+        // Collection gates nothing.
+        Assert.Equal([visible, hidden], paged.Select(item => item.Id));
+        Assert.False(paged[0].IsCollectionLocked);
+        Assert.True(paged[1].IsCollectionLocked);
+        Assert.Null(paged[1].Title);
+    }
+
+    [Fact]
+    public async Task NameOrder_SharedCollectionWithSharePassword_GatesMyLinkThere_OnlyWhileIAmAMember()
+    {
+        // Their Collections, my links added by me as a collaborator: one protected by a share password, one not.
+        var protectedShared = await AddCollectionAsync(_otherUserId, locked: false, "Protected");
+        var openShared = await AddCollectionAsync(_otherUserId, locked: false, "Shared");
+        var formerShared = await AddCollectionAsync(_otherUserId, locked: false, "Former");
+        _db.CollectionCollaborators.AddRange(
+            new CollectionCollaborator(protectedShared.Id, _userId, CollectionCollaboratorRole.Contributor, _otherUserId, Base),
+            new CollectionCollaborator(openShared.Id, _userId, CollectionCollaboratorRole.Contributor, _otherUserId, Base));
+        _db.CollectionSharePasswords.AddRange(
+            CollectionSharePassword.Create(protectedShared.Id, "hash", "sealed", Base),
+            CollectionSharePassword.Create(formerShared.Id, "hash", "sealed", Base));
+        await _db.SaveChangesAsync();
+        var behindPassword = await AddItemAsync(_userId, "https://p.example/1", "Aardvark behind a share password", 1);
+        var inOpenShared = await AddItemAsync(_userId, "https://p.example/2", "Mango shared", 2);
+        var inFormerShared = await AddItemAsync(_userId, "https://p.example/3", "Banana no longer a member", 3);
+        await LinkAsync(protectedShared.Id, behindPassword, _userId);
+        await LinkAsync(openShared.Id, inOpenShared, _userId);
+        await LinkAsync(formerShared.Id, inFormerShared, _userId);
+
+        var all = await ReadAllAsync(1);
+
+        // A Collection I am no longer a member of gates nothing for me (same as before this query shape).
+        Assert.Equal([inFormerShared, inOpenShared, behindPassword], all.Select(item => item.Id));
+        Assert.Equal([false, false, true], all.Select(item => item.IsCollectionLocked));
+        Assert.Equal("sharePassword", all[^1].CollectionGate);
+        Assert.Null(all[^1].Title);
+    }
+
+    [Fact]
+    public async Task NameOrder_DeletedCollectionsLock_GatesNothing_AndTrashedLinksAreLeftOut()
+    {
+        var deletedLocked = await AddCollectionAsync(_userId, locked: true);
+        var wasHidden = await AddItemAsync(_userId, "https://x.example/1", "Zebra once hidden", 1);
+        await LinkAsync(deletedLocked.Id, wasHidden, _userId);
+        deletedLocked.SoftDelete(Base.AddMinutes(10));
+        var trashed = await AddItemAsync(_userId, "https://x.example/2", "Aardvark in the trash", 2);
+        var kept = await AddItemAsync(_userId, "https://x.example/3", "Mango kept", 3);
+        _db.Items.Single(item => item.Id == trashed).SoftDelete(Base.AddMinutes(10));
+        await _db.SaveChangesAsync();
+
+        var all = await ReadAllAsync(1);
+
+        Assert.Equal([kept, wasHidden], all.Select(item => item.Id));
+        Assert.All(all, item => Assert.False(item.IsCollectionLocked));
+    }
+
+    [Fact]
+    public async Task NameOrder_PageQuery_ReadsTheGatedSetOnce_OnAFirstAndALaterPage()
+    {
+        var locked = await AddCollectionAsync(_userId, locked: true);
+        var hidden = await AddItemAsync(_userId, "https://secret.example/p", "Hidden", 1);
+        await LinkAsync(locked.Id, hidden, _userId);
+        await AddItemAsync(_userId, "https://x.example/1", "Visible", 2);
+        await AddItemAsync(_userId, "https://x.example/2", "Other", 3);
+        var commands = new List<string>();
+        var options = new DbContextOptionsBuilder<JupleDbContext>()
+            .UseSqlServer(_connectionString)
+            .LogTo(message => commands.Add(message), [RelationalEventId.CommandExecuted])
+            .Options;
+        var store = new ItemStore(new JupleDbContext(options));
+
+        var (firstPage, _, _) = await store.GetHistoryAsync(_userId, null, 1, null, ItemHistorySort.Name);
+        await store.GetHistoryAsync(_userId, firstPage.NextCursor, 1, null, ItemHistorySort.Name);
+
+        // The name-order queries (the ones computing the bucket) join the caller's gated memberships once, instead of
+        // repeating a correlated EXISTS in every select / order by / cursor expression (4x / 9x, measured on Dev as
+        // ~34k / ~48k logical reads for a ~200-link archive).
+        var nameOrderQueries = commands.Where(command => command.Contains("AS [Bucket]", StringComparison.Ordinal)).ToList();
+        Assert.Equal(2, nameOrderQueries.Count);
+        Assert.All(nameOrderQueries, sql =>
+            Assert.Equal(1, CountOccurrences(sql, "FROM [collections].[CollectionItems]")));
+    }
+
+    private static int CountOccurrences(string text, string value)
+    {
+        var count = 0;
+        for (var index = text.IndexOf(value, StringComparison.Ordinal); index >= 0; index = text.IndexOf(value, index + value.Length, StringComparison.Ordinal))
+        {
+            count++;
+        }
+
+        return count;
     }
 
     [Fact]

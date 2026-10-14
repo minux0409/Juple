@@ -642,26 +642,37 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         int limit,
         CancellationToken cancellationToken)
     {
-        var gated = itemsQuery.Select(item => new
-        {
-            item.Id,
-            item.SavedAtUtc,
-            item.Url,
-            item.Title,
-            IsGated = (
-                from membership in dbContext.CollectionItems
-                join collection in dbContext.Collections on membership.CollectionId equals collection.Id
-                where membership.ItemId == item.Id && membership.AddedByUserId == userId
-                    && collection.DeletedAtUtc == null
-                    && (collection.UserId == userId || dbContext.CollectionCollaborators.Any(member =>
-                        member.CollectionId == collection.Id && member.UserId == userId))
-                    && (collection.UserId == userId
-                        ? collection.IsLocked
-                        : dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
-                            && (password.Mode == CollectionSharePasswordMode.PerCollection
-                                || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked))))
-                select membership.Id).Any(),
-        });
+        // The caller's links still behind a Collection lock or share password, as ONE set joined once - the same condition
+        // as the per-link EXISTS it replaces (a membership the caller added, in a live Collection the caller owns or
+        // collaborates on, gated for the caller). As a correlated EXISTS, EF repeated it in every expression that reads the
+        // bucket/key (select, order by and the keyset cursor: 4x on a first page, 9x after it), and SQL Server evaluated each
+        // copy per link with a scan of Collections - tens of thousands of reads for a few hundred links. DISTINCT keeps one
+        // row per link when it sits in several gated Collections.
+        var gatedItemIds = (
+            from membership in dbContext.CollectionItems
+            join collection in dbContext.Collections on membership.CollectionId equals collection.Id
+            where membership.AddedByUserId == userId
+                && collection.DeletedAtUtc == null
+                && (collection.UserId == userId || dbContext.CollectionCollaborators.Any(member =>
+                    member.CollectionId == collection.Id && member.UserId == userId))
+                && (collection.UserId == userId
+                    ? collection.IsLocked
+                    : dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
+                        && (password.Mode == CollectionSharePasswordMode.PerCollection
+                            || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked))))
+            select (long?)membership.ItemId).Distinct();
+        var gated =
+            from item in itemsQuery
+            join gatedItemId in gatedItemIds on (long?)item.Id equals gatedItemId into gatedMatches
+            from gatedItemId in gatedMatches.DefaultIfEmpty()
+            select new
+            {
+                item.Id,
+                item.SavedAtUtc,
+                item.Url,
+                item.Title,
+                IsGated = gatedItemId != null,
+            };
         var withRest = gated.Select(row => new
         {
             row.Id,
