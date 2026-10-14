@@ -25,6 +25,22 @@ describe('bootstrapCurrentUser', () => {
     expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null, storeSubscription: null, mobileVersionPolicy: null });
   });
 
+  it('reports signInRequired (never ready / unavailable) when the server refuses to create an account from a stale sign-in', async () => {
+    jest.mocked(requestApi).mockRejectedValue(new ApiError('forbidden', 403, 'recentAuthenticationRequired'));
+
+    const result = await bootstrapCurrentUser('a-token', { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' });
+
+    expect(result).toMatchObject({ status: 'signInRequired', plan: null });
+  });
+
+  it('an ordinary 403 is not mistaken for the stale-sign-in answer', async () => {
+    jest.mocked(requestApi).mockRejectedValue(new ApiError('forbidden', 403, 'somethingElse'));
+
+    const result = await bootstrapCurrentUser('a-token', { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' });
+
+    expect(result.status).toBe('unavailable');
+  });
+
   it('returns the Plus plan when the backend reports it', async () => {
     jest.mocked(requestApi).mockResolvedValue({ status: 200, body: { plan: 'Plus' } });
 

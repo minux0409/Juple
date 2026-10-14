@@ -5,10 +5,14 @@ import { deleteAccount } from '../../api/accountApi';
 import { ApiError } from '../../api/ApiError';
 import { getMyProfile } from '../../api/profileApi';
 import { useAuth } from '../../auth/AuthContext';
+import { endEntraBrowserSession } from '../../auth/entraAuthClient';
 import { reauthenticateSameAccount } from '../../auth/reauthentication';
+import { getCachedIdToken } from '../../auth/session/authSessionManager';
 import { DeleteAccountScreen, normalizeTypedJupleId } from '../DeleteAccountScreen';
 
 jest.mock('../../auth/AuthContext', () => ({ useAuth: jest.fn() }));
+jest.mock('../../auth/entraAuthClient', () => ({ endEntraBrowserSession: jest.fn().mockResolvedValue(true) }));
+jest.mock('../../auth/session/authSessionManager', () => ({ getCachedIdToken: jest.fn() }));
 jest.mock('../../auth/reauthentication', () => ({ reauthenticateSameAccount: jest.fn() }));
 jest.mock('../../api/accountApi', () => ({ deleteAccount: jest.fn() }));
 jest.mock('../../api/profileApi', () => ({
@@ -147,6 +151,30 @@ describe('DeleteAccountScreen', () => {
 
     expect(deleteAccount).toHaveBeenCalledTimes(1);
     expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('after the sign-out it also ends the browser Entra session, with the ID token read before sign-out cleared it', async () => {
+    jest.mocked(deleteAccount).mockResolvedValue(undefined);
+    jest.mocked(getCachedIdToken).mockReturnValue('id-token-before-signout');
+    const order: string[] = [];
+    signOut.mockImplementation(async () => { order.push('signOut'); jest.mocked(getCachedIdToken).mockReturnValue(null); });
+    jest.mocked(endEntraBrowserSession).mockImplementation(async () => { order.push('endSession'); return true; });
+    const renderer = await reachConfirmStep();
+    await type(renderer, 'K7MP-4Q8N');
+
+    await press(renderer, 'delete-account-final');
+
+    expect(endEntraBrowserSession).toHaveBeenCalledWith('id-token-before-signout');
+    expect(order).toEqual(['signOut', 'endSession']);
+  });
+
+  it('a failed delete never ends the browser session', async () => {
+    jest.mocked(deleteAccount).mockRejectedValue(new ApiError('unavailable', 503));
+    const renderer = await reachConfirmStep();
+    await type(renderer, 'K7MP4Q8N');
+    await press(renderer, 'delete-account-final');
+
+    expect(endEntraBrowserSession).not.toHaveBeenCalled();
   });
 
   it('when the server says the sign-in is too old, goes back to signing in - nothing was deleted', async () => {

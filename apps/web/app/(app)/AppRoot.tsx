@@ -8,10 +8,13 @@ import { createAppApi, type ApiTiming, type AppApi } from '../../lib/appApi';
 import { forgetAllUnlocks } from '../../lib/collectionUnlock';
 import { describeSignInError, signInFailureMessage } from '../../lib/authErrors';
 import { isRtlLanguage, LANGUAGE_COOKIE, type AppDictionary, type AppLanguage, type LanguagePreference } from '../../lib/appI18n';
-import { bootstrapRequestBody, statusAfterBootstrapFailure, statusAfterInitialize, type AuthStatus } from '../../lib/authSession';
+import { actionAfterAccountCreationRefused, bootstrapRequestBody, isAccountCreationRefused, statusAfterBootstrapFailure, statusAfterInitialize, type AuthStatus } from '../../lib/authSession';
 import {
   acquireApiToken,
   apiScopes,
+  clearAccountCreationMarker,
+  markAccountCreationAsked,
+  takeAccountCreationMarker,
   currentMsal,
   getMsal,
   resolveSignedInAccount,
@@ -157,12 +160,29 @@ export function AppRoot({
         path: '/api/v1/users/me/bootstrap',
         body: bootstrapRequestBody(navigator.language, Intl.DateTimeFormat().resolvedOptions().timeZone),
       });
+      clearAccountCreationMarker();
       setEntitlement(parseEntitlement(result?.entitlement));
       setStoreSubscription(parseStoreSubscription(result?.storeSubscription));
       setStatus('ready');
       // Best effort, after the account exists: who to show (the mobile 내 페이지's own source). A failure only leaves the fallback label.
       api<UserProfile>({ path: PROFILE_PATH }).then(setProfile, () => undefined);
     } catch (error) {
+      if (isAccountCreationRefused(error)) {
+        // No Juple account for this sign-in and the sign-in is old: never create one silently. Ask for the credentials once.
+        const msal = currentMsal();
+        const account = msal?.getActiveAccount();
+        const action = actionAfterAccountCreationRefused(takeAccountCreationMarker());
+        if (action === 'askForCredentials' && msal && account && config) {
+          markAccountCreationAsked();
+          setStatus('redirecting');
+          msal
+            .acquireTokenRedirect({ scopes: apiScopes(config), account, prompt: 'login', redirectStartPage: window.location.href })
+            .catch(() => void clearLocalSession(dictionary.sessionEnded));
+          return;
+        }
+        await clearLocalSession(dictionary.sessionEnded);
+        return;
+      }
       const next = statusAfterBootstrapFailure(error);
       if (next === 'signedOut') {
         await clearLocalSession(dictionary.sessionEnded);

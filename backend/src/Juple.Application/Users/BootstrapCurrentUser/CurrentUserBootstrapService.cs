@@ -1,5 +1,6 @@
 using System.Globalization;
 using Juple.Application.Billing;
+using Juple.Application.Collections.Locking;
 using Juple.Application.Identity;
 using Juple.Domain.Users;
 
@@ -41,6 +42,19 @@ public sealed class CurrentUserBootstrapService(
                 timeZoneId,
                 await entitlementService.GetForIdentityAsync(externalIdentity, cancellationToken),
                 await entitlementService.GetStoreSubscriptionForIdentityAsync(externalIdentity, cancellationToken));
+        }
+
+        // No Juple account exists for this identity. Creating one is an explicit act - a person signing up or signing in
+        // again - never a side effect of a stale session. The Entra identity outlives account deletion (Juple does not delete
+        // it), so a refresh token or browser SSO session that still works would otherwise re-create the account silently,
+        // e.g. from a second device or a restored session right after the account was deleted. Account creation therefore
+        // needs a sign-in that happened just now (the same server-verified auth_time rule as account deletion); the client
+        // answers the 403 by asking for the credentials again (prompt=login), which is exactly the explicit re-sign-up.
+        // A token without any auth_time (a tenant that does not emit it) is not gated: that is today's behaviour, and
+        // refusing it would block every new sign-up instead of only the stale ones.
+        if (command.AuthenticatedAtUtc is { } authenticatedAtUtc)
+        {
+            RecentAuthentication.Require(authenticatedAtUtc, utcNow);
         }
 
         var preferredLocale = NormalizePreferredLocale(command.PreferredLocale);

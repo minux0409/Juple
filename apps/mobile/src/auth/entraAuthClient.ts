@@ -1,5 +1,6 @@
 import {
   authorize,
+  logout,
   refresh,
   type AppAuthError,
   type AuthorizeResult,
@@ -120,3 +121,35 @@ export async function refreshEntraSession(
   }
 }
 
+
+/**
+ * Ends the browser's Entra session (the sign-in cookies the account picker reads) for the account the ID token names.
+ * Only used after the account was DELETED: Juple does not delete the Entra identity, so without this the browser keeps
+ * offering the deleted account as "signed in" and one tap would sign straight back in (an ordinary sign-out deliberately
+ * keeps the picker, so a person can pick another account without clearing browser data). The post-logout redirect is the
+ * app's already-registered redirect URI. Best effort and never throws: a cancelled or failed browser step changes nothing
+ * about the local sign-out that already happened.
+ */
+export async function endEntraBrowserSession(idToken: string | null | undefined): Promise<boolean> {
+  if (!idToken) {
+    return false;
+  }
+  const config = selectedEntraAuthConfig;
+  try {
+    await logout(
+      {
+        issuer: config.issuer,
+        serviceConfiguration: {
+          authorizationEndpoint: config.authorizationEndpoint,
+          tokenEndpoint: config.tokenEndpoint,
+          endSessionEndpoint: config.endSessionEndpoint,
+        },
+        clientId: config.clientId,
+      },
+      { idToken, postLogoutRedirectUrl: config.redirectUrl },
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}

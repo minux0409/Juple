@@ -1,4 +1,4 @@
-import { AuthExpiredError } from './appApi.ts';
+import { ApiHttpError, AuthExpiredError } from './appApi.ts';
 
 /**
  * The signed-in Web app's session states (kept pure for tests; the React provider in app/(app)/AppRoot.tsx drives them):
@@ -42,4 +42,21 @@ export function requiresSignIn(pathname: string): boolean {
 /** The body the mobile app sends to POST /api/v1/users/me/bootstrap: the browser's own locale and IANA time zone. */
 export function bootstrapRequestBody(locale: string | undefined, timeZone: string | undefined): { preferredLocale: string | null; timeZoneId: string | null } {
   return { preferredLocale: locale?.trim() || null, timeZoneId: timeZone?.trim() || null };
+}
+
+/**
+ * The API refuses to CREATE a Juple account from a sign-in that is not recent (403 recentAuthenticationRequired from bootstrap): a
+ * stale session - e.g. a tab left open after the account was deleted - must never re-create it silently. Existing accounts are never
+ * refused this way.
+ */
+export function isAccountCreationRefused(error: unknown): boolean {
+  return error instanceof ApiHttpError && error.status === 403 && error.code === 'recentAuthenticationRequired';
+}
+
+/**
+ * What to do when account creation was refused: ask for the credentials once (prompt=login - the explicit sign-up); if that fresh
+ * sign-in was already asked for and the API still refuses, stop and sign out locally instead of looping through Entra.
+ */
+export function actionAfterAccountCreationRefused(credentialsAlreadyAsked: boolean): 'askForCredentials' | 'signOut' {
+  return credentialsAlreadyAsked ? 'signOut' : 'askForCredentials';
 }

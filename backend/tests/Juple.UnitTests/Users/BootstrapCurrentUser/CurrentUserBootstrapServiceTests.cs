@@ -1,3 +1,4 @@
+using Juple.Application.Collections.Locking;
 using Juple.Application.Identity;
 using Juple.Application.Users.BootstrapCurrentUser;
 using Juple.Domain.Users;
@@ -114,6 +115,62 @@ public sealed class CurrentUserBootstrapServiceTests
 
         Assert.False(result.Entitlement.ProgramEnabled);
         Assert.True(result.Entitlement.CanWrite);
+    }
+
+    private static readonly DateTimeOffset Now = new(2026, 8, 29, 0, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public async Task BootstrapAsync_NewIdentityWithStaleSignIn_IsRefusedAndCreatesNothing()
+    {
+        // A refresh token / SSO session that outlived account deletion must not silently re-create the account.
+        var store = new FakeProvisioningStore();
+
+        await Assert.ThrowsAsync<RecentAuthenticationRequiredException>(
+            () => CreateService(store).BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul", Now.AddMinutes(-6))));
+
+        Assert.Empty(store.CreatedUsers);
+    }
+
+    [Fact]
+    public async Task BootstrapAsync_NewIdentityWithAFutureSignInBeyondSkew_IsRefused()
+    {
+        var store = new FakeProvisioningStore();
+
+        await Assert.ThrowsAsync<RecentAuthenticationRequiredException>(
+            () => CreateService(store).BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul", Now.AddMinutes(5))));
+
+        Assert.Empty(store.CreatedUsers);
+    }
+
+    [Fact]
+    public async Task BootstrapAsync_NewIdentityWithAFreshSignIn_CreatesTheAccount()
+    {
+        var store = new FakeProvisioningStore();
+
+        await CreateService(store).BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul", Now.AddMinutes(-4)));
+
+        Assert.Single(store.CreatedUsers);
+    }
+
+    [Fact]
+    public async Task BootstrapAsync_NewIdentityWithoutAnAuthTimeClaim_IsNotGated()
+    {
+        var store = new FakeProvisioningStore();
+
+        await CreateService(store).BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul"));
+
+        Assert.Single(store.CreatedUsers);
+    }
+
+    [Fact]
+    public async Task BootstrapAsync_ExistingAccountIsNeverGatedOnSignInAge()
+    {
+        var store = new FakeProvisioningStore { ExistingPlan = UserPlan.Free };
+
+        var result = await CreateService(store).BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul", Now.AddDays(-90)));
+
+        Assert.Equal(UserPlan.Free, result.Plan);
+        Assert.Empty(store.CreatedUsers);
     }
 
     private static CurrentUserBootstrapService CreateService(FakeProvisioningStore store) =>

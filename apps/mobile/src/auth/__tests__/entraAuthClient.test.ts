@@ -1,6 +1,7 @@
-import { authorize, refresh } from 'react-native-app-auth';
+import { authorize, logout, refresh } from 'react-native-app-auth';
 import {
   authorizeWithEntra,
+  endEntraBrowserSession,
   isEntraSessionInvalidError,
   REAUTHENTICATION_PARAMETERS,
   refreshEntraSession,
@@ -10,6 +11,7 @@ import { entraDevAuthConfig } from '../entraAuthConfig';
 
 jest.mock('react-native-app-auth', () => ({
   authorize: jest.fn(),
+  logout: jest.fn(),
   refresh: jest.fn(),
 }));
 
@@ -121,5 +123,24 @@ describe('entraAuthClient', () => {
   it('isEntraSessionInvalidError is unaffected by this change (still recognizes invalid_grant)', () => {
     expect(isEntraSessionInvalidError({ code: 'invalid_grant' })).toBe(true);
     expect(isEntraSessionInvalidError({ code: 'network_error' })).toBe(false);
+  });
+
+  it('endEntraBrowserSession ends the Entra session with the ID token as hint, back to the registered redirect URI', async () => {
+    jest.mocked(logout).mockResolvedValue({ idTokenHint: 'id', postLogoutRedirectUri: 'x', state: 's' });
+
+    await expect(endEntraBrowserSession('id-token')).resolves.toBe(true);
+
+    expect(logout).toHaveBeenCalledWith(
+      expect.objectContaining({ clientId: entraDevAuthConfig.clientId, serviceConfiguration: expect.objectContaining({ endSessionEndpoint: entraDevAuthConfig.endSessionEndpoint }) }),
+      { idToken: 'id-token', postLogoutRedirectUrl: entraDevAuthConfig.redirectUrl },
+    );
+  });
+
+  it('endEntraBrowserSession never throws (cancelled / failed) and does nothing without an ID token', async () => {
+    jest.mocked(logout).mockRejectedValue(new Error('cancelled'));
+    await expect(endEntraBrowserSession('id-token')).resolves.toBe(false);
+    jest.mocked(logout).mockClear();
+    await expect(endEntraBrowserSession(null)).resolves.toBe(false);
+    expect(logout).not.toHaveBeenCalled();
   });
 });

@@ -119,6 +119,32 @@ function takePendingReauthentication(): { purpose: ReauthenticationPurpose; home
   }
 }
 
+const ACCOUNT_CREATION_KEY = 'juple.web.accountCreationCredentialsAsked';
+
+/** This tab already sent the person to type their credentials because the API refused to create an account from an old sign-in. */
+export function markAccountCreationAsked(): void {
+  try {
+    window.sessionStorage.setItem(ACCOUNT_CREATION_KEY, '1');
+  } catch {
+    // Without session storage the guard degrades to "ask again" - one extra sign-in, never a loop (the next refusal after this one signs out only if the marker holds).
+  }
+}
+
+/** Reads and clears the marker: true when the credentials were already asked for in this tab. */
+export function takeAccountCreationMarker(): boolean {
+  try {
+    const asked = window.sessionStorage.getItem(ACCOUNT_CREATION_KEY) === '1';
+    window.sessionStorage.removeItem(ACCOUNT_CREATION_KEY);
+    return asked;
+  } catch {
+    return false;
+  }
+}
+
+export function clearAccountCreationMarker(): void {
+  takeAccountCreationMarker();
+}
+
 /** Forgets a fresh sign-in that never left this page (cancelled before / while leaving): its marker must not outlive the attempt. */
 export function clearPendingReauthentication(): void {
   try {

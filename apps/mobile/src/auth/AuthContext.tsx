@@ -13,6 +13,7 @@ import {
   authorizeWithEntra,
   EntraAuthError,
   isEntraSessionInvalidError,
+  REAUTHENTICATION_PARAMETERS,
   SIGN_IN_PARAMETERS,
 } from './entraAuthClient';
 import { decodeIdTokenClaims, extractEmailClaim } from './idTokenClaims';
@@ -167,6 +168,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
 
         const bootstrapResult = await bootstrapUserAccount(accessToken);
+        if (bootstrapResult.status === 'signInRequired') {
+          // A restored session whose Juple account no longer exists (deleted here or on another device) and that is too old
+          // to start a new one: never re-create the account silently - drop the stale session; signing in again is explicit.
+          await clearSession();
+          if (isMountedRef.current) {
+            setSignedOut();
+          }
+          return;
+        }
         if (isMountedRef.current) {
           setState(previous =>
             previous.isAuthenticated
@@ -283,9 +293,30 @@ export function AuthProvider({ children }: PropsWithChildren) {
             ? { ...previous, userBootstrapStatus: 'checking' }
             : previous,
         );
-        const bootstrapResult = await bootstrapUserAccount(
+        let bootstrapResult = await bootstrapUserAccount(
           result.accessToken,
         );
+        if (bootstrapResult.status === 'signInRequired') {
+          // The browser's single sign-on session answered without asking for credentials, and this identity has no Juple
+          // account (e.g. it was just deleted). Creating one is an explicit act: ask for the credentials again. A cancel
+          // leaves the app signed out - the old session is dropped first, so nothing stale is kept.
+          await clearSession();
+          const confirmed = await authorizeWithEntra(REAUTHENTICATION_PARAMETERS);
+          if (!confirmed.accessToken || !confirmed.refreshToken) {
+            throw new Error('Entra re-authentication completed without the tokens required for a session.');
+          }
+          await saveAuthorizedSession({
+            accessToken: confirmed.accessToken,
+            accessTokenExpirationDate: confirmed.accessTokenExpirationDate,
+            refreshToken: confirmed.refreshToken,
+            idToken: confirmed.idToken,
+          });
+          bootstrapResult = await bootstrapUserAccount(confirmed.accessToken);
+          if (bootstrapResult.status === 'signInRequired') {
+            await clearSession();
+            throw new Error('Account creation was refused after a fresh sign-in.');
+          }
+        }
         setState(previous =>
           previous.isAuthenticated
             ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement, storeSubscription: bootstrapResult.storeSubscription ?? null, mobileVersionPolicy: bootstrapResult.mobileVersionPolicy }

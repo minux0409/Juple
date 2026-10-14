@@ -16,6 +16,8 @@ export type UserBootstrapStatus =
   | 'checking'
   | 'ready'
   | 'invalidDeviceSettings'
+  /** No Juple account exists yet and this sign-in is too old to create one (see bootstrapCurrentUser / AuthContext). */
+  | 'signInRequired'
   | 'unavailable';
 
 /** The current user's entitlement tier, as returned by the bootstrap endpoint (see userBootstrapApi.ts) - matches backend UserPlan.ToString() exactly. */

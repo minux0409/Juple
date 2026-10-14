@@ -99,6 +99,10 @@ export async function bootstrapCurrentUser(
       mobileVersionPolicy: parseMobileVersionPolicy(response.body?.mobileVersionPolicy),
     };
   } catch (error) {
+    // The identity has no Juple account and the sign-in is not recent: the server never creates an account from a stale session.
+    if (error instanceof ApiError && error.status === 403 && error.code === 'recentAuthenticationRequired') {
+      return { status: 'signInRequired', plan: null, entitlement: null, storeSubscription: null, mobileVersionPolicy: null };
+    }
     if (error instanceof ApiError && error.kind === 'badRequest') {
       return { status: 'invalidDeviceSettings', plan: null, entitlement: null, storeSubscription: null, mobileVersionPolicy: null };
     }

@@ -4,7 +4,9 @@ import { describe, it } from 'node:test';
 import { ApiHttpError, ApiNetworkError, AuthExpiredError, createAppApi } from '../lib/appApi.ts';
 import { getAppDictionary } from '../lib/appDictionary.ts';
 import {
+  actionAfterAccountCreationRefused,
   bootstrapRequestBody,
+  isAccountCreationRefused,
   isSessionLost,
   requiresSignIn,
   statusAfterBootstrapFailure,
@@ -132,6 +134,15 @@ describe('session states', () => {
   it('an account goes to bootstrap, none to the landing page', () => {
     assert.equal(statusAfterInitialize(true), 'bootstrapping');
     assert.equal(statusAfterInitialize(false), 'signedOut');
+  });
+
+  it('account creation refused for a stale sign-in: ask for credentials once, then sign out - never a loop, never a silent account', () => {
+    assert.equal(isAccountCreationRefused(new ApiHttpError(403, 'recentAuthenticationRequired')), true);
+    assert.equal(isAccountCreationRefused(new ApiHttpError(403, 'subscriptionRequired')), false);
+    assert.equal(isAccountCreationRefused(new ApiHttpError(500, null)), false);
+    assert.equal(isAccountCreationRefused(new AuthExpiredError()), false);
+    assert.equal(actionAfterAccountCreationRefused(false), 'askForCredentials');
+    assert.equal(actionAfterAccountCreationRefused(true), 'signOut');
   });
 
   it('a failed bootstrap signs out ONLY for a lost session; network / server errors keep the session with a retry', () => {

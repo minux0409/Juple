@@ -7,7 +7,9 @@ import { ApiError } from '../api/ApiError';
 import { getMyProfile } from '../api/profileApi';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
+import { endEntraBrowserSession } from '../auth/entraAuthClient';
 import { reauthenticateSameAccount } from '../auth/reauthentication';
+import { getCachedIdToken } from '../auth/session/authSessionManager';
 import { formatJupleId } from '../collections/api/collaborationApi';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { RECENT_AUTHENTICATION_REQUIRED_CODE } from '../settings/CollectionLockPasswordDialog';
@@ -104,9 +106,14 @@ export function DeleteAccountScreen() {
     setNotice(null);
     try {
       await deleteAccount(authenticatedRequest);
+      // The ID token is read BEFORE sign-out clears it: it identifies whose browser session to end.
+      const idTokenForLogout = getCachedIdToken();
       // Already gone server-side - the regular sign-out's own cleanup (push unregister etc.)
       // becomes a harmless no-op, so there is no separate local-cleanup path to maintain.
       await signOut();
+      // The tokens are gone; now end the browser's Entra session too, so the account picker no longer offers the deleted
+      // account as signed in. Best effort - the account is already deleted and the app already signed out.
+      await endEntraBrowserSession(idTokenForLogout);
     } catch (caughtError) {
       isDeletingRef.current = false;
       setIsBusy(false);

@@ -1,6 +1,8 @@
 using Juple.Api.Authentication;
 using Juple.Api.Billing;
+using Juple.Api.Collections;
 using Juple.Api.Configuration;
+using Juple.Application.Collections.Locking;
 using Juple.Domain.Billing;
 using Juple.Application.Identity;
 using Juple.Application.Users.BootstrapCurrentUser;
@@ -28,9 +30,14 @@ public sealed class CurrentUserBootstrapController : ControllerBase
         {
             var result = await bootstrapService.BootstrapAsync(
                 externalIdentityAccessor.GetRequired(),
-                new BootstrapCurrentUserCommand(request.PreferredLocale, request.TimeZoneId),
+                new BootstrapCurrentUserCommand(request.PreferredLocale, request.TimeZoneId, AuthenticationTimeClaim.Read(User)),
                 cancellationToken);
             return Ok(new BootstrapCurrentUserResponse(result.Plan.ToString(), result.TimeZoneId, EntitlementResponse.From(result.Entitlement), MobileVersionPolicyResponse.From(versionPolicy.Value), StoreSubscriptionResponse.From(result.StoreSubscription)));
+        }
+        catch (RecentAuthenticationRequiredException)
+        {
+            // Creating the account needs a sign-in that just happened - see CurrentUserBootstrapService.
+            return CollectionProblems.RecentAuthenticationRequired();
         }
         catch (InvalidCurrentUserBootstrapRequestException exception)
         {

@@ -6,7 +6,7 @@ import { Text } from 'react-native';
 import '../../i18n';
 import { AuthProvider, useAuth } from '../AuthContext';
 import { EntraAuthError } from '../entraAuthClient';
-import { getValidAccessToken } from '../session/authSessionManager';
+import { clearSession, getValidAccessToken, saveAuthorizedSession } from '../session/authSessionManager';
 import { validateBackendSession } from '../authSessionApi';
 import { bootstrapCurrentUser } from '../userBootstrapApi';
 import { collectionShortcutService } from '../../shortcuts/CollectionShortcutService';
@@ -334,5 +334,85 @@ describe('AuthProvider - refreshEntitlement (after a server-verified purchase)',
     });
 
     expect(latest.entitlement).toMatchObject({ status: 'trial' });
+  });
+});
+
+describe('AuthProvider - an identity without a Juple account never gets one from a stale sign-in', () => {
+  const STALE = { status: 'signInRequired', plan: null, entitlement: null } as const;
+  const authorized = (token: string) => ({
+    accessToken: token,
+    accessTokenExpirationDate: '2099-01-01T00:00:00Z',
+    refreshToken: `${token}-refresh`,
+    idToken: 'id',
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('a restored session answered "sign in again" is dropped and the app is signed out (nothing is created)', async () => {
+    jest.mocked(getValidAccessToken).mockResolvedValue('stale-token');
+    jest.mocked(validateBackendSession).mockResolvedValue('valid');
+    jest.mocked(bootstrapCurrentUser).mockResolvedValue(STALE);
+
+    const renderer = await renderAuthProvider();
+
+    expect(clearSession).toHaveBeenCalledTimes(1);
+    expect(readProbeText(renderer)).toBe('false:notChecked:sessionRestore');
+    expect(bootstrapCurrentUser).toHaveBeenCalledTimes(1);
+  });
+
+  it('sign-in that is answered "sign in again" asks for the credentials (prompt=login, max_age=0) and then creates the account', async () => {
+    jest.mocked(getValidAccessToken).mockRejectedValue(new Error('sessionUnavailable'));
+    jest.mocked(validateBackendSession).mockResolvedValue('valid');
+    jest.mocked(authorize)
+      .mockResolvedValueOnce(authorized('sso-token') as never)
+      .mockResolvedValueOnce(authorized('fresh-token') as never);
+    jest.mocked(bootstrapCurrentUser)
+      .mockResolvedValueOnce(STALE)
+      .mockResolvedValueOnce({ status: 'ready', plan: 'Free', entitlement: null });
+    let signIn!: () => Promise<void>;
+    function SignInProbe() {
+      signIn = useAuth().signIn;
+      return null;
+    }
+    await act(async () => {
+      ReactTestRenderer.create(<AuthProvider><SignInProbe /></AuthProvider>);
+    });
+
+    await act(async () => {
+      await signIn();
+    });
+
+    expect(jest.mocked(authorize).mock.calls[0][0].additionalParameters).toEqual({ prompt: 'select_account' });
+    expect(jest.mocked(authorize).mock.calls[1][0].additionalParameters).toMatchObject({ prompt: 'login', max_age: '0' });
+    expect(bootstrapCurrentUser).toHaveBeenLastCalledWith('fresh-token', expect.anything());
+    expect(saveAuthorizedSession).toHaveBeenLastCalledWith(expect.objectContaining({ accessToken: 'fresh-token' }));
+  });
+
+  it('cancelling the credential prompt leaves no session behind', async () => {
+    jest.mocked(getValidAccessToken).mockRejectedValue(new Error('sessionUnavailable'));
+    jest.mocked(validateBackendSession).mockResolvedValue('valid');
+    jest.mocked(authorize)
+      .mockResolvedValueOnce(authorized('sso-token') as never)
+      .mockRejectedValueOnce(new Error('User cancelled flow'));
+    jest.mocked(bootstrapCurrentUser).mockResolvedValue(STALE);
+    let signIn!: () => Promise<void>;
+    let state!: ReturnType<typeof useAuth>;
+    function SignInProbe() {
+      state = useAuth();
+      signIn = state.signIn;
+      return null;
+    }
+    await act(async () => {
+      ReactTestRenderer.create(<AuthProvider><SignInProbe /></AuthProvider>);
+    });
+
+    await act(async () => {
+      await signIn();
+    });
+
+    expect(clearSession).toHaveBeenCalled();
+    expect(state.isAuthenticated).toBe(false);
   });
 });
