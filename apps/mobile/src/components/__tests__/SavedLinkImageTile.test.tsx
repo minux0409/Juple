@@ -96,6 +96,18 @@ describe('SavedLinkImageTile', () => {
     expect(renderer.root.findByType(Image).props.source).toEqual({ uri: 'https://img.example/fresh.jpg' });
   });
 
+  it('an Instagram preview whose signed URL has already expired is never requested - the same site icon a failed load shows', () => {
+    // oe 60000000 = 2021-01-14 (long past), F0000000 = 2097-08-05 (far future): no clock control needed.
+    const instagram = 'https://www.instagram.com/p/abc/';
+    const expired = renderTile(makeItem({ url: instagram, previewImageUrl: 'https://scontent-ssn1-1.cdninstagram.com/v/p.jpg?oh=00_sig&oe=60000000' }));
+    expect(expired.renderer.root.findAllByType(Image)).toHaveLength(0);
+    expect(expired.renderer.root.findAllByType(SiteIcon)).toHaveLength(1);
+
+    const live = 'https://scontent-ssn1-1.cdninstagram.com/v/p.jpg?oh=00_sig&oe=F0000000';
+    const valid = renderTile(makeItem({ url: instagram, previewImageUrl: live }));
+    expect(valid.renderer.root.findByType(Image).props.source).toEqual({ uri: live });
+  });
+
   it('a locked link is a lock on a neutral square - nothing of the hidden link, in text, picture, site icon or label', () => {
     const { renderer } = renderTile(makeItem({
       isCollectionLocked: true,

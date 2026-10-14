@@ -265,7 +265,7 @@ describe('UI / parity fix pass', async () => {
   it('every remote picture falls back on error (the broken-image icon is never shown)', () => {
     const image = page('LinkImage.tsx');
     assert.match(image, /onError=\{\(\) => setFailedSrc\(src\)\}/);
-    assert.match(image, /if \(!src \|\| src === failedSrc\) \{\s*return <>\{fallback\}<\/>;/);
+    assert.match(image, /if \(!src \|\| src === failedSrc \|\| isExpiredMetaPreviewUrl\(src, mountedAtMs\)\) \{\s*return <>\{fallback\}<\/>;/);
     for (const file of readdirSync(new URL('../app/(app)/', import.meta.url), { recursive: true }) as string[]) {
       if (file.endsWith('.tsx') && !file.endsWith('LinkImage.tsx') && !file.endsWith('CollectionEditor.tsx')) {
         assert.doesNotMatch(page(file.replaceAll('\\', '/')), /<img\b/, `${file} renders a picture without the fallback`);

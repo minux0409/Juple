@@ -1,4 +1,5 @@
 import type { RepresentativeImage } from '../images/api/imagesApi';
+import { isExpiredMetaPreviewUrl } from './metaPreviewExpiry';
 
 export interface EffectiveThumbnailSourceItem {
   readonly coverImage: RepresentativeImage | null;
@@ -16,7 +17,16 @@ export interface EffectiveThumbnailSourceItem {
  * SavedLinkRow only needs to render one already-resolved URL - see
  * ItemRepresentativeThumbnail/resolveSavedLinkPrimaryText for the same shape of decision elsewhere
  * in this module.
+ *
+ * An automatic preview that is an already-expired Meta CDN URL (see metaPreviewExpiry.ts) counts as no preview: the card
+ * shows its fallback right away instead of requesting a picture the CDN is certain to refuse. The user's own photos are
+ * never affected - they come first and are Juple's own read URLs.
  */
-export function resolveEffectiveThumbnailUrl(item: EffectiveThumbnailSourceItem): string | null {
-  return item.coverImage?.readUrl ?? item.representativeImage?.readUrl ?? item.previewImageUrl ?? null;
+export function resolveEffectiveThumbnailUrl(item: EffectiveThumbnailSourceItem, nowMs: number = Date.now()): string | null {
+  const ownPhoto = item.coverImage?.readUrl ?? item.representativeImage?.readUrl;
+  if (ownPhoto != null) {
+    return ownPhoto;
+  }
+  const preview = item.previewImageUrl ?? null;
+  return preview !== null && isExpiredMetaPreviewUrl(preview, nowMs) ? null : preview;
 }

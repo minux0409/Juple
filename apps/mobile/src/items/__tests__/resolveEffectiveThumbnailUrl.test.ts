@@ -40,4 +40,30 @@ describe('resolveEffectiveThumbnailUrl', () => {
 
     expect(url).toBeNull();
   });
+
+  describe('an expired Instagram (Meta CDN) preview', () => {
+    const NOW = Date.UTC(2026, 9, 14, 12, 0, 0);
+    const expired = 'https://scontent-ssn1-1.cdninstagram.com/v/p.jpg?oh=00_sig&oe=6ACF60B0'; // NOW - 1 h
+    const valid = 'https://scontent-ssn1-1.cdninstagram.com/v/p.jpg?oh=00_sig&oe=6ACF7CD0'; // NOW + 1 h
+
+    it('counts as no preview, so the card shows its fallback without requesting it', () => {
+      expect(resolveEffectiveThumbnailUrl({ coverImage: null, previewImageUrl: expired, representativeImage: null }, NOW)).toBeNull();
+    });
+
+    it('keeps a not-yet-expired one', () => {
+      expect(resolveEffectiveThumbnailUrl({ coverImage: null, previewImageUrl: valid, representativeImage: null }, NOW)).toBe(valid);
+    });
+
+    it('never hides the user\'s own photo (cover or first photo still win)', () => {
+      expect(resolveEffectiveThumbnailUrl({ coverImage: { id: 1, readUrl: 'https://blob.example/cover.jpg' }, previewImageUrl: expired, representativeImage: null }, NOW))
+        .toBe('https://blob.example/cover.jpg');
+      expect(resolveEffectiveThumbnailUrl({ coverImage: null, previewImageUrl: expired, representativeImage: { id: 2, readUrl: 'https://blob.example/uploaded.jpg' } }, NOW))
+        .toBe('https://blob.example/uploaded.jpg');
+    });
+
+    it('leaves every other preview as it was (fail-open)', () => {
+      const other = 'https://cdn.example/preview.jpg?oe=6ACF60B0';
+      expect(resolveEffectiveThumbnailUrl({ coverImage: null, previewImageUrl: other, representativeImage: null }, NOW)).toBe(other);
+    });
+  });
 });

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { PublicCollectionItem } from '../../../lib/publicApi';
+import { isExpiredMetaPreviewUrl } from '../../../lib/metaPreviewExpiry';
 import { getDisplayDomain } from '../../../lib/urlDisplay';
 
 /**
@@ -34,7 +35,10 @@ function GlobeFallback() {
  * image never shifts the layout - it just shows the generic globe instead.
  */
 export function ItemCard({ item, openLabel }: { item: PublicCollectionItem; openLabel: string }) {
-  const imageUrl = safePreviewImage(item.previewImageUrl);
+  const [mountedAtMs] = useState(() => Date.now());
+  const previewUrl = safePreviewImage(item.previewImageUrl);
+  // An already-expired Meta CDN preview (Instagram) is certain to be refused: the globe right away, no request.
+  const imageUrl = previewUrl && !isExpiredMetaPreviewUrl(previewUrl, mountedAtMs) ? previewUrl : null;
   const [isImageBroken, setIsImageBroken] = useState(false);
   const domain = getDisplayDomain(item.url);
 

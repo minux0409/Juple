@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { isExpiredMetaPreviewUrl } from '../../lib/metaPreviewExpiry';
 
 /**
  * One remote picture (a link preview, a short-lived photo read URL, a Collection or profile photo) with the mobile tiles' failure
@@ -20,7 +21,9 @@ export function LinkImage({
   readonly alt?: string;
 }) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  if (!src || src === failedSrc) {
+  // An already-expired Meta CDN preview (Instagram) is certain to be refused: the fallback right away, no request.
+  const [mountedAtMs] = useState(() => Date.now());
+  if (!src || src === failedSrc || isExpiredMetaPreviewUrl(src, mountedAtMs)) {
     return <>{fallback}</>;
   }
   return (
