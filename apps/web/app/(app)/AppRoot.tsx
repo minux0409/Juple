@@ -28,6 +28,9 @@ import { settleReauthenticationFailure } from '../../lib/reauthFailure';
 import { parseEntitlement, parseStoreSubscription, type Entitlement, type StoreSubscription } from '../../lib/subscription';
 import type { WebAppConfig } from '../../lib/webAppConfig';
 import { AppShell } from './AppShell';
+import { isTermsRequired, parseTermsStatus, type TermsStatus } from '../../lib/safety';
+import { SafetyProvider } from './SafetyProvider';
+import { TermsGate } from './TermsGate';
 import { ToastProvider } from './Toaster';
 import { CenteredMessage, Landing } from './Landing';
 
@@ -115,7 +118,11 @@ export function AppRoot({
   const [entitlement, setEntitlement] = useState<Entitlement | null>(null);
   const [storeSubscription, setStoreSubscription] = useState<StoreSubscription | null>(null);
   const [reauthentication, setReauthentication] = useState<ReauthenticationResult | null>(null);
-  const api = useMemo<AppApi | null>(() => {
+  // The Terms the server asks for and whether they were accepted (from the bootstrap). `termsAsked` goes false after "not now" and
+  // true again when a content write is refused for the missing agreement.
+  const [terms, setTerms] = useState<TermsStatus | null>(null);
+  const [termsAsked, setTermsAsked] = useState(true);
+  const rawApi = useMemo<AppApi | null>(() => {
     if (!config) {
       return null;
     }
@@ -129,6 +136,24 @@ export function AppRoot({
       },
     });
   }, [config]);
+  // Every call goes through here: a refusal for the missing Terms agreement opens the agreement again (the call still fails as before).
+  const api = useMemo<AppApi | null>(
+    () =>
+      rawApi
+        ? (async request => {
+            try {
+              return await rawApi(request);
+            } catch (error) {
+              if (isTermsRequired(error)) {
+                setTerms(previous => ({ currentVersion: previous?.currentVersion ?? '', acceptedVersion: previous?.acceptedVersion ?? null, isAccepted: false }));
+                setTermsAsked(true);
+              }
+              throw error;
+            }
+          }) as AppApi
+        : null,
+    [rawApi],
+  );
 
   const clearLocalSession = useCallback(async (message: string | null) => {
     const msal = currentMsal();
@@ -143,6 +168,7 @@ export function AppRoot({
     setProfile(null);
     setEntitlement(null);
     setStoreSubscription(null);
+    setTerms(null);
     setNotice(message);
     setStatus('signedOut');
   }, []);
@@ -156,7 +182,7 @@ export function AppRoot({
       getPerfRecorder().mark('bootstrapStart');
     }
     try {
-      const result = await api<{ readonly entitlement?: unknown; readonly storeSubscription?: unknown } | undefined>({
+      const result = await api<{ readonly entitlement?: unknown; readonly storeSubscription?: unknown; readonly terms?: unknown } | undefined>({
         method: 'POST',
         path: '/api/v1/users/me/bootstrap',
         body: bootstrapRequestBody(navigator.language, Intl.DateTimeFormat().resolvedOptions().timeZone),
@@ -164,6 +190,8 @@ export function AppRoot({
       clearAccountCreationMarker();
       setEntitlement(parseEntitlement(result?.entitlement));
       setStoreSubscription(parseStoreSubscription(result?.storeSubscription));
+      setTerms(parseTermsStatus(result?.terms));
+      setTermsAsked(true);
       setStatus('ready');
       // Best effort, after the account exists: who to show (the mobile 내 페이지's own source). A failure only leaves the fallback label.
       api<UserProfile>({ path: PROFILE_PATH }).then(setProfile, () => undefined);
@@ -342,7 +370,19 @@ export function AppRoot({
     return (
       <SignedInAppContext.Provider value={signedInApp}>
         <ToastProvider>
-          <AppShell>{children}</AppShell>
+          <SafetyProvider>
+            <AppShell>{children}</AppShell>
+          </SafetyProvider>
+          {api && terms && !terms.isAccepted && termsAsked ? (
+            <TermsGate
+              api={api}
+              dictionary={dictionary}
+              onAccepted={accepted => setTerms(accepted)}
+              onLater={() => setTermsAsked(false)}
+              onSessionLost={onSessionLost}
+              version={terms.currentVersion}
+            />
+          ) : null}
         </ToastProvider>
       </SignedInAppContext.Provider>
     );

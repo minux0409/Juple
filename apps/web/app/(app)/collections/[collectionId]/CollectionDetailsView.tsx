@@ -37,6 +37,7 @@ import { MergeUndoBanner } from './MergeUndoBanner';
 import { canMergeCollection, peekCloneResult, peekMergeUndo } from '../../../../lib/collectionOperations';
 import { useRouter } from 'next/navigation';
 import { ActionMenu, type MenuAction } from '../../Popover';
+import { useSafety } from '../../SafetyProvider';
 import { UnlockPanel } from './UnlockPanel';
 import {
   appendUnique,
@@ -76,6 +77,7 @@ type HeaderState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | 
  */
 export function CollectionDetailsView({ collectionIdParam }: { readonly collectionIdParam: string }) {
   const { api, dictionary, locale, onSessionLost } = useSignedInApp();
+  const safety = useSafety();
   const collectionId = parseRouteId(collectionIdParam);
   const [header, setHeader] = useState<HeaderState>(collectionId === null ? { kind: 'notFound' } : { kind: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
@@ -314,11 +316,17 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
         menuActions={
           // A Collection shared with me, its content open: 내 컬렉션으로 복제. My own, nobody else in it, its content open: 다른 컬렉션과
           // 병합 (the server refuses anything else too). The two never appear together.
-          isSharedWithMe(collection) && !gate
-            ? [{ key: 'clone', label: dictionary.cloneToMine, icon: 'Copy', onSelect: () => router.push(`${collectionHref(collection.id)}/clone`) }]
-            : canMergeCollection(collection, !gate && (!isCollectionLocked(collection) || unlockTokenFor(collection.id) !== null))
-              ? [{ key: 'merge', label: dictionary.mergeWithOther, icon: 'Move', onSelect: () => setPanel('merge') }]
-              : []
+          [
+            ...(isSharedWithMe(collection) && !gate
+              ? [{ key: 'clone', label: dictionary.cloneToMine, icon: 'Copy' as const, onSelect: () => router.push(`${collectionHref(collection.id)}/clone`) }]
+              : canMergeCollection(collection, !gate && (!isCollectionLocked(collection) || unlockTokenFor(collection.id) !== null))
+                ? [{ key: 'merge', label: dictionary.mergeWithOther, icon: 'Move' as const, onSelect: () => setPanel('merge') }]
+                : []),
+            // Somebody else's Collection (one shared with me): it can be reported - never my own.
+            ...(isSharedWithMe(collection)
+              ? [{ key: 'report', label: dictionary.safetyReport, onSelect: () => safety.report({ type: 'Collection', collectionId: collection.id }) }]
+              : []),
+          ]
         }
         onOpenShare={() => setPanel('share')}
         onToggleFavorite={toggleFavorite}

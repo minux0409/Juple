@@ -34,6 +34,7 @@ import {
 } from '../../lib/itemCollaboration';
 import { sharedItemPath } from '../../lib/itemDetails';
 import { useSignedInApp } from './AppRoot';
+import { useSafety } from './SafetyProvider';
 import { Avatar } from './Avatar';
 import { ConfirmDialog } from './ConfirmDialog';
 import { CollectionGlyph, Glyph } from './Glyph';
@@ -453,6 +454,7 @@ function CommentList({
   readonly isOwner: boolean;
 }) {
   const { locale } = useSignedInApp();
+  const safety = useSafety();
   const [confirmFor, setConfirmFor] = useState<ItemComment | null>(null);
   const { comments, threads, status, totalCount } = model;
 
@@ -469,6 +471,7 @@ function CommentList({
       onDelete={() => setConfirmFor(comment)}
       onEdit={() => model.startEdit(comment)}
       onReply={() => model.startReply(comment)}
+      onReport={() => safety.report({ type: 'Comment', commentId: comment.id })}
       onToggleLike={() => model.toggleLike(comment)}
     />
   );
@@ -575,6 +578,7 @@ function CommentRow({
   onToggleLike,
   onEdit,
   onDelete,
+  onReport,
 }: {
   readonly comment: ItemComment;
   readonly isReply: boolean;
@@ -587,6 +591,8 @@ function CommentRow({
   readonly onToggleLike: () => void;
   readonly onEdit: () => void;
   readonly onDelete: () => void;
+  /** Somebody else's comment only (never the caller's own). */
+  readonly onReport?: () => void;
 }) {
   const rowClass = isReply ? `${styles.commentRow} ${styles.commentRowReply}` : styles.commentRow;
   if (comment.isDeleted) {
@@ -641,6 +647,11 @@ function CommentRow({
           {canDelete ? (
             <button className={`${styles.commentAction} ${styles.commentActionDanger}`} data-comment-delete onClick={onDelete} type="button">
               {dictionary.commentDeleteAction}
+            </button>
+          ) : null}
+          {onReport && !author.isMe ? (
+            <button className={styles.commentAction} data-comment-report onClick={onReport} type="button">
+              {dictionary.safetyReport}
             </button>
           ) : null}
         </div>

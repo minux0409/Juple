@@ -16,6 +16,7 @@ import {
 } from '../../../../lib/settings';
 import { ApiHttpError } from '../../../../lib/appApi';
 import { useSignedInApp } from '../../AppRoot';
+import { useSafety } from '../../SafetyProvider';
 import { ConfirmDialog } from '../../ConfirmDialog';
 import { LoadMore } from '../../InfiniteScroll';
 import { LoadFailed } from '../../PageStates';
@@ -211,6 +212,7 @@ export default function FriendsPage() {
                     busy={busy}
                     friend={friend}
                     key={friend.friendshipId}
+                    onBlocked={() => setReloadToken(token => token + 1)}
                     onRemove={() => setConfirm({ kind: 'remove', friend })}
                     onUpdated={updated =>
                       setFriends(current => (current.kind === 'loaded' ? { ...current, items: current.items.map(item => (item.friendshipId === updated.friendshipId ? updated : item)) } : current))
@@ -316,8 +318,9 @@ export default function FriendsPage() {
 }
 
 /** One friend: name, Juple ID, my private note (edited in place), and 친구 삭제. */
-function FriendRow({ friend, busy, onRemove, onUpdated }: { readonly friend: Friend; readonly busy: boolean; readonly onRemove: () => void; readonly onUpdated: (friend: Friend) => void }) {
+function FriendRow({ friend, busy, onRemove, onUpdated, onBlocked }: { readonly friend: Friend; readonly busy: boolean; readonly onRemove: () => void; readonly onUpdated: (friend: Friend) => void; readonly onBlocked: () => void }) {
   const { api, dictionary, onSessionLost } = useSignedInApp();
+  const safety = useSafety();
   const [editing, setEditing] = useState(false);
   const [note, setNote] = useState(friend.myNote ?? '');
   const [saving, setSaving] = useState(false);
@@ -366,6 +369,12 @@ function FriendRow({ friend, busy, onRemove, onUpdated }: { readonly friend: Fri
           <button className={styles.settingsAction} disabled={busy || saving} onClick={() => setEditing(value => !value)} type="button">
             <Glyph name="Edit" size={16} />
             {dictionary.friendsNote}
+          </button>
+          <button className={styles.settingsAction} data-friend-report disabled={busy} onClick={() => safety.report({ type: 'User', jupleId: friend.jupleId })} type="button">
+            {dictionary.safetyReport}
+          </button>
+          <button className={styles.settingsAction} data-friend-block disabled={busy} onClick={() => safety.block({ jupleId: friend.jupleId, name: personName(friend) }, onBlocked)} type="button">
+            {dictionary.safetyBlock}
           </button>
           <button className={styles.dangerAction} data-friend-remove disabled={busy} onClick={onRemove} type="button">
             {dictionary.friendsRemove}

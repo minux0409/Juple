@@ -77,7 +77,7 @@ describe('undo snackbar rules', () => {
     assert.match(detail, /moveUndoPath\(sourceId, itemId\)/);
     // The sheet closes right after the action; the snackbar lives above it (the app-wide provider), so it is not unmounted with it.
     const root = source('app/(app)/AppRoot.tsx');
-    assert.match(root, /<ToastProvider>\s*<AppShell>/);
+    assert.match(root, /<ToastProvider>\s*<SafetyProvider>\s*<AppShell>/);
   });
 
   it('the snackbar is a polite status (an error is an alert) with a real button, never colour alone', () => {

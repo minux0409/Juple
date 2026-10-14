@@ -5,7 +5,7 @@ import type { AppDictionary } from './appI18n.ts';
  * list, the content). Only features that really exist: 프로필, 언어, 컬렉션 잠금, 구독, 계정, 고객센터 and the deliberate 계정 삭제. 친구 and
  * 삭제 이력 are main destinations of the side bar and are not part of it.
  */
-export type SettingsNavKey = 'profile' | 'language' | 'collectionLock' | 'subscription' | 'account' | 'support' | 'deleteAccount';
+export type SettingsNavKey = 'profile' | 'language' | 'collectionLock' | 'blockedUsers' | 'subscription' | 'account' | 'support' | 'deleteAccount';
 
 export interface SettingsNavItem {
   readonly key: SettingsNavKey;
@@ -21,6 +21,8 @@ export const SETTINGS_NAV_ITEMS: readonly SettingsNavItem[] = [
   { key: 'profile', href: '/me', paths: ['/me', '/me/profile'], group: 0 },
   { key: 'language', href: '/me/language', paths: ['/me/language'], group: 0 },
   { key: 'collectionLock', href: '/me/collection-lock', paths: ['/me/collection-lock'], group: 1 },
+  // 차단한 사용자 (mobile BlockedUsersScreen): who this person blocked, and 차단 해제.
+  { key: 'blockedUsers', href: '/me/blocked-users', paths: ['/me/blocked-users'], group: 1 },
   { key: 'subscription', href: '/me/subscription', paths: ['/me/subscription'], group: 2 },
   { key: 'account', href: '/me/account', paths: ['/me/account'], group: 2 },
   // 고객센터 (mobile CustomerCenterScreen): the legal documents and 문의하기.
@@ -52,6 +54,8 @@ export function settingsNavLabel(key: SettingsNavKey, dictionary: AppDictionary)
       return dictionary.languageTitle;
     case 'collectionLock':
       return dictionary.collectionLock;
+    case 'blockedUsers':
+      return dictionary.safetyBlockedUsers;
     case 'subscription':
       return dictionary.subscriptionTitle;
     case 'account':
