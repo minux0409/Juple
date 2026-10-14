@@ -19,4 +19,3 @@ public interface IEntraIdentityDeletionService
     /// </summary>
     Task<bool> IsStillPendingAsync(ExternalIdentityPrincipal identity, CancellationToken cancellationToken = default);
 }
-
