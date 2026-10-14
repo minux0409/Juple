@@ -231,6 +231,11 @@ export function NewLinkReviewView({ url }: { readonly url: string }) {
             destinations={destinations}
             failed={destinationsFailed}
             noneSelected={noneChosen}
+            onCreated={created => {
+              // The new Collection is in the list at once and chosen; what was chosen before stays chosen.
+              setDestinations(previous => [created, ...(previous ?? []).filter(entry => entry.id !== created.id)]);
+              setSelected(previous => new Set(previous).add(created.id));
+            }}
             onNone={() => setSelected(new Set())}
             onRefreshed={fresh => setDestinations(previous => (previous ? previous.map(entry => (entry.id === fresh.id ? fresh : entry)) : previous))}
             onToggle={toggle}

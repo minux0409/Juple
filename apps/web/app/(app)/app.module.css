@@ -7154,3 +7154,27 @@ button.reactionChipMine:hover {
     min-width: 0;
   }
 }
+
+/* "+ 새 컬렉션" in the Collection picker: a choice-sized tile that makes something instead of selecting it */
+.choiceCreate {
+  border: 1px dashed var(--brand-line);
+  color: var(--brand);
+}
+
+.choiceCreate .choiceNone {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+/* The editor inside a dialog (new Collection while reviewing a link): one column - the 520px panel is too narrow for the page's two */
+.panelDialog .editorForm {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 0;
+}
+
+/* the live preview (a 112px tile) has no room here: the chosen icon and colour already show in the pickers themselves */
+.panelDialog .editorAside {
+  display: none;
+}

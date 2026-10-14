@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { isSessionLost } from '../../lib/authSession';
 import { resolveFreshCollectionAccess } from '../../lib/collectionDestinations';
+import { createCollection, DEFAULT_COLLECTION_COLOR } from '../../lib/collectionEditor';
 import { collectionContentGate, type CollectionContentGate } from '../../lib/collectionGate';
 import { COLLECTION_SEARCH_DEBOUNCE_MS, filterCollectionsByName } from '../../lib/collectionPicker';
 import { isSharedWithMe } from '../../lib/collectionSharing';
@@ -10,8 +12,10 @@ import { isCollectionLocked, type CollectionSummary } from '../../lib/collection
 import type { PickerUnlockSession } from '../../lib/pickerUnlockSession';
 import { useSignedInApp } from './AppRoot';
 import { UnlockPanel } from './collections/[collectionId]/UnlockPanel';
+import { CollectionEditor } from './collections/CollectionEditor';
 import { CollectionTileView } from './collections/CollectionsView';
 import { Glyph } from './Glyph';
+import { Modal } from './Modal';
 import { PasswordDialog } from './PasswordDialog';
 import { CollectionSkeleton } from './Skeletons';
 import styles from './app.module.css';
@@ -44,6 +48,7 @@ export function CollectionPicker({
   isDeselectBlocked,
   onUnavailable,
   onRefreshed,
+  onCreated,
 }: {
   /** Null while loading. */
   readonly destinations: readonly CollectionSummary[] | null;
@@ -64,6 +69,11 @@ export function CollectionPicker({
   readonly onUnavailable: (collectionId: number) => void;
   /** The server's current card for a Collection that was just read again. */
   readonly onRefreshed: (collection: CollectionSummary) => void;
+  /**
+   * Gives the picker a "+ 새 컬렉션" (mobile CategoryPickerModal.onCreateCollection): the Collection editor in a dialog, the same create
+   * request as the Collections page. Called once with the created Collection, which the caller adds to its list and selects.
+   */
+  readonly onCreated?: (collection: CollectionSummary) => void;
 }) {
   const { api, dictionary, onSessionLost } = useSignedInApp();
   const [query, setQuery] = useState('');
@@ -74,6 +84,7 @@ export function CollectionPicker({
   }, [query]);
   const [pending, setPending] = useState<Pending | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [creating, setCreating] = useState<{ readonly error: string | null; readonly busy: boolean; readonly host: Element } | null>(null);
   // Collections whose current state is being read right now: a second tap on one is the same tap, never a second action.
   const resolving = useRef(new Set<number>());
   const pendingToggle = useRef<{ readonly collection: CollectionSummary; readonly settle: (ok: boolean) => void } | null>(null);
@@ -197,6 +208,24 @@ export function CollectionPicker({
     }
   };
 
+  const submitNew = (draft: Parameters<typeof createCollection>[1]) => {
+    setCreating(previous => (previous ? { ...previous, error: null, busy: true } : previous));
+    createCollection(api, draft, dictionary).then(outcome => {
+      if (outcome.ok) {
+        setCreating(null);
+        // A photo that could not be saved leaves the Collection with its icon and says why (as on the Collections page).
+        setNotice(outcome.warning);
+        onCreated?.(outcome.collection);
+        return;
+      }
+      if (isSessionLost(outcome.error)) {
+        onSessionLost();
+        return;
+      }
+      setCreating(previous => (previous ? { ...previous, error: outcome.message, busy: false } : previous));
+    });
+  };
+
   const visible = filterCollectionsByName(destinations ?? [], appliedQuery);
 
   return (
@@ -241,6 +270,14 @@ export function CollectionPicker({
               <span>{dictionary.collectionNone}</span>
             </button>
           ) : null}
+          {onCreated ? (
+            <button className={`${styles.choice} ${styles.choiceCreate}`} data-collection-create onClick={event => setCreating({ error: null, busy: false, host: event.currentTarget.closest('main') ?? document.body })} type="button">
+              <span className={styles.choiceNone}>
+                <Glyph name="Plus" size={18} />
+              </span>
+              <span>{dictionary.collectionCreate}</span>
+            </button>
+          ) : null}
           {visible.map(collection => {
             const selected = selectedIds.has(collection.id);
             return (
@@ -262,6 +299,29 @@ export function CollectionPicker({
         </div>
         {destinations !== null && appliedQuery.trim() && visible.length === 0 ? <p className={styles.pickerEmpty}>{dictionary.searchEmpty}</p> : null}
       </div>
+      {/* Drawn in <main> (it carries the colour tokens), NOT inside the link's <form>: a form nested in a form never submits on its own
+          (the browser sends the outer one). React events still bubble through a portal, so the dialog's submit is stopped before it can
+          save the link. */}
+      {onCreated && creating !== null
+        ? createPortal(
+            <Modal closeLabel={dictionary.close} onClose={() => (creating.busy ? undefined : setCreating(null))} open title={dictionary.collectionCreate}>
+              <div onSubmit={event => event.stopPropagation()}>
+                <CollectionEditor
+                  collectionId={0}
+                  dictionary={dictionary}
+                  error={creating.error}
+                  initial={{ name: '', icon: 'Folder', color: DEFAULT_COLLECTION_COLOR }}
+                  initialImageUrl={null}
+                  isSubmitting={creating.busy}
+                  mode="create"
+                  onCancel={() => setCreating(null)}
+                  onSubmit={submitNew}
+                />
+              </div>
+            </Modal>,
+            creating.host,
+          )
+        : null}
       <PasswordDialog cancelLabel={dictionary.cancel} onCancel={closePrompt} open={pending !== null}>
         {pending ? (
           <UnlockPanel
