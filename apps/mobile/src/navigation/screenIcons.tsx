@@ -5,6 +5,8 @@ import { EditIcon } from '../icons/EditIcon';
 import { FolderIcon } from '../icons/FolderIcon';
 import { GlobeIcon } from '../icons/GlobeIcon';
 import { HomeIcon } from '../icons/HomeIcon';
+import { CreditCardIcon } from '../icons/CreditCardIcon';
+import { HelpIcon } from '../icons/HelpIcon';
 import { InfoIcon } from '../icons/InfoIcon';
 import { LockIcon } from '../icons/LockIcon';
 import { PeopleIcon } from '../icons/PeopleIcon';
@@ -29,8 +31,8 @@ export const screenIcons = {
   account: UserIcon,
   language: GlobeIcon,
   customerCenter: InfoIcon,
-  help: InfoIcon,
-  subscription: InfoIcon,
+  help: HelpIcon,
+  subscription: CreditCardIcon,
 } as const satisfies Record<string, ScreenTitleIcon>;
 
 /**

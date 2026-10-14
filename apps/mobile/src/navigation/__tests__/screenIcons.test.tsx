@@ -3,9 +3,19 @@ import { StyleSheet, Text } from 'react-native';
 import { ScreenTitle, SCREEN_TITLE_ICON_SIZE } from '../../components/ScreenTitle';
 import { ArchiveIcon } from '../../icons/ArchiveIcon';
 import { ClockIcon } from '../../icons/ClockIcon';
+import { CreditCardIcon } from '../../icons/CreditCardIcon';
+import { HelpIcon } from '../../icons/HelpIcon';
+import { InfoIcon } from '../../icons/InfoIcon';
 import { headerTitleWithIcon, screenIcons } from '../screenIcons';
 
 describe('navigation identity: one icon per navigation item', () => {
+  it('내 페이지: 도움말 is a question mark, 고객센터 stays info, 구독 is a payment card - three distinct glyphs', () => {
+    expect(screenIcons.help).toBe(HelpIcon);
+    expect(screenIcons.customerCenter).toBe(InfoIcon);
+    expect(screenIcons.subscription).toBe(CreditCardIcon);
+    expect(new Set([screenIcons.help, screenIcons.customerCenter, screenIcons.subscription]).size).toBe(3);
+  });
+
   it('보관함 uses an archive (storage box) icon - not the History clock', () => {
     expect(screenIcons.archive).toBe(ArchiveIcon);
     expect(screenIcons.archive).not.toBe(ClockIcon);
