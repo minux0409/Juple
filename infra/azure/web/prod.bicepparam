@@ -89,11 +89,21 @@ param googlePlayUrl = readEnvironmentVariable('JUPLE_WEB_PROD_GOOGLE_PLAY_URL', 
 // are signed with. Comma-separated for several (e.g. during a signing-certificate rotation).
 param androidAssetlinksSha256Fingerprints = 'D5:2E:DD:99:E9:EC:7B:7F:38:12:9C:A9:1A:0F:12:9D:FE:CA:A0:6E:65:AF:F1:1B:D0:74:0B:4E:3C:F9:AB:D6'
 
-// Operator details for /privacy, /terms, /account-deletion. The business registration is still pending,
-// so NO value is committed or guessed: they come from the deploying shell once they are real. Empty =
-// left out of the pages (allowed only while launchSettingsRequired is false).
+// Operator details for /privacy, /terms, /account-deletion and the landing page. NO value is committed: they come from the deploying
+// shell (the operator's confirmed details). Empty = left out of the pages (allowed only while launchSettingsRequired is false; the
+// launch deployment requires operator, representative, business number, address, effective date and the privacy officer).
 param legalOperatorName = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_OPERATOR_NAME', '')
+param legalRepresentativeName = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_REPRESENTATIVE_NAME', '')
 param legalBusinessRegistrationNumber = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_BUSINESS_REGISTRATION_NUMBER', '')
+// 통신판매업 신고번호: only once one exists (empty = the line is left out).
+param legalEcommerceRegistrationNumber = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_ECOMMERCE_REGISTRATION_NUMBER', '')
 param legalBusinessAddress = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_BUSINESS_ADDRESS', '')
 param legalEffectiveDate = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_EFFECTIVE_DATE', '')
+// 개인정보 보호책임자 - its mailbox defaults to the confirmed contact mailbox.
+param legalPrivacyOfficerName = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_PRIVACY_OFFICER_NAME', '')
+param legalPrivacyOfficerTitle = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_PRIVACY_OFFICER_TITLE', '')
+
+// Android-first launch: the signed-in Web app is not part of this release, so Production serves only the public site (landing page,
+// legal pages, shared-Collection viewer, app-link files - apps/web/lib/publicOnly.ts); every signed-in path is a 404.
+param publicOnly = true
 // legalSupportEmail / legalPrivacyEmail are left unassigned: the code's confirmed contact mailbox applies.

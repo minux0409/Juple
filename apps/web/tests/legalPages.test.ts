@@ -19,10 +19,15 @@ describe('operator config', () => {
     assert.deepEqual(noOperator, {
       serviceName: 'Juple',
       operatorName: undefined,
+      representativeName: undefined,
       businessRegistrationNumber: undefined,
+      ecommerceRegistrationNumber: undefined,
       businessAddress: undefined,
       supportEmail: 'jupleinfo@gmail.com',
       privacyEmail: 'jupleinfo@gmail.com',
+      privacyOfficerName: undefined,
+      privacyOfficerTitle: undefined,
+      privacyOfficerEmail: undefined,
       effectiveDate: undefined,
     });
     assert.deepEqual(operatorFacts(noOperator), [{ label: '서비스', value: 'Juple' }]);

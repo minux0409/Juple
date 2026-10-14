@@ -36,13 +36,106 @@ export function operatorFacts(config: LegalOperatorConfig): { label: string; val
   if (config.operatorName) {
     facts.push({ label: '운영자', value: config.operatorName });
   }
+  if (config.representativeName) {
+    facts.push({ label: '대표자', value: config.representativeName });
+  }
   if (config.businessRegistrationNumber) {
     facts.push({ label: '사업자등록번호', value: config.businessRegistrationNumber });
+  }
+  if (config.ecommerceRegistrationNumber) {
+    facts.push({ label: '통신판매업 신고번호', value: config.ecommerceRegistrationNumber });
   }
   if (config.businessAddress) {
     facts.push({ label: '사업장 주소', value: config.businessAddress });
   }
   return facts;
+}
+
+/**
+ * Wording that needs a legal decision before it can be published. Each is a FIXED policy text (code, not configuration) and is left
+ * out of the pages while it is null - never a placeholder. A launch needs both reviewed and filled in (docs/production-bring-up.md, step 0 - legal review):
+ *
+ * - overseasTransfers: the 국외 이전 notice - per recipient the country, when and how the data moves and how long it is kept. The parts
+ *   the code itself establishes (who, what, why) are already published in "제3자와 처리 위탁" below.
+ * - minorsPolicy: whether and how Juple serves people under 14 (the app has no age check or guardian consent today).
+ */
+export interface OverseasTransferNotice {
+  readonly recipient: string;
+  readonly country: string;
+  readonly items: string;
+  readonly purpose: string;
+  readonly whenAndHow: string;
+  readonly retention: string;
+}
+
+export const REVIEWED_LEGAL_TEXT: {
+  readonly overseasTransfers: readonly OverseasTransferNotice[] | null;
+  readonly minorsPolicy: readonly string[] | null;
+} = {
+  overseasTransfers: null,
+  minorsPolicy: null,
+};
+
+/** The reviewed texts that are still missing - empty means the pages are complete for a launch. */
+export function pendingLegalReview(): ('overseasTransfers' | 'minorsPolicy')[] {
+  const pending: ('overseasTransfers' | 'minorsPolicy')[] = [];
+  if (!REVIEWED_LEGAL_TEXT.overseasTransfers?.length) {
+    pending.push('overseasTransfers');
+  }
+  if (!REVIEWED_LEGAL_TEXT.minorsPolicy?.length) {
+    pending.push('minorsPolicy');
+  }
+  return pending;
+}
+
+function overseasTransferSection(): LegalSection[] {
+  const notices = REVIEWED_LEGAL_TEXT.overseasTransfers;
+  if (!notices?.length) {
+    return [];
+  }
+  return [
+    {
+      id: 'overseas-transfer',
+      title: '국외 이전',
+      blocks: notices.flatMap(notice => [
+        p(`**${notice.recipient}**`),
+        ul(
+          `이전 국가: ${notice.country}`,
+          `이전 항목: ${notice.items}`,
+          `이전 목적: ${notice.purpose}`,
+          `이전 일시와 방법: ${notice.whenAndHow}`,
+          `보유·이용 기간: ${notice.retention}`,
+        ),
+      ]),
+    },
+  ];
+}
+
+function minorsSection(): LegalSection[] {
+  const text = REVIEWED_LEGAL_TEXT.minorsPolicy;
+  return text?.length ? [{ id: 'minors', title: '만 14세 미만 아동', blocks: text.map(p) }] : [];
+}
+
+function privacyOfficerSection(config: LegalOperatorConfig): LegalSection[] {
+  if (!config.privacyOfficerName) {
+    return [];
+  }
+  const name = config.privacyOfficerTitle ? `${config.privacyOfficerName} (${config.privacyOfficerTitle})` : config.privacyOfficerName;
+  return [
+    {
+      id: 'privacy-officer',
+      title: '개인정보 보호책임자',
+      blocks: [
+        p('개인정보 처리에 관한 문의, 불만 처리, 피해 구제는 아래 보호책임자에게 요청할 수 있습니다.'),
+        ul(`성명: ${name}`, ...(config.privacyOfficerEmail ? [`연락처: ${config.privacyOfficerEmail}`] : [])),
+      ],
+    },
+  ];
+}
+
+/** Numbers the privacy policy's sections in order, so a section that is left out never leaves a gap. */
+function numbered(sections: readonly LegalSection[]): LegalSection[] {
+  return sections.map((section, index) => ({ ...section, title: `${index + 1}. ${section.title}` }));
 }
 
 function contactBlocks(config: LegalOperatorConfig, kind: 'general' | 'privacy'): LegalBlock[] {
@@ -61,10 +154,10 @@ export function privacyDocument(config: LegalOperatorConfig): LegalDocument {
     description: 'Juple이 처리하는 정보, 이용 목적, 보관 기간, 계정 삭제 시 처리 방법을 안내합니다.',
     intro:
       'Juple은 링크를 저장하고 컬렉션으로 정리·공유하는 서비스입니다. 이 방침은 Juple 앱과 공유 링크용 웹 페이지에서 처리하는 정보와 그 보관·삭제 방법을 설명합니다. 광고 목적의 행동 추적을 하지 않으며 개인정보를 판매하지 않습니다.',
-    sections: [
+    sections: numbered([
       {
         id: 'collected',
-        title: '1. 처리하는 정보',
+        title: '처리하는 정보',
         blocks: [
           p('**계정과 로그인**'),
           ul(
@@ -88,7 +181,7 @@ export function privacyDocument(config: LegalOperatorConfig): LegalDocument {
       },
       {
         id: 'purpose',
-        title: '2. 이용 목적',
+        title: '이용 목적',
         blocks: [
           ul(
             '링크 저장, 정리, 공유, 협업, 알림 등 서비스 제공',
@@ -101,19 +194,23 @@ export function privacyDocument(config: LegalOperatorConfig): LegalDocument {
       },
       {
         id: 'third-parties',
-        title: '3. 제3자와 처리 위탁',
+        title: '제3자와 처리 위탁',
         blocks: [
+          p('서비스 제공을 위해 다음 사업자의 서비스를 이용하며, 각 사업자는 아래 목적의 범위에서 정보를 처리합니다.'),
           ul(
-            'Microsoft: 로그인(Entra External ID)과 서버 호스팅(Azure)',
-            'Google: Google Play 결제, Firebase Cloud Messaging 푸시',
+            'Microsoft(Microsoft Entra External ID): 회원 가입·로그인과 본인 확인. 로그인에 쓰는 이메일 주소와 선택한 로그인 방식(Google, Apple)의 계정 정보, 로그인 식별자를 처리합니다.',
+            'Microsoft(Azure): 서버, 데이터베이스, 파일 저장소, 운영 로그의 호스팅. 이 방침의 1항 정보를 저장·처리합니다(대한민국 리전).',
+            'Google(Firebase Cloud Messaging): 푸시 알림 전송. 푸시 토큰과 알림 내용을 처리합니다.',
+            'Google(Google Play): 구독 결제, 갱신, 해지, 환불. 결제 정보는 Google Play가 처리하며, Juple은 구독 확인을 위해 구매 토큰과 구독 상태를 Google Play에 조회합니다.',
             '이용자가 저장한 링크의 공개 웹사이트: 제목·이미지를 확인할 때 접속',
           ),
           p('개인정보를 판매하거나 광고 목적으로 제공하지 않습니다.'),
         ],
       },
+      ...overseasTransferSection(),
       {
         id: 'retention',
-        title: '4. 보관 기간과 삭제',
+        title: '보관 기간과 삭제',
         blocks: [
           p('이용자가 계정을 유지하는 동안 위 정보를 보관하며, 링크·컬렉션·사진·댓글을 직접 삭제하면 해당 정보가 삭제됩니다. 일부 정보는 아래 기간 동안 보관한 뒤 자동으로 삭제됩니다.'),
           ul(
@@ -130,7 +227,7 @@ export function privacyDocument(config: LegalOperatorConfig): LegalDocument {
       },
       {
         id: 'account-deletion',
-        title: '5. 계정 삭제 시 처리',
+        title: '계정 삭제 시 처리',
         blocks: [
           p('앱에서 직접 계정을 삭제할 수 있습니다(계정 삭제 안내 페이지 참고). 계정을 삭제하면 프로필, 링크, 컬렉션, 사진, 친구, 알림, 문의, 댓글 등이 삭제됩니다. 다음 정보는 계정과 분리된 상태로 위 보관 기간 동안 남을 수 있습니다.'),
           ul(
@@ -144,29 +241,31 @@ export function privacyDocument(config: LegalOperatorConfig): LegalDocument {
       },
       {
         id: 'rights',
-        title: '6. 이용자의 권리',
+        title: '이용자의 권리',
         blocks: [
           p('프로필 편집, 콘텐츠 삭제, 계정 삭제 등으로 앱에서 직접 정보를 확인·수정·삭제할 수 있으며, 그 밖의 열람·정정·삭제·처리정지 요청은 아래 문의 방법으로 할 수 있습니다.'),
         ],
       },
+      ...minorsSection(),
       {
         id: 'security',
-        title: '7. 보안',
+        title: '보안',
         blocks: [
           p('전송 구간을 암호화하고, 잠금·공유 비밀번호는 해시로, 구매 토큰은 암호화하여 저장합니다. 서버는 모든 요청에서 데이터 소유권을 확인합니다.'),
         ],
       },
+      ...privacyOfficerSection(config),
       {
         id: 'changes',
-        title: '8. 방침의 변경',
+        title: '방침의 변경',
         blocks: [p('방침이 바뀌면 이 페이지에 게시하며, 중요한 변경은 앱에서도 안내합니다. 이 페이지 상단에 최종 수정일을 표시합니다.')],
       },
       {
         id: 'contact',
-        title: '9. 문의',
+        title: '문의',
         blocks: contactBlocks(config, 'privacy'),
       },
-    ],
+    ]),
   };
 }
 
@@ -231,12 +330,13 @@ export function termsDocument(config: LegalOperatorConfig): LegalDocument {
       },
       {
         id: 'subscription',
-        title: '6. 무료 이용 기간과 구독',
+        title: '6. 무료 이용 기간과 유료 구독',
         blocks: [
-          p('구독 기능이 제공되는 경우 다음이 적용됩니다.'),
+          p('Juple은 무료 이용 기간 후 유료 구독으로 이용하는 서비스이며, 다음이 적용됩니다.'),
           ul(
             '가입 후 30일은 Juple이 제공하는 무료 이용 기간입니다(스토어 결제와 별개).',
-            '이후에는 월 단위 자동 갱신 구독이 필요합니다. 가격은 Google Play에 표시된 현지 가격이며, 결제·갱신·해지·환불은 Google Play의 약관과 정책을 따릅니다. Google Play의 정기 결제 설정에서 언제든 해지할 수 있습니다.',
+            '무료 이용 기간이 끝나면 월 단위 자동 갱신 구독(Juple 구독)이 필요합니다. Android에서는 Google Play로 구독하며, 가격은 구매 화면에 표시되는 Google Play의 가격입니다.',
+            '결제·갱신·해지·환불은 Google Play의 약관과 정책을 따릅니다. Google Play의 정기 결제 설정에서 언제든 해지할 수 있습니다.',
             '해지하면 이미 결제한 기간이 끝날 때까지 이용할 수 있습니다. 결제에 문제가 있으면 유예 기간이 적용될 수 있습니다.',
             '무료 이용 기간이 끝났거나 구독이 만료되면 저장한 링크와 컬렉션은 계속 볼 수 있지만, 새로 저장하거나 수정·삭제·공유할 수 없습니다. 구독은 기기가 아니라 계정에 적용되며 구매 복원을 지원합니다.',
             '컬렉션 소유자의 구독이 만료되면 그 컬렉션은 읽을 수만 있으며, 참여자가 구독 중이어도 변경할 수 없습니다.',

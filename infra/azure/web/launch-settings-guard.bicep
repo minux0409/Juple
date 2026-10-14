@@ -32,9 +32,19 @@ param androidAssetlinksSha256Fingerprints string
 #disable-next-line no-unused-params
 param legalOperatorName string
 
+@description('대표자.')
+@minLength(1)
+#disable-next-line no-unused-params
+param legalRepresentativeName string
+
 @minLength(1)
 #disable-next-line no-unused-params
 param legalBusinessRegistrationNumber string
+
+@description('개인정보 보호책임자 (name; the mailbox defaults to the privacy mailbox).')
+@minLength(1)
+#disable-next-line no-unused-params
+param legalPrivacyOfficerName string
 
 @minLength(1)
 #disable-next-line no-unused-params

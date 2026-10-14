@@ -34,6 +34,11 @@ interface Dictionary {
   readonly unavailableTitle: string;
   readonly unavailableMessage: string;
   readonly metaDescription: string;
+  readonly landingTagline: string;
+  readonly landingAndroidOnly: string;
+  readonly landingPrivacy: string;
+  readonly landingTerms: string;
+  readonly landingAccountDeletion: string;
 }
 
 const dictionaries: Record<Locale, Dictionary> = {
@@ -63,6 +68,11 @@ const dictionaries: Record<Locale, Dictionary> = {
     unavailableTitle: "We can't show this right now.",
     unavailableMessage: 'Please try again in a moment.',
     metaDescription: 'A collection shared with Juple.',
+    landingTagline: 'Save the links you find, organize them, and find them again.',
+    landingAndroidOnly: 'Juple is available for Android first.',
+    landingPrivacy: 'Privacy Policy',
+    landingTerms: 'Terms of Service',
+    landingAccountDeletion: 'Account deletion',
   },
   ko: {
     open: '열기',
@@ -90,6 +100,11 @@ const dictionaries: Record<Locale, Dictionary> = {
     unavailableTitle: '지금은 보여드릴 수 없습니다.',
     unavailableMessage: '잠시 후 다시 시도해 주세요.',
     metaDescription: 'Juple에서 공유된 컬렉션입니다.',
+    landingTagline: '발견한 링크를 빠르게 저장하고, 정리하고, 다시 찾아보세요.',
+    landingAndroidOnly: 'Juple은 Android 앱으로 먼저 제공됩니다.',
+    landingPrivacy: '개인정보처리방침',
+    landingTerms: '이용약관',
+    landingAccountDeletion: '계정 삭제 안내',
   },
 };
 

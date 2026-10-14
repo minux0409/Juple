@@ -66,6 +66,13 @@ param legalOperatorName string = ''
 param legalBusinessRegistrationNumber string = ''
 param legalBusinessAddress string = ''
 
+@description('More operator details for the legal pages, same rules as above (empty = left out, emitted as env only when non-empty): 대표자, 통신판매업 신고번호 (only once one exists), and the 개인정보 보호책임자 - name, optional title (e.g. 대표) and mailbox (empty = the privacy mailbox).')
+param legalRepresentativeName string = ''
+param legalEcommerceRegistrationNumber string = ''
+param legalPrivacyOfficerName string = ''
+param legalPrivacyOfficerTitle string = ''
+param legalPrivacyOfficerEmail string = ''
+
 @description('Date the published terms/policy take effect (YYYY-MM-DD). Empty = not shown.')
 param legalEffectiveDate string = ''
 
@@ -80,6 +87,9 @@ param signedInWebEntraClientId string = ''
 param signedInWebEntraApiScope string = ''
 param signedInWebBaseUrl string = ''
 param signedInWebPublicHost string = ''
+
+@description('Public-only launch mode (apps/web/lib/publicOnly.ts): true sets JUPLE_WEB_PUBLIC_ONLY=true, so the site serves only its public parts - a landing page at /, the legal pages, the shared-Collection viewer and the app-link files - and every other path (the signed-in app) is a 404. For a release without the signed-in Web app (Android-first). Default false = no env var, the full site as before.')
+param publicOnly bool = false
 
 @description('Launch gate. false (default - no behavior change for any existing environment): the optional settings above and below may stay empty. true: the deployment fails during validation unless every setting a public Production launch cannot go without is non-empty - the custom domain and its certificate, the Google Play URL, the Android assetlinks fingerprints and the operator\'s legal details (see launch-settings-guard.bicep). Production states it explicitly in prod.bicepparam (no default there), so a launch-ready web can never be deployed - or an incomplete one mistaken for launch-ready - by omission.')
 param launchSettingsRequired bool = false
@@ -99,7 +109,12 @@ param containerMemory string = '0.5Gi'
 
 var legalEnvEntries = {
   LEGAL_OPERATOR_NAME: legalOperatorName
+  LEGAL_REPRESENTATIVE_NAME: legalRepresentativeName
   LEGAL_BUSINESS_REGISTRATION_NUMBER: legalBusinessRegistrationNumber
+  LEGAL_ECOMMERCE_REGISTRATION_NUMBER: legalEcommerceRegistrationNumber
+  LEGAL_PRIVACY_OFFICER_NAME: legalPrivacyOfficerName
+  LEGAL_PRIVACY_OFFICER_TITLE: legalPrivacyOfficerTitle
+  LEGAL_PRIVACY_OFFICER_EMAIL: legalPrivacyOfficerEmail
   LEGAL_BUSINESS_ADDRESS: legalBusinessAddress
   LEGAL_EFFECTIVE_DATE: legalEffectiveDate
   LEGAL_SUPPORT_EMAIL: legalSupportEmail
@@ -160,7 +175,9 @@ module launchSettingsGuard 'launch-settings-guard.bicep' = if (launchSettingsReq
     googlePlayUrl: googlePlayUrl
     androidAssetlinksSha256Fingerprints: androidAssetlinksSha256Fingerprints
     legalOperatorName: legalOperatorName
+    legalRepresentativeName: legalRepresentativeName
     legalBusinessRegistrationNumber: legalBusinessRegistrationNumber
+    legalPrivacyOfficerName: legalPrivacyOfficerName
     legalBusinessAddress: legalBusinessAddress
     legalEffectiveDate: legalEffectiveDate
   }
@@ -264,7 +281,12 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'ANDROID_ASSETLINKS_SHA256_FINGERPRINTS'
               value: androidAssetlinksSha256Fingerprints
             }
-          ], legalEnv, signedInWebEnv, perfDiagnostics ? [
+          ], legalEnv, signedInWebEnv, publicOnly ? [
+            {
+              name: 'JUPLE_WEB_PUBLIC_ONLY'
+              value: 'true'
+            }
+          ] : [], perfDiagnostics ? [
             {
               name: 'JUPLE_WEB_PERF_DIAGNOSTICS'
               value: 'true'
