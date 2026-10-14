@@ -47,9 +47,10 @@ param managedCertificateName = 'mc-cae-juple-dev-dev-juple-co-kr-6698'
 
 // Dev scales to zero when idle (cost review 2026-10-14: an idle warm replica is ~₩8k/month, scale-to-zero ~₩1k). The price is the cold
 // start measured on 2026-10-13: the first request after ~5 minutes idle took 25.5 s and 34.0 s (KEDA scale-from-zero detection + replica
-// start + Next boot). Set 1 for a performance-QA period. Max stays 1 (main.bicep default). Production keeps its own value in
-// prod.bicepparam - this line is Dev only.
-param minReplicas = 0
+// start + Next boot). Re-measured 2026-10-14 (v26 launch-candidate round): TTFB 26.8 s cold, 0.15 s warm - a browser that types the URL
+// after idle sits on a blank loading tab. Held at 1 for the release-testing period (~₩8k/month); set back to 0 afterwards. Max stays 1
+// (main.bicep default). Production keeps its own value in prod.bicepparam - this line is Dev only.
+param minReplicas = 1
 
 // Dev-only browser timing diagnostics (see main.bicep's param description); never set in prod.bicepparam. Off day to day; set true
 // for a performance investigation (nothing is sent to a server either way).
