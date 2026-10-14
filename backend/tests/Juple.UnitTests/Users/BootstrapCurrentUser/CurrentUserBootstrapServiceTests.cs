@@ -57,7 +57,7 @@ public sealed class CurrentUserBootstrapServiceTests
         var store = new FakeProvisioningStore();
         var service = CreateService(store);
 
-        var result = await service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul"));
+        var result = await service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul", Now.AddMinutes(-1)));
         var plan = result.Plan;
         Assert.Equal("Asia/Seoul", result.TimeZoneId);
 
@@ -111,7 +111,7 @@ public sealed class CurrentUserBootstrapServiceTests
     [Fact]
     public async Task BootstrapAsync_ForANewUser_CarriesTheEntitlement()
     {
-        var result = await CreateService(new FakeProvisioningStore()).BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul"));
+        var result = await CreateService(new FakeProvisioningStore()).BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul", Now.AddMinutes(-1)));
 
         Assert.False(result.Entitlement.ProgramEnabled);
         Assert.True(result.Entitlement.CanWrite);
@@ -153,13 +153,26 @@ public sealed class CurrentUserBootstrapServiceTests
     }
 
     [Fact]
-    public async Task BootstrapAsync_NewIdentityWithoutAnAuthTimeClaim_IsNotGated()
+    public async Task BootstrapAsync_NewIdentityWithoutAnAuthTime_IsRefused_FailClosed()
     {
+        // No claim, or one that could not be parsed (the controller reads both as null): never provisioned.
         var store = new FakeProvisioningStore();
 
-        await CreateService(store).BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul"));
+        await Assert.ThrowsAsync<RecentAuthenticationRequiredException>(
+            () => CreateService(store).BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul")));
 
-        Assert.Single(store.CreatedUsers);
+        Assert.Empty(store.CreatedUsers);
+    }
+
+    [Fact]
+    public async Task BootstrapAsync_ExistingAccountWithoutAnAuthTime_StillSucceeds()
+    {
+        var store = new FakeProvisioningStore { ExistingPlan = UserPlan.Free };
+
+        var result = await CreateService(store).BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul"));
+
+        Assert.Equal(UserPlan.Free, result.Plan);
+        Assert.Empty(store.CreatedUsers);
     }
 
     [Fact]

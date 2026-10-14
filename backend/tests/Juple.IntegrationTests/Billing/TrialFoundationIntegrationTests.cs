@@ -75,6 +75,9 @@ public sealed class TrialFoundationIntegrationTests : IAsyncLifetime
         return identity;
     }
 
+    /// <summary>Creating an account needs a sign-in that just happened (auth_time) - for the tests that create one.</summary>
+    private static BootstrapCurrentUserCommand FreshSignIn(DateTimeOffset now) => new("ko-KR", "Asia/Seoul", now.AddMinutes(-1));
+
     private CurrentUserBootstrapService BootstrapService(JupleDbContext db, bool enabled, DateTimeOffset now)
     {
         var time = new StubTime(now);
@@ -103,8 +106,9 @@ public sealed class TrialFoundationIntegrationTests : IAsyncLifetime
     public async Task ProgramDisabled_BootstrapConsumesNoTrial_AndNothingIsRestricted()
     {
         var identity = NewIdentity();
-        var command = new BootstrapCurrentUserCommand("ko-KR", "Asia/Seoul");
-        var service = BootstrapService(_db, enabled: false, new DateTimeOffset(2026, 12, 5, 0, 0, 0, TimeSpan.Zero));
+        var now = new DateTimeOffset(2026, 12, 5, 0, 0, 0, TimeSpan.Zero);
+        var command = FreshSignIn(now);
+        var service = BootstrapService(_db, enabled: false, now);
 
         var first = await service.BootstrapAsync(identity, command);
         var again = await service.BootstrapAsync(identity, command);
@@ -146,7 +150,7 @@ public sealed class TrialFoundationIntegrationTests : IAsyncLifetime
         var created = new DateTimeOffset(2026, 12, 10, 0, 0, 0, TimeSpan.Zero);
 
         var result = await BootstrapService(_db, enabled: true, created)
-            .BootstrapAsync(identity, new BootstrapCurrentUserCommand("ko-KR", "Asia/Seoul"));
+            .BootstrapAsync(identity, FreshSignIn(created));
 
         Assert.Equal(EntitlementStatus.Trial, result.Entitlement.Status);
         Assert.Equal(created, result.Entitlement.TrialStartedAtUtc);
@@ -253,7 +257,7 @@ public sealed class TrialFoundationIntegrationTests : IAsyncLifetime
         Assert.Equal(1, await LedgerCountAsync(identity));
 
         // Same Entra identity signs in again months later: a brand-new Juple user, but NOT a new 30 days.
-        var recreated = await BootstrapService(NewContext(), enabled: true, ProgramStart.AddDays(200)).BootstrapAsync(identity, command);
+        var recreated = await BootstrapService(NewContext(), enabled: true, ProgramStart.AddDays(200)).BootstrapAsync(identity, FreshSignIn(ProgramStart.AddDays(200)));
 
         var newUserId = (await new EntitlementStore(NewContext()).GetUserStateAsync(identity))!.UserId;
         Assert.NotEqual(oldUserId, newUserId);
