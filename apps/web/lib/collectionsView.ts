@@ -39,6 +39,29 @@ export const COLLECTION_FILTERS = ['favorites', 'all', 'owned', 'shared'] as con
 export type CollectionFilter = (typeof COLLECTION_FILTERS)[number];
 export const DEFAULT_COLLECTION_FILTER: CollectionFilter = 'favorites';
 
+/**
+ * The selected filter lives in the address (`?tab=`), so it is part of the history: open a Collection from 공유 컬렉션, press Back and
+ * the same tab is there again. Only a first visit (no / an unknown value) opens on 즐겨찾기. The values are the names a person sees.
+ */
+export const COLLECTION_TAB_PARAM = 'tab';
+const COLLECTION_TAB_VALUES: Readonly<Record<CollectionFilter, string>> = { favorites: 'favorites', all: 'all', owned: 'mine', shared: 'shared' };
+
+export function parseCollectionTab(value: string | null | undefined): CollectionFilter {
+  const match = COLLECTION_FILTERS.find(filter => COLLECTION_TAB_VALUES[filter] === value);
+  return match ?? DEFAULT_COLLECTION_FILTER;
+}
+
+/** The address for a filter: the default carries no parameter; every other tab carries its own. Other parameters are kept. */
+export function collectionsTabUrl(current: URL, filter: CollectionFilter): URL {
+  const next = new URL(current.href);
+  if (filter === DEFAULT_COLLECTION_FILTER) {
+    next.searchParams.delete(COLLECTION_TAB_PARAM);
+  } else {
+    next.searchParams.set(COLLECTION_TAB_PARAM, COLLECTION_TAB_VALUES[filter]);
+  }
+  return next;
+}
+
 /** The mobile Collections view (categoryViewMode): List or Grid - Grid by default. A per-browser preference. */
 export const COLLECTION_VIEW_MODES = ['list', 'grid'] as const;
 export type CollectionViewMode = (typeof COLLECTION_VIEW_MODES)[number];
@@ -144,4 +167,11 @@ export function collectionIconImage(collection: Pick<CollectionSummary, 'iconIma
   } catch {
     return null;
   }
+}
+
+/** Whether a Grid card has anything under its name: attention, locked, shared or other participants (the favorite star sits on the cover). */
+export function hasGridStatus(collection: CollectionSummary): boolean {
+  const shown = collection.participantPreview?.length ?? 0;
+  const others = collection.otherParticipantCount ?? shown;
+  return (collection.attentionCount ?? 0) > 0 || isCollectionLocked(collection) || isCollectionShared(collection) || (others > 0 && shown > 0);
 }

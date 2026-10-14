@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { formatMessage, type AppDictionary } from '../../../lib/appI18n';
 import { isSessionLost } from '../../../lib/authSession';
@@ -9,11 +10,13 @@ import {
   COLLECTION_VIEW_MODE_STORAGE_KEY,
   COLLECTION_VIEW_MODES,
   collectionIconImage,
+  collectionsTabUrl,
   collectionsPath,
+  hasGridStatus,
   collectionTile,
-  DEFAULT_COLLECTION_FILTER,
   isCollectionLocked,
   isCollectionShared,
+  parseCollectionTab,
   parseCollectionViewMode,
   type CollectionFilter,
   type CollectionsPage,
@@ -53,7 +56,9 @@ function emptyLabel(dictionary: AppDictionary, filter: CollectionFilter): string
  */
 export function CollectionsView() {
   const { api, dictionary, onSessionLost } = useSignedInApp();
-  const [filter, setFilter] = useState<CollectionFilter>(DEFAULT_COLLECTION_FILTER);
+  // The tab is the address's (?tab=): Back from a Collection returns to the tab that was open; no / an unknown value = 즐겨찾기.
+  const router = useRouter();
+  const filter = parseCollectionTab(useSearchParams().get('tab'));
   const [viewMode, setViewMode] = useStoredChoice<CollectionViewMode>(COLLECTION_VIEW_MODE_STORAGE_KEY, parseCollectionViewMode);
   const [state, setState] = useState<ListState>({ kind: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
@@ -85,7 +90,10 @@ export function CollectionsView() {
   const selectFilter = (next: CollectionFilter) => {
     if (next !== filter) {
       setState({ kind: 'loading' });
-      setFilter(next);
+      // replace, not push: switching tabs never fills the history - the one entry simply remembers the tab it is on. (The router, not
+      // history.replaceState: only the router tells useSearchParams about the new address.)
+      const target = collectionsTabUrl(new URL(window.location.href), next);
+      router.replace(`${target.pathname}${target.search}`, { scroll: false });
     }
   };
 
@@ -217,15 +225,18 @@ export function CollectionCard({
           </span>
           <span className={styles.linkMeta}>{formatMessage(dictionary.itemCount, { count: collection.itemCount })}</span>
         </div>
-        <div className={styles.collectionGridStatus}>
-          {attention > 0 ? (
-            <span aria-hidden className={styles.attentionBadge}>
-              {formatBadgeCount(attention)}
-            </span>
-          ) : null}
-          <CollectionBadges collection={collection} dictionary={dictionary} hideFavorite />
-          <ParticipantPreview collection={collection} />
-        </div>
+        {/* A card with nothing to report has no status row at all: the body is as tall as its name and count. */}
+        {hasGridStatus(collection) ? (
+          <div className={styles.collectionGridStatus}>
+            {attention > 0 ? (
+              <span aria-hidden className={styles.attentionBadge}>
+                {formatBadgeCount(attention)}
+              </span>
+            ) : null}
+            <CollectionBadges collection={collection} dictionary={dictionary} hideFavorite />
+            <ParticipantPreview collection={collection} />
+          </div>
+        ) : null}
       </Link>
     );
   }

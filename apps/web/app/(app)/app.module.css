@@ -3854,6 +3854,22 @@ a.imageBody:hover .imageTile img {
 /* ======================================================================================================================
    Juple V2 - final pass
    ==================================================================================================================== */
+/* Collections GRID (compact): cover, then 12px, the name (at most two lines) and the count, then the card's own padding - no reserved
+   body height. Equal cards in a row still share one height (the grid stretches them), never more than the tallest needs. */
+.collectionBodyGrid {
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) var(--space-4);
+}
+
+.collectionBodyGrid .collectionText {
+  gap: 2px;
+}
+
+.collectionGridStatus {
+  min-height: 0;
+  padding: 0 var(--space-1);
+}
+
 /* Collections GRID: the name is as tall as its text (no reserved second line); the count sits right under it */
 .collectionBodyGrid .collectionName {
   min-height: 0;
@@ -6801,25 +6817,11 @@ button.reactionChipMine:hover {
 
 .inlineState,
 .emptyState {
-  background: var(--brand-wash) top / 100% 96px no-repeat, var(--app-surface);
+  /* the wash covers the WHOLE surface: a fixed-height layer ended inside a taller empty state and left a white strip under it */
+  background: var(--brand-wash), var(--app-surface);
 }
 
-/* the rounded shell gets the icon's gradient as a 3px edge: a background layer (clipped by the shell's radius), no generated content */
-.dialog,
-.friendPickerDialog,
-.reactionPicker {
-  background: var(--brand-gradient) top / 100% 3px no-repeat, var(--surface);
-}
-
-.panelDialog {
-  background: var(--brand-gradient) top / 100% 3px no-repeat, var(--app-surface);
-}
-
-.panelDialog .panelHeader {
-  background: var(--brand-gradient) top / 100% 3px no-repeat, var(--app-surface);
-  padding-top: calc(16px + 3px);
-}
-
+/* Dialogs and panels are plain rounded surfaces (border, shadow, title hierarchy) - no coloured edge on top of them. */
 .dialog[open],
 .panelDialog[open],
 .friendPickerDialog[open],
