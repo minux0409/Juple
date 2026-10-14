@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { PublicCollectionItem } from '../../../lib/publicApi';
 import { isExpiredMetaPreviewUrl } from '../../../lib/metaPreviewExpiry';
+import { isSafeHttpUrl } from '../../../lib/savedLinks';
 import { getDisplayDomain } from '../../../lib/urlDisplay';
 
 /**
@@ -65,9 +66,12 @@ export function ItemCard({ item, openLabel }: { item: PublicCollectionItem; open
       <div className="itemBody">
         <p className="itemTitle">{item.title ?? domain}</p>
         <p className="itemDomain">{domain}</p>
-        <a className="itemOpenLink" href={item.url} rel="noopener noreferrer" target="_blank">
-          {openLabel}
-        </a>
+        {/* Defense in depth: the server only stores http(s) links, but an anonymous page never trusts a stored string as an href. */}
+        {isSafeHttpUrl(item.url) ? (
+          <a className="itemOpenLink" href={item.url} rel="noopener noreferrer" target="_blank">
+            {openLabel}
+          </a>
+        ) : null}
       </div>
     </li>
   );

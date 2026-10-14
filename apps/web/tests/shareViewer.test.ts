@@ -223,3 +223,21 @@ describe('Android app handoff plan', () => {
     assert.doesNotMatch(androidOpenInAppUrl('dev.juple.co.kr', ID), /play\.google|market:|apps\.apple/);
   });
 });
+
+describe('public viewer: an anonymous page never trusts a stored link as an href', () => {
+  it('the item card renders its open link only for http(s) URLs', async () => {
+    const { readFileSync } = await import('node:fs');
+    const source = readFileSync(new URL('../app/c/[publicId]/ItemCard.tsx', import.meta.url), 'utf8');
+    assert.match(source, /isSafeHttpUrl\(item\.url\)/);
+    assert.doesNotMatch(source, /<a[^>]*href=\{item\.url\}[^>]*>\s*\{openLabel\}\s*<\/a>\s*<\/div>/);
+  });
+
+  it('isSafeHttpUrl accepts http(s) only', async () => {
+    const { isSafeHttpUrl } = await import('../lib/savedLinks.ts');
+    assert.equal(isSafeHttpUrl('https://example.com/a'), true);
+    assert.equal(isSafeHttpUrl('http://example.com'), true);
+    for (const bad of ['javascript:alert(1)', 'data:text/html,x', 'vbscript:x', 'file:///etc/passwd', '//evil.test', 'not a url', '', null, undefined]) {
+      assert.equal(isSafeHttpUrl(bad), false, String(bad));
+    }
+  });
+});
