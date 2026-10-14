@@ -62,16 +62,22 @@ const SIGNED_OUT_STATE: AuthState = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-/** Maps a caught authorization error to a message safe to show without exposing tokens. */
-function toSafeAuthErrorMessage(caughtError: unknown, t: TFunction): string {
-  const message =
-    caughtError instanceof Error ? caughtError.message : undefined;
+/**
+ * True when the person closed or backed out of the sign-in browser. react-native-app-auth reports that as a "user cancelled"
+ * error (code `user_cancelled` / message "User cancelled flow"); authorizeWithEntra wraps every failure in an EntraAuthError whose
+ * own message is generic, so the original is looked at too. Closing the sign-in page is a choice, not a failure.
+ */
+function isUserCancelled(caughtError: unknown): boolean {
+  const candidates: unknown[] = [caughtError, (caughtError as { cause?: unknown } | null)?.cause];
+  return candidates.some(candidate => {
+    const { message, code } = (candidate ?? {}) as { message?: unknown; code?: unknown };
+    return (typeof message === 'string' && /cancel/i.test(message)) || (typeof code === 'string' && /cancel/i.test(code));
+  });
+}
 
-  if (message && /cancel/i.test(message)) {
-    return t('auth.cancelled');
-  }
-
-  return t('auth.failed');
+/** Maps a caught authorization error to a message safe to show without exposing tokens. A cancel shows none (null). */
+function toSafeAuthErrorMessage(caughtError: unknown, t: TFunction): string | null {
+  return isUserCancelled(caughtError) ? null : t('auth.failed');
 }
 
 async function bootstrapUserAccount(

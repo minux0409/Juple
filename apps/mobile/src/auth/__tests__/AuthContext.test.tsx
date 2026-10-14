@@ -416,3 +416,40 @@ describe('AuthProvider - an identity without a Juple account never gets one from
     expect(state.isAuthenticated).toBe(false);
   });
 });
+
+describe('AuthProvider sign-in - cancelling is not an error', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  async function signInWith(rejection: unknown) {
+    jest.mocked(getValidAccessToken).mockRejectedValue(new Error('sessionUnavailable'));
+    jest.mocked(authorize).mockRejectedValue(rejection);
+    let state!: ReturnType<typeof useAuth>;
+    function Probe() {
+      state = useAuth();
+      return null;
+    }
+    await act(async () => {
+      ReactTestRenderer.create(<AuthProvider><Probe /></AuthProvider>);
+    });
+    await act(async () => {
+      await state.signIn();
+    });
+    return state;
+  }
+
+  it('closing the sign-in browser (react-native-app-auth user_cancelled, wrapped by authorizeWithEntra) shows no error', async () => {
+    const state = await signInWith(Object.assign(new Error('User cancelled flow'), { code: 'user_cancelled' }));
+
+    expect(state.isAuthenticated).toBe(false);
+    expect(state.error).toBeNull();
+  });
+
+  it('a real failure still shows the failure message', async () => {
+    const state = await signInWith(new Error('network down'));
+
+    expect(state.isAuthenticated).toBe(false);
+    expect(state.error).toBe('Sign-in failed. Please try again in a moment.');
+  });
+});
