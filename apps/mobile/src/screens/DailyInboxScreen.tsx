@@ -54,6 +54,7 @@ import {
   type ItemHistoryEntry,
 } from '../items/api/itemsApi';
 import { formatDateOnly } from '../items/dateOnly';
+import { onItemListChanged } from '../items/itemListChanges';
 import { shareItem } from '../items/shareItem';
 import { useItemCardOpen } from '../items/useItemCardOpen';
 import { useSavedLinkActions } from '../items/useSavedLinkActions';
@@ -307,6 +308,9 @@ export function DailyInboxScreen() {
       }
     })();
   }, [authenticatedRequest, windowStartUtc, nextCursor, isLoading, isRefreshing, t]);
+
+  // A link deleted / restored (Undo) from its Item Details sheet after this tab is already focused again.
+  useEffect(() => onItemListChanged(() => loadToday('refresh')), [loadToday]);
 
   // Refetches every time the Home tab regains focus (including returning from ItemDetails after
   // an edit), matching the same focus-driven refresh already used for Wishlist/Archive.

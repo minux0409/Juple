@@ -42,6 +42,7 @@ import { useItemCollectionChange } from '../collections/useItemCollectionChange'
 import { contentGateOfError } from '../collections/useCollectionItems';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAppToast } from '../components/AppToast';
+import { notifyItemListChanged } from '../items/itemListChanges';
 import { useMessageDialog } from '../components/useMessageDialog';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SourceRow } from '../components/SourceRow';
@@ -66,6 +67,7 @@ import { RepresentativePhotoField } from '../images/RepresentativePhotoField';
 import { representativePhotoUrl, resolveRepresentativePhoto } from '../items/representativePhoto';
 import {
   deleteItem,
+  restoreItem,
   getItemDetails,
   updateItemDetails,
   type ItemDetails,
@@ -163,7 +165,7 @@ function getImagePickerErrorMessage(errorCode: string | undefined, t: TFunction)
 
 export function ItemDetailsScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
-  const { showNotificationToast } = useAppToast();
+  const { showNotificationToast, showUndoToast } = useAppToast();
   const { itemId, collectionContext, initialFocus, initialFocusThreadRootId, openContext } = route.params;
   const authenticatedRequest = useAuthenticatedApi();
   // Opened from a Home/Archive card gated by a Collection: every read of this link goes IN that Collection's context
@@ -551,6 +553,20 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     setIsDeletingItem(true);
     try {
       await deleteItem(authenticatedRequest, itemId);
+      // Same "삭제했습니다 / 되돌리기" toast and the same restore call as the Home / Archive swipe delete. The toast
+      // host is app-wide, so it outlives this sheet; the lists reload (this screen is gone by the time Undo is tapped).
+      showUndoToast({
+        actionLabel: t('toast.undoAction'),
+        confirmLabel: t('common.confirm'),
+        message: t('toast.deleteSuccess'),
+        noticeTitle: t('common.notice'),
+        onUndo: async () => {
+          await restoreItem(authenticatedRequest, itemId);
+          notifyItemListChanged();
+        },
+        undoErrorMessage: t('toast.undoDeleteError'),
+      });
+      notifyItemListChanged();
       // Does NOT call navigation.goBack() directly here - see the isDeleted effect below for why
       // the actual navigation must wait for this state update to actually commit first.
       setIsDeleted(true);

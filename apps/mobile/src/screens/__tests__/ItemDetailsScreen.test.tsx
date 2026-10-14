@@ -12,8 +12,10 @@ import { clearItemOpenGrant, handOffItemOpenGrant } from '../../items/itemOpenGr
 import { dragSheet, settleSheet } from '../../testing/sheetGestureDriver';
 import { ItemDetailsScreen, KEYBOARD_FIELD_GAP, sheetKeyboardShift } from '../ItemDetailsScreen';
 import { AppToastProvider } from '../../components/AppToast';
+import { onItemListChanged } from '../../items/itemListChanges';
 import {
   deleteItem,
+  restoreItem,
   getItemDetails,
   updateItemDetails,
   type ItemDetails,
@@ -56,6 +58,7 @@ jest.mock('../../items/api/itemsApi', () => ({
   getItemDetails: jest.fn(),
   updateItemDetails: jest.fn(),
   deleteItem: jest.fn(),
+  restoreItem: jest.fn(),
   setItemCoverImage: jest.fn(),
 }));
 
@@ -1492,6 +1495,51 @@ describe('ItemDetailsScreen', () => {
       // The guard must be disabled post-delete even though the title edit was never saved/reverted.
       expect(latestPreventRemoveIsDirty()).toBe(false);
       expect((navigation as unknown as { goBack: jest.Mock }).goBack).toHaveBeenCalledTimes(1);
+    });
+
+    it('a successful delete closes the sheet and offers 되돌리기, which restores through the same restoreItem and refreshes the lists', async () => {
+      jest.mocked(deleteItem).mockResolvedValue(undefined);
+      jest.mocked(restoreItem).mockResolvedValue(undefined);
+      const changed = jest.fn();
+      const unsubscribe = onItemListChanged(changed);
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        findPressableByText(renderer, '삭제')?.props.onPress();
+      });
+      await act(async () => {
+        await findPressableByAccessibilityLabel(renderer, '삭제')?.props.onPress();
+      });
+      expect((navigation as unknown as { goBack: jest.Mock }).goBack).toHaveBeenCalledTimes(1);
+      expect(changed).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        await findPressableByText(renderer, '되돌리기')?.props.onPress();
+      });
+      expect(restoreItem).toHaveBeenCalledWith(expect.anything(), 1);
+      expect(changed).toHaveBeenCalledTimes(2);
+      unsubscribe();
+    });
+
+    it('a failed restore tells the user and does not refresh the lists again', async () => {
+      jest.mocked(deleteItem).mockResolvedValue(undefined);
+      jest.mocked(restoreItem).mockRejectedValue(new Error('server error'));
+      const changed = jest.fn();
+      const unsubscribe = onItemListChanged(changed);
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        findPressableByText(renderer, '삭제')?.props.onPress();
+      });
+      await act(async () => {
+        await findPressableByAccessibilityLabel(renderer, '삭제')?.props.onPress();
+      });
+      await act(async () => {
+        await findPressableByText(renderer, '되돌리기')?.props.onPress();
+      });
+      expect(restoreItem).toHaveBeenCalledTimes(1);
+      expect(changed).toHaveBeenCalledTimes(1);
+      unsubscribe();
     });
 
     it('Save is disabled and does nothing once delete has succeeded', async () => {

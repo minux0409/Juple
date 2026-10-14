@@ -50,6 +50,7 @@ import {
 import { buildFlatItemRows, type FlatItemRow } from '../items/flatItemRows';
 import { END_REACHED_THRESHOLD, useContinuousViewportFill } from '../items/useContinuousViewportFill';
 import { historySectionLabel, historySectionShowsItemDate } from '../items/historyDateGrouping';
+import { onItemListChanged } from '../items/itemListChanges';
 import { useHistorySections, type HistorySectionPage } from '../items/useHistorySections';
 import { deleteItem, restoreItem, type ItemHistoryEntry, type ItemHistorySection } from '../items/api/itemsApi';
 import { shareItem } from '../items/shareItem';
@@ -223,6 +224,10 @@ export function DateHistoryScreen() {
   const confirmDelete = (itemId: number) => {
     setPendingDeleteItemId(previous => previous ?? itemId);
   };
+  // A link deleted / restored (Undo) from its Item Details sheet after this tab is already focused again.
+  const refreshAllRef = useRef(() => {});
+  refreshAllRef.current = () => { refresh(); search.refresh(); };
+  useEffect(() => onItemListChanged(() => refreshAllRef.current()), []);
   const itemCardOpen = useItemCardOpen(
     (itemId, openContext) => navigation.navigate('ItemDetails', { itemId, openContext }),
     () => { refresh(); search.refresh(); },
