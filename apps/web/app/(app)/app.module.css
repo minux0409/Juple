@@ -6677,3 +6677,273 @@ button.reactionChipMine:hover {
   }
 }
 
+/* ======================================================================================================================
+   고객센터: the inquiry list, the form and the details
+   ==================================================================================================================== */
+.supportIntro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--brand-wash) top / 100% 100% no-repeat, var(--app-surface);
+}
+
+.supportIntroText {
+  flex: 1 1 240px;
+  min-width: 0;
+  margin: 0;
+  color: var(--app-text-secondary);
+  line-height: 1.5;
+}
+
+.inquiryList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.inquiryList > li + li {
+  border-top: 1px solid var(--app-divider);
+}
+
+.inquiryRow {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-4) var(--space-5);
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 150ms var(--ease-out);
+}
+
+.inquiryRow:hover {
+  background: var(--app-surface-hover);
+}
+
+.inquiryRowTop,
+.inquiryDetailHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.inquiryType {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.statusPill {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: var(--app-surface-muted);
+  color: var(--app-text-secondary);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.statusPillDone {
+  border-color: var(--success);
+  background: transparent;
+  color: var(--success);
+}
+
+.inquiryPreview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--app-text);
+  font-size: 14.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.inquiryDate {
+  color: var(--app-text-secondary);
+  font-size: 12.5px;
+}
+
+.inquiryEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-5);
+  border: 1px dashed var(--brand-line);
+  border-radius: var(--radius-card);
+  background: var(--brand-wash) top / 100% 100% no-repeat, var(--app-surface);
+  color: var(--brand);
+  text-align: center;
+}
+
+.inquiryEmpty .stateMessage {
+  margin: 0;
+}
+
+.inquiryRowSkeleton {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+}
+
+.inquiryDetailSkeleton {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+}
+
+.inquiryForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.fieldBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.requiredMark {
+  color: var(--danger);
+}
+
+.selectInput {
+  width: 100%;
+  min-height: var(--field-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-control);
+  background: var(--app-surface);
+  color: var(--app-text);
+  font: inherit;
+  font-size: var(--text-body);
+}
+
+.selectInput:focus,
+.inquiryTextArea:focus {
+  outline: 2px solid var(--brand);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.inquiryTextArea {
+  min-height: 200px;
+  resize: vertical;
+}
+
+.fieldCounter {
+  margin: 0;
+  color: var(--app-text-secondary);
+  font-size: 12.5px;
+  text-align: end;
+}
+
+.inquiryNotes {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--app-text-secondary);
+  font-size: 13.5px;
+}
+
+.inquiryNotes li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.inquiryNotes svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.inquiryDetail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.inquirySection {
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.inquiryAnswer {
+  border-color: var(--brand-line);
+  background: var(--brand-wash) top / 100% 100% no-repeat, var(--app-surface);
+}
+
+.inquirySectionTitle {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-section-title);
+  font-weight: 800;
+}
+
+.inquiryMeta {
+  margin: 0 0 var(--space-3);
+  color: var(--app-text-secondary);
+  font-size: 12.5px;
+}
+
+.inquiryText {
+  margin: 0;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.inquiryAwaiting {
+  margin: 0;
+  color: var(--app-text-secondary);
+}
+
+/* The Collection editor is one column on narrow windows (a 280px preview beside the form left a phone ~100px for the fields). */
+@media (max-width: 859px) {
+  .editorForm {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+
+  .editorAside {
+    position: static;
+    flex-direction: row;
+    justify-content: flex-start;
+    text-align: start;
+    padding: var(--space-4);
+  }
+
+  .editorPreviewName,
+  .editorPreviewNameEmpty {
+    min-width: 0;
+  }
+}

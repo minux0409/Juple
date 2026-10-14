@@ -165,11 +165,12 @@ describe('7. 고객센터', () => {
     assert.equal(ko.customerCenterPrivacy, '개인정보처리방침');
     assert.equal(ko.customerCenterInquiry, '문의하기');
   });
-  it('이용약관 / 개인정보처리방침 open the existing pages; 문의하기 writes to the configured contact mailbox, shown only when there is one', () => {
+  it('이용약관 / 개인정보처리방침 open the existing pages; 문의하기 is the in-app inquiry of the mobile app (tests/supportAndUndo.test.ts) - no mailto', () => {
     assert.match(center, /href="\/terms"/);
     assert.match(center, /href="\/privacy"/);
-    assert.match(center, /\{supportEmail \? \(\s*<a className=\{`\$\{styles\.settingsRow\} \$\{styles\.settingsRowAction\}`\} data-support-inquiry href=\{`mailto:\$\{supportEmail\}`\}>/);
-    assert.match(source('app/(app)/me/support/page.tsx'), /readLegalOperatorConfig\(\)\.supportEmail/);
+    assert.match(center, /data-support-new href="\/me\/support\/new"/);
+    assert.doesNotMatch(center, /mailto:/);
+    assert.doesNotMatch(source('app/(app)/me/support/page.tsx'), /readLegalOperatorConfig/);
   });
 });
 

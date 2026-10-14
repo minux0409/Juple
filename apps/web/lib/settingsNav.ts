@@ -35,7 +35,8 @@ function normalize(pathname: string): string {
 /** The item of the current address, or null (친구 and 삭제 이력 have none: they are not inside the settings). */
 export function activeSettingsItem(pathname: string): SettingsNavItem | null {
   const path = normalize(pathname);
-  return SETTINGS_NAV_ITEMS.find(item => item.paths.includes(path)) ?? null;
+  // 고객센터's own pages (a new inquiry, one inquiry) are inside it: /me/support/...
+  return SETTINGS_NAV_ITEMS.find(item => item.paths.includes(path) || (item.key === 'support' && path.startsWith('/me/support/'))) ?? null;
 }
 
 /** Whether the inner settings list frames this address. */

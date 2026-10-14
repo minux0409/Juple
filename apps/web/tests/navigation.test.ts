@@ -173,8 +173,10 @@ describe('내 페이지: nested settings - app side bar | inner settings list | 
 
   it("section titles: 구독 is the mobile string; 계정 is the Web's own (never a support-inquiry string); every language has the labels", () => {
     assert.ok(!('accountSectionTitle' in MOBILE_STRING_KEYS));
-    // Only 고객센터's 문의하기 row is the 문의 string; no 내 페이지 section label borrows it.
-    assert.deepEqual(Object.entries(MOBILE_STRING_KEYS).filter(([, key]) => key.startsWith('inquiry.')).map(([web]) => web), ['customerCenterInquiry']);
+    // Only 고객센터's own strings (the inquiry feature) are 문의 strings; no 내 페이지 section label borrows one.
+    const inquiryKeys = Object.entries(MOBILE_STRING_KEYS).filter(([, key]) => key.startsWith('inquiry.')).map(([web]) => web);
+    assert.ok(inquiryKeys.includes('customerCenterInquiry'));
+    assert.ok(inquiryKeys.every(web => web === 'customerCenterInquiry' || web.startsWith('inquiry')), inquiryKeys.join(','));
     assert.equal(getAppDictionary('ko').accountSectionTitle, '계정');
     assert.equal(getAppDictionary('en').accountSectionTitle, 'Account');
     assert.equal(getAppDictionary('ja').accountSectionTitle, 'Account', 'other languages: the English Web-only fallback');
