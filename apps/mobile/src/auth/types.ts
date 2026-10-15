@@ -76,6 +76,7 @@ export interface AuthState {
   readonly isInitializing: boolean;
   readonly isSigningIn: boolean;
   readonly isAuthenticated: boolean;
+  readonly forceFreshAuthenticationAfterDeletion: boolean;
   readonly error: string | null;
   readonly backendAuthStatus: BackendAuthStatus;
   readonly userBootstrapStatus: UserBootstrapStatus;
@@ -95,6 +96,9 @@ export type { GetValidAccessTokenOptions };
 
 export interface AuthContextValue extends AuthState {
   signIn: () => Promise<void>;
+  freshSignIn: () => Promise<void>;
+  freshSignUp: () => Promise<void>;
+  completeAccountDeletion: () => Promise<void>;
   signOut: () => Promise<void>;
   getValidAccessToken: (
     options?: GetValidAccessTokenOptions,

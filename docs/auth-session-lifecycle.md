@@ -112,3 +112,11 @@ Portal changes to make on PROD (**not applied**; exact values):
 - Old installed clients (v25 and earlier) that hit a refused creation show their generic bootstrap error instead of re-prompting; only affects an identity
   that has no Juple account *and* a stale sign-in (a returning, previously deleted user on an old build).
 - Security audit follow-ups: see the round report (P2 list).
+
+## Mobile account deletion and remembered browser accounts
+
+After the deletion API succeeds, Mobile persists only a boolean `forceFreshAuthenticationAfterDeletion`, clears its local token session, performs push/shortcut cleanup, and attempts the configured OIDC end-session endpoint with the last ID token and registered post-logout redirect. End-session failure does not reverse deletion. Mobile uses `react-native-app-auth`, not an MSAL account cache, so there is no MSAL account to remove.
+
+The signed-out app shows a dedicated deletion-complete screen, including after restart. "Create a new account" sends `prompt=create` to the Entra External ID user flow; "Sign in with another account" sends `prompt=login` and `max_age=0`. The boolean is cleared after successful backend validation and user bootstrap. Ordinary sign-in still uses `prompt=select_account`, and ordinary logout does not set the boolean.
+
+The system browser may continue to display a remembered account tile even after logout or deletion. The app cannot remove a particular browser tile. The post-deletion entry points avoid that picker; whether `prompt=create` opens the intended sign-up page must be verified against the DEV tenant on a device.

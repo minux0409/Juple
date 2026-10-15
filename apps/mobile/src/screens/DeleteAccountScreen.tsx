@@ -43,13 +43,13 @@ export function normalizeTypedJupleId(value: string): string {
  *    auth_time is recent, so the app never decides this;
  * 3. typing the account's own Juple ID (locale-independent, and it names exactly which account)
  *    before the final button is even enabled.
- * Deleted server-side (not recoverable), then signed out through the regular sign-out flow.
+ * Deleted server-side (not recoverable), then routed to the post-deletion auth choice.
  */
 export function DeleteAccountScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation();
   const authenticatedRequest = useAuthenticatedApi();
-  const { signOut } = useAuth();
+  const { completeAccountDeletion } = useAuth();
 
   const [step, setStep] = useState<Step>('warning');
   const [jupleId, setJupleId] = useState<string | null>(null);
@@ -108,12 +108,10 @@ export function DeleteAccountScreen() {
       await deleteAccount(authenticatedRequest);
       // The ID token is read BEFORE sign-out clears it: it identifies whose browser session to end.
       const idTokenForLogout = getCachedIdToken();
-      // Already gone server-side - the regular sign-out's own cleanup (push unregister etc.)
-      // becomes a harmless no-op, so there is no separate local-cleanup path to maintain.
-      await signOut();
-      // The tokens are gone; now end the browser's Entra session too, so the account picker no longer offers the deleted
-      // account as signed in. Best effort - the account is already deleted and the app already signed out.
-      await endEntraBrowserSession(idTokenForLogout);
+      await completeAccountDeletion();
+      // Official OIDC end-session is best effort. A browser may still remember a stale tile;
+      // the next auth action therefore bypasses the picker regardless of this result.
+      await endEntraBrowserSession(idTokenForLogout).catch(() => false);
     } catch (caughtError) {
       isDeletingRef.current = false;
       setIsBusy(false);

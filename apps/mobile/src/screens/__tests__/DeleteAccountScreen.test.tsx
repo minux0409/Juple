@@ -28,14 +28,14 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-const signOut = jest.fn();
+const completeAccountDeletion = jest.fn().mockResolvedValue(undefined);
 
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
 });
 
 beforeEach(() => {
-  jest.mocked(useAuth).mockReturnValue({ signOut } as never);
+  jest.mocked(useAuth).mockReturnValue({ completeAccountDeletion } as never);
   jest.mocked(getMyProfile).mockResolvedValue({ displayName: null, jupleId: 'K7MP4Q8N' });
 });
 
@@ -150,14 +150,14 @@ describe('DeleteAccountScreen', () => {
     });
 
     expect(deleteAccount).toHaveBeenCalledTimes(1);
-    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(completeAccountDeletion).toHaveBeenCalledTimes(1);
   });
 
   it('after the sign-out it also ends the browser Entra session, with the ID token read before sign-out cleared it', async () => {
     jest.mocked(deleteAccount).mockResolvedValue(undefined);
     jest.mocked(getCachedIdToken).mockReturnValue('id-token-before-signout');
     const order: string[] = [];
-    signOut.mockImplementation(async () => { order.push('signOut'); jest.mocked(getCachedIdToken).mockReturnValue(null); });
+    completeAccountDeletion.mockImplementation(async () => { order.push('completeAccountDeletion'); jest.mocked(getCachedIdToken).mockReturnValue(null); });
     jest.mocked(endEntraBrowserSession).mockImplementation(async () => { order.push('endSession'); return true; });
     const renderer = await reachConfirmStep();
     await type(renderer, 'K7MP-4Q8N');
@@ -165,7 +165,7 @@ describe('DeleteAccountScreen', () => {
     await press(renderer, 'delete-account-final');
 
     expect(endEntraBrowserSession).toHaveBeenCalledWith('id-token-before-signout');
-    expect(order).toEqual(['signOut', 'endSession']);
+    expect(order).toEqual(['completeAccountDeletion', 'endSession']);
   });
 
   it('a failed delete never ends the browser session', async () => {
@@ -177,13 +177,25 @@ describe('DeleteAccountScreen', () => {
     expect(endEntraBrowserSession).not.toHaveBeenCalled();
   });
 
+  it('a failed browser logout never reports a successful deletion as failed', async () => {
+    jest.mocked(deleteAccount).mockResolvedValue(undefined);
+    jest.mocked(endEntraBrowserSession).mockRejectedValueOnce(new Error('browser unavailable'));
+    const renderer = await reachConfirmStep();
+    await type(renderer, 'K7MP4Q8N');
+    await press(renderer, 'delete-account-final');
+
+    expect(completeAccountDeletion).toHaveBeenCalledTimes(1);
+    expect(has(renderer, 'delete-account-notice')).toBe(false);
+    expect(deleteAccount).toHaveBeenCalledTimes(1);
+  });
+
   it('when the server says the sign-in is too old, goes back to signing in - nothing was deleted', async () => {
     jest.mocked(deleteAccount).mockRejectedValue(new ApiError('forbidden', 403, 'recentAuthenticationRequired'));
     const renderer = await reachConfirmStep();
     await type(renderer, 'K7MP4Q8N');
     await press(renderer, 'delete-account-final');
 
-    expect(signOut).not.toHaveBeenCalled();
+    expect(completeAccountDeletion).not.toHaveBeenCalled();
     expect(has(renderer, 'delete-account-reauthenticate')).toBe(true);
     expect(byTestId(renderer, 'delete-account-notice').props.children).toBe(i18n.t('settings.collectionLockSignInExpired'));
   });
@@ -194,7 +206,7 @@ describe('DeleteAccountScreen', () => {
     await type(renderer, 'K7MP4Q8N');
     await press(renderer, 'delete-account-final');
 
-    expect(signOut).not.toHaveBeenCalled();
+    expect(completeAccountDeletion).not.toHaveBeenCalled();
     expect(byTestId(renderer, 'delete-account-notice').props.children).toBe(i18n.t('myPage.deleteAccountErrorFallback'));
   });
 
