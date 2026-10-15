@@ -149,26 +149,27 @@ describe('blocking', () => {
   });
 });
 
-describe('the published Terms and Privacy Policy describe the safety features', () => {
+describe('the published Terms and Privacy Policy - UGC safety wording ships with the v26 rollout, not before', () => {
+  // The report / block / Terms-consent wording (Terms 5-1, the expanded prohibited-conduct list and enforcement steps, the Privacy
+  // safety records) is kept on the local branch wip/ugc-legal-prelaunch together with its original tests. It is published when the
+  // v26 reporting / blocking features reach people; until then the published documents (the Production web) must not describe
+  // features the store build does not have. Restore that branch's legalContent.ts hunks and its tests (which replace this one) then.
   const config = { serviceName: 'Juple' } as Parameters<typeof termsDocument>[0];
   const text = (slug: 'terms' | 'privacy') =>
     JSON.stringify((slug === 'terms' ? termsDocument(config) : privacyDocument(config)).sections.map(section => [section.title, section.blocks]));
 
-  it('Terms: forbidden content, reporting and blocking, and only the actions Juple really takes (no automatic moderation claim)', () => {
+  it('Terms: no reporting / blocking section and no enforcement steps that rely on reports yet', () => {
+    assert.equal(termsDocument(config).sections.some(section => section.id === 'reporting'), false);
     const terms = text('terms');
-    for (const word of ['불법 콘텐츠', '괴롭히거나', '스팸', '악성 링크', '사칭', '신고', '차단', '접근 제한', '계정 이용 제한 또는 정지']) {
-      assert.ok(terms.includes(word), word);
+    for (const word of ['신고와 차단', '차단한 사용자', '신고된 내용']) {
+      assert.ok(!terms.includes(word), word);
     }
-    // the moderation sections say nothing about automatic / AI moderation (the subscription's "자동 갱신" is a different thing)
-    const moderation = JSON.stringify(termsDocument(config).sections.filter(section => ['conduct', 'reporting', 'restriction'].includes(section.id)));
-    assert.doesNotMatch(moderation, /자동(으로)? ?(검토|삭제|차단|감지|탐지|제한)|AI|인공지능|알고리즘/);
   });
 
-  it('Privacy: reports, blocks and the Terms acceptance record, with their purpose and no invented retention period', () => {
+  it('Privacy: no report / block / Terms-consent records yet', () => {
     const privacy = text('privacy');
-    for (const word of ['신고', '차단 관계', '이용약관 동의', '서비스 안전']) {
-      assert.ok(privacy.includes(word), word);
+    for (const word of ['서비스 안전', '차단 관계', '신고 기록', '이용약관 동의 기록']) {
+      assert.ok(!privacy.includes(word), word);
     }
-    assert.doesNotMatch(privacy, /REVIEW REQUIRED|TODO/);
   });
 });
