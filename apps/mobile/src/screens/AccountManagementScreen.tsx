@@ -218,9 +218,9 @@ const styles = StyleSheet.create({
   },
   dangerButtonLabel: { color: colors.danger, fontSize: 15, fontWeight: '600', textAlign: 'center' },
   guideBody: { color: colors.textPrimary, fontSize: 15, lineHeight: 22 },
-  guideFooter: { alignSelf: 'stretch', flexDirection: 'row', gap: spacing.sm },
-  guideCancel: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flex: 1, justifyContent: 'center', minHeight: minTouchTarget },
+  guideFooter: { alignSelf: 'stretch', flexDirection: 'row', gap: spacing.sm, width: '100%' },
+  guideCancel: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flex: 1, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   guideCancelLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
-  guideContinue: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.md, flex: 1, justifyContent: 'center', minHeight: minTouchTarget },
+  guideContinue: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.md, flex: 1, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   guideContinueLabel: { color: colors.surface, fontSize: 15, fontWeight: '700' },
 });
