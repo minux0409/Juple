@@ -1159,13 +1159,8 @@
     }
   },
   "safety": {
-    "termsTitle": "Nutzungsbedingungen",
-    "termsBody": "Bevor du Funktionen zum Teilen und für die Community nutzt, lies bitte die Nutzungsbedingungen und stimme ihnen zu. Sie erklären verbotene Inhalte und Verhaltensweisen sowie Meldungen und Blockieren.",
     "termsViewTerms": "Nutzungsbedingungen ansehen",
     "termsViewPrivacy": "Datenschutzerklärung ansehen",
-    "termsAgree": "Ich stimme den Nutzungsbedingungen zu.",
-    "termsContinue": "Zustimmen und weiter",
-    "termsLater": "Jetzt nicht",
     "termsSaveFailed": "Deine Zustimmung konnte nicht gespeichert werden. Bitte versuche es erneut.",
     "report": "Melden",
     "reportReasonTitle": "Warum meldest du das?",
@@ -1193,5 +1188,41 @@
     "blockedUsersEmpty": "Du hast niemanden blockiert.",
     "userBlockedByYou": "Du hast diese Person blockiert. Hebe die Blockierung auf, um zu interagieren.",
     "interactionNotAllowed": "Diese Aktion ist nicht verfügbar."
+  },
+  "agreement": {
+    "title": "Willkommen!",
+    "subtitle": "Bitte stimme den Bedingungen zu, bevor du Juple nutzt.",
+    "agreeAll": "Allen zustimmen",
+    "required": "{{name}} (erforderlich)",
+    "termsName": "Nutzungsbedingungen",
+    "privacyName": "Erhebung und Nutzung personenbezogener Daten",
+    "next": "Weiter",
+    "close": "Schließen und abmelden",
+    "viewDetail": "Details ansehen",
+    "loadFailed": "Die Bedingungen konnten nicht geprüft werden. Bitte versuche es gleich noch einmal.",
+    "terms": {
+      "serviceTitle": "Dienst",
+      "serviceBody": "Mit Juple speicherst du Links, ordnest sie in Sammlungen und teilst und bearbeitest sie gemeinsam mit anderen.",
+      "contentTitle": "Deine Inhalte",
+      "contentBody": "Die Links, Notizen, Fotos und Sammlungen, die du speicherst, gehören dir und werden nur im für den Dienst nötigen Umfang gespeichert und angezeigt. Du bist für die Inhalte verantwortlich, die du speicherst und teilst.",
+      "conductTitle": "Verbotenes Verhalten",
+      "conductBody": "Nicht erlaubt sind rechtswidrige Inhalte, Verletzung der Rechte anderer, Belästigung, Hass oder Drohungen, sexuelle Ausbeutung oder für Minderjährige ungeeignete Inhalte, Spam, Betrug oder Identitätsmissbrauch, schädliche Links, unbefugter Zugriff und automatisierte Massennutzung.",
+      "reportTitle": "Melden und Blockieren",
+      "reportBody": "Du kannst Nutzer, Sammlungen, Links und Kommentare in der App melden und andere Nutzer blockieren. Meldungen werden von Menschen geprüft.",
+      "restrictionTitle": "Einschränkungen",
+      "restrictionBody": "Bei Verstößen gegen die Bedingungen können Inhalte eingeschränkt oder entfernt, das Teilen gestoppt, einzelne Funktionen begrenzt oder das Konto eingeschränkt werden.",
+      "subscriptionTitle": "Kostenloser Zeitraum und Abo",
+      "subscriptionBody": "Die ersten 30 Tage nach der Anmeldung sind kostenlos. Danach ist ein monatliches Google-Play-Abo erforderlich; das Löschen deines Kontos kündigt es nicht automatisch."
+    },
+    "privacy": {
+      "itemsTitle": "Erhobene Daten",
+      "itemsBody": "• Eine Anmelde-Kennung (von Microsoft Entra External ID vergeben; E-Mail-Adresse und Passwort verarbeitet Microsoft und werden nicht auf Juple-Servern gespeichert)\n• Juple-ID, Spitzname und Profilfoto (optional), Sprache und Zeitzone\n• Links, Notizen, Fotos, Sammlungen, Freunde, Einladungen, Kommentare, Reaktionen und Support-Anfragen, die du eingibst\n• Nachweis der Zustimmung zu den Bedingungen, Meldungen und Blockierungen\n• Bei aktivierten Push-Benachrichtigungen: App-Installations-ID und Push-Token\n• Betriebsprotokolle des Dienstes",
+      "purposeTitle": "Verwendungszweck",
+      "purposeBody": "Bereitstellung des Dienstes (Speichern, Ordnen, Teilen, Zusammenarbeit, Benachrichtigungen), Kontoprüfung und Sicherheit, Bearbeitung von Meldungen und Sicherheit des Dienstes, Beantwortung von Anfragen und Stabilität des Dienstes.",
+      "retentionTitle": "Speicherdauer",
+      "retentionBody": "Gespeichert, solange du dein Konto behältst; mit dem Löschen des Kontos werden Profil, Links, Sammlungen usw. gelöscht. Einige Aufzeichnungen (Betriebsprotokolle bis zu 30 Tage, Benachrichtigungsverlauf 90 Tage usw.) werden nur für die in der Datenschutzerklärung genannten Zeiträume aufbewahrt und danach gelöscht.",
+      "refusalTitle": "Recht zur Ablehnung",
+      "refusalBody": "Du kannst ablehnen. Dieser Punkt ist jedoch für die Bereitstellung des Dienstes erforderlich; ohne Zustimmung kannst du Juple nicht nutzen."
+    }
   }
 }

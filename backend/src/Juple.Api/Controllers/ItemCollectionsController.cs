@@ -26,7 +26,6 @@ public sealed class ItemCollectionsController(
     ICurrentJupleUserAccessor currentUserAccessor,
     IAddItemToCollectionsService addItemToCollectionsService) : ControllerBase
 {
-    [Juple.Api.Safety.RequireTermsForSharedCollectionWrites("CollectionIds")]
     [HttpPost]
     public async Task<IActionResult> AddAsync(long itemId, AddItemToCollectionsRequest request, CancellationToken cancellationToken)
     {

@@ -1159,13 +1159,8 @@
     }
   },
   "safety": {
-    "termsTitle": "Termos de Serviço",
-    "termsBody": "Antes de usar os recursos de compartilhamento e comunidade, leia e aceite os Termos de Serviço. Eles explicam conteúdos e comportamentos proibidos, denúncias e bloqueios.",
     "termsViewTerms": "Ver Termos de Serviço",
     "termsViewPrivacy": "Ver Política de Privacidade",
-    "termsAgree": "Eu aceito os Termos de Serviço.",
-    "termsContinue": "Aceitar e continuar",
-    "termsLater": "Agora não",
     "termsSaveFailed": "Não foi possível salvar sua aceitação. Tente novamente.",
     "report": "Denunciar",
     "reportReasonTitle": "Por que você está denunciando?",
@@ -1193,5 +1188,41 @@
     "blockedUsersEmpty": "Você não bloqueou ninguém.",
     "userBlockedByYou": "Você bloqueou este usuário. Desbloqueie para interagir.",
     "interactionNotAllowed": "Esta ação não está disponível."
+  },
+  "agreement": {
+    "title": "Boas-vindas!",
+    "subtitle": "Concorde com os termos antes de começar a usar o Juple.",
+    "agreeAll": "Concordar com tudo",
+    "required": "{{name}} (obrigatório)",
+    "termsName": "Termos de Serviço",
+    "privacyName": "Coleta e uso de informações pessoais",
+    "next": "Avançar",
+    "close": "Fechar e sair",
+    "viewDetail": "Ver detalhes",
+    "loadFailed": "Não foi possível verificar os termos. Tente novamente em instantes.",
+    "terms": {
+      "serviceTitle": "Serviço",
+      "serviceBody": "O Juple permite salvar links, organizá-los em coleções e compartilhar e colaborar com outras pessoas.",
+      "contentTitle": "Seu conteúdo",
+      "contentBody": "Os links, notas, fotos e coleções que você salva são seus e são armazenados e exibidos apenas na medida necessária para prestar o serviço. Você é responsável pelo conteúdo que salva e compartilha.",
+      "conductTitle": "Condutas proibidas",
+      "conductBody": "Não são permitidos conteúdo ilegal, violação de direitos de terceiros, assédio, ódio ou ameaças, exploração sexual ou conteúdo inadequado para menores, spam, fraude ou falsidade de identidade, links maliciosos, acesso não autorizado e uso automatizado em massa.",
+      "reportTitle": "Denúncia e bloqueio",
+      "reportBody": "Você pode denunciar usuários, coleções, links e comentários no app e bloquear outros usuários. As denúncias são analisadas por pessoas.",
+      "restrictionTitle": "Restrições",
+      "restrictionBody": "Se os termos forem violados, o conteúdo pode ser restringido ou removido, o compartilhamento interrompido, alguns recursos limitados ou a conta restringida.",
+      "subscriptionTitle": "Período gratuito e assinatura",
+      "subscriptionBody": "Os primeiros 30 dias após o cadastro são gratuitos. Depois, é necessária uma assinatura mensal do Google Play, e excluir a conta não a cancela automaticamente."
+    },
+    "privacy": {
+      "itemsTitle": "Dados coletados",
+      "itemsBody": "• Um identificador de login (emitido pelo Microsoft Entra External ID; seu e-mail e senha são tratados pela Microsoft e não ficam armazenados nos servidores do Juple)\n• ID do Juple, apelido e foto de perfil (opcionais), idioma e fuso horário\n• Links, notas, fotos, coleções, amigos, convites, comentários, reações e solicitações de suporte que você inserir\n• Registro de aceite dos termos, denúncias e bloqueios\n• Se você ativar as notificações push: ID de instalação do app e token push\n• Registros de operação do serviço",
+      "purposeTitle": "Finalidade de uso",
+      "purposeBody": "Prestar o serviço (salvar, organizar, compartilhar, colaborar, notificações), verificar contas e mantê-las seguras, tratar denúncias e manter o serviço seguro, responder a solicitações e manter o serviço estável.",
+      "retentionTitle": "Retenção",
+      "retentionBody": "Mantidos enquanto você mantiver a conta; ao excluir a conta, seu perfil, links, coleções e mais são excluídos. Alguns registros (registros de operação por até 30 dias, histórico de notificações por 90 dias etc.) são mantidos apenas pelos períodos informados na Política de Privacidade e depois excluídos.",
+      "refusalTitle": "Direito de recusa",
+      "refusalBody": "Você pode recusar. No entanto, este item é necessário para prestar o serviço, portanto, sem o seu aceite você não pode usar o Juple."
+    }
   }
 }

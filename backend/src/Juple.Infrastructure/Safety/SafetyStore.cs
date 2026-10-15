@@ -268,14 +268,4 @@ public sealed class SafetyStore(JupleDbContext dbContext, IUserProfileImageStora
     public async Task<IReadOnlySet<long>> GetBlockedUserIdsAsync(long blockerUserId, CancellationToken cancellationToken = default) =>
         (await dbContext.UserBlocks.AsNoTracking().Where(block => block.BlockerUserId == blockerUserId).Select(block => block.BlockedUserId).ToListAsync(cancellationToken))
         .ToHashSet();
-
-    public Task<bool> IsItemInSharedCollectionAsync(long itemId, CancellationToken cancellationToken = default) =>
-        dbContext.CollectionItems.AsNoTracking()
-            .Where(membership => membership.ItemId == itemId)
-            .Join(dbContext.Collections, membership => membership.CollectionId, collection => collection.Id, (membership, collection) => collection)
-            .Where(collection => collection.DeletedAtUtc == null)
-            .AnyAsync(
-                collection => dbContext.CollectionCollaborators.Any(collaborator => collaborator.CollectionId == collection.Id)
-                    || dbContext.CollectionShares.Any(share => share.CollectionId == collection.Id && share.IsActive),
-                cancellationToken);
 }

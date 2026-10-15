@@ -1159,13 +1159,8 @@
     }
   },
   "safety": {
-    "termsTitle": "服务条款",
-    "termsBody": "使用分享和社区功能前，请阅读并同意服务条款。条款说明禁止的内容和行为，以及举报和屏蔽方式。",
     "termsViewTerms": "查看服务条款",
     "termsViewPrivacy": "查看隐私政策",
-    "termsAgree": "我同意服务条款。",
-    "termsContinue": "同意并继续",
-    "termsLater": "暂不",
     "termsSaveFailed": "无法保存你的同意。请重试。",
     "report": "举报",
     "reportReasonTitle": "你为什么要举报？",
@@ -1193,5 +1188,41 @@
     "blockedUsersEmpty": "你还没有屏蔽任何人。",
     "userBlockedByYou": "你已屏蔽此用户。取消屏蔽后才能互动。",
     "interactionNotAllowed": "无法执行此操作。"
+  },
+  "agreement": {
+    "title": "欢迎!",
+    "subtitle": "开始使用 Juple 之前,请先同意相关条款。",
+    "agreeAll": "同意全部条款",
+    "required": "{{name}}(必选)",
+    "termsName": "服务条款",
+    "privacyName": "个人信息收集与使用同意",
+    "next": "下一步",
+    "close": "关闭并退出登录",
+    "viewDetail": "查看详情",
+    "loadFailed": "无法确认条款内容,请稍后重试。",
+    "terms": {
+      "serviceTitle": "服务",
+      "serviceBody": "Juple 是一项可以保存链接、用合集整理并与他人分享、协作的服务。",
+      "contentTitle": "您的内容",
+      "contentBody": "您保存的链接、备注、照片和合集归您所有,仅在提供服务所需的范围内存储和显示。您对自己保存和分享的内容负责。",
+      "conductTitle": "禁止行为",
+      "conductBody": "不允许违法内容、侵犯他人权利、骚扰、仇恨或威胁、性剥削或不适合未成年人的内容、垃圾信息、欺诈或冒充、恶意链接、未经授权访问服务以及自动化批量使用。",
+      "reportTitle": "举报与屏蔽",
+      "reportBody": "您可以在应用中举报有问题的用户、合集、链接和评论,也可以屏蔽其他用户。举报由人工审核。",
+      "restrictionTitle": "使用限制",
+      "restrictionBody": "违反条款时,可能会限制或删除内容、停止分享、限制部分功能或限制账号使用。",
+      "subscriptionTitle": "免费期与订阅",
+      "subscriptionBody": "注册后的 30 天为免费使用期。之后需要订阅 Google Play 月度订阅;删除账号不会自动取消订阅。"
+    },
+    "privacy": {
+      "itemsTitle": "收集的项目",
+      "itemsBody": "• 登录标识(由 Microsoft Entra External ID 提供。电子邮件地址和密码由 Microsoft 处理,不会存储在 Juple 服务器上)\n• Juple ID、昵称和头像(可选)、语言和时区\n• 您输入或保存的链接、备注、照片、合集、好友、邀请、评论、回应和客服咨询\n• 条款同意记录、举报和屏蔽记录\n• 开启推送通知时的应用安装 ID 和推送令牌\n• 服务运行日志",
+      "purposeTitle": "使用目的",
+      "purposeBody": "提供保存、整理、分享、协作和通知等服务;账号验证与安全;处理举报等服务安全;回复咨询;确认服务稳定性。",
+      "retentionTitle": "保存期限",
+      "retentionBody": "在您保留账号期间保存;删除账号后,个人资料、链接、合集等将被删除。部分记录(运行日志最长 30 天、通知记录 90 天等)仅在隐私政策所述期限内保存,之后删除。",
+      "refusalTitle": "拒绝同意的权利",
+      "refusalBody": "您可以拒绝同意。但此项为提供服务所必需的必选项目,不同意将无法使用 Juple。"
+    }
   }
 }

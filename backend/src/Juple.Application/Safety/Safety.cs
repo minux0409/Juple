@@ -151,9 +151,4 @@ public interface ISafetyStore
 
     Task<IReadOnlySet<long>> GetBlockedUserIdsAsync(long blockerUserId, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// True when the Item is currently a link of at least one live Collection that other people can see: it has collaborators or an active
-    /// share link (public or private). The Terms rule for editing what a shared Collection shows (title, memo, photos).
-    /// </summary>
-    Task<bool> IsItemInSharedCollectionAsync(long itemId, CancellationToken cancellationToken = default);
 }

@@ -24,7 +24,6 @@ public sealed class CollectionItemCopyController(
     ICurrentJupleUserAccessor currentUserAccessor,
     ICopyCollectionItemsService copyService) : ControllerBase
 {
-    [Juple.Api.Safety.RequireTermsForSharedCollectionWrites("DestinationCollectionId")]
     [HttpPost]
     public async Task<IActionResult> CopyAsync(long id, CopyCollectionItemsRequest request, CancellationToken cancellationToken)
     {

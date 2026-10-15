@@ -1159,13 +1159,8 @@
     }
   },
   "safety": {
-    "termsTitle": "Conditions d'utilisation",
-    "termsBody": "Avant d'utiliser les fonctions de partage et de communauté, lisez et acceptez les Conditions d'utilisation. Elles expliquent les contenus et comportements interdits, les signalements et le blocage.",
     "termsViewTerms": "Voir les Conditions d'utilisation",
     "termsViewPrivacy": "Voir la Politique de confidentialité",
-    "termsAgree": "J'accepte les Conditions d'utilisation.",
-    "termsContinue": "Accepter et continuer",
-    "termsLater": "Pas maintenant",
     "termsSaveFailed": "Impossible d'enregistrer votre acceptation. Veuillez réessayer.",
     "report": "Signaler",
     "reportReasonTitle": "Pourquoi signalez-vous ceci ?",
@@ -1193,5 +1188,41 @@
     "blockedUsersEmpty": "Vous n'avez bloqué personne.",
     "userBlockedByYou": "Vous avez bloqué cet utilisateur. Débloquez-le pour interagir.",
     "interactionNotAllowed": "Cette action n'est pas disponible."
+  },
+  "agreement": {
+    "title": "Bienvenue !",
+    "subtitle": "Veuillez accepter les conditions avant de commencer à utiliser Juple.",
+    "agreeAll": "Tout accepter",
+    "required": "{{name}} (obligatoire)",
+    "termsName": "Conditions d'utilisation",
+    "privacyName": "Collecte et utilisation des données personnelles",
+    "next": "Suivant",
+    "close": "Fermer et se déconnecter",
+    "viewDetail": "Voir le détail",
+    "loadFailed": "Impossible de vérifier les conditions. Veuillez réessayer dans un instant.",
+    "terms": {
+      "serviceTitle": "Service",
+      "serviceBody": "Juple vous permet d'enregistrer des liens, de les organiser en collections et de les partager et d'y collaborer avec d'autres personnes.",
+      "contentTitle": "Votre contenu",
+      "contentBody": "Les liens, notes, photos et collections que vous enregistrez vous appartiennent et ne sont stockés et affichés que dans la mesure nécessaire au service. Vous êtes responsable du contenu que vous enregistrez et partagez.",
+      "conductTitle": "Comportements interdits",
+      "conductBody": "Sont interdits : les contenus illégaux, l'atteinte aux droits d'autrui, le harcèlement, la haine ou les menaces, l'exploitation sexuelle ou les contenus inappropriés pour les mineurs, le spam, la fraude ou l'usurpation d'identité, les liens malveillants, l'accès non autorisé et l'utilisation automatisée massive.",
+      "reportTitle": "Signalement et blocage",
+      "reportBody": "Vous pouvez signaler des utilisateurs, collections, liens et commentaires dans l'application, et bloquer d'autres utilisateurs. Les signalements sont examinés par des personnes.",
+      "restrictionTitle": "Restrictions",
+      "restrictionBody": "En cas de non-respect des conditions, le contenu peut être restreint ou supprimé, le partage arrêté, certaines fonctions limitées ou le compte restreint.",
+      "subscriptionTitle": "Période gratuite et abonnement",
+      "subscriptionBody": "Les 30 premiers jours après l'inscription sont gratuits. Ensuite, un abonnement mensuel Google Play est nécessaire, et la suppression du compte ne l'annule pas automatiquement."
+    },
+    "privacy": {
+      "itemsTitle": "Données collectées",
+      "itemsBody": "• Un identifiant de connexion (attribué par Microsoft Entra External ID ; votre adresse e-mail et votre mot de passe sont gérés par Microsoft et ne sont pas stockés sur les serveurs de Juple)\n• ID Juple, pseudo et photo de profil (facultatifs), langue et fuseau horaire\n• Liens, notes, photos, collections, amis, invitations, commentaires, réactions et demandes d'assistance que vous saisissez\n• Trace de l'acceptation des conditions, signalements et blocages\n• Si vous activez les notifications push : ID d'installation de l'application et jeton push\n• Journaux de fonctionnement du service",
+      "purposeTitle": "Finalité de l'utilisation",
+      "purposeBody": "Fournir le service (enregistrement, organisation, partage, collaboration, notifications), vérifier les comptes et les sécuriser, traiter les signalements et préserver la sécurité du service, répondre aux demandes et assurer la stabilité du service.",
+      "retentionTitle": "Durée de conservation",
+      "retentionBody": "Conservées tant que vous gardez votre compte ; la suppression du compte efface votre profil, vos liens, vos collections, etc. Certains enregistrements (journaux de fonctionnement jusqu'à 30 jours, historique des notifications 90 jours, etc.) ne sont conservés que pendant les durées indiquées dans la Politique de confidentialité, puis supprimés.",
+      "refusalTitle": "Droit de refus",
+      "refusalBody": "Vous pouvez refuser. Toutefois, cet élément est nécessaire à la fourniture du service : sans votre accord, vous ne pouvez pas utiliser Juple."
+    }
   }
 }

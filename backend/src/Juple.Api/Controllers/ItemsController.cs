@@ -454,7 +454,6 @@ public sealed class ItemsController(
             userId => recordItemOpenService.RecordAsync(userId, id, cancellationToken),
             cancellationToken);
 
-    [Juple.Api.Safety.RequireTermsForSharedItemWrites]
     [HttpPut("{id:long}/details")]
     public Task<IActionResult> UpdateDetailsAsync(
         long id,
@@ -470,7 +469,6 @@ public sealed class ItemsController(
     /// a best-effort enrichment call from mobile, never part of Item creation/the title-memo update
     /// above, and never user-uploaded ItemImages (see ItemImagesController).
     /// </summary>
-    [Juple.Api.Safety.RequireTermsForSharedItemWrites]
     [HttpPut("{id:long}/preview-image")]
     public Task<IActionResult> SetPreviewImageAsync(
         long id,
@@ -488,7 +486,6 @@ public sealed class ItemsController(
     /// and applied only to still-empty automatic fields; responds with the Item's resulting
     /// title/preview image so the client can show them without a separate refetch.
     /// </summary>
-    [Juple.Api.Safety.RequireTermsForSharedItemWrites]
     [HttpPost("{id:long}/instagram-metadata-candidate")]
     public async Task<IActionResult> ApplyInstagramMetadataCandidateAsync(
         long id,
@@ -532,7 +529,6 @@ public sealed class ItemsController(
     /// metadata PreviewImageUrl above. Immediate persistence, independent of the title/memo Save
     /// above - see SetItemCoverImageService's own remarks.
     /// </summary>
-    [Juple.Api.Safety.RequireTermsForSharedItemWrites]
     [HttpPut("{id:long}/cover-image")]
     public Task<IActionResult> SetCoverImageAsync(
         long id,

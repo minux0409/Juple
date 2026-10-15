@@ -50,7 +50,6 @@ public sealed class FriendsController(
             cancellationToken);
 
     /// <summary>Exact Juple ID only; shares the Juple ID lookup rate limit (per signed-in user).</summary>
-    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPost("requests")]
     [EnableRateLimiting(RateLimitPolicies.JupleIdLookup)]
     public Task<IActionResult> SendRequestAsync(SendFriendRequestRequest request, CancellationToken cancellationToken) =>
@@ -59,7 +58,6 @@ public sealed class FriendsController(
             created => Ok(created),
             cancellationToken);
 
-    [Juple.Api.Safety.RequireTermsAcceptance]
 
     [HttpPost("requests/{requestId:long}/accept")]
     public Task<IActionResult> AcceptAsync(long requestId, CancellationToken cancellationToken) =>

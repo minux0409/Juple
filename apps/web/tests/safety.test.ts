@@ -35,23 +35,27 @@ describe('Terms of Service acceptance', () => {
     assert.equal(isTermsRequired(new Error('x')), false);
   });
 
-  it('the gate: Terms and Privacy are links, only the Terms are agreed to, "not now" keeps the person signed in', () => {
-    const gate = source('app/(app)/TermsGate.tsx');
-    assert.match(gate, /href="\/terms"/);
-    assert.match(gate, /href="\/privacy"/);
-    assert.match(gate, /disabled=\{busy \|\| !agreed\}/);
-    assert.match(gate, /path: TERMS_ACCEPTANCE_PATH, body: \{ version \}/);
-    assert.match(gate, /onLater/);
-    // one agreement, one checkbox - the Privacy Policy has none of its own and is not bundled
-    assert.equal((gate.match(/type="checkbox"/g) ?? []).length, 1);
+  it('the Agreement: two required items with their details, all-agree, no skip, X leaves, 다음 only when both are checked', () => {
+    const agreement = source('app/(app)/TermsAgreement.tsx');
+    assert.match(agreement, /href="\/terms"/);
+    assert.match(agreement, /href="\/privacy"/);
+    assert.match(agreement, /disabled=\{busy \|\| !allChecked\}/);
+    assert.match(agreement, /path: TERMS_ACCEPTANCE_PATH, body: \{ version \}/);
+    // 전체동의 and the item component (used for the Terms and for the personal-information item); there is no "later" / skip
+    assert.equal((agreement.match(/type="checkbox"/g) ?? []).length, 2);
+    assert.equal((agreement.match(/<AgreementItem/g) ?? []).length, 2);
+    assert.doesNotMatch(agreement, /onLater|safetyTermsLater/);
+    assert.match(agreement, /data-agreement-close/);
+    assert.doesNotMatch(agreement, /localStorage|sessionStorage/);
   });
 
-  it('the app asks after sign-in and again when a write is refused; nothing is stored in the browser', () => {
+  it('the app shows the Agreement INSTEAD of the shell until accepted, and again when the server asks for a newer version', () => {
     const root = source('app/(app)/AppRoot.tsx');
     assert.match(root, /parseTermsStatus\(result\?\.terms\)/);
     assert.match(root, /isTermsRequired\(error\)/);
-    assert.match(root, /terms && !terms\.isAccepted && termsAsked/);
-    assert.doesNotMatch(source('app/(app)/TermsGate.tsx'), /localStorage|sessionStorage/);
+    assert.match(root, /api && terms && !terms\.isAccepted/);
+    assert.ok(root.indexOf('<TermsAgreement') < root.indexOf('<AppShell>'), 'the Agreement comes before the shell');
+    assert.doesNotMatch(root, /termsAsked|TermsGate/);
   });
 });
 
@@ -142,7 +146,7 @@ describe('blocking', () => {
   it('every safety string exists in every language', () => {
     for (const language of APP_LANGUAGES) {
       const words = getAppDictionary(language);
-      for (const key of ['safetyTermsTitle', 'safetyTermsBody', 'safetyTermsAgree', 'safetyReport', 'safetyReportSubmit', 'safetyReportReceived', 'safetyReportAlready', 'safetyBlock', 'safetyBlockTitle', 'safetyBlockMessage', 'safetyUnblock', 'safetyBlockedUsers', 'safetyBlockedUsersEmpty'] as const) {
+      for (const key of ['agreementTitle', 'agreementAgreeAll', 'agreementNext', 'agreementPrivacyItemsBody', 'safetyReport', 'safetyReportSubmit', 'safetyReportReceived', 'safetyReportAlready', 'safetyBlock', 'safetyBlockTitle', 'safetyBlockMessage', 'safetyUnblock', 'safetyBlockedUsers', 'safetyBlockedUsersEmpty'] as const) {
         assert.ok(String(words[key]).length > 0, `${language}.${key}`);
       }
     }

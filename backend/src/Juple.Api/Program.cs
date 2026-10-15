@@ -310,7 +310,13 @@ builder.Services.AddAuthorizationBuilder()
 
 // A block between two people stops an interaction wherever a service raises UserBlockedException (comments, hearts, reactions, invitations,
 // joins): one mapping for all controllers instead of a catch in each.
-builder.Services.AddControllers(options => options.Filters.Add<Juple.Api.Safety.UserBlockedExceptionFilter>());
+builder.Services.AddSingleton<Juple.Api.Safety.TermsAcceptanceCache>();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<Juple.Api.Safety.UserBlockedExceptionFilter>();
+    // Every authenticated endpoint needs the current Terms (Agreement screen after sign-in); the allowlist is AllowWithoutTermsAcceptance.
+    options.Filters.Add<Juple.Api.Safety.RequireTermsAcceptanceFilter>();
+});
 builder.Services.AddProblemDetails();
 
 // First rate limiting in this API (built into ASP.NET Core - no package). These in-process

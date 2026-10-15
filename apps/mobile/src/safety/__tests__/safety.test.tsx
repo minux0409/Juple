@@ -3,7 +3,10 @@ import { ApiError } from '../../api/ApiError';
 import { BlockedUsersScreen } from '../../screens/BlockedUsersScreen';
 import i18n from '../../i18n';
 import { ReportModal } from '../ReportModal';
-import { TermsGate } from '../TermsGate';
+import { Text } from 'react-native';
+import { AppModal } from '../../components/AppModal';
+import { TermsAgreementScreen } from '../TermsAgreementScreen';
+import { useTermsOnboarding } from '../useTermsOnboarding';
 import {
   acceptTerms,
   blockedInteractionKey,
@@ -17,7 +20,6 @@ import {
   submitReport,
   unblockUser,
 } from '../safetyApi';
-import { requestTermsAcceptance } from '../termsRequiredEvents';
 
 const mockRequest = jest.fn();
 jest.mock('../../api/useAuthenticatedApi', () => ({ useAuthenticatedApi: () => mockRequest }));
@@ -26,8 +28,6 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 jest.mock('../../config/legalLinks', () => ({ legalLinks: { termsUrl: 'https://example.test/terms', privacyUrl: 'https://example.test/privacy' } }));
-const mockAuth = { isAuthenticated: true, userBootstrapStatus: 'ready' };
-jest.mock('../../auth/AuthContext', () => ({ useAuth: () => mockAuth }));
 jest.mock('../safetyApi', () => ({
   ...jest.requireActual('../safetyApi'),
   getTermsStatus: jest.fn(),
@@ -42,8 +42,6 @@ beforeAll(async () => {
 });
 afterEach(() => {
   jest.clearAllMocks();
-  mockAuth.isAuthenticated = true;
-  mockAuth.userBootstrapStatus = 'ready';
 });
 
 const byId = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
@@ -141,85 +139,126 @@ describe('ReportModal', () => {
   });
 });
 
-describe('TermsGate', () => {
+describe('Terms onboarding (the Agreement screen)', () => {
   const status = (accepted: boolean) => ({ currentVersion: '2026-10-14', acceptedVersion: accepted ? '2026-10-14' : null, isAccepted: accepted });
+  const onClose = jest.fn();
 
-  async function mount() {
+  /** The wiring RootStack does: the hook decides, the screen only shows while a decision is "required". */
+  function Harness({ enabled = true }: { readonly enabled?: boolean }) {
+    const onboarding = useTermsOnboarding(enabled);
+    return (
+      <>
+        {onboarding.status === 'accepted' ? <Text testID="home">home</Text> : null}
+        {onboarding.status === 'error' ? <Text testID="unavailable">error</Text> : null}
+        {onboarding.status === 'required' ? (
+          <TermsAgreementScreen
+            isSaving={onboarding.isSaving}
+            onAccept={() => { onboarding.accept().catch(() => undefined); }}
+            onClose={onClose}
+            saveFailed={onboarding.saveFailed}
+          />
+        ) : null}
+      </>
+    );
+  }
+
+  async function mount(enabled = true) {
     let renderer!: ReactTestRenderer.ReactTestRenderer;
     await act(async () => {
-      renderer = ReactTestRenderer.create(<TermsGate />);
+      renderer = ReactTestRenderer.create(<Harness enabled={enabled} />);
     });
     return renderer;
   }
 
-  it('asks only at the first UGC action: links, an unchecked agreement, and accept only after checking it', async () => {
+  it('shows the Agreement before anything else for an account that has not accepted, with 다음 disabled', async () => {
+    jest.mocked(getTermsStatus).mockResolvedValue(status(false));
+    const renderer = await mount();
+    expect(exists(renderer, 'terms-agreement-screen')).toBe(true);
+    expect(exists(renderer, 'home')).toBe(false);
+    expect(byId(renderer, 'agreement-next').props.disabled).toBe(true);
+    expect(exists(renderer, 'agreement-terms-detail')).toBe(true);
+    expect(exists(renderer, 'agreement-privacy-detail')).toBe(true);
+  });
+
+  it('needs BOTH required items; 전체동의 checks both; then 다음 records the server version and continues', async () => {
     jest.mocked(getTermsStatus).mockResolvedValue(status(false));
     jest.mocked(acceptTerms).mockResolvedValue(status(true));
     const renderer = await mount();
-    expect(exists(renderer, 'terms-gate')).toBe(false);
-    let continuation!: Promise<boolean>;
-    await act(async () => { continuation = requestTermsAcceptance(); });
-    expect(exists(renderer, 'terms-gate')).toBe(true);
-    expect(exists(renderer, 'terms-view-terms')).toBe(true);
-    expect(exists(renderer, 'terms-view-privacy')).toBe(true);
-    expect(byId(renderer, 'terms-accept').props.disabled).toBe(true);
 
-    await press(renderer, 'terms-agree');
-    expect(byId(renderer, 'terms-accept').props.disabled).toBe(false);
-    await press(renderer, 'terms-accept');
+    await press(renderer, 'agreement-terms');
+    expect(byId(renderer, 'agreement-next').props.disabled).toBe(true);
+    await press(renderer, 'agreement-privacy');
+    expect(byId(renderer, 'agreement-next').props.disabled).toBe(false);
 
+    // Unchecking one disables it again; 전체동의 then checks both.
+    await press(renderer, 'agreement-terms');
+    expect(byId(renderer, 'agreement-next').props.disabled).toBe(true);
+    await press(renderer, 'agreement-all');
+    expect(byId(renderer, 'agreement-next').props.disabled).toBe(false);
+
+    await press(renderer, 'agreement-next');
     expect(acceptTerms).toHaveBeenCalledWith(expect.any(Function), '2026-10-14');
-    expect(exists(renderer, 'terms-gate')).toBe(false);
-    await expect(continuation).resolves.toBe(true);
+    expect(acceptTerms).toHaveBeenCalledTimes(1);
+    expect(exists(renderer, 'home')).toBe(true);
+    expect(exists(renderer, 'terms-agreement-screen')).toBe(false);
   });
 
-  it('does not ask an account that already accepted the current version', async () => {
+  it('opens the detail of each item', async () => {
+    jest.mocked(getTermsStatus).mockResolvedValue(status(false));
+    const renderer = await mount();
+    const detailVisible = () => renderer.root.findByType(AppModal).props.visible;
+    expect(detailVisible()).toBe(false);
+    await press(renderer, 'agreement-privacy-detail');
+    expect(detailVisible()).toBe(true);
+    expect(exists(renderer, 'agreement-detail-full')).toBe(true);
+  });
+
+  it('X leaves without agreeing (the caller signs out) and never reaches the app', async () => {
+    jest.mocked(getTermsStatus).mockResolvedValue(status(false));
+    const renderer = await mount();
+    await press(renderer, 'agreement-close');
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(acceptTerms).not.toHaveBeenCalled();
+    expect(exists(renderer, 'home')).toBe(false);
+  });
+
+  it('goes straight on for an account that already accepted this version (new device, re-login)', async () => {
     jest.mocked(getTermsStatus).mockResolvedValue(status(true));
     const renderer = await mount();
-    expect(exists(renderer, 'terms-gate')).toBe(false);
-    await expect(requestTermsAcceptance()).resolves.toBe(true);
-    expect(exists(renderer, 'terms-gate')).toBe(false);
+    expect(exists(renderer, 'home')).toBe(true);
+    expect(exists(renderer, 'terms-agreement-screen')).toBe(false);
+    expect(acceptTerms).not.toHaveBeenCalled();
   });
 
-  it('asks again for a version the person has not accepted (the server says not accepted)', async () => {
+  it('asks again when the server has a newer version than the one accepted', async () => {
     jest.mocked(getTermsStatus).mockResolvedValue({ currentVersion: '2027-01-01', acceptedVersion: '2026-10-14', isAccepted: false });
     const renderer = await mount();
-    expect(exists(renderer, 'terms-gate')).toBe(false);
-    await act(async () => { requestTermsAcceptance().catch(() => undefined); });
-    expect(exists(renderer, 'terms-gate')).toBe(true);
+    expect(exists(renderer, 'terms-agreement-screen')).toBe(true);
   });
 
-  it('cancel stops only the attempted UGC action and a later attempt can ask again', async () => {
-    jest.mocked(getTermsStatus).mockResolvedValue(status(false));
-    const renderer = await mount();
-    let first!: Promise<boolean>;
-    await act(async () => { first = requestTermsAcceptance(); });
-    await press(renderer, 'terms-later');
-    await expect(first).resolves.toBe(false);
-    expect(exists(renderer, 'terms-gate')).toBe(false);
-
-    await act(async () => { requestTermsAcceptance().catch(() => undefined); });
-    expect(exists(renderer, 'terms-gate')).toBe(true);
-  });
-
-  it('asks nothing while signed out or before the account exists', async () => {
-    mockAuth.isAuthenticated = false;
-    jest.mocked(getTermsStatus).mockResolvedValue(status(false));
-    const renderer = await mount();
+  it('asks nothing while not signed in / bootstrapped', async () => {
+    const renderer = await mount(false);
     expect(getTermsStatus).not.toHaveBeenCalled();
-    expect(exists(renderer, 'terms-gate')).toBe(false);
-    await expect(requestTermsAcceptance()).resolves.toBe(false);
+    expect(exists(renderer, 'terms-agreement-screen')).toBe(false);
+    expect(exists(renderer, 'home')).toBe(false);
   });
 
-  it('keeps the dialog and says so when saving the agreement fails', async () => {
+  it('never lets the person through when the status cannot be read', async () => {
+    jest.mocked(getTermsStatus).mockRejectedValue(new ApiError('unavailable'));
+    const renderer = await mount();
+    expect(exists(renderer, 'unavailable')).toBe(true);
+    expect(exists(renderer, 'home')).toBe(false);
+  });
+
+  it('says so and stays on the Agreement when saving fails', async () => {
     jest.mocked(getTermsStatus).mockResolvedValue(status(false));
     jest.mocked(acceptTerms).mockRejectedValue(new ApiError('unavailable'));
     const renderer = await mount();
-    await act(async () => { requestTermsAcceptance().catch(() => undefined); });
-    await press(renderer, 'terms-agree');
-    await press(renderer, 'terms-accept');
-    expect(exists(renderer, 'terms-error')).toBe(true);
-    expect(exists(renderer, 'terms-gate')).toBe(true);
+    await press(renderer, 'agreement-all');
+    await press(renderer, 'agreement-next');
+    expect(exists(renderer, 'agreement-error')).toBe(true);
+    expect(exists(renderer, 'terms-agreement-screen')).toBe(true);
+    expect(exists(renderer, 'home')).toBe(false);
   });
 });
 

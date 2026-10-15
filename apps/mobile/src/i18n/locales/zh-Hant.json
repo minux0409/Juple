@@ -1159,13 +1159,8 @@
     }
   },
   "safety": {
-    "termsTitle": "服務條款",
-    "termsBody": "使用分享和社群功能前，請閱讀並同意服務條款。條款說明禁止的內容和行為，以及檢舉和封鎖方式。",
     "termsViewTerms": "檢視服務條款",
     "termsViewPrivacy": "檢視隱私權政策",
-    "termsAgree": "我同意服務條款。",
-    "termsContinue": "同意並繼續",
-    "termsLater": "稍後再說",
     "termsSaveFailed": "無法儲存你的同意。請再試一次。",
     "report": "檢舉",
     "reportReasonTitle": "你為什麼要檢舉？",
@@ -1193,5 +1188,41 @@
     "blockedUsersEmpty": "你還沒有封鎖任何人。",
     "userBlockedByYou": "你已封鎖此使用者。解除封鎖後才能互動。",
     "interactionNotAllowed": "無法執行此操作。"
+  },
+  "agreement": {
+    "title": "歡迎!",
+    "subtitle": "開始使用 Juple 之前,請先同意相關條款。",
+    "agreeAll": "同意全部條款",
+    "required": "{{name}}(必選)",
+    "termsName": "服務條款",
+    "privacyName": "個人資料蒐集與使用同意",
+    "next": "下一步",
+    "close": "關閉並登出",
+    "viewDetail": "查看詳情",
+    "loadFailed": "無法確認條款內容,請稍後再試。",
+    "terms": {
+      "serviceTitle": "服務",
+      "serviceBody": "Juple 是一項可以儲存連結、用收藏集整理並與他人分享、協作的服務。",
+      "contentTitle": "您的內容",
+      "contentBody": "您儲存的連結、備註、相片和收藏集歸您所有,僅在提供服務所需的範圍內儲存和顯示。您對自己儲存和分享的內容負責。",
+      "conductTitle": "禁止行為",
+      "conductBody": "不允許違法內容、侵犯他人權利、騷擾、仇恨或威脅、性剝削或不適合未成年人的內容、垃圾訊息、詐欺或冒充、惡意連結、未經授權存取服務以及自動化大量使用。",
+      "reportTitle": "檢舉與封鎖",
+      "reportBody": "您可以在應用程式中檢舉有問題的使用者、收藏集、連結和留言,也可以封鎖其他使用者。檢舉由人工審核。",
+      "restrictionTitle": "使用限制",
+      "restrictionBody": "違反條款時,可能會限制或刪除內容、停止分享、限制部分功能或限制帳號使用。",
+      "subscriptionTitle": "免費期與訂閱",
+      "subscriptionBody": "註冊後的 30 天為免費使用期。之後需要訂閱 Google Play 月費訂閱;刪除帳號不會自動取消訂閱。"
+    },
+    "privacy": {
+      "itemsTitle": "蒐集的項目",
+      "itemsBody": "• 登入識別碼(由 Microsoft Entra External ID 提供。電子郵件地址和密碼由 Microsoft 處理,不會儲存在 Juple 伺服器上)\n• Juple ID、暱稱和大頭貼(選填)、語言和時區\n• 您輸入或儲存的連結、備註、相片、收藏集、好友、邀請、留言、回應和客服諮詢\n• 條款同意紀錄、檢舉和封鎖紀錄\n• 開啟推播通知時的應用程式安裝 ID 和推播權杖\n• 服務運作記錄",
+      "purposeTitle": "使用目的",
+      "purposeBody": "提供儲存、整理、分享、協作和通知等服務;帳號驗證與安全;處理檢舉等服務安全;回覆諮詢;確認服務穩定性。",
+      "retentionTitle": "保存期限",
+      "retentionBody": "在您保留帳號期間保存;刪除帳號後,個人資料、連結、收藏集等將被刪除。部分紀錄(運作記錄最長 30 天、通知紀錄 90 天等)僅在隱私權政策所述期限內保存,之後刪除。",
+      "refusalTitle": "拒絕同意的權利",
+      "refusalBody": "您可以拒絕同意。但此項為提供服務所必需的必選項目,不同意將無法使用 Juple。"
+    }
   }
 }

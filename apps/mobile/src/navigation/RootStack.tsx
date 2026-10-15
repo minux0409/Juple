@@ -18,6 +18,9 @@ import { TutorialLauncher } from '../support/TutorialLauncher';
 import { SubscriptionRequiredPrompt } from '../billing/SubscriptionRequiredPrompt';
 import { MyCollectionSubmissionsScreen } from '../screens/MyCollectionSubmissionsScreen';
 import { headerTitleWithIcon, screenIcons } from './screenIcons';
+import { TermsAgreementScreen } from '../safety/TermsAgreementScreen';
+import { TermsUnavailable } from '../safety/TermsUnavailable';
+import { useTermsOnboarding } from '../safety/useTermsOnboarding';
 import { BlockedUsersScreen } from '../screens/BlockedUsersScreen';
 import { FriendsScreen } from '../screens/FriendsScreen';
 import { CollectionSharedItemScreen } from '../screens/CollectionSharedItemScreen';
@@ -170,6 +173,10 @@ export type RootStackParamList = {
   AuthPending: undefined;
   /** Rendered instead of MainTabs while signed out - see this file's isReady branching. */
   SignIn: undefined;
+  /** Rendered after sign-in until the current Terms are accepted (before the tutorial and Home). */
+  TermsAgreement: undefined;
+  /** The Terms status could not be read: retry or sign out - never a way past the Agreement. */
+  TermsUnavailable: undefined;
   PostDeletion: undefined;
   /**
    * Reachable regardless of authentication state (see this file's isReady branching below and
@@ -193,23 +200,28 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  */
 export function RootStack() {
   const { t } = useTranslation();
-  const { isAuthenticated, isInitializing, backendAuthStatus, userBootstrapStatus, forceFreshAuthenticationAfterDeletion } = useAuth();
+  const { isAuthenticated, isInitializing, backendAuthStatus, userBootstrapStatus, forceFreshAuthenticationAfterDeletion, signOut } = useAuth();
   const isBootstrapComplete =
     isAuthenticated && backendAuthStatus === 'valid' && userBootstrapStatus === 'ready';
+
+  // Terms come after sign-in and before everything else (tutorial, Home): the server's account state decides, per Terms version.
+  const termsOnboarding = useTermsOnboarding(isBootstrapComplete);
+  const isTermsAccepted = isBootstrapComplete && termsOnboarding.status === 'accepted';
+  const isTermsRequired = isBootstrapComplete && termsOnboarding.status === 'required';
 
   // Lets the Startup Progress UI's completed state (full bar, "준비가 완료되었습니다") register
   // on screen for READY_LINGER_MS before swapping to MainTabs - see that constant's own comment.
   const [showMainTabs, setShowMainTabs] = useState(false);
   useEffect(() => {
-    if (!isBootstrapComplete) {
+    if (!isTermsAccepted) {
       setShowMainTabs(false);
       return;
     }
     const timer = setTimeout(() => setShowMainTabs(true), READY_LINGER_MS);
     return () => clearTimeout(timer);
-  }, [isBootstrapComplete]);
+  }, [isTermsAccepted]);
 
-  const isReady = isBootstrapComplete && showMainTabs;
+  const isReady = isTermsAccepted && showMainTabs;
 
   return (
     <>
@@ -296,6 +308,21 @@ export function RootStack() {
             <Stack.Screen component={AccountManagementScreen} name="AccountManagement" options={{ title: t('account.title'), ...headerTitleWithIcon(screenIcons.account, t('account.title')) }} />
             <Stack.Screen component={DeleteAccountScreen} name="DeleteAccount" options={{ title: t('account.deleteTitle') }} />
           </Stack.Group>
+        ) : isTermsRequired ? (
+          <Stack.Screen name="TermsAgreement" options={{ headerShown: false, gestureEnabled: false }}>
+            {() => (
+              <TermsAgreementScreen
+                isSaving={termsOnboarding.isSaving}
+                onAccept={() => { termsOnboarding.accept().catch(() => undefined); }}
+                onClose={() => { signOut().catch(() => undefined); }}
+                saveFailed={termsOnboarding.saveFailed}
+              />
+            )}
+          </Stack.Screen>
+        ) : isBootstrapComplete && termsOnboarding.status === 'error' ? (
+          <Stack.Screen name="TermsUnavailable" options={{ headerShown: false }}>
+            {() => <TermsUnavailable onRetry={termsOnboarding.retry} onSignOut={() => { signOut().catch(() => undefined); }} />}
+          </Stack.Screen>
         ) : isInitializing || isAuthenticated ? (
           <Stack.Screen
             component={StartupProgressScreen}

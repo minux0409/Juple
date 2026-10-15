@@ -1159,13 +1159,8 @@
     }
   },
   "safety": {
-    "termsTitle": "Términos del servicio",
-    "termsBody": "Antes de usar las funciones para compartir y de comunidad, lee y acepta los Términos del servicio. Explican el contenido y las conductas prohibidas, las denuncias y los bloqueos.",
     "termsViewTerms": "Ver Términos del servicio",
     "termsViewPrivacy": "Ver Política de privacidad",
-    "termsAgree": "Acepto los Términos del servicio.",
-    "termsContinue": "Aceptar y continuar",
-    "termsLater": "Ahora no",
     "termsSaveFailed": "No se pudo guardar tu aceptación. Inténtalo de nuevo.",
     "report": "Denunciar",
     "reportReasonTitle": "¿Por qué lo denuncias?",
@@ -1193,5 +1188,41 @@
     "blockedUsersEmpty": "No has bloqueado a nadie.",
     "userBlockedByYou": "Bloqueaste a este usuario. Desbloquéalo para interactuar.",
     "interactionNotAllowed": "Esta acción no está disponible."
+  },
+  "agreement": {
+    "title": "¡Te damos la bienvenida!",
+    "subtitle": "Acepta los términos antes de empezar a usar Juple.",
+    "agreeAll": "Aceptar todo",
+    "required": "{{name}} (obligatorio)",
+    "termsName": "Términos del servicio",
+    "privacyName": "Recopilación y uso de datos personales",
+    "next": "Siguiente",
+    "close": "Cerrar y cerrar sesión",
+    "viewDetail": "Ver detalles",
+    "loadFailed": "No pudimos comprobar los términos. Inténtalo de nuevo en un momento.",
+    "terms": {
+      "serviceTitle": "Servicio",
+      "serviceBody": "Juple te permite guardar enlaces, organizarlos en colecciones y compartirlos y colaborar con otras personas.",
+      "contentTitle": "Tu contenido",
+      "contentBody": "Los enlaces, notas, fotos y colecciones que guardas son tuyos y solo se almacenan y muestran en la medida necesaria para prestar el servicio. Eres responsable del contenido que guardas y compartes.",
+      "conductTitle": "Conducta prohibida",
+      "conductBody": "No se permite contenido ilegal, vulnerar los derechos de otras personas, acoso, odio o amenazas, explotación sexual o contenido inapropiado para menores, spam, fraude o suplantación, enlaces maliciosos, acceso no autorizado ni uso automatizado masivo.",
+      "reportTitle": "Denuncias y bloqueos",
+      "reportBody": "Puedes denunciar usuarios, colecciones, enlaces y comentarios en la app, y bloquear a otros usuarios. Las denuncias las revisan personas.",
+      "restrictionTitle": "Restricciones",
+      "restrictionBody": "Si se incumplen los términos, el contenido puede restringirse o eliminarse, detenerse el uso compartido, limitarse algunas funciones o restringirse la cuenta.",
+      "subscriptionTitle": "Periodo gratuito y suscripción",
+      "subscriptionBody": "Los primeros 30 días tras registrarte son gratuitos. Después se requiere una suscripción mensual de Google Play, y eliminar tu cuenta no la cancela automáticamente."
+    },
+    "privacy": {
+      "itemsTitle": "Datos que recopilamos",
+      "itemsBody": "• Un identificador de inicio de sesión (emitido por Microsoft Entra External ID; tu correo electrónico y contraseña los gestiona Microsoft y no se almacenan en los servidores de Juple)\n• ID de Juple, apodo y foto de perfil (opcionales), idioma y zona horaria\n• Enlaces, notas, fotos, colecciones, amigos, invitaciones, comentarios, reacciones y consultas de soporte que introduces\n• Registro de aceptación de los términos, denuncias y bloqueos\n• Si activas las notificaciones push: ID de instalación de la app y token push\n• Registros de funcionamiento del servicio",
+      "purposeTitle": "Finalidad del uso",
+      "purposeBody": "Prestar el servicio (guardar, organizar, compartir, colaborar, notificaciones), verificar cuentas y mantenerlas seguras, tramitar denuncias y mantener el servicio seguro, atender consultas y mantener el servicio estable.",
+      "retentionTitle": "Conservación",
+      "retentionBody": "Se conservan mientras mantengas tu cuenta; al eliminarla se borran tu perfil, enlaces, colecciones y más. Algunos registros (registros de funcionamiento hasta 30 días, historial de notificaciones 90 días, etc.) se conservan solo durante los plazos indicados en la Política de privacidad y luego se eliminan.",
+      "refusalTitle": "Derecho a rechazar",
+      "refusalBody": "Puedes rechazar. Sin embargo, este punto es necesario para prestar el servicio, por lo que no podrás usar Juple sin aceptarlo."
+    }
   }
 }

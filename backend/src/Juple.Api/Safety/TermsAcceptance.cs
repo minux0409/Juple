@@ -1,12 +1,8 @@
 using Juple.Application.Identity;
-using Juple.Application.Collections;
-using Juple.Application.Collections.GetCollectionDetail;
-using Juple.Application.Collections.GetCollectionShare;
 using Juple.Application.Safety;
 using Juple.Application.Users.CurrentUser;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Juple.Api.Safety;
 
@@ -32,145 +28,57 @@ public static class SafetyProblems
 }
 
 /// <summary>
-/// Marks an action that publishes content to other users or starts a social interaction: the person must have accepted the
-/// CURRENT Terms of Service version first. Private link saving, private Collection creation and private item photos are not gated.
-/// Reading, deleting one's own things, account deletion, reporting, blocking and support are never gated.
+/// Marks an authenticated endpoint (or a whole controller) that stays usable BEFORE the current Terms were accepted. The Terms are accepted
+/// once, right after sign-in and before the app's first screen (the Agreement screen), so everything else needs them: this allowlist is
+/// exactly what the agreement flow itself and the sign-in lifecycle need - bootstrap, the terms status / acceptance, the session check,
+/// push-device registration / cleanup and account deletion. A test pins the complete list; a new endpoint is gated unless it is added here.
 /// </summary>
-[AttributeUsage(AttributeTargets.Method | AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
-public sealed class RequireTermsAcceptanceAttribute() : TypeFilterAttribute(typeof(RequireTermsAcceptanceFilter));
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
+public sealed class AllowWithoutTermsAcceptanceAttribute : Attribute;
 
 /// <summary>
-/// A link or item may be saved into a private Collection without accepting UGC Terms. When any destination is
-/// shared, the same write is visible to others and needs the current Terms. Missing/forbidden Collection ids
-/// fall through to the action's existing 404/403 handling.
+/// Remembers (per API process) that a person accepted a version, so the gate below costs one lookup per person and version instead of one
+/// per request. Positive answers only: an acceptance is never withdrawn, and a different current version is a different key.
 /// </summary>
-[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
-public sealed class RequireTermsForSharedCollectionWritesAttribute(string idsFrom) : Attribute, IAsyncActionFilter
+public sealed class TermsAcceptanceCache
 {
-    /// <summary>The route value holding the Collection id when <c>idsFrom</c> is "route" (default <c>id</c>).</summary>
-    public string RouteKey { get; init; } = "id";
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<(long UserId, string Version), byte> accepted = new();
 
-    public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+    private const int MaxEntries = 100_000;
+
+    public bool IsAccepted(long userId, string version) => accepted.ContainsKey((userId, version));
+
+    public void MarkAccepted(long userId, string version)
     {
-        if (context.HttpContext.User.Identity?.IsAuthenticated != true)
+        if (accepted.Count >= MaxEntries)
         {
-            await next();
-            return;
+            accepted.Clear();
         }
 
-        IReadOnlyList<long> ids;
-        if (idsFrom == "route")
-        {
-            ids = long.TryParse(context.RouteData.Values[RouteKey]?.ToString(), out var id) ? [id] : [];
-        }
-        else
-        {
-            context.ActionArguments.TryGetValue("request", out var body);
-            var value = body?.GetType().GetProperty(idsFrom)?.GetValue(body);
-            ids = value switch
-            {
-                long id => [id],
-                IEnumerable<long> many => many.ToArray(),
-                _ => [],
-            };
-        }
-
-        if (ids.Count == 0)
-        {
-            await next();
-            return;
-        }
-
-        var services = context.HttpContext.RequestServices;
-        try
-        {
-            var identity = services.GetRequiredService<IExternalIdentityAccessor>().GetRequired();
-            var user = await services.GetRequiredService<ICurrentJupleUserAccessor>().GetRequiredAsync(identity, context.HttpContext.RequestAborted);
-            var collections = services.GetRequiredService<IGetCollectionDetailService>();
-            var shares = services.GetRequiredService<IGetCollectionShareService>();
-            foreach (var id in ids.Distinct())
-            {
-                var collection = await collections.GetAsync(user.UserId, id, context.HttpContext.RequestAborted);
-                var isShared = collection.AccessRole != CollectionDtoAccessRoles.Owner
-                    || collection.HasCollaborators
-                    || collection.IsPublicShareActive
-                    || await shares.GetAsync(user.UserId, id, context.HttpContext.RequestAborted) is not null;
-                if (!isShared)
-                {
-                    continue;
-                }
-
-                await services.GetRequiredService<ITermsConsentService>().RequireAcceptedAsync(user.UserId, context.HttpContext.RequestAborted);
-                break;
-            }
-        }
-        catch (CurrentJupleUserNotFoundException)
-        {
-            // The action preserves its existing bootstrap-required response.
-        }
-        catch (CollectionNotFoundException)
-        {
-            // The action preserves its existing Collection-not-found response.
-        }
-        catch (TermsAcceptanceRequiredException)
-        {
-            context.Result = SafetyProblems.TermsAcceptanceRequired();
-            return;
-        }
-
-        await next();
+        accepted[(userId, version)] = 0;
     }
 }
 
 /// <summary>
-/// Editing what a shared Collection shows (an Item's title, memo, photos) is publishing to its viewers. The same endpoint stays free of
-/// Terms while the Item lives only in private Collections or none - decided from the server's runtime state, never from the client.
-/// A missing Item falls through to the action's own 404.
+/// The Terms gate, applied to every authenticated endpoint (registered as a global MVC filter): a person who has not accepted the CURRENT
+/// Terms version gets 403 <c>termsAcceptanceRequired</c> before the action runs - reading and writing alike - except on the endpoints marked
+/// <see cref="AllowWithoutTermsAcceptanceAttribute"/>. Anonymous endpoints are never touched. The decision is the server's alone; the app
+/// shows the Agreement screen first so a current client never gets here without having accepted. <c>Terms:EnforceAcceptance=false</c>
+/// (a rollout window for installed apps that predate the Agreement screen) switches the whole gate off without reading anything.
 /// </summary>
-[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
-public sealed class RequireTermsForSharedItemWritesAttribute(string routeKey = "id") : Attribute, IAsyncActionFilter
-{
-    public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
-    {
-        if (context.HttpContext.User.Identity?.IsAuthenticated != true
-            || !long.TryParse(context.RouteData.Values[routeKey]?.ToString(), out var itemId))
-        {
-            await next();
-            return;
-        }
-
-        var services = context.HttpContext.RequestServices;
-        try
-        {
-            var identity = services.GetRequiredService<IExternalIdentityAccessor>().GetRequired();
-            var user = await services.GetRequiredService<ICurrentJupleUserAccessor>().GetRequiredAsync(identity, context.HttpContext.RequestAborted);
-            if (await services.GetRequiredService<ISafetyStore>().IsItemInSharedCollectionAsync(itemId, context.HttpContext.RequestAborted))
-            {
-                await services.GetRequiredService<ITermsConsentService>().RequireAcceptedAsync(user.UserId, context.HttpContext.RequestAborted);
-            }
-        }
-        catch (CurrentJupleUserNotFoundException)
-        {
-            // The action preserves its existing bootstrap-required response.
-        }
-        catch (TermsAcceptanceRequiredException)
-        {
-            context.Result = SafetyProblems.TermsAcceptanceRequired();
-            return;
-        }
-
-        await next();
-    }
-}
-
 public sealed class RequireTermsAcceptanceFilter(
     IExternalIdentityAccessor externalIdentityAccessor,
     ICurrentJupleUserAccessor currentUserAccessor,
-    ITermsConsentService termsService) : IAsyncActionFilter
+    ITermsConsentService termsService,
+    TermsOptions options,
+    TermsAcceptanceCache cache) : IAsyncActionFilter
 {
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
-        if (context.HttpContext.User.Identity?.IsAuthenticated != true)
+        if (!options.EnforceAcceptance
+            || context.HttpContext.User.Identity?.IsAuthenticated != true
+            || context.ActionDescriptor.EndpointMetadata.OfType<AllowWithoutTermsAcceptanceAttribute>().Any()
+            || context.ActionDescriptor.EndpointMetadata.OfType<Microsoft.AspNetCore.Authorization.IAllowAnonymous>().Any())
         {
             await next();
             return;
@@ -179,7 +87,11 @@ public sealed class RequireTermsAcceptanceFilter(
         try
         {
             var user = await currentUserAccessor.GetRequiredAsync(externalIdentityAccessor.GetRequired(), context.HttpContext.RequestAborted);
-            await termsService.RequireAcceptedAsync(user.UserId, context.HttpContext.RequestAborted);
+            if (!cache.IsAccepted(user.UserId, options.CurrentVersion))
+            {
+                await termsService.RequireAcceptedAsync(user.UserId, context.HttpContext.RequestAborted);
+                cache.MarkAccepted(user.UserId, options.CurrentVersion);
+            }
         }
         catch (CurrentJupleUserNotFoundException)
         {

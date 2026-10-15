@@ -16,6 +16,7 @@ namespace Juple.Api.Controllers;
 [ApiController]
 [Route("api/v1/users/me")]
 [Authorize(Policy = AuthorizationPolicies.JupleUser)]
+[Juple.Api.Safety.AllowWithoutTermsAcceptance]
 [AllowWhenSubscriptionExpired]
 public sealed class CurrentUserBootstrapController : ControllerBase
 {

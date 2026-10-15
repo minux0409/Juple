@@ -32,7 +32,7 @@ import type { WebAppConfig } from '../../lib/webAppConfig';
 import { AppShell } from './AppShell';
 import { isTermsRequired, parseTermsStatus, type TermsStatus } from '../../lib/safety';
 import { SafetyProvider } from './SafetyProvider';
-import { TermsGate } from './TermsGate';
+import { TermsAgreement } from './TermsAgreement';
 import { ToastProvider } from './Toaster';
 import { CenteredMessage, Landing } from './Landing';
 import { ReauthDialog } from './ReauthDialog';
@@ -121,10 +121,9 @@ export function AppRoot({
   const [entitlement, setEntitlement] = useState<Entitlement | null>(null);
   const [storeSubscription, setStoreSubscription] = useState<StoreSubscription | null>(null);
   const [reauthentication, setReauthentication] = useState<ReauthenticationResult | null>(null);
-  // The Terms the server asks for and whether they were accepted (from the bootstrap). `termsAsked` goes false after "not now" and
-  // true again when a content write is refused for the missing agreement.
+  // The Terms the server asks for and whether they were accepted (from the bootstrap). Until they are accepted the Agreement is the only
+  // thing shown (before the shell, and so before the tutorial); a refusal for a NEWER Terms version brings it back the same way.
   const [terms, setTerms] = useState<TermsStatus | null>(null);
-  const [termsAsked, setTermsAsked] = useState(true);
   // Entra no longer accepts this sign-in (e.g. the password was reset elsewhere): one non-dismissable "sign in again" dialog.
   const [reauthRequired, setReauthRequired] = useState(false);
   const [reauthBusy, setReauthBusy] = useState(false);
@@ -144,7 +143,7 @@ export function AppRoot({
       },
     });
   }, [config]);
-  // Every call goes through here: a refusal for the missing Terms agreement opens the agreement again (the call still fails as before).
+  // Every call goes through here: a refusal for the missing Terms agreement brings the Agreement back (the call still fails as before).
   const api = useMemo<AppApi | null>(
     () =>
       rawApi
@@ -154,7 +153,6 @@ export function AppRoot({
             } catch (error) {
               if (isTermsRequired(error)) {
                 setTerms(previous => ({ currentVersion: previous?.currentVersion ?? '', acceptedVersion: previous?.acceptedVersion ?? null, isAccepted: false }));
-                setTermsAsked(true);
               }
               throw error;
             }
@@ -199,7 +197,6 @@ export function AppRoot({
       setEntitlement(parseEntitlement(result?.entitlement));
       setStoreSubscription(parseStoreSubscription(result?.storeSubscription));
       setTerms(parseTermsStatus(result?.terms));
-      setTermsAsked(true);
       setStatus('ready');
       // Best effort, after the account exists: who to show (the mobile 내 페이지's own source). A failure only leaves the fallback label.
       api<UserProfile>({ path: PROFILE_PATH }).then(setProfile, () => undefined);
@@ -431,22 +428,25 @@ export function AppRoot({
     if (status !== 'ready' || !signedInApp) {
       return <CenteredMessage busy message={status === 'redirecting' ? dictionary.signingIn : dictionary.checkingLogin} />;
     }
+    // Before the app shell: the current Terms come first. A missing Terms status (an older API) is never a reason to block.
+    if (api && terms && !terms.isAccepted) {
+      return (
+        <TermsAgreement
+          api={api}
+          dictionary={dictionary}
+          onAccepted={accepted => setTerms(accepted)}
+          onClose={() => void signOut()}
+          onSessionLost={onSessionLost}
+          version={terms.currentVersion}
+        />
+      );
+    }
     return (
       <SignedInAppContext.Provider value={signedInApp}>
         <ToastProvider>
           <SafetyProvider>
             <AppShell>{children}</AppShell>
           </SafetyProvider>
-          {api && terms && !terms.isAccepted && termsAsked ? (
-            <TermsGate
-              api={api}
-              dictionary={dictionary}
-              onAccepted={accepted => setTerms(accepted)}
-              onLater={() => setTermsAsked(false)}
-              onSessionLost={onSessionLost}
-              version={terms.currentVersion}
-            />
-          ) : null}
         </ToastProvider>
       </SignedInAppContext.Provider>
     );

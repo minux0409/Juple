@@ -28,11 +28,13 @@ public sealed class SafetyController(
     IReportService reportService,
     IUserBlockService blockService) : ControllerBase
 {
+    [Juple.Api.Safety.AllowWithoutTermsAcceptance]
     [HttpGet("users/me/terms")]
     public Task<IActionResult> GetTermsAsync(CancellationToken cancellationToken) =>
         ExecuteAsync(userId => termsService.GetStatusAsync(userId, cancellationToken), status => Ok(TermsResponse.From(status)), cancellationToken);
 
     /// <summary>Records the agreement to the CURRENT version. The version is sent so an old screen can never agree to a newer text.</summary>
+    [Juple.Api.Safety.AllowWithoutTermsAcceptance]
     [HttpPost("users/me/terms-acceptance")]
     public Task<IActionResult> AcceptTermsAsync([FromBody] AcceptTermsRequest request, CancellationToken cancellationToken) =>
         ExecuteAsync(userId => termsService.AcceptAsync(userId, request.Version, cancellationToken), status => Ok(TermsResponse.From(status)), cancellationToken);

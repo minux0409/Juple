@@ -55,7 +55,6 @@ public sealed class CollectionInvitationsController(
 
     [Juple.Api.Billing.CollectionOwnedWrite(InvitationIdRoute = "invitationId")]
 
-    [Juple.Api.Safety.RequireTermsAcceptance]
 
     [HttpPost("collection-invitations/{invitationId:long}/accept")]
     public Task<IActionResult> AcceptAsync(long invitationId, CancellationToken cancellationToken) =>

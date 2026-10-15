@@ -40,7 +40,6 @@ public sealed class PublicShareWriteController(
     /// (a request that is still waiting reveals nothing of the Collection); 404 unknown / revoked link; 403 collectionLocked until the
     /// link's password is proven (the password itself never makes a member); 409 joinNotAllowed for a public link.
     /// </summary>
-    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPost("join-requests")]
     [EnableRateLimiting(RateLimitPolicies.PublicCollectionWrite)]
     public Task<IActionResult> RequestToJoinAsync(
@@ -55,7 +54,6 @@ public sealed class PublicShareWriteController(
     /// 404 unknown / revoked link; 403 collectionLocked until the link's password is proven (the password alone saves nothing);
     /// 409 joinNotAllowed for a private link (ask to join instead). Opening a link never calls this.
     /// </summary>
-    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPost("save")]
     [EnableRateLimiting(RateLimitPolicies.PublicCollectionWrite)]
     public Task<IActionResult> SavePublicCollectionAsync(
@@ -185,7 +183,6 @@ public sealed class PublicShareWriteController(
     /// 403 publicShareReadOnly for a read-only link; 403 collectionLocked for a locked Collection
     /// without the link's unlock grant (X-Juple-Collection-Unlock).
     /// </summary>
-    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPut("items/{itemId:long}")]
     [EnableRateLimiting(RateLimitPolicies.PublicCollectionWrite)]
     public async Task<IActionResult> AddItemAsync(

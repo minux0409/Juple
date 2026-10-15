@@ -7355,3 +7355,124 @@ button.reactionChipMine:hover {
   font-weight: 600;
   cursor: pointer;
 }
+
+/* ======================================================================================================================
+   Terms agreement (the first screen after sign-in until the current Terms are accepted)
+   ==================================================================================================================== */
+.agreementPage {
+  display: flex;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: var(--space-4);
+}
+
+.agreementCard {
+  width: 100%;
+  max-width: 560px;
+  align-self: flex-start;
+  padding: var(--space-4);
+}
+
+.agreementTop {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.agreementClose {
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.agreementBrand {
+  margin: var(--space-3) 0 0;
+  color: var(--brand);
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.agreementTitle {
+  margin: var(--space-3) 0 0;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.agreementSubtitle {
+  margin: var(--space-2) 0 var(--space-5);
+  opacity: 0.75;
+}
+
+.agreementRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 52px;
+}
+
+.agreementRowMain {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 52px;
+  cursor: pointer;
+}
+
+.agreementAll {
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-card);
+  background: rgba(127, 127, 127, 0.12);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.agreementItem {
+  border-bottom: 1px solid var(--app-border);
+}
+
+.agreementDetailButton {
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.agreementDetail {
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.agreementSection {
+  margin-bottom: var(--space-3);
+}
+
+.agreementSectionTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.agreementSectionBody {
+  margin: var(--space-1) 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+.agreementFullLink {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.agreementNext {
+  width: 100%;
+  min-height: 52px;
+  margin-top: var(--space-5);
+}

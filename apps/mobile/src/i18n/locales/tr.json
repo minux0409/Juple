@@ -1159,13 +1159,8 @@
     }
   },
   "safety": {
-    "termsTitle": "Hizmet Şartları",
-    "termsBody": "Paylaşım ve topluluk özelliklerini kullanmadan önce Hizmet Şartları’nı okuyup kabul edin. Şartlar yasak içerik ve davranışları, şikâyet ve engelleme işlemlerini açıklar.",
     "termsViewTerms": "Hizmet Şartları’nı görüntüle",
     "termsViewPrivacy": "Gizlilik Politikası’nı görüntüle",
-    "termsAgree": "Hizmet Şartları’nı kabul ediyorum.",
-    "termsContinue": "Kabul et ve devam et",
-    "termsLater": "Şimdi değil",
     "termsSaveFailed": "Onayınız kaydedilemedi. Lütfen tekrar deneyin.",
     "report": "Şikâyet et",
     "reportReasonTitle": "Neden şikâyet ediyorsunuz?",
@@ -1193,5 +1188,41 @@
     "blockedUsersEmpty": "Kimseyi engellemediniz.",
     "userBlockedByYou": "Bu kullanıcıyı engellediniz. Etkileşim için engeli kaldırın.",
     "interactionNotAllowed": "Bu işlem kullanılamıyor."
+  },
+  "agreement": {
+    "title": "Hoş geldiniz!",
+    "subtitle": "Juple'ı kullanmaya başlamadan önce lütfen şartları kabul edin.",
+    "agreeAll": "Tümünü kabul et",
+    "required": "{{name}} (zorunlu)",
+    "termsName": "Hizmet Şartları",
+    "privacyName": "Kişisel bilgilerin toplanması ve kullanılması",
+    "next": "İleri",
+    "close": "Kapat ve çıkış yap",
+    "viewDetail": "Ayrıntıları gör",
+    "loadFailed": "Şartlar kontrol edilemedi. Lütfen birazdan tekrar deneyin.",
+    "terms": {
+      "serviceTitle": "Hizmet",
+      "serviceBody": "Juple, bağlantıları kaydetmenizi, koleksiyonlarda düzenlemenizi ve başkalarıyla paylaşıp birlikte çalışmanızı sağlar.",
+      "contentTitle": "İçeriğiniz",
+      "contentBody": "Kaydettiğiniz bağlantılar, notlar, fotoğraflar ve koleksiyonlar size aittir ve yalnızca hizmeti sunmak için gerekli ölçüde saklanır ve gösterilir. Kaydettiğiniz ve paylaştığınız içerikten siz sorumlusunuz.",
+      "conductTitle": "Yasak davranışlar",
+      "conductBody": "Yasa dışı içerik, başkalarının haklarının ihlali, taciz, nefret veya tehdit, cinsel istismar veya reşit olmayanlara uygunsuz içerik, spam, dolandırıcılık veya taklit, kötü amaçlı bağlantılar, yetkisiz erişim ve otomatik toplu kullanıma izin verilmez.",
+      "reportTitle": "Bildirme ve engelleme",
+      "reportBody": "Uygulamada kullanıcıları, koleksiyonları, bağlantıları ve yorumları bildirebilir, diğer kullanıcıları engelleyebilirsiniz. Bildirimleri insanlar inceler.",
+      "restrictionTitle": "Kısıtlamalar",
+      "restrictionBody": "Şartlar ihlal edilirse içerik kısıtlanabilir veya kaldırılabilir, paylaşım durdurulabilir, bazı özellikler sınırlandırılabilir veya hesap kısıtlanabilir.",
+      "subscriptionTitle": "Ücretsiz dönem ve abonelik",
+      "subscriptionBody": "Kayıttan sonraki ilk 30 gün ücretsizdir. Sonrasında aylık Google Play aboneliği gerekir; hesabınızı silmek aboneliği otomatik olarak iptal etmez."
+    },
+    "privacy": {
+      "itemsTitle": "Toplanan bilgiler",
+      "itemsBody": "• Bir oturum açma tanımlayıcısı (Microsoft Entra External ID tarafından verilir; e-posta adresiniz ve parolanız Microsoft tarafından işlenir ve Juple sunucularında saklanmaz)\n• Juple ID, takma ad ve profil fotoğrafı (isteğe bağlı), dil ve saat dilimi\n• Girdiğiniz bağlantılar, notlar, fotoğraflar, koleksiyonlar, arkadaşlar, davetler, yorumlar, tepkiler ve destek talepleri\n• Şartları kabul kaydı, bildirimler ve engellemeler\n• Anlık bildirimleri açarsanız: uygulama kurulum kimliği ve anlık bildirim belirteci\n• Hizmet işletim günlükleri",
+      "purposeTitle": "Kullanım amacı",
+      "purposeBody": "Hizmeti sunmak (kaydetme, düzenleme, paylaşma, birlikte çalışma, bildirimler), hesapları doğrulamak ve güvende tutmak, bildirimleri işleyip hizmeti güvenli tutmak, talepleri yanıtlamak ve hizmetin kararlılığını sağlamak.",
+      "retentionTitle": "Saklama süresi",
+      "retentionBody": "Hesabınızı tuttuğunuz sürece saklanır; hesabı silmek profil, bağlantılar, koleksiyonlar vb. siler. Bazı kayıtlar (işletim günlükleri en fazla 30 gün, bildirim geçmişi 90 gün vb.) yalnızca Gizlilik Politikası'nda belirtilen süreler boyunca saklanır ve sonra silinir.",
+      "refusalTitle": "Reddetme hakkı",
+      "refusalBody": "Reddedebilirsiniz. Ancak bu madde hizmetin sunulması için gereklidir; kabul etmezseniz Juple'ı kullanamazsınız."
+    }
   }
 }

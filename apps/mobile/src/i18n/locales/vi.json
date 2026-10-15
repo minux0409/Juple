@@ -1159,13 +1159,8 @@
     }
   },
   "safety": {
-    "termsTitle": "Điều khoản dịch vụ",
-    "termsBody": "Trước khi sử dụng tính năng chia sẻ và cộng đồng, hãy đọc và đồng ý với Điều khoản dịch vụ. Điều khoản nêu nội dung và hành vi bị cấm, cách báo cáo và chặn.",
     "termsViewTerms": "Xem Điều khoản dịch vụ",
     "termsViewPrivacy": "Xem Chính sách quyền riêng tư",
-    "termsAgree": "Tôi đồng ý với Điều khoản dịch vụ.",
-    "termsContinue": "Đồng ý và tiếp tục",
-    "termsLater": "Để sau",
     "termsSaveFailed": "Không thể lưu sự đồng ý của bạn. Vui lòng thử lại.",
     "report": "Báo cáo",
     "reportReasonTitle": "Vì sao bạn báo cáo nội dung này?",
@@ -1193,5 +1188,41 @@
     "blockedUsersEmpty": "Bạn chưa chặn ai.",
     "userBlockedByYou": "Bạn đã chặn người dùng này. Hãy bỏ chặn để tương tác.",
     "interactionNotAllowed": "Không thể thực hiện thao tác này."
+  },
+  "agreement": {
+    "title": "Chào mừng bạn!",
+    "subtitle": "Vui lòng đồng ý với các điều khoản trước khi bắt đầu dùng Juple.",
+    "agreeAll": "Đồng ý tất cả",
+    "required": "{{name}} (bắt buộc)",
+    "termsName": "Điều khoản dịch vụ",
+    "privacyName": "Thu thập và sử dụng thông tin cá nhân",
+    "next": "Tiếp theo",
+    "close": "Đóng và đăng xuất",
+    "viewDetail": "Xem chi tiết",
+    "loadFailed": "Không thể kiểm tra điều khoản. Vui lòng thử lại sau giây lát.",
+    "terms": {
+      "serviceTitle": "Dịch vụ",
+      "serviceBody": "Juple cho phép bạn lưu liên kết, sắp xếp thành bộ sưu tập, chia sẻ và cộng tác với người khác.",
+      "contentTitle": "Nội dung của bạn",
+      "contentBody": "Liên kết, ghi chú, ảnh và bộ sưu tập bạn lưu là của bạn và chỉ được lưu trữ, hiển thị trong phạm vi cần thiết để cung cấp dịch vụ. Bạn chịu trách nhiệm về nội dung mình lưu và chia sẻ.",
+      "conductTitle": "Hành vi bị cấm",
+      "conductBody": "Không được phép: nội dung bất hợp pháp, xâm phạm quyền của người khác, quấy rối, thù ghét hoặc đe dọa, bóc lột tình dục hoặc nội dung không phù hợp với trẻ vị thành niên, spam, lừa đảo hoặc mạo danh, liên kết độc hại, truy cập trái phép và sử dụng tự động hàng loạt.",
+      "reportTitle": "Báo cáo và chặn",
+      "reportBody": "Bạn có thể báo cáo người dùng, bộ sưu tập, liên kết và bình luận trong ứng dụng, và chặn người dùng khác. Báo cáo được con người xem xét.",
+      "restrictionTitle": "Hạn chế",
+      "restrictionBody": "Nếu vi phạm điều khoản, nội dung có thể bị hạn chế hoặc xóa, ngừng chia sẻ, giới hạn một số tính năng hoặc hạn chế tài khoản.",
+      "subscriptionTitle": "Thời gian miễn phí và đăng ký",
+      "subscriptionBody": "30 ngày đầu sau khi đăng ký là miễn phí. Sau đó cần đăng ký hằng tháng qua Google Play, và xóa tài khoản không tự động hủy đăng ký."
+    },
+    "privacy": {
+      "itemsTitle": "Thông tin thu thập",
+      "itemsBody": "• Mã định danh đăng nhập (do Microsoft Entra External ID cấp; email và mật khẩu do Microsoft xử lý và không được lưu trên máy chủ của Juple)\n• ID Juple, biệt danh và ảnh đại diện (tùy chọn), ngôn ngữ và múi giờ\n• Liên kết, ghi chú, ảnh, bộ sưu tập, bạn bè, lời mời, bình luận, phản ứng và yêu cầu hỗ trợ bạn nhập\n• Bản ghi đồng ý điều khoản, báo cáo và chặn\n• Nếu bật thông báo đẩy: ID cài đặt ứng dụng và mã thông báo đẩy\n• Nhật ký vận hành dịch vụ",
+      "purposeTitle": "Mục đích sử dụng",
+      "purposeBody": "Cung cấp dịch vụ (lưu, sắp xếp, chia sẻ, cộng tác, thông báo), xác minh và bảo mật tài khoản, xử lý báo cáo và giữ an toàn cho dịch vụ, phản hồi yêu cầu và đảm bảo dịch vụ ổn định.",
+      "retentionTitle": "Thời gian lưu giữ",
+      "retentionBody": "Được lưu trong thời gian bạn giữ tài khoản; xóa tài khoản sẽ xóa hồ sơ, liên kết, bộ sưu tập, v.v. Một số bản ghi (nhật ký vận hành tối đa 30 ngày, lịch sử thông báo 90 ngày, v.v.) chỉ được lưu trong thời hạn nêu trong Chính sách quyền riêng tư rồi bị xóa.",
+      "refusalTitle": "Quyền từ chối",
+      "refusalBody": "Bạn có thể từ chối. Tuy nhiên mục này cần thiết để cung cấp dịch vụ, nên nếu không đồng ý bạn không thể dùng Juple."
+    }
   }
 }

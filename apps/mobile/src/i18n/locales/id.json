@@ -1159,13 +1159,8 @@
     }
   },
   "safety": {
-    "termsTitle": "Ketentuan Layanan",
-    "termsBody": "Sebelum menggunakan fitur berbagi dan komunitas, baca dan setujui Ketentuan Layanan. Ketentuan ini menjelaskan konten dan perilaku yang dilarang serta pelaporan dan pemblokiran.",
     "termsViewTerms": "Lihat Ketentuan Layanan",
     "termsViewPrivacy": "Lihat Kebijakan Privasi",
-    "termsAgree": "Saya menyetujui Ketentuan Layanan.",
-    "termsContinue": "Setuju dan lanjutkan",
-    "termsLater": "Nanti saja",
     "termsSaveFailed": "Persetujuan Anda tidak dapat disimpan. Silakan coba lagi.",
     "report": "Laporkan",
     "reportReasonTitle": "Mengapa Anda melaporkan ini?",
@@ -1193,5 +1188,41 @@
     "blockedUsersEmpty": "Anda belum memblokir siapa pun.",
     "userBlockedByYou": "Anda memblokir pengguna ini. Buka blokir untuk berinteraksi.",
     "interactionNotAllowed": "Tindakan ini tidak tersedia."
+  },
+  "agreement": {
+    "title": "Selamat datang!",
+    "subtitle": "Setujui ketentuan sebelum mulai menggunakan Juple.",
+    "agreeAll": "Setujui semua",
+    "required": "{{name}} (wajib)",
+    "termsName": "Ketentuan Layanan",
+    "privacyName": "Pengumpulan dan penggunaan informasi pribadi",
+    "next": "Berikutnya",
+    "close": "Tutup dan keluar",
+    "viewDetail": "Lihat detail",
+    "loadFailed": "Tidak dapat memeriksa ketentuan. Coba lagi sebentar lagi.",
+    "terms": {
+      "serviceTitle": "Layanan",
+      "serviceBody": "Juple memungkinkan Anda menyimpan tautan, mengaturnya dalam koleksi, serta membagikan dan berkolaborasi dengan orang lain.",
+      "contentTitle": "Konten Anda",
+      "contentBody": "Tautan, catatan, foto, dan koleksi yang Anda simpan adalah milik Anda dan hanya disimpan serta ditampilkan sejauh diperlukan untuk menyediakan layanan. Anda bertanggung jawab atas konten yang Anda simpan dan bagikan.",
+      "conductTitle": "Perilaku yang dilarang",
+      "conductBody": "Tidak diizinkan: konten ilegal, pelanggaran hak orang lain, pelecehan, kebencian atau ancaman, eksploitasi seksual atau konten yang tidak pantas untuk anak di bawah umur, spam, penipuan atau peniruan identitas, tautan berbahaya, akses tanpa izin, dan penggunaan otomatis dalam jumlah besar.",
+      "reportTitle": "Pelaporan dan pemblokiran",
+      "reportBody": "Anda dapat melaporkan pengguna, koleksi, tautan, dan komentar di aplikasi, serta memblokir pengguna lain. Laporan ditinjau oleh manusia.",
+      "restrictionTitle": "Pembatasan",
+      "restrictionBody": "Jika ketentuan dilanggar, konten dapat dibatasi atau dihapus, berbagi dihentikan, beberapa fitur dibatasi, atau akun dibatasi.",
+      "subscriptionTitle": "Masa gratis dan langganan",
+      "subscriptionBody": "30 hari pertama setelah mendaftar gratis. Setelah itu diperlukan langganan bulanan Google Play, dan menghapus akun tidak membatalkannya secara otomatis."
+    },
+    "privacy": {
+      "itemsTitle": "Data yang dikumpulkan",
+      "itemsBody": "• Pengenal login (diberikan oleh Microsoft Entra External ID; alamat email dan kata sandi diproses oleh Microsoft dan tidak disimpan di server Juple)\n• ID Juple, nama panggilan dan foto profil (opsional), bahasa dan zona waktu\n• Tautan, catatan, foto, koleksi, teman, undangan, komentar, reaksi, dan pertanyaan dukungan yang Anda masukkan\n• Catatan persetujuan ketentuan, laporan dan pemblokiran\n• Jika notifikasi push diaktifkan: ID instalasi aplikasi dan token push\n• Log operasional layanan",
+      "purposeTitle": "Tujuan penggunaan",
+      "purposeBody": "Menyediakan layanan (menyimpan, mengatur, membagikan, berkolaborasi, notifikasi), memverifikasi dan mengamankan akun, menangani laporan dan menjaga keamanan layanan, menjawab pertanyaan, dan menjaga stabilitas layanan.",
+      "retentionTitle": "Masa penyimpanan",
+      "retentionBody": "Disimpan selama Anda mempertahankan akun; menghapus akun akan menghapus profil, tautan, koleksi, dan lainnya. Beberapa catatan (log operasional hingga 30 hari, riwayat notifikasi 90 hari, dll.) hanya disimpan selama periode yang tercantum dalam Kebijakan Privasi lalu dihapus.",
+      "refusalTitle": "Hak untuk menolak",
+      "refusalBody": "Anda dapat menolak. Namun, butir ini diperlukan untuk menyediakan layanan, sehingga tanpa persetujuan Anda tidak dapat menggunakan Juple."
+    }
   }
 }

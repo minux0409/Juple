@@ -268,7 +268,6 @@ public sealed class CollectionsController(
         }
     }
 
-    [Juple.Api.Safety.RequireTermsForSharedCollectionWrites("route")]
     [HttpPut("{id:long}")]
     [CollectionPermission(CollectionPermission.Edit, requireUnlock: true)]
     public Task<IActionResult> RenameAsync(
@@ -323,7 +322,6 @@ public sealed class CollectionsController(
     }
 
     /// <summary>Same shape as SetFavoriteAsync above (returns the latest CollectionDto, no client-supplied version).</summary>
-    [Juple.Api.Safety.RequireTermsForSharedCollectionWrites("route")]
     [HttpPut("{id:long}/icon")]
     [CollectionPermission(CollectionPermission.Edit, requireUnlock: true)]
     public async Task<IActionResult> SetIconAsync(
@@ -366,7 +364,6 @@ public sealed class CollectionsController(
     }
 
     /// <summary>Same shape as SetIconAsync above (returns the latest CollectionDto, no client-supplied version).</summary>
-    [Juple.Api.Safety.RequireTermsForSharedCollectionWrites("route")]
     [HttpPut("{id:long}/color")]
     [CollectionPermission(CollectionPermission.Edit, requireUnlock: true)]
     public async Task<IActionResult> SetColorAsync(
@@ -414,7 +411,6 @@ public sealed class CollectionsController(
     /// built-in icon stays as the fallback. Same Owner-only + unlock gate as the icon/color edits.
     /// Returns the updated CollectionDto (with a fresh IconImageUrl).
     /// </summary>
-    [Juple.Api.Safety.RequireTermsForSharedCollectionWrites("route")]
     [HttpPut("{id:long}/icon-image")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(6 * 1024 * 1024)]
@@ -462,7 +458,6 @@ public sealed class CollectionsController(
     }
 
     /// <summary>Back to the built-in icon (idempotent). Returns the updated CollectionDto.</summary>
-    [Juple.Api.Safety.RequireTermsForSharedCollectionWrites("route")]
     [HttpDelete("{id:long}/icon-image")]
     [CollectionPermission(CollectionPermission.Edit, requireUnlock: true)]
     public async Task<IActionResult> RemoveIconImageAsync(
@@ -504,7 +499,6 @@ public sealed class CollectionsController(
     /// reused by the anonymous side. Optional body { permission: "read" | "write" } (absent = read)
     /// applies only when a new link is created.
     /// </summary>
-    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPost("{id:long}/share")]
     [CollectionPermission(CollectionPermission.ManageShare, requireUnlock: true)]
     public async Task<IActionResult> EnableShareAsync(
@@ -599,7 +593,6 @@ public sealed class CollectionsController(
     /// on right now (409 publicLinkInactive otherwise, and nobody is sent anything). Unknown or
     /// malformed IDs come back in notFound; one's own ID is skipped.
     /// </summary>
-    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPost("{id:long}/share/link/send")]
     [EnableRateLimiting(RateLimitPolicies.CollectionInvite)]
     public Task<IActionResult> SendShareLinkAsync(
@@ -1114,7 +1107,6 @@ public sealed class CollectionsController(
     /// Invites the user with this exact Juple ID - as a Contributor (공동작업, the default) or a
     /// Viewer (보기 전용 공유, role "viewer"); they must accept it themselves.
     /// </summary>
-    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPost("{id:long}/invitations")]
     [CollectionPermission(CollectionPermission.ManageCollaborators, requireUnlock: true)]
     [EnableRateLimiting(RateLimitPolicies.CollectionInvite)]
@@ -1271,7 +1263,6 @@ public sealed class CollectionsController(
     /// linkAlreadyInCollection / linkAlreadyPending for a proposal of a link that is already there or
     /// already waiting.
     /// </summary>
-    [Juple.Api.Safety.RequireTermsForSharedCollectionWrites("route")]
     [HttpPut("{id:long}/items/{itemId:long}")]
     public Task<IActionResult> AddItemAsync(long id, long itemId, CancellationToken cancellationToken, [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
         ExecuteAsync(
@@ -1285,7 +1276,6 @@ public sealed class CollectionsController(
     /// toggle: the app calls DELETE to take it back). reactionKey must be one of the catalog keys (400
     /// otherwise). Answers the link's reactions as they are now.
     /// </summary>
-    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPut("{id:long}/items/{itemId:long}/reaction")]
     public Task<IActionResult> SetReactionAsync(
         long id,
@@ -1333,7 +1323,6 @@ public sealed class CollectionsController(
             cancellationToken);
 
     /// <summary>Adds the caller's comment (trimmed, 1..1000 characters, 400 otherwise); answers it as stored.</summary>
-    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPost("{id:long}/items/{itemId:long}/comments")]
     public Task<IActionResult> AddCommentAsync(
         long id,
@@ -1367,7 +1356,6 @@ public sealed class CollectionsController(
             cancellationToken);
 
     /// <summary>Hearts a comment for the caller. Idempotent (a repeat is the same answer): {liked: true, likeCount}. 404 for a comment that is not a live one of this link.</summary>
-    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPut("{id:long}/items/{itemId:long}/comments/{commentId:long}/like")]
     public Task<IActionResult> LikeCommentAsync(
         long id,
@@ -1399,7 +1387,6 @@ public sealed class CollectionsController(
     /// Edits the words of the caller's OWN comment (same 1..1000 rule); answers it as stored now, replies and hearts intact.
     /// 403 for somebody else's comment (the Owner included), 404 for a missing or deleted one. Never notifies anybody.
     /// </summary>
-    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPut("{id:long}/items/{itemId:long}/comments/{commentId:long}")]
     public Task<IActionResult> EditCommentAsync(
         long id,
@@ -1564,7 +1551,6 @@ public sealed class CollectionsController(
         ExecuteAsync(userId => restoreCollectionService.RestoreAsync(userId, id, cancellationToken), cancellationToken);
 
     /// <summary>Moves one active Item membership to another owned Collection atomically.</summary>
-    [Juple.Api.Safety.RequireTermsForSharedCollectionWrites("TargetCollectionId")]
     [HttpPost("{sourceCollectionId:long}/items/{itemId:long}/move")]
     [CollectionPermission(CollectionPermission.Reorganize, "sourceCollectionId")]
     public Task<IActionResult> TransferItemAsync(
@@ -1591,7 +1577,6 @@ public sealed class CollectionsController(
     /// atomically. The returned undoOperationId (null only for the source-equals-target no-op) can
     /// be replayed against the dedicated Undo endpoint below to reverse exactly this merge.
     /// </summary>
-    [Juple.Api.Safety.RequireTermsForSharedCollectionWrites("TargetCollectionId")]
     [HttpPost("{sourceCollectionId:long}/merge")]
     [CollectionPermission(CollectionPermission.Reorganize, "sourceCollectionId")]
     public Task<IActionResult> MergeAsync(

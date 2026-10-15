@@ -1159,13 +1159,8 @@
     }
   },
   "safety": {
-    "termsTitle": "Before you use community features",
-    "termsBody": "Please agree to the Terms of Service before using sharing and community features. They explain prohibited content and behavior, reporting, and blocking.",
     "termsViewTerms": "View Terms of Service",
     "termsViewPrivacy": "View Privacy Policy",
-    "termsAgree": "I agree to the Terms of Service.",
-    "termsContinue": "Agree and continue",
-    "termsLater": "Not now",
     "termsSaveFailed": "Couldn't save your agreement. Please try again.",
     "report": "Report",
     "reportReasonTitle": "Why are you reporting this?",
@@ -1193,5 +1188,41 @@
     "blockedUsersEmpty": "You haven't blocked anyone.",
     "userBlockedByYou": "You blocked this user. Unblock them to interact.",
     "interactionNotAllowed": "This action isn't available."
+  },
+  "agreement": {
+    "title": "Welcome!",
+    "subtitle": "Please agree to the terms before you start using Juple.",
+    "agreeAll": "Agree to all",
+    "required": "{{name}} (required)",
+    "termsName": "Terms of Service",
+    "privacyName": "Collection and use of personal information",
+    "next": "Next",
+    "close": "Close and sign out",
+    "viewDetail": "View details",
+    "loadFailed": "We couldn't check the terms. Please try again in a moment.",
+    "terms": {
+      "serviceTitle": "Service",
+      "serviceBody": "Juple lets you save links, organize them into collections, and share and work together with other people.",
+      "contentTitle": "Your content",
+      "contentBody": "The links, notes, photos, and collections you save are yours and are stored and shown only as needed to provide the service. You are responsible for the content you save and share.",
+      "conductTitle": "Prohibited conduct",
+      "conductBody": "Illegal content, infringing other people's rights, harassment, hate or threats, sexual exploitation or content inappropriate for minors, spam, fraud or impersonation, malicious links, unauthorized access, and automated bulk use are not allowed.",
+      "reportTitle": "Reporting and blocking",
+      "reportBody": "You can report users, collections, links, and comments in the app, and you can block other users. Reports are reviewed by people.",
+      "restrictionTitle": "Restrictions",
+      "restrictionBody": "If the terms are violated, content may be restricted or removed, sharing stopped, some features limited, or the account restricted.",
+      "subscriptionTitle": "Free period and subscription",
+      "subscriptionBody": "The first 30 days after you sign up are free. After that a monthly Google Play subscription is required, and deleting your account does not cancel it automatically."
+    },
+    "privacy": {
+      "itemsTitle": "Items we collect",
+      "itemsBody": "• A sign-in identifier (issued by Microsoft Entra External ID; your email address and password are handled by Microsoft and are not stored on Juple's servers)\n• Juple ID, nickname and profile photo (optional), language and time zone\n• Links, notes, photos, collections, friends, invitations, comments, reactions, and support inquiries you enter\n• Terms acceptance record, reports and blocks\n• If you turn on push notifications: app installation ID and push token\n• Service operation logs",
+      "purposeTitle": "Purpose of use",
+      "purposeBody": "To provide the service (saving, organizing, sharing, working together, notifications), verify accounts and keep them secure, handle reports and keep the service safe, answer inquiries, and keep the service stable.",
+      "retentionTitle": "Retention",
+      "retentionBody": "Kept while you keep your account; deleting your account deletes your profile, links, collections, and more. Some records (operation logs up to 30 days, notification history 90 days, and so on) are kept only for the periods stated in the Privacy Policy and then deleted.",
+      "refusalTitle": "Right to refuse",
+      "refusalBody": "You may refuse. However, this item is required to provide the service, so you cannot use Juple without agreeing."
+    }
   }
 }

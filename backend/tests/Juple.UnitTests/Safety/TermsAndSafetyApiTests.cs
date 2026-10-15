@@ -1,23 +1,19 @@
 using System.Reflection;
-using Juple.Api.Controllers;
 using Juple.Api.Safety;
-using Juple.Application.Collections;
-using Juple.Application.Collections.GetCollectionDetail;
-using Juple.Application.Collections.GetCollectionShare;
 using Juple.Application.Identity;
 using Juple.Application.Safety;
 using Juple.Application.Users.CurrentUser;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Juple.UnitTests.Safety;
 
-/// <summary>The server-side Terms gate, the block mapping and which endpoints carry the gate - decided on the API's own types.</summary>
+/// <summary>The server-side Terms gate (every authenticated endpoint except the pinned allowlist) and the block mapping.</summary>
 public sealed class TermsAndSafetyApiTests
 {
     private sealed class Identity : IExternalIdentityAccessor
@@ -48,36 +44,32 @@ public sealed class TermsAndSafetyApiTests
         }
     }
 
-    private sealed class Collections(bool shared) : IGetCollectionDetailService
-    {
-        public Task<CollectionDto> GetAsync(long userId, long collectionId, CancellationToken cancellationToken = default) =>
-            Task.FromResult(new CollectionDto(collectionId, "Test", false, 0, DateTimeOffset.UtcNow,
-                DateTimeOffset.UtcNow, "folder", null, HasCollaborators: shared));
-    }
-
-    private sealed class Shares : IGetCollectionShareService
-    {
-        public Task<CollectionShareDto?> GetAsync(long userId, long collectionId, CancellationToken cancellationToken = default) =>
-            Task.FromResult<CollectionShareDto?>(null);
-    }
-
-    private static ActionExecutingContext Context(bool authenticated = true)
+    private static ActionExecutingContext Context(bool authenticated = true, params object[] endpointMetadata)
     {
         var httpContext = new DefaultHttpContext();
-        httpContext.Request.Method = "POST";
+        httpContext.Request.Method = "GET";
         if (authenticated)
         {
             httpContext.User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity("test"));
         }
 
         return new ActionExecutingContext(
-            new ActionContext(httpContext, new RouteData(), new ActionDescriptor()), new List<IFilterMetadata>(), new Dictionary<string, object?>(), new object());
+            new ActionContext(httpContext, new RouteData(), new ActionDescriptor { EndpointMetadata = endpointMetadata }),
+            new List<IFilterMetadata>(),
+            new Dictionary<string, object?>(),
+            new object());
     }
 
-    private static async Task<(bool NextCalled, IActionResult? Result)> RunAsync(FakeTerms terms, ActionExecutingContext context, bool bootstrapped = true)
+    private static async Task<(bool NextCalled, IActionResult? Result)> RunAsync(
+        FakeTerms terms,
+        ActionExecutingContext context,
+        bool bootstrapped = true,
+        bool enforce = true,
+        TermsAcceptanceCache? cache = null)
     {
         var nextCalled = false;
-        await new RequireTermsAcceptanceFilter(new Identity(), new Users(bootstrapped), terms).OnActionExecutionAsync(
+        var options = new TermsOptions { EnforceAcceptance = enforce };
+        await new RequireTermsAcceptanceFilter(new Identity(), new Users(bootstrapped), terms, options, cache ?? new TermsAcceptanceCache()).OnActionExecutionAsync(
             context,
             () =>
             {
@@ -88,7 +80,7 @@ public sealed class TermsAndSafetyApiTests
     }
 
     [Fact]
-    public async Task NoAcceptance_IsA403_WithTheStableCode_AndTheActionNeverRuns()
+    public async Task NoAcceptance_IsA403_WithTheStableCode_AndTheActionNeverRuns_AlsoForARead()
     {
         var (nextCalled, result) = await RunAsync(new FakeTerms(accepted: false), Context());
 
@@ -99,133 +91,67 @@ public sealed class TermsAndSafetyApiTests
     }
 
     [Fact]
-    public async Task AcceptedUser_PassesThrough_AndAnonymousOrUnbootstrappedRequestsAreLeftToTheAction()
+    public async Task AcceptedUser_PassesThrough_AndIsRememberedPerVersion()
     {
         var accepted = new FakeTerms(accepted: true);
-        var (nextCalled, result) = await RunAsync(accepted, Context());
-        Assert.True(nextCalled);
-        Assert.Null(result);
+        var cache = new TermsAcceptanceCache();
+        Assert.True((await RunAsync(accepted, Context(), cache: cache)).NextCalled);
+        Assert.True((await RunAsync(accepted, Context(), cache: cache)).NextCalled);
         Assert.Equal(1, accepted.Checks);
 
-        var anonymous = new FakeTerms(accepted: false);
-        Assert.True((await RunAsync(anonymous, Context(authenticated: false))).NextCalled);
-        Assert.Equal(0, anonymous.Checks);
+        // A newer current version is a different key: the person is asked again.
+        Assert.True(cache.IsAccepted(7, TermsOptions.DefaultVersion));
+        Assert.False(cache.IsAccepted(7, "2099-01-01"));
+    }
+
+    [Fact]
+    public async Task AllowlistedAnonymousUnbootstrappedAndDisabledRequestsAreNeverBlocked()
+    {
+        var blocking = new FakeTerms(accepted: false);
+
+        // The Agreement flow's own endpoints (and the sign-in lifecycle).
+        Assert.True((await RunAsync(blocking, Context(true, new AllowWithoutTermsAcceptanceAttribute()))).NextCalled);
+
+        // Anonymous callers and anonymous endpoints are never touched.
+        Assert.True((await RunAsync(blocking, Context(authenticated: false))).NextCalled);
+        Assert.True((await RunAsync(blocking, Context(true, new AllowAnonymousAttribute()))).NextCalled);
 
         // Not bootstrapped yet: the action's own 409 answers, exactly as before this gate existed.
-        Assert.True((await RunAsync(new FakeTerms(accepted: false), Context(), bootstrapped: false)).NextCalled);
+        Assert.True((await RunAsync(blocking, Context(), bootstrapped: false)).NextCalled);
+
+        // The rollout switch turns the whole gate off without reading anything.
+        Assert.True((await RunAsync(blocking, Context(), enforce: false)).NextCalled);
+        Assert.Equal(0, blocking.Checks);
     }
 
-    [Theory]
-    [InlineData(false, false, true)]
-    [InlineData(true, false, false)]
-    [InlineData(true, true, true)]
-    public async Task CollectionWrite_RequiresCurrentTermsOnlyWhenTheDestinationIsShared(
-        bool shared, bool accepted, bool expectedNext)
+    /// <summary>
+    /// The complete list of actions that work before the Terms are accepted. Everything else on an authenticated controller is gated by
+    /// the global filter. Adding to this list is a product/legal decision - this test makes it a visible one.
+    /// </summary>
+    [Fact]
+    public void TheEndpointsThatWorkBeforeAcceptance_AreExactlyTheAgreementAndSignInLifecycle()
     {
-        var terms = new FakeTerms(accepted);
-        var context = Context();
-        context.ActionArguments["request"] = new { CollectionIds = new long[] { 42 } };
-        context.HttpContext.RequestServices = new ServiceCollection()
-            .AddSingleton<IExternalIdentityAccessor, Identity>()
-            .AddSingleton<ICurrentJupleUserAccessor>(new Users())
-            .AddSingleton<IGetCollectionDetailService>(new Collections(shared))
-            .AddSingleton<IGetCollectionShareService, Shares>()
-            .AddSingleton<ITermsConsentService>(terms)
-            .BuildServiceProvider();
-        var nextCalled = false;
-        await new RequireTermsForSharedCollectionWritesAttribute("CollectionIds").OnActionExecutionAsync(
-            context,
-            () =>
-            {
-                nextCalled = true;
-                return Task.FromResult(new ActionExecutedContext(context, context.Filters, context.Controller));
-            });
+        var allowed = typeof(RequireTermsAcceptanceFilter).Assembly.GetTypes()
+            .Where(type => type.IsSubclassOf(typeof(ControllerBase)) && !type.IsAbstract)
+            .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                .Where(method => method.GetCustomAttributes<HttpMethodAttribute>().Any())
+                .Where(method => method.GetCustomAttribute<AllowWithoutTermsAcceptanceAttribute>() is not null
+                    || type.GetCustomAttribute<AllowWithoutTermsAcceptanceAttribute>() is not null)
+                .Select(method => $"{type.Name}.{method.Name}"))
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
 
-        Assert.Equal(expectedNext, nextCalled);
-        Assert.Equal(shared ? 1 : 0, terms.Checks);
-        Assert.Equal(expectedNext ? null : "termsAcceptanceRequired",
-            (context.Result as ObjectResult)?.Value is ProblemDetails problem ? problem.Extensions["code"] : null);
-    }
-
-    private sealed class SharedItems(bool shared) : ISafetyStore
-    {
-        public Task<bool> IsItemInSharedCollectionAsync(long itemId, CancellationToken cancellationToken = default) => Task.FromResult(shared);
-
-        public Task<(string? Version, DateTimeOffset? AcceptedAtUtc)> GetTermsAsync(long userId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-
-        public Task<(string Version, DateTimeOffset AcceptedAtUtc)> SetTermsAsync(long userId, string version, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-
-        public Task<ReportTargetResolution> ResolveReportTargetAsync(long reporterUserId, Juple.Domain.Safety.ReportTargetType type, string targetId, long? collectionId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-
-        public Task<bool> TryCreateReportAsync(Juple.Domain.Safety.ContentReport report, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-
-        public Task<bool> AddBlockAsync(long blockerUserId, long blockedUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-
-        public Task<bool> RemoveBlockAsync(long blockerUserId, long blockedUserId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-
-        public Task<IReadOnlyList<BlockedUserDto>> ListBlockedAsync(long blockerUserId, int limit, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-
-        public Task<(bool ByUser, bool ByOther)> GetBlockDirectionsAsync(long userId, long otherUserId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-
-        public Task<IReadOnlySet<long>> GetBlockedUserIdsAsync(long blockerUserId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-    }
-
-    [Theory]
-    [InlineData(false, false, true)]
-    [InlineData(true, false, false)]
-    [InlineData(true, true, true)]
-    public async Task ItemEdit_RequiresCurrentTermsOnlyWhenTheItemLivesInASharedCollection(bool shared, bool accepted, bool expectedNext)
-    {
-        var terms = new FakeTerms(accepted);
-        var context = Context();
-        context.RouteData.Values["itemId"] = "5";
-        context.HttpContext.RequestServices = new ServiceCollection()
-            .AddSingleton<IExternalIdentityAccessor, Identity>()
-            .AddSingleton<ICurrentJupleUserAccessor>(new Users())
-            .AddSingleton<ISafetyStore>(new SharedItems(shared))
-            .AddSingleton<ITermsConsentService>(terms)
-            .BuildServiceProvider();
-        var nextCalled = false;
-        await new RequireTermsForSharedItemWritesAttribute("itemId").OnActionExecutionAsync(
-            context,
-            () =>
-            {
-                nextCalled = true;
-                return Task.FromResult(new ActionExecutedContext(context, context.Filters, context.Controller));
-            });
-
-        Assert.Equal(expectedNext, nextCalled);
-        Assert.Equal(shared ? 1 : 0, terms.Checks);
-    }
-
-    private static MethodInfo Endpoint(Type controller, string route) =>
-        controller.GetMethods(BindingFlags.Public | BindingFlags.Instance)
-            .Single(candidate => candidate.GetCustomAttributes<HttpMethodAttribute>().Any(attribute =>
-                attribute.Template == route.Split(' ', 2)[1] && attribute.HttpMethods.Contains(route.Split(' ', 2)[0])));
-
-    [Theory]
-    [InlineData(typeof(CollectionsController), "PUT {id:long}")]
-    [InlineData(typeof(CollectionsController), "PUT {id:long}/icon")]
-    [InlineData(typeof(CollectionsController), "PUT {id:long}/color")]
-    [InlineData(typeof(CollectionsController), "PUT {id:long}/icon-image")]
-    [InlineData(typeof(CollectionsController), "DELETE {id:long}/icon-image")]
-    [InlineData(typeof(CollectionsController), "POST {sourceCollectionId:long}/items/{itemId:long}/move")]
-    [InlineData(typeof(CollectionsController), "POST {sourceCollectionId:long}/merge")]
-    public void SharedCollectionMetadataAndReorganize_CheckTermsOnlyWhenShared(Type controller, string route) =>
-        Assert.NotNull(Endpoint(controller, route).GetCustomAttribute<RequireTermsForSharedCollectionWritesAttribute>());
-
-    [Theory]
-    [InlineData(typeof(ItemsController), "PUT {id:long}/details")]
-    [InlineData(typeof(ItemsController), "PUT {id:long}/preview-image")]
-    [InlineData(typeof(ItemsController), "PUT {id:long}/cover-image")]
-    [InlineData(typeof(ItemImagesController), "POST ")]
-    public void SharedItemEdits_CheckTermsOnlyWhenShared(Type controller, string route)
-    {
-        var method = controller.GetMethods(BindingFlags.Public | BindingFlags.Instance)
-            .Single(candidate => candidate.GetCustomAttributes<HttpMethodAttribute>().Any(attribute =>
-                (attribute.Template ?? string.Empty) == route.Split(' ', 2)[1] && attribute.HttpMethods.Contains(route.Split(' ', 2)[0])));
-        Assert.NotNull(method.GetCustomAttribute<RequireTermsForSharedItemWritesAttribute>());
-        Assert.Null(method.GetCustomAttribute<RequireTermsAcceptanceAttribute>());
+        Assert.Equal(
+            [
+                "AccountController.DeleteAsync",
+                "AuthSessionController.Get",
+                "CurrentUserBootstrapController.BootstrapAsync",
+                "PushDevicesController.RegisterAsync",
+                "PushDevicesController.UnregisterAsync",
+                "SafetyController.AcceptTermsAsync",
+                "SafetyController.GetTermsAsync",
+            ],
+            allowed);
     }
 
     [Fact]
@@ -245,57 +171,5 @@ public sealed class TermsAndSafetyApiTests
         var unrelated = new ExceptionContext(new ActionContext(new DefaultHttpContext(), new RouteData(), new ActionDescriptor()), new List<IFilterMetadata>()) { Exception = new InvalidOperationException() };
         new UserBlockedExceptionFilter().OnException(unrelated);
         Assert.Null(unrelated.Result);
-    }
-
-    // ---- which endpoints carry the gate ----
-
-    private static bool Gated(Type controller, string httpMethodTemplate)
-    {
-        var method = controller.GetMethods(BindingFlags.Public | BindingFlags.Instance)
-            .Single(candidate => candidate.GetCustomAttributes<HttpMethodAttribute>().Any(attribute => attribute.Template == httpMethodTemplate.Split(' ', 2)[1] || (httpMethodTemplate.Split(' ', 2)[1] == string.Empty && attribute.Template is null))
-                && candidate.GetCustomAttributes<HttpMethodAttribute>().Any(attribute => attribute.HttpMethods.Contains(httpMethodTemplate.Split(' ', 2)[0])));
-        return method.GetCustomAttribute<RequireTermsAcceptanceAttribute>() is not null || controller.GetCustomAttribute<RequireTermsAcceptanceAttribute>() is not null;
-    }
-
-    [Theory]
-    [InlineData(typeof(CollectionsController), "POST {id:long}/share")]
-    [InlineData(typeof(CollectionsController), "POST {id:long}/invitations")]
-    [InlineData(typeof(CollectionsController), "PUT {id:long}/items/{itemId:long}/reaction")]
-    [InlineData(typeof(CollectionsController), "POST {id:long}/items/{itemId:long}/comments")]
-    [InlineData(typeof(CollectionsController), "PUT {id:long}/items/{itemId:long}/comments/{commentId:long}/like")]
-    [InlineData(typeof(FriendsController), "POST requests")]
-    [InlineData(typeof(FriendsController), "POST requests/{requestId:long}/accept")]
-    [InlineData(typeof(CollectionInvitationsController), "POST collection-invitations/{invitationId:long}/accept")]
-    [InlineData(typeof(PublicShareWriteController), "POST join-requests")]
-    [InlineData(typeof(PublicShareWriteController), "POST save")]
-    public void ContentCreatingEndpoints_CarryTheTermsGate(Type controller, string route) => Assert.True(Gated(controller, route), $"{controller.Name} {route}");
-
-    [Theory]
-    [InlineData(typeof(InboxController), "POST ")]
-    [InlineData(typeof(CollectionsController), "PUT {id:long}/items/{itemId:long}")]
-    [InlineData(typeof(ItemCollectionsController), "POST ")]
-    [InlineData(typeof(CollectionItemCopyController), "POST ")]
-    public void CollectionWrites_CheckTermsOnlyWhenDestinationIsShared(Type controller, string route)
-    {
-        var method = controller.GetMethods(BindingFlags.Public | BindingFlags.Instance)
-            .Single(candidate => candidate.GetCustomAttributes<HttpMethodAttribute>().Any(attribute =>
-                attribute.Template == route.Split(' ', 2)[1] || (route.Split(' ', 2)[1] == string.Empty && attribute.Template is null))
-                && candidate.GetCustomAttributes<HttpMethodAttribute>().Any(attribute => attribute.HttpMethods.Contains(route.Split(' ', 2)[0])));
-        Assert.NotNull(method.GetCustomAttribute<RequireTermsForSharedCollectionWritesAttribute>());
-        Assert.False(Gated(controller, route));
-    }
-
-    [Theory]
-    [InlineData(typeof(CollectionsController), "POST ")]
-    [InlineData(typeof(ItemImagesController), "POST ")]
-    public void PrivateWrites_DoNotRequireTerms(Type controller, string route) => Assert.False(Gated(controller, route), $"{controller.Name} {route}");
-
-    [Fact]
-    public void SafetyEndpoints_AreNeverTermsGated_AndAlwaysWorkForAnExpiredSubscription()
-    {
-        Assert.Null(typeof(SafetyController).GetCustomAttribute<RequireTermsAcceptanceAttribute>());
-        Assert.All(typeof(SafetyController).GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-            method => Assert.Null(method.GetCustomAttribute<RequireTermsAcceptanceAttribute>()));
-        Assert.NotNull(typeof(SafetyController).GetCustomAttribute<Juple.Api.Billing.AllowWhenSubscriptionExpiredAttribute>());
     }
 }
