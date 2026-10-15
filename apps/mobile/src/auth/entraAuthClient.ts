@@ -60,10 +60,6 @@ export const FRESH_LOGIN_PARAMETERS: Readonly<Record<string, string>> = {
   max_age: '0',
 };
 
-export const FRESH_SIGNUP_PARAMETERS: Readonly<Record<string, string>> = {
-  prompt: 'create',
-};
-
 /**
  * Runs the Authorization Code + PKCE flow against Microsoft Entra External ID.
  * Does not persist, log, or decode any token. Callers own what happens next.

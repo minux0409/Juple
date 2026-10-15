@@ -58,7 +58,6 @@ function mockUseAuth(overrides: {
     sessionRestoreStep: 'sessionRestore',
     signIn: jest.fn(),
     freshSignIn: jest.fn(),
-    freshSignUp: jest.fn(),
     completeAccountDeletion: jest.fn(),
     getValidAccessToken: jest.fn(),
     retryBootstrap: jest.fn(),

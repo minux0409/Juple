@@ -158,10 +158,7 @@ describe('post-deletion authentication', () => {
     expect(latest.forceFreshAuthenticationAfterDeletion).toBe(true);
   });
 
-  it.each([
-    ['freshSignUp', 'create'],
-    ['freshSignIn', 'login'],
-  ] as const)('%s bypasses the picker and clears the flag after successful bootstrap', async (action, prompt) => {
+  it('fresh sign-in bypasses the picker and clears the flag after successful bootstrap', async () => {
     jest.mocked(getForceFreshAuthenticationAfterDeletion).mockResolvedValue(true);
     jest.mocked(authorize).mockResolvedValue({ accessToken: 'fresh-token', refreshToken: 'fresh-refresh', accessTokenExpirationDate: '2099-01-01T00:00:00Z' } as never);
     jest.mocked(validateBackendSession).mockResolvedValue('valid');
@@ -169,8 +166,8 @@ describe('post-deletion authentication', () => {
     let latest!: ReturnType<typeof useAuth>;
     function Probe() { latest = useAuth(); return null; }
     await act(async () => { ReactTestRenderer.create(<AuthProvider><Probe /></AuthProvider>); });
-    await act(async () => { await latest[action](); });
-    expect(jest.mocked(authorize).mock.calls[0][0].additionalParameters).toMatchObject({ prompt });
+    await act(async () => { await latest.freshSignIn(); });
+    expect(jest.mocked(authorize).mock.calls[0][0].additionalParameters).toMatchObject({ prompt: 'login', max_age: '0' });
     expect(setForceFreshAuthenticationAfterDeletion).toHaveBeenCalledWith(false);
     expect(latest.forceFreshAuthenticationAfterDeletion).toBe(false);
     expect(latest.isAuthenticated).toBe(true);

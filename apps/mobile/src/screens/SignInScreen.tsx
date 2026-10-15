@@ -1,11 +1,18 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
+import { NativeAuthSpikeScreen, nativeAuthSpikeAvailable } from '../auth/NativeAuthSpikeScreen';
 import { ltrTextStyle } from '../theme/tokens';
 
 export function SignInScreen() {
   const { t } = useTranslation();
-  const { signIn, isSigningIn, error } = useAuth();
+  const { signIn, freshSignIn, forceFreshAuthenticationAfterDeletion, isSigningIn, error } = useAuth();
+  const [showNativeSpike, setShowNativeSpike] = useState(false);
+
+  if (showNativeSpike) {
+    return <NativeAuthSpikeScreen onClose={() => setShowNativeSpike(false)} />;
+  }
 
   return (
     <View style={styles.container}>
@@ -19,7 +26,7 @@ export function SignInScreen() {
       <Pressable
         accessibilityRole="button"
         disabled={isSigningIn}
-        onPress={signIn}
+        onPress={forceFreshAuthenticationAfterDeletion ? freshSignIn : signIn}
         style={[styles.button, isSigningIn && styles.buttonDisabled]}
       >
         <Text style={styles.buttonLabel}>
@@ -27,6 +34,11 @@ export function SignInScreen() {
         </Text>
       </Pressable>
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {nativeAuthSpikeAvailable ? (
+        <Pressable accessibilityRole="button" onPress={() => setShowNativeSpike(true)} style={styles.devEntry} testID="native-auth-spike-entry">
+          <Text>Native Auth DEV spike</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -69,4 +81,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
   },
+  devEntry: { marginTop: 32, padding: 12 },
 });

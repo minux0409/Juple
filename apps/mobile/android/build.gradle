@@ -22,3 +22,14 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+// Microsoft's Native Authentication SDK resolves a display-mask dependency from this feed.
+// The SDK itself is scoped to the dogfood variant below; release/Play builds do not include it.
+allprojects {
+    repositories {
+        maven {
+            url 'https://pkgs.dev.azure.com/MicrosoftDeviceSDK/DuoSDK-Public/_packaging/Duo-SDK-Feed/maven/v1'
+            name 'Duo-SDK-Feed'
+        }
+    }
+}

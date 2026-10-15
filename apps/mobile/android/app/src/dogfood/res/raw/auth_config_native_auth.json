@@ -1,0 +1,15 @@
+{
+  "client_id": "c516017f-437c-43f5-966c-c2f0014cd185",
+  "authorities": [
+    {
+      "type": "CIAM",
+      "authority_url": "https://jupledev.ciamlogin.com/d2e79a05-cf5f-43ab-86d2-717e025a74b1/"
+    }
+  ],
+  "challenge_types": ["oob", "password"],
+  "logging": {
+    "pii_enabled": false,
+    "log_level": "ERROR",
+    "logcat_enabled": false
+  }
+}

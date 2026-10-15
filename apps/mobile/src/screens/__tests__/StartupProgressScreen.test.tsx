@@ -33,7 +33,6 @@ function mockAuth(overrides: Partial<AuthContextValue>): void {
     refreshEntitlement: jest.fn(),
     signIn: jest.fn(),
     freshSignIn: jest.fn(),
-    freshSignUp: jest.fn(),
     completeAccountDeletion: jest.fn(),
     signOut: jest.fn(),
     getValidAccessToken: jest.fn(),

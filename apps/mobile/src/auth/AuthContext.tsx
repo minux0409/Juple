@@ -15,7 +15,6 @@ import {
   authorizeWithEntra,
   EntraAuthError,
   FRESH_LOGIN_PARAMETERS,
-  FRESH_SIGNUP_PARAMETERS,
   isEntraSessionInvalidError,
   REAUTHENTICATION_PARAMETERS,
   SIGN_IN_PARAMETERS,
@@ -414,7 +413,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const signIn = useCallback(() => signInWithParameters(SIGN_IN_PARAMETERS, false), [signInWithParameters]);
   const freshSignIn = useCallback(() => signInWithParameters(FRESH_LOGIN_PARAMETERS, true), [signInWithParameters]);
-  const freshSignUp = useCallback(() => signInWithParameters(FRESH_SIGNUP_PARAMETERS, true), [signInWithParameters]);
 
   const signOut = useCallback(async () => {
     await unregisterCurrentPushDeviceBestEffort();
@@ -443,8 +441,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ ...state, signIn, freshSignIn, freshSignUp, completeAccountDeletion, signOut, getValidAccessToken, retryBootstrap, refreshEntitlement, userEmail }),
-    [state, signIn, freshSignIn, freshSignUp, completeAccountDeletion, signOut, retryBootstrap, refreshEntitlement, userEmail],
+    () => ({ ...state, signIn, freshSignIn, completeAccountDeletion, signOut, getValidAccessToken, retryBootstrap, refreshEntitlement, userEmail }),
+    [state, signIn, freshSignIn, completeAccountDeletion, signOut, retryBootstrap, refreshEntitlement, userEmail],
   );
 
   return (

@@ -97,7 +97,6 @@ export type { GetValidAccessTokenOptions };
 export interface AuthContextValue extends AuthState {
   signIn: () => Promise<void>;
   freshSignIn: () => Promise<void>;
-  freshSignUp: () => Promise<void>;
   completeAccountDeletion: () => Promise<void>;
   signOut: () => Promise<void>;
   getValidAccessToken: (

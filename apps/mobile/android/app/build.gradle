@@ -371,6 +371,7 @@ afterEvaluate {
 }
 
 dependencies {
+    dogfoodImplementation('com.microsoft.identity.client:msal:8.5.0')
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
