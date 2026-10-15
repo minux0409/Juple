@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type PropsWithChildren,
 } from 'react';
@@ -13,10 +14,13 @@ import type { TFunction } from 'i18next';
 import {
   authorizeWithEntra,
   EntraAuthError,
+  FRESH_LOGIN_PARAMETERS,
+  FRESH_SIGNUP_PARAMETERS,
   isEntraSessionInvalidError,
   REAUTHENTICATION_PARAMETERS,
   SIGN_IN_PARAMETERS,
 } from './entraAuthClient';
+import { getForceFreshAuthenticationAfterDeletion, setForceFreshAuthenticationAfterDeletion } from './postDeletionAuth';
 import { decodeIdTokenClaims, extractEmailClaim } from './idTokenClaims';
 import {
   clearSession,
@@ -43,6 +47,7 @@ const INITIAL_STATE: AuthState = {
   isInitializing: true,
   isSigningIn: false,
   isAuthenticated: false,
+  forceFreshAuthenticationAfterDeletion: false,
   error: null,
   backendAuthStatus: 'notChecked',
   userBootstrapStatus: 'notStarted',
@@ -57,6 +62,7 @@ const SIGNED_OUT_STATE: AuthState = {
   isInitializing: false,
   isSigningIn: false,
   isAuthenticated: false,
+  forceFreshAuthenticationAfterDeletion: false,
   error: null,
   backendAuthStatus: 'notChecked',
   userBootstrapStatus: 'notStarted',
@@ -125,12 +131,13 @@ function isTransientSessionRestoreError(caughtError: unknown): boolean {
 export function AuthProvider({ children }: PropsWithChildren) {
   const { t } = useTranslation();
   const [state, setState] = useState<AuthState>(INITIAL_STATE);
+  const signInInFlight = useRef(false);
 
   const setSignedOut = useCallback(() => {
     // Every way out of a session (sign-out, an invalidated session, a rejected restore): the shortcuts carry Collection
     // names, so none may survive for whoever signs in next. Fire-and-forget; signOut also awaits it explicitly.
     clearCollectionShortcutsOnLogoutBestEffort().catch(() => undefined);
-    setState(SIGNED_OUT_STATE);
+    setState(previous => ({ ...SIGNED_OUT_STATE, forceFreshAuthenticationAfterDeletion: previous.forceFreshAuthenticationAfterDeletion }));
   }, []);
 
   // Entra rejected the stored sign-in (e.g. the password was reset elsewhere - the session manager has already dropped the tokens):
@@ -153,6 +160,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const runBootstrap = useCallback(async (isMountedRef: { current: boolean }) => {
     try {
+      if (await getForceFreshAuthenticationAfterDeletion()) {
+        await clearSession();
+        if (isMountedRef.current) {
+          setState({ ...SIGNED_OUT_STATE, forceFreshAuthenticationAfterDeletion: true });
+        }
+        return;
+      }
       const accessToken = await getValidAccessToken({
         // Reports the two real sub-phases of restoring a session (see authSessionManager.ts) so
         // the Startup Progress UI can show determinate progress - never a fake timer.
@@ -289,7 +303,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
   }, []);
 
-  const signIn = useCallback(async () => {
+  const signInWithParameters = useCallback(async (parameters: Readonly<Record<string, string>>, afterDeletion: boolean) => {
+    if (signInInFlight.current) {
+      return;
+    }
+    signInInFlight.current = true;
     setState(previous =>
       previous.isSigningIn
         ? previous
@@ -297,7 +315,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     );
 
     try {
-      const result = await authorizeWithEntra(SIGN_IN_PARAMETERS);
+      const result = await authorizeWithEntra(parameters);
       if (!result.accessToken) {
         throw new Error(
           'Entra authorization completed without an access token.',
@@ -370,6 +388,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
             ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement, storeSubscription: bootstrapResult.storeSubscription ?? null, mobileVersionPolicy: bootstrapResult.mobileVersionPolicy }
             : previous,
         );
+        if (afterDeletion && bootstrapResult.status === 'ready') {
+          await setForceFreshAuthenticationAfterDeletion(false);
+          setState(previous => ({ ...previous, forceFreshAuthenticationAfterDeletion: false }));
+        }
       }
     } catch (caughtError) {
       setState(previous => ({
@@ -385,8 +407,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
         storeSubscription: null,
         mobileVersionPolicy: null,
       }));
+    } finally {
+      signInInFlight.current = false;
     }
   }, [t]);
+
+  const signIn = useCallback(() => signInWithParameters(SIGN_IN_PARAMETERS, false), [signInWithParameters]);
+  const freshSignIn = useCallback(() => signInWithParameters(FRESH_LOGIN_PARAMETERS, true), [signInWithParameters]);
+  const freshSignUp = useCallback(() => signInWithParameters(FRESH_SIGNUP_PARAMETERS, true), [signInWithParameters]);
 
   const signOut = useCallback(async () => {
     await unregisterCurrentPushDeviceBestEffort();
@@ -395,6 +423,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
     await clearSession();
     setSignedOut();
   }, [setSignedOut]);
+
+  const completeAccountDeletion = useCallback(async () => {
+    // Persist the routing decision first. Cleanup failures cannot turn a successful server deletion into a failed deletion.
+    await setForceFreshAuthenticationAfterDeletion(true).catch(() => undefined);
+    await unregisterCurrentPushDeviceBestEffort().catch(() => undefined);
+    await clearCollectionShortcutsOnLogoutBestEffort().catch(() => undefined);
+    await purgeLegacyCollectionLockSecrets().catch(() => undefined);
+    await clearSession().catch(() => undefined);
+    setState({ ...SIGNED_OUT_STATE, forceFreshAuthenticationAfterDeletion: true });
+  }, []);
 
   // Display-only - re-decoded from the always-fresh module-level cache rather than threaded through
   // AuthState/every setState call site above (a JWT decode is cheap, and this avoids every one of
@@ -405,8 +443,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ ...state, signIn, signOut, getValidAccessToken, retryBootstrap, refreshEntitlement, userEmail }),
-    [state, signIn, signOut, retryBootstrap, refreshEntitlement, userEmail],
+    () => ({ ...state, signIn, freshSignIn, freshSignUp, completeAccountDeletion, signOut, getValidAccessToken, retryBootstrap, refreshEntitlement, userEmail }),
+    [state, signIn, freshSignIn, freshSignUp, completeAccountDeletion, signOut, retryBootstrap, refreshEntitlement, userEmail],
   );
 
   return (

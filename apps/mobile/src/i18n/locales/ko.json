@@ -408,6 +408,12 @@
     "deleteSummary": "계정과 저장한 모든 데이터가 영구적으로 삭제되며 되돌릴 수 없어요.",
     "deleteAction": "계정 삭제"
   },
+  "postDeletion": {
+    "title": "계정이 삭제되었습니다",
+    "message": "Juple 계정과 로그인 계정의 삭제 처리가 완료되었습니다.",
+    "signUp": "새 계정 만들기",
+    "signIn": "다른 계정으로 로그인"
+  },
   "deleteAccount": {
     "warningTitle": "계정을 삭제하면 되돌릴 수 없어요",
     "warningIntro": "다음 데이터가 모두 영구적으로 삭제돼요.",

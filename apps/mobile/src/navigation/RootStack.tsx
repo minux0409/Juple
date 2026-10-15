@@ -22,6 +22,7 @@ import { BlockedUsersScreen } from '../screens/BlockedUsersScreen';
 import { FriendsScreen } from '../screens/FriendsScreen';
 import { CollectionSharedItemScreen } from '../screens/CollectionSharedItemScreen';
 import { DeleteAccountScreen } from '../screens/DeleteAccountScreen';
+import { PostDeletionScreen } from '../screens/PostDeletionScreen';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
 import type { ItemOpenContext } from '../items/itemOpenGrant';
 import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
@@ -169,6 +170,7 @@ export type RootStackParamList = {
   AuthPending: undefined;
   /** Rendered instead of MainTabs while signed out - see this file's isReady branching. */
   SignIn: undefined;
+  PostDeletion: undefined;
   /**
    * Reachable regardless of authentication state (see this file's isReady branching below and
    * App.tsx, which mounts NavigationContainer/linking unconditionally) - a Collection Sharing link
@@ -191,7 +193,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  */
 export function RootStack() {
   const { t } = useTranslation();
-  const { isAuthenticated, isInitializing, backendAuthStatus, userBootstrapStatus } = useAuth();
+  const { isAuthenticated, isInitializing, backendAuthStatus, userBootstrapStatus, forceFreshAuthenticationAfterDeletion } = useAuth();
   const isBootstrapComplete =
     isAuthenticated && backendAuthStatus === 'valid' && userBootstrapStatus === 'ready';
 
@@ -300,6 +302,8 @@ export function RootStack() {
             name="AuthPending"
             options={{ headerShown: false }}
           />
+        ) : forceFreshAuthenticationAfterDeletion ? (
+          <Stack.Screen component={PostDeletionScreen} name="PostDeletion" options={{ headerShown: false }} />
         ) : (
           <Stack.Screen component={SignInScreen} name="SignIn" options={{ headerShown: false }} />
         )}
