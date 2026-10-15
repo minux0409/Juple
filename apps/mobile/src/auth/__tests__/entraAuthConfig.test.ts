@@ -5,7 +5,7 @@ import {
 } from '../entraAuthConfig';
 
 const fakeProductionEntraEnv = {
-  instance: 'https://jupleprod.ciamlogin.com/',
+  instance: 'https://juple.ciamlogin.com/',
   tenantId: '11111111-1111-1111-1111-111111111111',
   apiClientId: '22222222-2222-2222-2222-222222222222',
   nativeClientId: '33333333-3333-3333-3333-333333333333',
@@ -42,7 +42,7 @@ describe('resolveEntraAuthConfig', () => {
     expect(config.clientId).toBe(fakeProductionEntraEnv.nativeClientId);
     expect(config.issuer).toContain(fakeProductionEntraEnv.tenantId);
     expect(config.authorizationEndpoint).toBe(
-      'https://jupleprod.ciamlogin.com/11111111-1111-1111-1111-111111111111/oauth2/v2.0/authorize',
+      'https://juple.ciamlogin.com/11111111-1111-1111-1111-111111111111/oauth2/v2.0/authorize',
     );
     expect(config.scopes).toContain(
       `api://${fakeProductionEntraEnv.apiClientId}/access_as_user`,

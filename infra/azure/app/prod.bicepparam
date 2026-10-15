@@ -143,9 +143,9 @@ param termsCurrentVersion = '2026-10-14'
 // in Key Vault as entra-account-deletion-client-secret (vault exp set to the same instant) and read through the Managed Identity.
 // This API and the blob-cleanup Job are enabled together (the Job first); apiKeysFromKeyVault above makes it a Key Vault reference. The secret value never goes through a parameter.
 param entraAccountDeletionEnabled = true
-param entraAccountDeletionTenantId = '30b18993-9ccd-42f3-90bd-f2ff819c0f10'
-param entraAccountDeletionClientId = 'a3890a59-3e27-4fb1-8935-e659e396459b'
-param entraAccountDeletionClientSecretName = 'entra-account-deletion-client-secret'
+param entraAccountDeletionTenantId = '9cc10dba-a023-436b-a90b-181829718f38'
+param entraAccountDeletionClientId = '90d45800-2f56-4920-97d7-3323eb1c9372'
+param entraAccountDeletionClientSecretName = 'entra-account-deletion-client-secret-juple'
 
 // -----------------------------------------------------------------------------------------------
 // Mobile update policy (MobileVersionPolicy) - Android builds are versionCode numbers. The app reads it from the anonymous

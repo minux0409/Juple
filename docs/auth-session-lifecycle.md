@@ -118,3 +118,17 @@ Portal changes to make on PROD (**not applied**; exact values):
 After the deletion API succeeds, Mobile clears everything local - each step best effort, so no cleanup failure can turn a successful server deletion into a failed one: push-device unregister, app shortcuts, legacy lock secrets and the stored session - and the root auth state becomes signed out. The app then shows the ordinary sign-in screen ("로그인 / 회원가입"). There is no deletion-complete screen, no special post-deletion sign-in buttons and no persisted post-deletion flag.
 
 Nothing opens a browser automatically after the deletion: no Entra end-session page and no account picker. Authentication starts only when the person presses the sign-in button, with the ordinary parameters (`prompt=select_account`). A restart after the deletion is therefore also the sign-in screen. The system browser may still remember an account tile; that is a separate authentication-UX matter, not something the app triggers.
+
+## PROD External ID tenant: `juple.ciamlogin.com` (2026-10-15)
+
+Production authenticates against the external tenant `juple.onmicrosoft.com` (tenant id `9cc10dba-a023-436b-a90b-181829718f38`, authority `https://juple.ciamlogin.com/`), created because a tenant's `<prefix>.ciamlogin.com` cannot be renamed in place. The earlier tenant `jupleprod` (`30b18993-...`) is kept untouched as the rollback target until the new one has been stable and its removal is approved separately; nothing was migrated (no users, no passwords): every account signs up again in the new tenant.
+
+| Registration | Display name | Client id | Notes |
+| --- | --- | --- | --- |
+| API | Juple | `a61bc80e-2d14-4ff0-9fd7-bc6a63c8e2a0` | `api://a61bc80e-.../access_as_user`, access token v2, `auth_time` optional claim |
+| Mobile (public client) | Juple | `8fef152a-09ca-4a52-b02a-976b16ccd285` | redirect `com.juple.app.auth://oauthredirect`, admin consent for the API scope |
+| Account deletion | Juple Account Deletion | `90d45800-2f56-4920-97d7-3323eb1c9372` | Graph application role `User.ReadWrite.All`; secret in Key Vault as `entra-account-deletion-client-secret-juple` (180 days) |
+
+User flow `JupleSignUpSignIn`: email + password, sign-up allowed, email the only attribute, linked to the Mobile registration. Company branding: the Juple lockup banner (default, en-US, ko-KR). The API still validates the exact issuer the tenant's metadata names (`https://<tenant-id>.ciamlogin.com/<tenant-id>/v2.0`); no issuer rule was loosened.
+
+Rollback: set the API's `Authentication__EntraExternalId__{Instance,TenantId,ClientId}` and `EntraAccountDeletion__{TenantId,ClientId}` plus the `entra-deletion-client-secret` Key Vault reference (`entra-account-deletion-client-secret`) back to the `jupleprod` values above, and build the app with the old `JUPLE_ENTRA_PROD_*` values.

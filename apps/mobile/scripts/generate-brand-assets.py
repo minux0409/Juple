@@ -96,6 +96,6 @@ if __name__ == '__main__':
     lockup, word = build(256)
     save(lockup, os.path.join(OUT, 'juple-lockup.png'), SCALE)
     save(word, os.path.join(OUT, 'juple-wordmark.png'), SCALE)
-    # Entra company branding "banner logo": at most 245 x 36 px (the icon is 36 px high).
-    entra, _ = build(36)
+    # Entra company branding "banner logo": drawn 36 px high by the sign-in page (limit 245 x 36); a 3x export keeps it sharp on phones.
+    entra, _ = build(108)
     save(entra, os.path.join(OUT, 'juple-entra-banner.png'), SCALE)
