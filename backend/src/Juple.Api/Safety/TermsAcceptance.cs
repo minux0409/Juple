@@ -47,6 +47,9 @@ public sealed class RequireTermsAcceptanceAttribute() : TypeFilterAttribute(type
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 public sealed class RequireTermsForSharedCollectionWritesAttribute(string idsFrom) : Attribute, IAsyncActionFilter
 {
+    /// <summary>The route value holding the Collection id when <c>idsFrom</c> is "route" (default <c>id</c>).</summary>
+    public string RouteKey { get; init; } = "id";
+
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
         if (context.HttpContext.User.Identity?.IsAuthenticated != true)
@@ -58,7 +61,7 @@ public sealed class RequireTermsForSharedCollectionWritesAttribute(string idsFro
         IReadOnlyList<long> ids;
         if (idsFrom == "route")
         {
-            ids = long.TryParse(context.RouteData.Values["id"]?.ToString(), out var id) ? [id] : [];
+            ids = long.TryParse(context.RouteData.Values[RouteKey]?.ToString(), out var id) ? [id] : [];
         }
         else
         {
@@ -108,6 +111,47 @@ public sealed class RequireTermsForSharedCollectionWritesAttribute(string idsFro
         catch (CollectionNotFoundException)
         {
             // The action preserves its existing Collection-not-found response.
+        }
+        catch (TermsAcceptanceRequiredException)
+        {
+            context.Result = SafetyProblems.TermsAcceptanceRequired();
+            return;
+        }
+
+        await next();
+    }
+}
+
+/// <summary>
+/// Editing what a shared Collection shows (an Item's title, memo, photos) is publishing to its viewers. The same endpoint stays free of
+/// Terms while the Item lives only in private Collections or none - decided from the server's runtime state, never from the client.
+/// A missing Item falls through to the action's own 404.
+/// </summary>
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+public sealed class RequireTermsForSharedItemWritesAttribute(string routeKey = "id") : Attribute, IAsyncActionFilter
+{
+    public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+    {
+        if (context.HttpContext.User.Identity?.IsAuthenticated != true
+            || !long.TryParse(context.RouteData.Values[routeKey]?.ToString(), out var itemId))
+        {
+            await next();
+            return;
+        }
+
+        var services = context.HttpContext.RequestServices;
+        try
+        {
+            var identity = services.GetRequiredService<IExternalIdentityAccessor>().GetRequired();
+            var user = await services.GetRequiredService<ICurrentJupleUserAccessor>().GetRequiredAsync(identity, context.HttpContext.RequestAborted);
+            if (await services.GetRequiredService<ISafetyStore>().IsItemInSharedCollectionAsync(itemId, context.HttpContext.RequestAborted))
+            {
+                await services.GetRequiredService<ITermsConsentService>().RequireAcceptedAsync(user.UserId, context.HttpContext.RequestAborted);
+            }
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            // The action preserves its existing bootstrap-required response.
         }
         catch (TermsAcceptanceRequiredException)
         {

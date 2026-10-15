@@ -147,6 +147,87 @@ public sealed class TermsAndSafetyApiTests
             (context.Result as ObjectResult)?.Value is ProblemDetails problem ? problem.Extensions["code"] : null);
     }
 
+    private sealed class SharedItems(bool shared) : ISafetyStore
+    {
+        public Task<bool> IsItemInSharedCollectionAsync(long itemId, CancellationToken cancellationToken = default) => Task.FromResult(shared);
+
+        public Task<(string? Version, DateTimeOffset? AcceptedAtUtc)> GetTermsAsync(long userId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<(string Version, DateTimeOffset AcceptedAtUtc)> SetTermsAsync(long userId, string version, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<ReportTargetResolution> ResolveReportTargetAsync(long reporterUserId, Juple.Domain.Safety.ReportTargetType type, string targetId, long? collectionId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<bool> TryCreateReportAsync(Juple.Domain.Safety.ContentReport report, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<bool> AddBlockAsync(long blockerUserId, long blockedUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<bool> RemoveBlockAsync(long blockerUserId, long blockedUserId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<BlockedUserDto>> ListBlockedAsync(long blockerUserId, int limit, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<(bool ByUser, bool ByOther)> GetBlockDirectionsAsync(long userId, long otherUserId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<IReadOnlySet<long>> GetBlockedUserIdsAsync(long blockerUserId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    }
+
+    [Theory]
+    [InlineData(false, false, true)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, true)]
+    public async Task ItemEdit_RequiresCurrentTermsOnlyWhenTheItemLivesInASharedCollection(bool shared, bool accepted, bool expectedNext)
+    {
+        var terms = new FakeTerms(accepted);
+        var context = Context();
+        context.RouteData.Values["itemId"] = "5";
+        context.HttpContext.RequestServices = new ServiceCollection()
+            .AddSingleton<IExternalIdentityAccessor, Identity>()
+            .AddSingleton<ICurrentJupleUserAccessor>(new Users())
+            .AddSingleton<ISafetyStore>(new SharedItems(shared))
+            .AddSingleton<ITermsConsentService>(terms)
+            .BuildServiceProvider();
+        var nextCalled = false;
+        await new RequireTermsForSharedItemWritesAttribute("itemId").OnActionExecutionAsync(
+            context,
+            () =>
+            {
+                nextCalled = true;
+                return Task.FromResult(new ActionExecutedContext(context, context.Filters, context.Controller));
+            });
+
+        Assert.Equal(expectedNext, nextCalled);
+        Assert.Equal(shared ? 1 : 0, terms.Checks);
+    }
+
+    private static MethodInfo Endpoint(Type controller, string route) =>
+        controller.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+            .Single(candidate => candidate.GetCustomAttributes<HttpMethodAttribute>().Any(attribute =>
+                attribute.Template == route.Split(' ', 2)[1] && attribute.HttpMethods.Contains(route.Split(' ', 2)[0])));
+
+    [Theory]
+    [InlineData(typeof(CollectionsController), "PUT {id:long}")]
+    [InlineData(typeof(CollectionsController), "PUT {id:long}/icon")]
+    [InlineData(typeof(CollectionsController), "PUT {id:long}/color")]
+    [InlineData(typeof(CollectionsController), "PUT {id:long}/icon-image")]
+    [InlineData(typeof(CollectionsController), "DELETE {id:long}/icon-image")]
+    [InlineData(typeof(CollectionsController), "POST {sourceCollectionId:long}/items/{itemId:long}/move")]
+    [InlineData(typeof(CollectionsController), "POST {sourceCollectionId:long}/merge")]
+    public void SharedCollectionMetadataAndReorganize_CheckTermsOnlyWhenShared(Type controller, string route) =>
+        Assert.NotNull(Endpoint(controller, route).GetCustomAttribute<RequireTermsForSharedCollectionWritesAttribute>());
+
+    [Theory]
+    [InlineData(typeof(ItemsController), "PUT {id:long}/details")]
+    [InlineData(typeof(ItemsController), "PUT {id:long}/preview-image")]
+    [InlineData(typeof(ItemsController), "PUT {id:long}/cover-image")]
+    [InlineData(typeof(ItemImagesController), "POST ")]
+    public void SharedItemEdits_CheckTermsOnlyWhenShared(Type controller, string route)
+    {
+        var method = controller.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+            .Single(candidate => candidate.GetCustomAttributes<HttpMethodAttribute>().Any(attribute =>
+                (attribute.Template ?? string.Empty) == route.Split(' ', 2)[1] && attribute.HttpMethods.Contains(route.Split(' ', 2)[0])));
+        Assert.NotNull(method.GetCustomAttribute<RequireTermsForSharedItemWritesAttribute>());
+        Assert.Null(method.GetCustomAttribute<RequireTermsAcceptanceAttribute>());
+    }
+
     [Fact]
     public void ABlockIsNeverRevealedToTheBlockedPerson()
     {
