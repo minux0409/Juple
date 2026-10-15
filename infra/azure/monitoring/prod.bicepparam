@@ -15,5 +15,8 @@ param serviceBusNamespaceName = readEnvironmentVariable('JUPLE_MONITORING_PROD_S
 // The on-call mailbox. Supplied at deploy time - never guessed.
 param alertEmailAddress = readEnvironmentVariable('JUPLE_MONITORING_PROD_ALERT_EMAIL')
 
-// Stage 1. Set to true only once the API and workers are deployed.
-param containerAppAlertsEnabled = false
+// Stage 2 (prepared 2026-10-15, not yet deployed): ca-juple-api-prod, ca-juple-web-prod, both workers and the four Jobs exist, and
+// log-juple-prod has ContainerAppSystemLogs_CL rows for every Job (checked with a read-only query) - so the API 5xx, restart and
+// scheduled-Job-failure alerts can be created. The Job alert is what watches caj-juple-blob-cleanup-prod, whose exit code is non-zero
+// while an Entra sign-in account deletion keeps failing (3 failed runs in 30 minutes = 15 minutes of a persisting Graph failure).
+param containerAppAlertsEnabled = true

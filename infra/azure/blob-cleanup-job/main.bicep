@@ -77,12 +77,19 @@ param replicaTimeoutSeconds int = 240
 @description('Kept at 0, unlike ../job/main.bicep\'s Push dispatch Job (which uses 1): the next scheduled execution, five minutes away at most, already serves as the retry for a whole-container failure here, and BlobCleanupService\'s own per-task failure handling (RecordFailedAttemptAsync, leaving the task pending) already covers a single cleanup task failing without blocking the rest of that same run. An immediate whole-Job retry on top of that would mostly just risk overlapping the next scheduled run for no correctness benefit.')
 param replicaRetryLimit int = 0
 
-@description('Finishes pending Entra sign-in account deletions (the same pass as the blob cleanup). Off by default; same settings as ../app/main.bicep. Needs the customer tenant id, the deletion app registration client id and its secret value.')
+@description('Finishes pending Entra sign-in account deletions (the same pass as the blob cleanup). Off by default (the Job then skips that step and keeps any pending rows); same settings as ../app/main.bicep. Needs the customer tenant id, the deletion app registration client id and its client secret - a Key Vault reference (entraAccountDeletionClientSecretFromKeyVault, Production) or the value (Dev).')
 param entraAccountDeletionEnabled bool = false
 param entraAccountDeletionTenantId string = ''
 param entraAccountDeletionClientId string = ''
 
+@description('Vault mode for the deletion client secret, the same pattern as ../app/main.bicep (apiKeysFromKeyVault): the Container Apps secret is a Key Vault reference read through the Managed Identity, so the value never passes through a deployment parameter. Uses keyVaultUri above. Production sets true.')
+param entraAccountDeletionClientSecretFromKeyVault bool = false
+
+@description('Key Vault secret NAME (never a value) of the deletion client secret - used only when entraAccountDeletionClientSecretFromKeyVault. The same vault secret the API reads.')
+param entraAccountDeletionClientSecretName string = 'entra-account-deletion-client-secret'
+
 @secure()
+@description('The deletion client secret as a value (parameter mode, Dev). Leave empty in vault mode. Never committed.')
 param entraAccountDeletionClientSecret string = ''
 
 @description('Smallest Consumption-plan cpu/memory pairing, same as ../app/main.bicep and ../job/main.bicep - listing/deleting a Dev-scale number of Blobs under a handful of pending prefixes needs nothing larger.')
@@ -139,6 +146,39 @@ module sqlConnectionSourceParameterGuard '../app/sql-connection-source-guard.bic
   }
 }
 
+// The Entra deletion client secret: a Key Vault reference (vault mode) or the supplied value (parameter mode). Same secret name in
+// both modes, so the env secretRef below never changes.
+var entraDeletionClientSecret = entraAccountDeletionClientSecretFromKeyVault
+  ? {
+      name: 'entra-deletion-client-secret'
+      keyVaultUrl: '${keyVaultUri}secrets/${entraAccountDeletionClientSecretName}'
+      identity: managedIdentityResourceId
+    }
+  : {
+      name: 'entra-deletion-client-secret'
+      value: entraAccountDeletionClientSecret
+    }
+
+// Fail-closed secret source (see ../app/entra-deletion-secret-source-guard.bicep), only while the deletion is enabled: vault mode
+// needs the vault URI and must not also receive a value; parameter mode needs the value. Only 0/1 flags reach the guard.
+module entraDeletionSecretVaultGuard '../app/entra-deletion-secret-source-guard.bicep' = if (entraAccountDeletionEnabled && entraAccountDeletionClientSecretFromKeyVault) {
+  name: 'juple-${environmentName}-blob-cleanup-job-entra-secret-vault-guard'
+  params: {
+    #disable-next-line BCP329
+    keyVaultUriProvided: empty(keyVaultUri) ? 0 : 1
+    #disable-next-line BCP330
+    plaintextClientSecretSupplied: empty(entraAccountDeletionClientSecret) ? 0 : 1
+  }
+}
+
+module entraDeletionSecretParameterGuard '../app/entra-deletion-secret-source-guard.bicep' = if (entraAccountDeletionEnabled && !entraAccountDeletionClientSecretFromKeyVault) {
+  name: 'juple-${environmentName}-blob-cleanup-job-entra-secret-parameter-guard'
+  params: {
+    #disable-next-line BCP329
+    clientSecretSupplied: empty(entraAccountDeletionClientSecret) ? 0 : 1
+  }
+}
+
 resource blobCleanupJob 'Microsoft.App/jobs@2024-03-01' = {
   name: jobName
   location: location
@@ -178,10 +218,7 @@ resource blobCleanupJob 'Microsoft.App/jobs@2024-03-01' = {
       secrets: concat([
         sqlConnectionStringSecret
       ], entraAccountDeletionEnabled ? [
-        {
-          name: 'entra-deletion-client-secret'
-          value: entraAccountDeletionClientSecret
-        }
+        entraDeletionClientSecret
       ] : [])
     }
     template: {
