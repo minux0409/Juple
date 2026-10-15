@@ -38,7 +38,10 @@
     "progressLoadingUser": "Loading your account",
     "progressReady": "You're all set",
     "retry": "Try again",
-    "logout": "Log out"
+    "logout": "Log out",
+    "reauthRequiredTitle": "Please sign in again",
+    "reauthRequiredMessage": "Your account details have changed or your sign-in session has expired, so you need to sign in again.",
+    "reauthRequiredAction": "Sign in"
   },
   "tabs": {
     "home": "Home",

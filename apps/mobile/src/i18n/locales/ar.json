@@ -38,7 +38,10 @@
     "progressLoadingUser": "جارٍ تحميل حسابك",
     "progressReady": "كل شيء جاهز",
     "retry": "إعادة المحاولة",
-    "logout": "تسجيل الخروج"
+    "logout": "تسجيل الخروج",
+    "reauthRequiredTitle": "يلزم تسجيل الدخول مرة أخرى",
+    "reauthRequiredMessage": "تم تغيير معلومات حسابك أو انتهت صلاحية جلسة تسجيل الدخول، لذا يلزم تسجيل الدخول مرة أخرى.",
+    "reauthRequiredAction": "تسجيل الدخول"
   },
   "tabs": {
     "home": "الرئيسية",

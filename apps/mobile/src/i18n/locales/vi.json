@@ -38,7 +38,10 @@
     "progressLoadingUser": "Đang tải tài khoản của bạn",
     "progressReady": "Đã sẵn sàng",
     "retry": "Thử lại",
-    "logout": "Đăng xuất"
+    "logout": "Đăng xuất",
+    "reauthRequiredTitle": "Cần đăng nhập lại",
+    "reauthRequiredMessage": "Thông tin tài khoản đã thay đổi hoặc phiên đăng nhập đã hết hạn, vì vậy bạn cần đăng nhập lại.",
+    "reauthRequiredAction": "Đăng nhập"
   },
   "tabs": {
     "home": "Trang chủ",

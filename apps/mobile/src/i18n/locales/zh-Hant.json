@@ -38,7 +38,10 @@
     "progressLoadingUser": "正在載入帳號資訊",
     "progressReady": "準備完成",
     "retry": "重試",
-    "logout": "登出"
+    "logout": "登出",
+    "reauthRequiredTitle": "需要重新登入",
+    "reauthRequiredMessage": "由於帳戶資訊已變更或登入工作階段已過期，需要重新登入。",
+    "reauthRequiredAction": "登入"
   },
   "tabs": {
     "home": "首頁",

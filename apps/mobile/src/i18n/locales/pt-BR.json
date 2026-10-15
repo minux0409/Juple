@@ -38,7 +38,10 @@
     "progressLoadingUser": "Carregando sua conta",
     "progressReady": "Tudo pronto",
     "retry": "Tentar novamente",
-    "logout": "Sair"
+    "logout": "Sair",
+    "reauthRequiredTitle": "É preciso entrar novamente",
+    "reauthRequiredMessage": "Os dados da sua conta foram alterados ou sua sessão expirou, por isso é preciso entrar novamente.",
+    "reauthRequiredAction": "Entrar"
   },
   "tabs": {
     "home": "Início",

@@ -38,7 +38,10 @@
     "progressLoadingUser": "กำลังโหลดบัญชีของคุณ",
     "progressReady": "พร้อมใช้งานแล้ว",
     "retry": "ลองอีกครั้ง",
-    "logout": "ออกจากระบบ"
+    "logout": "ออกจากระบบ",
+    "reauthRequiredTitle": "ต้องเข้าสู่ระบบอีกครั้ง",
+    "reauthRequiredMessage": "ข้อมูลบัญชีมีการเปลี่ยนแปลงหรือเซสชันการเข้าสู่ระบบหมดอายุ จึงต้องเข้าสู่ระบบอีกครั้ง",
+    "reauthRequiredAction": "เข้าสู่ระบบ"
   },
   "tabs": {
     "home": "หน้าแรก",

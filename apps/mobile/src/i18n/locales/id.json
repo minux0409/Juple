@@ -38,7 +38,10 @@
     "progressLoadingUser": "Memuat akun Anda",
     "progressReady": "Semua sudah siap",
     "retry": "Coba lagi",
-    "logout": "Keluar"
+    "logout": "Keluar",
+    "reauthRequiredTitle": "Perlu masuk lagi",
+    "reauthRequiredMessage": "Informasi akun Anda telah berubah atau sesi masuk Anda telah berakhir, jadi Anda perlu masuk lagi.",
+    "reauthRequiredAction": "Masuk"
   },
   "tabs": {
     "home": "Beranda",

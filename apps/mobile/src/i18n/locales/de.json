@@ -38,7 +38,10 @@
     "progressLoadingUser": "Konto wird geladen",
     "progressReady": "Alles bereit",
     "retry": "Erneut versuchen",
-    "logout": "Abmelden"
+    "logout": "Abmelden",
+    "reauthRequiredTitle": "Erneute Anmeldung erforderlich",
+    "reauthRequiredMessage": "Ihre Kontodaten wurden geändert oder Ihre Anmeldesitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+    "reauthRequiredAction": "Anmelden"
   },
   "tabs": {
     "home": "Start",

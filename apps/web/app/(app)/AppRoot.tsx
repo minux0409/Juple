@@ -2,16 +2,17 @@
 
 import type { AccountInfo } from '@azure/msal-browser';
 import { useRouter } from 'next/navigation';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { PROFILE_PATH, type UserProfile } from '../../lib/accountDisplay';
 import { createAppApi, type ApiTiming, type AppApi } from '../../lib/appApi';
 import { forgetAllUnlocks } from '../../lib/collectionUnlock';
 import { describeSignInError, signInFailureMessage } from '../../lib/authErrors';
 import { isRtlLanguage, LANGUAGE_COOKIE, type AppDictionary, type AppLanguage, type LanguagePreference } from '../../lib/appI18n';
-import { actionAfterAccountCreationRefused, bootstrapRequestBody, isAccountCreationRefused, statusAfterBootstrapFailure, statusAfterInitialize, type AuthStatus } from '../../lib/authSession';
+import { actionAfterAccountCreationRefused, bootstrapRequestBody, isAccountCreationRefused, isSessionLost, statusAfterBootstrapFailure, statusAfterInitialize, type AuthStatus } from '../../lib/authSession';
 import {
   acquireApiToken,
   apiScopes,
+  checkSession,
   clearAccountCreationMarker,
   markAccountCreationAsked,
   takeAccountCreationMarker,
@@ -24,6 +25,7 @@ import {
   type ReauthenticationResult,
 } from '../../lib/msalClient';
 import { getPerfRecorder } from '../../lib/perfDiagnostics';
+import { ACTIVE_CHECK_INTERVAL_MS, createSessionValidator, FOCUS_CHECK_INTERVAL_MS, type SessionValidator } from '../../lib/sessionValidation';
 import { settleReauthenticationFailure } from '../../lib/reauthFailure';
 import { parseEntitlement, parseStoreSubscription, type Entitlement, type StoreSubscription } from '../../lib/subscription';
 import type { WebAppConfig } from '../../lib/webAppConfig';
@@ -33,6 +35,7 @@ import { SafetyProvider } from './SafetyProvider';
 import { TermsGate } from './TermsGate';
 import { ToastProvider } from './Toaster';
 import { CenteredMessage, Landing } from './Landing';
+import { ReauthDialog } from './ReauthDialog';
 
 interface SignedInApp {
   readonly api: AppApi;
@@ -54,7 +57,7 @@ interface SignedInApp {
   readonly reauthentication: ReauthenticationResult | null;
   readonly clearReauthentication: () => void;
   readonly reauthenticate: (purpose: ReauthenticationPurpose) => void;
-  /** A page found the session gone (AuthExpiredError): sign out locally and show the landing page. */
+  /** A page found the session gone (AuthExpiredError): ask the person to sign in again (one dialog, however many pages report it). */
   readonly onSessionLost: () => void;
   readonly signOut: () => void;
   /** The host of the canonical Collection share links (null = not configured: nothing pasted is taken for one). */
@@ -122,6 +125,11 @@ export function AppRoot({
   // true again when a content write is refused for the missing agreement.
   const [terms, setTerms] = useState<TermsStatus | null>(null);
   const [termsAsked, setTermsAsked] = useState(true);
+  // Entra no longer accepts this sign-in (e.g. the password was reset elsewhere): one non-dismissable "sign in again" dialog.
+  const [reauthRequired, setReauthRequired] = useState(false);
+  const [reauthBusy, setReauthBusy] = useState(false);
+  const requireReauthentication = useCallback(() => setReauthRequired(true), []);
+  const validatorRef = useRef<SessionValidator | null>(null);
   const rawApi = useMemo<AppApi | null>(() => {
     if (!config) {
       return null;
@@ -212,14 +220,50 @@ export function AppRoot({
         await clearLocalSession(dictionary.sessionEnded);
         return;
       }
-      const next = statusAfterBootstrapFailure(error);
-      if (next === 'signedOut') {
-        await clearLocalSession(dictionary.sessionEnded);
-      } else {
-        setStatus(next);
+      if (isSessionLost(error)) {
+        requireReauthentication();
+        setStatus('signedOut');
+        return;
       }
+      setStatus(statusAfterBootstrapFailure(error));
     }
-  }, [api, clearLocalSession, config, dictionary.sessionEnded]);
+  }, [api, clearLocalSession, config, dictionary.sessionEnded, requireReauthentication]);
+
+  // Session checks (see lib/sessionValidation.ts): right after the app is ready (a reload included), when the tab becomes visible or
+  // focused again, and every few minutes while it is visible. Only an Entra answer of "sign in again" opens the dialog; a failure to
+  // ask (offline, timeout) changes nothing.
+  useEffect(() => {
+    if (status !== 'ready' || !config) {
+      return;
+    }
+    const validator =
+      validatorRef.current ??
+      (validatorRef.current = createSessionValidator({
+        validate: async () => {
+          const msal = currentMsal();
+          return msal ? checkSession(msal, config) : 'transient';
+        },
+        onReauthRequired: requireReauthentication,
+      }));
+    void validator.check(FOCUS_CHECK_INTERVAL_MS);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void validator.check(FOCUS_CHECK_INTERVAL_MS);
+      }
+    };
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void validator.check(ACTIVE_CHECK_INTERVAL_MS);
+      }
+    }, FOCUS_CHECK_INTERVAL_MS);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [config, requireReauthentication, status]);
 
   useEffect(() => {
     if (!config) {
@@ -308,9 +352,29 @@ export function AppRoot({
     [config],
   );
 
-  const onSessionLost = useCallback(() => {
-    void clearLocalSession(dictionary.sessionEnded);
-  }, [clearLocalSession, dictionary.sessionEnded]);
+  const onSessionLost = requireReauthentication;
+
+  // 로그인하기: forget this tab's tokens and account (local only - Entra already ended the session), then sign in again and come back
+  // to the same page. Nothing the page held (a half-written form) is kept.
+  const confirmReauthentication = useCallback(async () => {
+    const msal = currentMsal();
+    if (!config || !msal) {
+      return;
+    }
+    setReauthBusy(true);
+    await clearLocalSession(null);
+    validatorRef.current = null;
+    setStatus('redirecting');
+    try {
+      await msal.loginRedirect({ scopes: apiScopes(config), redirectStartPage: window.location.href });
+    } catch (error) {
+      reportSignInError('loginRedirect', error);
+      setReauthRequired(false);
+      setReauthBusy(false);
+      setNotice(signInFailureMessage(error, dictionary));
+      setStatus('signedOut');
+    }
+  }, [clearLocalSession, config, dictionary]);
 
   const setLanguagePreference = useCallback(
     (preference: LanguagePreference) => {
@@ -392,6 +456,7 @@ export function AppRoot({
   return (
     <div dir={isRtlLanguage(language) ? 'rtl' : 'ltr'} lang={language}>
       {content}
+      <ReauthDialog busy={reauthBusy} dictionary={dictionary} onConfirm={() => void confirmReauthentication()} open={reauthRequired} />
     </div>
   );
 }

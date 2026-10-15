@@ -38,7 +38,10 @@
     "progressLoadingUser": "Загружаем вашу учётную запись",
     "progressReady": "Всё готово",
     "retry": "Повторить",
-    "logout": "Выйти"
+    "logout": "Выйти",
+    "reauthRequiredTitle": "Требуется повторный вход",
+    "reauthRequiredMessage": "Данные учётной записи изменились или срок действия сеанса истёк, поэтому нужно войти снова.",
+    "reauthRequiredAction": "Войти"
   },
   "tabs": {
     "home": "Главная",

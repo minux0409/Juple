@@ -38,7 +38,10 @@
     "progressLoadingUser": "Hesabınız yükleniyor",
     "progressReady": "Her şey hazır",
     "retry": "Tekrar dene",
-    "logout": "Oturumu kapat"
+    "logout": "Oturumu kapat",
+    "reauthRequiredTitle": "Yeniden giriş yapmanız gerekiyor",
+    "reauthRequiredMessage": "Hesap bilgileriniz değişti veya oturumunuzun süresi doldu; bu nedenle yeniden giriş yapmanız gerekiyor.",
+    "reauthRequiredAction": "Giriş yap"
   },
   "tabs": {
     "home": "Ana Sayfa",

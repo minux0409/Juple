@@ -38,7 +38,10 @@
     "progressLoadingUser": "Caricamento del tuo account in corso",
     "progressReady": "Tutto pronto",
     "retry": "Riprova",
-    "logout": "Esci"
+    "logout": "Esci",
+    "reauthRequiredTitle": "Accedi di nuovo",
+    "reauthRequiredMessage": "I dati del tuo account sono cambiati o la sessione di accesso è scaduta, quindi devi accedere di nuovo.",
+    "reauthRequiredAction": "Accedi"
   },
   "tabs": {
     "home": "Home",

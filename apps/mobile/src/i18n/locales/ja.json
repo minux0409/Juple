@@ -38,7 +38,10 @@
     "progressLoadingUser": "アカウント情報を読み込んでいます",
     "progressReady": "準備が完了しました",
     "retry": "再試行",
-    "logout": "ログアウト"
+    "logout": "ログアウト",
+    "reauthRequiredTitle": "再度ログインが必要です",
+    "reauthRequiredMessage": "アカウント情報が変更されたか、ログインセッションの有効期限が切れたため、再度ログインが必要です。",
+    "reauthRequiredAction": "ログインする"
   },
   "tabs": {
     "home": "ホーム",

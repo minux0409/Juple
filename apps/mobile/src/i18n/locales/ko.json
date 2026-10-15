@@ -38,7 +38,10 @@
     "progressLoadingUser": "사용자 정보를 불러오고 있어요",
     "progressReady": "준비가 완료되었습니다",
     "retry": "다시 시도",
-    "logout": "로그아웃"
+    "logout": "로그아웃",
+    "reauthRequiredTitle": "다시 로그인이 필요합니다",
+    "reauthRequiredMessage": "계정 정보가 변경되었거나 로그인 세션이 만료되어 다시 로그인이 필요합니다.",
+    "reauthRequiredAction": "로그인하기"
   },
   "tabs": {
     "home": "홈",

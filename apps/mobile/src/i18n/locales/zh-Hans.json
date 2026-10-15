@@ -38,7 +38,10 @@
     "progressLoadingUser": "正在加载账户信息",
     "progressReady": "准备完成",
     "retry": "重试",
-    "logout": "退出登录"
+    "logout": "退出登录",
+    "reauthRequiredTitle": "需要重新登录",
+    "reauthRequiredMessage": "由于账户信息已更改或登录会话已过期，需要重新登录。",
+    "reauthRequiredAction": "登录"
   },
   "tabs": {
     "home": "主页",

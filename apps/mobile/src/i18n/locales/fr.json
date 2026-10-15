@@ -38,7 +38,10 @@
     "progressLoadingUser": "Chargement de votre compte",
     "progressReady": "Tout est prêt",
     "retry": "Réessayer",
-    "logout": "Se déconnecter"
+    "logout": "Se déconnecter",
+    "reauthRequiredTitle": "Reconnexion nécessaire",
+    "reauthRequiredMessage": "Les informations de votre compte ont changé ou votre session a expiré. Veuillez vous reconnecter.",
+    "reauthRequiredAction": "Se connecter"
   },
   "tabs": {
     "home": "Accueil",

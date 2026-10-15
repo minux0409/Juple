@@ -4,7 +4,8 @@
  *
  *  - 401: ask for a FRESH token once and retry once. A second 401 (or no token at all) is a lost session - AuthExpiredError, and
  *    the app signs out locally. Never a retry loop.
- *  - The network failed (no response): ApiNetworkError. The session is NOT touched - the page offers a retry.
+ *  - The network failed (no response), or the token source could not tell (it threw - offline, timeout): ApiNetworkError. The
+ *    session is NOT touched - the page offers a retry.
  *  - Any other non-2xx: ApiHttpError with the status (and the problem code when the API sent one).
  */
 export class AuthExpiredError extends Error {
@@ -33,7 +34,10 @@ export class ApiHttpError extends Error {
   }
 }
 
-/** Returns an access token for the Juple API; forceRefresh skips any cached token. Null = no signed-in session. */
+/**
+ * Returns an access token for the Juple API; forceRefresh skips any cached token. Null = no signed-in session (sign in again);
+ * throwing = could not tell right now (treated as a network failure).
+ */
 export type AccessTokenSource = (options: { readonly forceRefresh: boolean }) => Promise<string | null>;
 
 export interface AppApiRequest {
@@ -94,9 +98,18 @@ export function createAppApi(options: {
     }
   };
 
+  // A token source that THROWS could not tell (offline, timeout): that is a network failure, never a lost session.
+  const tokenFor = async (forceRefresh: boolean): Promise<string | null> => {
+    try {
+      return await options.getAccessToken({ forceRefresh });
+    } catch {
+      throw new ApiNetworkError();
+    }
+  };
+
   return async <T>(request: AppApiRequest): Promise<T> => {
     const started = now();
-    const token = await options.getAccessToken({ forceRefresh: false });
+    const token = await tokenFor(false);
     if (!token) {
       throw new AuthExpiredError();
     }
@@ -122,7 +135,7 @@ export function createAppApi(options: {
     let response = await send(request, token);
     headersAt = now();
     if (response.status === 401) {
-      const fresh = await options.getAccessToken({ forceRefresh: true });
+      const fresh = await tokenFor(true);
       if (!fresh) {
         throw new AuthExpiredError();
       }

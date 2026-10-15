@@ -38,7 +38,10 @@
     "progressLoadingUser": "आपका खाता लोड हो रहा है",
     "progressReady": "सब कुछ तैयार है",
     "retry": "फिर से प्रयास करें",
-    "logout": "लॉग आउट करें"
+    "logout": "लॉग आउट करें",
+    "reauthRequiredTitle": "फिर से साइन इन करना ज़रूरी है",
+    "reauthRequiredMessage": "आपके खाते की जानकारी बदल गई है या साइन-इन सत्र समाप्त हो गया है, इसलिए फिर से साइन इन करना होगा।",
+    "reauthRequiredAction": "साइन इन करें"
   },
   "tabs": {
     "home": "होम",

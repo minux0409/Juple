@@ -38,7 +38,10 @@
     "progressLoadingUser": "Cargando tu cuenta",
     "progressReady": "Todo listo",
     "retry": "Reintentar",
-    "logout": "Cerrar sesión"
+    "logout": "Cerrar sesión",
+    "reauthRequiredTitle": "Vuelve a iniciar sesión",
+    "reauthRequiredMessage": "Los datos de tu cuenta han cambiado o tu sesión ha caducado, por lo que debes volver a iniciar sesión.",
+    "reauthRequiredAction": "Iniciar sesión"
   },
   "tabs": {
     "home": "Inicio",

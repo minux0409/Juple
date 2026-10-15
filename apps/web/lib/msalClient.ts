@@ -1,4 +1,5 @@
 import { BrowserCacheLocation, PublicClientApplication, type AccountInfo } from '@azure/msal-browser';
+import { classifyTokenFailure, TokenUnavailableError, type SessionCheck } from './sessionValidation.ts';
 import { knownAuthorityHosts, redirectUriFor, type WebAppConfig } from './webAppConfig.ts';
 
 /**
@@ -180,7 +181,10 @@ export async function startReauthentication(msal: PublicClientApplication, confi
   });
 }
 
-/** An access token for the Juple API without any UI; null when only an interactive sign-in could get one (the session is gone). */
+/**
+ * An access token for the Juple API without any UI; null when only an interactive sign-in could get one (the session is gone).
+ * Any other failure (offline, timeout, Entra unreachable) throws TokenUnavailableError - the session is kept and the call can be retried.
+ */
 export async function acquireApiToken(
   msal: PublicClientApplication,
   config: WebAppConfig,
@@ -193,8 +197,27 @@ export async function acquireApiToken(
   try {
     const result = await msal.acquireTokenSilent({ account, scopes: apiScopes(config), forceRefresh });
     return result.accessToken || null;
-  } catch {
-    // Interaction required (expired refresh token, revoked consent ...) or the silent call failed: there is no usable session.
-    return null;
+  } catch (error) {
+    if (classifyTokenFailure(error) === 'reauthRequired') {
+      return null;
+    }
+    throw new TokenUnavailableError();
+  }
+}
+
+/**
+ * Whether Entra still accepts this sign-in: a forced silent refresh (skips the cached access token, which outlives a revocation).
+ * Used only by the session checks in AppRoot - never per API call. The token itself is not kept or shown here.
+ */
+export async function checkSession(msal: PublicClientApplication, config: WebAppConfig): Promise<SessionCheck> {
+  const account = msal.getActiveAccount();
+  if (!account) {
+    return 'reauthRequired';
+  }
+  try {
+    await msal.acquireTokenSilent({ account, scopes: apiScopes(config), forceRefresh: true });
+    return 'valid';
+  } catch (error) {
+    return classifyTokenFailure(error);
   }
 }
