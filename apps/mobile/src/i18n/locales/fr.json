@@ -408,12 +408,6 @@
     "deleteSummary": "Votre compte et tout ce que vous avez enregistré seront définitivement supprimés. Cette action est irréversible.",
     "deleteAction": "Supprimer le compte"
   },
-  "postDeletion": {
-    "title": "Compte supprimé",
-    "message": "Votre compte Juple et votre compte de connexion ont été supprimés.",
-    "signUp": "Créer un nouveau compte",
-    "signIn": "Se connecter avec un autre compte"
-  },
   "deleteAccount": {
     "warningTitle": "La suppression de votre compte est irréversible",
     "warningIntro": "Tous les éléments suivants seront définitivement supprimés :",
@@ -1166,7 +1160,7 @@
   },
   "safety": {
     "termsTitle": "Conditions d'utilisation",
-    "termsBody": "Avant d'enregistrer des liens ou de les partager avec d'autres personnes, lisez et acceptez les Conditions d'utilisation. Elles expliquent ce qui n'est pas autorisé et comment fonctionnent les signalements et les blocages.",
+    "termsBody": "Avant d'utiliser les fonctions de partage et de communauté, lisez et acceptez les Conditions d'utilisation. Elles expliquent les contenus et comportements interdits, les signalements et le blocage.",
     "termsViewTerms": "Voir les Conditions d'utilisation",
     "termsViewPrivacy": "Voir la Politique de confidentialité",
     "termsAgree": "J'accepte les Conditions d'utilisation.",

@@ -1,18 +1,24 @@
-/**
- * A content write the server refused for the missing Terms agreement (403 termsAcceptanceRequired) asks the app to show the
- * agreement again - from anywhere, with no screen having to know about it. A tiny listener list; nothing is stored.
- */
-type Listener = () => void;
+/** The mounted Terms dialog answers a pending UGC write before it is sent. */
+type Listener = (resolve: (accepted: boolean) => void, refresh: boolean) => void;
 
-const listeners = new Set<Listener>();
+let listener: Listener | null = null;
 
-export function onTermsAcceptanceRequired(listener: Listener): () => void {
-  listeners.add(listener);
+export function onTermsAcceptanceRequired(next: Listener): () => void {
+  listener = next;
   return () => {
-    listeners.delete(listener);
+    if (listener === next) {
+      listener = null;
+    }
   };
 }
 
-export function notifyTermsAcceptanceRequired(): void {
-  listeners.forEach(listener => listener());
+/** False when the user cancels or no interactive app screen is mounted. */
+export function requestTermsAcceptance(refresh = false): Promise<boolean> {
+  return new Promise(resolve => {
+    if (!listener) {
+      resolve(false);
+      return;
+    }
+    listener(resolve, refresh);
+  });
 }

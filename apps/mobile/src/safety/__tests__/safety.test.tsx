@@ -17,7 +17,7 @@ import {
   submitReport,
   unblockUser,
 } from '../safetyApi';
-import { notifyTermsAcceptanceRequired } from '../termsRequiredEvents';
+import { requestTermsAcceptance } from '../termsRequiredEvents';
 
 const mockRequest = jest.fn();
 jest.mock('../../api/useAuthenticatedApi', () => ({ useAuthenticatedApi: () => mockRequest }));
@@ -152,11 +152,13 @@ describe('TermsGate', () => {
     return renderer;
   }
 
-  it('asks an account that has not accepted: links, an unchecked agreement, and accept only after checking it', async () => {
+  it('asks only at the first UGC action: links, an unchecked agreement, and accept only after checking it', async () => {
     jest.mocked(getTermsStatus).mockResolvedValue(status(false));
     jest.mocked(acceptTerms).mockResolvedValue(status(true));
     const renderer = await mount();
-
+    expect(exists(renderer, 'terms-gate')).toBe(false);
+    let continuation!: Promise<boolean>;
+    await act(async () => { continuation = requestTermsAcceptance(); });
     expect(exists(renderer, 'terms-gate')).toBe(true);
     expect(exists(renderer, 'terms-view-terms')).toBe(true);
     expect(exists(renderer, 'terms-view-privacy')).toBe(true);
@@ -168,29 +170,35 @@ describe('TermsGate', () => {
 
     expect(acceptTerms).toHaveBeenCalledWith(expect.any(Function), '2026-10-14');
     expect(exists(renderer, 'terms-gate')).toBe(false);
+    await expect(continuation).resolves.toBe(true);
   });
 
   it('does not ask an account that already accepted the current version', async () => {
     jest.mocked(getTermsStatus).mockResolvedValue(status(true));
     const renderer = await mount();
     expect(exists(renderer, 'terms-gate')).toBe(false);
+    await expect(requestTermsAcceptance()).resolves.toBe(true);
+    expect(exists(renderer, 'terms-gate')).toBe(false);
   });
 
   it('asks again for a version the person has not accepted (the server says not accepted)', async () => {
     jest.mocked(getTermsStatus).mockResolvedValue({ currentVersion: '2027-01-01', acceptedVersion: '2026-10-14', isAccepted: false });
     const renderer = await mount();
+    expect(exists(renderer, 'terms-gate')).toBe(false);
+    await act(async () => { requestTermsAcceptance().catch(() => undefined); });
     expect(exists(renderer, 'terms-gate')).toBe(true);
   });
 
-  it('"나중에" closes it, and a refused content write (termsAcceptanceRequired) opens it again', async () => {
+  it('cancel stops only the attempted UGC action and a later attempt can ask again', async () => {
     jest.mocked(getTermsStatus).mockResolvedValue(status(false));
     const renderer = await mount();
+    let first!: Promise<boolean>;
+    await act(async () => { first = requestTermsAcceptance(); });
     await press(renderer, 'terms-later');
+    await expect(first).resolves.toBe(false);
     expect(exists(renderer, 'terms-gate')).toBe(false);
 
-    await act(async () => {
-      notifyTermsAcceptanceRequired();
-    });
+    await act(async () => { requestTermsAcceptance().catch(() => undefined); });
     expect(exists(renderer, 'terms-gate')).toBe(true);
   });
 
@@ -200,12 +208,14 @@ describe('TermsGate', () => {
     const renderer = await mount();
     expect(getTermsStatus).not.toHaveBeenCalled();
     expect(exists(renderer, 'terms-gate')).toBe(false);
+    await expect(requestTermsAcceptance()).resolves.toBe(false);
   });
 
   it('keeps the dialog and says so when saving the agreement fails', async () => {
     jest.mocked(getTermsStatus).mockResolvedValue(status(false));
     jest.mocked(acceptTerms).mockRejectedValue(new ApiError('unavailable'));
     const renderer = await mount();
+    await act(async () => { requestTermsAcceptance().catch(() => undefined); });
     await press(renderer, 'terms-agree');
     await press(renderer, 'terms-accept');
     expect(exists(renderer, 'terms-error')).toBe(true);

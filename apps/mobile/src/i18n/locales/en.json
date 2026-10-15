@@ -408,12 +408,6 @@
     "deleteSummary": "Your account and everything you saved will be permanently deleted. This can't be undone.",
     "deleteAction": "Delete account"
   },
-  "postDeletion": {
-    "title": "Account deleted",
-    "message": "Your Juple account and sign-in account have been deleted.",
-    "signUp": "Create a new account",
-    "signIn": "Sign in with another account"
-  },
   "deleteAccount": {
     "warningTitle": "Deleting your account can't be undone",
     "warningIntro": "All of the following will be permanently deleted:",
@@ -1165,8 +1159,8 @@
     }
   },
   "safety": {
-    "termsTitle": "Terms of Service",
-    "termsBody": "Before you save links or share with other people, please read and agree to the Terms of Service. They explain what is not allowed and how reports and blocking work.",
+    "termsTitle": "Before you use community features",
+    "termsBody": "Please agree to the Terms of Service before using sharing and community features. They explain prohibited content and behavior, reporting, and blocking.",
     "termsViewTerms": "View Terms of Service",
     "termsViewPrivacy": "View Privacy Policy",
     "termsAgree": "I agree to the Terms of Service.",
