@@ -67,6 +67,7 @@ import { useViewModePreference } from '../settings/viewModePreference';
 import { isNameSort, nextDateSort, nextNameSort, useSortPreference } from '../settings/sortPreference';
 import { sortLinksByName } from '../collections/sortCollectionItems';
 import { NAME_ORDER_MAX_LINKS } from '../collections/useCollectionItems';
+import { JupleBrandMark } from '../components/JupleBrandMark';
 import { ScreenTitleGlyph } from '../components/ScreenTitle';
 import { ClockIcon } from '../icons/ClockIcon';
 import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
@@ -566,7 +567,7 @@ export function DailyInboxScreen() {
         ListHeaderComponent={
           <View>
             <View style={styles.brandRow}>
-              <Text style={[styles.brand, ltrTextStyle]}>Juple</Text>
+              <JupleBrandMark size="small" />
               {/* 알림 - Home's top end, the one place it lives (not on every screen). */}
               <NotificationBellButton onPress={() => navigation.navigate('Notifications')} />
             </View>
@@ -714,11 +715,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: spacing.lg,
-  },
-  brand: {
-    color: colors.textPrimary,
-    fontSize: 28,
-    fontWeight: '800',
   },
   inputWrapper: {
     marginTop: spacing.md,

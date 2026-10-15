@@ -7,6 +7,7 @@ import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { useMessageDialog } from '../components/useMessageDialog';
 import { legalLinks } from '../config/legalLinks';
 import { ChevronIcon } from '../icons/ChevronIcon';
+import { JupleBrandMark } from '../components/JupleBrandMark';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { getAppInfo } from '../support/appInfo';
 import { cardShadow, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
@@ -62,7 +63,7 @@ export function CustomerCenterScreen() {
 
         <Text accessibilityRole="header" style={styles.sectionTitle}>{t('customerCenter.appInfoHeading')}</Text>
         <View style={[styles.card, styles.appInfo]}>
-          <Text style={styles.appName}>Juple</Text>
+          <JupleBrandMark size="small" />
           <Text style={styles.version} testID="customer-center-version">{t('customerCenter.version', { version: appInfo.version, build: appInfo.build })}</Text>
         </View>
       </ScrollView>
@@ -89,6 +90,5 @@ const styles = StyleSheet.create({
   navRow: { alignItems: 'center', columnGap: spacing.sm, flexDirection: 'row', minHeight: minTouchTarget, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2 },
   navLabel: { color: colors.textPrimary, flex: 1, fontSize: 15, fontWeight: '600' },
   appInfo: { padding: spacing.md },
-  appName: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
   version: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
 });

@@ -60,7 +60,8 @@ describe('StartupProgressScreen', () => {
     mockAuth({ sessionRestoreStep: 'sessionRestore' });
     const renderer = await renderScreen();
 
-    expect(renderer.root.findAllByType(Text)).toHaveLength(2); // brand + the single progress message
+    expect(renderer.root.findAllByType(Text)).toHaveLength(1); // the single progress message (the brand is the lockup image)
+    expect(renderer.root.findAllByProps({ testID: 'juple-brand-mark' }).length).toBeGreaterThan(0);
     expect(renderer.root.findByProps({ children: '로그인 정보를 확인하고 있어요' })).toBeTruthy();
   });
 

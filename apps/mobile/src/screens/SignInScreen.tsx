@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
-import { ltrTextStyle } from '../theme/tokens';
+import { JupleBrandMark } from '../components/JupleBrandMark';
 
 export function SignInScreen() {
   const { t } = useTranslation();
@@ -9,8 +9,7 @@ export function SignInScreen() {
 
   return (
     <View style={styles.container}>
-      {/* The Juple brand name is never translated or mirrored - see theme/tokens.ts's ltrTextStyle. */}
-      <Text style={[styles.title, ltrTextStyle]}>Juple</Text>
+      <JupleBrandMark size="large" style={styles.brand} />
       <Text style={styles.tagline}>
         {t('auth.taglineLine1')}
         {'\n'}
@@ -38,10 +37,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    marginBottom: 12,
+  brand: {
+    marginBottom: 16,
   },
   tagline: {
     fontSize: 15,

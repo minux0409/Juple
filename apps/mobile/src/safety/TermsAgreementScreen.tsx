@@ -7,7 +7,8 @@ import { legalLinks } from '../config/legalLinks';
 import { ChevronIcon } from '../icons/ChevronIcon';
 import { CheckIcon } from '../icons/CheckIcon';
 import { CloseIcon } from '../icons/CloseIcon';
-import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { JupleBrandMark } from '../components/JupleBrandMark';
 
 type Document = 'terms' | 'privacy';
 
@@ -62,7 +63,7 @@ export function TermsAgreementScreen({ isSaving, saveFailed, onAccept, onClose }
       </View>
 
       <ScrollView contentContainerStyle={styles.content} style={styles.scroll}>
-        <Text style={[styles.brand, ltrTextStyle]}>Juple</Text>
+        <JupleBrandMark size="medium" style={styles.brand} />
         <Text accessibilityRole="header" style={styles.title}>{t('agreement.title')}</Text>
         <Text style={styles.subtitle}>{t('agreement.subtitle')}</Text>
 
@@ -229,7 +230,7 @@ const styles = StyleSheet.create({
   closeButton: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
   scroll: { flex: 1 },
   content: { alignSelf: 'center', maxWidth: 560, paddingHorizontal: spacing.xl, paddingBottom: spacing.lg, width: '100%' },
-  brand: { color: colors.brand, fontSize: 28, fontWeight: '800', marginTop: spacing.md },
+  brand: { marginTop: spacing.md },
   title: { color: colors.textPrimary, fontSize: 28, fontWeight: '800', marginTop: spacing.lg },
   subtitle: { color: colors.textSecondary, fontSize: 15, lineHeight: 22, marginBottom: spacing.xl, marginTop: spacing.sm },
   row: { alignItems: 'center', flexDirection: 'row', minHeight: minTouchTarget + 8 },

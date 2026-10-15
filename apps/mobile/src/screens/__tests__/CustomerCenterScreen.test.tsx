@@ -48,8 +48,9 @@ describe('CustomerCenterScreen', () => {
       i18n.t('customerCenter.inquiryHeading'),
       i18n.t('inquiry.title'),
       i18n.t('customerCenter.appInfoHeading'),
-      'Juple',
     ]));
+    // The app name is the brand lockup image (labelled "Juple"), not text.
+    expect(exists(renderer, 'juple-brand-mark')).toBe(true);
     // The tutorial replay and the FAQ moved into the Help Guide; nothing of them remains here.
     expect(exists(renderer, 'customer-center-tutorial')).toBe(false);
     expect(i18n.exists('customerCenter.faqHeading')).toBe(false);
@@ -131,7 +132,8 @@ describe('CustomerCenterScreen without a network', () => {
     globalThis.fetch = fetchSpy as unknown as typeof fetch;
     try {
       const renderer = await renderScreen();
-      expect(texts(renderer)).toEqual(expect.arrayContaining([i18n.t('inquiry.title'), 'Juple']));
+      expect(texts(renderer)).toEqual(expect.arrayContaining([i18n.t('inquiry.title')]));
+      expect(exists(renderer, 'juple-brand-mark')).toBe(true);
       expect(exists(renderer, 'customer-center-version')).toBe(true);
       expect(fetchSpy).not.toHaveBeenCalled();
       act(() => renderer.unmount());
