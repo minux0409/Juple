@@ -408,12 +408,6 @@
     "deleteSummary": "Dein Konto und alles, was du gespeichert hast, werden dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.",
     "deleteAction": "Konto löschen"
   },
-  "postDeletion": {
-    "title": "Konto gelöscht",
-    "message": "Dein Juple-Konto und dein Anmeldekonto wurden gelöscht.",
-    "signUp": "Neues Konto erstellen",
-    "signIn": "Mit einem anderen Konto anmelden"
-  },
   "deleteAccount": {
     "warningTitle": "Das Löschen deines Kontos kann nicht rückgängig gemacht werden",
     "warningIntro": "Folgendes wird dauerhaft gelöscht:",

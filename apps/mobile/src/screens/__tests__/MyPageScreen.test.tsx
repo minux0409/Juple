@@ -43,6 +43,7 @@ function mockUseAuth(overrides: {
 }) {
   jest.mocked(useAuth).mockReturnValue({
     signOut: overrides.signOut ?? jest.fn(),
+    completeAccountDeletion: jest.fn(),
     userEmail: overrides.userEmail ?? null,
     plan: 'plan' in overrides ? overrides.plan ?? null : 'Free',
     entitlement: null,
@@ -51,15 +52,11 @@ function mockUseAuth(overrides: {
     isInitializing: false,
     isSigningIn: false,
     isAuthenticated: true,
-    forceFreshAuthenticationAfterDeletion: false,
     error: null,
     backendAuthStatus: 'valid',
     userBootstrapStatus: 'ready',
     sessionRestoreStep: 'sessionRestore',
     signIn: jest.fn(),
-    freshSignIn: jest.fn(),
-    freshSignUp: jest.fn(),
-    completeAccountDeletion: jest.fn(),
     getValidAccessToken: jest.fn(),
     retryBootstrap: jest.fn(),
   });

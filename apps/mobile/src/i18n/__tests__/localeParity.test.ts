@@ -203,19 +203,3 @@ describe('requester vs owner approval wording', () => {
     expect(JSON.stringify(ko)).not.toContain('내 링크 승인 대기');
   });
 });
-
-describe('screens that render only translation keys have their text in every language', () => {
-  // A cherry-pick once dropped the deletion-complete screen's text from all locales and the app showed raw keys.
-  const REQUIRED = ['postDeletion.title', 'postDeletion.message', 'postDeletion.signUp', 'postDeletion.signIn'];
-
-  it.each(Object.keys(LOCALES) as (keyof typeof LOCALES)[])('%s has the post-deletion screen text', language => {
-    const lookup = (key: string): unknown => key.split('.').reduce<unknown>(
-      (node, part) => (node && typeof node === 'object' ? (node as Record<string, unknown>)[part] : undefined),
-      LOCALES[language],
-    );
-    for (const key of REQUIRED) {
-      expect(typeof lookup(key)).toBe('string');
-      expect((lookup(key) as string).length).toBeGreaterThan(0);
-    }
-  });
-});

@@ -10,11 +10,6 @@ import { bootstrapCurrentUser } from '../userBootstrapApi';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { createSessionValidator } from '../session/sessionValidator';
 
-jest.mock('../postDeletionAuth', () => ({
-  getForceFreshAuthenticationAfterDeletion: jest.fn().mockResolvedValue(false),
-  setForceFreshAuthenticationAfterDeletion: jest.fn().mockResolvedValue(undefined),
-}));
-
 jest.mock('react-native-app-auth', () => ({
   authorize: jest.fn(),
   refresh: jest.fn(),

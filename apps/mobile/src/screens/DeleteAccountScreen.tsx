@@ -7,9 +7,7 @@ import { ApiError } from '../api/ApiError';
 import { getMyProfile } from '../api/profileApi';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
-import { endEntraBrowserSession } from '../auth/entraAuthClient';
 import { reauthenticateSameAccount } from '../auth/reauthentication';
-import { getCachedIdToken } from '../auth/session/authSessionManager';
 import { formatJupleId } from '../collections/api/collaborationApi';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { RECENT_AUTHENTICATION_REQUIRED_CODE } from '../settings/CollectionLockPasswordDialog';
@@ -43,7 +41,7 @@ export function normalizeTypedJupleId(value: string): string {
  *    auth_time is recent, so the app never decides this;
  * 3. typing the account's own Juple ID (locale-independent, and it names exactly which account)
  *    before the final button is even enabled.
- * Deleted server-side (not recoverable), then routed to the post-deletion auth choice.
+ * Deleted server-side (not recoverable), then everything local is cleared and the sign-in screen is shown - no browser is opened.
  */
 export function DeleteAccountScreen() {
   const { t } = useTranslation();
@@ -106,12 +104,10 @@ export function DeleteAccountScreen() {
     setNotice(null);
     try {
       await deleteAccount(authenticatedRequest);
-      // The ID token is read BEFORE sign-out clears it: it identifies whose browser session to end.
-      const idTokenForLogout = getCachedIdToken();
+      // Already gone server-side: clear everything local (each step best effort - a cleanup failure never undoes this) and land on the
+      // sign-in screen. Nothing opens a browser here (no Entra end-session page, no account picker); the person starts authentication
+      // from the landing screen's button.
       await completeAccountDeletion();
-      // Official OIDC end-session is best effort. A browser may still remember a stale tile;
-      // the next auth action therefore bypasses the picker regardless of this result.
-      await endEntraBrowserSession(idTokenForLogout).catch(() => false);
     } catch (caughtError) {
       isDeletingRef.current = false;
       setIsBusy(false);

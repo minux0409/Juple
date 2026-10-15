@@ -408,12 +408,6 @@
     "deleteSummary": "你的帳號和儲存的所有資料將被永久刪除，且無法復原。",
     "deleteAction": "刪除帳號"
   },
-  "postDeletion": {
-    "title": "帳號已刪除",
-    "message": "您的 Juple 帳號和登入帳號已刪除。",
-    "signUp": "建立新帳號",
-    "signIn": "使用其他帳號登入"
-  },
   "deleteAccount": {
     "warningTitle": "刪除帳號後將無法復原",
     "warningIntro": "以下資料將全部被永久刪除：",

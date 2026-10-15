@@ -10,13 +10,6 @@ import { clearSession, getValidAccessToken, saveAuthorizedSession } from '../ses
 import { validateBackendSession } from '../authSessionApi';
 import { bootstrapCurrentUser } from '../userBootstrapApi';
 import { collectionShortcutService } from '../../shortcuts/CollectionShortcutService';
-import { unregisterCurrentPushDeviceBestEffort } from '../../push/pushLogoutUnregister';
-import { getForceFreshAuthenticationAfterDeletion, setForceFreshAuthenticationAfterDeletion } from '../postDeletionAuth';
-
-jest.mock('../postDeletionAuth', () => ({
-  getForceFreshAuthenticationAfterDeletion: jest.fn().mockResolvedValue(false),
-  setForceFreshAuthenticationAfterDeletion: jest.fn().mockResolvedValue(undefined),
-}));
 
 jest.mock('react-native-app-auth', () => ({
   authorize: jest.fn(),
@@ -120,76 +113,6 @@ describe('AuthProvider sign-in', () => {
     expect(parameters).toEqual({ prompt: 'select_account' });
     expect(parameters).not.toHaveProperty('login_hint');
     expect(parameters).not.toHaveProperty('max_age');
-  });
-});
-
-describe('post-deletion authentication', () => {
-  afterEach(() => {
-    jest.mocked(getForceFreshAuthenticationAfterDeletion).mockResolvedValue(false);
-    jest.mocked(unregisterCurrentPushDeviceBestEffort).mockReset();
-    jest.clearAllMocks();
-  });
-
-  it('restores the fresh-auth choice on restart and clears any leftover session', async () => {
-    jest.mocked(getForceFreshAuthenticationAfterDeletion).mockResolvedValue(true);
-    let latest!: ReturnType<typeof useAuth>;
-    function Probe() { latest = useAuth(); return null; }
-    await act(async () => { ReactTestRenderer.create(<AuthProvider><Probe /></AuthProvider>); });
-    expect(latest.forceFreshAuthenticationAfterDeletion).toBe(true);
-    expect(latest.isAuthenticated).toBe(false);
-    expect(clearSession).toHaveBeenCalled();
-    expect(getValidAccessToken).not.toHaveBeenCalled();
-  });
-
-  it('deletion persists the flag, clears auth even when cleanup fails, and ordinary logout does not set the flag', async () => {
-    jest.mocked(getValidAccessToken).mockRejectedValue(new Error('sessionUnavailable'));
-    jest.mocked(clearSession).mockResolvedValue(undefined);
-    jest.mocked(unregisterCurrentPushDeviceBestEffort).mockRejectedValueOnce(new Error('offline'));
-    let latest!: ReturnType<typeof useAuth>;
-    function Probe() { latest = useAuth(); return null; }
-    await act(async () => { ReactTestRenderer.create(<AuthProvider><Probe /></AuthProvider>); });
-    await act(async () => { await latest.completeAccountDeletion(); });
-    expect(setForceFreshAuthenticationAfterDeletion).toHaveBeenCalledWith(true);
-    expect(clearSession).toHaveBeenCalled();
-    expect(latest.forceFreshAuthenticationAfterDeletion).toBe(true);
-    jest.mocked(setForceFreshAuthenticationAfterDeletion).mockClear();
-    await act(async () => { await latest.signOut(); });
-    expect(setForceFreshAuthenticationAfterDeletion).not.toHaveBeenCalled();
-    expect(latest.forceFreshAuthenticationAfterDeletion).toBe(true);
-  });
-
-  it.each([
-    ['freshSignUp', 'create'],
-    ['freshSignIn', 'login'],
-  ] as const)('%s bypasses the picker and clears the flag after successful bootstrap', async (action, prompt) => {
-    jest.mocked(getForceFreshAuthenticationAfterDeletion).mockResolvedValue(true);
-    jest.mocked(authorize).mockResolvedValue({ accessToken: 'fresh-token', refreshToken: 'fresh-refresh', accessTokenExpirationDate: '2099-01-01T00:00:00Z' } as never);
-    jest.mocked(validateBackendSession).mockResolvedValue('valid');
-    jest.mocked(bootstrapCurrentUser).mockResolvedValue({ status: 'ready', plan: 'Free', entitlement: null } as never);
-    let latest!: ReturnType<typeof useAuth>;
-    function Probe() { latest = useAuth(); return null; }
-    await act(async () => { ReactTestRenderer.create(<AuthProvider><Probe /></AuthProvider>); });
-    await act(async () => { await latest[action](); });
-    expect(jest.mocked(authorize).mock.calls[0][0].additionalParameters).toMatchObject({ prompt });
-    expect(setForceFreshAuthenticationAfterDeletion).toHaveBeenCalledWith(false);
-    expect(latest.forceFreshAuthenticationAfterDeletion).toBe(false);
-    expect(latest.isAuthenticated).toBe(true);
-  });
-
-  it('starts only one interactive request when a post-deletion action is tapped twice', async () => {
-    jest.mocked(getForceFreshAuthenticationAfterDeletion).mockResolvedValue(true);
-    let rejectAuthorization!: (reason: Error) => void;
-    jest.mocked(authorize).mockImplementation(() => new Promise((_resolve, reject) => { rejectAuthorization = reject; }));
-    let latest!: ReturnType<typeof useAuth>;
-    function Probe() { latest = useAuth(); return null; }
-    await act(async () => { ReactTestRenderer.create(<AuthProvider><Probe /></AuthProvider>); });
-    let first!: Promise<void>;
-    await act(async () => {
-      first = latest.freshSignIn();
-      await latest.freshSignIn();
-    });
-    expect(authorize).toHaveBeenCalledTimes(1);
-    await act(async () => { rejectAuthorization(new Error('cancelled')); await first; });
   });
 });
 
@@ -544,5 +467,68 @@ describe('AuthProvider sign-in - cancelling is not an error', () => {
 
     expect(state.isAuthenticated).toBe(false);
     expect(state.error).toBe('Sign-in failed. Please try again in a moment.');
+  });
+});
+
+describe('AuthProvider - completing an account deletion', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  async function renderSignedIn() {
+    jest.mocked(getValidAccessToken).mockResolvedValue('a-valid-token');
+    jest.mocked(validateBackendSession).mockResolvedValue('valid');
+    jest.mocked(bootstrapCurrentUser).mockResolvedValue({ status: 'ready', plan: 'Free', entitlement: null } as never);
+    let completeAccountDeletion!: () => Promise<void>;
+    function Probe() {
+      const auth = useAuth();
+      completeAccountDeletion = auth.completeAccountDeletion;
+      return <Text>{`${auth.isAuthenticated}:${auth.isInitializing}`}</Text>;
+    }
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <AuthProvider>
+          <Probe />
+        </AuthProvider>,
+      );
+    });
+    return { renderer, complete: () => completeAccountDeletion() };
+  }
+
+  it('lands on the signed-out sign-in state, clears the session and shortcuts, and never starts authentication or a browser', async () => {
+    const { renderer, complete } = await renderSignedIn();
+    expect(readProbeText(renderer)).toBe('true:false');
+
+    await act(async () => {
+      await complete();
+    });
+
+    expect(readProbeText(renderer)).toBe('false:false');
+    expect(clearSession).toHaveBeenCalled();
+    expect(collectionShortcutService.clear).toHaveBeenCalled();
+    expect(authorize).not.toHaveBeenCalled();
+  });
+
+  it('a local cleanup step that throws still ends on the signed-out state (the server deletion already succeeded)', async () => {
+    const { renderer, complete } = await renderSignedIn();
+    jest.mocked(clearSession).mockRejectedValueOnce(new Error('storage unavailable'));
+    jest.mocked(collectionShortcutService.clear).mockRejectedValueOnce(new Error('shortcut service unavailable'));
+
+    await act(async () => {
+      await complete();
+    });
+
+    expect(readProbeText(renderer)).toBe('false:false');
+    expect(authorize).not.toHaveBeenCalled();
+  });
+
+  it('a restart after the deletion (no stored session) is the sign-in state - nothing is started by itself', async () => {
+    jest.mocked(getValidAccessToken).mockRejectedValue(new Error('sessionUnavailable'));
+
+    const renderer = await renderAuthProvider();
+
+    expect(readProbeText(renderer)).toBe('false:notChecked:sessionRestore');
+    expect(authorize).not.toHaveBeenCalled();
   });
 });

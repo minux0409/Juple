@@ -408,12 +408,6 @@
     "deleteSummary": "Hesabınız ve kaydettiğiniz her şey kalıcı olarak silinir. Bu işlem geri alınamaz.",
     "deleteAction": "Hesabı sil"
   },
-  "postDeletion": {
-    "title": "Hesap silindi",
-    "message": "Juple hesabınız ve oturum açma hesabınız silindi.",
-    "signUp": "Yeni hesap oluştur",
-    "signIn": "Başka bir hesapla oturum aç"
-  },
   "deleteAccount": {
     "warningTitle": "Hesabı silme işlemi geri alınamaz",
     "warningIntro": "Aşağıdakilerin tümü kalıcı olarak silinecek:",

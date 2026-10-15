@@ -408,12 +408,6 @@
     "deleteSummary": "アカウントと保存したすべてのデータが完全に削除され、元に戻せません。",
     "deleteAction": "アカウントを削除"
   },
-  "postDeletion": {
-    "title": "アカウントが削除されました",
-    "message": "Jupleアカウントとログインアカウントの削除が完了しました。",
-    "signUp": "新しいアカウントを作成",
-    "signIn": "別のアカウントでログイン"
-  },
   "deleteAccount": {
     "warningTitle": "アカウントを削除すると元に戻せません",
     "warningIntro": "次のデータがすべて完全に削除されます。",

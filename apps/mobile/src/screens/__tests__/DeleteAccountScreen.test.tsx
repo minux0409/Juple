@@ -6,13 +6,15 @@ import { ApiError } from '../../api/ApiError';
 import { getMyProfile } from '../../api/profileApi';
 import { useAuth } from '../../auth/AuthContext';
 import { endEntraBrowserSession } from '../../auth/entraAuthClient';
+import { authorizeWithEntra } from '../../auth/entraAuthClient';
 import { reauthenticateSameAccount } from '../../auth/reauthentication';
-import { getCachedIdToken } from '../../auth/session/authSessionManager';
 import { DeleteAccountScreen, normalizeTypedJupleId } from '../DeleteAccountScreen';
 
 jest.mock('../../auth/AuthContext', () => ({ useAuth: jest.fn() }));
-jest.mock('../../auth/entraAuthClient', () => ({ endEntraBrowserSession: jest.fn().mockResolvedValue(true) }));
-jest.mock('../../auth/session/authSessionManager', () => ({ getCachedIdToken: jest.fn() }));
+jest.mock('../../auth/entraAuthClient', () => ({
+  endEntraBrowserSession: jest.fn().mockResolvedValue(true),
+  authorizeWithEntra: jest.fn(),
+}));
 jest.mock('../../auth/reauthentication', () => ({ reauthenticateSameAccount: jest.fn() }));
 jest.mock('../../api/accountApi', () => ({ deleteAccount: jest.fn() }));
 jest.mock('../../api/profileApi', () => ({
@@ -28,7 +30,7 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-const completeAccountDeletion = jest.fn().mockResolvedValue(undefined);
+const completeAccountDeletion = jest.fn();
 
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
@@ -138,7 +140,7 @@ describe('DeleteAccountScreen', () => {
     expect(byTestId(renderer, 'delete-account-final').props.disabled).toBe(false);
   });
 
-  it('deletes once, then signs out', async () => {
+  it('deletes once, then clears everything local and lands on the sign-in screen', async () => {
     jest.mocked(deleteAccount).mockResolvedValue(undefined);
     const renderer = await reachConfirmStep();
     await type(renderer, 'K7MP-4Q8N');
@@ -153,40 +155,26 @@ describe('DeleteAccountScreen', () => {
     expect(completeAccountDeletion).toHaveBeenCalledTimes(1);
   });
 
-  it('after the sign-out it also ends the browser Entra session, with the ID token read before sign-out cleared it', async () => {
+  it('opens no browser after a successful deletion: no Entra end-session page, no authorization', async () => {
     jest.mocked(deleteAccount).mockResolvedValue(undefined);
-    jest.mocked(getCachedIdToken).mockReturnValue('id-token-before-signout');
-    const order: string[] = [];
-    completeAccountDeletion.mockImplementation(async () => { order.push('completeAccountDeletion'); jest.mocked(getCachedIdToken).mockReturnValue(null); });
-    jest.mocked(endEntraBrowserSession).mockImplementation(async () => { order.push('endSession'); return true; });
     const renderer = await reachConfirmStep();
     await type(renderer, 'K7MP-4Q8N');
 
     await press(renderer, 'delete-account-final');
 
-    expect(endEntraBrowserSession).toHaveBeenCalledWith('id-token-before-signout');
-    expect(order).toEqual(['completeAccountDeletion', 'endSession']);
+    expect(completeAccountDeletion).toHaveBeenCalledTimes(1);
+    expect(endEntraBrowserSession).not.toHaveBeenCalled();
+    expect(authorizeWithEntra).not.toHaveBeenCalled();
   });
 
-  it('a failed delete never ends the browser session', async () => {
+  it('a failed delete clears nothing and never touches the browser', async () => {
     jest.mocked(deleteAccount).mockRejectedValue(new ApiError('unavailable', 503));
     const renderer = await reachConfirmStep();
     await type(renderer, 'K7MP4Q8N');
     await press(renderer, 'delete-account-final');
 
+    expect(completeAccountDeletion).not.toHaveBeenCalled();
     expect(endEntraBrowserSession).not.toHaveBeenCalled();
-  });
-
-  it('a failed browser logout never reports a successful deletion as failed', async () => {
-    jest.mocked(deleteAccount).mockResolvedValue(undefined);
-    jest.mocked(endEntraBrowserSession).mockRejectedValueOnce(new Error('browser unavailable'));
-    const renderer = await reachConfirmStep();
-    await type(renderer, 'K7MP4Q8N');
-    await press(renderer, 'delete-account-final');
-
-    expect(completeAccountDeletion).toHaveBeenCalledTimes(1);
-    expect(has(renderer, 'delete-account-notice')).toBe(false);
-    expect(deleteAccount).toHaveBeenCalledTimes(1);
   });
 
   it('when the server says the sign-in is too old, goes back to signing in - nothing was deleted', async () => {

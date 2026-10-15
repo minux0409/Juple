@@ -408,12 +408,6 @@
     "deleteSummary": "你的账户和保存的所有数据将被永久删除，且无法恢复。",
     "deleteAction": "删除账户"
   },
-  "postDeletion": {
-    "title": "账户已删除",
-    "message": "您的 Juple 账户和登录账户已删除。",
-    "signUp": "创建新账户",
-    "signIn": "使用其他账户登录"
-  },
   "deleteAccount": {
     "warningTitle": "删除账户后无法恢复",
     "warningIntro": "以下数据将全部被永久删除：",

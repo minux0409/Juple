@@ -76,7 +76,6 @@ export interface AuthState {
   readonly isInitializing: boolean;
   readonly isSigningIn: boolean;
   readonly isAuthenticated: boolean;
-  readonly forceFreshAuthenticationAfterDeletion: boolean;
   readonly error: string | null;
   readonly backendAuthStatus: BackendAuthStatus;
   readonly userBootstrapStatus: UserBootstrapStatus;
@@ -96,10 +95,9 @@ export type { GetValidAccessTokenOptions };
 
 export interface AuthContextValue extends AuthState {
   signIn: () => Promise<void>;
-  freshSignIn: () => Promise<void>;
-  freshSignUp: () => Promise<void>;
-  completeAccountDeletion: () => Promise<void>;
   signOut: () => Promise<void>;
+  /** The account was deleted on the server: clear everything local (each step best effort) and land on the sign-in screen. */
+  completeAccountDeletion: () => Promise<void>;
   getValidAccessToken: (
     options?: GetValidAccessTokenOptions,
   ) => Promise<string>;

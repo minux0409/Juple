@@ -408,12 +408,6 @@
     "deleteSummary": "Sua conta e tudo o que você salvou serão excluídos permanentemente. Isso não pode ser desfeito.",
     "deleteAction": "Excluir conta"
   },
-  "postDeletion": {
-    "title": "Conta excluída",
-    "message": "Sua conta Juple e sua conta de acesso foram excluídas.",
-    "signUp": "Criar uma nova conta",
-    "signIn": "Entrar com outra conta"
-  },
   "deleteAccount": {
     "warningTitle": "A exclusão da conta não pode ser desfeita",
     "warningIntro": "Tudo o que está abaixo será excluído permanentemente:",
