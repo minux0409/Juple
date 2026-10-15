@@ -7,6 +7,7 @@ import {
   useState,
   type PropsWithChildren,
 } from 'react';
+import { AppState } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -24,12 +25,18 @@ import {
   onSessionInvalidated,
   saveAuthorizedSession,
 } from './session/authSessionManager';
+import {
+  ACTIVE_CHECK_INTERVAL_MS,
+  createSessionValidator,
+  FOREGROUND_CHECK_INTERVAL_MS,
+} from './session/sessionValidator';
 import { validateBackendSession } from './authSessionApi';
 import { bootstrapCurrentUser, type UserBootstrapResult } from './userBootstrapApi';
 import { getDeviceRegionalSettings } from '../device/regionalSettings';
 import { unregisterCurrentPushDeviceBestEffort } from '../push/pushLogoutUnregister';
 import { clearCollectionShortcutsOnLogoutBestEffort } from '../share/clearCollectionShortcutsOnLogout';
 import { purgeLegacyCollectionLockSecrets } from '../collections/legacyCollectionLockSecrets';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { AuthContextValue, AuthState } from './types';
 
 const INITIAL_STATE: AuthState = {
@@ -126,7 +133,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setState(SIGNED_OUT_STATE);
   }, []);
 
-  useEffect(() => onSessionInvalidated(setSignedOut), [setSignedOut]);
+  // Entra rejected the stored sign-in (e.g. the password was reset elsewhere - the session manager has already dropped the tokens):
+  // one "다시 로그인이 필요합니다" dialog, however many requests noticed it, with a single 로그인하기 that goes to the sign-in screen.
+  const [reauthRequired, setReauthRequired] = useState(false);
+  useEffect(() => onSessionInvalidated(() => setReauthRequired(true)), []);
+
+  const confirmReauthentication = useCallback(async () => {
+    // Local only: the stored session (already cleared by the manager - repeated here so nothing can outlive the dialog) and the
+    // signed-in state. The Entra browser session is not ended first; the sign-in screen offers 로그인 / 회원가입 as usual.
+    await clearSession().catch(() => undefined);
+    setReauthRequired(false);
+    setSignedOut();
+  }, [setSignedOut]);
 
   // Collection lock passwords are never kept on the device; clears what an earlier build may have left.
   useEffect(() => {
@@ -216,6 +234,30 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
     }
   }, [setSignedOut]);
+
+  // While signed in: ask Entra again (a forced refresh) when the app returns to the foreground and every few minutes while it stays
+  // there, so a revoked sign-in is noticed before the in-memory access token expires. See session/sessionValidator.ts.
+  const [validator] = useState(() => createSessionValidator({ validate: () => getValidAccessToken({ forceRefresh: true }) }));
+  const isSignedIn = state.isAuthenticated && !state.isInitializing;
+  useEffect(() => {
+    if (!isSignedIn) {
+      return;
+    }
+    const subscription = AppState.addEventListener('change', next => {
+      if (next === 'active') {
+        validator.check(FOREGROUND_CHECK_INTERVAL_MS);
+      }
+    });
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active') {
+        validator.check(ACTIVE_CHECK_INTERVAL_MS);
+      }
+    }, FOREGROUND_CHECK_INTERVAL_MS);
+    return () => {
+      subscription.remove();
+      clearInterval(timer);
+    };
+  }, [isSignedIn, validator]);
 
   useEffect(() => {
     const isMountedRef = { current: true };
@@ -367,7 +409,24 @@ export function AuthProvider({ children }: PropsWithChildren) {
     [state, signIn, signOut, retryBootstrap, refreshEntitlement, userEmail],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      {reauthRequired ? (
+        <ConfirmDialog
+          confirmLabel={t('auth.reauthRequiredAction')}
+          destructive={false}
+          dismissable={false}
+          message={t('auth.reauthRequiredMessage')}
+          onConfirm={() => {
+            confirmReauthentication();
+          }}
+          title={t('auth.reauthRequiredTitle')}
+          visible
+        />
+      ) : null}
+    </AuthContext.Provider>
+  );
 }
 
 /** The signed-in state when an AuthProvider is above, else undefined - for presentation-only widgets that must also render in isolation. */

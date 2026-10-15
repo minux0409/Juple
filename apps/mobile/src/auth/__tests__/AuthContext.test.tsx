@@ -45,6 +45,22 @@ jest.mock('../../push/pushLogoutUnregister', () => ({
   unregisterCurrentPushDeviceBestEffort: jest.fn(),
 }));
 
+// While signed in the provider runs a periodic session check (an interval): every tree is unmounted after its test so none outlives it.
+const mountedTrees: ReactTestRenderer.ReactTestRenderer[] = [];
+const createTree = ReactTestRenderer.create;
+beforeAll(() => {
+  jest.spyOn(ReactTestRenderer, 'create').mockImplementation(((...args: Parameters<typeof createTree>) => {
+    const tree = createTree(...args);
+    mountedTrees.push(tree);
+    return tree;
+  }) as typeof createTree);
+});
+afterEach(async () => {
+  await act(async () => {
+    mountedTrees.splice(0).forEach(tree => tree.unmount());
+  });
+});
+
 /** Renders just enough of useAuth()'s state to assert on, via a plain react-test-renderer tree. */
 function AuthStateProbe() {
   const { isAuthenticated, backendAuthStatus, sessionRestoreStep } = useAuth();

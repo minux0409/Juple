@@ -44,33 +44,46 @@ no longer recognises a returning person and a deleted-and-re-created account get
 (b) delete the Entra user and accept trial reset; (c) delete the Entra user and key the ledger by verified email hash (privacy review needed).
 Not implemented.
 
-## 2. Password change -> sign out everywhere
+## 2. Password change -> sign in again elsewhere
 
-Current state: password reset/change happens entirely inside Entra's hosted page (SSPR from the `prompt=login` sign-in). The Juple backend never
-learns of it. Client behavior already in place: a rejected refresh (`invalid_grant`) clears the mobile session (`isEntraSessionInvalidError`);
-MSAL `acquireTokenSilent` failure signs the web app out.
+Password reset/change happens entirely inside Entra's hosted page (SSPR from the `prompt=login` sign-in). The Juple backend never learns of it, and
+Juple never handles a password.
 
-What can and cannot be guaranteed:
+**Measured on DEV (2026-10-14, External ID tenant `jupledev`):** after a password reset Entra itself moves the user's
+`signInSessionsValidFromDateTime` to the reset instant (observed `lastPasswordChangeDateTime` = `signInSessionsValidFromDateTime` =
+2026-10-14T23:40:27Z). Every refresh token and Entra sign-in session issued before that is rejected: a forced silent refresh in an
+already-open Web tab failed, and the next sign-in asked for the (new) password after the account was chosen. An access token that was already
+issued kept working until its own expiry (60-90 min) - there is no Continuous Access Evaluation for a custom API.
 
-- Refresh tokens: invalidated if Entra updates the user's `signInSessionsValidFromDateTime` - either by itself on password reset (**to verify** on
-  External ID) or through Graph `user: revokeSignInSessions`.
-- Access tokens already issued stay valid until they expire (default 60-90 min); there is no Continuous Access Evaluation for a custom API. The
-  backend cannot shorten that without its own state, and no local "fake" session state is introduced.
+**Decision:** Entra already revokes, so Graph `revokeSignInSessions` is **not** added (no Graph permission, no revoke endpoint). It stays a
+possible future enhancement (e.g. an explicit "sign out all devices" action), not a launch requirement.
 
-Plan (nothing applied to PROD, no code written yet):
+**What the apps do (v26 security session reauthentication round):** the apps notice the revocation at the moments they check the session
+and then ask the person to sign in again with one dialog - "다시 로그인이 필요합니다" / "계정 정보가 변경되었거나 로그인 세션이 만료되어 다시
+로그인이 필요합니다." / 로그인하기 (17 languages; it never claims the password changed - a session can also end for other reasons).
 
-1. **DEV measurement first** (cheap, decides everything): two devices signed in (mobile A, mobile B or web). On A run the password reset flow.
-   Then on B force a refresh (`forceRefresh` / wait for access token expiry or clear the access token). Record whether B's refresh gets `invalid_grant`.
-   If yes -> Entra already revokes; only the access-token tail (<= token lifetime) remains - accept and document.
-2. If no: add `POST /api/v1/account/sessions/revoke` - requires recent `auth_time` (5 min), calls Graph `revokeSignInSessions` for the caller's own
-   object id, using the API's managed identity with the **application** permission `User.RevokeSessions.All` in the External ID tenant (least
-   privilege: it cannot read or edit users). The mobile app calls it right after the password reset flow completes and then signs the current
-   device out; the other devices fail at their next refresh and show the sign-in screen. Weakness: client-initiated (app killed mid-flow = not
-   revoked) - acceptable for a first version, decide before PROD.
-3. Permission grant and endpoint stay DEV-only until the DEV E2E below passes.
+- **Web** (`lib/sessionValidation.ts`, `lib/msalClient.ts` `checkSession`, `app/(app)/AppRoot.tsx`, `app/(app)/ReauthDialog.tsx`): a forced
+  silent refresh (`acquireTokenSilent({ forceRefresh: true })`) right after the app is ready (a reload included), when the tab becomes visible or
+  focused (at most once a minute) and every 5 minutes while visible. Only for these checks - API calls keep using the cached token and refresh
+  only after a 401. The last check time is memory only. `InteractionRequiredAuthError` or an `invalid_grant`-type code -> the dialog; anything else
+  (offline, timeout, Entra unreachable) keeps the session (an API call then reports a network failure, not a lost session). The dialog is
+  rendered once for the whole app, has no close button and ignores Escape; every page's `onSessionLost` opens the same one. 로그인하기 clears
+  this tab's MSAL cache locally and starts `loginRedirect` back to the same page; nothing the page held is kept.
+- **Mobile** (`src/auth/session/sessionValidator.ts`, `src/auth/AuthContext.tsx`): a forced refresh (`getValidAccessToken({ forceRefresh: true })`,
+  react-native-app-auth) when the app returns to the foreground (at most once a minute) and every 5 minutes while active; a cold start already
+  refreshes. Only a genuine Entra rejection (`isEntraSessionInvalidError`, via `onSessionInvalidated`) clears the stored session and opens the
+  dialog (`ConfirmDialog`, not dismissable, one button, shown once); network failures change nothing. 로그인하기 clears the local session and
+  shows the sign-in screen; the Entra browser session is not ended first.
 
-DEV E2E: (a) reset on A; (b) B refresh rejected; (c) web tab refresh rejected -> landing page; (d) old refresh token replay returns `invalid_grant`;
-(e) A is signed out and can sign in with the new password; (f) the unchanged API access token keeps working until expiry (documented limit).
+**Accurate limit (for support / privacy answers):** the apps detect an Entra session revocation **when they check the session** (foreground /
+tab return, periodic check while in use, the next token refresh) and then require a new sign-in. It is not an instant server-side cut-off: a
+device that is not used keeps its already-issued access token until that token expires (at most its 60-90 minute lifetime), and the API accepts
+it until then.
+
+**Follow-up round (not a v26 launch blocker): "Immediate server-side session revocation".** Candidate design, to be decided separately: keep Entra
+access tokens; review a Juple server-side session cutoff / SecurityVersion layer; if needed, read Graph `signInSessionsValidFromDateTime` through a
+cache so an already-issued access token can be refused early; design the Graph dependency, permission, cache and outage policy together. No Graph
+permission, revoke call or per-request Graph lookup is added in v26.
 
 ## 3. PROD user-visible branding
 
