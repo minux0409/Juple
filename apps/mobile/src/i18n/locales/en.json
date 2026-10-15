@@ -408,6 +408,12 @@
     "deleteSummary": "Your account and everything you saved will be permanently deleted. This can't be undone.",
     "deleteAction": "Delete account"
   },
+  "postDeletion": {
+    "title": "Account deleted",
+    "message": "Your Juple account and sign-in account have been deleted.",
+    "signUp": "Create a new account",
+    "signIn": "Sign in with another account"
+  },
   "deleteAccount": {
     "warningTitle": "Deleting your account can't be undone",
     "warningIntro": "All of the following will be permanently deleted:",

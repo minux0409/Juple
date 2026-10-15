@@ -408,6 +408,12 @@
     "deleteSummary": "Akun dan semua yang Anda simpan akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.",
     "deleteAction": "Hapus akun"
   },
+  "postDeletion": {
+    "title": "Akun dihapus",
+    "message": "Akun Juple dan akun masuk Anda telah dihapus.",
+    "signUp": "Buat akun baru",
+    "signIn": "Masuk dengan akun lain"
+  },
   "deleteAccount": {
     "warningTitle": "Penghapusan akun tidak dapat dibatalkan",
     "warningIntro": "Semua data berikut akan dihapus secara permanen:",
