@@ -6,14 +6,14 @@ Status: implemented in the API, Mobile and Web; **not deployed to PROD**; not a 
 
 | Area | Behaviour | Where |
 | --- | --- | --- |
-| Terms of Service acceptance | The server stores `Users.AcceptedTermsVersion` / `TermsAcceptedAtUtc`. The current version is configuration `Terms:CurrentVersion`. Social/UGC writes answer **403 `termsAcceptanceRequired`** without the current version. Private link saving, private Collection creation, and private item photos remain available. Mixed Collection writes check the actual destination's visibility. Mobile asks on the attempted social write, never at startup. `Terms:EnforceAcceptance=false` remains the rollout switch. | `Juple.Api/Safety/TermsAcceptance.cs`, `SafetyController` |
+| Terms of Service acceptance | The server stores `Users.AcceptedTermsVersion` / `TermsAcceptedAtUtc` (one acceptance per account and version, covering the Terms of Service and the personal-information collection and use agreed together on the Agreement screen). The current version is configuration `Terms:CurrentVersion`. The Agreement is shown by mobile and web **right after sign-in, before the tutorial and Home**; there is no skip, X signs out. While `Terms:EnforceAcceptance=true`, every authenticated endpoint answers **403 `termsAcceptanceRequired`** without the current version except the pinned allowlist (bootstrap, terms status / acceptance, session check, push-device lifecycle, account deletion - `TheEndpointsThatWorkBeforeAcceptance_*` test). A new device or a later sign-in does not ask again; a newer version does. `Terms:EnforceAcceptance=false` remains the rollout switch. | `Juple.Api/Safety/TermsAcceptance.cs`, `SafetyController`, `apps/mobile/src/safety`, `apps/web/app/(app)/TermsAgreement.tsx` |
 | Reports | `POST /api/v1/reports` (`targetType` User / Collection / Item / Comment, `targetId`, `collectionId` for an Item, `reason`, `details` <= 1000). 201 new, 200 already open, 404 not visible / unknown, 400 own content. One OPEN report per reporter + target (filtered unique index). | `Juple.Application/Safety`, `safety.ContentReports` |
 | Blocks | `POST` / `DELETE /api/v1/users/{jupleId}/block`, `GET /api/v1/users/me/blocked-users`. Idempotent. Ends a friendship / pending request between the two. | `safety.UserBlocks` |
 | Enforcement | `IUserBlockPolicy` / `BlockGuard`: friend request, collaboration invite and accept, join request / public save / approve, comment, reply, heart, reaction, Juple ID lookup, notification materialization (also for events queued before the block). Blocker's comment listing hides the blocked person's comments. | see code |
 
 ## Rollout order (important)
 
-Every existing account starts WITHOUT an accepted Terms version. Older clients cannot present the action-time dialog on social writes, so keep the PROD rollout switch off until the updated clients are available. Private actions are no longer subject to this gate. DEV is currently enforcing; no PROD setting is changed in this round.
+Every existing account starts WITHOUT an accepted Terms version. Clients that predate the Agreement screen (Android v25 and earlier) cannot show it, so the PROD switch `Terms__EnforceAcceptance` stays `false` until the build with the Agreement is the minimum supported build; activate in this order: backend deployed, web deployed, the new mobile build downloadable from Play, `MinimumSupportedBuild` raised to it, then turn enforcement on. With enforcement off the Agreement is still shown by the new clients and the acceptance is recorded.
 
 ## Block semantics (decision)
 
@@ -62,4 +62,4 @@ Actions on content / users are also manual (delete the comment or Collection, re
 
 ## Play Console
 
-The app now has in-app reporting, blocking and a Terms agreement before UGC creation. Still to do outside this repository: the Play Console content-rating / UGC declaration, a published contact for reports, and a documented review process (this file is the starting point).
+The app now has in-app reporting, blocking and a Terms agreement at onboarding. Still to do outside this repository: the Play Console content-rating / UGC declaration, a published contact for reports, and a documented review process (this file is the starting point).

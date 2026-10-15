@@ -10,6 +10,8 @@ export const securityHeaders: readonly { readonly key: string; readonly value: s
   { key: 'Content-Security-Policy', value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'" },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
   { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+  // HTTPS only, for this exact host (no includeSubDomains / preload: the apex and api. are separate services with their own certificates).
+  { key: 'Strict-Transport-Security', value: 'max-age=31536000' },
 ];
 
 /** The public legal pages (/privacy, /terms, /account-deletion) are meant to be found, so they get every header above EXCEPT the noindex one. */
