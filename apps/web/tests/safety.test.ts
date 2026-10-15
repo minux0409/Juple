@@ -45,7 +45,7 @@ describe('Terms of Service acceptance', () => {
     assert.equal((agreement.match(/type="checkbox"/g) ?? []).length, 2);
     assert.equal((agreement.match(/<AgreementItem/g) ?? []).length, 2);
     assert.doesNotMatch(agreement, /onLater|safetyTermsLater/);
-    assert.match(agreement, /data-agreement-close/);
+    assert.doesNotMatch(agreement, /agreement-close|onClose|agreementClose/);
     assert.doesNotMatch(agreement, /localStorage|sessionStorage/);
   });
 

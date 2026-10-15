@@ -5,6 +5,7 @@ import i18n from '../../i18n';
 import { getMyProfile } from '../../api/profileApi';
 import { useAuth } from '../../auth/AuthContext';
 import { reauthenticateSameAccount } from '../../auth/reauthentication';
+import { AppModal } from '../../components/AppModal';
 import { AccountManagementScreen } from '../AccountManagementScreen';
 
 jest.mock('../../auth/AuthContext', () => ({ useAuth: jest.fn() }));
@@ -24,6 +25,7 @@ jest.mock('@react-navigation/native', () => ({
 }));
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
 beforeAll(async () => {
@@ -119,21 +121,47 @@ describe('AccountManagementScreen', () => {
     expect(has(renderer, 'account-password-reset')).toBe(false);
   });
 
+  // Opens the guidance and presses 계속 (the sign-in page itself is what the rest of these tests are about).
   const pressPasswordReset = async (renderer: ReactTestRenderer.ReactTestRenderer) => {
     await act(async () => {
       renderer.root.findByProps({ testID: 'account-password-reset' }).props.onPress();
     });
   };
+  const startReset = async (renderer: ReactTestRenderer.ReactTestRenderer) => {
+    await pressPasswordReset(renderer);
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'account-password-reset-continue' }).props.onPress();
+    });
+  };
 
-  it('password reset opens the sign-in page at once - no explanation dialog first', async () => {
+  it('password reset first says how to reach the reset ("Forgot password?"), and opens the sign-in page only on 계속', async () => {
     jest.mocked(reauthenticateSameAccount).mockResolvedValue('reauthenticated');
     const renderer = await renderWith('email');
 
     await pressPasswordReset(renderer);
 
+    // The guidance is shown; nothing was started yet.
+    expect(reauthenticateSameAccount).not.toHaveBeenCalled();
+    expect(renderer.root.findByType(AppModal).props.visible).toBe(true);
+    expect(JSON.stringify(texts(renderer.root))).toContain('암호를 잊으셨나요?');
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'account-password-reset-continue' }).props.onPress();
+    });
     expect(reauthenticateSameAccount).toHaveBeenCalledTimes(1);
-    expect(renderer.root.findAll(node => node.type === Modal && node.props.visible === true)).toHaveLength(0);
-    expect(JSON.stringify(texts(renderer.root))).not.toContain('로그인 화면 열기');
+    expect(renderer.root.findByType(AppModal).props.visible).toBe(false);
+  });
+
+  it('cancelling the guidance starts nothing', async () => {
+    const renderer = await renderWith('email');
+
+    await pressPasswordReset(renderer);
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'account-password-reset-cancel' }).props.onPress();
+    });
+
+    expect(reauthenticateSameAccount).not.toHaveBeenCalled();
+    expect(renderer.root.findByType(AppModal).props.visible).toBe(false);
   });
 
   // A finished sign-in can't tell a completed reset from a plain sign-in, so no outcome is announced -
@@ -147,7 +175,7 @@ describe('AccountManagementScreen', () => {
     arrange();
     const renderer = await renderWith('email');
 
-    await pressPasswordReset(renderer);
+    await startReset(renderer);
 
     expect(reauthenticateSameAccount).toHaveBeenCalledTimes(1);
     expect(has(renderer, 'account-notice')).toBe(false);
@@ -163,7 +191,7 @@ describe('AccountManagementScreen', () => {
     jest.mocked(reauthenticateSameAccount).mockResolvedValue('differentAccount');
     const renderer = await renderWith('email');
 
-    await pressPasswordReset(renderer);
+    await startReset(renderer);
 
     expect(renderer.root.findByProps({ testID: 'account-notice' }).props.children).toBe(i18n.t('settings.collectionLockDifferentAccount'));
   });

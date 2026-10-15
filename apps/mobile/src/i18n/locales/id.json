@@ -404,6 +404,9 @@
     "passwordManagedByGoogle": "Anda masuk dengan Google. Kata sandi Anda dikelola oleh Google.",
     "passwordManagedByApple": "Anda masuk dengan Apple. Kata sandi Anda dikelola oleh Apple.",
     "passwordReset": "Atur ulang kata sandi",
+    "passwordResetGuideTitle": "Atur ulang kata sandi?",
+    "passwordResetGuideBody": "Di layar berikutnya, konfirmasi email Anda lalu pilih \"Lupa kata sandi?\" di bawah kolom kata sandi. Setelah verifikasi email, Anda dapat membuat kata sandi baru dan akan masuk secara otomatis.",
+    "passwordResetContinue": "Lanjutkan",
     "deleteTitle": "Hapus akun",
     "deleteSummary": "Akun dan semua yang Anda simpan akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.",
     "deleteAction": "Hapus akun"
@@ -1197,7 +1200,6 @@
     "termsName": "Ketentuan Layanan",
     "privacyName": "Pengumpulan dan penggunaan informasi pribadi",
     "next": "Berikutnya",
-    "close": "Tutup dan keluar",
     "viewDetail": "Lihat detail",
     "loadFailed": "Tidak dapat memeriksa ketentuan. Coba lagi sebentar lagi.",
     "terms": {

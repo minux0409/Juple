@@ -404,6 +404,9 @@
     "passwordManagedByGoogle": "Bạn đăng nhập bằng Google. Mật khẩu do Google quản lý.",
     "passwordManagedByApple": "Bạn đăng nhập bằng Apple. Mật khẩu do Apple quản lý.",
     "passwordReset": "Đặt lại mật khẩu",
+    "passwordResetGuideTitle": "Đặt lại mật khẩu?",
+    "passwordResetGuideBody": "Ở màn hình tiếp theo, hãy xác nhận email rồi chọn \"Quên mật khẩu?\" bên dưới ô mật khẩu. Sau khi xác minh email, bạn có thể đặt mật khẩu mới và sẽ được đăng nhập tự động.",
+    "passwordResetContinue": "Tiếp tục",
     "deleteTitle": "Xóa tài khoản",
     "deleteSummary": "Tài khoản và mọi dữ liệu bạn đã lưu sẽ bị xóa vĩnh viễn và không thể khôi phục.",
     "deleteAction": "Xóa tài khoản"
@@ -1197,7 +1200,6 @@
     "termsName": "Điều khoản dịch vụ",
     "privacyName": "Thu thập và sử dụng thông tin cá nhân",
     "next": "Tiếp theo",
-    "close": "Đóng và đăng xuất",
     "viewDetail": "Xem chi tiết",
     "loadFailed": "Không thể kiểm tra điều khoản. Vui lòng thử lại sau giây lát.",
     "terms": {

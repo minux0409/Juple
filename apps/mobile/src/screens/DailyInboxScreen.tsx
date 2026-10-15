@@ -567,7 +567,7 @@ export function DailyInboxScreen() {
         ListHeaderComponent={
           <View>
             <View style={styles.brandRow}>
-              <JupleBrandMark size="small" />
+              <JupleBrandMark size="medium" />
               {/* 알림 - Home's top end, the one place it lives (not on every screen). */}
               <NotificationBellButton onPress={() => navigation.navigate('Notifications')} />
             </View>

@@ -72,20 +72,21 @@ describe('entraAuthClient', () => {
     expect(jest.mocked(authorize).mock.calls[0][0].additionalParameters).not.toBe(REAUTHENTICATION_PARAMETERS);
   });
 
-  it('an ordinary sign-in asks for the account picker: prompt=select_account, no login_hint, no max_age', async () => {
+  it('an ordinary sign-in asks for the sign-in page: prompt=login, no login_hint, no max_age (never an account tile)', async () => {
     jest.mocked(authorize).mockResolvedValue({ accessToken: 'token' } as never);
 
     await authorizeWithEntra(SIGN_IN_PARAMETERS);
 
     const parameters = jest.mocked(authorize).mock.calls[0][0].additionalParameters;
-    expect(parameters).toEqual({ prompt: 'select_account' });
+    expect(parameters).toEqual({ prompt: 'login' });
     expect(parameters).not.toHaveProperty('login_hint');
     expect(parameters).not.toHaveProperty('max_age');
     expect(parameters).not.toBe(SIGN_IN_PARAMETERS);
   });
 
-  it('the sign-in and the re-authentication parameter sets stay distinct', () => {
-    expect(SIGN_IN_PARAMETERS).toEqual({ prompt: 'select_account' });
+  it('the sign-in never offers an account tile, and stays distinct from the re-authentication set', () => {
+    expect(SIGN_IN_PARAMETERS).toEqual({ prompt: 'login' });
+    expect(SIGN_IN_PARAMETERS.prompt).not.toBe('select_account');
     expect(REAUTHENTICATION_PARAMETERS).toEqual({ prompt: 'login', max_age: '0' });
   });
 

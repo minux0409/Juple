@@ -404,6 +404,9 @@
     "passwordManagedByGoogle": "Googleアカウントでログインしています。パスワードはGoogleで管理されます。",
     "passwordManagedByApple": "Appleアカウントでログインしています。パスワードはAppleで管理されます。",
     "passwordReset": "パスワードをリセット",
+    "passwordResetGuideTitle": "パスワードを再設定しますか?",
+    "passwordResetGuideBody": "次の画面でメールアドレスを確認し、パスワード入力欄の下にある「パスワードを忘れた場合」を選択してください。メール認証後に新しいパスワードを設定すると、自動的にログインされます。",
+    "passwordResetContinue": "続ける",
     "deleteTitle": "アカウントを削除",
     "deleteSummary": "アカウントと保存したすべてのデータが完全に削除され、元に戻せません。",
     "deleteAction": "アカウントを削除"
@@ -1197,7 +1200,6 @@
     "termsName": "サービス利用規約",
     "privacyName": "個人情報の収集・利用への同意",
     "next": "次へ",
-    "close": "閉じてログアウト",
     "viewDetail": "詳細を見る",
     "loadFailed": "規約を確認できませんでした。しばらくしてからもう一度お試しください。",
     "terms": {

@@ -404,6 +404,9 @@
     "passwordManagedByGoogle": "Accedi con Google. La tua password è gestita da Google.",
     "passwordManagedByApple": "Accedi con Apple. La tua password è gestita da Apple.",
     "passwordReset": "Reimposta password",
+    "passwordResetGuideTitle": "Reimpostare la password?",
+    "passwordResetGuideBody": "Nella schermata successiva conferma la tua e-mail e scegli «Password dimenticata?» sotto il campo della password. Dopo la verifica dell'e-mail potrai impostare una nuova password e accederai automaticamente.",
+    "passwordResetContinue": "Continua",
     "deleteTitle": "Elimina account",
     "deleteSummary": "Il tuo account e tutto ciò che hai salvato verranno eliminati definitivamente. L'operazione non può essere annullata.",
     "deleteAction": "Elimina account"
@@ -1197,7 +1200,6 @@
     "termsName": "Termini di servizio",
     "privacyName": "Raccolta e utilizzo dei dati personali",
     "next": "Avanti",
-    "close": "Chiudi ed esci",
     "viewDetail": "Vedi dettagli",
     "loadFailed": "Impossibile verificare i termini. Riprova tra un momento.",
     "terms": {

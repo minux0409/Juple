@@ -461,7 +461,6 @@ export const MOBILE_STRING_KEYS = {
   agreementTermsName: 'agreement.termsName',
   agreementPrivacyName: 'agreement.privacyName',
   agreementNext: 'agreement.next',
-  agreementClose: 'agreement.close',
   agreementViewDetail: 'agreement.viewDetail',
   agreementLoadFailed: 'agreement.loadFailed',
   agreementTermsServiceTitle: 'agreement.terms.serviceTitle',

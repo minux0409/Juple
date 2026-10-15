@@ -7,6 +7,7 @@ import { getMyProfile, resolveSignInMethod, type SignInMethod, type UserProfile 
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
 import { reauthenticateSameAccount } from '../auth/reauthentication';
+import { AppModal } from '../components/AppModal';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { ChevronIcon } from '../icons/ChevronIcon';
@@ -71,10 +72,16 @@ export function AccountManagementScreen() {
 
   const method = resolveSignInMethod(profile);
 
+  const [showResetGuide, setShowResetGuide] = useState(false);
+
+  // Entra External ID has no "change password" step in the sign-in itself: the reset is the sign-in page's own "Forgot password?"
+  // link (e-mail verification, then the new password). So the person is told that first - otherwise entering the current password just
+  // signs in again and comes straight back here.
   const openPasswordReset = async () => {
     if (isSigningIn) {
       return;
     }
+    setShowResetGuide(false);
     setNotice(null);
     setIsSigningIn(true);
     try {
@@ -123,7 +130,7 @@ export function AccountManagementScreen() {
                 <Pressable
                   accessibilityRole="button"
                   disabled={isSigningIn}
-                  onPress={openPasswordReset}
+                  onPress={() => setShowResetGuide(true)}
                   style={styles.row}
                   testID="account-password-reset"
                 >
@@ -149,6 +156,24 @@ export function AccountManagementScreen() {
           </Pressable>
         </View>
       </ScrollView>
+      <AppModal
+        footer={
+          <View style={styles.guideFooter}>
+            <Pressable accessibilityRole="button" onPress={() => setShowResetGuide(false)} style={styles.guideCancel} testID="account-password-reset-cancel">
+              <Text style={styles.guideCancelLabel}>{t('common.cancel')}</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => { openPasswordReset().catch(() => undefined); }} style={styles.guideContinue} testID="account-password-reset-continue">
+              <Text style={styles.guideContinueLabel}>{t('account.passwordResetContinue')}</Text>
+            </Pressable>
+          </View>
+        }
+        onClose={() => setShowResetGuide(false)}
+        testID="account-password-reset-guide"
+        title={t('account.passwordResetGuideTitle')}
+        visible={showResetGuide}
+      >
+        <Text style={styles.guideBody}>{t('account.passwordResetGuideBody')}</Text>
+      </AppModal>
     </StackScreenSafeArea>
   );
 }
@@ -192,4 +217,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   dangerButtonLabel: { color: colors.danger, fontSize: 15, fontWeight: '600', textAlign: 'center' },
+  guideBody: { color: colors.textPrimary, fontSize: 15, lineHeight: 22 },
+  guideFooter: { alignSelf: 'stretch', flexDirection: 'row', gap: spacing.sm },
+  guideCancel: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flex: 1, justifyContent: 'center', minHeight: minTouchTarget },
+  guideCancelLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
+  guideContinue: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.md, flex: 1, justifyContent: 'center', minHeight: minTouchTarget },
+  guideContinueLabel: { color: colors.surface, fontSize: 15, fontWeight: '700' },
 });

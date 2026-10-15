@@ -312,7 +312,6 @@ export function RootStack() {
               <TermsAgreementScreen
                 isSaving={termsOnboarding.isSaving}
                 onAccept={() => { termsOnboarding.accept().catch(() => undefined); }}
-                onClose={() => { signOut().catch(() => undefined); }}
                 saveFailed={termsOnboarding.saveFailed}
               />
             )}

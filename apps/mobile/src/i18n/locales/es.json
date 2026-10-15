@@ -404,6 +404,9 @@
     "passwordManagedByGoogle": "Inicias sesión con Google. Google gestiona tu contraseña.",
     "passwordManagedByApple": "Inicias sesión con Apple. Apple gestiona tu contraseña.",
     "passwordReset": "Restablecer contraseña",
+    "passwordResetGuideTitle": "¿Restablecer la contraseña?",
+    "passwordResetGuideBody": "En la siguiente pantalla, confirma tu correo y elige «¿Olvidaste tu contraseña?» debajo del campo de contraseña. Tras verificar el correo podrás establecer una nueva contraseña y se iniciará sesión automáticamente.",
+    "passwordResetContinue": "Continuar",
     "deleteTitle": "Eliminar cuenta",
     "deleteSummary": "Tu cuenta y todo lo que guardaste se eliminarán para siempre. No se puede deshacer.",
     "deleteAction": "Eliminar cuenta"
@@ -1197,7 +1200,6 @@
     "termsName": "Términos del servicio",
     "privacyName": "Recopilación y uso de datos personales",
     "next": "Siguiente",
-    "close": "Cerrar y cerrar sesión",
     "viewDetail": "Ver detalles",
     "loadFailed": "No pudimos comprobar los términos. Inténtalo de nuevo en un momento.",
     "terms": {

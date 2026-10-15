@@ -6,7 +6,6 @@ import { AppModal } from '../components/AppModal';
 import { legalLinks } from '../config/legalLinks';
 import { ChevronIcon } from '../icons/ChevronIcon';
 import { CheckIcon } from '../icons/CheckIcon';
-import { CloseIcon } from '../icons/CloseIcon';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { JupleBrandMark } from '../components/JupleBrandMark';
 
@@ -17,17 +16,15 @@ interface TermsAgreementScreenProps {
   readonly saveFailed: boolean;
   /** Both required agreements were given: the screen's 다음. */
   readonly onAccept: () => void;
-  /** X: leave WITHOUT agreeing - the caller signs out; nothing past this screen opens. */
-  readonly onClose: () => void;
 }
 
 /**
  * The first screen after a successful sign-in until the CURRENT Terms are accepted (before the tutorial and Home). Two required
  * agreements - the Terms of Service and the collection and use of personal information - each with its detail; "all" checks both.
- * There is no skip: 다음 stays disabled until both are checked, and X signs out. One acceptance (the Terms version) is recorded
+ * There is no skip and no way around it (no X, no back to the app): 다음 stays disabled until both are checked. One acceptance (the Terms version) is recorded
  * by the server for the account, so another device or a later sign-in never asks again.
  */
-export function TermsAgreementScreen({ isSaving, saveFailed, onAccept, onClose }: TermsAgreementScreenProps) {
+export function TermsAgreementScreen({ isSaving, saveFailed, onAccept }: TermsAgreementScreenProps) {
   const { t } = useTranslation();
   const [termsChecked, setTermsChecked] = useState(false);
   const [privacyChecked, setPrivacyChecked] = useState(false);
@@ -48,20 +45,6 @@ export function TermsAgreementScreen({ isSaving, saveFailed, onAccept, onClose }
 
   return (
     <SafeAreaView style={styles.screen} testID="terms-agreement-screen">
-      <View style={styles.topBar}>
-        <Pressable
-          accessibilityLabel={t('agreement.close')}
-          accessibilityRole="button"
-          disabled={isSaving}
-          hitSlop={8}
-          onPress={onClose}
-          style={styles.closeButton}
-          testID="agreement-close"
-        >
-          <CloseIcon color={colors.textPrimary} size={24} />
-        </Pressable>
-      </View>
-
       <ScrollView contentContainerStyle={styles.content} style={styles.scroll}>
         <JupleBrandMark size="medium" style={styles.brand} />
         <Text accessibilityRole="header" style={styles.title}>{t('agreement.title')}</Text>
@@ -226,11 +209,9 @@ function PrivacyDetail() {
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.surface, flex: 1 },
-  topBar: { alignItems: 'flex-start', paddingHorizontal: spacing.md, paddingTop: spacing.sm },
-  closeButton: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
   scroll: { flex: 1 },
   content: { alignSelf: 'center', maxWidth: 560, paddingHorizontal: spacing.xl, paddingBottom: spacing.lg, width: '100%' },
-  brand: { marginTop: spacing.md },
+  brand: { marginTop: spacing.xl },
   title: { color: colors.textPrimary, fontSize: 28, fontWeight: '800', marginTop: spacing.lg },
   subtitle: { color: colors.textSecondary, fontSize: 15, lineHeight: 22, marginBottom: spacing.xl, marginTop: spacing.sm },
   row: { alignItems: 'center', flexDirection: 'row', minHeight: minTouchTarget + 8 },

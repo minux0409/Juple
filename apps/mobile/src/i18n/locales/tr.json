@@ -404,6 +404,9 @@
     "passwordManagedByGoogle": "Google ile giriş yapıyorsunuz. Şifreniz Google tarafından yönetilir.",
     "passwordManagedByApple": "Apple ile giriş yapıyorsunuz. Şifreniz Apple tarafından yönetilir.",
     "passwordReset": "Şifreyi sıfırla",
+    "passwordResetGuideTitle": "Parola sıfırlansın mı?",
+    "passwordResetGuideBody": "Sonraki ekranda e-postanızı doğrulayın ve parola alanının altındaki \"Parolanızı mı unuttunuz?\" seçeneğini seçin. E-posta doğrulamasından sonra yeni bir parola belirleyebilirsiniz ve otomatik olarak oturum açılır.",
+    "passwordResetContinue": "Devam",
     "deleteTitle": "Hesabı sil",
     "deleteSummary": "Hesabınız ve kaydettiğiniz her şey kalıcı olarak silinir. Bu işlem geri alınamaz.",
     "deleteAction": "Hesabı sil"
@@ -1197,7 +1200,6 @@
     "termsName": "Hizmet Şartları",
     "privacyName": "Kişisel bilgilerin toplanması ve kullanılması",
     "next": "İleri",
-    "close": "Kapat ve çıkış yap",
     "viewDetail": "Ayrıntıları gör",
     "loadFailed": "Şartlar kontrol edilemedi. Lütfen birazdan tekrar deneyin.",
     "terms": {

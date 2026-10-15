@@ -88,7 +88,7 @@ describe('AuthProvider sign-in', () => {
     jest.clearAllMocks();
   });
 
-  it('asks Entra for the account picker (prompt=select_account) and sends no login_hint or max_age', async () => {
+  it('asks Entra for the sign-in page (prompt=login: no remembered-account tiles) and sends no login_hint or max_age', async () => {
     jest.mocked(getValidAccessToken).mockRejectedValue(new Error('sessionUnavailable'));
     jest.mocked(authorize).mockRejectedValue(new Error('cancelled'));
     let signIn!: () => Promise<void>;
@@ -110,7 +110,7 @@ describe('AuthProvider sign-in', () => {
 
     expect(authorize).toHaveBeenCalledTimes(1);
     const parameters = jest.mocked(authorize).mock.calls[0][0].additionalParameters;
-    expect(parameters).toEqual({ prompt: 'select_account' });
+    expect(parameters).toEqual({ prompt: 'login' });
     expect(parameters).not.toHaveProperty('login_hint');
     expect(parameters).not.toHaveProperty('max_age');
   });
@@ -400,7 +400,7 @@ describe('AuthProvider - an identity without a Juple account never gets one from
       await signIn();
     });
 
-    expect(jest.mocked(authorize).mock.calls[0][0].additionalParameters).toEqual({ prompt: 'select_account' });
+    expect(jest.mocked(authorize).mock.calls[0][0].additionalParameters).toEqual({ prompt: 'login' });
     expect(jest.mocked(authorize).mock.calls[1][0].additionalParameters).toMatchObject({ prompt: 'login', max_age: '0' });
     expect(bootstrapCurrentUser).toHaveBeenLastCalledWith('fresh-token', expect.anything());
     expect(saveAuthorizedSession).toHaveBeenLastCalledWith(expect.objectContaining({ accessToken: 'fresh-token' }));

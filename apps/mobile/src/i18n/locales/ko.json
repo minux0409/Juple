@@ -404,6 +404,9 @@
     "passwordManagedByGoogle": "Google 계정으로 로그인해요. 비밀번호는 Google에서 관리해요.",
     "passwordManagedByApple": "Apple 계정으로 로그인해요. 비밀번호는 Apple에서 관리해요.",
     "passwordReset": "비밀번호 재설정",
+    "passwordResetGuideTitle": "비밀번호를 재설정할까요?",
+    "passwordResetGuideBody": "다음 화면에서 이메일을 확인한 뒤, 암호 입력 칸 아래의 '암호를 잊으셨나요?'를 선택하세요. 이메일 인증 후 새 비밀번호를 설정하면 자동으로 로그인됩니다.",
+    "passwordResetContinue": "계속",
     "deleteTitle": "계정 삭제",
     "deleteSummary": "계정과 저장한 모든 데이터가 영구적으로 삭제되며 되돌릴 수 없어요.",
     "deleteAction": "계정 삭제"
@@ -1197,7 +1200,6 @@
     "termsName": "서비스 이용약관",
     "privacyName": "개인정보 수집 및 이용 동의",
     "next": "다음",
-    "close": "닫고 로그아웃",
     "viewDetail": "자세히 보기",
     "loadFailed": "약관 정보를 확인하지 못했어요. 잠시 후 다시 시도해 주세요.",
     "terms": {

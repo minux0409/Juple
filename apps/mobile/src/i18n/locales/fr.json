@@ -404,6 +404,9 @@
     "passwordManagedByGoogle": "Vous vous connectez avec Google. Votre mot de passe est géré par Google.",
     "passwordManagedByApple": "Vous vous connectez avec Apple. Votre mot de passe est géré par Apple.",
     "passwordReset": "Réinitialiser le mot de passe",
+    "passwordResetGuideTitle": "Réinitialiser le mot de passe ?",
+    "passwordResetGuideBody": "Sur l'écran suivant, confirmez votre e-mail puis choisissez « Mot de passe oublié ? » sous le champ du mot de passe. Après vérification de l'e-mail, vous pourrez définir un nouveau mot de passe et vous serez connecté automatiquement.",
+    "passwordResetContinue": "Continuer",
     "deleteTitle": "Supprimer le compte",
     "deleteSummary": "Votre compte et tout ce que vous avez enregistré seront définitivement supprimés. Cette action est irréversible.",
     "deleteAction": "Supprimer le compte"
@@ -1197,7 +1200,6 @@
     "termsName": "Conditions d'utilisation",
     "privacyName": "Collecte et utilisation des données personnelles",
     "next": "Suivant",
-    "close": "Fermer et se déconnecter",
     "viewDetail": "Voir le détail",
     "loadFailed": "Impossible de vérifier les conditions. Veuillez réessayer dans un instant.",
     "terms": {

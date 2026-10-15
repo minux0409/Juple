@@ -141,7 +141,6 @@ describe('ReportModal', () => {
 
 describe('Terms onboarding (the Agreement screen)', () => {
   const status = (accepted: boolean) => ({ currentVersion: '2026-10-14', acceptedVersion: accepted ? '2026-10-14' : null, isAccepted: accepted });
-  const onClose = jest.fn();
 
   /** The wiring RootStack does: the hook decides, the screen only shows while a decision is "required". */
   function Harness({ enabled = true }: { readonly enabled?: boolean }) {
@@ -154,7 +153,6 @@ describe('Terms onboarding (the Agreement screen)', () => {
           <TermsAgreementScreen
             isSaving={onboarding.isSaving}
             onAccept={() => { onboarding.accept().catch(() => undefined); }}
-            onClose={onClose}
             saveFailed={onboarding.saveFailed}
           />
         ) : null}
@@ -213,11 +211,16 @@ describe('Terms onboarding (the Agreement screen)', () => {
     expect(exists(renderer, 'agreement-detail-full')).toBe(true);
   });
 
-  it('X leaves without agreeing (the caller signs out) and never reaches the app', async () => {
+  it('has no X, skip or other way around it: the only way on is agreeing to both', async () => {
     jest.mocked(getTermsStatus).mockResolvedValue(status(false));
     const renderer = await mount();
-    await press(renderer, 'agreement-close');
-    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(exists(renderer, 'agreement-close')).toBe(false);
+    expect(exists(renderer, 'agreement-skip')).toBe(false);
+    // Every pressable the screen has: the two checkboxes, 전체동의, the two details and 다음 - nothing that leaves.
+    const pressables = renderer.root
+      .findAll(node => typeof node.props.testID === 'string' && typeof node.props.onPress === 'function')
+      .map(node => node.props.testID as string);
+    expect(new Set(pressables)).toEqual(new Set(['agreement-all', 'agreement-terms', 'agreement-privacy', 'agreement-terms-detail', 'agreement-privacy-detail', 'agreement-next']));
     expect(acceptTerms).not.toHaveBeenCalled();
     expect(exists(renderer, 'home')).toBe(false);
   });

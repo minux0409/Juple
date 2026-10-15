@@ -12,8 +12,8 @@ type Document = 'terms' | 'privacy';
 /**
  * 약관 동의: the first thing a signed-in person sees until the CURRENT Terms are accepted - before the app shell (and so before the
  * tutorial and everything else). Two required agreements (the Terms of Service, the collection and use of personal information), each
- * with its detail and a link to the full page; "all" checks both. There is no skip: 다음 stays disabled until both are checked, and
- * the close button signs out. The server records one acceptance per account and Terms version, so another device or a later
+ * with its detail and a link to the full page; "all" checks both. There is no skip and no close button: 다음 stays disabled until both
+ * are checked. The server records one acceptance per account and Terms version, so another device or a later
  * sign-in never asks again. Same flow and same texts as the mobile app (apps/mobile/src/safety/TermsAgreementScreen).
  */
 export function TermsAgreement({
@@ -21,14 +21,12 @@ export function TermsAgreement({
   dictionary,
   version,
   onAccepted,
-  onClose,
   onSessionLost,
 }: {
   readonly api: AppApi;
   readonly dictionary: AppDictionary;
   readonly version: string;
   readonly onAccepted: (status: TermsStatus) => void;
-  readonly onClose: () => void;
   readonly onSessionLost: () => void;
 }) {
   const titleId = useId();
@@ -74,11 +72,6 @@ export function TermsAgreement({
   return (
     <main aria-labelledby={titleId} className={styles.agreementPage} data-terms-agreement>
       <form className={styles.agreementCard} noValidate onSubmit={accept}>
-        <div className={styles.agreementTop}>
-          <button aria-label={dictionary.agreementClose} className={styles.agreementClose} data-agreement-close disabled={busy} onClick={onClose} type="button">
-            ×
-          </button>
-        </div>
         <p className={styles.agreementBrand}>Juple</p>
         <h1 className={styles.agreementTitle} id={titleId}>
           {dictionary.agreementTitle}

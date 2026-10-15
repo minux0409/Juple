@@ -44,14 +44,15 @@ export const REAUTHENTICATION_PARAMETERS: Readonly<Record<string, string>> = {
 };
 
 /**
- * The ordinary sign-in: prompt=select_account makes Entra show its account picker (and "use another
- * account") instead of silently continuing with whichever account the browser's SSO session holds - so a
- * person who signed out can choose a different account without clearing any browser data. Deliberately
- * no login_hint (that would pre-select one account) and no max_age; the same-account re-authentication
- * above is a separate flow and keeps prompt=login / max_age=0 / login_hint.
+ * The ordinary sign-in: prompt=login always shows the sign-in page (e-mail, then password, or 계정 만들기) and never
+ * continues from a remembered browser session. The account picker's tiles are the browser's SSO cookies: a tile of an
+ * account that was deleted or whose password was just reset sends Entra into consent screens and ends in a failed
+ * sign-in, so no tile is ever offered. Someone who wants another account simply types its e-mail. Deliberately no
+ * login_hint (it would pre-select one account) and no max_age; the same-account re-authentication above keeps its own
+ * prompt=login / max_age=0 / login_hint.
  */
 export const SIGN_IN_PARAMETERS: Readonly<Record<string, string>> = {
-  prompt: 'select_account',
+  prompt: 'login',
 };
 
 /**

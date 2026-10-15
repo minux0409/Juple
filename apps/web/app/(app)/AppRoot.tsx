@@ -435,7 +435,6 @@ export function AppRoot({
           api={api}
           dictionary={dictionary}
           onAccepted={accepted => setTerms(accepted)}
-          onClose={() => void signOut()}
           onSessionLost={onSessionLost}
           version={terms.currentVersion}
         />

@@ -404,6 +404,9 @@
     "passwordManagedByGoogle": "Você entra com o Google. Sua senha é gerenciada pelo Google.",
     "passwordManagedByApple": "Você entra com a Apple. Sua senha é gerenciada pela Apple.",
     "passwordReset": "Redefinir senha",
+    "passwordResetGuideTitle": "Redefinir a senha?",
+    "passwordResetGuideBody": "Na próxima tela, confirme seu e-mail e escolha \"Esqueceu a senha?\" abaixo do campo de senha. Após a verificação por e-mail, você poderá definir uma nova senha e será conectado automaticamente.",
+    "passwordResetContinue": "Continuar",
     "deleteTitle": "Excluir conta",
     "deleteSummary": "Sua conta e tudo o que você salvou serão excluídos permanentemente. Isso não pode ser desfeito.",
     "deleteAction": "Excluir conta"
@@ -1197,7 +1200,6 @@
     "termsName": "Termos de Serviço",
     "privacyName": "Coleta e uso de informações pessoais",
     "next": "Avançar",
-    "close": "Fechar e sair",
     "viewDetail": "Ver detalhes",
     "loadFailed": "Não foi possível verificar os termos. Tente novamente em instantes.",
     "terms": {

@@ -7373,21 +7373,7 @@ button.reactionChipMine:hover {
   padding: var(--space-4);
 }
 
-.agreementTop {
-  display: flex;
-  justify-content: flex-start;
-}
 
-.agreementClose {
-  min-width: 44px;
-  min-height: 44px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font-size: 28px;
-  line-height: 1;
-  cursor: pointer;
-}
 
 .agreementBrand {
   margin: var(--space-3) 0 0;

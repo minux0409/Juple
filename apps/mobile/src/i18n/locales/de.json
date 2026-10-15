@@ -404,6 +404,9 @@
     "passwordManagedByGoogle": "Du meldest dich mit Google an. Dein Passwort wird von Google verwaltet.",
     "passwordManagedByApple": "Du meldest dich mit Apple an. Dein Passwort wird von Apple verwaltet.",
     "passwordReset": "Passwort zurücksetzen",
+    "passwordResetGuideTitle": "Passwort zurücksetzen?",
+    "passwordResetGuideBody": "Bestätige auf dem nächsten Bildschirm deine E-Mail-Adresse und wähle unter dem Passwortfeld „Passwort vergessen?“. Nach der E-Mail-Bestätigung kannst du ein neues Passwort festlegen und wirst automatisch angemeldet.",
+    "passwordResetContinue": "Weiter",
     "deleteTitle": "Konto löschen",
     "deleteSummary": "Dein Konto und alles, was du gespeichert hast, werden dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.",
     "deleteAction": "Konto löschen"
@@ -1197,7 +1200,6 @@
     "termsName": "Nutzungsbedingungen",
     "privacyName": "Erhebung und Nutzung personenbezogener Daten",
     "next": "Weiter",
-    "close": "Schließen und abmelden",
     "viewDetail": "Details ansehen",
     "loadFailed": "Die Bedingungen konnten nicht geprüft werden. Bitte versuche es gleich noch einmal.",
     "terms": {

@@ -404,6 +404,9 @@
     "passwordManagedByGoogle": "You sign in with Google. Your password is managed by Google.",
     "passwordManagedByApple": "You sign in with Apple. Your password is managed by Apple.",
     "passwordReset": "Reset password",
+    "passwordResetGuideTitle": "Reset your password?",
+    "passwordResetGuideBody": "On the next screen, confirm your email and choose \"Forgot password?\" under the password field. After email verification you can set a new password and you will be signed in automatically.",
+    "passwordResetContinue": "Continue",
     "deleteTitle": "Delete account",
     "deleteSummary": "Your account and everything you saved will be permanently deleted. This can't be undone.",
     "deleteAction": "Delete account"
@@ -1197,7 +1200,6 @@
     "termsName": "Terms of Service",
     "privacyName": "Collection and use of personal information",
     "next": "Next",
-    "close": "Close and sign out",
     "viewDetail": "View details",
     "loadFailed": "We couldn't check the terms. Please try again in a moment.",
     "terms": {
