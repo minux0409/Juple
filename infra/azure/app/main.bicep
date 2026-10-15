@@ -232,6 +232,16 @@ param billingEventsServiceBusNamespace string = ''
 param billingProgramEnabled bool = false
 param billingProgramStartAtUtc string = ''
 
+// Terms of Service consent (UGC safety). Deliberately WITHOUT defaults: the API's own default enforces acceptance, which would make an
+// older installed app that has no Terms screen fail its content writes with 403 the moment a new backend is deployed. Every environment
+// states both values in its parameter file and they are always written as Container App env vars - never left to the code default.
+@description('Terms__EnforceAcceptance: true = content writes need the current Terms accepted (403 termsRequired otherwise). Production keeps false until the app build that shows the Terms is the minimum supported build.')
+param termsEnforceAcceptance bool
+
+@description('Terms__CurrentVersion: the Terms version people accept (a date string such as 2026-10-14). Raising it asks everyone again.')
+@minLength(1)
+param termsCurrentVersion string
+
 // The API\'s own keys: either the three values (parameter mode) or three Key Vault references (vault mode).
 @description('Deletes the Microsoft Entra External ID sign-in account together with the Juple account (see docs/auth-session-lifecycle.md). Off by default: account deletion then removes Juple data only. When true it needs the customer tenant id, the deletion app registration client id and its client secret (entraAccountDeletionClientSecret, or the Key Vault secret named by entraAccountDeletionClientSecretName when apiKeysFromKeyVault).')
 param entraAccountDeletionEnabled bool = false
@@ -441,6 +451,17 @@ var mobileVersionPolicyEnv = concat(
         }
       ]
 )
+
+var termsEnv = [
+  {
+    name: 'Terms__EnforceAcceptance'
+    value: termsEnforceAcceptance ? 'true' : 'false'
+  }
+  {
+    name: 'Terms__CurrentVersion'
+    value: termsCurrentVersion
+  }
+]
 
 var observabilityEnv = empty(applicationInsightsConnectionString)
   ? []
@@ -720,7 +741,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'PublicWeb__BaseUrl'
               value: publicWebBaseUrl
             }
-          ], authenticatedWebEnv, mobileVersionPolicyEnv, billingEnv, entraDeletionEnv, observabilityEnv, diagnosticsEnv, startupWarmupEnv)
+          ], authenticatedWebEnv, mobileVersionPolicyEnv, termsEnv, billingEnv, entraDeletionEnv, observabilityEnv, diagnosticsEnv, startupWarmupEnv)
           probes: [
             {
               type: 'Liveness'

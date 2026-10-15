@@ -130,6 +130,19 @@ param billingEventsServiceBusNamespace = readEnvironmentVariable('JUPLE_APP_PROD
 // stray environment variable.
 param billingProgramEnabled = false
 
+// Terms consent (main.bicep has no default on purpose - the API code default is to ENFORCE). Production stays OFF: the store build
+// that people have (v25) has no Terms screen, so enforcing would refuse their content writes with 403. Activation order: deploy the
+// new backend with this false -> ship the build with the Terms screen (closed testing) -> confirm it is stable -> make it the
+// minimum supported build (mobileAndroidMinimumSupportedBuild) and confirm older builds are forced to update -> only then true.
+param termsEnforceAcceptance = false
+param termsCurrentVersion = '2026-10-14'
+
+// Entra sign-in account deletion (docs/account-deletion-entra.md): OFF until the Production activation round. That round creates the
+// deletion app registration in the Production External ID tenant (Graph User.ReadWrite.All + admin consent), stores its client secret
+// (180-day expiry) ONLY in Key Vault as entra-account-deletion-client-secret, applies the AddPendingEntraIdentityDeletions migration, and then
+// sets Enabled = true with the client id here (this API and the blob-cleanup Job together; apiKeysFromKeyVault above makes it a Key Vault reference). The secret value never goes through a parameter.
+param entraAccountDeletionEnabled = false
+
 // -----------------------------------------------------------------------------------------------
 // Mobile update policy (MobileVersionPolicy) - Android builds are versionCode numbers. The app reads it from the anonymous
 // GET /api/v1/app-update/android (and from the bootstrap response); a policy change is a configuration deployment, not an app release.
