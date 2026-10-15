@@ -12,6 +12,8 @@ no longer sign in, and a returning person must sign up anew (new Entra object id
 3. After the commit the API calls Microsoft Graph `DELETE /users/{id}` at once. Success removes the pending row.
    `404` counts as success (idempotent). Any other failure keeps the row (only an HTTP status / AADSTS number is recorded).
 4. The scheduled blob-cleanup Job (`--run-blob-cleanup-retry`, every 5 min) retries every pending row; it exits non-zero while one is still failing.
+   With `EntraAccountDeletion:Enabled=false` the Job skips this step (one info line, "Entra identity deletion retry is disabled; skipping.",
+   exit 0) and leaves every pending row untouched; the blob cleanup in the same pass is unaffected.
 5. While a row exists for an identity, `POST /users/me/bootstrap` for that identity answers `409 accountDeletionPending` and creates nothing
    (it first tries to finish the deletion, so a cleared transient failure does not block a real sign-up). The old password therefore
    never yields a fresh Juple account, even in the failure window.
@@ -45,8 +47,13 @@ The Entra user deleted is the stored external identity of the account being dele
   (`apiKeysFromKeyVault` + `entraAccountDeletionClientSecretName` in `infra/azure/app/main.bicep`).
 - DEV (configured 2026-10-14): app registration `Juple Account Deletion (Dev)` (appId `0006055e-a22e-43da-b6c4-28995e2ae5f5`) in the
   DEV tenant; settings `EntraAccountDeletion__Enabled/TenantId/ClientId/ClientSecret` on `ca-juple-api-dev` and `caj-juple-blob-cleanup-dev`.
-  The same keys are modelled in `infra/azure/app/main.bicep` and `blob-cleanup-job/main.bicep` (default off), so a Bicep redeploy keeps them
-  when `dev.bicepparam` is used with `JUPLE_APP_ENTRA_DELETION_CLIENT_SECRET` set.
+  The same keys are modelled in `infra/azure/app/main.bicep` and `blob-cleanup-job/main.bicep` (default off). The DEV API still takes the
+  secret as a value (`JUPLE_APP_ENTRA_DELETION_CLIENT_SECRET` with `app/dev.bicepparam`); since 2026-10-15 the DEV Job reads it from
+  `kv-juple-dev-lg4zigc62h2` / `entra-account-deletion-client-secret` (Key Vault reference through `id-juple-dev`,
+  `blob-cleanup-job/dev.bicepparam`) - the structure Production uses. Secret expiry: 2027-01-12T11:52:50Z (vault `exp` set to the same instant).
+- Both templates support the Key Vault reference: the API with `apiKeysFromKeyVault` + `entraAccountDeletionClientSecretName`, the Job with
+  `entraAccountDeletionClientSecretFromKeyVault` + `entraAccountDeletionClientSecretName` (+ `keyVaultUri`). A fail-closed guard
+  (`app/entra-deletion-secret-source-guard.bicep`) refuses a Job deployment whose source is incomplete or ambiguous.
 - Migration `AddPendingEntraIdentityDeletions`: one new table, additive; the previous API revision is unaffected. Applied to DEV 2026-10-14.
 
 ## Trial-abuse protection without the Entra object id
@@ -78,9 +85,56 @@ Whether a keyed email hash is personal data, and the privacy-policy wording, rem
 The Microsoft-hosted picker may still list the deleted email as a remembered tile (browser/CIAM cache). Selecting it cannot authenticate (above).
 Making the tile disappear is not under Juple's control; follow-up UX: nothing in the app can edit that page.
 
-## Production checklist (not done)
+## What `Enabled=false` means (rollback semantics)
 
-1. Create the deletion app registration in the PROD tenant, grant `User.ReadWrite.All`, store its secret in Key Vault (`entra-account-deletion-client-secret`).
-2. Set `entraAccountDeletionEnabled`/tenant/client id for `ca-juple-api-prod` and the blob-cleanup Job; apply the migration to PROD SQL first.
-3. Set `Billing__TrialIdentityHashKey` before the subscription program is enabled (needed for the email-hash trial memory).
-4. Privacy policy / account-deletion page: say that the sign-in account is deleted too.
+- **API:** a new account deletion removes Juple data only - no pending row, no Graph call (as before v26). The bootstrap guard
+  (`409 accountDeletionPending`) is skipped, so an identity that still has a pending row could create a new account again (still only with a
+  sign-in from the last 5 minutes).
+- **Job:** the Entra retry step is skipped; pending rows are kept, never counted as failures, never deleted.
+- **Therefore:** rows written while the feature was on are NOT finished while it is off - those Entra users keep working until the feature
+  is on again.
+
+### Runbook: turning it off because Graph fails
+
+1. Record why (the `account.entra-deletion.failed Code=...` codes - an HTTP status / AADSTS number only).
+2. Set `entraAccountDeletionEnabled = false` for the API (and the Job) and deploy. Account deletion keeps working for Juple data.
+3. Count what is waiting (read-only): `SELECT COUNT(*), MIN(CreatedAtUtc), MAX(AttemptCount) FROM users.PendingEntraIdentityDeletions`.
+4. Fix the cause (expired / wrong secret, consent removed, permission, Graph outage).
+5. Turn it on again (API + Job). The next Job run (5 min) finishes every waiting row; confirm the count reaches 0.
+6. **Never delete pending rows by hand as a "rollback"**: a deleted row means that person's old email + password keeps signing in to Entra
+   and nothing will ever retry. A row is removed only by the service when Entra confirms (deleted or already gone).
+
+## Credential rotation runbook (manual - automatic rotation is out of scope for the launch)
+
+Production: one client secret on the PROD deletion app registration, **180-day lifetime**, stored ONLY in `kv-juple-prod-*` as
+`entra-account-deletion-client-secret` with the vault `exp` attribute set to the credential's end. Rotate at least 30 days before it ends:
+
+1. Entra admin center (PROD tenant) -> the deletion app -> Certificates & secrets -> new client secret (180 days). Copy it once.
+2. `az keyvault secret set --vault-name <prod vault> -n entra-account-deletion-client-secret --file <temp file> --expires <end>` (from a file
+   that is deleted right after - never on the command line, never in a log or chat).
+3. New API revision and a Job run pick up the new version (Container Apps Key Vault references refresh on a new revision / execution;
+   `az containerapp update` with no change, or the next deployment). Confirm a Job run logs `Entra identity deletion retry complete` and no
+   `account.entra-deletion.failed`.
+4. Delete the old secret from the app registration.
+- Expiry signal: the vault `exp` attribute plus the operator reminder; a missed rotation shows as `account.entra-deletion.failed`
+  (`AADSTS7000222` = expired secret) and repeated blob-cleanup Job failures, which the scheduled-Job-failure alert
+  (`infra/azure/monitoring`, `containerAppAlertsEnabled`) reports to `ag-juple-<env>`. A dedicated Key Vault near-expiry alert (Event Grid
+  `SecretNearExpiry`) is a follow-up, not part of the launch.
+
+## Production checklist (prepared 2026-10-15, not executed)
+
+IaC already prepared: `app/prod.bicepparam` (`termsEnforceAcceptance = false`, `termsCurrentVersion = '2026-10-14'`,
+`entraAccountDeletionEnabled = false`), `blob-cleanup-job/prod.bicepparam` (`entraAccountDeletionEnabled = false`,
+`entraAccountDeletionClientSecretFromKeyVault = true`), `monitoring/prod.bicepparam` (`containerAppAlertsEnabled = true`).
+
+1. Record the current PROD revisions / image digests and a database restore point.
+2. Read `__EFMigrationsHistory`; apply `AddPendingEntraIdentityDeletions` and `AddUgcSafety` (both additive) with an idempotent script.
+3. Deploy the current backend image to the API and every Job / worker with Entra deletion OFF and Terms enforcement OFF; smoke test.
+4. PROD tenant (`30b18993-...`, CIAM): create the deletion app registration, Graph `User.ReadWrite.All` + admin consent, client secret (180 days)
+   -> Key Vault only, with `exp`.
+5. Set the client id / tenant id and `entraAccountDeletionEnabled = true` in both PROD parameter files; deploy the Job first (a run must
+   succeed), then the API.
+6. Deploy the Web legal pages together with step 5 (the prepared wording says the sign-in account is deleted too).
+7. E2E with a test account; pending count 0; old password refused; same-email sign-up gets a new object id.
+8. Deploy monitoring with `containerAppAlertsEnabled = true`.
+9. `Billing__TrialIdentityHashKey` (already in the PROD vault as `trial-identity-hash-key`) is wired only when the subscription program is enabled.

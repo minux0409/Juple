@@ -61,7 +61,14 @@ Removed immediately: profile, all links/Collections/memos/comments/friends/notif
 - **Keys:** the existing `HMAC-SHA256(Billing:TrialIdentityHashKey, "juple-trial-v1|tenantId|objectId")` entry is unchanged. Because the object id does not survive a deletion any more,
   the same table also holds `HMAC-SHA256(key, "juple-trial-email-v1|" + lower(trim(email)))` + the window, written at deletion (never overwriting) and applied to a new account of the same
   email at sign-up. Only a keyed hash is stored, never the address; retention is the ledger's (24 months after the trial ended).
-- **[REVIEW REQUIRED]** unchanged from before: whether a keyed email hash is personal data, the privacy-policy wording and the retention period are legal/privacy decisions not made here.
+- **What is (not) stored for the email memory:** no raw email anywhere - there is no email column in `billing.TrialLedger` (or any other Juple table) and none may be added for this.
+  The address is read from Graph only at deletion / sign-up, normalised (`trim` + lower-case, no plus-address or dot folding), turned into the keyed HMAC above and
+  discarded. Purpose: one person cannot restart the 30-day free trial by deleting the account and signing up again with the same email. Retention: the ledger's
+  existing policy (24 months after the trial window ended; a running window is never deleted).
+- **User-facing wording (prepared 2026-10-15, `apps/web/lib/legalContent.ts`, ships with the Production Entra-deletion activation):** "로그인 식별 값과 로그인 이메일
+  주소를 정해진 방식으로 정리한 뒤 원래 값으로 되돌릴 수 없게 바꾼 변환값(해시)과 이용 기간을 저장 ... 이메일 주소 자체를 저장하지 않습니다" - no cryptographic jargon.
+- **[REVIEW REQUIRED]** unchanged from before: whether a keyed email hash is personal data (the code treats it as possibly personal - it can be recomputed by whoever holds
+  the key and a candidate address), whether that wording is sufficient, and the retention period are legal/privacy decisions not made here.
 - **Remaining gaps:** a different sign-in method or a different email gives a new trial (the ledger recognises an email, not a person). With Entra deletion off, behaviour is as before
   (object-id ledger only).
 
@@ -69,6 +76,6 @@ Removed immediately: profile, all links/Collections/memos/comments/friends/notif
 
 1. **[REVIEW REQUIRED]** 5-year purchase-record period (legal/accounting; may need to be longer for tax records or shorter for privacy) and whether the 180-day sealed-token period fits Google refund/dispute windows.
 2. **[REVIEW REQUIRED]** whether a keyed hash is personal data in the operating jurisdiction (the code treats it as possibly personal) and the 24-month ledger period.
-3. Entra identity deletion policy and the two trial-identity gaps (section 5), plus the privacy-policy wording about them - owned by the future trial-identity round.
+3. The two trial-identity gaps (section 5). The Entra deletion policy is decided (deleted with the account) and the privacy / account-deletion wording is prepared; its legal sufficiency is item 2. Microsoft-side lifecycle after a deletion (e.g. any restore period in the tenant) is deliberately not stated as a number in the user-facing text until confirmed from Microsoft documentation **[REVIEW REQUIRED]**.
 4. Telemetry/crash reporting does not exist; if added, its retention must be added here.
 5. **Production deployment state:** `caj-juple-retention-prod` and `caj-juple-blob-cleanup-prod` are deployed with `triggerType = Manual` (no schedule): the image is pinned by digest, both use the SQL runtime principal through a Key Vault reference and `id-juple-prod` for Blob access. Each has had one observed manual run (retention: every category `Purged=0`, `Failures=0`; blob cleanup: `Pending=0`). Switching either to the documented cadence (`Schedule`: retention `17 3 * * *`, blob cleanup `*/5 * * * *`) is a deliberate one-line change in its `prod.bicepparam`. Both Jobs share the API identity, which holds Blob Data Contributor on the whole storage account; a dedicated identity scoped to the `item-images` container is a later hardening. Blob soft delete is not enabled on the Production storage account, so a Blob deletion is permanent.

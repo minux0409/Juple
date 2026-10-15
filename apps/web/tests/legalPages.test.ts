@@ -114,6 +114,28 @@ describe('legal text', () => {
     assert.doesNotMatch(fullText, /Juple 데이터 삭제 요청/);
   });
 
+  it('account deletion also deletes the sign-in account (v26) - no page says it is kept, and no Microsoft-internal timing is promised', () => {
+    const privacy = text(privacyDocument(noOperator));
+    const deletion = text(accountDeletionDocument(noOperator));
+    for (const doc of [privacy, deletion]) {
+      assert.doesNotMatch(doc, /지워지지 않습니다/);
+      assert.doesNotMatch(doc, /30일 동안 복구|휴지통|soft delete/i);
+    }
+    assert.match(privacy, /계정 삭제를 요청하면 Juple 서비스에 사용하던 Microsoft Entra External ID 로그인 계정\(이메일 주소 등 로그인 정보\)의 삭제 절차도 함께 진행됩니다/);
+    assert.match(privacy, /계정 삭제를 요청하면 Juple에서 쓰던 로그인 계정의 삭제도 함께 처리합니다/);
+    const deleted = accountDeletionDocument(noOperator).sections.find(section => section.id === 'deleted');
+    const kept = accountDeletionDocument(noOperator).sections.find(section => section.id === 'kept');
+    assert.match(JSON.stringify(deleted), /Juple 서비스에 사용하던 로그인 계정/);
+    assert.doesNotMatch(JSON.stringify(kept), /로그인 계정 정보/);
+  });
+
+  it('the trial memory is described as a one-way transformation of the sign-in email, never the email itself', () => {
+    const privacy = text(privacyDocument(noOperator));
+    const deletion = text(accountDeletionDocument(noOperator));
+    assert.match(privacy, /로그인 이메일 주소를 정해진 방식으로 정리한 뒤 원래 값으로 되돌릴 수 없게 바꾼 변환값\(해시\)과 이용 기간을 저장합니다\. 이 기록에는 이메일 주소 자체를 저장하지 않습니다/);
+    assert.match(deletion, /이메일 주소 자체나 이름은 남지 않습니다\. 이용 기간 종료 후 24개월까지 보관합니다/);
+  });
+
   it('makes no "no analytics at all" claim', () => {
     assert.doesNotMatch(text(privacyDocument(noOperator)), /분석.*(하지 않|없)|analytics/i);
   });
