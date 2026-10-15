@@ -434,9 +434,9 @@ describe('design consistency: page header, form spacing, tokens', () => {
     assert.match(css, /\.fieldLabel,\s*\.editorLegend \{[^}]*font-size: var\(--text-label\);/);
   });
 
-  it('Home: the main and side columns start at the same top; the summary is one card of cells', () => {
+  it('Home: the main and side columns start at the same top; the summary is one block of figures inside the rail', () => {
     assert.match(css, /\.dashboard \{[^}]*align-items: start;/);
-    assert.match(css, /\.summaryGrid \{[^}]*border: 1px solid var\(--app-border\);[^}]*border-radius: var\(--radius-card\);/);
+    assert.match(css, /\.summaryGrid \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
   });
 
   it('Collections: grid cards are picture-first (a cover on top), at least 220px wide', () => {
@@ -628,10 +628,11 @@ describe('Web V3: desktop-native layout (the window is used)', () => {
     assert.match(css, /\.navLink,\s*\.navLinkActive \{[^}]*min-height: 48px;/);
   });
 
-  it('Home: quick save across the whole width, then the workspace beside a fixed-width rail', () => {
+  it('Home: quick save across the whole width, then the workspace beside a fixed-width rail, both within one page width', () => {
     const home = source('app/(app)/HomeView.tsx');
     assert.ok(home.indexOf('<AddLinkForm />') < home.indexOf('className={styles.dashboard}'));
-    assert.match(css, /\.dashboard \{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(340px, 400px\);/);
+    assert.match(css, /\.dashboard \{[^}]*grid-template-columns: minmax\(0, 1fr\) 320px;/);
+    assert.match(css, /\.homePage \{[^}]*max-width: 1560px;[^}]*margin-inline: auto;/);
   });
 
   it('link rows are table rows: picture | title | memo | when / where - the time and site have their own column', () => {
@@ -727,8 +728,9 @@ describe('Web V4: a content workspace', () => {
   });
 
   it('Home: the quick save is a command bar on the page (no panel around it); toolbars are not boxes', () => {
-    assert.match(css, /\.addLinkPanel \{\s*padding: 0;\s*border: 0;\s*background: transparent;/);
-    assert.match(css, /\.addLinkField \{\s*min-height: 60px;/);
+    // the panel is only a column (field + error); the field itself is the bar
+    assert.doesNotMatch(css, /\.addLinkPanel \{[^}]*(border|background|box-shadow):/);
+    assert.match(css, /\.addLinkField \{[^}]*min-height: 68px;/);
     assert.match(css, /\.toolbar,\s*\.controlsRow,\s*\.archiveBar \{\s*padding: 0;\s*border: 0;\s*background: transparent;/);
   });
 

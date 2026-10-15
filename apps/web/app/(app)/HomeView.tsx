@@ -131,7 +131,7 @@ export function HomeView() {
   const todayCount = state.kind === 'loaded' ? (state.count ?? state.links.length) : null;
 
   return (
-    <section aria-busy={state.kind === 'loading'} className={styles.page}>
+    <section aria-busy={state.kind === 'loading'} className={`${styles.page} ${styles.homePage}`}>
       <PageHeader
         icon="Home"
         subtitle={state.kind === 'loaded' ? formatMessage(dictionary.homeDateCount, { date: dateFormat.format(state.day), count: todayCount ?? 0 }) : null}
@@ -143,7 +143,7 @@ export function HomeView() {
       <div className={styles.dashboard}>
         <div className={styles.dashboardMain}>
 
-          <section aria-labelledby="home-today" className={styles.surfaceSection}>
+          <section aria-labelledby="home-today" className={styles.homeFeed}>
             <div className={styles.sectionBar}>
               <h2 className={styles.sectionTitle} id="home-today">
                 {dictionary.homeTitle}
@@ -166,12 +166,12 @@ export function HomeView() {
 
         <aside className={`${styles.dashboardSide} ${styles.railCard}`}>
           <SummaryCards dictionary={dictionary} summary={summary} todayCount={todayCount} />
-          <div className={styles.quickActions}>
-            <Link className={styles.quickAction} href="/collections/new">
+          <div className={styles.railActions}>
+            <Link className={styles.railAction} href="/collections/new">
               <Glyph name="Plus" size={18} />
               <span>{dictionary.collectionCreate}</span>
             </Link>
-            <Link className={styles.quickAction} href="/archive">
+            <Link className={styles.railAction} href="/archive">
               <Glyph name="Archive" size={18} />
               <span>{dictionary.navArchive}</span>
             </Link>
