@@ -137,11 +137,15 @@ param billingProgramEnabled = false
 param termsEnforceAcceptance = false
 param termsCurrentVersion = '2026-10-14'
 
-// Entra sign-in account deletion (docs/account-deletion-entra.md): OFF until the Production activation round. That round creates the
-// deletion app registration in the Production External ID tenant (Graph User.ReadWrite.All + admin consent), stores its client secret
-// (180-day expiry) ONLY in Key Vault as entra-account-deletion-client-secret, applies the AddPendingEntraIdentityDeletions migration, and then
-// sets Enabled = true with the client id here (this API and the blob-cleanup Job together; apiKeysFromKeyVault above makes it a Key Vault reference). The secret value never goes through a parameter.
-param entraAccountDeletionEnabled = false
+// Entra sign-in account deletion (docs/account-deletion-entra.md) - ON since the Production activation round (2026-10-15):
+// app registration "Juple Account Deletion" in the Production External ID tenant (Graph application permission User.ReadWrite.All,
+// admin-consented), its 180-day client secret (keyId 38f037fc-..., ends 2027-04-13T05:16:49Z - rotate before, see the runbook) stored ONLY
+// in Key Vault as entra-account-deletion-client-secret (vault exp set to the same instant) and read through the Managed Identity.
+// This API and the blob-cleanup Job are enabled together (the Job first); apiKeysFromKeyVault above makes it a Key Vault reference. The secret value never goes through a parameter.
+param entraAccountDeletionEnabled = true
+param entraAccountDeletionTenantId = '30b18993-9ccd-42f3-90bd-f2ff819c0f10'
+param entraAccountDeletionClientId = 'a3890a59-3e27-4fb1-8935-e659e396459b'
+param entraAccountDeletionClientSecretName = 'entra-account-deletion-client-secret'
 
 // -----------------------------------------------------------------------------------------------
 // Mobile update policy (MobileVersionPolicy) - Android builds are versionCode numbers. The app reads it from the anonymous

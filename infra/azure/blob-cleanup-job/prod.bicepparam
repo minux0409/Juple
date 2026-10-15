@@ -21,9 +21,13 @@ param cronExpression = '*/5 * * * *'
 param sqlConnectionStringFromKeyVault = true
 param keyVaultUri = readEnvironmentVariable('JUPLE_APP_PROD_KEY_VAULT_URI')
 
-// Entra sign-in account deletion (docs/account-deletion-entra.md): OFF until the Production activation round. That round creates the
-// deletion app registration in the Production External ID tenant (Graph User.ReadWrite.All + admin consent), stores its client secret
-// (180-day expiry) ONLY in Key Vault as entra-account-deletion-client-secret, applies the AddPendingEntraIdentityDeletions migration, and then
-// sets Enabled = true with the client id here (the API and this Job together). The secret value never goes through a parameter.
-param entraAccountDeletionEnabled = false
+// Entra sign-in account deletion (docs/account-deletion-entra.md) - ON since the Production activation round (2026-10-15):
+// app registration "Juple Account Deletion" in the Production External ID tenant (Graph application permission User.ReadWrite.All,
+// admin-consented), its 180-day client secret (keyId 38f037fc-..., ends 2027-04-13T05:16:49Z - rotate before, see the runbook) stored ONLY
+// in Key Vault as entra-account-deletion-client-secret (vault exp set to the same instant) and read through the Managed Identity.
+// This Job and the API are enabled together (the Job first). The secret value never goes through a parameter.
+param entraAccountDeletionEnabled = true
+param entraAccountDeletionTenantId = '30b18993-9ccd-42f3-90bd-f2ff819c0f10'
+param entraAccountDeletionClientId = 'a3890a59-3e27-4fb1-8935-e659e396459b'
+param entraAccountDeletionClientSecretName = 'entra-account-deletion-client-secret'
 param entraAccountDeletionClientSecretFromKeyVault = true
