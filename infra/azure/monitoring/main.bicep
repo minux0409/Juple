@@ -14,6 +14,7 @@
 //   2. App / worker restarting        - Container Apps metric RestartCount, one rule per app (API, web, workers)
 //   3. Scheduled Job failing          - Container Apps system logs: non-zero exit or DeadlineExceeded
 //   4. Service Bus dead letters       - namespace metric DeadletteredMessages > 0
+//   5. Key Vault secret expiry (opt-in) - Event Grid system topic on the vault -> Azure Monitor alert (SecretNearExpiry / SecretExpired)
 // Alerts 1, 2 and 3 belong to the workloads: 1 and 2 reference Container Apps by name, and 3 reads the
 // Container Apps system-log table, which only exists in a workspace once an app or Job has logged.
 // All three are switched on together with containerAppAlertsEnabled in a second deployment, after the
@@ -61,6 +62,12 @@ param restartThreshold int = 3
 param jobFailureThreshold int = 3
 
 var applicationInsightsName = 'appi-juple-${environmentName}'
+@description('Alert 5 (opt-in): a Key Vault secret is about to expire or has expired - e.g. the Entra account-deletion client secret (180 days, no automatic rotation). Key Vault itself publishes Microsoft.KeyVault.SecretNearExpiry 30 days before a secret\'s exp attribute and SecretExpired at it (only for secrets that HAVE an exp); an Event Grid system topic on the vault turns those into an Azure Monitor alert on the action group below. Needs the Microsoft.EventGrid resource provider registered on the subscription. No fixed cost (Event Grid operations; a handful a year). Off by default.')
+param keyVaultExpiryAlertsEnabled bool = false
+
+@description('Name of the Key Vault watched by alert 5 (same resource group). Required when keyVaultExpiryAlertsEnabled.')
+param keyVaultName string = ''
+
 var actionGroupName = 'ag-juple-${environmentName}'
 
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' existing = {
@@ -218,6 +225,46 @@ resource jobFailureAlert 'Microsoft.Insights/scheduledQueryRules@2022-06-15' = i
         actionGroup.id
       ]
     }
+  }
+}
+
+// 5. A Key Vault secret nearing / past its expiry (opt-in, see keyVaultExpiryAlertsEnabled). Key Vault fires the near-expiry event once,
+// 30 days ahead - that is the platform's own (fixed) lead time; shorter reminders are not a native Key Vault event. The Monitor alert
+// destination requires the CloudEvents schema.
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = if (keyVaultExpiryAlertsEnabled) {
+  name: keyVaultName
+}
+
+resource keyVaultEventsTopic 'Microsoft.EventGrid/systemTopics@2025-02-15' = if (keyVaultExpiryAlertsEnabled) {
+  name: 'egst-juple-${environmentName}-keyvault'
+  location: location
+  properties: {
+    source: keyVault.id
+    topicType: 'Microsoft.KeyVault.vaults'
+  }
+}
+
+resource keyVaultExpiryAlert 'Microsoft.EventGrid/systemTopics/eventSubscriptions@2025-02-15' = if (keyVaultExpiryAlertsEnabled) {
+  parent: keyVaultEventsTopic
+  name: 'alert-juple-${environmentName}-keyvault-secret-expiry'
+  properties: {
+    destination: {
+      endpointType: 'MonitorAlert'
+      properties: {
+        severity: 'Sev2'
+        actionGroups: [
+          actionGroup.id
+        ]
+        description: 'Juple ${environmentName}: a Key Vault secret expires within 30 days or has expired - rotate it (docs/account-deletion-entra.md, credential rotation runbook).'
+      }
+    }
+    filter: {
+      includedEventTypes: [
+        'Microsoft.KeyVault.SecretNearExpiry'
+        'Microsoft.KeyVault.SecretExpired'
+      ]
+    }
+    eventDeliverySchema: 'CloudEventSchemaV1_0'
   }
 }
 
