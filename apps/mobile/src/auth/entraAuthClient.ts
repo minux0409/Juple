@@ -124,8 +124,9 @@ export async function refreshEntraSession(
 
 /**
  * Ends the browser's Entra session (the sign-in cookies the account picker reads) for the account the ID token names.
- * Only used after the account was DELETED: Juple does not delete the Entra identity, so without this the browser keeps
- * offering the deleted account as "signed in" and one tap would sign straight back in (an ordinary sign-out deliberately
+ * Only used after the account was DELETED: the server deletes the Entra sign-in account too (and retries until Entra
+ * confirms), but the browser's session cookie for it would otherwise linger - the picker keeps offering the deleted account
+ * as "signed in" and, before the deletion lands, one tap could sign straight back in (an ordinary sign-out deliberately
  * keeps the picker, so a person can pick another account without clearing browser data). The post-logout redirect is the
  * app's already-registered redirect URI. Best effort and never throws: a cancelled or failed browser step changes nothing
  * about the local sign-out that already happened.

@@ -144,7 +144,7 @@ public sealed class EntraIdentityDeletionServiceTests
         var store = new FakeEntraStore();
         store.Add(1, new PendingEntraIdentityDeletion(CustomerTenant, ObjectId, Now.AddMinutes(-5)));
         var directory = new FakeDirectory();
-        return (new EntraIdentityDeletionService(store, directory, new FixedTime(), NullLogger<EntraIdentityDeletionService>.Instance), store, directory);
+        return (new EntraIdentityDeletionService(store, directory, new EntraAccountDeletionOptions { Enabled = true }, new FixedTime(), NullLogger<EntraIdentityDeletionService>.Instance), store, directory);
     }
 
     [Fact]
@@ -198,6 +198,25 @@ public sealed class EntraIdentityDeletionServiceTests
         var recovered = await service.RunPendingAsync();
         Assert.Equal(new EntraDeletionRunResult(2, 2, 0), recovered);
         Assert.Empty(store.Tasks);
+    }
+
+    [Fact]
+    public async Task RunPendingAsync_WhenDisabled_SkipsWithoutTouchingPendingRowsOrGraph()
+    {
+        // A rollback (EntraAccountDeletion:Enabled=false) after rows were written: the Job must neither fail on them nor drop them.
+        var store = new FakeEntraStore();
+        store.Add(1, new PendingEntraIdentityDeletion(CustomerTenant, ObjectId, Now.AddMinutes(-5)));
+        var directory = new FakeDirectory();
+        var service = new EntraIdentityDeletionService(store, directory, new EntraAccountDeletionOptions(), new FixedTime(), NullLogger<EntraIdentityDeletionService>.Instance);
+
+        var result = await service.RunPendingAsync();
+
+        Assert.True(result.Skipped);
+        Assert.Equal(EntraDeletionRunResult.Disabled, result);
+        Assert.Empty(directory.Deleted);
+        var kept = Assert.Single(store.Tasks).Value;
+        Assert.Equal(0, kept.AttemptCount);
+        Assert.Null(kept.LastErrorCode);
     }
 
     [Fact]

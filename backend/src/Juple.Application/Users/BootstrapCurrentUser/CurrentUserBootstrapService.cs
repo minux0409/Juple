@@ -53,9 +53,11 @@ public sealed class CurrentUserBootstrapService(
         var preferredLocale = NormalizePreferredLocale(command.PreferredLocale);
 
         // No Juple account exists for this identity. Creating one is an explicit act - a person signing up or signing in
-        // again - never a side effect of a stale session. The Entra identity outlives account deletion (Juple does not delete
-        // it), so a refresh token or browser SSO session that still works would otherwise re-create the account silently,
-        // e.g. from a second device or a restored session right after the account was deleted. Account creation therefore
+        // again - never a side effect of a stale session. Account deletion also deletes the Entra External ID sign-in account
+        // (EntraAccountDeletion:Enabled - after the Juple data, through a durable pending row the retry Job finishes), but until
+        // Entra confirms - or wherever the feature is off - a refresh token or browser SSO session that still works would
+        // otherwise re-create the account silently, e.g. from a second device or a restored session right after the account
+        // was deleted. Account creation therefore
         // needs a sign-in that happened just now (the same server-verified auth_time rule as account deletion). Fail closed:
         // a token with no auth_time, an unreadable one, a stale one or one from the future all refuse creation (DEV and PROD
         // API registrations emit auth_time). The client answers the 403 by asking for the credentials again (prompt=login).

@@ -206,7 +206,7 @@ public sealed class EntraAccountDeletionIntegrationTests : IAsyncLifetime
         var result = await new AccountDeletionStore(_db).DeleteAllDataAsync(userId, new AccountDeletionPlan($"test/{userId}/", Now, true, null));
         var taskId = result.EntraDeletionTaskId!.Value;
         var directory = new SilentEntraDirectory { DeleteFailure = new EntraDirectoryException("http_503") };
-        var service = new EntraIdentityDeletionService(new EntraIdentityDeletionStore(NewContext()), directory, new StubTime(Now), NullLogger<EntraIdentityDeletionService>.Instance);
+        var service = new EntraIdentityDeletionService(new EntraIdentityDeletionStore(NewContext()), directory, new EntraAccountDeletionOptions { Enabled = true }, new StubTime(Now), NullLogger<EntraIdentityDeletionService>.Instance);
 
         Assert.False(await service.TryCompleteAsync(taskId));
         var failed = await new EntraIdentityDeletionStore(NewContext()).FindAsync(taskId);
@@ -263,7 +263,7 @@ public sealed class EntraAccountDeletionIntegrationTests : IAsyncLifetime
         Assert.Equal(1, await PendingCountAsync(identity));
 
         var directory = new SilentEntraDirectory { DeleteFailure = new EntraDirectoryException("http_500") };
-        var deletion = new EntraIdentityDeletionService(new EntraIdentityDeletionStore(NewContext()), directory, new StubTime(Now), NullLogger<EntraIdentityDeletionService>.Instance);
+        var deletion = new EntraIdentityDeletionService(new EntraIdentityDeletionStore(NewContext()), directory, new EntraAccountDeletionOptions { Enabled = true }, new StubTime(Now), NullLogger<EntraIdentityDeletionService>.Instance);
         var command = new BootstrapCurrentUserCommand("ko-KR", "Asia/Seoul", Now.AddMinutes(-1));
 
         // The very same identity (the deleted person with the old password) cannot get a new Juple account.

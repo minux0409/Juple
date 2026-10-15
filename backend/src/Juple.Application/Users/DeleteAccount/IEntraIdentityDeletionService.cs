@@ -2,14 +2,22 @@ using Juple.Application.Identity;
 
 namespace Juple.Application.Users.DeleteAccount;
 
-public sealed record EntraDeletionRunResult(int Pending, int Succeeded, int Failed);
+/// <summary>One retry pass. <paramref name="Skipped"/>: Entra deletion is switched off, so the pass did not look at any pending row.</summary>
+public sealed record EntraDeletionRunResult(int Pending, int Succeeded, int Failed, bool Skipped = false)
+{
+    public static EntraDeletionRunResult Disabled { get; } = new(0, 0, 0, Skipped: true);
+}
 
 public interface IEntraIdentityDeletionService
 {
     /// <summary>Tries once to finish one pending deletion. Never throws: a failure is recorded and the row stays for the retry job.</summary>
     Task<bool> TryCompleteAsync(long taskId, CancellationToken cancellationToken = default);
 
-    /// <summary>The retry job's entry point: a bounded pass over every pending deletion (idempotent - "already gone" counts as done).</summary>
+    /// <summary>
+    /// The retry job's entry point: a bounded pass over every pending deletion (idempotent - "already gone" counts as done).
+    /// While <see cref="EntraAccountDeletionOptions.Enabled"/> is false it does nothing and reports <see cref="EntraDeletionRunResult.Disabled"/>:
+    /// pending rows are kept untouched (never deleted, never counted as failures) until the feature is switched on again.
+    /// </summary>
     Task<EntraDeletionRunResult> RunPendingAsync(CancellationToken cancellationToken = default);
 
     /// <summary>

@@ -574,6 +574,13 @@ static async Task<int> RunBlobCleanupRetryOnceAsync(IServiceProvider rootService
 
         // The same scheduled pass also finishes any Entra sign-in account deletion that did not succeed right away (idempotent).
         var entraResult = await scope.ServiceProvider.GetRequiredService<Juple.Application.Users.DeleteAccount.IEntraIdentityDeletionService>().RunPendingAsync();
+        if (entraResult.Skipped)
+        {
+            // EntraAccountDeletion:Enabled is false: not a failure - any pending rows wait until the feature is enabled again.
+            logger.LogInformation("Entra identity deletion retry is disabled; skipping.");
+            return 0;
+        }
+
         logger.LogInformation(
             "Entra identity deletion retry complete. Pending={Pending} Succeeded={Succeeded} Failed={Failed}",
             entraResult.Pending, entraResult.Succeeded, entraResult.Failed);

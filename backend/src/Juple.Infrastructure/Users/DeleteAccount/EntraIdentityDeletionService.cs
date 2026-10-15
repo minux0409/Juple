@@ -7,6 +7,7 @@ namespace Juple.Infrastructure.Users.DeleteAccount;
 public sealed class EntraIdentityDeletionService(
     IEntraIdentityDeletionStore store,
     IEntraIdentityDirectory directory,
+    EntraAccountDeletionOptions options,
     TimeProvider timeProvider,
     ILogger<EntraIdentityDeletionService> logger) : IEntraIdentityDeletionService
 {
@@ -46,6 +47,12 @@ public sealed class EntraIdentityDeletionService(
 
     public async Task<EntraDeletionRunResult> RunPendingAsync(CancellationToken cancellationToken = default)
     {
+        if (!options.Enabled)
+        {
+            // Switched off (never configured, or turned off as a rollback): the rows wait for the feature to be enabled again.
+            return EntraDeletionRunResult.Disabled;
+        }
+
         var ids = await store.ListPendingIdsAsync(BatchLimit, cancellationToken);
         var succeeded = 0;
         foreach (var id in ids)
