@@ -35,8 +35,8 @@ public sealed class CurrentUserBootstrapController : ControllerBase
                 externalIdentityAccessor.GetRequired(),
                 new BootstrapCurrentUserCommand(request.PreferredLocale, request.TimeZoneId, AuthenticationTimeClaim.Read(User)),
                 cancellationToken);
-            // The Terms status rides on the call every launch already makes: the app shows its acceptance screen from it (the server still
-            // enforces the acceptance on every content write - this is only what the screen needs).
+            // Return Terms status for clients that cache it. Mobile asks for acceptance at the first social/UGC write,
+            // never during startup; the API remains the source of truth for protected writes.
             var currentUser = await currentUserAccessor.GetRequiredAsync(externalIdentityAccessor.GetRequired(), cancellationToken);
             var terms = await termsService.GetStatusAsync(currentUser.UserId, cancellationToken);
             return Ok(new BootstrapCurrentUserResponse(result.Plan.ToString(), result.TimeZoneId, EntitlementResponse.From(result.Entitlement), MobileVersionPolicyResponse.From(versionPolicy.Value), StoreSubscriptionResponse.From(result.StoreSubscription), TermsStatusResponse.From(terms)));

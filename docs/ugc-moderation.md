@@ -6,14 +6,14 @@ Status: implemented in the API, Mobile and Web; **not deployed to PROD**; not a 
 
 | Area | Behaviour | Where |
 | --- | --- | --- |
-| Terms of Service acceptance | The server stores `Users.AcceptedTermsVersion` / `TermsAcceptedAtUtc`. The current version is configuration `Terms:CurrentVersion` (default `2026-10-14`, equal to the published Web terms). Every content-creating endpoint carries `[RequireTermsAcceptance]` and answers **403 `termsAcceptanceRequired`** without the CURRENT version. `Terms:EnforceAcceptance=false` is only a rollout switch for installed apps that predate the screen. | `Juple.Api/Safety/TermsAcceptance.cs`, `SafetyController` |
+| Terms of Service acceptance | The server stores `Users.AcceptedTermsVersion` / `TermsAcceptedAtUtc`. The current version is configuration `Terms:CurrentVersion`. Social/UGC writes answer **403 `termsAcceptanceRequired`** without the current version. Private link saving, private Collection creation, and private item photos remain available. Mixed Collection writes check the actual destination's visibility. Mobile asks on the attempted social write, never at startup. `Terms:EnforceAcceptance=false` remains the rollout switch. | `Juple.Api/Safety/TermsAcceptance.cs`, `SafetyController` |
 | Reports | `POST /api/v1/reports` (`targetType` User / Collection / Item / Comment, `targetId`, `collectionId` for an Item, `reason`, `details` <= 1000). 201 new, 200 already open, 404 not visible / unknown, 400 own content. One OPEN report per reporter + target (filtered unique index). | `Juple.Application/Safety`, `safety.ContentReports` |
 | Blocks | `POST` / `DELETE /api/v1/users/{jupleId}/block`, `GET /api/v1/users/me/blocked-users`. Idempotent. Ends a friendship / pending request between the two. | `safety.UserBlocks` |
 | Enforcement | `IUserBlockPolicy` / `BlockGuard`: friend request, collaboration invite and accept, join request / public save / approve, comment, reply, heart, reaction, Juple ID lookup, notification materialization (also for events queued before the block). Blocker's comment listing hides the blocked person's comments. | see code |
 
 ## Rollout order (important)
 
-Every existing account starts WITHOUT an accepted Terms version, so once `Terms:EnforceAcceptance` is true an installed app that predates the agreement screen (including Play v25 / the current v26 build) gets `termsAcceptanceRequired` on every content write and cannot show the screen. Roll out in this order: (1) deploy API + migration with `Terms__EnforceAcceptance=false`; (2) ship the app / Web that carries the gate and let it reach people; (3) set it to `true`. The same order applies to PROD. DEV is currently enforcing.
+Every existing account starts WITHOUT an accepted Terms version. Older clients cannot present the action-time dialog on social writes, so keep the PROD rollout switch off until the updated clients are available. Private actions are no longer subject to this gate. DEV is currently enforcing; no PROD setting is changed in this round.
 
 ## Block semantics (decision)
 

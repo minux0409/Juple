@@ -1,6 +1,9 @@
 using System.Reflection;
 using Juple.Api.Controllers;
 using Juple.Api.Safety;
+using Juple.Application.Collections;
+using Juple.Application.Collections.GetCollectionDetail;
+using Juple.Application.Collections.GetCollectionShare;
 using Juple.Application.Identity;
 using Juple.Application.Safety;
 using Juple.Application.Users.CurrentUser;
@@ -10,6 +13,7 @@ using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Juple.UnitTests.Safety;
 
@@ -42,6 +46,19 @@ public sealed class TermsAndSafetyApiTests
             Checks++;
             return accepted ? Task.CompletedTask : throw new TermsAcceptanceRequiredException();
         }
+    }
+
+    private sealed class Collections(bool shared) : IGetCollectionDetailService
+    {
+        public Task<CollectionDto> GetAsync(long userId, long collectionId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new CollectionDto(collectionId, "Test", false, 0, DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow, "folder", null, HasCollaborators: shared));
+    }
+
+    private sealed class Shares : IGetCollectionShareService
+    {
+        public Task<CollectionShareDto?> GetAsync(long userId, long collectionId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<CollectionShareDto?>(null);
     }
 
     private static ActionExecutingContext Context(bool authenticated = true)
@@ -98,6 +115,38 @@ public sealed class TermsAndSafetyApiTests
         Assert.True((await RunAsync(new FakeTerms(accepted: false), Context(), bootstrapped: false)).NextCalled);
     }
 
+    [Theory]
+    [InlineData(false, false, true)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, true)]
+    public async Task CollectionWrite_RequiresCurrentTermsOnlyWhenTheDestinationIsShared(
+        bool shared, bool accepted, bool expectedNext)
+    {
+        var terms = new FakeTerms(accepted);
+        var context = Context();
+        context.ActionArguments["request"] = new { CollectionIds = new long[] { 42 } };
+        context.HttpContext.RequestServices = new ServiceCollection()
+            .AddSingleton<IExternalIdentityAccessor, Identity>()
+            .AddSingleton<ICurrentJupleUserAccessor>(new Users())
+            .AddSingleton<IGetCollectionDetailService>(new Collections(shared))
+            .AddSingleton<IGetCollectionShareService, Shares>()
+            .AddSingleton<ITermsConsentService>(terms)
+            .BuildServiceProvider();
+        var nextCalled = false;
+        await new RequireTermsForSharedCollectionWritesAttribute("CollectionIds").OnActionExecutionAsync(
+            context,
+            () =>
+            {
+                nextCalled = true;
+                return Task.FromResult(new ActionExecutedContext(context, context.Filters, context.Controller));
+            });
+
+        Assert.Equal(expectedNext, nextCalled);
+        Assert.Equal(shared ? 1 : 0, terms.Checks);
+        Assert.Equal(expectedNext ? null : "termsAcceptanceRequired",
+            (context.Result as ObjectResult)?.Value is ProblemDetails problem ? problem.Extensions["code"] : null);
+    }
+
     [Fact]
     public void ABlockIsNeverRevealedToTheBlockedPerson()
     {
@@ -128,10 +177,8 @@ public sealed class TermsAndSafetyApiTests
     }
 
     [Theory]
-    [InlineData(typeof(InboxController), "POST ")]
-    [InlineData(typeof(CollectionsController), "POST ")]
+    [InlineData(typeof(CollectionsController), "POST {id:long}/share")]
     [InlineData(typeof(CollectionsController), "POST {id:long}/invitations")]
-    [InlineData(typeof(CollectionsController), "PUT {id:long}/items/{itemId:long}")]
     [InlineData(typeof(CollectionsController), "PUT {id:long}/items/{itemId:long}/reaction")]
     [InlineData(typeof(CollectionsController), "POST {id:long}/items/{itemId:long}/comments")]
     [InlineData(typeof(CollectionsController), "PUT {id:long}/items/{itemId:long}/comments/{commentId:long}/like")]
@@ -140,9 +187,27 @@ public sealed class TermsAndSafetyApiTests
     [InlineData(typeof(CollectionInvitationsController), "POST collection-invitations/{invitationId:long}/accept")]
     [InlineData(typeof(PublicShareWriteController), "POST join-requests")]
     [InlineData(typeof(PublicShareWriteController), "POST save")]
-    [InlineData(typeof(ItemCollectionsController), "POST ")]
-    [InlineData(typeof(ItemImagesController), "POST ")]
     public void ContentCreatingEndpoints_CarryTheTermsGate(Type controller, string route) => Assert.True(Gated(controller, route), $"{controller.Name} {route}");
+
+    [Theory]
+    [InlineData(typeof(InboxController), "POST ")]
+    [InlineData(typeof(CollectionsController), "PUT {id:long}/items/{itemId:long}")]
+    [InlineData(typeof(ItemCollectionsController), "POST ")]
+    [InlineData(typeof(CollectionItemCopyController), "POST ")]
+    public void CollectionWrites_CheckTermsOnlyWhenDestinationIsShared(Type controller, string route)
+    {
+        var method = controller.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+            .Single(candidate => candidate.GetCustomAttributes<HttpMethodAttribute>().Any(attribute =>
+                attribute.Template == route.Split(' ', 2)[1] || (route.Split(' ', 2)[1] == string.Empty && attribute.Template is null))
+                && candidate.GetCustomAttributes<HttpMethodAttribute>().Any(attribute => attribute.HttpMethods.Contains(route.Split(' ', 2)[0])));
+        Assert.NotNull(method.GetCustomAttribute<RequireTermsForSharedCollectionWritesAttribute>());
+        Assert.False(Gated(controller, route));
+    }
+
+    [Theory]
+    [InlineData(typeof(CollectionsController), "POST ")]
+    [InlineData(typeof(ItemImagesController), "POST ")]
+    public void PrivateWrites_DoNotRequireTerms(Type controller, string route) => Assert.False(Gated(controller, route), $"{controller.Name} {route}");
 
     [Fact]
     public void SafetyEndpoints_AreNeverTermsGated_AndAlwaysWorkForAnExpiredSubscription()

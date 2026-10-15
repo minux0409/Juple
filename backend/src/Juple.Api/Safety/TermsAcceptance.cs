@@ -1,8 +1,12 @@
 using Juple.Application.Identity;
+using Juple.Application.Collections;
+using Juple.Application.Collections.GetCollectionDetail;
+using Juple.Application.Collections.GetCollectionShare;
 using Juple.Application.Safety;
 using Juple.Application.Users.CurrentUser;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Juple.Api.Safety;
 
@@ -28,13 +32,92 @@ public static class SafetyProblems
 }
 
 /// <summary>
-/// Marks an action that CREATES user-generated content or starts an interaction with another person (saving a link, creating a
-/// Collection, a comment, a heart or reaction, a friend request, an invitation, a join request, a photo): the person must have accepted the
-/// CURRENT Terms of Service version first - decided here, on the server, never only by the app. Reading, deleting one's own things, account
-/// deletion, reporting, blocking and support are never gated.
+/// Marks an action that publishes content to other users or starts a social interaction: the person must have accepted the
+/// CURRENT Terms of Service version first. Private link saving, private Collection creation and private item photos are not gated.
+/// Reading, deleting one's own things, account deletion, reporting, blocking and support are never gated.
 /// </summary>
 [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
 public sealed class RequireTermsAcceptanceAttribute() : TypeFilterAttribute(typeof(RequireTermsAcceptanceFilter));
+
+/// <summary>
+/// A link or item may be saved into a private Collection without accepting UGC Terms. When any destination is
+/// shared, the same write is visible to others and needs the current Terms. Missing/forbidden Collection ids
+/// fall through to the action's existing 404/403 handling.
+/// </summary>
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+public sealed class RequireTermsForSharedCollectionWritesAttribute(string idsFrom) : Attribute, IAsyncActionFilter
+{
+    public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+    {
+        if (context.HttpContext.User.Identity?.IsAuthenticated != true)
+        {
+            await next();
+            return;
+        }
+
+        IReadOnlyList<long> ids;
+        if (idsFrom == "route")
+        {
+            ids = long.TryParse(context.RouteData.Values["id"]?.ToString(), out var id) ? [id] : [];
+        }
+        else
+        {
+            context.ActionArguments.TryGetValue("request", out var body);
+            var value = body?.GetType().GetProperty(idsFrom)?.GetValue(body);
+            ids = value switch
+            {
+                long id => [id],
+                IEnumerable<long> many => many.ToArray(),
+                _ => [],
+            };
+        }
+
+        if (ids.Count == 0)
+        {
+            await next();
+            return;
+        }
+
+        var services = context.HttpContext.RequestServices;
+        try
+        {
+            var identity = services.GetRequiredService<IExternalIdentityAccessor>().GetRequired();
+            var user = await services.GetRequiredService<ICurrentJupleUserAccessor>().GetRequiredAsync(identity, context.HttpContext.RequestAborted);
+            var collections = services.GetRequiredService<IGetCollectionDetailService>();
+            var shares = services.GetRequiredService<IGetCollectionShareService>();
+            foreach (var id in ids.Distinct())
+            {
+                var collection = await collections.GetAsync(user.UserId, id, context.HttpContext.RequestAborted);
+                var isShared = collection.AccessRole != CollectionDtoAccessRoles.Owner
+                    || collection.HasCollaborators
+                    || collection.IsPublicShareActive
+                    || await shares.GetAsync(user.UserId, id, context.HttpContext.RequestAborted) is not null;
+                if (!isShared)
+                {
+                    continue;
+                }
+
+                await services.GetRequiredService<ITermsConsentService>().RequireAcceptedAsync(user.UserId, context.HttpContext.RequestAborted);
+                break;
+            }
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            // The action preserves its existing bootstrap-required response.
+        }
+        catch (CollectionNotFoundException)
+        {
+            // The action preserves its existing Collection-not-found response.
+        }
+        catch (TermsAcceptanceRequiredException)
+        {
+            context.Result = SafetyProblems.TermsAcceptanceRequired();
+            return;
+        }
+
+        await next();
+    }
+}
 
 public sealed class RequireTermsAcceptanceFilter(
     IExternalIdentityAccessor externalIdentityAccessor,

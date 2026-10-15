@@ -73,8 +73,6 @@ public sealed class ItemImagesController(
         }
     }
 
-    [Juple.Api.Safety.RequireTermsAcceptance]
-
     [HttpPost]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(11 * 1024 * 1024)]
