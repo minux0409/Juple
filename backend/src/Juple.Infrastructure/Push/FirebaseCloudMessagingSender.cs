@@ -43,7 +43,12 @@ public sealed class FirebaseCloudMessagingSender : IPushSender
         var isDataOnly = payload.Title is null || payload.Body is null;
         var message = new Message
         {
+            // The device registers an FCM registration token (getToken on the client), which is what Message.Token targets. The SDK's
+            // suggested replacement, Fid, is a Firebase Installation ID - a different identifier the app does not send - so switching
+            // would need a client change first (post-launch follow-up). Token keeps working for registration tokens.
+#pragma warning disable CS0618
             Token = device.PushToken,
+#pragma warning restore CS0618
             // Data-only (a refresh signal for an open screen): no tray notification, normal priority.
             Notification = isDataOnly ? null : new Notification { Title = payload.Title, Body = payload.Body },
             Data = BuildDataPayload(payload),

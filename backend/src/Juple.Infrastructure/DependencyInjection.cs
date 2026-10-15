@@ -283,7 +283,7 @@ public static class DependencyInjection
     /// A genuinely absent credential registers NotConfiguredPushSender - an explicit, honest choice
     /// for "no Push transport configured in this environment" (every send is still recorded as a
     /// real Failed delivery; see that class's own remarks), never a silent behavior change. A
-    /// *present but malformed* credential is different: GoogleCredential.FromJson below throws, and
+    /// *present but malformed* credential is different: CredentialFactory.FromJson below throws, and
     /// that exception is deliberately left to propagate and fail Backend startup outright - mirrors
     /// PublicCollectionCursor:EncryptionKey's own fail-fast convention - rather than silently
     /// degrading to NotConfiguredPushSender because of what would actually be a configuration bug.
@@ -299,7 +299,9 @@ public static class DependencyInjection
 
         const string FirebaseAppName = "juple-push-sender";
         var firebaseApp = FirebaseApp.GetInstance(FirebaseAppName) ?? FirebaseApp.Create(
-            new AppOptions { Credential = GoogleCredential.FromJson(serviceAccountKeyJson) },
+            // Only a service-account key is accepted (the deprecated GoogleCredential.FromJson took any credential type, which
+            // Google flags as a risk for JSON that is not fully trusted) - the same factory GooglePlayClient uses.
+            new AppOptions { Credential = CredentialFactory.FromJson<ServiceAccountCredential>(serviceAccountKeyJson).ToGoogleCredential() },
             FirebaseAppName);
         services.AddSingleton(firebaseApp);
         services.AddScoped<IPushSender, FirebaseCloudMessagingSender>();

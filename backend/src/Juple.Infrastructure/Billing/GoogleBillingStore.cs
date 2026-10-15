@@ -124,7 +124,13 @@ public sealed class GoogleBillingStore(JupleDbContext dbContext) : IGoogleBillin
                 .Where(entry => entry.Source == storeEvent.Source && entry.ExternalEventId == storeEvent.ExternalEventId)
                 .Select(entry => (long?)entry.Id)
                 .FirstOrDefaultAsync(cancellationToken);
-            return existing is { } id ? new StoreEventInsertResult(id, IsNew: false) : throw exception;
+            if (existing is { } id)
+            {
+                return new StoreEventInsertResult(id, IsNew: false);
+            }
+
+            // Not the duplicate it looked like: rethrow the original failure with its stack intact.
+            throw;
         }
     }
 
