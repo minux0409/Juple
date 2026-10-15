@@ -408,12 +408,6 @@
     "deleteSummary": "Dein Konto und alles, was du gespeichert hast, werden dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.",
     "deleteAction": "Konto löschen"
   },
-  "postDeletion": {
-    "title": "Konto gelöscht",
-    "message": "Dein Juple-Konto und dein Anmeldekonto wurden gelöscht.",
-    "signUp": "Neues Konto erstellen",
-    "signIn": "Mit einem anderen Konto anmelden"
-  },
   "deleteAccount": {
     "warningTitle": "Das Löschen deines Kontos kann nicht rückgängig gemacht werden",
     "warningIntro": "Folgendes wird dauerhaft gelöscht:",
@@ -1166,7 +1160,7 @@
   },
   "safety": {
     "termsTitle": "Nutzungsbedingungen",
-    "termsBody": "Bevor du Links speicherst oder mit anderen teilst, lies bitte die Nutzungsbedingungen und stimme ihnen zu. Sie erklären, was nicht erlaubt ist und wie Meldungen und Blockieren funktionieren.",
+    "termsBody": "Bevor du Funktionen zum Teilen und für die Community nutzt, lies bitte die Nutzungsbedingungen und stimme ihnen zu. Sie erklären verbotene Inhalte und Verhaltensweisen sowie Meldungen und Blockieren.",
     "termsViewTerms": "Nutzungsbedingungen ansehen",
     "termsViewPrivacy": "Datenschutzerklärung ansehen",
     "termsAgree": "Ich stimme den Nutzungsbedingungen zu.",

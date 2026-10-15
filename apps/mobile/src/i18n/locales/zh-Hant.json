@@ -408,12 +408,6 @@
     "deleteSummary": "你的帳號和儲存的所有資料將被永久刪除，且無法復原。",
     "deleteAction": "刪除帳號"
   },
-  "postDeletion": {
-    "title": "帳號已刪除",
-    "message": "您的 Juple 帳號和登入帳號已刪除。",
-    "signUp": "建立新帳號",
-    "signIn": "使用其他帳號登入"
-  },
   "deleteAccount": {
     "warningTitle": "刪除帳號後將無法復原",
     "warningIntro": "以下資料將全部被永久刪除：",
@@ -1166,7 +1160,7 @@
   },
   "safety": {
     "termsTitle": "服務條款",
-    "termsBody": "在儲存連結或與他人分享之前，請閱讀並同意服務條款。條款說明哪些行為不被允許，以及檢舉和封鎖的運作方式。",
+    "termsBody": "使用分享和社群功能前，請閱讀並同意服務條款。條款說明禁止的內容和行為，以及檢舉和封鎖方式。",
     "termsViewTerms": "檢視服務條款",
     "termsViewPrivacy": "檢視隱私權政策",
     "termsAgree": "我同意服務條款。",

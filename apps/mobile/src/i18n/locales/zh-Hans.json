@@ -408,12 +408,6 @@
     "deleteSummary": "你的账户和保存的所有数据将被永久删除，且无法恢复。",
     "deleteAction": "删除账户"
   },
-  "postDeletion": {
-    "title": "账户已删除",
-    "message": "您的 Juple 账户和登录账户已删除。",
-    "signUp": "创建新账户",
-    "signIn": "使用其他账户登录"
-  },
   "deleteAccount": {
     "warningTitle": "删除账户后无法恢复",
     "warningIntro": "以下数据将全部被永久删除：",
@@ -1166,7 +1160,7 @@
   },
   "safety": {
     "termsTitle": "服务条款",
-    "termsBody": "在保存链接或与他人分享之前，请阅读并同意服务条款。条款说明了哪些行为不被允许，以及举报和屏蔽的运作方式。",
+    "termsBody": "使用分享和社区功能前，请阅读并同意服务条款。条款说明禁止的内容和行为，以及举报和屏蔽方式。",
     "termsViewTerms": "查看服务条款",
     "termsViewPrivacy": "查看隐私政策",
     "termsAgree": "我同意服务条款。",

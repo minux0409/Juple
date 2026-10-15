@@ -408,12 +408,6 @@
     "deleteSummary": "Hesabınız ve kaydettiğiniz her şey kalıcı olarak silinir. Bu işlem geri alınamaz.",
     "deleteAction": "Hesabı sil"
   },
-  "postDeletion": {
-    "title": "Hesap silindi",
-    "message": "Juple hesabınız ve oturum açma hesabınız silindi.",
-    "signUp": "Yeni hesap oluştur",
-    "signIn": "Başka bir hesapla oturum aç"
-  },
   "deleteAccount": {
     "warningTitle": "Hesabı silme işlemi geri alınamaz",
     "warningIntro": "Aşağıdakilerin tümü kalıcı olarak silinecek:",
@@ -1166,7 +1160,7 @@
   },
   "safety": {
     "termsTitle": "Hizmet Şartları",
-    "termsBody": "Bağlantı kaydetmeden veya başkalarıyla paylaşmadan önce lütfen Hizmet Şartları’nı okuyup kabul edin. Şartlar nelerin yasak olduğunu ve şikâyet ile engellemenin nasıl işlediğini açıklar.",
+    "termsBody": "Paylaşım ve topluluk özelliklerini kullanmadan önce Hizmet Şartları’nı okuyup kabul edin. Şartlar yasak içerik ve davranışları, şikâyet ve engelleme işlemlerini açıklar.",
     "termsViewTerms": "Hizmet Şartları’nı görüntüle",
     "termsViewPrivacy": "Gizlilik Politikası’nı görüntüle",
     "termsAgree": "Hizmet Şartları’nı kabul ediyorum.",

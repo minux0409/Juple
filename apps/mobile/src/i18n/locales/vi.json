@@ -408,12 +408,6 @@
     "deleteSummary": "Tài khoản và mọi dữ liệu bạn đã lưu sẽ bị xóa vĩnh viễn và không thể khôi phục.",
     "deleteAction": "Xóa tài khoản"
   },
-  "postDeletion": {
-    "title": "Tài khoản đã bị xóa",
-    "message": "Tài khoản Juple và tài khoản đăng nhập của bạn đã được xóa.",
-    "signUp": "Tạo tài khoản mới",
-    "signIn": "Đăng nhập bằng tài khoản khác"
-  },
   "deleteAccount": {
     "warningTitle": "Không thể hoàn tác việc xóa tài khoản",
     "warningIntro": "Tất cả dữ liệu sau sẽ bị xóa vĩnh viễn:",
@@ -1166,7 +1160,7 @@
   },
   "safety": {
     "termsTitle": "Điều khoản dịch vụ",
-    "termsBody": "Trước khi lưu liên kết hoặc chia sẻ với người khác, hãy đọc và đồng ý với Điều khoản dịch vụ. Điều khoản giải thích những gì không được phép và cách báo cáo, chặn hoạt động.",
+    "termsBody": "Trước khi sử dụng tính năng chia sẻ và cộng đồng, hãy đọc và đồng ý với Điều khoản dịch vụ. Điều khoản nêu nội dung và hành vi bị cấm, cách báo cáo và chặn.",
     "termsViewTerms": "Xem Điều khoản dịch vụ",
     "termsViewPrivacy": "Xem Chính sách quyền riêng tư",
     "termsAgree": "Tôi đồng ý với Điều khoản dịch vụ.",

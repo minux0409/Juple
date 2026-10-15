@@ -408,12 +408,6 @@
     "deleteSummary": "Il tuo account e tutto ciò che hai salvato verranno eliminati definitivamente. L'operazione non può essere annullata.",
     "deleteAction": "Elimina account"
   },
-  "postDeletion": {
-    "title": "Account eliminato",
-    "message": "Il tuo account Juple e il tuo account di accesso sono stati eliminati.",
-    "signUp": "Crea un nuovo account",
-    "signIn": "Accedi con un altro account"
-  },
   "deleteAccount": {
     "warningTitle": "L'eliminazione dell'account non può essere annullata",
     "warningIntro": "Verrà eliminato definitivamente quanto segue:",
@@ -1166,7 +1160,7 @@
   },
   "safety": {
     "termsTitle": "Termini di servizio",
-    "termsBody": "Prima di salvare link o condividere con altre persone, leggi e accetta i Termini di servizio. Spiegano cosa non è consentito e come funzionano segnalazioni e blocchi.",
+    "termsBody": "Prima di usare le funzioni di condivisione e della community, leggi e accetta i Termini di servizio. Spiegano i contenuti e i comportamenti vietati, le segnalazioni e i blocchi.",
     "termsViewTerms": "Vedi i Termini di servizio",
     "termsViewPrivacy": "Vedi l'Informativa sulla privacy",
     "termsAgree": "Accetto i Termini di servizio.",

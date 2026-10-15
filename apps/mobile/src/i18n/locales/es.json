@@ -408,12 +408,6 @@
     "deleteSummary": "Tu cuenta y todo lo que guardaste se eliminarán para siempre. No se puede deshacer.",
     "deleteAction": "Eliminar cuenta"
   },
-  "postDeletion": {
-    "title": "Cuenta eliminada",
-    "message": "Se han eliminado tu cuenta de Juple y tu cuenta de inicio de sesión.",
-    "signUp": "Crear una cuenta nueva",
-    "signIn": "Iniciar sesión con otra cuenta"
-  },
   "deleteAccount": {
     "warningTitle": "Eliminar tu cuenta no se puede deshacer",
     "warningIntro": "Se eliminará para siempre todo lo siguiente:",
@@ -1166,7 +1160,7 @@
   },
   "safety": {
     "termsTitle": "Términos del servicio",
-    "termsBody": "Antes de guardar enlaces o compartir con otras personas, lee y acepta los Términos del servicio. Explican qué no está permitido y cómo funcionan las denuncias y los bloqueos.",
+    "termsBody": "Antes de usar las funciones para compartir y de comunidad, lee y acepta los Términos del servicio. Explican el contenido y las conductas prohibidas, las denuncias y los bloqueos.",
     "termsViewTerms": "Ver Términos del servicio",
     "termsViewPrivacy": "Ver Política de privacidad",
     "termsAgree": "Acepto los Términos del servicio.",

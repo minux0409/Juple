@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
 import { AppModal } from '../components/AppModal';
@@ -11,11 +11,8 @@ import { acceptTerms, getTermsStatus, type TermsStatus } from './safetyApi';
 import { onTermsAcceptanceRequired } from './termsRequiredEvents';
 
 /**
- * 이용약관 동의 (Google Play UGC policy): once the person is signed in and the account exists, the CURRENT Terms version is read from
- * the server; without an agreement this modal asks - Terms and Privacy Policy are links, and only the Terms are agreed to here (the
- * Privacy Policy is never bundled into this agreement). "나중에" keeps the person signed in and able to read; the server still refuses
- * every content write until the agreement exists, and that refusal opens this modal again. Nothing is stored locally: the server's
- * record is the only truth, so an accepted person is never asked twice and a new version asks again.
+ * A UGC write requests consent here immediately before submission. Startup and private work remain usable.
+ * The server is the source of truth; a 403 caused by a newer version reopens this dialog and retries once.
  */
 export function TermsGate() {
   const { t } = useTranslation();
@@ -27,40 +24,62 @@ export function TermsGate() {
   const [agreed, setAgreed] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [failed, setFailed] = useState(false);
+  const pending = useRef<((accepted: boolean) => void) | null>(null);
 
   useEffect(() => {
     if (!ready) {
       setStatus(null);
       setVisible(false);
+      pending.current?.(false);
+      pending.current = null;
       return undefined;
     }
-    let isActive = true;
-    getTermsStatus(request)
-      .then(next => {
-        if (isActive && next) {
-          setStatus(next);
-          setVisible(!next.isAccepted);
-        }
-      })
-      .catch(() => undefined);
-    return () => {
-      isActive = false;
-    };
-    // The request function is stable per session; the status is read again for a new sign-in only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return undefined;
   }, [ready]);
 
   useEffect(
     () =>
-      onTermsAcceptanceRequired(() => {
+      onTermsAcceptanceRequired((resolve, refresh) => {
+        if (!ready || pending.current) {
+          resolve(false);
+          return;
+        }
+        pending.current = resolve;
         setAgreed(false);
         setFailed(false);
-        setVisible(true);
-        // The version may have changed since the app started: read it again so the agreement is to the current one.
-        getTermsStatus(request).then(next => next && setStatus(next)).catch(() => undefined);
+        const check = refresh || !status ? getTermsStatus(request) : Promise.resolve(status);
+        check.then(next => {
+          if (pending.current !== resolve) {
+            return;
+          }
+          if (!next || next.isAccepted) {
+            pending.current = null;
+            if (next) {
+              setStatus(next);
+            }
+            resolve(Boolean(next?.isAccepted));
+          } else {
+            setStatus(next);
+            setVisible(true);
+          }
+        }).catch(() => {
+          pending.current = null;
+          resolve(false);
+        });
       }),
-    [request],
+    [ready, request, status],
   );
+
+  useEffect(() => () => {
+    pending.current?.(false);
+    pending.current = null;
+  }, []);
+
+  const cancel = useCallback(() => {
+    setVisible(false);
+    pending.current?.(false);
+    pending.current = null;
+  }, []);
 
   const accept = useCallback(async () => {
     if (!status || !agreed || isSaving) {
@@ -69,8 +88,15 @@ export function TermsGate() {
     setIsSaving(true);
     setFailed(false);
     try {
-      setStatus(await acceptTerms(request, status.currentVersion));
+      const accepted = await acceptTerms(request, status.currentVersion);
+      setStatus(accepted);
+      if (!accepted.isAccepted) {
+        setFailed(true);
+        return;
+      }
       setVisible(false);
+      pending.current?.(true);
+      pending.current = null;
     } catch {
       setFailed(true);
     } finally {
@@ -93,8 +119,8 @@ export function TermsGate() {
       dismissible={!isSaving}
       footer={
         <View style={styles.footer}>
-          <Pressable accessibilityRole="button" disabled={isSaving} onPress={() => setVisible(false)} style={[styles.button, styles.later]} testID="terms-later">
-            <Text style={styles.laterLabel}>{t('safety.termsLater')}</Text>
+          <Pressable accessibilityRole="button" disabled={isSaving} onPress={cancel} style={[styles.button, styles.later]} testID="terms-later">
+            <Text style={styles.laterLabel}>{t('common.cancel')}</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -108,39 +134,42 @@ export function TermsGate() {
           </Pressable>
         </View>
       }
-      onClose={() => setVisible(false)}
+      onClose={cancel}
       testID="terms-gate"
       title={t('safety.termsTitle')}
       visible
     >
-      <Text style={styles.body}>{t('safety.termsBody')}</Text>
-      {legalLinks.termsUrl ? (
-        <Pressable accessibilityRole="link" onPress={() => open(legalLinks.termsUrl)} style={styles.link} testID="terms-view-terms">
-          <Text style={styles.linkLabel}>{t('safety.termsViewTerms')}</Text>
+      <ScrollView style={styles.contentScroll}>
+        <Text style={styles.body}>{t('safety.termsBody')}</Text>
+        {legalLinks.termsUrl ? (
+          <Pressable accessibilityRole="link" onPress={() => open(legalLinks.termsUrl)} style={styles.link} testID="terms-view-terms">
+            <Text style={styles.linkLabel}>{t('safety.termsViewTerms')}</Text>
+          </Pressable>
+        ) : null}
+        {legalLinks.privacyUrl ? (
+          <Pressable accessibilityRole="link" onPress={() => open(legalLinks.privacyUrl)} style={styles.link} testID="terms-view-privacy">
+            <Text style={styles.linkLabel}>{t('safety.termsViewPrivacy')}</Text>
+          </Pressable>
+        ) : null}
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: agreed, disabled: isSaving }}
+          disabled={isSaving}
+          onPress={() => setAgreed(value => !value)}
+          style={styles.agree}
+          testID="terms-agree"
+        >
+          <View style={[styles.box, agreed && styles.boxChecked]}>{agreed ? <CheckIcon color={colors.surface} size={14} /> : null}</View>
+          <Text style={styles.agreeLabel}>{t('safety.termsAgree')}</Text>
         </Pressable>
-      ) : null}
-      {legalLinks.privacyUrl ? (
-        <Pressable accessibilityRole="link" onPress={() => open(legalLinks.privacyUrl)} style={styles.link} testID="terms-view-privacy">
-          <Text style={styles.linkLabel}>{t('safety.termsViewPrivacy')}</Text>
-        </Pressable>
-      ) : null}
-      <Pressable
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: agreed, disabled: isSaving }}
-        disabled={isSaving}
-        onPress={() => setAgreed(value => !value)}
-        style={styles.agree}
-        testID="terms-agree"
-      >
-        <View style={[styles.box, agreed && styles.boxChecked]}>{agreed ? <CheckIcon color={colors.surface} size={14} /> : null}</View>
-        <Text style={styles.agreeLabel}>{t('safety.termsAgree')}</Text>
-      </Pressable>
-      {failed ? <Text accessibilityLiveRegion="polite" style={styles.error} testID="terms-error">{t('safety.termsSaveFailed')}</Text> : null}
+        {failed ? <Text accessibilityLiveRegion="polite" style={styles.error} testID="terms-error">{t('safety.termsSaveFailed')}</Text> : null}
+      </ScrollView>
     </AppModal>
   );
 }
 
 const styles = StyleSheet.create({
+  contentScroll: { flexShrink: 1 },
   body: { color: colors.textPrimary, fontSize: 15, lineHeight: 22 },
   link: { justifyContent: 'center', minHeight: minTouchTarget },
   linkLabel: { color: colors.brand, fontSize: 15, fontWeight: '600' },
@@ -149,8 +178,8 @@ const styles = StyleSheet.create({
   box: { alignItems: 'center', borderColor: colors.inputBorder, borderRadius: 6, borderWidth: 2, height: 24, justifyContent: 'center', width: 24 },
   boxChecked: { backgroundColor: colors.brand, borderColor: colors.brand },
   error: { color: colors.danger, fontSize: 14, marginTop: spacing.sm },
-  footer: { flexDirection: 'row', gap: spacing.sm },
-  button: { alignItems: 'center', borderRadius: radii.md, flex: 1, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
+  footer: { alignSelf: 'stretch', flexDirection: 'column-reverse', gap: spacing.sm, width: '100%' },
+  button: { alignItems: 'center', borderRadius: radii.md, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md, width: '100%' },
   later: { borderColor: colors.border, borderWidth: 1 },
   laterLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
   accept: { backgroundColor: colors.brand },
