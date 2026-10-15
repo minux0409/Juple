@@ -210,8 +210,6 @@ public sealed class CollectionsController(
         }
     }
 
-    [Juple.Api.Safety.RequireTermsAcceptance]
-
     [HttpPost]
     public async Task<IActionResult> CreateAsync(CreateCollectionRequest request, CancellationToken cancellationToken)
     {
@@ -501,6 +499,7 @@ public sealed class CollectionsController(
     /// reused by the anonymous side. Optional body { permission: "read" | "write" } (absent = read)
     /// applies only when a new link is created.
     /// </summary>
+    [Juple.Api.Safety.RequireTermsAcceptance]
     [HttpPost("{id:long}/share")]
     [CollectionPermission(CollectionPermission.ManageShare, requireUnlock: true)]
     public async Task<IActionResult> EnableShareAsync(
@@ -1267,7 +1266,7 @@ public sealed class CollectionsController(
     /// linkAlreadyInCollection / linkAlreadyPending for a proposal of a link that is already there or
     /// already waiting.
     /// </summary>
-    [Juple.Api.Safety.RequireTermsAcceptance]
+    [Juple.Api.Safety.RequireTermsForSharedCollectionWrites("route")]
     [HttpPut("{id:long}/items/{itemId:long}")]
     public Task<IActionResult> AddItemAsync(long id, long itemId, CancellationToken cancellationToken, [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
         ExecuteAsync(
