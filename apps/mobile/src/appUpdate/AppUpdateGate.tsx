@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppState, Platform } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
@@ -6,17 +6,12 @@ import { useAuth } from '../auth/AuthContext';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { fetchAppUpdatePolicy } from './appUpdatePolicyApi';
 import { openStore } from './openStore';
-import {
-  isOptionalUpdateSnoozed,
-  loadOptionalUpdateSnooze,
-  saveOptionalUpdateSnooze,
-  type OptionalUpdateSnooze,
-} from './optionalUpdateSnooze';
 import { evaluateAppUpdate, parseInstalledBuild, platformPolicy, type PlatformVersionPolicy } from './versionPolicy';
 
 /**
- * Latest builds whose optional prompt the person already answered in this app process ("나중에" or "업데이트"). One foreground
- * session sees an optional prompt at most once per latest build; "나중에" is additionally remembered for a day across launches.
+ * Latest builds whose optional prompt the person already answered in this app process ("나중에" or "업데이트"). It lives in
+ * memory only: within one running process the prompt is not repeated on every foreground return, but nothing is persisted, so
+ * the next launch asks again for as long as the installed build is below the latest.
  */
 const answeredOptionalBuilds = new Set<number>();
 
@@ -81,11 +76,11 @@ function useFetchedUpdatePolicy(): PlatformVersionPolicy | null {
  * inside the app): the installed BUILD number is compared with the policy of the CURRENT platform. The policy is read without
  * signing in (so it also works on the sign-in screen) and, once signed in, also arrives with the bootstrap response.
  * - current: nothing.
- * - optional ("업데이트가 있습니다"): 나중에 / 업데이트. 나중에 is remembered for 24 hours for that latest build; a newer latest
- *   build asks again at once.
+ * - optional ("업데이트가 있습니다"): 나중에 / 업데이트. 나중에 only closes the prompt for this running process (never stored),
+ *   so every new launch asks again while the build is below the latest.
  * - required (installed build below the server's minimum): a blocking dialog with 업데이트 only - it has no way to be closed
  *   into the app. Only the 업데이트 button starts anything: Android Back and a tap outside the card are ignored (they neither close
- *   the dialog nor open the store), and the policy is checked again when the app comes back. Snooze never applies to it.
+ *   the dialog nor open the store), and the policy is checked again when the app comes back.
  * A missing, malformed, unreachable or contradictory policy is "current": a server hiccup must never nag or lock anybody out.
  * 업데이트 opens THIS platform's store (Play Store app, App Store page from the server's configuration); if nothing can be
  * opened a Juple message says so and the dialog stays.
@@ -95,29 +90,6 @@ export function AppUpdateGate() {
   const { isAuthenticated, userBootstrapStatus, mobileVersionPolicy } = useAuth();
   const [, setAnswered] = useState(0);
   const [storeFailed, setStoreFailed] = useState(false);
-  const [snooze, setSnooze] = useState<OptionalUpdateSnooze | null>(null);
-  const [snoozeLoaded, setSnoozeLoaded] = useState(false);
-  // True while "나중에" is being written: a second tap is ignored so one answer is one write.
-  const isSavingLater = useRef(false);
-
-  useEffect(() => {
-    let isMounted = true;
-    loadOptionalUpdateSnooze()
-      .then(value => {
-        if (isMounted) {
-          setSnooze(value);
-          setSnoozeLoaded(true);
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setSnoozeLoaded(true);
-        }
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const fetchedPolicy = useFetchedUpdatePolicy();
   const bootstrapPolicy = isAuthenticated && userBootstrapStatus === 'ready' ? platformPolicy(mobileVersionPolicy ?? null, Platform.OS) : null;
@@ -136,24 +108,13 @@ export function AppUpdateGate() {
     }
   }, [policy, status]);
 
-  // "나중에": the answer is written FIRST and the dialog closes only once the storage has taken it - so what the person saw (it
-  // went away) is never ahead of what is remembered, and the app being closed right after the tap cannot lose it. A failed write
-  // never blocks anything: the answer still counts for this session (no repeated prompt), it just is not remembered after a restart.
-  const later = useCallback(async () => {
-    if (!policy || isSavingLater.current) {
+  // "나중에": closes the prompt for this running process only. Nothing is stored, so the next launch asks again.
+  const later = useCallback(() => {
+    if (!policy) {
       return;
     }
-    isSavingLater.current = true;
-    const latestBuild = policy.latestBuild;
-    const now = Date.now();
-    try {
-      await saveOptionalUpdateSnooze(latestBuild, now);
-    } finally {
-      isSavingLater.current = false;
-      answeredOptionalBuilds.add(latestBuild);
-      setSnooze({ latestBuild, dismissedAt: now });
-      setAnswered(count => count + 1);
-    }
+    answeredOptionalBuilds.add(policy.latestBuild);
+    setAnswered(count => count + 1);
   }, [policy]);
 
   if (status === 'current' || policy === null) {
@@ -172,17 +133,14 @@ export function AppUpdateGate() {
     );
   }
   if (status === 'optional') {
-    // Not shown until the remembered answer has been read - no flash of a prompt that was already snoozed.
-    const isHidden = !snoozeLoaded
-      || answeredOptionalBuilds.has(policy.latestBuild)
-      || isOptionalUpdateSnoozed(snooze, policy.latestBuild, Date.now());
+    const isHidden = answeredOptionalBuilds.has(policy.latestBuild);
     return (
       <ConfirmDialog
         cancelLabel={t('appUpdate.later')}
         confirmLabel={t('appUpdate.action')}
         destructive={false}
         message={t('appUpdate.optionalMessage')}
-        onCancel={() => { later().catch(() => undefined); }}
+        onCancel={later}
         onConfirm={() => { update().catch(() => undefined); }}
         title={t('appUpdate.optionalTitle')}
         visible={!isHidden}

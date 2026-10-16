@@ -6,7 +6,6 @@ import { parseEntitlement } from '../../auth/userBootstrapApi';
 import { useAuth } from '../../auth/AuthContext';
 import { AppUpdateGate, resetAppUpdatePromptMemory } from '../AppUpdateGate';
 import { fetchAppUpdatePolicy } from '../appUpdatePolicyApi';
-import { OPTIONAL_UPDATE_SNOOZE_MS, saveOptionalUpdateSnooze, type OptionalUpdateSnooze } from '../optionalUpdateSnooze';
 import { openStore, storeTargets } from '../openStore';
 import {
   evaluateAppUpdate,
@@ -18,15 +17,6 @@ import {
 
 jest.mock('../../auth/AuthContext', () => ({ useAuth: jest.fn() }));
 jest.mock('../appUpdatePolicyApi', () => ({ fetchAppUpdatePolicy: jest.fn() }));
-const mockSnooze: { value: OptionalUpdateSnooze | null } = { value: null };
-jest.mock('../optionalUpdateSnooze', () => ({
-  ...jest.requireActual('../optionalUpdateSnooze'),
-  loadOptionalUpdateSnooze: jest.fn(async () => mockSnooze.value),
-  saveOptionalUpdateSnooze: jest.fn(async (latestBuild: number, now: number) => {
-    mockSnooze.value = { latestBuild, dismissedAt: now };
-    return true;
-  }),
-}));
 jest.mock('react-native-device-info', () => ({
   __esModule: true,
   default: { getBuildNumber: jest.fn(), getBundleId: jest.fn(() => 'com.juple.app') },
@@ -158,10 +148,8 @@ describe('AppUpdateGate', () => {
 
   beforeEach(() => {
     resetAppUpdatePromptMemory();
-    mockSnooze.value = null;
     // No sign-in-free answer unless a test provides one: the bootstrap policy is then what counts, exactly as before.
     jest.mocked(fetchAppUpdatePolicy).mockReset();
-    jest.mocked(saveOptionalUpdateSnooze).mockClear();
     jest.mocked(fetchAppUpdatePolicy).mockResolvedValue({ ok: false });
     Object.defineProperty(Platform, 'OS', { configurable: true, get: () => 'android' });
   });
@@ -340,47 +328,54 @@ describe('AppUpdateGate', () => {
     });
   });
 
-  describe('optional update snooze (24 hours, per latest build)', () => {
+  describe('optional update: 나중에 lasts only for the running process', () => {
     const answer = (latest: number, minimum: number) =>
       jest.mocked(fetchAppUpdatePolicy).mockResolvedValue({ ok: true, policy: { latestBuild: latest, minimumSupportedBuild: minimum, storeUrl: null } });
+    const signedOut = () => setAuth({ isAuthenticated: false, userBootstrapStatus: 'idle', mobileVersionPolicy: null });
 
-    it('나중에 is remembered across launches for that build', async () => {
+    it('after 나중에 the next launch (a fresh process) asks again while the build is below the latest', async () => {
       setBuild('24');
       answer(25, 24);
-      setAuth({ isAuthenticated: false, userBootstrapStatus: 'idle', mobileVersionPolicy: null });
+      signedOut();
       const first = await render();
-
       await act(async () => dialog(first).props.onCancel());
+      expect(dialog(first)).toBeUndefined();
 
-      expect(mockSnooze.value).toMatchObject({ latestBuild: 25 });
-      // A fresh process: the in-memory answers are gone, the stored one is not.
+      // A fresh process: the in-memory answers are gone and nothing was stored.
       resetAppUpdatePromptMemory();
-      expect(dialog(await render())).toBeUndefined();
+      expect(dialog(await render()).props.title).toBe('업데이트가 있습니다');
     });
 
-    it('asks again after 24 hours, and at once for a newer latest build', async () => {
-      setBuild('24');
-      answer(25, 24);
-      setAuth({ isAuthenticated: false, userBootstrapStatus: 'idle', mobileVersionPolicy: null });
-      const now = Date.now();
-
-      mockSnooze.value = { latestBuild: 25, dismissedAt: now - OPTIONAL_UPDATE_SNOOZE_MS + 60_000 };
-      expect(dialog(await render())).toBeUndefined();
-
-      mockSnooze.value = { latestBuild: 25, dismissedAt: now - OPTIONAL_UPDATE_SNOOZE_MS - 60_000 };
-      expect(dialog(await render())).toBeDefined();
-
-      mockSnooze.value = { latestBuild: 24, dismissedAt: now };
-      expect(dialog(await render())).toBeDefined();
-    });
-
-    it('a required update ignores any snooze', async () => {
+    it('a required update has no 나중에 at all', async () => {
       setBuild('24');
       answer(25, 25);
-      setAuth({ isAuthenticated: false, userBootstrapStatus: 'idle', mobileVersionPolicy: null });
-      mockSnooze.value = { latestBuild: 25, dismissedAt: Date.now() };
+      signedOut();
 
-      expect(dialog(await render()).props.title).toBe('업데이트가 필요합니다');
+      const shown = dialog(await render());
+      expect(shown.props.title).toBe('업데이트가 필요합니다');
+      expect(shown.props.onCancel).toBeUndefined();
+    });
+  });
+
+  describe('decision table (min / latest / installed build)', () => {
+    it.each([
+      [26, 24, 26, null],
+      [25, 24, 26, '업데이트가 있습니다'],
+      [24, 24, 26, '업데이트가 있습니다'],
+      [23, 24, 26, '업데이트가 필요합니다'],
+      [25, 26, 26, '업데이트가 필요합니다'],
+    ])('current=%s min=%s latest=%s -> %s', async (current, minimum, latest, title) => {
+      setBuild(String(current));
+      jest.mocked(fetchAppUpdatePolicy).mockResolvedValue({ ok: true, policy: { latestBuild: latest, minimumSupportedBuild: minimum, storeUrl: null } });
+      setAuth({ isAuthenticated: false, userBootstrapStatus: 'idle', mobileVersionPolicy: null });
+
+      const shown = dialog(await render());
+
+      if (title === null) {
+        expect(shown).toBeUndefined();
+      } else {
+        expect(shown.props.title).toBe(title);
+      }
     });
   });
 
@@ -448,103 +443,6 @@ describe('AppUpdateGate', () => {
       await act(async () => modal(renderer).props.onRequestClose());
 
       expect(dialog(renderer)).toBeUndefined();
-      expect(mockSnooze.value).toMatchObject({ latestBuild: 25 });
-    });
-  });
-
-  describe('"나중에" is persisted before the dialog goes away', () => {
-    const optional = () => {
-      setBuild('24');
-      setAuth({ isAuthenticated: false, userBootstrapStatus: 'idle', mobileVersionPolicy: null });
-      jest.mocked(fetchAppUpdatePolicy).mockResolvedValue({ ok: true, policy: { latestBuild: 25, minimumSupportedBuild: 24, storeUrl: null } });
-    };
-
-    it('the dialog stays until the write has completed, then closes - and what is stored is what was shown', async () => {
-      optional();
-      let finishWrite!: (ok: boolean) => void;
-      jest.mocked(saveOptionalUpdateSnooze).mockImplementationOnce(
-        (latestBuild: number, now: number) => new Promise<boolean>(resolve => {
-          finishWrite = ok => {
-            mockSnooze.value = { latestBuild, dismissedAt: now };
-            resolve(ok);
-          };
-        }),
-      );
-      const renderer = await render();
-
-      await act(async () => dialog(renderer).props.onCancel());
-      // The write is still pending: not stored yet, and the person is not told "done".
-      expect(mockSnooze.value).toBeNull();
-      expect(dialog(renderer)).toBeDefined();
-
-      await act(async () => finishWrite(true));
-
-      expect(mockSnooze.value).toMatchObject({ latestBuild: 25 });
-      expect(dialog(renderer)).toBeUndefined();
-    });
-
-    it('a second tap while the write is pending is ignored: one answer, one write', async () => {
-      optional();
-      let finishWrite!: (ok: boolean) => void;
-      jest.mocked(saveOptionalUpdateSnooze).mockImplementationOnce(() => new Promise<boolean>(resolve => { finishWrite = resolve; }));
-      const renderer = await render();
-
-      await act(async () => {
-        dialog(renderer).props.onCancel();
-        dialog(renderer).props.onCancel();
-      });
-      await act(async () => finishWrite(true));
-
-      expect(saveOptionalUpdateSnooze).toHaveBeenCalledTimes(1);
-    });
-
-    it('survives a restart: a fresh process with the stored answer shows nothing for the same latest build', async () => {
-      optional();
-      const first = await render();
-      await act(async () => dialog(first).props.onCancel());
-      expect(mockSnooze.value).toMatchObject({ latestBuild: 25 });
-
-      resetAppUpdatePromptMemory();
-      expect(dialog(await render())).toBeUndefined();
-    });
-
-    it('a newer latest build asks again at once, whatever was stored', async () => {
-      optional();
-      mockSnooze.value = { latestBuild: 24, dismissedAt: Date.now() };
-
-      expect(dialog(await render())).toBeDefined();
-    });
-
-    it('a failed write never blocks the app: the dialog closes and is not asked again this session', async () => {
-      optional();
-      jest.mocked(saveOptionalUpdateSnooze).mockResolvedValueOnce(false);
-      const renderer = await render();
-
-      await act(async () => dialog(renderer).props.onCancel());
-
-      expect(dialog(renderer)).toBeUndefined();
-      // Same process (the in-memory answers survive), nothing was persisted: still not asked again.
-      mockSnooze.value = null;
-      expect(dialog(await render())).toBeUndefined();
-    });
-
-    it('a write that throws is handled the same way (the gate never leaves the dialog stuck)', async () => {
-      optional();
-      jest.mocked(saveOptionalUpdateSnooze).mockRejectedValueOnce(new Error('disk'));
-      const renderer = await render();
-
-      await act(async () => dialog(renderer).props.onCancel());
-
-      expect(dialog(renderer)).toBeUndefined();
-    });
-
-    it('never applies to a required update, however fresh the stored answer', async () => {
-      setBuild('24');
-      setAuth({ isAuthenticated: false, userBootstrapStatus: 'idle', mobileVersionPolicy: null });
-      jest.mocked(fetchAppUpdatePolicy).mockResolvedValue({ ok: true, policy: { latestBuild: 25, minimumSupportedBuild: 25, storeUrl: null } });
-      mockSnooze.value = { latestBuild: 25, dismissedAt: Date.now() };
-
-      expect(dialog(await render()).props.title).toBe('업데이트가 필요합니다');
     });
   });
 
