@@ -8,6 +8,7 @@ import { androidOpenInAppUrl, canonicalShareUrl, normalizeHost, WEB_ONLY_PARAM }
 import { buildShareMetadata, loadShareView } from '../../../lib/shareView';
 import { storeConfig } from '../../../lib/storeConfig';
 import { isValidPublicId, unlockCookieName } from '../../../lib/unlockCookie';
+import { PublicStatePage } from '../../_components/PublicStatePage';
 import { AutoOpenInApp } from './AutoOpenInApp';
 import { InstallCta } from './InstallCta';
 import { ItemList } from './ItemList';
@@ -89,15 +90,7 @@ export default async function PublicCollectionPage({ params, searchParams }: Pag
 
   // The backend could not answer: a calm, temporary state - nothing is claimed about the share, and no app handoff is tried.
   if (view.kind === 'unavailable') {
-    return (
-      <main>
-        <p className="brand">Juple</p>
-        <div className="notFound">
-          <p className="notFoundTitle">{dict.unavailableTitle}</p>
-          <p className="notFoundMessage">{dict.unavailableMessage}</p>
-        </div>
-      </main>
-    );
+    return <PublicStatePage homeLabel={dict.notFoundHome} lang={locale} message={dict.unavailableMessage} title={dict.unavailableTitle} />;
   }
 
   // The install / open block sits right under the title (never only after the links), and on Android a resolved share tries the

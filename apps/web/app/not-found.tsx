@@ -1,17 +1,11 @@
 import { headers } from 'next/headers';
 import { getDictionary, resolveLocale } from '../lib/i18n';
+import { PublicStatePage } from './_components/PublicStatePage';
 
 export default async function NotFound() {
   const requestHeaders = await headers();
-  const dict = getDictionary(resolveLocale(requestHeaders.get('accept-language')));
+  const locale = resolveLocale(requestHeaders.get('accept-language'));
+  const dict = getDictionary(locale);
 
-  return (
-    <main>
-      <p className="brand">Juple</p>
-      <div className="notFound">
-        <p className="notFoundTitle">{dict.notFoundTitle}</p>
-        <p className="notFoundMessage">{dict.notFoundMessage}</p>
-      </div>
-    </main>
-  );
+  return <PublicStatePage homeLabel={dict.notFoundHome} lang={locale} message={dict.notFoundMessage} title={dict.notFoundTitle} />;
 }

@@ -39,6 +39,17 @@ interface Dictionary {
   readonly landingPrivacy: string;
   readonly landingTerms: string;
   readonly landingAccountDeletion: string;
+  readonly landingHeadlineLine1: string;
+  readonly landingHeadlineLine2: string;
+  readonly landingDescription: string;
+  readonly landingFeaturesHeading: string;
+  readonly featureSaveTitle: string;
+  readonly featureSaveText: string;
+  readonly featureOrganizeTitle: string;
+  readonly featureOrganizeText: string;
+  readonly featureShareTitle: string;
+  readonly featureShareText: string;
+  readonly notFoundHome: string;
 }
 
 const dictionaries: Record<Locale, Dictionary> = {
@@ -73,6 +84,17 @@ const dictionaries: Record<Locale, Dictionary> = {
     landingPrivacy: 'Privacy Policy',
     landingTerms: 'Terms of Service',
     landingAccountDeletion: 'Account deletion',
+    landingHeadlineLine1: 'Save what you discover,',
+    landingHeadlineLine2: 'and come back to it later.',
+    landingDescription: 'Juple saves the links you find, organizes them into collections, and lets you share them or collect them together with friends.',
+    landingFeaturesHeading: 'What you can do with Juple',
+    featureSaveTitle: 'Save links',
+    featureSaveText: "Save a link straight from another app's share menu, then look back at today's links and your history by date.",
+    featureOrganizeTitle: 'Organize into collections',
+    featureOrganizeText: 'Sort links into collections you name yourself. One link can live in several collections.',
+    featureShareTitle: 'Share and collaborate',
+    featureShareText: 'Share a collection with a link, or invite friends to collect links in it together.',
+    notFoundHome: 'Go to the Juple home page',
   },
   ko: {
     open: '열기',
@@ -105,6 +127,17 @@ const dictionaries: Record<Locale, Dictionary> = {
     landingPrivacy: '개인정보처리방침',
     landingTerms: '이용약관',
     landingAccountDeletion: '계정 삭제 안내',
+    landingHeadlineLine1: '발견한 것들을 모아두고,',
+    landingHeadlineLine2: '나중에 다시 꺼내보세요.',
+    landingDescription: '발견한 링크를 저장하고, 컬렉션으로 정리하고, 친구와 공유하거나 함께 모을 수 있는 Juple입니다.',
+    landingFeaturesHeading: 'Juple로 할 수 있는 일',
+    featureSaveTitle: '링크 저장',
+    featureSaveText: '다른 앱의 공유 메뉴에서 바로 저장하고, 오늘 저장한 링크와 지난 기록을 날짜별로 다시 볼 수 있어요.',
+    featureOrganizeTitle: '컬렉션 정리',
+    featureOrganizeText: '직접 이름 붙인 컬렉션으로 정리하세요. 하나의 링크를 여러 컬렉션에 담을 수 있어요.',
+    featureShareTitle: '공유·협업',
+    featureShareText: '컬렉션을 링크로 공유하거나, 친구를 초대해 함께 링크를 모을 수 있어요.',
+    notFoundHome: 'Juple 홈으로 가기',
   },
 };
 

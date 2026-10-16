@@ -3,7 +3,10 @@ import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { readLegalOperatorConfig } from '../lib/legalConfig.ts';
 import { accountDeletionDocument, operatorFacts, pendingLegalReview, privacyDocument, termsDocument, type LegalDocument } from '../lib/legalContent.ts';
+import { getDictionary } from '../lib/i18n.ts';
 import { planLandingStore } from '../lib/publicLanding.ts';
+import { buildShareMetadata } from '../lib/shareView.ts';
+import { buildSiteMetadata, SITE_SHARE_IMAGE } from '../lib/siteMetadata.ts';
 import { isPublicOnly, PUBLIC_LANDING_PATH, PUBLIC_ONLY_NOT_FOUND_PATH, routePublicOnly } from '../lib/publicOnly.ts';
 
 const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -68,18 +71,59 @@ describe('public-only launch mode', () => {
 describe('public landing page', () => {
   it('Google Play for Android and desktop once the listing URL is configured', () => {
     const url = 'https://play.google.com/store/apps/details?id=com.juple.app';
-    assert.deepEqual(planLandingStore({ platform: 'android', googlePlayUrl: url }), { googlePlayUrl: url, androidOnlyNote: false, comingSoon: false });
-    assert.deepEqual(planLandingStore({ platform: 'other', googlePlayUrl: url }), { googlePlayUrl: url, androidOnlyNote: false, comingSoon: false });
+    assert.deepEqual(planLandingStore({ platform: 'android', googlePlayUrl: url }), { googlePlayUrl: url, androidOnlyNote: false });
+    assert.deepEqual(planLandingStore({ platform: 'other', googlePlayUrl: url }), { googlePlayUrl: url, androidOnlyNote: false });
   });
 
   it('an iPhone visitor gets a plain Android-first note, never a store button', () => {
     const url = 'https://play.google.com/store/apps/details?id=com.juple.app';
-    assert.deepEqual(planLandingStore({ platform: 'ios', googlePlayUrl: url }), { googlePlayUrl: null, androidOnlyNote: true, comingSoon: false });
-    assert.deepEqual(planLandingStore({ platform: 'ios', googlePlayUrl: undefined }), { googlePlayUrl: null, androidOnlyNote: true, comingSoon: false });
+    assert.deepEqual(planLandingStore({ platform: 'ios', googlePlayUrl: url }), { googlePlayUrl: null, androidOnlyNote: true });
+    assert.deepEqual(planLandingStore({ platform: 'ios', googlePlayUrl: undefined }), { googlePlayUrl: null, androidOnlyNote: true });
   });
 
-  it('before the listing exists: a plain "coming soon" line, no dead-end link', () => {
-    assert.deepEqual(planLandingStore({ platform: 'android', googlePlayUrl: undefined }), { googlePlayUrl: null, androidOnlyNote: false, comingSoon: true });
+  it('before the public listing exists: no store link and no "coming soon" placeholder at all', () => {
+    assert.deepEqual(planLandingStore({ platform: 'android', googlePlayUrl: undefined }), { googlePlayUrl: null, androidOnlyNote: false });
+    assert.deepEqual(planLandingStore({ platform: 'other', googlePlayUrl: '' }), { googlePlayUrl: null, androidOnlyNote: false });
+    assert.doesNotMatch(source('app/welcome/page.tsx'), /installComingSoon|comingSoon|play\.google\.com|testing/i);
+  });
+
+  it('is a real landing: the lockup, the product line and the three features the app actually has', () => {
+    const page = source('app/welcome/page.tsx');
+    assert.match(page, /<BrandIcon size=\{56\} \/>\s*<h1 className=\{landing\.wordmark\}>Juple<\/h1>/);
+    assert.match(page, /dict\.landingHeadlineLine1[\s\S]*dict\.landingHeadlineLine2/);
+    for (const key of ['featureSaveTitle', 'featureOrganizeTitle', 'featureShareTitle']) {
+      assert.match(page, new RegExp(`dict\\.${key}`), key);
+    }
+    const ko = getDictionary('ko');
+    assert.equal(`${ko.landingHeadlineLine1} ${ko.landingHeadlineLine2}`, '발견한 것들을 모아두고, 나중에 다시 꺼내보세요.');
+    assert.deepEqual([ko.featureSaveTitle, ko.featureOrganizeTitle, ko.featureShareTitle], ['링크 저장', '컬렉션 정리', '공유·협업']);
+    for (const locale of ['ko', 'en'] as const) {
+      assert.doesNotMatch(Object.values(getDictionary(locale)).join('\n'), /DEV|Production|임시|테스트|Closed Testing/, locale);
+    }
+  });
+
+  it('describes itself for link previews: canonical juple.co.kr, Open Graph and Twitter with the Juple app icon', () => {
+    const meta = buildSiteMetadata('A description.', '/');
+    assert.equal(meta.title, 'Juple');
+    assert.equal(meta.description, 'A description.');
+    assert.equal(meta.alternates?.canonical, 'https://juple.co.kr/');
+    assert.deepEqual(meta.openGraph, { title: 'Juple', description: 'A description.', url: 'https://juple.co.kr/', siteName: 'Juple', type: 'website', images: [SITE_SHARE_IMAGE] });
+    assert.deepEqual(meta.twitter, { card: 'summary', title: 'Juple', description: 'A description.', images: ['/brand/juple-share-512.png'] });
+    assert.deepEqual(routePublicOnly(SITE_SHARE_IMAGE.url), { kind: 'serve' }, 'the preview image is served in public-only mode');
+    assert.ok(readFileSync(new URL('../public/brand/juple-share-512.png', import.meta.url)).length > 0);
+    assert.match(source('app/welcome/page.tsx'), /buildSiteMetadata\(dict\.landingDescription, '\/'\)/);
+    const layout = source('app/layout.tsx');
+    assert.match(layout, /metadataBase: new URL\(SITE_URL\)/);
+    assert.match(layout, /images: \[SITE_SHARE_IMAGE\]/);
+    assert.match(layout, /index: false/, 'the site stays noindex');
+  });
+
+  it('a shared Collection keeps its own image-less preview (its openGraph / twitter replace the site defaults)', () => {
+    for (const kind of ['notFound', 'locked', 'unavailable'] as const) {
+      const meta = buildShareMetadata({ kind }, null, 'desc');
+      assert.equal('images' in meta.openGraph, false);
+      assert.equal('images' in meta.twitter, false);
+    }
   });
 
   it('has no sign-in and no App Store, links the legal pages and shows the operator details', () => {
@@ -91,6 +135,18 @@ describe('public landing page', () => {
       assert.match(page, new RegExp(`<Link href="${href}">`));
     }
     assert.match(page, /operatorFacts\(legal\)/);
+  });
+});
+
+describe('the 404 and "cannot show it" pages', () => {
+  it('carry the Juple lockup, a short explanation and a way home - and no app install or open link', () => {
+    const code = source('app/_components/PublicStatePage.tsx').replace(/\/\*[\s\S]*?\*\//g, '');
+    assert.match(code, /<BrandIcon size=\{48\} \/>/);
+    assert.match(code, /<Link className="stateHomeLink" href="\/">/);
+    assert.doesNotMatch(code, /InstallCta|googlePlay|appStore|intent:|openInApp|play\.google/i);
+    assert.match(source('app/not-found.tsx'), /<PublicStatePage homeLabel=\{dict\.notFoundHome\}/);
+    assert.match(source('app/c/[publicId]/page.tsx'), /if \(view\.kind === 'unavailable'\) \{\s*return <PublicStatePage homeLabel=\{dict\.notFoundHome\}/);
+    assert.equal(getDictionary('ko').notFoundHome, 'Juple 홈으로 가기');
   });
 });
 

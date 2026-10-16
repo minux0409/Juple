@@ -1,0 +1,132 @@
+/* The public landing page (app/welcome). The color and spacing tokens come from app.module.css's .centered, which the page's <main> uses. */
+.landing {
+  width: 100%;
+  max-width: 560px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-raised);
+  padding: var(--space-7) var(--space-5) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.lockup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-5);
+}
+
+/* The wordmark in the app icon's own gradient (apps/mobile/assets/branding/juple-lockup.png). */
+.wordmark {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  background: linear-gradient(90deg, #ff6a5c 0%, #f2389a 45%, #6a5cff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.headline {
+  margin: 0 0 var(--space-6);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--app-text);
+  overflow-wrap: anywhere;
+}
+
+.features {
+  width: 100%;
+  margin: 0 0 var(--space-6);
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  text-align: start;
+}
+
+.feature {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--app-surface-muted);
+}
+
+.featureIcon {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.featureBody {
+  min-width: 0;
+}
+
+.featureTitle {
+  margin: 0 0 var(--space-1);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.featureText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--app-text-secondary);
+}
+
+.storeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--field-height);
+  margin: 0 0 var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--brand);
+  color: #ffffff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.note {
+  margin: 0 0 var(--space-4);
+  font-size: 14px;
+  color: var(--app-text-secondary);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 380px) {
+  .wordmark {
+    font-size: 34px;
+  }
+
+  .headline {
+    font-size: 20px;
+  }
+}

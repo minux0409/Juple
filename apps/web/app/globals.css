@@ -222,6 +222,51 @@ main {
   margin: 0;
 }
 
+/* A public page with nothing to show (app/_components/PublicStatePage.tsx): the Juple lockup, the message, the way home. */
+.statePage {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.stateLockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  text-decoration: none;
+}
+
+.stateWordmark {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(90deg, #ff6a5c 0%, #f2389a 45%, #6a5cff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.statePage .notFound {
+  padding: 32px 0 0;
+}
+
+.stateHomeLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 20px;
+  padding: 0 20px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
 .lockedGate {
   margin: 48px auto 0;
   max-width: 360px;
