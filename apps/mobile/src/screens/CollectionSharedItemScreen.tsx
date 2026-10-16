@@ -13,6 +13,8 @@ import { contentGateOfError } from '../collections/useCollectionItems';
 import { ContentPreviewCard } from '../components/ContentPreviewCard';
 import { ItemAdderBadge } from '../components/ItemAdderBadge';
 import { usePersonProfile } from '../friends/PersonProfileModal';
+import { useAppToast } from '../components/AppToast';
+import { ReportModal } from '../safety/ReportModal';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
@@ -47,6 +49,8 @@ export function CollectionSharedItemScreen({ route }: Props) {
   // ItemDetails uses the same). A link opened here is always one of a Collection the caller belongs to.
   const { openProfile, profileModal } = usePersonProfile();
   const collaboration = useItemCollaboration({ collectionId, itemId, isCollectionOwner, row: item, enabled: true, focusThreadRootId });
+  const { showNotificationToast } = useAppToast();
+  const [isReporting, setIsReporting] = useState(false);
 
   const loadItem = useCallback(() => {
       let isActive = true;
@@ -156,11 +160,25 @@ export function CollectionSharedItemScreen({ route }: Props) {
           <Text style={styles.openLabel}>{t('collections.sharedItemOpen')}</Text>
         </Pressable>
         {openError ? <Text style={styles.error}>{openError}</Text> : null}
+        {/* Somebody else's link (this screen never shows the caller's own): it can be reported, as a quiet secondary action. */}
+        {addedBy?.kind === 'person' && addedBy.isMe ? null : (
+          <Pressable accessibilityRole="button" hitSlop={8} onPress={() => setIsReporting(true)} style={styles.reportButton} testID="shared-item-report">
+            <Text style={styles.reportLabel}>{t('safety.report')}</Text>
+          </Pressable>
+        )}
         {collaboration.comments}
       </ScrollView>
       {collaboration.composer}
       </KeyboardSafeView>
       {profileModal}
+      <ReportModal
+        onClose={() => setIsReporting(false)}
+        onReported={alreadyReported => {
+          setIsReporting(false);
+          showNotificationToast(t(alreadyReported ? 'safety.reportAlready' : 'safety.reportReceived'));
+        }}
+        target={isReporting ? { type: 'Item', itemId, collectionId } : null}
+      />
     </StackScreenSafeArea>
   );
 }
@@ -195,4 +213,6 @@ const styles = StyleSheet.create({
   },
   openLabel: { color: colors.surface, fontSize: 15, fontWeight: '700' },
   error: { color: colors.danger, fontSize: 14, marginTop: spacing.md, textAlign: 'center' },
+  reportButton: { alignItems: 'center', alignSelf: 'center', justifyContent: 'center', marginTop: spacing.md, minHeight: minTouchTarget, paddingHorizontal: spacing.lg },
+  reportLabel: { color: colors.textSecondary, fontSize: 13, textDecorationLine: 'underline' },
 });

@@ -57,12 +57,31 @@ async function renderScreen() {
 const entry = (renderer: ReactTestRenderer.ReactTestRenderer) =>
   renderer.root.findAll(node => node.props.testID === 'my-subscription' && typeof node.props.onPress === 'function');
 
-describe('My Page Subscription entry (a normal feature, not a test entry)', () => {
-  it('is shown on Android when the Backend catalog has Google billing enabled, even while the subscription program is OFF', async () => {
+const programOn = { programEnabled: true, status: 'trial', canWrite: true };
+const programOff = { programEnabled: false, status: null, canWrite: true };
+
+describe('My Page Subscription entry', () => {
+  it('is hidden while the subscription program is OFF - even with Google billing configured (Production before launch) - and the catalog is not requested', async () => {
     jest.replaceProperty(Platform, 'OS', 'android');
     jest.mocked(getGoogleCatalog).mockResolvedValue(enabledCatalog);
-    // programEnabled:false is exactly the Production state today - the entry must not depend on it.
-    mockAuth({ programEnabled: false, status: null, canWrite: true });
+    mockAuth(programOff);
+
+    expect(entry(await renderScreen())).toHaveLength(0);
+    expect(getGoogleCatalog).not.toHaveBeenCalled();
+  });
+
+  it('is hidden when the bootstrap reported no entitlement at all (an older backend / not known yet)', async () => {
+    jest.replaceProperty(Platform, 'OS', 'android');
+    jest.mocked(getGoogleCatalog).mockResolvedValue(enabledCatalog);
+    mockAuth(null);
+
+    expect(entry(await renderScreen())).toHaveLength(0);
+  });
+
+  it('is shown on Android once the program is live and the Backend catalog has Google billing enabled', async () => {
+    jest.replaceProperty(Platform, 'OS', 'android');
+    jest.mocked(getGoogleCatalog).mockResolvedValue(enabledCatalog);
+    mockAuth(programOn);
 
     const renderer = await renderScreen();
 
@@ -74,6 +93,7 @@ describe('My Page Subscription entry (a normal feature, not a test entry)', () =
   it('is labelled with the plain "Subscription" title - no internal-test wording', async () => {
     jest.replaceProperty(Platform, 'OS', 'android');
     jest.mocked(getGoogleCatalog).mockResolvedValue(enabledCatalog);
+    mockAuth(programOn);
 
     const renderer = await renderScreen();
     const texts = entry(renderer)[0].findAll(node => typeof node.props.children === 'string').map(node => node.props.children as string);
@@ -85,6 +105,7 @@ describe('My Page Subscription entry (a normal feature, not a test entry)', () =
   it('is hidden on Android when the catalog is disabled (nothing can be bought)', async () => {
     jest.replaceProperty(Platform, 'OS', 'android');
     jest.mocked(getGoogleCatalog).mockResolvedValue(disabledCatalog);
+    mockAuth(programOn);
 
     expect(entry(await renderScreen())).toHaveLength(0);
   });
@@ -92,6 +113,7 @@ describe('My Page Subscription entry (a normal feature, not a test entry)', () =
   it('is hidden - and the catalog is not even requested - on iOS, which has no store implementation yet', async () => {
     jest.replaceProperty(Platform, 'OS', 'ios');
     jest.mocked(getGoogleCatalog).mockResolvedValue(enabledCatalog);
+    mockAuth(programOn);
 
     expect(entry(await renderScreen())).toHaveLength(0);
     expect(getGoogleCatalog).not.toHaveBeenCalled();
@@ -100,6 +122,7 @@ describe('My Page Subscription entry (a normal feature, not a test entry)', () =
   it('is not invented when the catalog request fails', async () => {
     jest.replaceProperty(Platform, 'OS', 'android');
     jest.mocked(getGoogleCatalog).mockRejectedValue(new Error('offline'));
+    mockAuth(programOn);
 
     expect(entry(await renderScreen())).toHaveLength(0);
   });

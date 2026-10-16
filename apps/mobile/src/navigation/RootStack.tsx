@@ -198,7 +198,10 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  */
 export function RootStack() {
   const { t } = useTranslation();
-  const { isAuthenticated, isInitializing, backendAuthStatus, userBootstrapStatus, signOut } = useAuth();
+  const { isAuthenticated, isInitializing, backendAuthStatus, userBootstrapStatus, signOut, entitlement } = useAuth();
+  // The subscription screen (price, 구독하기, restore) exists only while the server says the paid program is live: with it off the
+  // route is not registered at all, so no menu, notice, deep route or stray navigate() can reach a purchase.
+  const isSubscriptionProgramLive = entitlement?.programEnabled === true;
   const isBootstrapComplete =
     isAuthenticated && backendAuthStatus === 'valid' && userBootstrapStatus === 'ready';
 
@@ -249,12 +252,12 @@ export function RootStack() {
             <Stack.Screen
               component={CollectionShareScreen}
               name="CollectionShare"
-              options={{ presentation: 'modal', title: t('nav.collectionShare') }}
+              options={{ presentation: 'modal', title: t('nav.collectionShare'), ...headerTitleWithIcon(screenIcons.collectionShare, t('nav.collectionShare')) }}
             />
             <Stack.Screen
               component={MyCollectionSubmissionsScreen}
               name="MyCollectionSubmissions"
-              options={{ title: t('nav.myCollectionSubmissions') }}
+              options={{ title: t('nav.myCollectionSubmissions'), ...headerTitleWithIcon(screenIcons.link, t('nav.myCollectionSubmissions')) }}
             />
             <Stack.Screen
               component={FriendsScreen}
@@ -274,13 +277,13 @@ export function RootStack() {
             <Stack.Screen
               component={CollectionSharedItemScreen}
               name="CollectionSharedItem"
-              options={{ title: t('nav.collectionSharedItem') }}
+              options={{ title: t('nav.collectionSharedItem'), ...headerTitleWithIcon(screenIcons.link, t('nav.collectionSharedItem')) }}
             />
             <Stack.Screen
               component={NewLinkReviewScreen}
               name="NewLinkReview"
               // A dedicated compact full-screen editor (no modal, no bottom sheet): header, compact preview, quick Collections, sticky Save.
-              options={{ title: t('item.saveDialogTitle') }}
+              options={{ title: t('item.saveDialogTitle'), ...headerTitleWithIcon(screenIcons.link, t('item.saveDialogTitle')) }}
             />
             <Stack.Screen
               component={LanguageSettingsScreen}
@@ -294,17 +297,19 @@ export function RootStack() {
             />
             <Stack.Screen component={TrashScreen} name="Trash" options={{ title: t('nav.trash'), ...headerTitleWithIcon(screenIcons.trash, t('nav.trash')) }} />
             <Stack.Screen component={HelpGuideScreen} name="HelpGuide" options={{ title: t('guide.title'), ...headerTitleWithIcon(screenIcons.help, t('guide.title')) }} />
-            <Stack.Screen component={HelpGuideSectionScreen} name="HelpGuideSection" options={({ route }) => ({ title: t(`guide.sections.${route.params.sectionId}.title`) })} />
+            <Stack.Screen component={HelpGuideSectionScreen} name="HelpGuideSection" options={({ route }) => ({ title: t(`guide.sections.${route.params.sectionId}.title`), ...headerTitleWithIcon(screenIcons.help, t(`guide.sections.${route.params.sectionId}.title`)) })} />
             <Stack.Screen component={CustomerCenterScreen} name="CustomerCenter" options={{ title: t('customerCenter.title'), ...headerTitleWithIcon(screenIcons.customerCenter, t('customerCenter.title')) }} />
             {/* Always registered: an account whose free period ended is sent here to subscribe or restore. Only the My Page ENTRY is limited to internal-test builds. */}
-            <Stack.Screen component={SubscriptionScreen} name="Subscription" options={{ title: t('subscription.title'), ...headerTitleWithIcon(screenIcons.subscription, t('subscription.title')) }} />
+            {isSubscriptionProgramLive ? (
+              <Stack.Screen component={SubscriptionScreen} name="Subscription" options={{ title: t('subscription.title'), ...headerTitleWithIcon(screenIcons.subscription, t('subscription.title')) }} />
+            ) : null}
             <Stack.Screen component={SupportInquiryScreen} name="SupportInquiry" options={{ title: t('inquiry.title'), ...headerTitleWithIcon(screenIcons.customerCenter, t('inquiry.title')) }} />
             <Stack.Screen component={SupportInquiryDetailScreen} name="SupportInquiryDetail" options={{ title: t('inquiry.detailTitle'), ...headerTitleWithIcon(screenIcons.customerCenter, t('inquiry.detailTitle')) }} />
             {/* Full-screen, no header: its own skip/close and Android back (see TutorialScreen); no swipe-back gesture, so a first run is always recorded. */}
             <Stack.Screen component={TutorialScreen} name="Tutorial" options={{ animation: 'fade', gestureEnabled: false, headerShown: false, presentation: 'fullScreenModal' }} />
             <Stack.Screen component={ProfileEditScreen} name="ProfileEdit" options={{ title: t('profile.edit'), ...headerTitleWithIcon(screenIcons.profileEdit, t('profile.edit')) }} />
             <Stack.Screen component={AccountManagementScreen} name="AccountManagement" options={{ title: t('account.title'), ...headerTitleWithIcon(screenIcons.account, t('account.title')) }} />
-            <Stack.Screen component={DeleteAccountScreen} name="DeleteAccount" options={{ title: t('account.deleteTitle') }} />
+            <Stack.Screen component={DeleteAccountScreen} name="DeleteAccount" options={{ title: t('account.deleteTitle'), ...headerTitleWithIcon(screenIcons.deleteAccount, t('account.deleteTitle')) }} />
           </Stack.Group>
         ) : isTermsRequired ? (
           <Stack.Screen name="TermsAgreement" options={{ headerShown: false, gestureEnabled: false }}>

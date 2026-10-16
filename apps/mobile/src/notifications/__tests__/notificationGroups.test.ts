@@ -1,4 +1,5 @@
-import { formatNotificationTime, groupNotifications, notificationGroupOf } from '../notificationGroups';
+import i18n from '../../i18n';
+import { formatNotificationExactTime, formatNotificationTime, groupNotifications, notificationGroupOf } from '../notificationGroups';
 import type { AppNotification } from '../notificationsApi';
 
 // Local-calendar arithmetic only - the tests build instants from local date parts, so they hold in any time zone.
@@ -54,5 +55,20 @@ describe('formatNotificationTime', () => {
     expect(formatNotificationTime(at(1, 23, 0), t, NOW)).toBe('notifications.daysAgo:1');
     expect(formatNotificationTime(at(3, 8), t, NOW)).toBe('notifications.daysAgo:3');
     expect(formatNotificationTime(at(40, 8), t, NOW)).not.toContain('notifications.daysAgo');
+  });
+
+  it('writes an older date in the app language - not the device locale', () => {
+    const created = at(40, 8);
+    expect(formatNotificationTime(created, t, NOW, 'ko')).toBe(new Intl.DateTimeFormat('ko', { month: 'short', day: 'numeric' }).format(new Date(created)));
+    expect(formatNotificationTime(created, t, NOW, 'en')).toBe(new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(created)));
+  });
+
+  it('defaults to the current i18n language', async () => {
+    const created = at(40, 8);
+    await i18n.changeLanguage('ko');
+    expect(formatNotificationTime(created, t, NOW)).toBe(formatNotificationTime(created, t, NOW, 'ko'));
+    expect(formatNotificationExactTime(created)).toBe(formatNotificationExactTime(created, 'ko'));
+    await i18n.changeLanguage('en');
+    expect(formatNotificationExactTime(created)).toBe(new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(created)));
   });
 });

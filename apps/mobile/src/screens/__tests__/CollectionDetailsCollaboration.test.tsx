@@ -1,4 +1,5 @@
 import { ActionMenuDialog } from '../../components/ActionMenuDialog';
+import { ReportModal } from '../../safety/ReportModal';
 import { BellIcon } from '../../icons/BellIcon';
 import { CopyIcon } from '../../icons/CopyIcon';
 import { colors, radii } from '../../theme/tokens';
@@ -805,7 +806,7 @@ describe('CollectionDetailsScreen - emoji reactions to the links of a shared Col
       await openMenu(renderer, other);
 
       expect(bar(renderer)).toHaveLength(1);
-      expect(visibleMenu(renderer)!.props.actions.map((action: { label: string }) => action.label)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('collections.copyToMine')]);
+      expect(visibleMenu(renderer)!.props.actions.map((action: { label: string }) => action.label)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('collections.copyToMine'), i18n.t('safety.report')]);
     });
 
     it('and for my own link in someone else\'s Collection - 복제 and 이동 stay as they were', async () => {
@@ -1259,7 +1260,27 @@ describe('CollectionDetailsScreen - Owner viewing a Contributor\'s link', () => 
       return (renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)?.props.actions ?? [])
         .map((action: { label: string }) => action.label);
     };
-    expect(await menuOf(theirs)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('collections.copyToMine'), i18n.t('collections.removeFromCollection')]);
+    expect(await menuOf(theirs)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('collections.copyToMine'), i18n.t('safety.report'), i18n.t('collections.removeFromCollection')]);
+  });
+
+  it('reports a member\'s link through the shared report modal (Item target) - and never offers it for my own link', async () => {
+    const renderer = await renderScreen();
+
+    const onTheirLongPress = row(renderer, theirs).root.findByType(SwipeableItemRow).props.onLongPress;
+    await act(async () => onTheirLongPress());
+    const itemMenu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
+    await act(async () => itemMenu.props.actions.find((action: { label: string }) => action.label === i18n.t('safety.report')).onPress());
+    // The menu runs the chosen action once it has closed.
+    await act(async () => itemMenu.props.onDismiss());
+
+    expect(renderer.root.findByType(ReportModal).props.target).toEqual({ type: 'Item', itemId: theirs.itemId, collectionId: COLLECTION_ID });
+
+    await act(async () => renderer.root.findByType(ReportModal).props.onClose());
+    expect(renderer.root.findByType(ReportModal).props.target).toBeNull();
+    const onMyLongPress = row(renderer, mine).root.findByType(SwipeableItemRow).props.onLongPress;
+    await act(async () => onMyLongPress());
+    expect((renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)?.props.actions ?? [])
+      .map((action: { label: string }) => action.label)).not.toContain(i18n.t('safety.report'));
   });
 
   it('copies a member\'s link into one of my own Collections through the shared copy API - never a link of their Item', async () => {
@@ -1408,7 +1429,7 @@ describe('CollectionDetailsScreen - long press on a link: 내 컬렉션으로 �
     const renderer = await renderScreen();
 
     expect(await longPress(renderer, othersLink)).toBe(true);
-    expect(visibleMenuLabels(renderer)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('collections.copyToMine')]);
+    expect(visibleMenuLabels(renderer)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('collections.copyToMine'), i18n.t('safety.report')]);
     expect(visibleMenuLabels(renderer)).not.toContain(i18n.t('collections.moveToOther'));
 
     const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;

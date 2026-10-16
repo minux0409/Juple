@@ -8,10 +8,13 @@ import { HomeIcon } from '../icons/HomeIcon';
 import { CreditCardIcon } from '../icons/CreditCardIcon';
 import { HelpIcon } from '../icons/HelpIcon';
 import { InfoIcon } from '../icons/InfoIcon';
+import { LinkIcon } from '../icons/LinkIcon';
 import { LockIcon } from '../icons/LockIcon';
 import { PeopleIcon } from '../icons/PeopleIcon';
+import { ShareIcon } from '../icons/ShareIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { UserIcon } from '../icons/UserIcon';
+import { UserMinusIcon } from '../icons/UserMinusIcon';
 
 /**
  * The one icon of each navigation item, shared by the bottom tab, the 내 페이지 row and the screen's
@@ -22,6 +25,9 @@ export const screenIcons = {
   archive: ArchiveIcon,
   collections: FolderIcon,
   collectionDetails: FolderIcon,
+  collectionShare: ShareIcon,
+  /** One link: reviewing a new one, another member's link in a shared Collection, the links I proposed. */
+  link: LinkIcon,
   notifications: BellIcon,
   profileEdit: EditIcon,
   myPage: UserIcon,
@@ -29,6 +35,7 @@ export const screenIcons = {
   collectionLock: LockIcon,
   trash: TrashIcon,
   account: UserIcon,
+  deleteAccount: UserMinusIcon,
   language: GlobeIcon,
   customerCenter: InfoIcon,
   help: HelpIcon,

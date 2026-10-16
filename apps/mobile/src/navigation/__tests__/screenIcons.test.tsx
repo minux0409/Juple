@@ -29,9 +29,20 @@ describe('navigation identity: one icon per navigation item', () => {
     expect(tabs).toMatch(/screenIcons\.myPage/);
     expect(tabs).not.toMatch(/ClockIcon/);
     const stack: string = require('fs').readFileSync(require('path').resolve(__dirname, '../RootStack.tsx'), 'utf8');
-    for (const key of ['friends', 'language', 'collectionLock', 'trash', 'customerCenter', 'account']) {
+    for (const key of ['friends', 'language', 'collectionLock', 'trash', 'customerCenter', 'account', 'collectionShare', 'link', 'help', 'deleteAccount']) {
       expect(stack).toMatch(new RegExp(`screenIcons\\.${key}`));
     }
+    // Every titled stack screen shows [icon] Title - the ones that used to be plain text included.
+    for (const name of ['CollectionShare', 'MyCollectionSubmissions', 'CollectionSharedItem', 'NewLinkReview', 'HelpGuideSection', 'DeleteAccount']) {
+      const declaration = stack.slice(stack.indexOf(`name="${name}"`), stack.indexOf('/>', stack.indexOf(`name="${name}"`)));
+      expect(declaration).toMatch(/headerTitleWithIcon\(screenIcons\.\w+/);
+    }
+  });
+
+  it('the Subscription route exists only while the server says the paid program is live (no purchase can be reached before)', () => {
+    const stack: string = require('fs').readFileSync(require('path').resolve(__dirname, '../RootStack.tsx'), 'utf8');
+    expect(stack).toMatch(/const isSubscriptionProgramLive = entitlement\?\.programEnabled === true;/);
+    expect(stack).toMatch(/\{isSubscriptionProgramLive \? \(\s*<Stack\.Screen component=\{SubscriptionScreen\} name="Subscription"/);
   });
 
   it('every title uses the same icon size, in the brand color, with the title text beside it', () => {

@@ -685,6 +685,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // them (403) regardless.
   const isOwner = collection !== null && !isSharedWithMe(collection);
   const [isReportingCollection, setIsReportingCollection] = useState(false);
+  // Another member's link in this Collection, reported from its ⋯ menu (the same modal and reasons as the Collection / a comment).
+  const [reportingItemId, setReportingItemId] = useState<number | null>(null);
 
   // Whatever this screen learns about the Collection (opened, renamed, locked, role changed) also keeps its app shortcut
   // right - a renamed one gets the new label, a locked or read-only one is removed - with no request of its own.
@@ -1639,7 +1641,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const linkMenuActions = (menuItem: CollectionItemEntry): ActionMenuDialogAction[] => [
     { label: t('item.goToUrlA11y'), icon: ExternalLinkIcon, onPress: () => { setIsItemActionMenuVisible(false); setActionMenuItem(null); openLinkInBrowser(menuItem.url); } },
     ...(menuItem.isMine === false
-      ? [{ label: t('collections.copyToMine'), icon: CopyIcon, onPress: openSingleCopyPicker }]
+      ? [
+        { label: t('collections.copyToMine'), icon: CopyIcon, onPress: openSingleCopyPicker },
+        // Somebody else's link can be reported (never the caller's own).
+        { label: t('safety.report'), onPress: () => afterItemMenu(() => setReportingItemId(menuItem.itemId)) },
+      ]
       : [
         { label: t('common.edit'), icon: EditIcon, onPress: () => { setIsItemActionMenuVisible(false); setActionMenuItem(null); openCollectionItem(menuItem); } },
         { label: t('collections.addToOther'), icon: CopyIcon, onPress: openReplicatePicker },
@@ -2171,12 +2177,13 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         visible={isItemActionMenuVisible}
       />
       <ReportModal
-        onClose={() => setIsReportingCollection(false)}
+        onClose={() => { setIsReportingCollection(false); setReportingItemId(null); }}
         onReported={alreadyReported => {
           setIsReportingCollection(false);
+          setReportingItemId(null);
           showNotificationToast(t(alreadyReported ? 'safety.reportAlready' : 'safety.reportReceived'));
         }}
-        target={isReportingCollection ? { type: 'Collection', collectionId } : null}
+        target={isReportingCollection ? { type: 'Collection', collectionId } : reportingItemId !== null ? { type: 'Item', itemId: reportingItemId, collectionId } : null}
       />
       <ActionMenuDialog
         actions={collectionMenuActions}

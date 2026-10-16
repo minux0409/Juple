@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import i18n from '../i18n';
 import type { AppNotification } from './notificationsApi';
 
 export type NotificationGroupKey = 'today' | 'yesterday' | 'last7Days' | 'last30Days' | 'older';
@@ -57,9 +58,10 @@ const HOUR_MS = 60 * MINUTE_MS;
 
 /**
  * The compact time of a row under a group heading: 방금 / N분 / N시간 / N일, then a short date in the
- * device's own locale (the exact timestamp is in the row's accessibility label instead).
+ * app's UI language (i18n.language - the same language as the words around it; the device's time zone still decides the day).
+ * The exact timestamp is in the row's accessibility label instead.
  */
-export function formatNotificationTime(createdAtUtc: string, t: TFunction, now: Date = new Date()): string {
+export function formatNotificationTime(createdAtUtc: string, t: TFunction, now: Date = new Date(), locale: string = i18n.language): string {
   const created = new Date(createdAtUtc);
   const age = now.getTime() - created.getTime();
   if (age < MINUTE_MS) {
@@ -76,10 +78,10 @@ export function formatNotificationTime(createdAtUtc: string, t: TFunction, now: 
   if (daysAgo <= 7) {
     return t('notifications.daysAgo', { count: Math.max(1, daysAgo) });
   }
-  return created.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(created);
 }
 
-/** The full date and time, for assistive technology. */
-export function formatNotificationExactTime(createdAtUtc: string): string {
-  return new Date(createdAtUtc).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+/** The full date and time, for assistive technology - in the app's UI language, like the rest of the row. */
+export function formatNotificationExactTime(createdAtUtc: string, locale: string = i18n.language): string {
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(createdAtUtc));
 }

@@ -14,6 +14,7 @@ import { ActionMenuDialog } from '../../components/ActionMenuDialog';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { CrownIcon } from '../../icons/CrownIcon';
 import { getFriendRequests, getFriends, sendFriendRequest } from '../../friends/api/friendsApi';
+import { ReportModal } from '../../safety/ReportModal';
 
 jest.mock('../../friends/api/friendsApi', () => ({
   ...jest.requireActual('../../friends/api/friendsApi'),
@@ -93,6 +94,34 @@ describe('CollectionSharedItemScreen', () => {
     });
     expect(openSpy).toHaveBeenCalledWith('https://example.com/a');
     openSpy.mockRestore();
+  });
+
+  describe("reporting the link (another member's content)", () => {
+    const base = { itemId: 7, url: 'https://example.com/a', title: 'Shared title', previewImageUrl: null, addedAtUtc: '2026-01-01T00:00:00Z', isMine: false };
+
+    it('opens the shared report modal with an Item target for this Collection', async () => {
+      jest.mocked(getSharedCollectionItem).mockResolvedValue({
+        ...base,
+        addedBy: { kind: 'member', jupleId: 'M3MB3R00', displayName: '라이츄', profileImageUrl: null, profileImageVersion: null, isCollectionOwner: false },
+      } as never);
+      const renderer = await renderScreen();
+
+      // The comment thread keeps its own ReportModal (for comments); the link's report is the one with an Item target.
+      const itemTargets = () => renderer.root.findAllByType(ReportModal).map(modal => modal.props.target).filter(target => target?.type === 'Item');
+      expect(itemTargets()).toEqual([]);
+      await act(async () => renderer.root.findByProps({ testID: 'shared-item-report' }).props.onPress());
+      expect(itemTargets()).toEqual([{ type: 'Item', itemId: 7, collectionId: 5 }]);
+    });
+
+    it("is not offered when the link turns out to be the viewer's own", async () => {
+      jest.mocked(getSharedCollectionItem).mockResolvedValue({
+        ...base,
+        addedBy: { kind: 'me', jupleId: 'ME000001', displayName: '나', profileImageUrl: null, profileImageVersion: null, isCollectionOwner: false },
+      } as never);
+      const renderer = await renderScreen();
+
+      expect(renderer.root.findAll(node => node.props.testID === 'shared-item-report')).toHaveLength(0);
+    });
   });
 
   describe('who added it - the same avatar/crown as the List and Grid cards', () => {
