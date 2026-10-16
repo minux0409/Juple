@@ -41,11 +41,10 @@ public sealed class DeleteItemImageServiceTests
         public Task<ItemImageDto> UploadAsync(
             long userId,
             long itemId,
-            ImageFormat format,
-            byte[] content,
+            NormalizedItemImage image,
             DateTimeOffset createdAtUtc,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult(new ItemImageDto(1, "image/jpeg", content.LongLength, 0, createdAtUtc, ReadUrl: null));
+            Task.FromResult(new ItemImageDto(1, NormalizedItemImage.ContentType, image.MainContent.LongLength, 0, createdAtUtc, ReadUrl: null));
 
         public Task DeleteAsync(long userId, long itemId, long imageId, CancellationToken cancellationToken = default)
         {

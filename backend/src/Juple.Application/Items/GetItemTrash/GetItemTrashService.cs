@@ -30,7 +30,6 @@ public sealed class GetItemTrashService(
     private async Task<RepresentativeImageDto?> ResolveRepresentativeImageAsync(
         long userId, ItemRepresentativeImageRef reference, CancellationToken cancellationToken)
     {
-        var readUrl = await itemImageStorage.CreateReadUrlAsync(userId, reference.BlobName, cancellationToken);
-        return readUrl is null ? null : new RepresentativeImageDto(reference.ImageId, readUrl);
+        return await itemImageStorage.CreateRepresentativeImageDtoAsync(userId, reference, cancellationToken);
     }
 }

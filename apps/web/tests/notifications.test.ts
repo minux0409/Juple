@@ -331,7 +331,7 @@ describe('Collection attention (its own meaning, not the bell)', () => {
     const details = read('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx');
     assert.match(details, /path: collectionNewLinksReadPath\(collectionId\)/);
     assert.match(details, /\.then\(result => \{\s*markContentOpened\(\);\s*return result\.sections;/);
-    assert.match(details, /onOpened\(\);\s*setState\(\{ kind: 'loaded', items \}\);/);
+    assert.match(details, /onOpened\(\);\s*setState\(\{ kind: 'loaded', \.\.\.firstPage\(page\.items, page\.nextCursor\) \}\);/);
     assert.doesNotMatch(details, /submission-requests\/read/, '승인 대기 is a task: untouched');
   });
 });

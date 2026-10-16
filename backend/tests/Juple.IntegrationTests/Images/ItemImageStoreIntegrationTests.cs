@@ -19,6 +19,12 @@ namespace Juple.IntegrationTests.Images;
 public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
 {
     private static readonly byte[] JpegBytes = [0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46];
+    private static readonly NormalizedItemImage ImageVariants = new(JpegBytes, 1, 1, JpegBytes, 1, 1);
+    private static readonly NormalizedItemImage EmptyImageVariants = new([], 1, 1, [], 1, 1);
+    private const string ImmutablePrivateCacheControl = "private, max-age=31536000, immutable";
+
+    private static string ThumbnailName(string mainName) =>
+        mainName.Replace(".main.webp", ".thumb.webp", StringComparison.Ordinal);
 
     private JupleDbContext _dbContext = null!;
     private BlobContainerClient _blobContainerClient = null!;
@@ -62,6 +68,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         foreach (var blobName in blobNames)
         {
             await _blobContainerClient.GetBlobClient(blobName).DeleteIfExistsAsync();
+            await _blobContainerClient.GetBlobClient(ThumbnailName(blobName)).DeleteIfExistsAsync();
         }
 
         // Deleting the Item cascades images.ItemImages, so no separate cleanup of that table.
@@ -78,16 +85,24 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
 
         var image = await store.UploadAsync(
-            _userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+            _userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
 
-        Assert.Equal("image/jpeg", image.ContentType);
+        Assert.Equal("image/webp", image.ContentType);
         Assert.Equal(JpegBytes.LongLength, image.ByteLength);
         Assert.Equal(0, image.SortOrder);
 
         var row = await _dbContext.ItemImages.AsNoTracking().SingleAsync(row => row.Id == image.Id);
         Assert.StartsWith($"items/{_userId}/{_itemId}/", row.BlobName);
-        Assert.EndsWith(".jpg", row.BlobName);
-        Assert.True(await _blobContainerClient.GetBlobClient(row.BlobName).ExistsAsync());
+        Assert.EndsWith(".main.webp", row.BlobName);
+        var main = _blobContainerClient.GetBlobClient(row.BlobName);
+        var thumbnail = _blobContainerClient.GetBlobClient(ThumbnailName(row.BlobName));
+        Assert.True(await main.ExistsAsync());
+        Assert.True(await thumbnail.ExistsAsync());
+        Assert.Equal("image/webp", (await main.GetPropertiesAsync()).Value.ContentType);
+        Assert.Equal(ImmutablePrivateCacheControl, (await main.GetPropertiesAsync()).Value.CacheControl);
+        Assert.Equal("image/webp", (await thumbnail.GetPropertiesAsync()).Value.ContentType);
+        Assert.Equal(ImmutablePrivateCacheControl, (await thumbnail.GetPropertiesAsync()).Value.CacheControl);
+        Assert.NotNull(image.ThumbnailReadUrl);
     }
 
     [Fact]
@@ -95,15 +110,15 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     {
         // A PNG's real magic bytes, exercising the full Application -> Store -> Blob path - the
         // client never gets a chance to declare a Content-Type/filename in this call shape at all.
-        byte[] pngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x01];
+        byte[] pngBytes = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
         var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         var service = new UploadItemImageService(store, TimeProvider.System);
 
         var image = await service.UploadAsync(_userId, _itemId, pngBytes);
 
-        Assert.Equal("image/png", image.ContentType);
+        Assert.Equal("image/webp", image.ContentType);
         var row = await _dbContext.ItemImages.AsNoTracking().SingleAsync(row => row.Id == image.Id);
-        Assert.EndsWith(".png", row.BlobName);
+        Assert.EndsWith(".main.webp", row.BlobName);
     }
 
     [Fact]
@@ -111,9 +126,9 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     {
         var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
 
-        var first = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var first = await store.UploadAsync(_userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
         var firstBlob = await _dbContext.ItemImages.AsNoTracking().Where(row => row.Id == first.Id).Select(row => row.BlobName).SingleAsync();
-        var second = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var second = await store.UploadAsync(_userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
 
         // Exactly one photo: the new one, as the cover (ahead of any automatic preview).
         var rows = await _dbContext.ItemImages.AsNoTracking().Where(row => row.ItemId == _itemId).ToListAsync();
@@ -122,7 +137,9 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         Assert.Equal(second.Id, await _dbContext.Items.AsNoTracking().Where(item => item.Id == _itemId).Select(item => item.CoverImageId).SingleAsync());
         // The replaced photo's Blob is cleaned up after the switch; the new one is there.
         Assert.False(await _blobContainerClient.GetBlobClient(firstBlob).ExistsAsync());
+        Assert.False(await _blobContainerClient.GetBlobClient(ThumbnailName(firstBlob)).ExistsAsync());
         Assert.True(await _blobContainerClient.GetBlobClient(rows[0].BlobName).ExistsAsync());
+        Assert.True(await _blobContainerClient.GetBlobClient(ThumbnailName(rows[0].BlobName)).ExistsAsync());
     }
 
     [Fact]
@@ -131,7 +148,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
 
         await Assert.ThrowsAsync<ItemNotFoundException>(
-            () => store.UploadAsync(_otherUserId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow));
+            () => store.UploadAsync(_otherUserId, _itemId, ImageVariants, DateTimeOffset.UtcNow));
     }
 
     [Fact]
@@ -143,7 +160,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         _dbContext.ChangeTracker.Clear();
 
         var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
-        var uploaded = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var uploaded = await store.UploadAsync(_userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
 
         var saved = await _dbContext.Items.AsNoTracking().SingleAsync(i => i.Id == _itemId);
         Assert.Equal(uploaded.Id, saved.CoverImageId); // the cover wins over the preview everywhere it is shown
@@ -168,7 +185,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         await _dbContext.SaveChangesAsync();
         _dbContext.ChangeTracker.Clear();
 
-        var uploaded = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var uploaded = await store.UploadAsync(_userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
 
         Assert.Equal([uploaded.Id], await _dbContext.ItemImages.AsNoTracking().Where(row => row.ItemId == _itemId).Select(row => row.Id).ToListAsync());
         foreach (var blobName in legacyBlobs)
@@ -181,14 +198,14 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     public async Task UploadAsync_WhenTheSwitchFails_TheItemKeepsItsPreviousPhoto()
     {
         var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
-        var previous = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var previous = await store.UploadAsync(_userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
         var previousBlob = await _dbContext.ItemImages.AsNoTracking().Where(row => row.Id == previous.Id).Select(row => row.BlobName).SingleAsync();
         _dbContext.ChangeTracker.Clear();
 
         // Empty content passes the store (no Application validation here) but fails the DB check
         // constraint inside the switch transaction - after the new Blob already landed.
         await Assert.ThrowsAsync<DbUpdateException>(
-            () => store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, [], DateTimeOffset.UtcNow));
+            () => store.UploadAsync(_userId, _itemId, EmptyImageVariants, DateTimeOffset.UtcNow));
         _dbContext.ChangeTracker.Clear();
 
         // Never left with no photo: the previous one, its Blob and the cover are all still there.
@@ -206,7 +223,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         // to force the DB's CK_ItemImages_ByteLength_Positive check constraint to fail after a
         // real Blob upload has already happened - proving the compensating Blob delete runs.
         await Assert.ThrowsAsync<DbUpdateException>(
-            () => store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, [], DateTimeOffset.UtcNow));
+            () => store.UploadAsync(_userId, _itemId, EmptyImageVariants, DateTimeOffset.UtcNow));
 
         var remainingBlobs = new List<string>();
         await foreach (var blobItem in _blobContainerClient.GetBlobsAsync(
@@ -251,7 +268,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     public async Task DeleteAsync_RemovesRowAndBlob()
     {
         var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
-        var image = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var image = await store.UploadAsync(_userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
         var blobName = (await _dbContext.ItemImages.AsNoTracking().SingleAsync(row => row.Id == image.Id)).BlobName;
         _dbContext.ChangeTracker.Clear();
 
@@ -259,6 +276,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
 
         Assert.Equal(0, await _dbContext.ItemImages.CountAsync(row => row.Id == image.Id));
         Assert.False(await _blobContainerClient.GetBlobClient(blobName).ExistsAsync());
+        Assert.False(await _blobContainerClient.GetBlobClient(ThumbnailName(blobName)).ExistsAsync());
     }
 
     [Fact]
@@ -273,7 +291,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     public async Task DeleteAsync_OnAnotherUsersItem_DoesNotDeleteAndCompletesWithoutException()
     {
         var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
-        var image = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var image = await store.UploadAsync(_userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         await store.DeleteAsync(_otherUserId, _itemId, image.Id);
@@ -292,7 +310,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         var deleteItemService = new DeleteItemService(itemStore, imageStore, TimeProvider.System);
 
         var image = await imageStore.UploadAsync(
-            _userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+            _userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
         var blobNames = await _dbContext.ItemImages
             .AsNoTracking()
             .Where(row => row.ItemId == _itemId)
@@ -321,9 +339,9 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         var permanentlyDeleteItemService = new PermanentlyDeleteItemService(itemStore, imageStore);
 
         var firstImage = await imageStore.UploadAsync(
-            _userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+            _userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
         var secondImage = await imageStore.UploadAsync(
-            _userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+            _userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
         var blobNames = await _dbContext.ItemImages
             .AsNoTracking()
             .Where(row => row.ItemId == _itemId)
@@ -353,7 +371,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         var itemStore = new ItemStore(_dbContext);
         var deleteItemService = new DeleteItemService(itemStore, imageStore, TimeProvider.System);
 
-        var image = await imageStore.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var image = await imageStore.UploadAsync(_userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
         var blobName = (await _dbContext.ItemImages.AsNoTracking().SingleAsync(row => row.Id == image.Id)).BlobName;
         _dbContext.ChangeTracker.Clear();
 
@@ -375,7 +393,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         var permanentlyDeleteItemService = new PermanentlyDeleteItemService(itemStore, imageStore);
 
         var trackedImage = await imageStore.UploadAsync(
-            _userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+            _userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
         var trackedBlobName =
             (await _dbContext.ItemImages.AsNoTracking().SingleAsync(row => row.Id == trackedImage.Id)).BlobName;
 
@@ -445,7 +463,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         await deleteItemStore.DeleteAsync(_userId, _itemId, DateTimeOffset.UtcNow);
         deleteDbContext.ChangeTracker.Clear();
 
-        var uploadTask = uploadStore.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var uploadTask = uploadStore.UploadAsync(_userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
         var deleteTask = permanentlyDeleteItemService.DeleteAsync(_userId, _itemId);
 
         // The upload racing a concurrent Item delete has three legitimate outcomes: it succeeds
@@ -489,7 +507,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     public async Task UploadAsync_TwoConcurrentUploads_LeaveExactlyOnePhoto_AndNoOrphanBlob()
     {
         var seedStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
-        await seedStore.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        await seedStore.UploadAsync(_userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__JupleDatabase")!;
@@ -500,8 +518,8 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         var storeA = new ItemImageStore(dbContextA, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         var storeB = new ItemImageStore(dbContextB, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
 
-        var uploadA = storeA.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
-        var uploadB = storeB.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var uploadA = storeA.UploadAsync(_userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
+        var uploadB = storeB.UploadAsync(_userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
 
         var results = await Task.WhenAll(
             uploadA.ContinueWith(t => t.Exception?.InnerException),
@@ -527,10 +545,10 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
             remainingBlobs.Add(blobItem.Name);
         }
 
-        // Every replaced Blob was cleaned up - only the Blob backing the one persisted row remains.
-        Assert.Single(remainingBlobs);
+        // Every replaced pair was cleaned up - only the main + thumbnail pair backing the one persisted row remains.
+        Assert.Equal(2, remainingBlobs.Count);
         Assert.Equal(
-            finalRows.Select(row => row.BlobName).OrderBy(name => name),
+            finalRows.SelectMany(row => new[] { row.BlobName, ThumbnailName(row.BlobName) }).OrderBy(name => name),
             remainingBlobs.OrderBy(name => name));
     }
 
@@ -547,9 +565,9 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         _dbContext.Items.Add(otherUserItem);
         await _dbContext.SaveChangesAsync();
 
-        var firstImage = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
-        var secondImage = await store.UploadAsync(_userId, secondItem.Id, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
-        var otherUserImage = await store.UploadAsync(_otherUserId, otherUserItem.Id, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var firstImage = await store.UploadAsync(_userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
+        var secondImage = await store.UploadAsync(_userId, secondItem.Id, ImageVariants, DateTimeOffset.UtcNow);
+        var otherUserImage = await store.UploadAsync(_otherUserId, otherUserItem.Id, ImageVariants, DateTimeOffset.UtcNow);
         var blobNamesById = await _dbContext.ItemImages
             .AsNoTracking()
             .Where(row => row.Id == firstImage.Id || row.Id == secondImage.Id || row.Id == otherUserImage.Id)
@@ -578,7 +596,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     {
         var imageStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         var itemStore = new ItemStore(_dbContext);
-        var image = await imageStore.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var image = await imageStore.UploadAsync(_userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
         await itemStore.SetCoverImageIdAsync(_userId, _itemId, image.Id);
         _dbContext.ChangeTracker.Clear();
 
@@ -626,8 +644,8 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     {
         // A stale delete (e.g. retried after the photo was changed) must not wipe the new photo.
         var imageStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
-        var old = await imageStore.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
-        var current = await imageStore.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var old = await imageStore.UploadAsync(_userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
+        var current = await imageStore.UploadAsync(_userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         await imageStore.DeleteAsync(_userId, _itemId, old.Id);

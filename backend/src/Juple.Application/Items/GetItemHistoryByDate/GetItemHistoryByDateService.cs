@@ -51,7 +51,6 @@ public sealed class GetItemHistoryByDateService(
     {
         // Same degrade-gracefully policy as GetItemHistoryService: a failed/missing read URL drops
         // the image for this one Item rather than failing the whole response.
-        var readUrl = await itemImageStorage.CreateReadUrlAsync(userId, reference.BlobName, cancellationToken);
-        return readUrl is null ? null : new RepresentativeImageDto(reference.ImageId, readUrl);
+        return await itemImageStorage.CreateRepresentativeImageDtoAsync(userId, reference, cancellationToken);
     }
 }

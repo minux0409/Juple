@@ -13,6 +13,7 @@ export interface ItemImage {
   readonly sortOrder: number;
   readonly createdAtUtc: string;
   readonly readUrl: string | null;
+  readonly thumbnailReadUrl?: string | null;
 }
 
 interface ItemImagesResponse {
@@ -27,6 +28,7 @@ interface ItemImagesResponse {
 export interface RepresentativeImage {
   readonly id: number;
   readonly readUrl: string;
+  readonly thumbnailReadUrl?: string | null;
 }
 
 /**

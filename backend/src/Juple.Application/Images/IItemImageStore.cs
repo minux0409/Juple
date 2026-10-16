@@ -19,8 +19,7 @@ public interface IItemImageStore
     Task<ItemImageDto> UploadAsync(
         long userId,
         long itemId,
-        ImageFormat format,
-        byte[] content,
+        NormalizedItemImage image,
         DateTimeOffset createdAtUtc,
         CancellationToken cancellationToken = default);
 

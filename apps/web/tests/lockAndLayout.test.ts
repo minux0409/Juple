@@ -114,7 +114,7 @@ describe('locked Collections on the Web', () => {
     const details = source('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx');
     assert.match(details, /\{gate \? \(\s*<UnlockPanel/);
     assert.doesNotMatch(details, /collectionLockedWebMessage/);
-    for (const call of ['collectionSectionsPath(collection.id), headers: unlockHeaders(collection.id)', 'cursor), headers: unlockHeaders(collection.id)', 'collectionWholePagePath(collectionId, cursor), headers: unlockHeaders(collectionId)']) {
+    for (const call of ['collectionSectionsPath(collection.id), headers: unlockHeaders(collection.id)', 'cursor), headers: unlockHeaders(collection.id)', 'collectionNamePagePath(collectionId, direction, cursor), headers: unlockHeaders(collectionId)']) {
       assert.ok(details.includes(call), call);
     }
     assert.match(details, /\/participants` \}\)/, 'participants need no grant (membership is not content)');

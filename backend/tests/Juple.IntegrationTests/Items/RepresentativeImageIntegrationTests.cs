@@ -20,6 +20,7 @@ namespace Juple.IntegrationTests.Items;
 public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
 {
     private static readonly byte[] JpegBytes = [0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46];
+    private static readonly NormalizedItemImage ImageVariants = new(JpegBytes, 1, 1, JpegBytes, 1, 1);
 
     private JupleDbContext _dbContext = null!;
     private string _connectionString = null!;
@@ -84,7 +85,7 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
     public async Task ListAsync_ReadUrl_DownloadsTheActualBlobContent()
     {
         var item = await SaveItemAsync();
-        var image = await _imageStore.UploadAsync(_userId, item, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var image = await _imageStore.UploadAsync(_userId, item, ImageVariants, DateTimeOffset.UtcNow);
 
         var images = await _imageStore.ListAsync(_userId, item);
 
@@ -101,7 +102,7 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
     public async Task CreateReadUrlAsync_ReadUrl_CannotBeUsedToWriteOrDelete()
     {
         var item = await SaveItemAsync();
-        var image = await _imageStore.UploadAsync(_userId, item, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var image = await _imageStore.UploadAsync(_userId, item, ImageVariants, DateTimeOffset.UtcNow);
         var readUrl = image.ReadUrl!;
 
         var blobClientFromReadUrl = new BlobClient(readUrl);
@@ -119,7 +120,7 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
     public async Task CreateReadUrlAsync_ForBlobNameOutsideCallersOwnPrefix_ThrowsRatherThanSigning()
     {
         var item = await SaveItemAsync();
-        var image = await _imageStore.UploadAsync(_userId, item, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var image = await _imageStore.UploadAsync(_userId, item, ImageVariants, DateTimeOffset.UtcNow);
         var row = await _dbContext.ItemImages.AsNoTracking().SingleAsync(row => row.Id == image.Id);
 
         // otherUserId requesting a read URL for a Blob that lives under userId's own prefix must
@@ -160,7 +161,7 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
     public async Task GetHistoryAsync_ResolvedThroughApplicationService_PopulatesReadUrlForRepresentativeImage()
     {
         var item = await SaveItemAsync();
-        await _imageStore.UploadAsync(_userId, item, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        await _imageStore.UploadAsync(_userId, item, ImageVariants, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         var service = new GetItemHistoryService(_itemStore, _imageStore);
@@ -228,8 +229,8 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
         var itemA = await SaveItemAsync();
         var itemB = await SaveItemAsync();
         var itemC = await SaveItemAsync();
-        await _imageStore.UploadAsync(_userId, itemA, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
-        await _imageStore.UploadAsync(_userId, itemB, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        await _imageStore.UploadAsync(_userId, itemA, ImageVariants, DateTimeOffset.UtcNow);
+        await _imageStore.UploadAsync(_userId, itemB, ImageVariants, DateTimeOffset.UtcNow);
         // itemC deliberately has no image, to prove the query handles a mix without extra round trips.
         _dbContext.ChangeTracker.Clear();
         countedDbContext.ChangeTracker.Clear();

@@ -140,7 +140,7 @@ public sealed class ItemImagesController(
     }
 
     private static ItemImageResponse ToResponse(ItemImageDto image) =>
-        new(image.Id, image.ContentType, image.ByteLength, image.SortOrder, image.CreatedAtUtc, image.ReadUrl);
+        new(image.Id, image.ContentType, image.ByteLength, image.SortOrder, image.CreatedAtUtc, image.ReadUrl, image.ThumbnailReadUrl);
 
     public sealed record ItemImagesResponse(IReadOnlyList<ItemImageResponse> Images);
 
@@ -150,5 +150,6 @@ public sealed class ItemImagesController(
         long ByteLength,
         int SortOrder,
         DateTimeOffset CreatedAtUtc,
-        Uri? ReadUrl);
+        Uri? ReadUrl,
+        Uri? ThumbnailReadUrl = null);
 }

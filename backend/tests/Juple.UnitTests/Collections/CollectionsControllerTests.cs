@@ -71,12 +71,12 @@ public sealed class CollectionsControllerTests
     [Theory]
     [InlineData("nameAsc")]
     [InlineData("nameDesc")]
-    public async Task GetItemsAsync_WhenANameOrderHasNoSearchTerm_ReturnsBadRequest(string sort)
+    public async Task GetItemsAsync_WhenANameOrderHasNoSearchTerm_PassesValidation(string sort)
     {
-        var result = await ItemsController().GetItemsAsync(1, null, null, CancellationToken.None, sort: sort);
-
-        var problem = Assert.IsType<ValidationProblemDetails>(Assert.IsType<BadRequestObjectResult>(result).Value);
-        Assert.Contains("sort", problem.Errors.Keys);
+        // This controller has null service dependencies by design. Reaching the user accessor
+        // proves ordinary name paging is accepted rather than rejected by request validation.
+        await Assert.ThrowsAsync<NullReferenceException>(
+            () => ItemsController().GetItemsAsync(1, null, null, CancellationToken.None, sort: sort));
     }
 
     [Fact]

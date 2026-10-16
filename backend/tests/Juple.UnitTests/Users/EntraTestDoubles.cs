@@ -136,5 +136,18 @@ internal static class EntraTestDoubles
             Tasks[id].RecordFailedAttempt(errorCode, attemptedAtUtc);
             return Task.CompletedTask;
         }
+
+        public Task<EntraIdentityDeletionStats> GetStatsAsync(DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+        {
+            var tasks = Tasks.Values.ToList();
+            var oldestSeconds = tasks.Count == 0
+                ? (long?)null
+                : Math.Max(0, (long)(nowUtc - tasks.Min(task => task.CreatedAtUtc)).TotalSeconds);
+            return Task.FromResult(new EntraIdentityDeletionStats(
+                tasks.Count,
+                oldestSeconds,
+                tasks.Count(task => task.AttemptCount > 0),
+                tasks.Count(task => task.AttemptCount > 1)));
+        }
     }
 }

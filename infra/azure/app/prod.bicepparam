@@ -167,6 +167,10 @@ param mobileAndroidStoreUrl = 'https://play.google.com/store/apps/details?id=com
 // the backend has no telemetry SDK yet (see docs/production-bring-up.md).
 param applicationInsightsConnectionString = readEnvironmentVariable('JUPLE_APP_PROD_APPLICATIONINSIGHTS_CONNECTION_STRING', '')
 
+// Ordinary EF command completion lines dominate API log volume. Keep failed-command errors and
+// request timing warnings while suppressing SQL text for every successful command.
+param efCommandLogLevel = 'Warning'
+
 // The Public Web Viewer origin the API composes every share URL against and scopes api/v1/public/* CORS
 // to. Required, no default: an empty value silently means "no CORS origin, share URLs without an origin",
 // which is not a launchable state. Set it to the real origin - https://juple.co.kr once that domain is

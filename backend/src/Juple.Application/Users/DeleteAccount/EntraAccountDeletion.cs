@@ -83,4 +83,13 @@ public interface IEntraIdentityDeletionStore
     Task CompleteAsync(long id, CancellationToken cancellationToken = default);
 
     Task RecordFailureAsync(long id, string errorCode, DateTimeOffset attemptedAtUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>Aggregate only; contains no tenant/object/email identifier.</summary>
+    Task<EntraIdentityDeletionStats> GetStatsAsync(DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
 }
+
+public sealed record EntraIdentityDeletionStats(
+    int PendingCount,
+    long? OldestPendingSeconds,
+    int FailedPendingCount,
+    int RepeatedFailureCount);

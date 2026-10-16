@@ -123,7 +123,6 @@ public sealed class GetCollectionItemsService(
         // Same degrade-gracefully policy as GetItemHistoryService/GetDailyInboxService: a
         // failed/missing read URL drops the representative image for this one Item rather than
         // failing the whole page.
-        var readUrl = await itemImageStorage.CreateReadUrlAsync(userId, reference.BlobName, cancellationToken);
-        return readUrl is null ? null : new RepresentativeImageDto(reference.ImageId, readUrl);
+        return await itemImageStorage.CreateRepresentativeImageDtoAsync(userId, reference, cancellationToken);
     }
 }

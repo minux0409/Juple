@@ -22,12 +22,14 @@ import { SavedLinkList } from './SavedLinkList';
 import { useStoredChoice } from './useStoredChoice';
 import { ViewModeToggle } from './ViewModeToggle';
 import { PageHeader } from './PageHeader';
+import { LoadMore } from './InfiniteScroll';
+import { appendPage, canLoadMore, failLoadingMore, firstPage, startLoadingMore, type PagedState } from '../../lib/paging';
 import styles from './app.module.css';
 
 type HomeState =
   | { readonly kind: 'loading' }
   | { readonly kind: 'failed' }
-  | { readonly kind: 'loaded'; readonly links: readonly LinkView[]; readonly count: number | null; readonly day: Date };
+  | ({ readonly kind: 'loaded'; readonly count: number | null; readonly day: Date } & PagedState<LinkView>);
 
 interface Summary {
   readonly all: number | null;
@@ -58,10 +60,10 @@ export function HomeView() {
     }
     if (removesFromList(change, scope)) {
       setState(current => {
-        if (current.kind !== 'loaded' || !current.links.some(link => link.id === change.itemId)) {
+        if (current.kind !== 'loaded' || !current.items.some(link => link.id === change.itemId)) {
           return current;
         }
-        return { ...current, links: current.links.filter(link => link.id !== change.itemId), count: current.count === null ? null : Math.max(0, current.count - 1) };
+        return { ...current, items: current.items.filter(link => link.id !== change.itemId), count: current.count === null ? null : Math.max(0, current.count - 1) };
       });
       return;
     }
@@ -81,7 +83,8 @@ export function HomeView() {
     ]).then(
       ([page, count]) => {
         if (!ignore) {
-          setState({ kind: 'loaded', links: page.items.map(historyLinkView), count, day: now });
+          const paged = firstPage(page.items.map(historyLinkView), page.nextCursor);
+          setState({ kind: 'loaded', count, day: now, ...paged });
         }
       },
       error => {
@@ -127,8 +130,35 @@ export function HomeView() {
     setReloadToken(token => token + 1);
   };
 
+  const loadMore = () => {
+    if (state.kind !== 'loaded' || !canLoadMore(state)) {
+      return;
+    }
+    const cursor = state.nextCursor;
+    const day = state.day;
+    setState({ ...state, ...startLoadingMore(state) });
+    api<ItemHistoryPage>({ path: homeHistoryPath(day, cursor) }).then(
+      page => setState(current => {
+        if (current.kind !== 'loaded') {
+          return current;
+        }
+        const paged = appendPage(current, { items: page.items.map(historyLinkView), nextCursor: page.nextCursor }, link => link.id);
+        return { ...current, ...paged };
+      }),
+      error => {
+        if (isSessionLost(error)) {
+          onSessionLost();
+          return;
+        }
+        setState(current => current.kind === 'loaded'
+          ? { ...current, ...failLoadingMore(current) }
+          : current);
+      },
+    );
+  };
+
   const dateFormat = new Intl.DateTimeFormat(locale, { month: 'long', day: 'numeric', weekday: 'short' });
-  const todayCount = state.kind === 'loaded' ? (state.count ?? state.links.length) : null;
+  const todayCount = state.kind === 'loaded' ? (state.count ?? state.items.length) : null;
 
   return (
     <section aria-busy={state.kind === 'loading'} className={styles.page}>
@@ -157,9 +187,12 @@ export function HomeView() {
             </div>
             {state.kind === 'loading' ? <SavedLinkSkeleton count={3} mode={viewMode} /> : null}
             {state.kind === 'failed' ? <LoadFailed dictionary={dictionary} onRetry={retry} /> : null}
-            {state.kind === 'loaded' && state.links.length === 0 ? <p className={styles.emptyState}>{dictionary.homeEmpty}</p> : null}
-            {state.kind === 'loaded' && state.links.length > 0 ? (
-              <SavedLinkList dictionary={dictionary} links={state.links} mode={viewMode} timestampOf={link => formatLinkTimestamp(link.timestampUtc, locale, false)} />
+            {state.kind === 'loaded' && state.items.length === 0 ? <p className={styles.emptyState}>{dictionary.homeEmpty}</p> : null}
+            {state.kind === 'loaded' && state.items.length > 0 ? (
+              <>
+                <SavedLinkList dictionary={dictionary} links={state.items} mode={viewMode} timestampOf={link => formatLinkTimestamp(link.timestampUtc, locale, false)} />
+                <LoadMore dictionary={dictionary} onLoadMore={loadMore} skeleton={<SavedLinkSkeleton count={3} mode={viewMode} />} state={state} />
+              </>
             ) : null}
           </section>
         </div>

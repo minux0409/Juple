@@ -213,6 +213,8 @@ describe('Home (오늘 저장한 링크)', () => {
     assert.equal(path.pathname, '/api/v1/items/history');
     assert.equal(path.searchParams.get('limit'), '50');
     assert.equal(path.searchParams.get('fromUtc'), todayWindowStartUtc(now));
+    assert.equal(path.searchParams.get('cursor'), null);
+    assert.equal(new URL(homeHistoryPath(now, 'next-page'), 'http://x').searchParams.get('cursor'), 'next-page');
   });
 
   it('shows the title (else the site), the site without www, the memo and the mobile thumbnail priority; a card opens Item Details', () => {
@@ -497,22 +499,14 @@ describe('Collection Details', async () => {
     assert.equal(details.parseLinkSort('bogus'), 'newest');
   });
 
-  it('이름순 is the mobile rule: locale-aware, numbers by value, title-less last both ways, ties newest first', () => {
-    const entries = [
-      link({ itemId: 1, title: 'Item 10' }),
-      link({ itemId: 2, title: null, url: 'https://aaa.example' }),
-      link({ itemId: 3, title: 'item 2' }),
-      link({ itemId: 4, title: 'Item 2', addedAtUtc: '2026-10-11T00:00:00Z' }),
-    ];
-    assert.deepEqual(details.sortCollectionItemsByName(entries, 'en', 'asc').map(entry => entry.itemId), [4, 3, 1, 2]);
-    assert.deepEqual(details.sortCollectionItemsByName(entries, 'en', 'desc').map(entry => entry.itemId), [1, 4, 3, 2]);
-    assert.deepEqual(entries.map(entry => entry.itemId), [1, 2, 3, 4]);
-  });
-
-  it('a Collection too large for a whole-list name order stays on 시간순', () => {
-    assert.equal(details.exceedsNameOrderLimit(500, false), false);
-    assert.equal(details.exceedsNameOrderLimit(500, true), true);
-    assert.equal(details.exceedsNameOrderLimit(501, false), true);
+  it('이름순 uses bounded SQL/keyset pages in either direction, including the opaque next cursor', () => {
+    const ascending = new URL(details.collectionNamePagePath(7, 'asc', null), 'http://x');
+    assert.equal(ascending.searchParams.get('sort'), 'nameAsc');
+    assert.equal(ascending.searchParams.get('limit'), '50');
+    assert.equal(ascending.searchParams.get('cursor'), null);
+    const descending = new URL(details.collectionNamePagePath(7, 'desc', 'opaque+cursor'), 'http://x');
+    assert.equal(descending.searchParams.get('sort'), 'nameDesc');
+    assert.equal(descending.searchParams.get('cursor'), 'opaque+cursor');
   });
 
   it("my link opens my Item Details; another member's opens the read-only shared view and never carries a memo", () => {

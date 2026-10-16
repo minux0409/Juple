@@ -95,7 +95,7 @@ describe('4. loading skeletons follow the chosen view, for either sort', () => {
 
   it('a sort switch remounts the list (its own loading state); the next page keeps the paging skeleton, not the whole list', () => {
     const view = source('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx');
-    assert.match(view, /key=\{`name-\$\{contentToken\}`\}/);
+    assert.match(view, /key=\{`name-\$\{sort\}-\$\{contentToken\}`\}/);
     assert.match(view, /key=\{`\$\{sort\}-\$\{contentToken\}`\}/);
     assert.match(source('app/(app)/DateSections.tsx'), /skeleton=\{<SavedLinkSkeleton count=\{skeletonCount\(section, page\.items\.length\)\} mode=\{viewMode\} \/>\}/);
   });

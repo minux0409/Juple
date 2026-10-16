@@ -1,6 +1,6 @@
 import { ApiHttpError } from './appApi.ts';
 import type { CollectionSummary } from './collectionsView.ts';
-import { DATE_SECTION_PAGE_SIZE, siteOf, type CollectionItemEntry, type DateSection } from './savedLinks.ts';
+import { DATE_SECTION_PAGE_SIZE, type DateSection } from './savedLinks.ts';
 
 /**
  * A Collection's own page for the signed-in Web app - the mobile CollectionDetailsScreen read side, on the same API:
@@ -8,8 +8,7 @@ import { DATE_SECTION_PAGE_SIZE, siteOf, type CollectionItemEntry, type DateSect
  *  - GET /api/v1/collections/{id}: name, icon / color / photo, link count, the caller's favorite mark, locked / shared state.
  *  - 시간순 ↓ newest / ↑ oldest: GET .../items/sections (the Collection's date sections by when each link was ADDED, exact counts),
  *    then an opened section's links from GET .../items?sort=dateDesc|dateAsc&fromUtc&toUtc, a page at a time.
- *  - 이름순 ↑ / ↓: the WHOLE Collection (at most NAME_ORDER_MAX_LINKS) ordered here with the mobile name rule - a name order over
- *    only some pages would present a partial order as the Collection's.
+ *  - 이름순 ↑ / ↓: SQL name order with an opaque keyset cursor, one bounded page at a time.
  *
  * A locked Collection (the Owner's lock, or a member's share password) answers 403 with a code: nothing of its content is shown,
  * and the Web does not unlock it in this round - the app does.
@@ -37,9 +36,7 @@ export const nextDateSort = (current: LinkSortOption): LinkSortOption => (curren
 /** Pressing 이름순: first press picks A→Z ↑; pressed again it flips ↑ ↔ ↓ (mobile nextNameSort). */
 export const nextNameSort = (current: LinkSortOption): LinkSortOption => (current === 'title' ? 'titleDesc' : 'title');
 
-/** A larger Collection is never shown name-ordered (it stays on 시간순) - mobile NAME_ORDER_MAX_LINKS. */
-export const NAME_ORDER_MAX_LINKS = 500;
-const WHOLE_COLLECTION_PAGE_LIMIT = 100;
+const NAME_PAGE_LIMIT = 50;
 
 export function collectionPath(collectionId: number): string {
   return `/api/v1/collections/${collectionId}`;
@@ -65,45 +62,13 @@ export function collectionSectionPagePath(
   return `/api/v1/collections/${collectionId}/items?${query.toString()}`;
 }
 
-/** One page of the whole Collection (newest first) for the name order. */
-export function collectionWholePagePath(collectionId: number, cursor: string | null): string {
-  const query = new URLSearchParams({ limit: String(WHOLE_COLLECTION_PAGE_LIMIT), sort: 'dateDesc' });
+/** One SQL/keyset page in the requested visible-name order. */
+export function collectionNamePagePath(collectionId: number, direction: 'asc' | 'desc', cursor: string | null): string {
+  const query = new URLSearchParams({ limit: String(NAME_PAGE_LIMIT), sort: direction === 'asc' ? 'nameAsc' : 'nameDesc' });
   if (cursor) {
     query.set('cursor', cursor);
   }
   return `/api/v1/collections/${collectionId}/items?${query.toString()}`;
-}
-
-/** Whether loading should stop: past the limit (or exactly at it with more to come) - the Collection is too large for 이름순. */
-export function exceedsNameOrderLimit(loadedCount: number, hasMore: boolean): boolean {
-  return loadedCount > NAME_ORDER_MAX_LINKS || (hasMore && loadedCount >= NAME_ORDER_MAX_LINKS);
-}
-
-function nameCollator(locale: string): Intl.Collator {
-  const options: Intl.CollatorOptions = { numeric: true, sensitivity: 'base' };
-  try {
-    return new Intl.Collator(locale, options);
-  } catch {
-    return new Intl.Collator(undefined, options);
-  }
-}
-
-/**
- * The mobile 이름순 rule (sortLinksByName): a locale-aware compare (accents / case only break ties, "Item 2" before "Item 10") over
- * what each row shows as its name; title-less links after every titled one in both directions; same name newest first. Never
- * mutates the input.
- */
-export function sortCollectionItemsByName(items: readonly CollectionItemEntry[], locale: string, direction: 'asc' | 'desc'): readonly CollectionItemEntry[] {
-  const collator = nameCollator(locale);
-  const sign = direction === 'desc' ? -1 : 1;
-  const hasTitle = (entry: CollectionItemEntry) => entry.title !== null;
-  const nameOf = (entry: CollectionItemEntry) => entry.title || siteOf(entry.url) || entry.url;
-  return [...items].sort((a, b) => {
-    if (hasTitle(a) !== hasTitle(b)) {
-      return hasTitle(a) ? -1 : 1;
-    }
-    return sign * collator.compare(nameOf(a), nameOf(b)) || b.addedAtUtc.localeCompare(a.addedAtUtc) || b.itemId - a.itemId;
-  });
 }
 
 /** Which password withholds the content: the Owner's lock, a member's share password, or none (any other answer). */

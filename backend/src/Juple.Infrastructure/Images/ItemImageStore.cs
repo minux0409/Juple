@@ -22,6 +22,9 @@ public sealed class ItemImageStore(
 {
     private static readonly TimeSpan ReadUrlTtl = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan ClockSkewBuffer = TimeSpan.FromMinutes(5);
+    private const string ImmutablePrivateCacheControl = "private, max-age=31536000, immutable";
+    private const string MainImageSuffix = ".main.webp";
+    private const string ThumbnailImageSuffix = ".thumb.webp";
 
     public async Task<IReadOnlyList<ItemImageDto>> ListAsync(
         long userId,
@@ -47,7 +50,8 @@ public sealed class ItemImageStore(
         foreach (var row in rows)
         {
             var readUrl = await CreateReadUrlAsync(userId, row.BlobName, cancellationToken);
-            results.Add(new ItemImageDto(row.Id, row.ContentType, row.ByteLength, row.SortOrder, row.CreatedAtUtc, readUrl));
+            var thumbnailReadUrl = await CreateThumbnailReadUrlAsync(userId, row.BlobName, cancellationToken);
+            results.Add(new ItemImageDto(row.Id, row.ContentType, row.ByteLength, row.SortOrder, row.CreatedAtUtc, readUrl, thumbnailReadUrl));
         }
         return results;
     }
@@ -64,27 +68,29 @@ public sealed class ItemImageStore(
     public async Task<ItemImageDto> UploadAsync(
         long userId,
         long itemId,
-        ImageFormat format,
-        byte[] content,
+        NormalizedItemImage normalized,
         DateTimeOffset createdAtUtc,
         CancellationToken cancellationToken = default)
     {
         await RequireOwnedItemAsync(userId, itemId, cancellationToken);
 
-        var (contentType, extension) = GetFormatMetadata(format);
         // Never the client's own filename: a fresh, unguessable name under a path scoped to the
-        // owning user and Item.
-        var blobName = $"items/{userId}/{itemId}/{Guid.NewGuid():N}.{extension}";
+        // owning user and Item. The suffix identifies rows that have a derived thumbnail without
+        // adding a column or pretending an older .webp upload has one.
+        var blobName = $"items/{userId}/{itemId}/{Guid.NewGuid():N}{MainImageSuffix}";
+        var thumbnailBlobName = ThumbnailBlobNameFor(blobName)!;
 
-        // Uploads to Blob Storage before opening any DB transaction - this can be slow, and must
-        // never hold a DB lock/transaction open while it runs.
-        var blobClient = blobContainerClient.GetBlobClient(blobName);
-        await using (var uploadStream = new MemoryStream(content, writable: false))
+        // Both immutable variants land before the DB transaction. If the second fails, remove the
+        // first so a partially-created pair never becomes visible from a committed row.
+        await UploadImmutableBlobAsync(blobName, NormalizedItemImage.ContentType, normalized.MainContent, cancellationToken);
+        try
         {
-            await blobClient.UploadAsync(
-                uploadStream,
-                new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType } },
-                cancellationToken);
+            await UploadImmutableBlobAsync(thumbnailBlobName, NormalizedItemImage.ContentType, normalized.ThumbnailContent, cancellationToken);
+        }
+        catch
+        {
+            await DeleteBlobBestEffortAsync(blobName);
+            throw;
         }
 
         ItemImageDto image;
@@ -92,21 +98,21 @@ public sealed class ItemImageStore(
         try
         {
             (image, replacedBlobNames) = await ReplaceRowsForLockedItemAsync(
-                itemId, blobName, contentType, content.LongLength, createdAtUtc, cancellationToken);
+                itemId, blobName, NormalizedItemImage.ContentType, normalized.MainContent.LongLength, createdAtUtc, cancellationToken);
         }
         catch
         {
             // The Blob already landed in Storage but the DB row never committed (any DB failure) -
             // best-effort remove it rather than leaking an orphan. The previous photo is untouched.
             // The original failure is what must propagate to the caller regardless of cleanup outcome.
-            await DeleteBlobBestEffortAsync(blobName);
+            await DeleteItemImagePairBestEffortAsync(blobName);
             throw;
         }
 
         // The new photo is committed - only now may the photo(s) it replaced lose their Blobs.
         foreach (var replacedBlobName in replacedBlobNames)
         {
-            await DeleteBlobBestEffortAsync(replacedBlobName);
+            await DeleteItemImagePairBestEffortAsync(replacedBlobName);
         }
 
         // Deliberately outside the try/catch above: the DB row is already committed by this
@@ -114,7 +120,8 @@ public sealed class ItemImageStore(
         // compensating Blob delete. CreateReadUrlAsync itself already degrades to null rather
         // than throwing on failure (see its own try/catch), so this is purely best-effort.
         var readUrl = await CreateReadUrlAsync(userId, blobName, cancellationToken);
-        return image with { ReadUrl = readUrl };
+        var thumbnailReadUrl = await CreateThumbnailReadUrlAsync(userId, blobName, cancellationToken);
+        return image with { ReadUrl = readUrl, ThumbnailReadUrl = thumbnailReadUrl };
     }
 
     /// <summary>
@@ -217,7 +224,7 @@ public sealed class ItemImageStore(
         // Blob rather than blocking the delete the caller already observed as successful.
         foreach (var row in removed)
         {
-            await DeleteBlobBestEffortAsync(row.BlobName);
+            await DeleteItemImagePairBestEffortAsync(row.BlobName);
         }
     }
 
@@ -363,6 +370,17 @@ public sealed class ItemImageStore(
         }
     }
 
+    public Task<Uri?> CreateThumbnailReadUrlAsync(
+        long userId,
+        string blobName,
+        CancellationToken cancellationToken = default)
+    {
+        var thumbnailBlobName = ThumbnailBlobNameFor(blobName);
+        return thumbnailBlobName is null
+            ? Task.FromResult<Uri?>(null)
+            : CreateReadUrlAsync(userId, thumbnailBlobName, cancellationToken);
+    }
+
     private enum ReadUrlStage
     {
         DelegationKey,
@@ -392,7 +410,7 @@ public sealed class ItemImageStore(
         await using var uploadStream = new MemoryStream(content, writable: false);
         await blobContainerClient.GetBlobClient(blobName).UploadAsync(
             uploadStream,
-            new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType } },
+            new BlobUploadOptions { HttpHeaders = ImmutableHeaders(contentType) },
             cancellationToken);
         return blobName;
     }
@@ -430,7 +448,7 @@ public sealed class ItemImageStore(
         await using var uploadStream = new MemoryStream(content, writable: false);
         await blobContainerClient.GetBlobClient(blobName).UploadAsync(
             uploadStream,
-            new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType } },
+            new BlobUploadOptions { HttpHeaders = ImmutableHeaders(contentType) },
             cancellationToken);
         return blobName;
     }
@@ -473,6 +491,39 @@ public sealed class ItemImageStore(
             return false;
         }
     }
+
+    private async Task DeleteItemImagePairBestEffortAsync(string mainBlobName)
+    {
+        await DeleteBlobBestEffortAsync(mainBlobName);
+        if (ThumbnailBlobNameFor(mainBlobName) is { } thumbnailBlobName)
+        {
+            await DeleteBlobBestEffortAsync(thumbnailBlobName);
+        }
+    }
+
+    private async Task UploadImmutableBlobAsync(
+        string blobName,
+        string contentType,
+        byte[] content,
+        CancellationToken cancellationToken)
+    {
+        await using var uploadStream = new MemoryStream(content, writable: false);
+        await blobContainerClient.GetBlobClient(blobName).UploadAsync(
+            uploadStream,
+            new BlobUploadOptions { HttpHeaders = ImmutableHeaders(contentType) },
+            cancellationToken);
+    }
+
+    private static BlobHttpHeaders ImmutableHeaders(string contentType) => new()
+    {
+        ContentType = contentType,
+        CacheControl = ImmutablePrivateCacheControl,
+    };
+
+    private static string? ThumbnailBlobNameFor(string mainBlobName) =>
+        mainBlobName.EndsWith(MainImageSuffix, StringComparison.Ordinal)
+            ? mainBlobName[..^MainImageSuffix.Length] + ThumbnailImageSuffix
+            : null;
 
     private async Task RequireOwnedItemAsync(long userId, long itemId, CancellationToken cancellationToken)
     {

@@ -209,13 +209,19 @@ public sealed class EntraAccountDeletionIntegrationTests : IAsyncLifetime
         var service = new EntraIdentityDeletionService(new EntraIdentityDeletionStore(NewContext()), directory, new EntraAccountDeletionOptions { Enabled = true }, new StubTime(Now), NullLogger<EntraIdentityDeletionService>.Instance);
 
         Assert.False(await service.TryCompleteAsync(taskId));
-        var failed = await new EntraIdentityDeletionStore(NewContext()).FindAsync(taskId);
+        var store = new EntraIdentityDeletionStore(NewContext());
+        var failed = await store.FindAsync(taskId);
         Assert.Equal(1, failed!.AttemptCount);
         Assert.Equal("http_503", failed.LastErrorCode);
+        Assert.Equal(new EntraIdentityDeletionStats(1, 0, 1, 0), await store.GetStatsAsync(Now));
+
+        Assert.False(await service.TryCompleteAsync(taskId));
+        Assert.Equal(new EntraIdentityDeletionStats(1, 0, 1, 1), await new EntraIdentityDeletionStore(NewContext()).GetStatsAsync(Now));
 
         directory.DeleteFailure = null;
         Assert.True(await service.TryCompleteAsync(taskId));
         Assert.Null(await new EntraIdentityDeletionStore(NewContext()).FindAsync(taskId));
+        Assert.Equal(new EntraIdentityDeletionStats(0, null, 0, 0), await new EntraIdentityDeletionStore(NewContext()).GetStatsAsync(Now));
         Assert.Equal(new ExternalIdentityPrincipal(identity.TenantId, identity.ObjectId), Assert.Single(directory.Deleted));
     }
 

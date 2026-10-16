@@ -114,13 +114,15 @@ public sealed class CollectionItemNameSearchIntegrationTests : IAsyncLifetime
 
     private GetCollectionItemsService Items() => new(_access, _collections, new NoImages());
 
-    private async Task<List<CollectionItemEntryDto>> SearchAllAsync(long viewer, string term, CollectionItemSort sort, int pageSize, List<CollectionItemPageCursor>? cursors = null)
+    private async Task<List<CollectionItemEntryDto>> SearchAllAsync(long viewer, string? term, CollectionItemSort sort, int pageSize, List<CollectionItemPageCursor>? cursors = null)
     {
         var seen = new List<CollectionItemEntryDto>();
         CollectionItemPageCursor? cursor = null;
         do
         {
-            var page = await Items().SearchAsync(viewer, _collectionId, term, cursor, pageSize, sort);
+            var page = term is null
+                ? await Items().GetAsync(viewer, _collectionId, cursor, pageSize, sort: sort)
+                : await Items().SearchAsync(viewer, _collectionId, term, cursor, pageSize, sort);
             Assert.True(page.Items.Count <= pageSize);
             seen.AddRange(page.Items);
             cursor = page.NextCursor;
@@ -185,6 +187,20 @@ public sealed class CollectionItemNameSearchIntegrationTests : IAsyncLifetime
             Assert.Equal(paged.Count, paged.Select(entry => entry.ItemId).Distinct().Count());
             Assert.All(cursors, cursor => Assert.Equal(sort, cursor.Sort));
         }
+    }
+
+    [Theory]
+    [InlineData(CollectionItemSort.NameAsc)]
+    [InlineData(CollectionItemSort.NameDesc)]
+    public async Task Name_WithoutSearchTerm_PagesTheWholeCollection(CollectionItemSort sort)
+    {
+        var all = await SearchAllAsync(_owner, null, sort, 100);
+        var paged = await SearchAllAsync(_owner, null, sort, 7);
+
+        // 50 memberships in this Collection, less the one trashed item.
+        Assert.Equal(49, all.Count);
+        Assert.Equal(all.Select(entry => entry.ItemId), paged.Select(entry => entry.ItemId));
+        Assert.Equal(paged.Count, paged.Select(entry => entry.ItemId).Distinct().Count());
     }
 
     [Fact]

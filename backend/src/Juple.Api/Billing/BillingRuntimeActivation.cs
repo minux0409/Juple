@@ -49,7 +49,6 @@ public static class BillingRuntimeActivation
         var billing = scope.ServiceProvider.GetRequiredService<BillingOptions>();
         if (!billing.Google.Enabled)
         {
-            logger.LogInformation("Google billing is not enabled; billing reconciliation is disabled and nothing was done.");
             return 0;
         }
 
@@ -57,9 +56,12 @@ public static class BillingRuntimeActivation
         {
             // Bounded on purpose: the cadence per purchase is set by the purchase itself (see GooglePurchaseNormalizer), never a hot loop.
             var summary = await scope.ServiceProvider.GetRequiredService<IGoogleBillingProcessor>().SweepAsync(eventLimit: 100, purchaseLimit: 100);
-            logger.LogInformation(
-                "Billing reconcile complete. EventsProcessed={EventsProcessed} PurchasesReconciled={PurchasesReconciled} Failures={Failures}",
-                summary.EventsProcessed, summary.PurchasesReconciled, summary.Failures);
+            if (summary.EventsProcessed != 0 || summary.PurchasesReconciled != 0 || summary.Failures != 0)
+            {
+                logger.LogInformation(
+                    "Billing reconcile complete. EventsProcessed={EventsProcessed} PurchasesReconciled={PurchasesReconciled} Failures={Failures}",
+                    summary.EventsProcessed, summary.PurchasesReconciled, summary.Failures);
+            }
             return 0;
         }
         catch (Exception exception)

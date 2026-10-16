@@ -23,7 +23,8 @@ export interface EffectiveThumbnailSourceItem {
  * never affected - they come first and are Juple's own read URLs.
  */
 export function resolveEffectiveThumbnailUrl(item: EffectiveThumbnailSourceItem, nowMs: number = Date.now()): string | null {
-  const ownPhoto = item.coverImage?.readUrl ?? item.representativeImage?.readUrl;
+  const ownPhoto = item.coverImage?.thumbnailReadUrl ?? item.coverImage?.readUrl
+    ?? item.representativeImage?.thumbnailReadUrl ?? item.representativeImage?.readUrl;
   if (ownPhoto != null) {
     return ownPhoto;
   }

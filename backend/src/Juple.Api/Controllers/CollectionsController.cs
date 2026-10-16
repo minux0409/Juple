@@ -772,14 +772,6 @@ public sealed class CollectionsController(
             }
         }
 
-        if (resolvedSort is CollectionItemSort.NameAsc or CollectionItemSort.NameDesc && searchTerm is null)
-        {
-            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
-            {
-                ["sort"] = ["The name orders apply to the link search (q) only."],
-            }));
-        }
-
         var isWindowed = fromUtc is not null || toUtc is not null;
         if (isWindowed && resolvedSort == CollectionItemSort.Manual)
         {

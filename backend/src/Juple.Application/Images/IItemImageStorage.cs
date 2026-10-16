@@ -54,4 +54,14 @@ public interface IItemImageStorage
         long userId,
         string blobName,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The list-sized companion of a new normalized Item image. Existing Blob names have no
+    /// companion and return null, so old rows continue to use <see cref="CreateReadUrlAsync"/>.
+    /// A default keeps storage test doubles and non-Blob implementations backward compatible.
+    /// </summary>
+    Task<Uri?> CreateThumbnailReadUrlAsync(
+        long userId,
+        string blobName,
+        CancellationToken cancellationToken = default) => Task.FromResult<Uri?>(null);
 }

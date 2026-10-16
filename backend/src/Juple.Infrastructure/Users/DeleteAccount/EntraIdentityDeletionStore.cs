@@ -40,6 +40,34 @@ public sealed class EntraIdentityDeletionStore(JupleDbContext dbContext) : IEntr
                     .SetProperty(task => task.LastErrorCode, code),
                 cancellationToken);
     }
+
+    public async Task<EntraIdentityDeletionStats> GetStatsAsync(
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var aggregate = await dbContext.Set<PendingEntraIdentityDeletion>()
+            .AsNoTracking()
+            .GroupBy(_ => 1)
+            .Select(group => new
+            {
+                PendingCount = group.Count(),
+                OldestCreatedAtUtc = group.Min(task => task.CreatedAtUtc),
+                FailedPendingCount = group.Count(task => task.AttemptCount > 0),
+                RepeatedFailureCount = group.Count(task => task.AttemptCount > 1),
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (aggregate is null)
+        {
+            return new EntraIdentityDeletionStats(0, null, 0, 0);
+        }
+
+        var oldestSeconds = Math.Max(0, (long)(nowUtc - aggregate.OldestCreatedAtUtc).TotalSeconds);
+        return new EntraIdentityDeletionStats(
+            aggregate.PendingCount,
+            oldestSeconds,
+            aggregate.FailedPendingCount,
+            aggregate.RepeatedFailureCount);
+    }
 }
 
 /// <summary>

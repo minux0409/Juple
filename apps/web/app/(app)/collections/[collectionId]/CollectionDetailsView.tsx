@@ -10,16 +10,13 @@ import {
   collectionPath,
   collectionSectionPagePath,
   collectionSectionsPath,
-  collectionWholePagePath,
+  collectionNamePagePath,
   contentGateOf,
-  exceedsNameOrderLimit,
   isNameSort,
   isNotFound,
-  NAME_ORDER_MAX_LINKS,
   nextDateSort,
   nextNameSort,
   parseLinkSort,
-  sortCollectionItemsByName,
   type CollectionDetail,
 } from '../../../../lib/collectionDetails';
 import { canEditCollection } from '../../../../lib/collectionEditor';
@@ -41,7 +38,6 @@ import { useSafety } from '../../SafetyProvider';
 import { UnlockPanel } from './UnlockPanel';
 import { CollectionManagementDialogs, type CollectionManagementMode } from './CollectionManagementDialogs';
 import {
-  appendUnique,
   collectionHref,
   collectionLinkView,
   inCollectionContext,
@@ -67,6 +63,8 @@ import { useStoredChoice } from '../../useStoredChoice';
 import { ViewModeToggle } from '../../ViewModeToggle';
 import { BackRow } from '../../PageHeader';
 import styles from '../../app.module.css';
+import { LoadMore } from '../../InfiniteScroll';
+import { appendPage, canLoadMore, failLoadingMore, firstPage, startLoadingMore, type PagedState } from '../../../../lib/paging';
 
 type HeaderState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | { readonly kind: 'notFound' } | { readonly kind: 'loaded'; readonly collection: CollectionDetail };
 
@@ -108,7 +106,6 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
     setReloadToken(token => token + 1);
     setContentToken(token => token + 1);
   });
-  const [tooLargeForName, setTooLargeForName] = useState(false);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [favoriteError, setFavoriteError] = useState<string | null>(null);
   // Who is in it (see the participants effect below) and a member's pass-on link - loaded with the Collection, as on mobile.
@@ -288,9 +285,7 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
       },
     );
   };
-  // 이름순 needs the whole Collection: a larger one - known from its count, or found while loading - stays on 시간순.
-  const nameUnavailable = tooLargeForName || collection.itemCount > NAME_ORDER_MAX_LINKS;
-  const sort = isNameSort(storedSort) && nameUnavailable ? 'newest' : storedSort;
+  const sort = storedSort;
   const blockedBy = (error: unknown) => {
     const kind = contentGateOf(error);
     if (kind) {
@@ -420,7 +415,7 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
           <div className={styles.toolbar}>
             <SortChips
               dictionary={dictionary}
-              nameDisabled={nameUnavailable}
+              nameDisabled={false}
               onPressName={() => setStoredSort(nextNameSort(sort))}
               onPressTime={() => setStoredSort(nextDateSort(sort))}
               sort={sort}
@@ -432,19 +427,17 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
               value={viewMode}
             />
           </div>
-          {tooLargeForName ? <p className={styles.pageSubtitle}>{formatMessage(dictionary.sortNameTooLarge, { max: NAME_ORDER_MAX_LINKS })}</p> : null}
           {isNameSort(sort) ? (
             <CollectionByName
               api={api}
               collectionId={collection.id}
               dictionary={dictionary}
               direction={sort === 'titleDesc' ? 'desc' : 'asc'}
-              key={`name-${contentToken}`}
+              key={`name-${sort}-${contentToken}`}
               locale={locale}
               onBlocked={blockedBy}
               onOpened={markContentOpened}
               onSessionLost={onSessionLost}
-              onTooLarge={() => setTooLargeForName(true)}
               viewMode={viewMode}
             />
           ) : (
@@ -567,9 +560,9 @@ function CollectionHeader({
   );
 }
 
-type WholeState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | { readonly kind: 'loaded'; readonly items: readonly CollectionItemEntry[] };
+type NameState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | ({ readonly kind: 'loaded' } & PagedState<CollectionItemEntry>);
 
-/** 이름순: every link of the Collection (at most NAME_ORDER_MAX_LINKS, newest-first pages of 100), then the mobile name order here. */
+/** 이름순: one SQL/keyset page at a time; ties stay newest-added then highest Item id on the server. */
 function CollectionByName({
   api,
   collectionId,
@@ -579,7 +572,6 @@ function CollectionByName({
   viewMode,
   onBlocked,
   onOpened,
-  onTooLarge,
   onSessionLost,
 }: {
   readonly api: AppApi;
@@ -591,47 +583,26 @@ function CollectionByName({
   readonly onBlocked: (error: unknown) => boolean;
   /** The links were read (the content is open). */
   readonly onOpened: () => void;
-  readonly onTooLarge: () => void;
   readonly onSessionLost: () => void;
 }) {
-  const [state, setState] = useState<WholeState>({ kind: 'loading' });
+  const [state, setState] = useState<NameState>({ kind: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
   // A deleted / removed link leaves the loaded list at once (no refetch - the whole Collection is already here).
   useItemsChanged(change => {
     if (removesFromList(change, { kind: 'collection', collectionId })) {
-      setState(current => (current.kind === 'loaded' ? { kind: 'loaded', items: current.items.filter(entry => entry.itemId !== change.itemId) } : current));
+      setState(current => (current.kind === 'loaded' ? { ...current, items: current.items.filter(entry => entry.itemId !== change.itemId) } : current));
     }
   });
 
   useEffect(() => {
     let ignore = false;
-    const loadWhole = async (): Promise<readonly CollectionItemEntry[] | null> => {
-      let collected: readonly CollectionItemEntry[] = [];
-      let cursor: string | null = null;
-      do {
-        const page: CollectionItemsPage = await api<CollectionItemsPage>({ path: collectionWholePagePath(collectionId, cursor), headers: unlockHeaders(collectionId) });
+    api<CollectionItemsPage>({ path: collectionNamePagePath(collectionId, direction, null), headers: unlockHeaders(collectionId) }).then(
+      page => {
         if (ignore) {
-          return [];
-        }
-        collected = appendUnique(collected, page.items, entry => entry.itemId);
-        cursor = page.nextCursor;
-        if (exceedsNameOrderLimit(collected.length, cursor !== null)) {
-          return null;
-        }
-      } while (cursor);
-      return collected;
-    };
-    loadWhole().then(
-      items => {
-        if (ignore) {
-          return;
-        }
-        if (items === null) {
-          onTooLarge();
           return;
         }
         onOpened();
-        setState({ kind: 'loaded', items });
+        setState({ kind: 'loaded', ...firstPage(page.items, page.nextCursor) });
       },
       error => {
         if (ignore) {
@@ -649,9 +620,31 @@ function CollectionByName({
     return () => {
       ignore = true;
     };
-    // Loaded once per mount (and per 다시 시도); flipping ↑ / ↓ only re-sorts what is loaded.
+    // Parent callbacks intentionally do not remount a page; collection/sort/retry are the read identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, collectionId, reloadToken]);
+  }, [api, collectionId, direction, reloadToken]);
+
+  const loadMore = () => {
+    if (state.kind !== 'loaded' || !canLoadMore(state)) {
+      return;
+    }
+    const cursor = state.nextCursor;
+    setState({ ...state, ...startLoadingMore(state) });
+    api<CollectionItemsPage>({ path: collectionNamePagePath(collectionId, direction, cursor), headers: unlockHeaders(collectionId) }).then(
+      page => setState(current => current.kind === 'loaded'
+        ? { kind: 'loaded', ...appendPage(current, page, entry => entry.itemId) }
+        : current),
+      error => {
+        if (isSessionLost(error)) {
+          onSessionLost();
+          return;
+        }
+        if (!onBlocked(error)) {
+          setState(current => current.kind === 'loaded' ? { kind: 'loaded', ...failLoadingMore(current) } : current);
+        }
+      },
+    );
+  };
 
   if (state.kind === 'loading') {
     return <SavedLinkSkeleton count={6} mode={viewMode} />;
@@ -670,6 +663,9 @@ function CollectionByName({
   if (state.items.length === 0) {
     return <p className={styles.emptyState}>{dictionary.collectionItemsEmpty}</p>;
   }
-  const links = sortCollectionItemsByName(state.items, locale, direction).map(entry => inCollectionContext(collectionLinkView(entry, collectionId), collectionId));
-  return <SavedLinkList dictionary={dictionary} links={links} mode={viewMode} timestampOf={link => formatLinkTimestamp(link.timestampUtc, locale, true)} />;
+  const links = state.items.map(entry => inCollectionContext(collectionLinkView(entry, collectionId), collectionId));
+  return <>
+    <SavedLinkList dictionary={dictionary} links={links} mode={viewMode} timestampOf={link => formatLinkTimestamp(link.timestampUtc, locale, true)} />
+    <LoadMore dictionary={dictionary} onLoadMore={loadMore} skeleton={<SavedLinkSkeleton count={6} mode={viewMode} />} state={state} />
+  </>;
 }

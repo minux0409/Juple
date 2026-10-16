@@ -30,7 +30,10 @@ public sealed class UploadItemImageService(
             throw new InvalidItemImageException("file", "Only JPEG, PNG, or WebP images are allowed.");
         }
 
+        // A valid magic prefix is not enough: decode now to reject corrupt/excessive images, apply
+        // EXIF orientation, remove all metadata, and create the two bounded WebP variants once.
+        var normalized = ItemImageNormalizer.Normalize(content);
         return itemImageStore.UploadAsync(
-            userId, itemId, format.Value, content, timeProvider.GetUtcNow(), cancellationToken);
+            userId, itemId, normalized, timeProvider.GetUtcNow(), cancellationToken);
     }
 }

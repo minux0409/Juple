@@ -1,6 +1,16 @@
 import { resolveEffectiveThumbnailUrl } from '../resolveEffectiveThumbnailUrl';
 
 describe('resolveEffectiveThumbnailUrl', () => {
+  it('uses the derived list thumbnail before the full uploaded image', () => {
+    const url = resolveEffectiveThumbnailUrl({
+      coverImage: { id: 1, readUrl: 'https://blob.example/main.webp', thumbnailReadUrl: 'https://blob.example/thumb.webp' },
+      previewImageUrl: null,
+      representativeImage: null,
+    });
+
+    expect(url).toBe('https://blob.example/thumb.webp');
+  });
+
   it('prefers coverImage when all three sources are present', () => {
     const url = resolveEffectiveThumbnailUrl({
       coverImage: { id: 1, readUrl: 'https://blob.example/cover.jpg' },

@@ -15,6 +15,9 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Identity.Web" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" />
+    <!-- The API runs on Linux. Keep Skia's native runtime beside the managed package referenced
+         by Juple.Application so image normalization works in the production container too. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
   </ItemGroup>
 
   <ItemGroup>

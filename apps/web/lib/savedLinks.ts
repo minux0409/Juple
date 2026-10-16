@@ -10,6 +10,7 @@ import { lockedContextSearch } from './itemOpenGrant.ts';
 export interface ImageRef {
   readonly id?: number;
   readonly readUrl: string | null;
+  readonly thumbnailReadUrl?: string | null;
 }
 
 /** Mirrors the Backend's history row (apps/mobile/src/items/api/itemsApi.ts ItemHistoryEntry) - Home and 보관함. */
@@ -169,7 +170,9 @@ export function displayTitleOf(title: string | null | undefined, url: string): L
  * fails to load is replaced by that same fallback (see LinkImage), never the browser's broken-image icon.
  */
 export function thumbnailOf(entry: Pick<ItemHistoryEntry, 'coverImage' | 'previewImageUrl' | 'representativeImage'>): string | null {
-  const candidate = entry.coverImage?.readUrl || entry.representativeImage?.readUrl || entry.previewImageUrl || null;
+  const candidate = entry.coverImage?.thumbnailReadUrl || entry.coverImage?.readUrl
+    || entry.representativeImage?.thumbnailReadUrl || entry.representativeImage?.readUrl
+    || entry.previewImageUrl || null;
   return isSafeHttpUrl(candidate) ? candidate : null;
 }
 

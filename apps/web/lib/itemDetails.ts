@@ -29,6 +29,7 @@ export interface ItemDetails {
 export interface ItemImage {
   readonly id: number;
   readonly readUrl: string | null;
+  readonly thumbnailReadUrl?: string | null;
 }
 
 /** Mirrors GET /api/v1/collections/{id}/items/{itemId} (apps/mobile collectionsApi.ts SharedCollectionItem). */

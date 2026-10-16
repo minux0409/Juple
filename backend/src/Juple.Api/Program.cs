@@ -550,11 +550,16 @@ static async Task<int> RunPushDispatchOnceAsync(IServiceProvider rootServices)
     {
         var result = await dispatchService.RunOnceAsync();
         var stats = await scope.ServiceProvider.GetRequiredService<INotificationEventStore>().GetStatsAsync(TimeProvider.System.GetUtcNow());
-        logger.LogInformation(
-            "Push dispatch complete. Pending={Pending} Sent={Sent} Failed={Failed} Skipped={Skipped} Expired={Expired} EventsRecovered={EventsRecovered} OutboxPending={OutboxPending} OutboxOldestSeconds={OutboxOldestSeconds} NotificationsPending={NotificationsPending} NotificationsOldestSeconds={NotificationsOldestSeconds} EventRetriesScheduled={EventRetriesScheduled} EventsRequiringAttention={EventsRequiringAttention} EventsFailedPermanently={EventsFailedPermanently}",
-            result.Pending, result.Sent, result.Failed, result.Skipped, result.Expired, result.EventsRecovered,
-            stats.PendingEvents, stats.OldestPendingEventSeconds, stats.PendingNotifications, stats.OldestPendingNotificationSeconds,
-            result.EventRetriesScheduled, stats.EventsRequiringAttention, stats.EventsFailedPermanently);
+        if (result.Pending != 0 || result.Sent != 0 || result.Failed != 0 || result.Skipped != 0 || result.Expired != 0
+            || result.EventsRecovered != 0 || stats.PendingEvents != 0 || stats.PendingNotifications != 0
+            || result.EventRetriesScheduled != 0 || stats.EventsRequiringAttention != 0 || stats.EventsFailedPermanently != 0)
+        {
+            logger.LogInformation(
+                "Push dispatch complete. Pending={Pending} Sent={Sent} Failed={Failed} Skipped={Skipped} Expired={Expired} EventsRecovered={EventsRecovered} OutboxPending={OutboxPending} OutboxOldestSeconds={OutboxOldestSeconds} NotificationsPending={NotificationsPending} NotificationsOldestSeconds={NotificationsOldestSeconds} EventRetriesScheduled={EventRetriesScheduled} EventsRequiringAttention={EventsRequiringAttention} EventsFailedPermanently={EventsFailedPermanently}",
+                result.Pending, result.Sent, result.Failed, result.Skipped, result.Expired, result.EventsRecovered,
+                stats.PendingEvents, stats.OldestPendingEventSeconds, stats.PendingNotifications, stats.OldestPendingNotificationSeconds,
+                result.EventRetriesScheduled, stats.EventsRequiringAttention, stats.EventsFailedPermanently);
+        }
         return 0;
     }
     catch (Exception exception)
@@ -574,22 +579,38 @@ static async Task<int> RunBlobCleanupRetryOnceAsync(IServiceProvider rootService
     try
     {
         var result = await blobCleanupService.RunPendingCleanupsAsync();
-        logger.LogInformation(
-            "Blob cleanup retry complete. Pending={Pending} Succeeded={Succeeded} Deferred={Deferred} Failed={Failed}",
-            result.Pending, result.Succeeded, result.Deferred, result.Failed);
+        if (result.Pending != 0 || result.Succeeded != 0 || result.Deferred != 0 || result.Failed != 0)
+        {
+            logger.LogInformation(
+                "Blob cleanup retry complete. Pending={Pending} Succeeded={Succeeded} Deferred={Deferred} Failed={Failed}",
+                result.Pending, result.Succeeded, result.Deferred, result.Failed);
+        }
 
         // The same scheduled pass also finishes any Entra sign-in account deletion that did not succeed right away (idempotent).
         var entraResult = await scope.ServiceProvider.GetRequiredService<Juple.Application.Users.DeleteAccount.IEntraIdentityDeletionService>().RunPendingAsync();
         if (entraResult.Skipped)
         {
             // EntraAccountDeletion:Enabled is false: not a failure - any pending rows wait until the feature is enabled again.
-            logger.LogInformation("Entra identity deletion retry is disabled; skipping.");
+            var disabledStats = await scope.ServiceProvider.GetRequiredService<Juple.Application.Users.DeleteAccount.IEntraIdentityDeletionStore>()
+                .GetStatsAsync(TimeProvider.System.GetUtcNow());
+            if (disabledStats.PendingCount > 0)
+            {
+                logger.LogWarning(
+                    "account.entra-deletion.pending PendingCount={PendingCount} OldestPendingSeconds={OldestPendingSeconds} FailedPendingCount={FailedPendingCount} RepeatedFailureCount={RepeatedFailureCount} RetryEnabled=false",
+                    disabledStats.PendingCount, disabledStats.OldestPendingSeconds, disabledStats.FailedPendingCount, disabledStats.RepeatedFailureCount);
+            }
             return 0;
         }
 
-        logger.LogInformation(
-            "Entra identity deletion retry complete. Pending={Pending} Succeeded={Succeeded} Failed={Failed}",
-            entraResult.Pending, entraResult.Succeeded, entraResult.Failed);
+        var entraStats = await scope.ServiceProvider.GetRequiredService<Juple.Application.Users.DeleteAccount.IEntraIdentityDeletionStore>()
+            .GetStatsAsync(TimeProvider.System.GetUtcNow());
+        if (entraResult.Pending != 0 || entraStats.PendingCount != 0)
+        {
+            logger.LogInformation(
+                "account.entra-deletion.retry Processed={Processed} Succeeded={Succeeded} Failed={Failed} PendingCount={PendingCount} OldestPendingSeconds={OldestPendingSeconds} FailedPendingCount={FailedPendingCount} RepeatedFailureCount={RepeatedFailureCount}",
+                entraResult.Pending, entraResult.Succeeded, entraResult.Failed, entraStats.PendingCount,
+                entraStats.OldestPendingSeconds, entraStats.FailedPendingCount, entraStats.RepeatedFailureCount);
+        }
         return entraResult.Failed == 0 ? 0 : 1;
     }
     catch (Exception exception)
@@ -639,12 +660,15 @@ static async Task<int> RunInstagramMetadataRetryOnceAsync(IServiceProvider rootS
     try
     {
         var result = await retryService.RunOnceAsync();
-        logger.LogInformation(
-            "Instagram metadata retry run complete. Due={Due} Resolved={Resolved} " +
-            "Rescheduled={Rescheduled} GaveUp={GaveUp} AlreadySatisfied={AlreadySatisfied} " +
-            "SkippedNotClaimed={SkippedNotClaimed}",
-            result.DueTaskCount, result.Resolved, result.Rescheduled, result.GaveUp,
-            result.AlreadySatisfied, result.SkippedNotClaimed);
+        if (result.DueTaskCount != 0)
+        {
+            logger.LogInformation(
+                "Instagram metadata retry run complete. Due={Due} Resolved={Resolved} " +
+                "Rescheduled={Rescheduled} GaveUp={GaveUp} AlreadySatisfied={AlreadySatisfied} " +
+                "SkippedNotClaimed={SkippedNotClaimed}",
+                result.DueTaskCount, result.Resolved, result.Rescheduled, result.GaveUp,
+                result.AlreadySatisfied, result.SkippedNotClaimed);
+        }
         return 0;
     }
     catch (Exception exception)

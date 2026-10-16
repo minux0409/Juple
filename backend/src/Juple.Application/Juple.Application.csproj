@@ -11,6 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="SkiaSharp" />
     <ProjectReference Include="..\Juple.Domain\Juple.Domain.csproj" />
   </ItemGroup>
 

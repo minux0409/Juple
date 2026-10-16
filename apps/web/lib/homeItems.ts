@@ -13,8 +13,11 @@ export function todayWindowStartUtc(now: Date): string {
   return start.toISOString();
 }
 
-export function homeHistoryPath(now: Date): string {
+export function homeHistoryPath(now: Date, cursor: string | null = null): string {
   const query = new URLSearchParams({ limit: String(HOME_PAGE_SIZE), fromUtc: todayWindowStartUtc(now) });
+  if (cursor) {
+    query.set('cursor', cursor);
+  }
   return `/api/v1/items/history?${query.toString()}`;
 }
 

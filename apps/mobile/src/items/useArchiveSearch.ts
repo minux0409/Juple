@@ -147,7 +147,10 @@ export function useArchiveSearch(rawQuery: string, sort: ArchiveFlatSort = 'time
         if (sequence !== sequenceRef.current) {
           return;
         }
-        setItems(previous => [...previous, ...page.items.filter(entry => !previous.some(existing => existing.id === entry.id))]);
+        setItems(previous => {
+          const knownIds = new Set(previous.map(existing => existing.id));
+          return [...previous, ...page.items.filter(entry => !knownIds.has(entry.id))];
+        });
         setNextCursor(page.nextCursor);
       })
       .catch(() => {
