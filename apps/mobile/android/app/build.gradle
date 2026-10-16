@@ -101,9 +101,10 @@ react {
 }
 
 /**
- * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
+ * R8 code shrinking / optimization / obfuscation and resource shrinking for the Production "release" buildType.
+ * "dogfood" and "playInternal" inherit from release (initWith) but explicitly opt out below - they stay unminified.
  */
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -247,6 +248,7 @@ android {
             // Play App Signing upload key.
             signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
+            shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
         dogfood {
@@ -259,6 +261,9 @@ android {
             // is the deliberate choice for this round) - a suffixed id can be revisited later if
             // running both side by side ever becomes necessary.
             initWith release
+            // Inherited from release by initWith; R8 is Production-release-only for now, so keep this buildType as it was.
+            minifyEnabled false
+            shrinkResources false
             // Prebuilt AAR dependencies (react-android, hermes-android, ...) only publish
             // debug/release variants - without this, Gradle can't resolve them for a buildType
             // it doesn't recognize by name.
@@ -284,6 +289,9 @@ android {
             // buildType; non-debuggable and bundled like release (it is not in react{}'s
             // debuggableVariants), so it never needs Metro.
             initWith release
+            // Inherited from release by initWith; R8 is Production-release-only for now, so keep this buildType as it was.
+            minifyEnabled false
+            shrinkResources false
             // Prebuilt AAR dependencies only publish debug/release variants (see dogfood).
             matchingFallbacks = ['release']
             // The upload key - inherited from release by initWith, restated so no later edit to
