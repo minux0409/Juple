@@ -101,6 +101,8 @@ export const LANGUAGE_LABEL_KEYS: Readonly<Record<LanguagePreference, MobileStri
 export interface WebOnlyStrings {
 
   readonly brandTagline: string;
+  /** The landing's main action for a signed-out visitor (starts the existing sign-in). */
+  readonly startOnWeb: string;
   readonly signInConfigError: string;
   readonly sessionEnded: string;
   readonly configMissingTitle: string;

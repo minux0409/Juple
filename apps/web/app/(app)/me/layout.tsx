@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { activeSettingsItem, SETTINGS_NAV_ITEMS, settingsNavLabel } from '../../../lib/settingsNav';
+import { isSubscriptionEntryShown } from '../../../lib/subscription';
 import { useSignedInApp } from '../AppRoot';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { Glyph } from '../Glyph';
@@ -17,7 +18,7 @@ import styles from '../app.module.css';
  */
 export default function MeLayout({ children }: { readonly children: React.ReactNode }) {
   const pathname = usePathname();
-  const { dictionary, signOut } = useSignedInApp();
+  const { dictionary, entitlement, signOut } = useSignedInApp();
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const active = activeSettingsItem(pathname);
   if (!active) {
@@ -28,7 +29,7 @@ export default function MeLayout({ children }: { readonly children: React.ReactN
       <nav aria-label={dictionary.settingsSectionTitle} className={styles.settingsRail}>
         <h2 className={styles.settingsRailTitle}>{dictionary.settingsSectionTitle}</h2>
         <ul className={styles.settingsRailList}>
-          {SETTINGS_NAV_ITEMS.filter(item => !item.danger).map((item, index, shown) => (
+          {SETTINGS_NAV_ITEMS.filter(item => !item.danger && (item.key !== 'subscription' || isSubscriptionEntryShown(entitlement))).map((item, index, shown) => (
             <li className={index > 0 && shown[index - 1].group !== item.group ? styles.settingsRailGroupStart : undefined} key={item.key}>
               <Link
                 aria-current={item.key === active.key ? 'page' : undefined}

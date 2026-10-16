@@ -10,6 +10,7 @@ import { MOBILE_STRINGS } from './appI18nMobile.generated.ts';
 const WEB_ONLY: Readonly<Record<'ko' | 'en', WebOnlyStrings>> = {
   ko: {
     brandTagline: '발견한 링크를 빠르게 저장하고, 정리하고, 다시 찾아보세요.',
+    startOnWeb: '웹에서 시작하기',
     signInConfigError: '웹 로그인 설정에 문제가 있어 로그인할 수 없어요. 다시 시도해도 해결되지 않으면 관리자에게 알려 주세요.',
     sessionEnded: '로그인이 만료되었어요. 다시 로그인해 주세요.',
     configMissingTitle: '웹 로그인을 사용할 수 없어요',
@@ -53,6 +54,7 @@ const WEB_ONLY: Readonly<Record<'ko' | 'en', WebOnlyStrings>> = {
   },
   en: {
     brandTagline: 'Save the links you find, organize them, and find them again.',
+    startOnWeb: 'Get started on the web',
     signInConfigError: "Web sign-in isn't set up correctly, so you can't sign in right now. If trying again doesn't help, please let the administrator know.",
     sessionEnded: 'Your sign-in has expired. Please sign in again.',
     configMissingTitle: 'Web sign-in is unavailable',

@@ -123,3 +123,12 @@ export function describeSubscription(storeSubscription: StoreSubscription | null
 
 /** Where a Google Play subscription is managed (mobile useSubscriptionStore PLAY_SUBSCRIPTIONS_URL) - a public Play page. */
 export const PLAY_SUBSCRIPTIONS_URL = 'https://play.google.com/store/account/subscriptions';
+
+/**
+ * Whether the Web shows 구독 at all (the settings entry and its page): only while the server says the paid program is live
+ * (bootstrap entitlement.programEnabled - the authoritative flag, the same one the mobile app reads). Before that there is nothing to
+ * show or manage, and the Web never sells: no subscription or payment entry appears.
+ */
+export function isSubscriptionEntryShown(entitlement: Entitlement | null): boolean {
+  return entitlement?.programEnabled === true;
+}

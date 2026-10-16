@@ -59,8 +59,17 @@ describe('public-only launch mode', () => {
     assert.match(proxy, /matcher: \['\/\(\(\?!_next\/\)\.\*\)'\]/);
   });
 
-  it('Production deploys it on; Dev keeps the signed-in Web app', () => {
-    assert.match(infra('web/prod.bicepparam'), /^param publicOnly = true$/m);
+  it('Production runs the full signed-in Web app (Production tenant, its own SPA client, juple.co.kr only); Dev keeps its own', () => {
+    const prod = infra('web/prod.bicepparam');
+    assert.match(prod, /^param publicOnly = false\r?$/m);
+    assert.match(prod, /^param signedInWebEntraAuthority = 'https:\/\/juple\.ciamlogin\.com'\r?$/m);
+    assert.match(prod, /^param signedInWebEntraTenantId = '9cc10dba-a023-436b-a90b-181829718f38'\r?$/m);
+    assert.match(prod, /^param signedInWebEntraClientId = '11ba52b5-88aa-4e29-bb80-06b23b244b31'\r?$/m);
+    assert.match(prod, /^param signedInWebEntraApiScope = 'api:\/\/a61bc80e-2d14-4ff0-9fd7-bc6a63c8e2a0\/access_as_user'\r?$/m);
+    assert.match(prod, /^param signedInWebBaseUrl = 'https:\/\/juple\.co\.kr'\r?$/m);
+    assert.doesNotMatch(prod.replace(/^\s*\/\/.*$/gm, ''), /localhost|dev\.juple|jupledev|d70ac03c|14bcc3b7/, 'no Dev or local value in Production');
+    const api = infra('app/prod.bicepparam');
+    assert.match(api, /^param authenticatedWebAllowedOrigins = \['https:\/\/juple\.co\.kr'\]\r?$/m);
     assert.doesNotMatch(infra('web/dev.bicepparam'), /publicOnly/);
     const main = infra('web/main.bicep');
     assert.match(main, /param publicOnly bool = false/);
@@ -84,11 +93,13 @@ describe('public landing page', () => {
   it('before the public listing exists: no store link and no "coming soon" placeholder at all', () => {
     assert.deepEqual(planLandingStore({ platform: 'android', googlePlayUrl: undefined }), { googlePlayUrl: null, androidOnlyNote: false });
     assert.deepEqual(planLandingStore({ platform: 'other', googlePlayUrl: '' }), { googlePlayUrl: null, androidOnlyNote: false });
-    assert.doesNotMatch(source('app/welcome/page.tsx'), /installComingSoon|comingSoon|play\.google\.com|testing/i);
+    for (const file of ['app/welcome/page.tsx', 'app/_components/JupleLanding.tsx']) {
+      assert.doesNotMatch(source(file), /installComingSoon|comingSoon|play\.google\.com|testing/i, file);
+    }
   });
 
   it('is a real landing: the lockup, the product line and the three features the app actually has', () => {
-    const page = source('app/welcome/page.tsx');
+    const page = source('app/_components/JupleLanding.tsx');
     assert.match(page, /<BrandIcon size=\{56\} \/>\s*<h1 className=\{landing\.wordmark\}>Juple<\/h1>/);
     assert.match(page, /dict\.landingHeadlineLine1[\s\S]*dict\.landingHeadlineLine2/);
     for (const key of ['featureSaveTitle', 'featureOrganizeTitle', 'featureShareTitle']) {
@@ -126,15 +137,28 @@ describe('public landing page', () => {
     }
   });
 
-  it('has no sign-in and no App Store, links the legal pages and shows the operator details', () => {
+  it('public-only /welcome has no sign-in and no App Store; the landing links the legal pages and shows the operator details', () => {
     const page = source('app/welcome/page.tsx');
     const code = page.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-    assert.doesNotMatch(code, /signIn|AppRoot|msal|appStore|App Store|apps\.apple\.com/i);
+    assert.doesNotMatch(code, /signIn|SignInCta|primaryAction|AppRoot|msal|appStore|App Store|apps\.apple\.com/i);
     assert.match(page, /planLandingStore\(\{ platform: resolveClientPlatform\(requestHeaders\.get\('user-agent'\)\), googlePlayUrl: storeConfig\.googlePlayUrl \}\)/);
+    assert.match(page, /<JupleLanding locale=\{locale\} store=\{store\} \/>/);
+    const landing = source('app/_components/JupleLanding.tsx');
+    assert.doesNotMatch(landing.replace(/\/\*[\s\S]*?\*\//g, ''), /msal|appStore|App Store|apps\.apple\.com|installComingSoon|comingSoon/i);
     for (const href of ['/privacy', '/terms', '/account-deletion']) {
-      assert.match(page, new RegExp(`<Link href="${href}">`));
+      assert.match(landing, new RegExp(`<Link href="${href}">`));
     }
-    assert.match(page, /operatorFacts\(legal\)/);
+    assert.match(landing, /operatorFacts\(legal\)/);
+  });
+
+  it('the Web app shows the same landing to a signed-out visitor at "/", with 웹에서 시작하기 starting the existing sign-in', () => {
+    const layout = source('app/(app)/layout.tsx');
+    assert.match(layout, /<JupleLanding[\s\S]*primaryAction=\{<SignInCta label=\{dictionary\.startOnWeb\} \/>\}/);
+    assert.match(layout, /signedOutLanding=\{signedOutLanding\}/);
+    const root = source('app/(app)/AppRoot.tsx');
+    assert.match(root, /if \(status === 'signedOut'\) \{\s*return signedOutLanding \? \(\s*<SignInActionContext\.Provider value=\{\{ signIn: \(\) => void signIn\(\), notice \}\}>\{signedOutLanding\}/);
+    assert.match(source('app/(app)/SignInCta.tsx'), /onClick=\{action\.signIn\}/);
+    assert.match(source('app/(app)/page.tsx'), /buildSiteMetadata\(dict\.landingDescription, '\/'\)/);
   });
 });
 
@@ -243,5 +267,18 @@ describe('legal pages: the operator, the privacy officer and the reviewed texts'
     for (const env of ['LEGAL_REPRESENTATIVE_NAME', 'LEGAL_ECOMMERCE_REGISTRATION_NUMBER', 'LEGAL_PRIVACY_OFFICER_NAME', 'LEGAL_PRIVACY_OFFICER_TITLE', 'LEGAL_PRIVACY_OFFICER_EMAIL']) {
       assert.match(main, new RegExp(`  ${env}: legal`), env);
     }
+  });
+});
+
+describe('the Web never offers a subscription before the paid program is live', () => {
+  it('구독 is listed and its page shown only while the server reports programEnabled', async () => {
+    const { isSubscriptionEntryShown } = await import('../lib/subscription.ts');
+    assert.equal(isSubscriptionEntryShown(null), false);
+    assert.equal(isSubscriptionEntryShown({ programEnabled: false } as never), false);
+    assert.equal(isSubscriptionEntryShown({ programEnabled: true } as never), true);
+    assert.match(source('app/(app)/me/layout.tsx'), /item\.key !== 'subscription' \|\| isSubscriptionEntryShown\(entitlement\)/);
+    const page = source('app/(app)/me/subscription/page.tsx');
+    assert.match(page, /if \(!shown\) \{\s*router\.replace\('\/me'\);/);
+    assert.match(page, /if \(!shown\) \{\s*return null;/);
   });
 });

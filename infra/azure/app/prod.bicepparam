@@ -173,3 +173,8 @@ param applicationInsightsConnectionString = readEnvironmentVariable('JUPLE_APP_P
 // bound to ca-juple-web-prod, or until then the Web Container App's own https://<fqdn>. Only an https URL
 // without a trailing path belongs here.
 param publicWebBaseUrl = readEnvironmentVariable('JUPLE_APP_PROD_PUBLIC_WEB_BASE_URL')
+
+// Browser origin of the signed-in Juple Web app allowed to call the Production API (AuthenticatedWeb:AllowedOrigins - the API's
+// default CORS policy): only the Production site itself. Never localhost or a Dev origin. Activated 2026-10-16 with the Production
+// Web app (../web/prod.bicepparam signedInWeb* values).
+param authenticatedWebAllowedOrigins = ['https://juple.co.kr']

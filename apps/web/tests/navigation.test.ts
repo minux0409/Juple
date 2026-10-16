@@ -126,7 +126,7 @@ describe('내 페이지: nested settings - app side bar | inner settings list | 
     assert.ok(at.every((position, index) => position > 0 && (index === 0 || position > at[index - 1])), 'logout, divider, delete');
     assert.match(frame, /<ConfirmDialog[\s\S]*signOut\(\);/);
     assert.equal(frame.match(/dictionary\.logout/g)?.length, 2, "the button and the dialog's confirm");
-    assert.match(frame, /SETTINGS_NAV_ITEMS\.filter\(item => !item\.danger\)/, 'the menu above does not repeat 계정 삭제');
+    assert.match(frame, /SETTINGS_NAV_ITEMS\.filter\(item => !item\.danger && /, 'the menu above does not repeat 계정 삭제');
     for (const file of ['me/MyPageSections.tsx', 'AppShell.tsx', 'me/ProfileEditView.tsx']) {
       assert.doesNotMatch(page(file), /dictionary\.logout|signOut/, file);
     }

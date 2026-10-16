@@ -2,8 +2,13 @@ import { cookies, headers } from 'next/headers';
 import { connection } from 'next/server';
 import { getAppDictionary } from '../../lib/appDictionary';
 import { LANGUAGE_COOKIE, parseLanguagePreference, resolveAppLanguage } from '../../lib/appI18n';
+import { resolveClientPlatform } from '../../lib/platform';
+import { planLandingStore } from '../../lib/publicLanding';
+import { storeConfig } from '../../lib/storeConfig';
 import { readWebAppConfig, WEB_APP_CONFIG_ENV } from '../../lib/webAppConfig';
+import { JupleLanding } from '../_components/JupleLanding';
 import { AppRoot } from './AppRoot';
+import { SignInCta } from './SignInCta';
 
 /**
  * The signed-in Juple Web app (/, /archive, /collections, /items, /me). Rendered per request so the sign-in configuration is read from
@@ -22,10 +27,26 @@ export default async function SignedInAppLayout({ children, modal }: { children:
   }
   const result = readWebAppConfig(env);
   const preference = parseLanguagePreference((await cookies()).get(LANGUAGE_COOKIE)?.value);
-  const language = resolveAppLanguage(preference, (await headers()).get('accept-language'));
+  const requestHeaders = await headers();
+  const language = resolveAppLanguage(preference, requestHeaders.get('accept-language'));
+  const dictionary = getAppDictionary(language);
+  // A signed-out visitor sees the Juple landing (the same one as the public-only site) with 웹에서 시작하기 as its main action.
+  const signedOutLanding = (
+    <JupleLanding
+      locale={language === 'ko' ? 'ko' : 'en'}
+      primaryAction={<SignInCta label={dictionary.startOnWeb} />}
+      store={planLandingStore({ platform: resolveClientPlatform(requestHeaders.get('user-agent')), googlePlayUrl: storeConfig.googlePlayUrl })}
+    />
+  );
 
   return (
-    <AppRoot config={result.ok ? result.config : null} dictionary={getAppDictionary(language)} language={language} languagePreference={preference}>
+    <AppRoot
+      config={result.ok ? result.config : null}
+      dictionary={dictionary}
+      language={language}
+      languagePreference={preference}
+      signedOutLanding={signedOutLanding}
+    >
       {children}
       {modal}
     </AppRoot>

@@ -105,7 +105,19 @@ param legalEffectiveDate = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_EFFECTI
 param legalPrivacyOfficerName = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_PRIVACY_OFFICER_NAME', '')
 param legalPrivacyOfficerTitle = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_PRIVACY_OFFICER_TITLE', '')
 
-// Android-first launch: the signed-in Web app is not part of this release, so Production serves only the public site (landing page,
-// legal pages, shared-Collection viewer, app-link files - apps/web/lib/publicOnly.ts); every signed-in path is a 404.
-param publicOnly = true
+// The signed-in Juple Web app on Production (activated 2026-10-16): the Production External ID tenant and its "Juple" SPA app
+// registration (11ba52b5-...; SPA redirect URIs https://juple.co.kr/auth/callback and https://juple.co.kr, the Juple API's
+// access_as_user with admin consent, linked to the JupleSignUpSignIn user flow - the same shape as Dev's "Juple Web (DEV)"), the
+// Production API scope, this site's own origin and the host of Production's Collection share links. Public identifiers, never secrets
+// (a browser app has no client secret). ../app/prod.bicepparam lists https://juple.co.kr in authenticatedWebAllowedOrigins.
+param signedInWebEntraAuthority = 'https://juple.ciamlogin.com'
+param signedInWebEntraTenantId = '9cc10dba-a023-436b-a90b-181829718f38'
+param signedInWebEntraClientId = '11ba52b5-88aa-4e29-bb80-06b23b244b31'
+param signedInWebEntraApiScope = 'api://a61bc80e-2d14-4ff0-9fd7-bc6a63c8e2a0/access_as_user'
+param signedInWebBaseUrl = 'https://juple.co.kr'
+param signedInWebPublicHost = 'juple.co.kr'
+
+// The full site: "/" is the Juple landing for a signed-out visitor (웹에서 시작하기 -> sign-in) and the app once signed in; the legal
+// pages, the shared-Collection viewer and the app-link files stay public. Public-only mode (apps/web/lib/publicOnly.ts) is off.
+param publicOnly = false
 // legalSupportEmail / legalPrivacyEmail are left unassigned: the code's confirmed contact mailbox applies.
