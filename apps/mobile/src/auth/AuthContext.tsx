@@ -38,6 +38,9 @@ import { clearCollectionShortcutsOnLogoutBestEffort } from '../share/clearCollec
 import { purgeLegacyCollectionLockSecrets } from '../collections/legacyCollectionLockSecrets';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { AuthContextValue, AuthState } from './types';
+import { clearStableImageUris } from '../images/stableImageUri';
+import { clearCollectionIconCache } from '../collections/collectionIconImageCache';
+import { clearProfileImageCache } from '../profile/profileImageCache';
 
 const INITIAL_STATE: AuthState = {
   isInitializing: true,
@@ -130,6 +133,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     // Every way out of a session (sign-out, an invalidated session, a rejected restore): the shortcuts carry Collection
     // names, so none may survive for whoever signs in next. Fire-and-forget; signOut also awaits it explicitly.
     clearCollectionShortcutsOnLogoutBestEffort().catch(() => undefined);
+    // The kept signed photo URLs (Item photos, Collection icons, profile photos) belong to this session's account only.
+    clearStableImageUris();
+    clearCollectionIconCache();
+    clearProfileImageCache();
     setState(SIGNED_OUT_STATE);
   }, []);
 

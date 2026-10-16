@@ -29,7 +29,17 @@ namespace Juple.IntegrationTests.Users;
 /// </summary>
 public sealed class UserProfileIntegrationTests : IAsyncLifetime
 {
-    private static readonly byte[] PngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D];
+    // A real, decodable image: the server now decodes and re-encodes every profile photo (512 px WebP).
+    private static readonly byte[] PngBytes = CreatePng();
+
+    private static byte[] CreatePng()
+    {
+        using var bitmap = new SkiaSharp.SKBitmap(4, 4);
+        bitmap.Erase(new SkiaSharp.SKColor(18, 80, 180));
+        using var image = SkiaSharp.SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
+        return data.ToArray();
+    }
 
     private JupleDbContext _db = null!;
     private readonly List<long> _userIds = [];

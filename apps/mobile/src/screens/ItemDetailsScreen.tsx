@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
-  Image,
   Keyboard,
   Linking,
   Platform,
@@ -64,6 +63,8 @@ import {
   type ItemImage,
 } from '../images/api/imagesApi';
 import { RepresentativePhotoField } from '../images/RepresentativePhotoField';
+import { StableImage } from '../images/StableImage';
+import { imageCacheKey } from '../images/stableImageUri';
 import { representativePhotoUrl, resolveRepresentativePhoto } from '../items/representativePhoto';
 import {
   deleteItem,
@@ -805,6 +806,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   }
 
   const thumbnailUrl = representativePhotoUrl(representativePhoto);
+  // The user's own photo is the full (main) variant here; an automatic preview's URL is already stable.
+  const thumbnailCacheKey = representativePhoto?.kind === 'uploaded' ? imageCacheKey(representativePhoto.image.id, 'main') : null;
   const site = resolveSiteInfo(item.url);
 
   return (
@@ -823,13 +826,17 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         >
           {/* A. The link: a compact preview beside its (editable) title, the site, and opening it. */}
           <View style={styles.linkHeader} testID="item-details-preview">
-            {thumbnailUrl ? (
-              <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} testID="item-details-thumbnail" />
-            ) : (
-              <View style={[styles.thumbnail, styles.thumbnailFallback]} testID="item-details-thumbnail-fallback">
-                {site.id ? <SiteIcon siteId={site.id} size={30} /> : <LinkIcon color={colors.brand} size={26} />}
-              </View>
-            )}
+            <StableImage
+              cacheKey={thumbnailCacheKey}
+              fallback={
+                <View style={[styles.thumbnail, styles.thumbnailFallback]} testID="item-details-thumbnail-fallback">
+                  {site.id ? <SiteIcon siteId={site.id} size={30} /> : <LinkIcon color={colors.brand} size={26} />}
+                </View>
+              }
+              style={styles.thumbnail}
+              testID="item-details-thumbnail"
+              uri={thumbnailUrl}
+            />
             <View style={styles.linkText}>
               <TextInput
                 accessibilityLabel={t('item.titleLabel')}
@@ -920,6 +927,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
                     isRemovable={representativePhoto?.kind === 'uploaded'}
                     onChoose={pickAndUploadImage}
                     onRemove={removePhoto}
+                    photoCacheKey={thumbnailCacheKey}
                     photoUrl={thumbnailUrl}
                   />
                 )}

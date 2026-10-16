@@ -2,12 +2,14 @@ using Juple.Application.Collections;
 using Juple.Application.Collections.SetCollectionIconImage;
 using Juple.Application.Images;
 using Juple.Domain.Collections;
+using Juple.UnitTests.Images;
+using SkiaSharp;
 
 namespace Juple.UnitTests.Collections;
 
 public sealed class SetCollectionIconImageServiceTests
 {
-    private static readonly byte[] JpegBytes = [0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x01, 0x02, 0x03];
+    private static readonly byte[] JpegBytes = TestImages.Create(SKEncodedImageFormat.Jpeg, 40, 30);
 
     [Fact]
     public async Task Upload_StoresTheNewPhoto_ThenDeletesTheOneItReplaced()
@@ -19,7 +21,8 @@ public sealed class SetCollectionIconImageServiceTests
         var result = await service.UploadAsync(17, 41, JpegBytes);
 
         var uploaded = Assert.Single(storage.Uploaded);
-        Assert.Equal((17L, 41L, ImageFormat.Jpeg), (uploaded.Owner, uploaded.CollectionId, uploaded.Format));
+        Assert.Equal((17L, 41L, ImageFormat.WebP), (uploaded.Owner, uploaded.CollectionId, uploaded.Format));
+        TestImages.AssertWebP(uploaded.Content, 40, 30);
         Assert.Equal(uploaded.BlobName, store.LastBlobName);
         Assert.Equal(["items/17/collections/41/old.jpg"], storage.Deleted);
         Assert.Equal(41, result.Id);
@@ -40,6 +43,36 @@ public sealed class SetCollectionIconImageServiceTests
         Assert.Equal("file", exception.Field);
         Assert.Empty(storage.Uploaded);
         Assert.Null(store.LastBlobName);
+    }
+
+    [Fact]
+    public async Task Upload_StoresOneMetadataFreeOrientedWebP_WithinTheSmallImageBound()
+    {
+        // A landscape camera-style JPEG whose EXIF says "rotate 90" and carries a synthetic GPS location.
+        var source = TestImages.AddExifWithGps(TestImages.Create(SKEncodedImageFormat.Jpeg, 2000, 1000), orientation: 6);
+        Assert.True(TestImages.ContainsAscii(source, TestImages.MetadataMarker));
+        var storage = new FakeIconStorage();
+
+        await new SetCollectionIconImageService(new FakeCollectionStore(), storage, TimeProvider.System).UploadAsync(17, 41, source);
+
+        var uploaded = Assert.Single(storage.Uploaded);
+        Assert.Equal(ImageFormat.WebP, uploaded.Format);
+        TestImages.AssertWebP(uploaded.Content, 256, 512); // rotated to portrait, longest edge capped at 512
+        Assert.False(TestImages.ContainsAscii(uploaded.Content, "Exif"));
+        Assert.False(TestImages.ContainsAscii(uploaded.Content, TestImages.MetadataMarker));
+    }
+
+    [Fact]
+    public async Task Upload_RejectsHugeDeclaredDimensions_AndACorruptImage_WithoutTouchingStorage()
+    {
+        var storage = new FakeIconStorage();
+        var service = new SetCollectionIconImageService(new FakeCollectionStore(), storage, TimeProvider.System);
+        var pixelBomb = TestImages.Create(SKEncodedImageFormat.Png, ItemImageNormalizer.MaxInputEdge + 1, 1);
+        var truncated = JpegBytes[..(JpegBytes.Length / 2)];
+
+        await Assert.ThrowsAsync<InvalidItemImageException>(() => service.UploadAsync(17, 41, pixelBomb));
+        await Assert.ThrowsAsync<InvalidItemImageException>(() => service.UploadAsync(17, 41, truncated));
+        Assert.Empty(storage.Uploaded);
     }
 
     [Fact]
@@ -83,14 +116,14 @@ public sealed class SetCollectionIconImageServiceTests
 
     private sealed class FakeIconStorage : ICollectionIconImageStorage
     {
-        public List<(long Owner, long CollectionId, ImageFormat Format, string BlobName)> Uploaded { get; } = [];
+        public List<(long Owner, long CollectionId, ImageFormat Format, string BlobName, byte[] Content)> Uploaded { get; } = [];
 
         public List<string> Deleted { get; } = [];
 
         public Task<string> UploadCollectionIconAsync(long ownerUserId, long collectionId, ImageFormat format, byte[] content, CancellationToken cancellationToken = default)
         {
-            var blobName = $"items/{ownerUserId}/collections/{collectionId}/{Guid.NewGuid():N}.jpg";
-            Uploaded.Add((ownerUserId, collectionId, format, blobName));
+            var blobName = $"items/{ownerUserId}/collections/{collectionId}/{Guid.NewGuid():N}.webp";
+            Uploaded.Add((ownerUserId, collectionId, format, blobName, content));
             return Task.FromResult(blobName);
         }
 

@@ -7,7 +7,7 @@ import { isSessionLost } from '../../../../lib/authSession';
 import { collectionTile, type CollectionSummary } from '../../../../lib/collectionsView';
 import { unlockHeaders, unlockTokenFor } from '../../../../lib/collectionUnlock';
 import { grantHeaders, isCollaborationActive, itemRestorePath, membershipPath, moveStrategy, moveUndoPath, replicatePath, replicateResultMessage, transferPath, type ReplicateResult } from '../../../../lib/collectionOperations';
-import { representativePhotoUrl, type ItemImage } from '../../../../lib/itemDetails';
+import { representativePhotoKey, representativePhotoUrl, type ItemImage } from '../../../../lib/itemDetails';
 import { itemContextSearch, itemDeleteErrorMessage, itemEditHref, membershipErrorMessage } from '../../../../lib/itemEdit';
 import { notifyItemsChanged } from '../../../../lib/itemChanges';
 import { markEditOpenedFromDetails } from '../../../../lib/itemOverlay';
@@ -104,6 +104,7 @@ export function ItemDetailContent({
   // Until (or without) the photo list, the chosen cover stands in for the own photo.
   const coverAsImage: readonly ItemImage[] = item.coverImage?.readUrl ? [{ id: item.coverImage.id ?? 0, readUrl: item.coverImage.readUrl }] : [];
   const photoUrl = representativePhotoUrl(item.previewImageUrl, images.kind === 'loaded' ? images.items : coverAsImage, item.coverImage?.id);
+  const photoKey = representativePhotoKey(images.kind === 'loaded' ? images.items : coverAsImage, item.coverImage?.id);
   const title = displayTitleOf(item.title, item.url);
   const technical = title.kind === 'text' && title.technical;
   const siteId = siteIdOf(item.url);
@@ -221,7 +222,7 @@ export function ItemDetailContent({
   return (
     <article className={styles.quickContent} data-item-detail>
       <div className={styles.quickTop}>
-        <QuickThumb dictionary={dictionary} photoUrl={hasImage ? photoUrl : null} siteId={siteId} />
+        <QuickThumb dictionary={dictionary} photoKey={photoKey} photoUrl={hasImage ? photoUrl : null} siteId={siteId} />
         <div className={styles.quickHead}>
           <h2 className={styles.quickTitle} dir={technical ? 'ltr' : 'auto'}>
             {linkTitleText(title, dictionary)}
@@ -350,7 +351,7 @@ export function ItemDetailContent({
 }
 
 /** The head of a link's details: its picture, or - without one - a compact badge of its site instead of an empty media frame. */
-export function QuickThumb({ photoUrl, siteId, dictionary }: { readonly photoUrl: string | null; readonly siteId: ReturnType<typeof siteIdOf>; readonly dictionary: AppDictionary }) {
+export function QuickThumb({ photoUrl, photoKey = null, siteId, dictionary }: { readonly photoUrl: string | null; readonly photoKey?: string | null; readonly siteId: ReturnType<typeof siteIdOf>; readonly dictionary: AppDictionary }) {
   return photoUrl !== null ? (
     <div className={styles.quickThumb}>
       <LinkImage
@@ -360,6 +361,7 @@ export function QuickThumb({ photoUrl, siteId, dictionary }: { readonly photoUrl
             <SiteIcon siteId={siteId} size={40} />
           </span>
         }
+        cacheKey={photoKey}
         src={photoUrl}
       />
     </div>

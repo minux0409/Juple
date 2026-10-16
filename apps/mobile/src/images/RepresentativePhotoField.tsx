@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ActionMenuDialog, type ActionMenuDialogAction } from '../components/ActionMenuDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EditIcon } from '../icons/EditIcon';
 import { ImageIcon } from '../icons/ImageIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { StableImage } from './StableImage';
 
 const THUMBNAIL_SIZE = 96;
 const EDIT_BADGE_SIZE = 28;
@@ -17,6 +18,8 @@ const COMPACT_EDIT_BADGE_SIZE = 22;
 interface RepresentativePhotoFieldProps {
   /** The photo shown (the user's own, or the link's automatic preview), or null for none. */
   readonly photoUrl: string | null;
+  /** The user's own photo's stable image-cache identity (images/stableImageUri.ts); null for a preview or a local file. */
+  readonly photoCacheKey?: string | null;
   /** True for the user's own photo - only that can be deleted (the automatic preview cannot). */
   readonly isRemovable: boolean;
   /** A photo change/removal is in flight: only this field shows it - never the whole screen. */
@@ -39,7 +42,7 @@ interface RepresentativePhotoFieldProps {
  * the user's own photo, and only after a confirmation). Never a second "+" - an Item has one photo.
  * Shared by ItemDetailsScreen (saves at once) and NewLinkReviewScreen (stages until 저장).
  */
-export function RepresentativePhotoField({ photoUrl, isRemovable, isBusy, disabled = false, compact = false, onChoose, onRemove }: RepresentativePhotoFieldProps) {
+export function RepresentativePhotoField({ photoUrl, photoCacheKey = null, isRemovable, isBusy, disabled = false, compact = false, onChoose, onRemove }: RepresentativePhotoFieldProps) {
   const { t } = useTranslation();
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [isRemoveConfirmVisible, setIsRemoveConfirmVisible] = useState(false);
@@ -85,7 +88,7 @@ export function RepresentativePhotoField({ photoUrl, isRemovable, isBusy, disabl
           style={[styles.thumbnailButton, compact && styles.compactThumbnail]}
           testID="representative-photo-edit"
         >
-          <Image source={{ uri: photoUrl }} style={[styles.thumbnail, compact && styles.compactThumbnail]} testID="representative-photo-image" />
+          <StableImage cacheKey={photoCacheKey} style={[styles.thumbnail, compact && styles.compactThumbnail]} testID="representative-photo-image" uri={photoUrl} />
           {isBusy ? (
             <View style={styles.busyOverlay} testID="representative-photo-busy">
               <ActivityIndicator color={colors.surface} />

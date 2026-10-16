@@ -5,6 +5,7 @@
  */
 
 import { lockedContextSearch } from './itemOpenGrant.ts';
+import { imageCacheKey } from './stableImageUri.ts';
 
 /** A short-lived read URL of an uploaded image (the Backend's RepresentativeImage). */
 export interface ImageRef {
@@ -85,6 +86,8 @@ export interface LinkView {
   /** A site with its own badge (the picture fallback), else null. */
   readonly siteId: KnownSiteId | null;
   readonly thumbnailUrl: string | null;
+  /** The stable image-cache identity of thumbnailUrl when it is the person's own photo (lib/stableImageUri.ts), else null. */
+  readonly thumbnailCacheKey?: string | null;
   /** When it was saved (Home / 보관함) or added to the Collection. */
   readonly timestampUtc: string;
   /** Where clicking it goes in this app - null when it cannot be opened here (a locked link). */
@@ -176,6 +179,15 @@ export function thumbnailOf(entry: Pick<ItemHistoryEntry, 'coverImage' | 'previe
   return isSafeHttpUrl(candidate) ? candidate : null;
 }
 
+/** The stable cache identity of the picture thumbnailOf chose: the own photo's id and variant; an external preview has none. */
+export function thumbnailKeyOf(entry: Pick<ItemHistoryEntry, 'coverImage' | 'representativeImage'>): string | null {
+  const own = entry.coverImage?.thumbnailReadUrl || entry.coverImage?.readUrl ? entry.coverImage : entry.representativeImage?.thumbnailReadUrl || entry.representativeImage?.readUrl ? entry.representativeImage : null;
+  if (!own) {
+    return null;
+  }
+  return imageCacheKey(own.id, own.thumbnailReadUrl ? 'thumb' : 'main');
+}
+
 /** A route id segment: a positive integer only - anything else is "not found" without asking the API. */
 export function parseRouteId(value: string | undefined): number | null {
   if (!value || !/^[1-9]\d{0,15}$/.test(value)) {
@@ -215,6 +227,7 @@ export function historyLinkView(entry: ItemHistoryEntry): LinkView {
     site: siteOf(entry.url),
     siteId: siteIdOf(entry.url),
     thumbnailUrl: thumbnailOf(entry),
+    thumbnailCacheKey: thumbnailKeyOf(entry),
     timestampUtc: entry.savedAtUtc,
     href: itemHref(entry.id),
   };
@@ -231,6 +244,7 @@ export function collectionLinkView(entry: CollectionItemEntry, collectionId: num
     site: siteOf(entry.url),
     siteId: siteIdOf(entry.url),
     thumbnailUrl: thumbnailOf(entry),
+    thumbnailCacheKey: thumbnailKeyOf(entry),
     timestampUtc: entry.addedAtUtc,
     href: mine ? itemHref(entry.itemId) : sharedItemHref(collectionId, entry.itemId),
   };

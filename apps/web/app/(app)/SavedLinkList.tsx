@@ -55,6 +55,7 @@ function Thumbnail({ link, className, fallbackSize }: { readonly link: LinkView;
     <div aria-hidden className={className}>
       <LinkImage
         fallback={<span className={styles.thumbnailFallback}>{link.locked ? <Glyph name="Lock" size={22} /> : <SiteIcon siteId={link.siteId} size={fallbackSize} />}</span>}
+        cacheKey={link.thumbnailCacheKey}
         src={link.thumbnailUrl}
       />
     </div>

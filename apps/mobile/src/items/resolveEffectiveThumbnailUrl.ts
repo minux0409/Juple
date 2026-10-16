@@ -1,4 +1,5 @@
 import type { RepresentativeImage } from '../images/api/imagesApi';
+import { imageCacheKey } from '../images/stableImageUri';
 import { usablePreviewImageUrl } from './usablePreviewImageUrl';
 
 export interface EffectiveThumbnailSourceItem {
@@ -23,10 +24,20 @@ export interface EffectiveThumbnailSourceItem {
  * never affected - they come first and are Juple's own read URLs.
  */
 export function resolveEffectiveThumbnailUrl(item: EffectiveThumbnailSourceItem, nowMs: number = Date.now()): string | null {
-  const ownPhoto = item.coverImage?.thumbnailReadUrl ?? item.coverImage?.readUrl
-    ?? item.representativeImage?.thumbnailReadUrl ?? item.representativeImage?.readUrl;
-  if (ownPhoto != null) {
-    return ownPhoto;
+  return resolveEffectiveThumbnail(item, nowMs).url;
+}
+
+/**
+ * The same choice plus its stable image-cache identity (see images/stableImageUri.ts): the user's own photo is keyed by its image
+ * id and the variant actually chosen (the list thumbnail, or the full photo of an older upload that has none); an external
+ * preview has no key - its URL is already stable.
+ */
+export function resolveEffectiveThumbnail(item: EffectiveThumbnailSourceItem, nowMs: number = Date.now()): { readonly url: string | null; readonly cacheKey: string | null } {
+  const own = item.coverImage ?? item.representativeImage;
+  if (own != null) {
+    return own.thumbnailReadUrl
+      ? { url: own.thumbnailReadUrl, cacheKey: imageCacheKey(own.id, 'thumb') }
+      : { url: own.readUrl, cacheKey: imageCacheKey(own.id, 'main') };
   }
-  return usablePreviewImageUrl(item.previewImageUrl, nowMs);
+  return { url: usablePreviewImageUrl(item.previewImageUrl, nowMs), cacheKey: null };
 }

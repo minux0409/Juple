@@ -8,8 +8,10 @@ using Juple.Application.Users.CurrentUser;
 using Juple.Application.Users.DeleteAccount;
 using Juple.Application.Users.Profile;
 using Juple.Domain.Users;
+using Juple.UnitTests.Images;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using SkiaSharp;
 
 namespace Juple.UnitTests.Users;
 
@@ -118,8 +120,38 @@ public sealed class AccountAndProfileEndpointTests
 
     // ---------- profile photo ----------
 
-    private static readonly byte[] Png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0];
-    private static readonly byte[] Jpeg = [0xFF, 0xD8, 0xFF, 0xE0, 0, 0, 0, 0];
+    private static readonly byte[] Png = TestImages.Create(SKEncodedImageFormat.Png, 64, 48);
+    private static readonly byte[] Jpeg = TestImages.Create(SKEncodedImageFormat.Jpeg, 64, 48);
+
+    [Fact]
+    public async Task ProfileImage_IsStoredAsOneMetadataFreeOrientedWebP_WithinTheSmallImageBound()
+    {
+        // A Web-style camera upload: large, EXIF "rotate 90", and a synthetic GPS location.
+        var source = TestImages.AddExifWithGps(TestImages.Create(SKEncodedImageFormat.Jpeg, 3000, 1500), orientation: 6);
+        Assert.True(TestImages.ContainsAscii(source, TestImages.MetadataMarker));
+        var storage = new FakeProfileImageStorage();
+
+        await new UserProfileService(new UserDisplayNameTests.FakeProfileStore(), TimeProvider.System, storage).SetProfileImageAsync(UserId, source);
+
+        Assert.Equal(ImageFormat.WebP, storage.LastFormat);
+        TestImages.AssertWebP(storage.LastContent!, 256, 512);
+        Assert.False(TestImages.ContainsAscii(storage.LastContent!, "Exif"));
+        Assert.False(TestImages.ContainsAscii(storage.LastContent!, TestImages.MetadataMarker));
+    }
+
+    [Fact]
+    public async Task ProfileImage_RejectsHugeDeclaredDimensions_AndACorruptImage_WithoutTouchingStorage()
+    {
+        var store = new UserDisplayNameTests.FakeProfileStore();
+        var storage = new FakeProfileImageStorage();
+        var service = new UserProfileService(store, TimeProvider.System, storage);
+
+        await Assert.ThrowsAsync<InvalidItemImageException>(() => service.SetProfileImageAsync(UserId, TestImages.Create(SKEncodedImageFormat.Png, 1, ItemImageNormalizer.MaxInputEdge + 1)));
+        await Assert.ThrowsAsync<InvalidItemImageException>(() => service.SetProfileImageAsync(UserId, Jpeg[..(Jpeg.Length / 2)]));
+
+        Assert.Empty(storage.Blobs);
+        Assert.Null(store.BlobName);
+    }
 
     [Fact]
     public async Task ProfileImage_Upload_StoresUnderTheUsersOwnPrefix_AndReturnsUrlAndVersion()
@@ -339,8 +371,14 @@ public sealed class AccountAndProfileEndpointTests
 
         public bool FailSigning { get; init; }
 
+        public ImageFormat? LastFormat { get; private set; }
+
+        public byte[]? LastContent { get; private set; }
+
         public Task<string> UploadProfileImageAsync(long userId, ImageFormat format, byte[] content, CancellationToken cancellationToken = default)
         {
+            LastFormat = format;
+            LastContent = content;
             var name = $"{PrefixFor(userId)}{Guid.NewGuid():N}.{format.ToString().ToLowerInvariant()}";
             Blobs.Add(name);
             return Task.FromResult(name);

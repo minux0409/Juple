@@ -226,6 +226,7 @@ describe('Home (오늘 저장한 링크)', () => {
       site: 'example.com',
       siteId: null,
       thumbnailUrl: 'https://img.test/cover',
+      thumbnailCacheKey: null, // a photo without an id has no stable identity
       timestampUtc: '2026-10-12T01:00:00Z',
       href: '/items/1',
     });

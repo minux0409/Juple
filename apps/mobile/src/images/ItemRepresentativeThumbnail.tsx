@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { Image, StyleSheet } from 'react-native';
+import { useStableImageUri } from './stableImageUri';
 
 interface ItemRepresentativeThumbnailProps {
   /**
@@ -9,6 +9,8 @@ interface ItemRepresentativeThumbnailProps {
    * given row (see resolveEffectiveThumbnailUrl) is the caller's job.
    */
   readonly imageUrl: string | null;
+  /** The photo's stable image-cache identity (resolveEffectiveThumbnail) - the kept URI then comes from the image cache. */
+  readonly cacheKey?: string | null;
 }
 
 /**
@@ -17,20 +19,19 @@ interface ItemRepresentativeThumbnailProps {
  * thumbnail must never break the row, so failure just means "no thumbnail", collapsing back to
  * the existing text-only row layout.
  */
-export function ItemRepresentativeThumbnail({ imageUrl }: ItemRepresentativeThumbnailProps) {
-  // Tracks the specific URL that failed, not just a boolean - a later refresh hands back a fresh
-  // short-TTL SAS URL for the same Item, which deserves its own load attempt rather than staying
-  // hidden forever because a previous URL once failed.
-  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+export function ItemRepresentativeThumbnail({ imageUrl, cacheKey }: ItemRepresentativeThumbnailProps) {
+  // The kept URI for this photo first, then (once) this response's fresh short-TTL URL; a later refresh hands back a new fresh
+  // URL, which gets its own attempt rather than staying hidden forever because an earlier one failed.
+  const { uri, onError } = useStableImageUri(cacheKey, imageUrl);
 
-  if (!imageUrl || imageUrl === failedUrl) {
+  if (!uri) {
     return null;
   }
 
   return (
     <Image
-      onError={() => setFailedUrl(imageUrl)}
-      source={{ uri: imageUrl }}
+      onError={onError}
+      source={{ uri }}
       style={styles.thumbnail}
     />
   );

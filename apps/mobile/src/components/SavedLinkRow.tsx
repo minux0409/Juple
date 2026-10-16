@@ -2,7 +2,8 @@ import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
-import { resolveEffectiveThumbnailUrl } from '../items/resolveEffectiveThumbnailUrl';
+import { resolveEffectiveThumbnail } from '../items/resolveEffectiveThumbnailUrl';
+import { imageCacheKey } from '../images/stableImageUri';
 import { useTranslation } from 'react-i18next';
 import { resolveSavedLinkDisplayTitle } from '../items/savedLinkPrimaryText';
 import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
@@ -71,14 +72,17 @@ export function SavedLinkRow({
     );
   }
   const primaryText = resolveSavedLinkDisplayTitle(item.title, item.url, t);
-  const thumbnailUrl = preferEffectiveThumbnail
-    ? resolveEffectiveThumbnailUrl(item)
-    : item.representativeImage?.readUrl ?? null;
+  const thumbnail = preferEffectiveThumbnail
+    ? resolveEffectiveThumbnail(item)
+    : {
+        url: item.representativeImage?.readUrl ?? null,
+        cacheKey: item.representativeImage ? imageCacheKey(item.representativeImage.id, 'main') : null,
+      };
 
   return (
     <View style={styles.row}>
       <View style={styles.thumbnailWrapper}>
-        <ItemRepresentativeThumbnail imageUrl={thumbnailUrl} />
+        <ItemRepresentativeThumbnail cacheKey={thumbnail.cacheKey} imageUrl={thumbnail.url} />
         {isActionInFlight ? (
           <View style={styles.thumbnailOverlay}>
             <ActivityIndicator color={colors.surface} size="small" />

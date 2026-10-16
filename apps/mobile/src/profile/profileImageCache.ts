@@ -55,6 +55,11 @@ export function replaceFailedProfileImageUri(jupleId: string, failedUri: string,
   }
 }
 
+/** Every way out of a session (AuthContext): no signed photo URL outlives it or reaches the next account. */
+export function clearProfileImageCache(): void {
+  entries.clear();
+}
+
 /** Test-only: starts every test from an empty session. */
 export function resetProfileImageCacheForTests(): void {
   entries.clear();

@@ -2,6 +2,7 @@ import { formatJupleId } from './accountDisplay.ts';
 import type { CollectionSummary } from './collectionsView.ts';
 import type { ReactionCount } from './itemCollaboration.ts';
 import { isSafeHttpUrl, type CollectionItemAdder, type ImageRef } from './savedLinks.ts';
+import { imageCacheKey } from './stableImageUri.ts';
 
 /**
  * A link's own page for the signed-in Web app - the mobile ItemDetailsScreen read side, on the same API:
@@ -94,6 +95,12 @@ export function sharedItemPath(collectionId: number, itemId: number): string {
 /** The photo the person can change or delete (mobile resolveRepresentativePhoto 'uploaded'): the chosen cover, else the first; none = no own photo. */
 export function ownPhotoOf(images: readonly ItemImage[], coverImageId: number | null | undefined): ItemImage | null {
   return images.find(image => image.id === coverImageId) ?? images[0] ?? null;
+}
+
+/** The stable cache identity of the picture representativePhotoUrl chose: the own photo's full (main) variant; a preview has none. */
+export function representativePhotoKey(images: readonly ItemImage[], coverImageId: number | null | undefined): string | null {
+  const own = images.find(image => image.id === coverImageId) ?? images[0];
+  return own && own.id > 0 ? imageCacheKey(own.id, 'main') : null;
 }
 
 export function representativePhotoUrl(previewImageUrl: string | null, images: readonly ItemImage[], coverImageId: number | null | undefined): string | null {

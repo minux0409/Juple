@@ -708,7 +708,7 @@ describe('Web V4: a content workspace', () => {
   it('Item Detail with a picture: a 180px thumbnail beside title / site / open icon, then grouped rows - one component for sheet and page', () => {
     const content = source('app/(app)/items/[itemId]/ItemDetailContent.tsx');
     assert.match(content, /const hasImage = photoUrl !== null;/);
-    assert.match(content, /<QuickThumb dictionary=\{dictionary\} photoUrl=\{hasImage \? photoUrl : null\} siteId=\{siteId\} \/>/);
+    assert.match(content, /<QuickThumb dictionary=\{dictionary\} photoKey=\{photoKey\} photoUrl=\{hasImage \? photoUrl : null\} siteId=\{siteId\} \/>/);
     assert.match(content, /return photoUrl !== null \? \(\s*<div className=\{styles\.quickThumb\}>/);
     assert.match(css, /\.quickThumb \{[^}]*width: 180px;[^}]*height: 135px;/);
     assert.match(css, /\.quickTitle \{[^}]*-webkit-line-clamp: 3;/);

@@ -4,3 +4,8 @@
 const { Dimensions } = require('react-native');
 
 Dimensions.set({ window: { ...Dimensions.get('window'), width: 411 } });
+
+// The kept signed photo URLs (src/images/stableImageUri.ts) are session-scoped module state: every test starts from an empty
+// session, exactly as the app does after a sign-out.
+// eslint-disable-next-line no-undef -- Jest's own global in a setupFilesAfterEnv file
+afterEach(() => { require('./src/images/stableImageUri').clearStableImageUris(); });

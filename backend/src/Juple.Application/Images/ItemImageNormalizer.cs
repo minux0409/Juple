@@ -16,6 +16,11 @@ public static class ItemImageNormalizer
     public const int MainQuality = 88;
     public const int ThumbnailQuality = 84;
 
+    // Profile photos and Collection icon photos are shown at most about 104 CSS px (Web profile editor; avatars and icon tiles are
+    // 22-72 px). 512 px - the Mobile picker's own size - covers that at up to ~5x density without keeping camera-sized pixels.
+    public const int SmallImageMaxEdge = 512;
+    public const int SmallImageQuality = 86;
+
     // Bounds are checked before pixel decode. The API runs in a 0.5 GiB container and some codecs
     // (notably PNG) cannot subsample during decode, so 32 MP caps one RGBA surface near 128 MiB while
     // still accepting ordinary 12-24 MP phone output. Higher-resolution camera modes must be reduced
@@ -24,6 +29,38 @@ public static class ItemImageNormalizer
     public const long MaxInputPixels = 32_000_000;
 
     public static NormalizedItemImage Normalize(byte[] content)
+    {
+        using var oriented = DecodeOriented(content, MainMaxEdge);
+        using var main = ResizeWithin(oriented, MainMaxEdge);
+        using var thumbnail = ResizeWithin(main, ThumbnailMaxEdge);
+
+        return new NormalizedItemImage(
+            EncodeWebP(main, MainQuality),
+            main.Width,
+            main.Height,
+            EncodeWebP(thumbnail, ThumbnailQuality),
+            thumbnail.Width,
+            thumbnail.Height);
+    }
+
+    /// <summary>
+    /// One small photo (a profile photo, a Collection icon photo): the same validation, orientation and metadata stripping as an
+    /// Item photo, re-encoded once as WebP with its longest edge at most <paramref name="maxEdge"/> (the aspect ratio is kept; the
+    /// clients' cover-fit framing is unchanged). Throws InvalidItemImageException for an invalid, corrupt or oversized image.
+    /// </summary>
+    public static NormalizedImage NormalizeSingle(byte[] content, int maxEdge, int quality)
+    {
+        using var oriented = DecodeOriented(content, maxEdge);
+        using var resized = ResizeWithin(oriented, maxEdge);
+        return new NormalizedImage(EncodeWebP(resized, quality), resized.Width, resized.Height);
+    }
+
+    /// <summary>
+    /// Validates the declared dimensions BEFORE any pixel is allocated, decodes at the smallest codec-supported size that still
+    /// covers <paramref name="targetEdge"/>, and applies the EXIF orientation. The returned bitmap carries pixels only - no EXIF,
+    /// GPS or other metadata survives the later re-encode.
+    /// </summary>
+    private static SKBitmap DecodeOriented(byte[] content, int targetEdge)
     {
         using var data = SKData.CreateCopy(content);
         using var codec = SKCodec.Create(data) ?? throw InvalidOrCorrupt();
@@ -37,10 +74,7 @@ public static class ItemImageNormalizer
                 $"Image dimensions must be at most {MaxInputEdge}px per edge and {MaxInputPixels / 1_000_000} megapixels.");
         }
 
-        // Ask the codec for a near-target decode size first (JPEG/WebP can avoid allocating every
-        // source pixel). PNG codecs may return the source dimensions, still bounded above.
-        var decodeScale = Math.Min(1f, (float)MainMaxEdge / Math.Max(sourceInfo.Width, sourceInfo.Height));
-        var decodedDimensions = codec.GetScaledDimensions(decodeScale);
+        var decodedDimensions = ChooseDecodeSize(codec, targetEdge);
         var decodeInfo = new SKImageInfo(
             decodedDimensions.Width,
             decodedDimensions.Height,
@@ -56,17 +90,46 @@ public static class ItemImageNormalizer
             throw InvalidOrCorrupt();
         }
 
-        using var oriented = ApplyOrientation(decoded, codec.EncodedOrigin);
-        using var main = ResizeWithin(oriented, MainMaxEdge);
-        using var thumbnail = ResizeWithin(main, ThumbnailMaxEdge);
+        return ApplyOrientation(decoded, codec.EncodedOrigin);
+    }
 
-        return new NormalizedItemImage(
-            EncodeWebP(main, MainQuality),
-            main.Width,
-            main.Height,
-            EncodeWebP(thumbnail, ThumbnailQuality),
-            thumbnail.Width,
-            thumbnail.Height);
+    /// <summary>
+    /// JPEG/WebP codecs can decode at a reduced size (JPEG in 1/8 steps), avoiding a full-resolution allocation. The codec rounds
+    /// to a size it supports, which can fall BELOW the target (3840 px asked for 1600 gives 3/8 = 1440); then the next larger
+    /// supported size is used so the final resize, not the decoder, decides the output size. PNG reports the source size.
+    /// </summary>
+    private static SKSizeI ChooseDecodeSize(SKCodec codec, int targetEdge)
+    {
+        var source = codec.Info.Size;
+        var longEdge = Math.Max(source.Width, source.Height);
+        if (longEdge <= targetEdge)
+        {
+            return source;
+        }
+
+        var desired = (float)targetEdge / longEdge;
+        var dimensions = codec.GetScaledDimensions(desired);
+        if (Math.Max(dimensions.Width, dimensions.Height) >= targetEdge)
+        {
+            return dimensions;
+        }
+
+        for (var eighths = 1; eighths < 8; eighths++)
+        {
+            var scale = eighths / 8f;
+            if (scale <= desired)
+            {
+                continue;
+            }
+
+            var candidate = codec.GetScaledDimensions(scale);
+            if (Math.Max(candidate.Width, candidate.Height) >= targetEdge)
+            {
+                return candidate;
+            }
+        }
+
+        return source;
     }
 
     private static SKBitmap ApplyOrientation(SKBitmap source, SKEncodedOrigin origin)

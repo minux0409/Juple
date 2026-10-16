@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { isExpiredMetaPreviewUrl } from '../../lib/metaPreviewExpiry';
+import { replaceFailedStableImageUri, resolveStableImageUri } from '../../lib/stableImageUri';
 
 /**
  * One remote picture (a link preview, a short-lived photo read URL, a Collection or profile photo) with the mobile tiles' failure
@@ -15,6 +16,7 @@ export function LinkImage({
   className,
   alt = '',
   eager = false,
+  cacheKey = null,
 }: {
   readonly src: string | null;
   readonly fallback: React.ReactNode;
@@ -22,15 +24,29 @@ export function LinkImage({
   readonly alt?: string;
   /** A picture that is on screen right now and local (a picked file's preview): no lazy loading. */
   readonly eager?: boolean;
+  /**
+   * The photo's stable identity (lib/stableImageUri.ts imageCacheKey) for the user's own uploaded photos: the first signed URL
+   * of this variant is reused so the browser cache serves it. None for external previews and local files.
+   */
+  readonly cacheKey?: string | null;
 }) {
-  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const [failedSrcs, setFailedSrcs] = useState<ReadonlySet<string>>(() => new Set());
   // An already-expired Meta CDN preview (Instagram) is certain to be refused: the fallback right away, no request.
   const [mountedAtMs] = useState(() => Date.now());
-  if (!src || src === failedSrc || isExpiredMetaPreviewUrl(src, mountedAtMs)) {
+  // The kept URL first, then (once) this response's fresh URL, then the fallback.
+  const kept = resolveStableImageUri(cacheKey, src);
+  const shown = [kept, src].find(candidate => !!candidate && !failedSrcs.has(candidate)) ?? null;
+  if (!shown || isExpiredMetaPreviewUrl(shown, mountedAtMs)) {
     return <>{fallback}</>;
   }
+  const onError = () => {
+    if (cacheKey && src && shown !== src) {
+      replaceFailedStableImageUri(cacheKey, shown, src);
+    }
+    setFailedSrcs(previous => new Set(previous).add(shown));
+  };
   return (
     // eslint-disable-next-line @next/next/no-img-element -- remote link previews / short-lived read URLs, not optimizable assets
-    <img alt={alt} className={className} decoding="async" loading={eager ? 'eager' : 'lazy'} onError={() => setFailedSrc(src)} referrerPolicy="no-referrer" src={src} />
+    <img alt={alt} className={className} decoding="async" loading={eager ? 'eager' : 'lazy'} onError={onError} referrerPolicy="no-referrer" src={shown} />
   );
 }

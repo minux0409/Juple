@@ -2,7 +2,8 @@ import { useMemo, type ReactNode } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SiteIcon } from '../icons/SiteIcon';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
-import { resolveEffectiveThumbnailUrl } from '../items/resolveEffectiveThumbnailUrl';
+import { resolveEffectiveThumbnail } from '../items/resolveEffectiveThumbnailUrl';
+import { imageCacheKey, useStableImageUri } from '../images/stableImageUri';
 import { useTranslation } from 'react-i18next';
 import { resolveSavedLinkDisplayTitle } from '../items/savedLinkPrimaryText';
 import { resolveSiteInfo } from '../items/resolveSiteInfo';
@@ -44,6 +45,14 @@ interface SavedLinkGridCardProps {
 export function SavedLinkGridCard({ item, isActionInFlight, preferEffectiveThumbnail, dateDisplayMode = 'time', addedBy, reactions }: SavedLinkGridCardProps) {
   const { fontScale } = useWindowDimensions();
   const { t } = useTranslation();
+  // Before the locked early return (hook order): the kept URI for this photo, else this response's fresh URL, else the site icon.
+  const thumbnail = preferEffectiveThumbnail
+    ? resolveEffectiveThumbnail(item)
+    : {
+        url: item.representativeImage?.readUrl ?? null,
+        cacheKey: item.representativeImage ? imageCacheKey(item.representativeImage.id, 'main') : null,
+      };
+  const { uri: imageUrl, onError: onImageError } = useStableImageUri(thumbnail.cacheKey, thumbnail.url);
   if (item.isCollectionLocked) {
     // A link of a locked Collection (redacted by the server): the SAME card - the square image area holds a lock, the
     // title area a fixed sentence (same reserved lines), the meta line only the saved time (no site icon).
@@ -56,11 +65,10 @@ export function SavedLinkGridCard({ item, isActionInFlight, preferEffectiveThumb
     </View>;
   }
   const displayTitle = resolveSavedLinkDisplayTitle(item.title, item.url, t);
-  const imageUrl = preferEffectiveThumbnail ? resolveEffectiveThumbnailUrl(item) : item.representativeImage?.readUrl ?? null;
   const site = resolveSiteInfo(item.url);
   return <View style={styles.card}>
     <View style={styles.image}>
-      {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.thumbnail} /> : <View style={styles.fallback}><SiteIcon siteId={site.id} size={42} /></View>}
+      {imageUrl ? <Image onError={onImageError} source={{ uri: imageUrl }} style={styles.thumbnail} /> : <View style={styles.fallback}><SiteIcon siteId={site.id} size={42} /></View>}
       {isActionInFlight ? <View style={styles.overlay}><ActivityIndicator color={colors.surface} size="small" /></View> : null}
     </View>
     <Text numberOfLines={SAVED_LINK_GRID_TITLE_MAX_LINES} style={[styles.title, { minHeight: TITLE_LINE_HEIGHT * SAVED_LINK_GRID_TITLE_MAX_LINES * fontScale }, displayTitle.isTechnicalIdentifier && ltrTextStyle]}>{displayTitle.text}</Text>

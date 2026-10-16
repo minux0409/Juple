@@ -107,11 +107,15 @@ public sealed class UserProfileService(
         }
 
         // Only the file's own bytes decide the format - never a client-supplied type or name.
-        var format = ImageFormatDetector.Detect(content)
+        _ = ImageFormatDetector.Detect(content)
             ?? throw new InvalidItemImageException("file", "Only JPEG, PNG, or WebP images are allowed.");
 
+        // The server owns the final form whatever the client did (the Mobile picker already resizes; the Web sends the source):
+        // decoded-size limits, EXIF orientation applied, every metadata block (EXIF/GPS/XMP) dropped, one 512 px WebP stored.
+        var normalized = ItemImageNormalizer.NormalizeSingle(content, ItemImageNormalizer.SmallImageMaxEdge, ItemImageNormalizer.SmallImageQuality);
+
         var storage = RequireStorage();
-        var blobName = await storage.UploadProfileImageAsync(userId, format, content, cancellationToken);
+        var blobName = await storage.UploadProfileImageAsync(userId, ImageFormat.WebP, normalized.Content, cancellationToken);
         (UserProfileRecord Profile, string? ReplacedBlobName) result;
         try
         {

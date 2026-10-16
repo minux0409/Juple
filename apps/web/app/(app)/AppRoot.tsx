@@ -36,6 +36,7 @@ import { TermsAgreement } from './TermsAgreement';
 import { ToastProvider } from './Toaster';
 import { CenteredMessage, Landing, type BusinessFact } from './Landing';
 import { ReauthDialog } from './ReauthDialog';
+import { clearStableImageUris } from '../../lib/stableImageUri';
 
 interface SignedInApp {
   readonly api: AppApi;
@@ -170,8 +171,9 @@ export function AppRoot({
       await msal.clearCache().catch(() => undefined);
       msal.setActiveAccount(null);
     }
-    // Collection unlock grants are this session's only.
+    // Collection unlock grants and the kept signed photo URLs are this session's only.
     forgetAllUnlocks();
+    clearStableImageUris();
     setAccount(null);
     setProfile(null);
     setEntitlement(null);
@@ -326,6 +328,7 @@ export function AppRoot({
       return;
     }
     setStatus('redirecting');
+    clearStableImageUris();
     // Clears MSAL's cache for this account and ends the Entra session, then returns to the start page (postLogoutRedirectUri).
     msal.logoutRedirect({ account: msal.getActiveAccount() ?? undefined, postLogoutRedirectUri: config.webBaseUrl }).catch(() => {
       void clearLocalSession(null);

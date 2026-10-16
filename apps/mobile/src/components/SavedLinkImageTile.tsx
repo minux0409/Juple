@@ -1,11 +1,12 @@
-import { memo, useState } from 'react';
+import { memo } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { LinkIcon } from '../icons/LinkIcon';
 import { LockIcon } from '../icons/LockIcon';
 import { SiteIcon } from '../icons/SiteIcon';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
-import { resolveEffectiveThumbnailUrl } from '../items/resolveEffectiveThumbnailUrl';
+import { resolveEffectiveThumbnail } from '../items/resolveEffectiveThumbnailUrl';
+import { useStableImageUri } from '../images/stableImageUri';
 import { resolveSavedLinkDisplayTitle } from '../items/savedLinkPrimaryText';
 import { resolveSiteInfo } from '../items/resolveSiteInfo';
 import { colors } from '../theme/tokens';
@@ -50,7 +51,9 @@ interface SavedLinkImageTileProps {
 function SavedLinkImageTileView({ item, onPress, onLongPress }: SavedLinkImageTileProps) {
   const { t } = useTranslation();
   // The URL that failed, not a flag: a refresh brings a fresh signed URL that deserves its own attempt.
-  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  // Before any early return (hook order): the kept URI for this photo, else this response's fresh URL, else the fallback.
+  const thumbnail = resolveEffectiveThumbnail(item);
+  const { uri: imageUrl, onError } = useStableImageUri(thumbnail.cacheKey, thumbnail.url);
 
   if (item.isCollectionLocked) {
     return (
@@ -60,8 +63,7 @@ function SavedLinkImageTileView({ item, onPress, onLongPress }: SavedLinkImageTi
     );
   }
 
-  const imageUrl = resolveEffectiveThumbnailUrl(item);
-  const showImage = imageUrl !== null && imageUrl !== failedUrl;
+  const showImage = imageUrl !== null;
   const siteId = resolveSiteInfo(item.url).id;
   return (
     <Pressable
@@ -76,7 +78,7 @@ function SavedLinkImageTileView({ item, onPress, onLongPress }: SavedLinkImageTi
       testID="saved-link-image-tile"
     >
       {showImage ? (
-        <Image onError={() => setFailedUrl(imageUrl)} resizeMode="cover" source={{ uri: imageUrl }} style={styles.picture} testID="saved-link-image-tile-picture" />
+        <Image onError={onError} resizeMode="cover" source={{ uri: imageUrl }} style={styles.picture} testID="saved-link-image-tile-picture" />
       ) : (
         <View style={styles.fallback} testID="saved-link-image-tile-fallback">
           {siteId !== null ? <SiteIcon siteId={siteId} size={48} /> : <LinkIcon color={colors.textSecondary} size={30} />}

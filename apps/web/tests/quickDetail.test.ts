@@ -61,7 +61,7 @@ describe('Quick Detail sheet: behaviour', () => {
     assert.match(content, /state\.kind === 'gated' && lockedBy !== null && itemId !== null\) \{\s*return <GatedLink/);
     assert.doesNotMatch(content, /\/permanent/);
     assert.match(content, /\{item\.memo\?\.trim\(\) \? \(/, 'the memo only when it is written (nothing invented)');
-    assert.match(content, /<QuickThumb dictionary=\{dictionary\} photoUrl=\{hasImage \? photoUrl : null\} siteId=\{siteId\} \/>/, 'the picture only when there is one');
+    assert.match(content, /<QuickThumb dictionary=\{dictionary\} photoKey=\{photoKey\} photoUrl=\{hasImage \? photoUrl : null\} siteId=\{siteId\} \/>/, 'the picture only when there is one');
     assert.match(content, /return photoUrl !== null \? \(\s*<div className=\{styles\.quickThumb\}>/);
   });
 

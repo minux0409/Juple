@@ -56,10 +56,11 @@ describe('SavedLinkImageTile', () => {
   });
 
   it('uses the same picture priority as every card: cover, then first photo, then link preview', () => {
-    const photo = (readUrl: string) => ({ readUrl } as never);
+    // Real photos always carry their own image id (the stable image-cache identity).
+    const photo = (id: number, readUrl: string) => ({ id, readUrl } as never);
     const urlOf = (item: ItemHistoryEntry) => renderTile(item).renderer.root.findByType(Image).props.source.uri;
-    expect(urlOf(makeItem({ coverImage: photo('cover'), representativeImage: photo('first'), previewImageUrl: 'preview' }))).toBe('cover');
-    expect(urlOf(makeItem({ representativeImage: photo('first'), previewImageUrl: 'preview' }))).toBe('first');
+    expect(urlOf(makeItem({ coverImage: photo(1, 'cover'), representativeImage: photo(2, 'first'), previewImageUrl: 'preview' }))).toBe('cover');
+    expect(urlOf(makeItem({ representativeImage: photo(2, 'first'), previewImageUrl: 'preview' }))).toBe('first');
     expect(urlOf(makeItem({ previewImageUrl: 'preview' }))).toBe('preview');
   });
 

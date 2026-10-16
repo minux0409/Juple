@@ -66,7 +66,7 @@ describe('expired Meta previews are never requested', () => {
   it('LinkImage (every in-app picture) shows its fallback without an <img> for an expired one', () => {
     const image = source('app/(app)/LinkImage.tsx');
     assert.match(image, /const \[mountedAtMs\] = useState\(\(\) => Date\.now\(\)\);/);
-    assert.match(image, /if \(!src \|\| src === failedSrc \|\| isExpiredMetaPreviewUrl\(src, mountedAtMs\)\) \{\s*return <>\{fallback\}<\/>;/);
+    assert.match(image, /if \(!shown \|\| isExpiredMetaPreviewUrl\(shown, mountedAtMs\)\) \{\s*return <>\{fallback\}<\/>;/);
   });
 
   it('the public share card shows its globe without an <img> for an expired one', () => {

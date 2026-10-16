@@ -24,7 +24,7 @@ public sealed class UploadItemImageServiceTests
     {
         var store = new FakeItemImageStore();
         var tooLargeContent = new byte[10 * 1024 * 1024 + 1];
-        CreateImage(SKEncodedImageFormat.Jpeg, 2, 2).CopyTo(tooLargeContent, 0);
+        TestImages.Create(SKEncodedImageFormat.Jpeg, 2, 2).CopyTo(tooLargeContent, 0);
 
         await Assert.ThrowsAsync<InvalidItemImageException>(
             () => new UploadItemImageService(store, new FixedTimeProvider()).UploadAsync(17, 41, tooLargeContent));
@@ -35,7 +35,7 @@ public sealed class UploadItemImageServiceTests
     [Fact]
     public async Task UploadAsync_WhenValidImageIsPaddedToExactly10Megabytes_StillSucceeds()
     {
-        var source = CreateImage(SKEncodedImageFormat.Jpeg, 4, 3);
+        var source = TestImages.Create(SKEncodedImageFormat.Jpeg, 4, 3);
         var maxSizeContent = new byte[10 * 1024 * 1024];
         source.CopyTo(maxSizeContent, 0);
         var store = new FakeItemImageStore();
@@ -54,11 +54,11 @@ public sealed class UploadItemImageServiceTests
         var store = new FakeItemImageStore();
 
         await new UploadItemImageService(store, new FixedTimeProvider()).UploadAsync(
-            17, 41, CreateImage(sourceFormat, 900, 600));
+            17, 41, TestImages.Create(sourceFormat, 900, 600));
 
         var normalized = Assert.IsType<NormalizedItemImage>(store.LastImage);
-        AssertWebP(normalized.MainContent, 900, 600);
-        AssertWebP(normalized.ThumbnailContent, 512, 341);
+        TestImages.AssertWebP(normalized.MainContent, 900, 600);
+        TestImages.AssertWebP(normalized.ThumbnailContent, 512, 341);
         Assert.Equal((900, 600), (normalized.MainWidth, normalized.MainHeight));
         Assert.Equal((512, 341), (normalized.ThumbnailWidth, normalized.ThumbnailHeight));
     }
@@ -69,12 +69,12 @@ public sealed class UploadItemImageServiceTests
         var store = new FakeItemImageStore();
 
         await new UploadItemImageService(store, new FixedTimeProvider()).UploadAsync(
-            17, 41, CreateImage(SKEncodedImageFormat.Jpeg, 3000, 1000));
+            17, 41, TestImages.Create(SKEncodedImageFormat.Jpeg, 3000, 1000));
 
         var normalized = Assert.IsType<NormalizedItemImage>(store.LastImage);
-        // JPEG's native scaled decode chooses its nearest efficient 1/2 step (1500px), still under
-        // the 1600px bound without allocating the 3000px source bitmap.
-        Assert.Equal((1500, 500), (normalized.MainWidth, normalized.MainHeight));
+        // JPEG decodes at the smallest native step still covering 1600px (5/8 = 1875px - never the 3000px
+        // source bitmap), then the resize lands exactly on the 1600px bound.
+        Assert.Equal((1600, 533), (normalized.MainWidth, normalized.MainHeight));
         Assert.Equal((512, 171), (normalized.ThumbnailWidth, normalized.ThumbnailHeight));
         Assert.InRange(Math.Abs((double)normalized.MainWidth / normalized.MainHeight - 3), 0, 0.01);
     }
@@ -82,23 +82,23 @@ public sealed class UploadItemImageServiceTests
     [Fact]
     public async Task UploadAsync_AppliesPortraitExifOrientationAndStripsMetadata()
     {
-        var source = AddExifOrientation(CreateImage(SKEncodedImageFormat.Jpeg, 80, 40), orientation: 6);
-        Assert.True(ContainsAscii(source, "Exif"));
+        var source = TestImages.AddExifOrientation(TestImages.Create(SKEncodedImageFormat.Jpeg, 80, 40), orientation: 6);
+        Assert.True(TestImages.ContainsAscii(source, "Exif"));
         var store = new FakeItemImageStore();
 
         await new UploadItemImageService(store, new FixedTimeProvider()).UploadAsync(17, 41, source);
 
         var normalized = Assert.IsType<NormalizedItemImage>(store.LastImage);
         Assert.Equal((40, 80), (normalized.MainWidth, normalized.MainHeight));
-        Assert.False(ContainsAscii(normalized.MainContent, "Exif"));
-        Assert.False(ContainsAscii(normalized.ThumbnailContent, "Exif"));
+        Assert.False(TestImages.ContainsAscii(normalized.MainContent, "Exif"));
+        Assert.False(TestImages.ContainsAscii(normalized.ThumbnailContent, "Exif"));
     }
 
     [Fact]
     public async Task UploadAsync_WhenDimensionsExceedSafeEdge_RejectsBeforeStoreCall()
     {
         var store = new FakeItemImageStore();
-        var source = CreateImage(SKEncodedImageFormat.Png, ItemImageNormalizer.MaxInputEdge + 1, 1);
+        var source = TestImages.Create(SKEncodedImageFormat.Png, ItemImageNormalizer.MaxInputEdge + 1, 1);
 
         var exception = await Assert.ThrowsAsync<InvalidItemImageException>(
             () => new UploadItemImageService(store, new FixedTimeProvider()).UploadAsync(17, 41, source));
@@ -111,7 +111,7 @@ public sealed class UploadItemImageServiceTests
     public async Task UploadAsync_WhenPixelCountExceedsSafeLimit_RejectsBeforeStoreCall()
     {
         var store = new FakeItemImageStore();
-        var source = CreateImage(SKEncodedImageFormat.Png, 6_000, 6_000);
+        var source = TestImages.Create(SKEncodedImageFormat.Png, 6_000, 6_000);
 
         var exception = await Assert.ThrowsAsync<InvalidItemImageException>(
             () => new UploadItemImageService(store, new FixedTimeProvider()).UploadAsync(17, 41, source));
@@ -151,53 +151,12 @@ public sealed class UploadItemImageServiceTests
         var fixedTime = new DateTimeOffset(2026, 9, 2, 10, 0, 0, TimeSpan.Zero);
 
         await new UploadItemImageService(store, new FixedTimeProvider(fixedTime)).UploadAsync(
-            17, 41, CreateImage(SKEncodedImageFormat.Jpeg, 10, 10));
+            17, 41, TestImages.Create(SKEncodedImageFormat.Jpeg, 10, 10));
 
         Assert.Equal(17, store.LastUserId);
         Assert.Equal(41, store.LastItemId);
         Assert.Equal(fixedTime, store.LastCreatedAtUtc);
     }
-
-    private static byte[] CreateImage(SKEncodedImageFormat format, int width, int height)
-    {
-        using var bitmap = new SKBitmap(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
-        using (var canvas = new SKCanvas(bitmap))
-        {
-            canvas.Clear(new SKColor(242, 244, 248));
-            using var paint = new SKPaint { Color = new SKColor(18, 80, 180), IsAntialias = true };
-            canvas.DrawRect(0, 0, Math.Max(1, width / 2f), height, paint);
-        }
-        using var image = SKImage.FromBitmap(bitmap);
-        using var data = image.Encode(format, 92) ?? throw new InvalidOperationException("Test image encode failed.");
-        return data.ToArray();
-    }
-
-    private static void AssertWebP(byte[] content, int width, int height)
-    {
-        Assert.Equal("RIFF", System.Text.Encoding.ASCII.GetString(content, 0, 4));
-        Assert.Equal("WEBP", System.Text.Encoding.ASCII.GetString(content, 8, 4));
-        using var bitmap = SKBitmap.Decode(content);
-        Assert.NotNull(bitmap);
-        Assert.Equal((width, height), (bitmap.Width, bitmap.Height));
-    }
-
-    private static byte[] AddExifOrientation(byte[] jpeg, ushort orientation)
-    {
-        byte[] app1 =
-        [
-            0xFF, 0xE1, 0x00, 0x22,
-            0x45, 0x78, 0x69, 0x66, 0x00, 0x00,
-            0x4D, 0x4D, 0x00, 0x2A, 0x00, 0x00, 0x00, 0x08,
-            0x00, 0x01,
-            0x01, 0x12, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01,
-            (byte)(orientation >> 8), (byte)orientation, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00,
-        ];
-        return [.. jpeg[..2], .. app1, .. jpeg[2..]];
-    }
-
-    private static bool ContainsAscii(byte[] content, string value) =>
-        System.Text.Encoding.ASCII.GetString(content).Contains(value, StringComparison.Ordinal);
 
     private sealed class FakeItemImageStore : IItemImageStore
     {
