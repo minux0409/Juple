@@ -21,8 +21,8 @@ param alertEmailAddress = readEnvironmentVariable('JUPLE_MONITORING_PROD_ALERT_E
 // while an Entra sign-in account deletion keeps failing (3 failed runs in 30 minutes = 15 minutes of a persisting Graph failure).
 param containerAppAlertsEnabled = true
 
-// Alert 5 - Key Vault secret near-expiry / expired (Entra account-deletion client secrets end 2027-04-13). Prepared, NOT enabled: turning it
-// on registers / uses the Microsoft.EventGrid resource provider and creates an Event Grid system topic on kv-juple-prod-y5v2isrk3z (no fixed
-// cost). Set true only after that is approved; until then the rotation date is tracked by the runbook reminder.
-param keyVaultExpiryAlertsEnabled = false
+// Alert 5 - Key Vault secret near-expiry / expired (Entra account-deletion client secrets end 2027-04-13). Enabled 2026-10-16 (approved):
+// the Microsoft.EventGrid provider is registered and an Event Grid system topic on kv-juple-prod-y5v2isrk3z forwards SecretNearExpiry (30 days
+// ahead - the platform's only lead time) and SecretExpired to ag-juple-prod. No fixed cost; no Function / Logic App for extra reminders.
+param keyVaultExpiryAlertsEnabled = true
 param keyVaultName = 'kv-juple-prod-y5v2isrk3z'
