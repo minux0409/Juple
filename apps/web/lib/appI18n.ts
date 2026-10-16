@@ -100,9 +100,20 @@ export const LANGUAGE_LABEL_KEYS: Readonly<Record<LanguagePreference, MobileStri
 /** Strings the mobile app does not have - see appDictionary.ts (WEB_ONLY). */
 export interface WebOnlyStrings {
 
-  readonly brandTagline: string;
-  /** The landing's main action for a signed-out visitor (starts the existing sign-in). */
-  readonly startOnWeb: string;
+  readonly signInHeadlineLine1: string;
+  readonly signInHeadlineLine2: string;
+  readonly signInSupportingText: string;
+  readonly signInTitle: string;
+  readonly signInDescription: string;
+  readonly signInMicrosoftNote: string;
+  readonly signInFeatureSave: string;
+  readonly signInFeatureOrganize: string;
+  readonly signInFeatureShare: string;
+  readonly businessInfo: string;
+  readonly businessInfoTitle: string;
+  readonly privacyLink: string;
+  readonly termsLink: string;
+  readonly accountDeletionLink: string;
   readonly signInConfigError: string;
   readonly sessionEnded: string;
   readonly configMissingTitle: string;

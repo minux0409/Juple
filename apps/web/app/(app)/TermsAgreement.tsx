@@ -5,6 +5,7 @@ import type { AppApi } from '../../lib/appApi';
 import type { AppDictionary } from '../../lib/appI18n';
 import { isSessionLost } from '../../lib/authSession';
 import { parseTermsStatus, TERMS_ACCEPTANCE_PATH, type TermsStatus } from '../../lib/safety';
+import { BrandIcon } from './BrandIcon';
 import styles from './app.module.css';
 
 type Document = 'terms' | 'privacy';
@@ -72,7 +73,10 @@ export function TermsAgreement({
   return (
     <main aria-labelledby={titleId} className={styles.agreementPage} data-terms-agreement>
       <form className={styles.agreementCard} noValidate onSubmit={accept}>
-        <p className={styles.agreementBrand}>Juple</p>
+        <div className={styles.agreementLockup}>
+          <BrandIcon size={38} />
+          <span className={styles.brandWordmarkSmall}>Juple</span>
+        </div>
         <h1 className={styles.agreementTitle} id={titleId}>
           {dictionary.agreementTitle}
         </h1>

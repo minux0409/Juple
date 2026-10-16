@@ -42,11 +42,10 @@ function PeopleGlyph() {
  * The Juple landing (server-rendered): the lockup, the product line, the three things the app really does (save links, organize them
  * into collections, share and collect together), the actions, the legal pages and the operator's details.
  *
- * One landing, two places: "/" for a signed-out visitor of the Web app (the action is 웹에서 시작하기 - the existing Entra sign-in),
- * and /welcome in public-only mode (no sign-in at all). The Google Play button appears only once a public listing URL is configured -
+ * The public /welcome page. The Google Play button appears only once a public listing URL is configured -
  * never a placeholder, never an invitation-only test track link.
  */
-export function JupleLanding({ locale, store, primaryAction }: { locale: Locale; store: LandingStorePlan; primaryAction?: React.ReactNode }) {
+export function JupleLanding({ locale, store }: { locale: Locale; store: LandingStorePlan }) {
   const dict = getDictionary(locale);
   const legal = readLegalOperatorConfig();
   const facts = operatorFacts(legal).filter(fact => fact.label !== '서비스');
@@ -71,7 +70,6 @@ export function JupleLanding({ locale, store, primaryAction }: { locale: Locale;
           <br />
           {dict.landingHeadlineLine2}
         </p>
-        {primaryAction}
         <h2 className={landing.visuallyHidden}>{dict.landingFeaturesHeading}</h2>
         <ul className={landing.features}>
           {features.map(({ key, Glyph, title, text }) => (

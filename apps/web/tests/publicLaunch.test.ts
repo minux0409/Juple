@@ -151,13 +151,17 @@ describe('public landing page', () => {
     assert.match(landing, /operatorFacts\(legal\)/);
   });
 
-  it('the Web app shows the same landing to a signed-out visitor at "/", with 웹에서 시작하기 starting the existing sign-in', () => {
+  it('the Web app shows the focused login UI at "/" while /welcome keeps the marketing landing', () => {
     const layout = source('app/(app)/layout.tsx');
-    assert.match(layout, /<JupleLanding[\s\S]*primaryAction=\{<SignInCta label=\{dictionary\.startOnWeb\} \/>\}/);
-    assert.match(layout, /signedOutLanding=\{signedOutLanding\}/);
+    assert.doesNotMatch(layout, /JupleLanding|SignInCta|signedOutLanding/);
+    assert.match(layout, /businessFacts=\{businessFacts\}/);
     const root = source('app/(app)/AppRoot.tsx');
-    assert.match(root, /if \(status === 'signedOut'\) \{\s*return signedOutLanding \? \(\s*<SignInActionContext\.Provider value=\{\{ signIn: \(\) => void signIn\(\), notice \}\}>\{signedOutLanding\}/);
-    assert.match(source('app/(app)/SignInCta.tsx'), /onClick=\{action\.signIn\}/);
+    assert.match(root, /if \(status === 'signedOut'\) \{\s*return <Landing businessFacts=\{businessFacts\} dictionary=\{dictionary\} notice=\{notice\} onSignIn=\{signIn\} \/>/);
+    const login = source('app/(app)/Landing.tsx');
+    assert.match(login, /className=\{styles\.signInLayout\}/);
+    assert.match(login, /onClick=\{onSignIn\}/);
+    assert.match(login, /href="\/privacy"[\s\S]*href="\/terms"[\s\S]*href="\/account-deletion"/);
+    assert.match(source('app/welcome/page.tsx'), /<JupleLanding locale=\{locale\} store=\{store\} \/>/);
     assert.match(source('app/(app)/page.tsx'), /buildSiteMetadata\(dict\.landingDescription, '\/'\)/);
   });
 });

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { getDictionary, resolveLocale } from '../lib/i18n.ts';
 import { planInstallCta, planSharePage } from '../lib/installCta.ts';
@@ -10,6 +11,7 @@ import { securityHeaders } from '../lib/securityHeaders.ts';
 
 const API = 'https://api.test';
 const ID = 'AbCdEfGh12345678';
+const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 function fakeApi(overrides: Partial<ShareApi> = {}): ShareApi & { calls: string[] } {
   const calls: string[] = [];
@@ -146,12 +148,15 @@ describe('install / open links', () => {
     assert.deepEqual(planInstallCta({ platform: 'other', ...urls }), { open: false, googlePlay: true, appStore: true, comingSoon: false });
   });
 
-  it('with no store configured (DEV) the visitor gets a plain "coming soon", never a dead button or an invented URL', () => {
+  it('with no store configured the visitor gets no placeholder or dead button', () => {
     const none = { googlePlayUrl: undefined, appStoreUrl: undefined };
     assert.equal(planInstallCta({ platform: 'ios', ...none, hasOpenInAppUrl: true }).comingSoon, true);
     assert.equal(planInstallCta({ platform: 'other', ...none, hasOpenInAppUrl: true }).comingSoon, true);
     // Android still has the open-in-app button, so it is not a dead end.
     assert.deepEqual(planInstallCta({ platform: 'android', ...none, hasOpenInAppUrl: true }), { open: true, googlePlay: false, appStore: false, comingSoon: false });
+    const install = source('app/c/[publicId]/InstallCta.tsx');
+    assert.match(install, /if \(plan\.comingSoon\) \{\s*return null;/);
+    assert.doesNotMatch(install, /comingSoonText|Juple app is coming soon|Juple 앱이 곳 출시/);
   });
 
   it('platform sniffing', () => {
@@ -176,7 +181,7 @@ describe('web safety and copy', () => {
     const ko = getDictionary('ko');
     const en = getDictionary('en');
     assert.deepEqual(Object.keys(ko).sort(), Object.keys(en).sort());
-    for (const key of ['openInApp', 'installComingSoon', 'unavailableTitle', 'unavailableMessage', 'metaDescription'] as const) {
+    for (const key of ['openInApp', 'unavailableTitle', 'unavailableMessage', 'metaDescription'] as const) {
       assert.ok(ko[key].length > 0 && en[key].length > 0);
     }
     assert.equal(resolveLocale('ko-KR,ko;q=0.9'), 'ko');

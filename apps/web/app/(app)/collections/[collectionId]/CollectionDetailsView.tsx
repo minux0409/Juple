@@ -39,6 +39,7 @@ import { useRouter } from 'next/navigation';
 import { ActionMenu, type MenuAction } from '../../Popover';
 import { useSafety } from '../../SafetyProvider';
 import { UnlockPanel } from './UnlockPanel';
+import { CollectionManagementDialogs, type CollectionManagementMode } from './CollectionManagementDialogs';
 import {
   appendUnique,
   collectionHref,
@@ -72,8 +73,8 @@ type HeaderState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | 
 /**
  * A Collection's page - the mobile CollectionDetailsScreen read side: its tile, name, lock / shared / favorite state and link count,
  * then its links by 시간순 (date sections, ↓ newest / ↑ oldest) or 이름순 (↑ / ↓ over the whole Collection), in List / Grid / Image.
- * A locked Collection shows that it is locked and nothing of its links (the Web does not unlock in this round). Every write
- * (favorite, edit, share, remove, copy, approvals) stays in the app for now.
+ * A locked Collection shows only its own metadata until its password produces a short-lived server grant. Owner management uses the
+ * same delete and lock endpoints as Mobile; member roles never receive those actions.
  */
 export function CollectionDetailsView({ collectionIdParam }: { readonly collectionIdParam: string }) {
   const { api, dictionary, locale, onSessionLost } = useSignedInApp();
@@ -116,6 +117,7 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
   const [participantsToken, setParticipantsToken] = useState(0);
   const [memberShareUrl, setMemberShareUrl] = useState<string | null>(null);
   const [panel, setPanel] = useState<'share' | 'participants' | 'merge' | null>(null);
+  const [managementMode, setManagementMode] = useState<CollectionManagementMode>(null);
   // Arrived here from 다른 컬렉션과 병합: 되돌리기 is offered for a moment (in memory only; see MergeUndoBanner).
   const [mergeUndo, setMergeUndo] = useState(() => (collectionId === null ? null : peekMergeUndo(collectionId)));
   // Arrived here from 내 컬렉션으로 복제: how the copy went (in memory only; see CloneResultBanner).
@@ -324,14 +326,49 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
                 : []),
             // Somebody else's Collection (one shared with me): it can be reported - never my own.
             ...(isSharedWithMe(collection)
-              ? [{ key: 'report', label: dictionary.safetyReport, onSelect: () => safety.report({ type: 'Collection', collectionId: collection.id }) }]
-              : []),
+              ? [
+                  { key: 'report', label: dictionary.safetyReport, onSelect: () => safety.report({ type: 'Collection', collectionId: collection.id }) },
+                  { key: 'leave', label: dictionary.collectionLeaveAction, icon: 'Logout' as const, destructive: true, onSelect: () => setManagementMode('leave') },
+                ]
+              : [
+                  {
+                    key: 'lock',
+                    label: isCollectionLocked(collection) ? dictionary.lockRemoveAction : dictionary.lockSetTitle,
+                    icon: 'Lock' as const,
+                    onSelect: () => setManagementMode(isCollectionLocked(collection) ? 'remove' : 'lock'),
+                  },
+                  ...(!gate
+                    ? [{ key: 'delete', label: dictionary.delete, icon: 'Trash' as const, destructive: true, onSelect: () => setManagementMode('delete') }]
+                    : []),
+                ]),
           ]
         }
         onOpenShare={() => setPanel('share')}
         onToggleFavorite={toggleFavorite}
         participants={participants}
         participantsFailed={participantsFailed}
+      />
+      <CollectionManagementDialogs
+        collectionId={collection.id}
+        key={managementMode ?? 'closed'}
+        mode={managementMode}
+        onClose={() => setManagementMode(null)}
+        onDeleted={() => {
+          setManagementMode(null);
+          router.push('/collections');
+          router.refresh();
+        }}
+        onLockChanged={() => {
+          setManagementMode(null);
+          setGate(null);
+          setHeader({ kind: 'loading' });
+          setReloadToken(token => token + 1);
+          setContentToken(token => token + 1);
+        }}
+        onOpenLockSettings={() => {
+          setManagementMode(null);
+          router.push('/me/collection-lock');
+        }}
       />
       <Modal closeLabel={dictionary.close} onClose={() => setPanel(null)} open={panel === 'share'} title={dictionary.shareLinkTitle} wide>
         <SharePanel

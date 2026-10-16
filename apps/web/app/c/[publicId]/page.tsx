@@ -79,7 +79,6 @@ export default async function PublicCollectionPage({ params, searchParams }: Pag
   const installCta = (
     <InstallCta
       appStoreLabel={dict.appStore}
-      comingSoonText={dict.installComingSoon}
       googlePlayLabel={dict.googlePlay}
       openInAppLabel={dict.openInApp}
       openInAppUrl={openInAppUrl}

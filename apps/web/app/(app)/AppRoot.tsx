@@ -34,8 +34,7 @@ import { isTermsRequired, parseTermsStatus, type TermsStatus } from '../../lib/s
 import { SafetyProvider } from './SafetyProvider';
 import { TermsAgreement } from './TermsAgreement';
 import { ToastProvider } from './Toaster';
-import { CenteredMessage, Landing } from './Landing';
-import { SignInActionContext } from './SignInCta';
+import { CenteredMessage, Landing, type BusinessFact } from './Landing';
 import { ReauthDialog } from './ReauthDialog';
 
 interface SignedInApp {
@@ -106,15 +105,14 @@ export function AppRoot({
   dictionary,
   language,
   languagePreference,
-  signedOutLanding,
+  businessFacts,
   children,
 }: {
   readonly config: WebAppConfig | null;
   readonly dictionary: AppDictionary;
   readonly language: AppLanguage;
   readonly languagePreference: LanguagePreference;
-  /** The server-rendered Juple landing a signed-out visitor sees (its 웹에서 시작하기 reads SignInActionContext); absent = the plain card. */
-  readonly signedOutLanding?: React.ReactNode;
+  readonly businessFacts: readonly BusinessFact[];
   readonly children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -418,11 +416,7 @@ export function AppRoot({
       return <CenteredMessage message={dictionary.configMissingMessage} title={dictionary.configMissingTitle} />;
     }
     if (status === 'signedOut') {
-      return signedOutLanding ? (
-        <SignInActionContext.Provider value={{ signIn: () => void signIn(), notice }}>{signedOutLanding}</SignInActionContext.Provider>
-      ) : (
-        <Landing dictionary={dictionary} notice={notice} onSignIn={signIn} />
-      );
+      return <Landing businessFacts={businessFacts} dictionary={dictionary} notice={notice} onSignIn={signIn} />;
     }
     if (status === 'bootstrapFailed') {
       return (

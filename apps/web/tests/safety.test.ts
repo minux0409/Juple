@@ -93,7 +93,7 @@ describe('reporting (the mobile reasons, the same API)', () => {
   });
 
   it('is offered on somebody else\'s Collection, comment and friend - and never on one\'s own', () => {
-    assert.match(source('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx'), /isSharedWithMe\(collection\)\s*\? \[\{ key: 'report'/);
+    assert.match(source('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx'), /isSharedWithMe\(collection\)\s*\? \[\s*\{ key: 'report'/);
     assert.match(source('app/(app)/ItemCollaboration.tsx'), /onReport && !author\.isMe/);
     assert.match(source('app/(app)/me/friends/page.tsx'), /safety\.report\(\{ type: 'User', jupleId: friend\.jupleId \}\)/);
   });

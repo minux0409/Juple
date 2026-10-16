@@ -11,6 +11,7 @@ export function ConfirmDialog({
   open,
   title,
   message,
+  error,
   confirmLabel,
   cancelLabel,
   destructive,
@@ -21,6 +22,7 @@ export function ConfirmDialog({
   readonly open: boolean;
   readonly title: string;
   readonly message?: string;
+  readonly error?: string | null;
   readonly confirmLabel: string;
   readonly cancelLabel: string;
   readonly destructive?: boolean;
@@ -58,9 +60,10 @@ export function ConfirmDialog({
           {title}
         </h2>
       </div>
-      {message ? (
+      {message || error ? (
         <div className={styles.dialogBody}>
-          <p className={styles.dialogMessage}>{message}</p>
+          {message ? <p className={styles.dialogMessage}>{message}</p> : null}
+          {error ? <p className={styles.fieldError} role="alert">{error}</p> : null}
         </div>
       ) : null}
       <div className={`${styles.formActions} ${styles.dialogFoot}`}>

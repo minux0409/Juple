@@ -10,7 +10,6 @@ interface InstallCtaProps {
   /** Android only: Chrome's intent:// link to the canonical share URL (see lib/shareLinks.ts). */
   readonly openInAppUrl?: string;
   readonly openInAppLabel: string;
-  readonly comingSoonText: string;
 }
 
 /**
@@ -25,7 +24,7 @@ interface InstallCtaProps {
  * "other" (desktop, or any UA that doesn't match either) shows every configured store, since
  * neither guess is confidently wrong.
  */
-export function InstallCta({ text, googlePlayLabel, appStoreLabel, platform, openInAppUrl, openInAppLabel, comingSoonText }: InstallCtaProps) {
+export function InstallCta({ text, googlePlayLabel, appStoreLabel, platform, openInAppUrl, openInAppLabel }: InstallCtaProps) {
   const plan = planInstallCta({
     platform,
     googlePlayUrl: storeConfig.googlePlayUrl,
@@ -36,13 +35,9 @@ export function InstallCta({ text, googlePlayLabel, appStoreLabel, platform, ope
   const showAppStore = plan.appStore;
   const showOpen = plan.open;
 
-  // No store configured for this visitor (no listing yet): say so plainly instead of a dead-end button.
+  // No usable store/open target: render nothing. There is no placeholder launch promise.
   if (plan.comingSoon) {
-    return (
-      <div className="installCta">
-        <p className="installCtaText">{comingSoonText}</p>
-      </div>
-    );
+    return null;
   }
 
   return (
