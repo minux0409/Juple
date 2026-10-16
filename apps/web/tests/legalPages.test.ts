@@ -22,6 +22,7 @@ describe('operator config', () => {
       representativeName: undefined,
       businessRegistrationNumber: undefined,
       ecommerceRegistrationNumber: undefined,
+      ecommerceRegistrationAuthority: undefined,
       businessAddress: undefined,
       supportEmail: 'jupleinfo@gmail.com',
       privacyEmail: 'jupleinfo@gmail.com',

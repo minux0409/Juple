@@ -17,6 +17,8 @@ export interface LegalOperatorConfig {
   readonly businessRegistrationNumber?: string;
   /** 통신판매업 신고번호 - shown only once one is configured. */
   readonly ecommerceRegistrationNumber?: string;
+  /** 통신판매업 신고기관 (e.g. "광진구청") - shown next to the report number, and only together with it. */
+  readonly ecommerceRegistrationAuthority?: string;
   readonly businessAddress?: string;
   readonly supportEmail?: string;
   readonly privacyEmail?: string;
@@ -58,6 +60,7 @@ export function readLegalOperatorConfig(env: Readonly<Record<string, string | un
     representativeName: clean(env.LEGAL_REPRESENTATIVE_NAME),
     businessRegistrationNumber: clean(env.LEGAL_BUSINESS_REGISTRATION_NUMBER),
     ecommerceRegistrationNumber: clean(env.LEGAL_ECOMMERCE_REGISTRATION_NUMBER),
+    ecommerceRegistrationAuthority: clean(env.LEGAL_ECOMMERCE_REGISTRATION_AUTHORITY),
     businessAddress: clean(env.LEGAL_BUSINESS_ADDRESS),
     supportEmail: email('LEGAL_SUPPORT_EMAIL'),
     privacyEmail,

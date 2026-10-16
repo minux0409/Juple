@@ -99,6 +99,8 @@ param legalRepresentativeName = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_RE
 param legalBusinessRegistrationNumber = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_BUSINESS_REGISTRATION_NUMBER', '')
 // 통신판매업 신고번호: only once one exists (empty = the line is left out).
 param legalEcommerceRegistrationNumber = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_ECOMMERCE_REGISTRATION_NUMBER', '')
+// 통신판매업 신고기관 (e.g. 광진구청), shown next to the report number.
+param legalEcommerceRegistrationAuthority = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_ECOMMERCE_REGISTRATION_AUTHORITY', '')
 param legalBusinessAddress = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_BUSINESS_ADDRESS', '')
 param legalEffectiveDate = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_EFFECTIVE_DATE', '')
 // 개인정보 보호책임자 - its mailbox defaults to the confirmed contact mailbox.

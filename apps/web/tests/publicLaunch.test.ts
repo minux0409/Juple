@@ -195,6 +195,11 @@ describe('legal pages: the operator, the privacy officer and the reviewed texts'
     assert.deepEqual(operatorFacts(config).map(f => f.label), ['서비스', '운영자', '대표자', '사업자등록번호', '사업장 주소']);
     const withEcommerce = readLegalOperatorConfig({ ...OPERATOR_ENV, LEGAL_ECOMMERCE_REGISTRATION_NUMBER: '2026-서울광진-0000' });
     assert.deepEqual(operatorFacts(withEcommerce).map(f => f.label), ['서비스', '운영자', '대표자', '사업자등록번호', '통신판매업 신고번호', '사업장 주소']);
+    assert.equal(operatorFacts(withEcommerce).find(f => f.label === '통신판매업 신고번호')?.value, '2026-서울광진-0000');
+    const withAuthority = readLegalOperatorConfig({ ...OPERATOR_ENV, LEGAL_ECOMMERCE_REGISTRATION_NUMBER: '제 2026-서울광진-1716호', LEGAL_ECOMMERCE_REGISTRATION_AUTHORITY: '광진구청' });
+    assert.equal(operatorFacts(withAuthority).find(f => f.label === '통신판매업 신고번호')?.value, '제 2026-서울광진-1716호 (광진구청)');
+    const authorityOnly = readLegalOperatorConfig({ ...OPERATOR_ENV, LEGAL_ECOMMERCE_REGISTRATION_AUTHORITY: '광진구청' });
+    assert.equal(operatorFacts(authorityOnly).some(f => f.label === '통신판매업 신고번호'), false, 'an authority alone is never shown');
   });
 
   it('the privacy policy names the privacy officer once configured, and leaves the section out otherwise', () => {
@@ -268,7 +273,7 @@ describe('legal pages: the operator, the privacy officer and the reviewed texts'
     for (const name of ['legalRepresentativeName', 'legalPrivacyOfficerName']) {
       assert.match(main, new RegExp(`    ${name}: ${name}`), `${name} is passed to the guard`);
     }
-    for (const env of ['LEGAL_REPRESENTATIVE_NAME', 'LEGAL_ECOMMERCE_REGISTRATION_NUMBER', 'LEGAL_PRIVACY_OFFICER_NAME', 'LEGAL_PRIVACY_OFFICER_TITLE', 'LEGAL_PRIVACY_OFFICER_EMAIL']) {
+    for (const env of ['LEGAL_REPRESENTATIVE_NAME', 'LEGAL_ECOMMERCE_REGISTRATION_NUMBER', 'LEGAL_ECOMMERCE_REGISTRATION_AUTHORITY', 'LEGAL_PRIVACY_OFFICER_NAME', 'LEGAL_PRIVACY_OFFICER_TITLE', 'LEGAL_PRIVACY_OFFICER_EMAIL']) {
       assert.match(main, new RegExp(`  ${env}: legal`), env);
     }
   });

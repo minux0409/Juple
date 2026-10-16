@@ -69,6 +69,7 @@ param legalBusinessAddress string = ''
 @description('More operator details for the legal pages, same rules as above (empty = left out, emitted as env only when non-empty): 대표자, 통신판매업 신고번호 (only once one exists), and the 개인정보 보호책임자 - name, optional title (e.g. 대표) and mailbox (empty = the privacy mailbox).')
 param legalRepresentativeName string = ''
 param legalEcommerceRegistrationNumber string = ''
+param legalEcommerceRegistrationAuthority string = ''
 param legalPrivacyOfficerName string = ''
 param legalPrivacyOfficerTitle string = ''
 param legalPrivacyOfficerEmail string = ''
@@ -112,6 +113,7 @@ var legalEnvEntries = {
   LEGAL_REPRESENTATIVE_NAME: legalRepresentativeName
   LEGAL_BUSINESS_REGISTRATION_NUMBER: legalBusinessRegistrationNumber
   LEGAL_ECOMMERCE_REGISTRATION_NUMBER: legalEcommerceRegistrationNumber
+  LEGAL_ECOMMERCE_REGISTRATION_AUTHORITY: legalEcommerceRegistrationAuthority
   LEGAL_PRIVACY_OFFICER_NAME: legalPrivacyOfficerName
   LEGAL_PRIVACY_OFFICER_TITLE: legalPrivacyOfficerTitle
   LEGAL_PRIVACY_OFFICER_EMAIL: legalPrivacyOfficerEmail

@@ -158,7 +158,7 @@ param entraAccountDeletionClientSecretName = 'entra-account-deletion-client-secr
 // A forced minimum for a build Play is not yet serving would lock users out of the app.
 //   optional update:  latest = 25, minimum = 24     required update:  latest = 25, minimum = 25
 // Initial values for the first build that carries this client (versionCode 24); 23 predates the pre-sign-in check.
-param mobileAndroidLatestBuild = 25
+param mobileAndroidLatestBuild = 26
 param mobileAndroidMinimumSupportedBuild = 24
 param mobileAndroidStoreUrl = 'https://play.google.com/store/apps/details?id=com.juple.app'
 // iOS is not released: mobileIos* stay at main.bicep's own defaults (0 / 0 / empty).

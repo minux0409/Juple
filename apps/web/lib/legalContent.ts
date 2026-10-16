@@ -43,7 +43,8 @@ export function operatorFacts(config: LegalOperatorConfig): { label: string; val
     facts.push({ label: '사업자등록번호', value: config.businessRegistrationNumber });
   }
   if (config.ecommerceRegistrationNumber) {
-    facts.push({ label: '통신판매업 신고번호', value: config.ecommerceRegistrationNumber });
+    const authority = config.ecommerceRegistrationAuthority ? ` (${config.ecommerceRegistrationAuthority})` : '';
+    facts.push({ label: '통신판매업 신고번호', value: `${config.ecommerceRegistrationNumber}${authority}` });
   }
   if (config.businessAddress) {
     facts.push({ label: '사업장 주소', value: config.businessAddress });
