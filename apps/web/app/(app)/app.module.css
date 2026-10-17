@@ -112,7 +112,19 @@
   --header-gap: 8px;
   --page-pad-x: 40px;
   --sidebar-width: 240px;
+}
 
+/*
+ * What the token scope PAINTS - kept apart from the scope itself on purpose. The scope above also serves layers that must stay see-through
+ * (.tourRoot is a fixed, full-screen layer over the page; .toastHost a fixed strip): a background here would lay a solid sheet over the
+ * whole app. Only real screens and dialog shells paint the page background and text colour.
+ */
+.shell,
+.centered,
+.signInPage,
+.agreementPage,
+.mobileLanding,
+.collectionDialog {
   background: var(--app-background);
   color: var(--app-text);
   /* Korean wraps at word boundaries (long URLs / titles still break via overflow-wrap where set). */
@@ -8039,6 +8051,8 @@ button.reactionChipMine:hover {
   position: fixed;
   inset: 0;
   z-index: 1000;
+  /* Never paints: the dimming is .tourScrim / the spotlight's shadow (--tour-scrim) and the card is its own solid surface. */
+  background: transparent;
 }
 
 .tourScrim,

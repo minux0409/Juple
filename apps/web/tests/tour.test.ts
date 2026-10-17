@@ -348,3 +348,36 @@ describe('tour dimming is a translucent scrim (Web)', () => {
     assert.match(css, /:global\(html\[data-theme='dark'\]\) \.tourRoot,\s*(?::global\(html\[data-theme='dark'\]\) \.mobileLanding,\s*)?:global\(html\[data-theme='dark'\]\) \.collectionDialog \{/);
   });
 });
+
+describe('the tour layer paints nothing itself (Web) - regression of the opaque grey sheet', () => {
+  const css = source('app/(app)/app.module.css').replace(/\r\n/g, '\n').replace(/\/\*[\s\S]*?\*\//g, '');
+  // Every top-level rule whose selector list names .tourRoot (the Light / Dark token scopes and the layer's own rule).
+  const rules = [...css.matchAll(/(^|\n)([^{}@]+?)\{([^{}]*)\}/g)].map(match => ({ selector: match[2].trim(), body: match[3] })).filter(rule => /\.tourRoot\b/.test(rule.selector));
+
+  it('finds the token scopes and the layer rule', () => {
+    assert.ok(rules.length >= 3, 'light scope, dark scope and the layer rule');
+  });
+
+  it('a rule shared with .tourRoot declares custom properties only - no background, colour or text rule that would paint the full-screen layer', () => {
+    for (const rule of rules.filter(candidate => !/^\.tourRoot$/.test(candidate.selector))) {
+      const declared = rule.body.split(';').map(part => part.trim()).filter(Boolean);
+      for (const declaration of declared) {
+        assert.match(declaration, /^--[a-z0-9-]+\s*:/i, `${rule.selector.slice(0, 60)}: ${declaration.slice(0, 60)}`);
+      }
+    }
+  });
+
+  it('the layer itself is transparent and carries no surface token; dimming is only the scrim token', () => {
+    const own = rules.find(rule => /^\.tourRoot$/.test(rule.selector));
+    assert.ok(own);
+    assert.match(own.body, /background:\s*transparent;/);
+    assert.doesNotMatch(own.body, /var\(--app-(background|surface)|opacity|backdrop-filter/);
+    const tourBlock = css.slice(css.indexOf('.tourRoot {'), css.indexOf('/* ---- Help page: guide list'));
+    assert.deepEqual([...tourBlock.matchAll(/var\(--(tour-scrim|scrim)\b/g)].map(match => match[1]), ['tour-scrim', 'tour-scrim']);
+  });
+
+  it('the page background and text colour are painted by real screens only (shell, sign-in, landing, dialog shells), never by the shared token scope', () => {
+    const painted = rules.length > 0 && /\.shell,\s*\.centered,\s*\.signInPage,\s*\.agreementPage,\s*\.mobileLanding,\s*\.collectionDialog \{\s*background: var\(--app-background\);/.test(css);
+    assert.ok(painted);
+  });
+});
