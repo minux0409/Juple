@@ -296,9 +296,9 @@ describe('tour card is a visible card (Web) - regression', () => {
   const crlfFree = css.replace(/\r\n/g, '\n');
 
   it('the tour layer sits OUTSIDE .shell, so it must join BOTH token scopes (light and dark) - otherwise every var(--app-*) is undefined and the card is transparent', () => {
-    assert.match(crlfFree, /\.toastHost,\s*\.tourRoot,\s*\.collectionDialog \{\s*--app-background/);
-    assert.match(crlfFree, /:global\(html\[data-theme='dark'\]\) \.tourRoot,\s*:global\(html\[data-theme='dark'\]\) \.collectionDialog \{/);
-    assert.match(crlfFree, /\.toastHost,\s*\.tourRoot \{\s*--juple-orange/);
+    assert.match(crlfFree, /\.toastHost,\s*\.tourRoot,\s*(?:\.mobileLanding,\s*)?\.collectionDialog \{\s*--app-background/);
+    assert.match(crlfFree, /:global\(html\[data-theme='dark'\]\) \.tourRoot,\s*(?::global\(html\[data-theme='dark'\]\) \.mobileLanding,\s*)?:global\(html\[data-theme='dark'\]\) \.collectionDialog \{/);
+    assert.match(crlfFree, /\.toastHost,\s*\.tourRoot(?:,\s*\.mobileLanding)? \{\s*--juple-orange/);
     assert.match(source('app/(app)/TourProvider.tsx'), /className=\{styles\.tourRoot\}/);
   });
 
@@ -344,7 +344,7 @@ describe('tour dimming is a translucent scrim (Web)', () => {
   });
 
   it('.tourRoot is in both theme scopes (so the token resolves in Light and Dark)', () => {
-    assert.match(css, /\.toastHost,\s*\.tourRoot,\s*\.collectionDialog \{\s*--app-background/);
-    assert.match(css, /:global\(html\[data-theme='dark'\]\) \.tourRoot,\s*:global\(html\[data-theme='dark'\]\) \.collectionDialog \{/);
+    assert.match(css, /\.toastHost,\s*\.tourRoot,\s*(?:\.mobileLanding,\s*)?\.collectionDialog \{\s*--app-background/);
+    assert.match(css, /:global\(html\[data-theme='dark'\]\) \.tourRoot,\s*(?::global\(html\[data-theme='dark'\]\) \.mobileLanding,\s*)?:global\(html\[data-theme='dark'\]\) \.collectionDialog \{/);
   });
 });

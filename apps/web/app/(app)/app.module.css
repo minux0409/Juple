@@ -16,6 +16,7 @@
 .agreementPage,
 .toastHost,
 .tourRoot,
+.mobileLanding,
 .collectionDialog {
   --app-background: #f7f9fc;
   --app-surface: #ffffff;
@@ -126,6 +127,7 @@
 :global(html[data-theme='dark']) .agreementPage,
 :global(html[data-theme='dark']) .toastHost,
 :global(html[data-theme='dark']) .tourRoot,
+:global(html[data-theme='dark']) .mobileLanding,
 :global(html[data-theme='dark']) .collectionDialog {
   --app-background: #101318;
   --app-surface: #181c23;
@@ -6743,7 +6745,8 @@ button.reactionChipMine:hover {
 .signInPage,
 .agreementPage,
 .toastHost,
-.tourRoot {
+.tourRoot,
+.mobileLanding {
   --juple-orange: #fea248;
   --juple-coral: #fd616b;
   --juple-magenta: #f133c5;
@@ -6770,7 +6773,8 @@ button.reactionChipMine:hover {
 :global(html[data-theme='dark']) .signInPage,
 :global(html[data-theme='dark']) .agreementPage,
 :global(html[data-theme='dark']) .toastHost,
-:global(html[data-theme='dark']) .tourRoot {
+:global(html[data-theme='dark']) .tourRoot,
+:global(html[data-theme='dark']) .mobileLanding {
   --brand-gradient-soft: linear-gradient(135deg, rgba(254, 162, 72, 0.16), rgba(253, 97, 107, 0.14) 30%, rgba(241, 51, 197, 0.12) 58%, rgba(103, 81, 252, 0.18) 82%, rgba(81, 161, 253, 0.18));
   --brand-line: rgba(122, 162, 255, 0.28);
   --brand-wash: linear-gradient(135deg, rgba(254, 162, 72, 0.1), rgba(253, 97, 107, 0.09) 30%, rgba(241, 51, 197, 0.08) 58%, rgba(103, 81, 252, 0.12) 82%, rgba(81, 161, 253, 0.12));
@@ -8292,6 +8296,7 @@ button.reactionChipMine:hover {
 
 .mobileLandingTitle {
   margin: 0;
+  overflow-wrap: anywhere;
   max-width: 20em;
   font-size: 22px;
   font-weight: 800;

@@ -128,6 +128,10 @@ describe('desktop side bar app card', () => {
     assert.doesNotMatch(block, /#[0-9a-f]{3,8}\b|rgba?\(/i, 'no literal colours: Light and Dark follow the tokens');
     assert.match(block, /\.sidebarApp \{[^}]*background: var\(--app-surface-muted\)/);
     assert.match(block, /\.mobileLanding \{[^}]*background: var\(--app-background\)/);
+    // Rendered outside .shell: it must join both token scopes (light and dark) and the brand tokens, or the primary button loses its colour.
+    assert.match(css, /\.toastHost,\s*\.tourRoot,\s*\.mobileLanding,\s*\.collectionDialog \{\s*--app-background/);
+    assert.match(css, /:global\(html\[data-theme='dark'\]\) \.mobileLanding,\s*:global\(html\[data-theme='dark'\]\) \.collectionDialog \{/);
+    assert.match(css, /\.toastHost,\s*\.tourRoot,\s*\.mobileLanding \{\s*--juple-orange/);
   });
 });
 
