@@ -1163,6 +1163,14 @@
       "settings": {
         "title": "Conta e configurações",
         "body": "Minha página tem seu perfil e ID Juple, idioma, Salvamento rápido, Amigos, Bloqueio de coleções, Excluídos recentemente e o gerenciamento da conta. Fale com o suporte pela Central de ajuda.\n\nEm Gerenciar conta você vê como faz login e pode excluir sua conta, o que exclui de vez sua conta e seus dados."
+      },
+      "homeShortcut": {
+        "title": "Atalho na tela inicial (1×1)",
+        "body": "Toque e segure uma coleção e escolha “Adicionar atalho à tela inicial”. Um ícone 1×1 dessa coleção aparece na tela inicial e, ao tocá-lo, a coleção abre no Juple.\n\nEssa opção só aparece quando o seu launcher aceita atalhos na tela inicial. Uma coleção bloqueada continua pedindo a senha. Para remover o ícone, apague-o você mesmo da tela inicial."
+      },
+      "profilePhoto": {
+        "title": "Trocar a foto de perfil",
+        "body": "Em Minha página, toque no botão de editar do cartão de perfil. Escolha uma foto, mova e amplie para ajustar ao círculo e salve.\n\nSua foto de perfil aparece para os amigos e nas coleções compartilhadas."
       }
     }
   },
@@ -1248,5 +1256,129 @@
     "apply": "Aplicar",
     "preview": "Pré-visualização",
     "areaA11y": "Área da foto. Deslize para cima ou para baixo para aumentar ou diminuir."
+  },
+  "tour": {
+    "previous": "Voltar",
+    "done": "Concluir",
+    "start": "Iniciar guia",
+    "helpTitle": "Guias de recursos",
+    "helpIntro": "Mostramos direto na tela, passo a passo.",
+    "mobileOnlyNote": "Alguns guias só estão disponíveis no app para celular.",
+    "guides": {
+      "mainOnboarding": {
+        "title": "Primeiros passos",
+        "summary": "Uma olhada rápida nas principais áreas do Juple."
+      },
+      "saveLink": {
+        "title": "Salvar um link",
+        "summary": "Cole um link e revise antes de salvar."
+      },
+      "shareMenu": {
+        "title": "Salvar de outros apps",
+        "summary": "Envie links para o Juple pelo menu Compartilhar de qualquer app."
+      },
+      "collections": {
+        "title": "Coleções",
+        "summary": "Crie, veja, organize e compartilhe coleções."
+      },
+      "friends": {
+        "title": "Amigos",
+        "summary": "Solicitações, pessoas bloqueadas e coleções compartilhadas."
+      },
+      "settings": {
+        "title": "Configurações",
+        "summary": "Idioma, aparência, ajuda e sua conta."
+      },
+      "homeShortcut": {
+        "title": "Atalho na tela inicial",
+        "summary": "Abra uma coleção por um ícone 1×1 na tela inicial."
+      }
+    },
+    "steps": {
+      "home": {
+        "title": "Salvar um link",
+        "body": "Cole um link aqui e toque no botão. O Juple preenche o título e a imagem quando possível."
+      },
+      "share": {
+        "title": "Salvar de qualquer app",
+        "body": "Em outro app, toque em Compartilhar e escolha o Juple. O link é salvo na hora."
+      },
+      "collections": {
+        "title": "Organize em coleções",
+        "body": "Crie coleções para seus assuntos favoritos e reúna seus links nelas. No início você não tem nenhuma."
+      },
+      "archive": {
+        "title": "Encontre links de novo",
+        "body": "O arquivo lista tudo o que você salvou, por data, e permite pesquisar."
+      },
+      "myPage": {
+        "title": "Amigos e configurações",
+        "body": "Amigos, compartilhamento, idioma, aparência e ajuda ficam em Minha página."
+      },
+      "inputLink": {
+        "title": "Cole um link",
+        "body": "Cole ou digite o link que você quer salvar."
+      },
+      "reviewSave": {
+        "title": "Revise e salve",
+        "body": "Toque aqui para abrir a tela de revisão. Confira o título, a nota e a coleção e salve."
+      },
+      "quickSave": {
+        "title": "Salvamento rápido",
+        "body": "Ative o salvamento rápido em Minha página para salvar links compartilhados sem a tela de revisão."
+      },
+      "newCollection": {
+        "title": "Nova coleção",
+        "body": "Toque em + para criar uma coleção e escolher nome, ícone e cor."
+      },
+      "viewMode": {
+        "title": "Modo de exibição",
+        "body": "Alterne entre lista, grade e imagens."
+      },
+      "longPress": {
+        "title": "Toque e segure",
+        "body": "Toque e segure uma coleção para favorito, notificações, editar, bloquear, excluir ou sair."
+      },
+      "shareCollection": {
+        "title": "Compartilhar uma coleção",
+        "body": "Dentro de uma coleção, use o botão de compartilhar para convidar amigos ou compartilhar um link. O dono tem uma coroa e cada link mostra quem o adicionou."
+      },
+      "friendsEntry": {
+        "title": "Amigos",
+        "body": "Aqui você adiciona amigos, responde a solicitações e gerencia pessoas bloqueadas."
+      },
+      "friendsTabs": {
+        "title": "Quatro abas",
+        "body": "Amigos, Solicitações recebidas, Solicitações enviadas e Usuários bloqueados têm cada um a sua aba."
+      },
+      "friendsShared": {
+        "title": "Coleções compartilhadas",
+        "body": "Toque em um amigo para ver as coleções que vocês compartilham."
+      },
+      "language": {
+        "title": "Idioma",
+        "body": "Escolha o idioma que o Juple usa."
+      },
+      "appearance": {
+        "title": "Aparência",
+        "body": "Use a configuração do sistema ou escolha Claro ou Escuro."
+      },
+      "helpGuide": {
+        "title": "Ajuda",
+        "body": "Volte a estes guias quando quiser."
+      },
+      "account": {
+        "title": "Conta",
+        "body": "Gerencie aqui os dados da conta e o login."
+      },
+      "shortcutLong": {
+        "title": "Toque e segure uma coleção",
+        "body": "Toque e segure a coleção que você mais abre."
+      },
+      "shortcutAdd": {
+        "title": "Adicionar à tela inicial",
+        "body": "Escolha “Adicionar atalho à tela inicial” e confirme no seu launcher. Tocar no ícone 1×1 abre essa coleção."
+      }
+    }
   }
 }

@@ -24,6 +24,8 @@ import {
   saveQuickSaveOnSharePreference,
 } from '../settings/quickSaveOnSharePreference';
 import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
+import { TOUR_TARGETS } from '../tour/tourGuides';
+import { useTourTarget } from '../tour/tourTargets';
 
 /**
  * 내 페이지: a compact profile header (photo, nickname, @Juple ID, 프로필 편집) → one card of rows (언어,
@@ -33,6 +35,11 @@ import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing, theme
  */
 export function MyPageScreen() {
   const { t } = useTranslation();
+  const languageTarget = useTourTarget(TOUR_TARGETS.myLanguage);
+  const appearanceTarget = useTourTarget(TOUR_TARGETS.myAppearance);
+  const friendsTarget = useTourTarget(TOUR_TARGETS.myFriends);
+  const accountTarget = useTourTarget(TOUR_TARGETS.myAccount);
+  const helpTarget = useTourTarget(TOUR_TARGETS.myHelp);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { signOut } = useAuth();
   const authenticatedRequest = useAuthenticatedApi();
@@ -154,6 +161,7 @@ export function MyPageScreen() {
 
         <View style={styles.settingsGroup}>
           <Pressable
+            {...languageTarget}
             accessibilityRole="button"
             onPress={() => navigation.navigate('LanguageSettings')}
             style={styles.settingsRow}
@@ -165,6 +173,7 @@ export function MyPageScreen() {
           </Pressable>
           <View style={styles.settingsRowDivider} />
           <Pressable
+            {...appearanceTarget}
             accessibilityRole="button"
             onPress={() => navigation.navigate('AppearanceSettings')}
             style={styles.settingsRow}
@@ -196,6 +205,7 @@ export function MyPageScreen() {
           </View>
           <View style={styles.settingsRowDivider} />
           <Pressable
+            {...friendsTarget}
             accessibilityRole="button"
             onPress={() => navigation.navigate('Friends')}
             style={styles.settingsRow}
@@ -236,6 +246,7 @@ export function MyPageScreen() {
           </Pressable>
           <View style={styles.settingsRowDivider} />
           <Pressable
+            {...accountTarget}
             accessibilityRole="button"
             onPress={() => navigation.navigate('AccountManagement')}
             style={styles.settingsRow}
@@ -248,6 +259,7 @@ export function MyPageScreen() {
           </Pressable>
           <View style={styles.settingsRowDivider} />
           <Pressable
+            {...helpTarget}
             accessibilityRole="button"
             onPress={() => navigation.navigate('HelpGuide')}
             style={styles.settingsRow}

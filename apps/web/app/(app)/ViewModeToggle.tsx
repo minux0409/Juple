@@ -1,5 +1,6 @@
 'use client';
 
+import { tourTarget, type TourTargetId } from '../../lib/tour';
 import styles from './app.module.css';
 
 type Mode = 'list' | 'grid' | 'image';
@@ -14,12 +15,15 @@ export function ViewModeToggle<M extends Mode>({
   labels,
   groupLabel,
   modes = ['list', 'grid', 'image'] as unknown as readonly M[],
+  tourId,
 }: {
   readonly value: M;
   readonly onChange: (mode: M) => void;
   readonly labels: Readonly<Record<Mode, string>>;
   readonly groupLabel: string;
   readonly modes?: readonly M[];
+  /** Marks the toggle for a guided tour (lib/tour.ts TOUR_TARGETS). */
+  readonly tourId?: TourTargetId;
 }) {
   const glyph = (mode: Mode) =>
     mode === 'list' ? (
@@ -30,7 +34,7 @@ export function ViewModeToggle<M extends Mode>({
       <span aria-hidden className={styles.glyphImage}>{Array.from({ length: 9 }, (_, index) => <i key={index} />)}</span>
     );
   return (
-    <div aria-label={groupLabel} className={styles.toggle} role="group">
+    <div aria-label={groupLabel} className={styles.toggle} role="group" {...(tourId ? tourTarget(tourId) : {})}>
       {modes.map(mode => (
         <button
           aria-label={labels[mode]}

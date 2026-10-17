@@ -1163,6 +1163,14 @@
       "settings": {
         "title": "Hesap ve ayarlar",
         "body": "Sayfam'da profiliniz ve Juple ID, dil, Hızlı kaydet, Arkadaşlar, Koleksiyon kilidi, Son Silinenler ve hesap yönetimi yer alır. Destek için Müşteri Merkezi'ni kullanın.\n\nHesabı yönet bölümünde nasıl giriş yaptığınızı görebilir ve hesabınızı silebilirsiniz; hesap silmek hesabınızı ve verilerinizi kalıcı olarak siler."
+      },
+      "homeShortcut": {
+        "title": "Ana ekran kısayolu (1×1)",
+        "body": "Bir koleksiyona basılı tutup “Ana ekrana kısayol ekle” seçeneğini seçin. Ana ekranınızda o koleksiyonun 1×1 simgesi belirir; dokunmak koleksiyonu Juple’da açar.\n\nBu menü öğesi yalnızca başlatıcınız ana ekran kısayollarını destekliyorsa görünür. Kilitli bir koleksiyon yine parola ister. Simgeyi kaldırmak için ana ekrandan kendiniz silin."
+      },
+      "profilePhoto": {
+        "title": "Profil fotoğrafını değiştir",
+        "body": "Sayfam’da profil kartındaki düzenle düğmesine dokunun. Bir fotoğraf seçin, daireye sığacak şekilde kaydırıp büyütün ve kaydedin.\n\nProfil fotoğrafınız arkadaşlarınıza ve ortak koleksiyonlarda görünür."
       }
     }
   },
@@ -1248,5 +1256,129 @@
     "apply": "Uygula",
     "preview": "Önizleme",
     "areaA11y": "Fotoğraf alanı. Yakınlaştırmak veya uzaklaştırmak için yukarı ya da aşağı kaydır."
+  },
+  "tour": {
+    "previous": "Geri",
+    "done": "Bitti",
+    "start": "Rehberi başlat",
+    "helpTitle": "Özellik rehberleri",
+    "helpIntro": "Size doğrudan ekranda, adım adım gösteriyoruz.",
+    "mobileOnlyNote": "Bazı rehberler yalnızca mobil uygulamada bulunur.",
+    "guides": {
+      "mainOnboarding": {
+        "title": "Başlarken",
+        "summary": "Juple’ın ana bölümlerine hızlı bir bakış."
+      },
+      "saveLink": {
+        "title": "Bağlantı kaydet",
+        "summary": "Bir bağlantı yapıştırın ve kaydetmeden önce gözden geçirin."
+      },
+      "shareMenu": {
+        "title": "Diğer uygulamalardan kaydet",
+        "summary": "Herhangi bir uygulamanın Paylaş menüsünden Juple’a bağlantı gönderin."
+      },
+      "collections": {
+        "title": "Koleksiyonlar",
+        "summary": "Koleksiyon oluşturun, görüntüleyin, düzenleyin ve paylaşın."
+      },
+      "friends": {
+        "title": "Arkadaşlar",
+        "summary": "İstekler, engellenen kişiler ve ortak koleksiyonlar."
+      },
+      "settings": {
+        "title": "Ayarlar",
+        "summary": "Dil, görünüm, yardım ve hesabınız."
+      },
+      "homeShortcut": {
+        "title": "Ana ekran kısayolu",
+        "summary": "Ana ekrandaki 1×1 simgeyle bir koleksiyonu açın."
+      }
+    },
+    "steps": {
+      "home": {
+        "title": "Bağlantı kaydet",
+        "body": "Buraya bir bağlantı yapıştırıp düğmeye dokunun. Juple mümkünse başlığı ve görseli doldurur."
+      },
+      "share": {
+        "title": "Her uygulamadan kaydet",
+        "body": "Başka bir uygulamada Paylaş’a dokunup Juple’ı seçin. Bağlantı hemen kaydedilir."
+      },
+      "collections": {
+        "title": "Koleksiyonlarla düzenle",
+        "body": "Sevdiğiniz konular için koleksiyonlar oluşturup bağlantılarınızı orada toplayın. Başlangıçta hiç koleksiyon yoktur."
+      },
+      "archive": {
+        "title": "Bağlantıları yeniden bul",
+        "body": "Arşiv, kaydettiğiniz her şeyi tarihe göre listeler ve arama yapmanızı sağlar."
+      },
+      "myPage": {
+        "title": "Arkadaşlar ve ayarlar",
+        "body": "Arkadaşlar, paylaşım, dil, görünüm ve yardım Sayfam’da."
+      },
+      "inputLink": {
+        "title": "Bağlantı yapıştır",
+        "body": "Kaydetmek istediğiniz bağlantıyı yapıştırın veya yazın."
+      },
+      "reviewSave": {
+        "title": "Gözden geçir, sonra kaydet",
+        "body": "İnceleme ekranını açmak için buna dokunun. Başlığı, notu ve koleksiyonu kontrol edip kaydedin."
+      },
+      "quickSave": {
+        "title": "Hızlı Kaydet",
+        "body": "Paylaşılan bağlantıları inceleme ekranı olmadan kaydetmek için Sayfam’da Hızlı Kaydet’i açın."
+      },
+      "newCollection": {
+        "title": "Yeni koleksiyon",
+        "body": "Koleksiyon oluşturup adını, simgesini ve rengini seçmek için + düğmesine dokunun."
+      },
+      "viewMode": {
+        "title": "Görünüm modu",
+        "body": "Liste, ızgara ve görsel görünümleri arasında geçiş yapın."
+      },
+      "longPress": {
+        "title": "Basılı tut",
+        "body": "Favori, bildirimler, düzenleme, kilit, silme veya ayrılma için bir koleksiyona basılı tutun."
+      },
+      "shareCollection": {
+        "title": "Koleksiyonu paylaş",
+        "body": "Bir koleksiyonun içinde paylaş düğmesiyle arkadaşlarınızı davet edin veya bağlantı paylaşın. Sahip taçla işaretlenir ve her bağlantı kimin eklediğini gösterir."
+      },
+      "friendsEntry": {
+        "title": "Arkadaşlar",
+        "body": "Burada arkadaş ekler, isteklere yanıt verir ve engellenen kişileri yönetirsiniz."
+      },
+      "friendsTabs": {
+        "title": "Dört sekme",
+        "body": "Arkadaşlar, Gelen istekler, Giden istekler ve Engellenen kullanıcılar için ayrı sekmeler vardır."
+      },
+      "friendsShared": {
+        "title": "Ortak koleksiyonlar",
+        "body": "Birlikte paylaştığınız koleksiyonları görmek için bir arkadaşa dokunun."
+      },
+      "language": {
+        "title": "Dil",
+        "body": "Juple’ın kullanacağı dili seçin."
+      },
+      "appearance": {
+        "title": "Görünüm",
+        "body": "Sistem ayarını kullanın veya Açık ya da Koyu’yu seçin."
+      },
+      "helpGuide": {
+        "title": "Yardım",
+        "body": "Bu rehberlere istediğiniz zaman dönebilirsiniz."
+      },
+      "account": {
+        "title": "Hesap",
+        "body": "Hesap bilgilerinizi ve oturum açmayı buradan yönetin."
+      },
+      "shortcutLong": {
+        "title": "Bir koleksiyona basılı tutun",
+        "body": "En çok açtığınız koleksiyona basılı tutun."
+      },
+      "shortcutAdd": {
+        "title": "Ana ekrana ekle",
+        "body": "“Ana ekrana kısayol ekle” seçeneğini seçip başlatıcınızda onaylayın. 1×1 simgeye dokunmak o koleksiyonu açar."
+      }
+    }
   }
 }

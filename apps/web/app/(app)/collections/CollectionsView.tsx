@@ -38,6 +38,7 @@ import { LoadFailed } from '../PageStates';
 import { CollectionSkeleton } from '../Skeletons';
 import { useToast } from '../Toaster';
 import { useStoredChoice } from '../useStoredChoice';
+import { TOUR_TARGETS, tourTarget } from '../../../lib/tour';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { PageHeader } from '../PageHeader';
 import styles from '../app.module.css';
@@ -188,9 +189,10 @@ export function CollectionsView() {
             labels={{ list: dictionary.viewList, grid: dictionary.viewGrid, image: dictionary.viewImage }}
             modes={COLLECTION_VIEW_MODES}
             onChange={setViewMode}
+            tourId={TOUR_TARGETS.collectionsViewMode}
             value={viewMode}
           />
-          <Link className={styles.primaryAction} href="/collections/new">
+          <Link className={styles.primaryAction} href="/collections/new" {...tourTarget(TOUR_TARGETS.collectionsCreate)}>
             <Glyph name="Plus" size={16} />
             {dictionary.collectionCreate}
           </Link>

@@ -13,6 +13,7 @@ import { HOME_SUMMARY_PATH, parseHomeSummary } from '../../lib/homeSummary';
 import { classifyCollectionShareUrl, collectionShareDestination } from '../../lib/collectionShareUrl';
 import { normalizeEnteredUrl, openReview } from '../../lib/newLink';
 import { collectionHref, historyLinkView, parseViewMode, VIEW_MODE_STORAGE_KEYS, type ItemHistoryPage, type LinkView } from '../../lib/savedLinks';
+import { TOUR_TARGETS, tourTarget } from '../../lib/tour';
 import { useSignedInApp } from './AppRoot';
 import { CollectionTileView } from './collections/CollectionsView';
 import { CollectionGlyph, Glyph } from './Glyph';
@@ -310,7 +311,7 @@ function AddLinkForm() {
   };
   return (
     <form className={styles.addLinkPanel} noValidate onSubmit={submit}>
-      <div className={styles.addLinkField}>
+      <div className={styles.addLinkField} {...tourTarget(TOUR_TARGETS.homeInput)}>
         <Glyph className={styles.addLinkIcon} name="Link" size={20} />
         <input
           aria-invalid={error ? true : undefined}
@@ -326,7 +327,7 @@ function AddLinkForm() {
           type="text"
           value={value}
         />
-        <button className={styles.primaryAction} disabled={!value.trim()} type="submit">
+        <button className={styles.primaryAction} disabled={!value.trim()} type="submit" {...tourTarget(TOUR_TARGETS.homeCheck)}>
           {dictionary.save}
         </button>
       </div>

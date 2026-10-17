@@ -63,6 +63,8 @@ import type { MainTabParamList } from '../navigation/MainTabs';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { useLayoutDirection } from '../i18n/layoutDirection';
 import { cardShadow, collectionFilterColors, colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
+import { TOUR_TARGETS } from '../tour/tourGuides';
+import { useTourTarget } from '../tour/tourTargets';
 import { columnBasis, gridListKey, useCollectionTileColumns } from '../layout/responsiveGrid';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { screenIcons } from '../navigation/screenIcons';
@@ -186,6 +188,8 @@ function getNameValidationError(name: string, t: TFunction): string | null {
  */
 export function CollectionsScreen() {
   const { t } = useTranslation();
+  const viewModeTarget = useTourTarget(TOUR_TARGETS.collectionsViewMode);
+  const createTarget = useTourTarget(TOUR_TARGETS.collectionsCreate);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const tabNavigation = useNavigation<BottomTabNavigationProp<MainTabParamList, 'Collections'>>();
   const route = useRoute<RouteProp<MainTabParamList, 'Collections'>>();
@@ -639,8 +643,10 @@ export function CollectionsScreen() {
             <View style={styles.titleRow}>
               <ScreenTitle icon={screenIcons.collections} textStyle={styles.title} title={t('collections.title')} />
               <View style={styles.headerButtons}>
-                <ViewModeToggle onChange={changeViewMode} value={viewMode} />
-                <Pressable accessibilityLabel={t('collections.create')} accessibilityRole="button" onPress={openCreateDialog} style={styles.addButton}>
+                <View {...viewModeTarget}>
+                  <ViewModeToggle onChange={changeViewMode} value={viewMode} />
+                </View>
+                <Pressable {...createTarget} accessibilityLabel={t('collections.create')} accessibilityRole="button" onPress={openCreateDialog} style={styles.addButton}>
                   <PlusIcon color={colors.surface} size={20} strokeWidth={2.25} />
                 </Pressable>
               </View>

@@ -1163,6 +1163,14 @@
       "settings": {
         "title": "Account and settings",
         "body": "My Page has your profile and Juple ID, language, Quick Save, Friends, Collection lock, Recently Deleted and account management. Contact support from Customer Center.\n\nIn Manage account you can see how you sign in and delete your account, which permanently deletes your account and data."
+      },
+      "homeShortcut": {
+        "title": "Home screen shortcut (1×1)",
+        "body": "Press and hold a collection and choose “Add shortcut to Home screen”. A 1×1 icon of that collection appears on your Home screen, and tapping it opens the collection in Juple.\n\nThe menu entry only appears when your launcher supports Home screen shortcuts. A locked collection still asks for its password. To remove the icon, delete it from your Home screen yourself."
+      },
+      "profilePhoto": {
+        "title": "Change your profile photo",
+        "body": "In My Page, tap the edit button on your profile card. Pick a photo, move and zoom it to fit the circle, then save.\n\nYour profile photo is shown to friends and in shared collections."
       }
     }
   },
@@ -1248,5 +1256,129 @@
     "apply": "Apply",
     "preview": "Preview",
     "areaA11y": "Photo area. Swipe up or down to zoom in or out."
+  },
+  "tour": {
+    "previous": "Back",
+    "done": "Done",
+    "start": "Start guide",
+    "helpTitle": "Feature guides",
+    "helpIntro": "We point things out right on the screen, one step at a time.",
+    "mobileOnlyNote": "Some guides are only available in the mobile app.",
+    "guides": {
+      "mainOnboarding": {
+        "title": "Getting started",
+        "summary": "A quick look at the main places in Juple."
+      },
+      "saveLink": {
+        "title": "Save a link",
+        "summary": "Paste a link and review it before saving."
+      },
+      "shareMenu": {
+        "title": "Save from other apps",
+        "summary": "Send links to Juple from any app’s share menu."
+      },
+      "collections": {
+        "title": "Collections",
+        "summary": "Create, view, organize and share collections."
+      },
+      "friends": {
+        "title": "Friends",
+        "summary": "Requests, blocked people and shared collections."
+      },
+      "settings": {
+        "title": "Settings",
+        "summary": "Language, appearance, help and your account."
+      },
+      "homeShortcut": {
+        "title": "Home screen shortcut",
+        "summary": "Open a collection from a 1×1 icon on your Home screen."
+      }
+    },
+    "steps": {
+      "home": {
+        "title": "Save a link",
+        "body": "Paste a link here and tap the button. Juple fills in the title and image when it can."
+      },
+      "share": {
+        "title": "Save from any app",
+        "body": "In another app, tap Share and choose Juple. The link is saved right away."
+      },
+      "collections": {
+        "title": "Organize in Collections",
+        "body": "Create collections for the topics you like and gather your links in them. You start with none."
+      },
+      "archive": {
+        "title": "Find links again",
+        "body": "Archive lists everything you saved, by date, and lets you search."
+      },
+      "myPage": {
+        "title": "Friends and settings",
+        "body": "Friends, sharing, language, appearance and help are in My Page."
+      },
+      "inputLink": {
+        "title": "Paste a link",
+        "body": "Paste or type the link you want to save."
+      },
+      "reviewSave": {
+        "title": "Review, then save",
+        "body": "Tap this to open the review screen. Check the title, memo and collection, then save."
+      },
+      "quickSave": {
+        "title": "Quick Save",
+        "body": "Turn on Quick Save in My Page to save shared links without the review screen."
+      },
+      "newCollection": {
+        "title": "New collection",
+        "body": "Tap + to create a collection and choose its name, icon and color."
+      },
+      "viewMode": {
+        "title": "View mode",
+        "body": "Switch between list, grid and image views."
+      },
+      "longPress": {
+        "title": "Press and hold",
+        "body": "Press and hold a collection for favorite, notifications, edit, lock, and delete or leave."
+      },
+      "shareCollection": {
+        "title": "Share a collection",
+        "body": "Inside a collection, use the share button to invite friends or share a link. The owner is marked with a crown, and each link shows who added it."
+      },
+      "friendsEntry": {
+        "title": "Friends",
+        "body": "Add friends, answer requests and manage blocked people here."
+      },
+      "friendsTabs": {
+        "title": "Four tabs",
+        "body": "Friends, Received requests, Sent requests and Blocked users each have their own tab."
+      },
+      "friendsShared": {
+        "title": "Shared collections",
+        "body": "Tap a friend to see the collections you share with them."
+      },
+      "language": {
+        "title": "Language",
+        "body": "Choose the language Juple uses."
+      },
+      "appearance": {
+        "title": "Appearance",
+        "body": "Use the system setting, or choose Light or Dark."
+      },
+      "helpGuide": {
+        "title": "Help",
+        "body": "Come back to these guides any time."
+      },
+      "account": {
+        "title": "Account",
+        "body": "Manage your account details and sign-in here."
+      },
+      "shortcutLong": {
+        "title": "Press and hold a collection",
+        "body": "Press and hold the collection you open most."
+      },
+      "shortcutAdd": {
+        "title": "Add to Home screen",
+        "body": "Choose “Add shortcut to Home screen” and confirm in your launcher. Tapping the 1×1 icon opens that collection."
+      }
+    }
   }
 }

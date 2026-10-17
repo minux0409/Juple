@@ -62,6 +62,8 @@ import { isHttpUrl } from '../share/resolveIncomingShare';
 import { parseCollectionShareUrl } from '../share/collectionShareUrl';
 import { extractFirstHttpUrl } from '../share/sharedTextParser';
 import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
+import { TOUR_TARGETS } from '../tour/tourGuides';
+import { useTourTarget } from '../tour/tourTargets';
 import { useViewModePreference } from '../settings/viewModePreference';
 import { isNameSort, nextDateSort, nextNameSort, useSortPreference } from '../settings/sortPreference';
 import { sortLinksByName } from '../collections/sortCollectionItems';
@@ -156,6 +158,8 @@ function getShareErrorMessage(t: TFunction): string {
  */
 export function DailyInboxScreen() {
   const { t } = useTranslation();
+  const inputTarget = useTourTarget(TOUR_TARGETS.homeInput);
+  const checkTarget = useTourTarget(TOUR_TARGETS.homeCheck);
   const authenticatedRequest = useAuthenticatedApi();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { showUndoToast } = useAppToast();
@@ -571,7 +575,7 @@ export function DailyInboxScreen() {
               <NotificationBellButton onPress={() => navigation.navigate('Notifications')} />
             </View>
             <SubscriptionExpiredNotice />
-            <View style={styles.inputWrapper}>
+            <View {...inputTarget} style={styles.inputWrapper}>
               <View pointerEvents="none" style={styles.inputIconContainer}>
                 <LinkIcon color={colors.textSecondary} size={18} />
               </View>
@@ -586,6 +590,7 @@ export function DailyInboxScreen() {
                 value={url}
               />
               <Pressable
+                {...checkTarget}
                 accessibilityLabel={t('common.save')}
                 accessibilityRole="button"
                 disabled={!url.trim()}

@@ -30,6 +30,7 @@ import { settleReauthenticationFailure } from '../../lib/reauthFailure';
 import { parseEntitlement, parseStoreSubscription, type Entitlement, type StoreSubscription } from '../../lib/subscription';
 import type { WebAppConfig } from '../../lib/webAppConfig';
 import { AppShell } from './AppShell';
+import { TourProvider } from './TourProvider';
 import { isTermsRequired, parseTermsStatus, type TermsStatus } from '../../lib/safety';
 import { SafetyProvider } from './SafetyProvider';
 import { TermsAgreement } from './TermsAgreement';
@@ -447,11 +448,13 @@ export function AppRoot({
     }
     return (
       <SignedInAppContext.Provider value={signedInApp}>
-        <ToastProvider>
-          <SafetyProvider>
-            <AppShell>{children}</AppShell>
-          </SafetyProvider>
-        </ToastProvider>
+        <TourProvider>
+          <ToastProvider>
+            <SafetyProvider>
+              <AppShell>{children}</AppShell>
+            </SafetyProvider>
+          </ToastProvider>
+        </TourProvider>
       </SignedInAppContext.Provider>
     );
   })();

@@ -14,7 +14,9 @@ import { SubscriptionScreen } from '../screens/SubscriptionScreen';
 import { SupportInquiryDetailScreen } from '../screens/SupportInquiryDetailScreen';
 import { SupportInquiryScreen } from '../screens/SupportInquiryScreen';
 import { TutorialScreen } from '../screens/TutorialScreen';
-import { TutorialLauncher } from '../support/TutorialLauncher';
+import { OnboardingTourLauncher } from '../tour/OnboardingTourLauncher';
+import { TourBackground } from '../tour/TourBackground';
+import { TourHost } from '../tour/TourHost';
 import { SubscriptionRequiredPrompt } from '../billing/SubscriptionRequiredPrompt';
 import { MyCollectionSubmissionsScreen } from '../screens/MyCollectionSubmissionsScreen';
 import { headerTitleWithIcon, screenIcons } from './screenIcons';
@@ -168,7 +170,7 @@ export type RootStackParamList = {
    * The tutorial. firstRun: shown once per person and tutorial version after sign-in (userKey = the person's key for
    * the completion record); replay: from 고객센터, records nothing.
    */
-  Tutorial: { mode: 'firstRun'; userKey: string } | { mode: 'replay' };
+  Tutorial: undefined;
   /** Rendered instead of MainTabs while signed in but not yet backend-valid/bootstrapped - see this file's isReady branching. */
   AuthPending: undefined;
   /** Rendered instead of MainTabs while signed out - see this file's isReady branching. */
@@ -229,6 +231,7 @@ export function RootStack() {
 
   return (
     <>
+      <TourBackground>
       <Stack.Navigator>
         {isReady ? (
           <Stack.Group>
@@ -343,6 +346,7 @@ export function RootStack() {
           options={{ title: t('nav.sharedCollection') }}
         />
       </Stack.Navigator>
+      </TourBackground>
       {/*
         IncomingShareRouter only calls navigationRef imperatively (see that file) - it has no need
         to be a descendant of Stack.Navigator (which only ever renders its own Screen/Group
@@ -351,7 +355,8 @@ export function RootStack() {
       */}
       {isReady ? <IncomingShareRouter /> : null}
       {isReady ? <CollectionShortcutRouter /> : null}
-      {isReady ? <TutorialLauncher /> : null}
+      {isReady ? <OnboardingTourLauncher /> : null}
+      {isReady ? <TourHost /> : null}
       {isReady ? <SubscriptionRequiredPrompt /> : null}
     </>
   );

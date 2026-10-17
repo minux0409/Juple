@@ -8021,3 +8021,172 @@ button.reactionChipMine:hover {
   background: var(--app-surface-muted);
   box-shadow: 0 0 0 1px var(--app-border);
 }
+
+/* ---- Guided tour (Help > 기능 가이드): dimming layer, spotlight ring, explanation card. Tokens only, so Light and Dark both follow. ---- */
+.tourRoot {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.tourScrim,
+.tourBlocker {
+  position: absolute;
+  inset: 0;
+}
+
+.tourScrim {
+  background: var(--scrim);
+}
+
+/* The dimming around the spotlight is the ring's own giant shadow; the blocker only catches clicks. */
+.tourBlocker {
+  background: transparent;
+}
+
+.tourSpotlight,
+.tourSpotlightStatic {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--brand);
+  border-radius: var(--radius-control, 12px);
+  box-shadow: 0 0 0 100vmax var(--scrim);
+  pointer-events: none;
+}
+
+.tourSpotlight {
+  transition: left 180ms var(--ease-out), top 180ms var(--ease-out), width 180ms var(--ease-out), height 180ms var(--ease-out);
+}
+
+.tourCard,
+.tourCardStatic {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  box-sizing: border-box;
+  width: min(360px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding: var(--space-4, 16px);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+  color: var(--app-text);
+  box-shadow: var(--shadow-card);
+}
+
+.tourCard {
+  animation: tourCardIn 180ms var(--ease-out);
+}
+
+@keyframes tourCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tourCard {
+    animation: none;
+  }
+
+  .tourSpotlight {
+    transition: none;
+  }
+}
+
+.tourProgress {
+  margin: 0;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tourTitle {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.tourBody {
+  margin: 0;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.tourActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+  margin-top: var(--space-2, 8px);
+}
+
+.tourNav {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+}
+
+.tourSkip {
+  min-height: 44px;
+  padding: 0 var(--space-2, 8px);
+  border: 0;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tourSkip:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* ---- Help page: guide list ---- */
+.guideList {
+  display: flex;
+  flex-direction: column;
+}
+
+.guideRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4, 16px);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  border-top: 1px solid var(--app-border);
+}
+
+.guideRow:first-child {
+  border-top: 0;
+}
+
+.guideRowText {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.guideRowTitle {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.guideRowSummary {
+  margin: 2px 0 0;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+}

@@ -1,11 +1,15 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { View } from 'react-native';
 import { CollectionsScreen } from '../screens/CollectionsScreen';
 import { DailyInboxScreen } from '../screens/DailyInboxScreen';
 import { DateHistoryScreen } from '../screens/DateHistoryScreen';
 import { MyPageScreen } from '../screens/MyPageScreen';
 import { themedScreen, useTheme } from '../theme/ThemeContext';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, radii, spacing, themedStyles } from '../theme/tokens';
+import { TOUR_TARGETS } from '../tour/tourGuides';
+import { useTourTarget } from '../tour/tourTargets';
 import { screenIcons } from './screenIcons';
 
 export type MainTabParamList = {
@@ -23,6 +27,10 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const TAB_ICON_SIZE = 22;
 
+const styles = themedStyles(() => ({
+  tabIconTarget: { alignItems: 'center', justifyContent: 'center', padding: spacing.xs },
+}));
+
 // Defined at module scope (not inline in MainTabs' render) so React Navigation always sees the
 // same tabBarIcon function identity across renders - see the "no inline component" lint rule.
 function tabIconColor(focused: boolean): string {
@@ -33,16 +41,22 @@ function renderHomeIcon({ focused }: { focused: boolean }) {
   return <screenIcons.home color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
 }
 
+// The tab icons that a guided tour can spotlight: the icon area is the tour target (the tab bar buttons are navigator-owned).
+function TabIconTarget({ id, children }: { id: string; children: ReactNode }) {
+  const target = useTourTarget(id);
+  return <View {...target} style={styles.tabIconTarget}>{children}</View>;
+}
+
 function renderHistoryIcon({ focused }: { focused: boolean }) {
-  return <screenIcons.archive color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
+  return <TabIconTarget id={TOUR_TARGETS.tabHistory}><screenIcons.archive color={tabIconColor(focused)} size={TAB_ICON_SIZE} /></TabIconTarget>;
 }
 
 function renderCollectionsIcon({ focused }: { focused: boolean }) {
-  return <screenIcons.collections color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
+  return <TabIconTarget id={TOUR_TARGETS.tabCollections}><screenIcons.collections color={tabIconColor(focused)} size={TAB_ICON_SIZE} /></TabIconTarget>;
 }
 
 function renderMyPageIcon({ focused }: { focused: boolean }) {
-  return <screenIcons.myPage color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
+  return <TabIconTarget id={TOUR_TARGETS.tabMyPage}><screenIcons.myPage color={tabIconColor(focused)} size={TAB_ICON_SIZE} /></TabIconTarget>;
 }
 
 export function MainTabs() {

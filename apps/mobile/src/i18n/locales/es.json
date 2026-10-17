@@ -1163,6 +1163,14 @@
       "settings": {
         "title": "Cuenta y ajustes",
         "body": "Mi página tiene tu perfil e ID de Juple, idioma, Guardado rápido, Amigos, Bloqueo de colecciones, Eliminados recientemente y la gestión de la cuenta. Contacta con soporte desde el Centro de ayuda.\n\nEn Gestionar cuenta puedes ver cómo inicias sesión y eliminar tu cuenta, lo que elimina definitivamente tu cuenta y tus datos."
+      },
+      "homeShortcut": {
+        "title": "Acceso directo en la pantalla de inicio (1×1)",
+        "body": "Mantén pulsada una colección y elige «Añadir acceso directo a la pantalla de inicio». En tu pantalla de inicio aparece un icono de 1×1 de esa colección y, al tocarlo, se abre en Juple.\n\nEsta opción solo aparece si tu launcher admite accesos directos en la pantalla de inicio. Una colección bloqueada sigue pidiendo su contraseña. Para quitar el icono, bórralo tú mismo de la pantalla de inicio."
+      },
+      "profilePhoto": {
+        "title": "Cambiar la foto de perfil",
+        "body": "En Mi página, toca el botón de editar de tu tarjeta de perfil. Elige una foto, muévela y amplíala para ajustarla al círculo y guarda.\n\nTu foto de perfil se muestra a tus amigos y en las colecciones compartidas."
       }
     }
   },
@@ -1248,5 +1256,129 @@
     "apply": "Aplicar",
     "preview": "Vista previa",
     "areaA11y": "Zona de la foto. Desliza hacia arriba o abajo para acercar o alejar."
+  },
+  "tour": {
+    "previous": "Atrás",
+    "done": "Listo",
+    "start": "Iniciar guía",
+    "helpTitle": "Guías de funciones",
+    "helpIntro": "Te lo mostramos directamente en la pantalla, paso a paso.",
+    "mobileOnlyNote": "Algunas guías solo están disponibles en la app móvil.",
+    "guides": {
+      "mainOnboarding": {
+        "title": "Primeros pasos",
+        "summary": "Un vistazo rápido a las zonas principales de Juple."
+      },
+      "saveLink": {
+        "title": "Guardar un enlace",
+        "summary": "Pega un enlace y revísalo antes de guardarlo."
+      },
+      "shareMenu": {
+        "title": "Guardar desde otras apps",
+        "summary": "Envía enlaces a Juple desde el menú Compartir de cualquier app."
+      },
+      "collections": {
+        "title": "Colecciones",
+        "summary": "Crea, consulta, organiza y comparte colecciones."
+      },
+      "friends": {
+        "title": "Amigos",
+        "summary": "Solicitudes, personas bloqueadas y colecciones compartidas."
+      },
+      "settings": {
+        "title": "Ajustes",
+        "summary": "Idioma, apariencia, ayuda y tu cuenta."
+      },
+      "homeShortcut": {
+        "title": "Acceso directo en la pantalla de inicio",
+        "summary": "Abre una colección desde un icono de 1×1 en tu pantalla de inicio."
+      }
+    },
+    "steps": {
+      "home": {
+        "title": "Guardar un enlace",
+        "body": "Pega aquí un enlace y toca el botón. Juple completa el título y la imagen cuando puede."
+      },
+      "share": {
+        "title": "Guardar desde cualquier app",
+        "body": "En otra app, toca Compartir y elige Juple. El enlace se guarda al instante."
+      },
+      "collections": {
+        "title": "Organiza en colecciones",
+        "body": "Crea colecciones para tus temas favoritos y reúne en ellas tus enlaces. Al principio no tienes ninguna."
+      },
+      "archive": {
+        "title": "Encuentra enlaces de nuevo",
+        "body": "El archivo muestra todo lo que guardaste, por fecha, y permite buscar."
+      },
+      "myPage": {
+        "title": "Amigos y ajustes",
+        "body": "Amigos, compartir, idioma, apariencia y ayuda están en Mi página."
+      },
+      "inputLink": {
+        "title": "Pega un enlace",
+        "body": "Pega o escribe el enlace que quieres guardar."
+      },
+      "reviewSave": {
+        "title": "Revisa y guarda",
+        "body": "Toca aquí para abrir la pantalla de revisión. Comprueba el título, la nota y la colección, y guarda."
+      },
+      "quickSave": {
+        "title": "Guardado rápido",
+        "body": "Activa el guardado rápido en Mi página para guardar enlaces compartidos sin pantalla de revisión."
+      },
+      "newCollection": {
+        "title": "Nueva colección",
+        "body": "Toca + para crear una colección y elegir su nombre, icono y color."
+      },
+      "viewMode": {
+        "title": "Modo de vista",
+        "body": "Cambia entre vista de lista, cuadrícula e imagen."
+      },
+      "longPress": {
+        "title": "Mantener pulsado",
+        "body": "Mantén pulsada una colección para marcarla como favorita, ajustar notificaciones, editar, bloquear, eliminar o salir."
+      },
+      "shareCollection": {
+        "title": "Compartir una colección",
+        "body": "Dentro de una colección, usa el botón de compartir para invitar a amigos o compartir un enlace. El propietario lleva una corona y cada enlace muestra quién lo añadió."
+      },
+      "friendsEntry": {
+        "title": "Amigos",
+        "body": "Aquí añades amigos, respondes solicitudes y gestionas a las personas bloqueadas."
+      },
+      "friendsTabs": {
+        "title": "Cuatro pestañas",
+        "body": "Amigos, Solicitudes recibidas, Solicitudes enviadas y Usuarios bloqueados tienen cada uno su pestaña."
+      },
+      "friendsShared": {
+        "title": "Colecciones compartidas",
+        "body": "Toca un amigo para ver las colecciones que compartís."
+      },
+      "language": {
+        "title": "Idioma",
+        "body": "Elige el idioma que usa Juple."
+      },
+      "appearance": {
+        "title": "Apariencia",
+        "body": "Usa el ajuste del sistema o elige Claro u Oscuro."
+      },
+      "helpGuide": {
+        "title": "Ayuda",
+        "body": "Vuelve a estas guías cuando quieras."
+      },
+      "account": {
+        "title": "Cuenta",
+        "body": "Gestiona aquí los datos de tu cuenta y el inicio de sesión."
+      },
+      "shortcutLong": {
+        "title": "Mantén pulsada una colección",
+        "body": "Mantén pulsada la colección que más abres."
+      },
+      "shortcutAdd": {
+        "title": "Añadir a la pantalla de inicio",
+        "body": "Elige «Añadir acceso directo a la pantalla de inicio» y confirma en tu launcher. Al tocar el icono de 1×1 se abre esa colección."
+      }
+    }
   }
 }

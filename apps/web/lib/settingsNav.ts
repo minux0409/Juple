@@ -5,7 +5,7 @@ import type { AppDictionary } from './appI18n.ts';
  * list, the content). Only features that really exist: 프로필, 언어, 컬렉션 잠금, 구독, 계정, 고객센터 and the deliberate 계정 삭제. 친구 (with its
  * 차단한 사용자 tab) and 삭제 이력 are main destinations of the side bar and are not part of it.
  */
-export type SettingsNavKey = 'profile' | 'language' | 'appearance' | 'collectionLock' | 'subscription' | 'account' | 'support' | 'deleteAccount';
+export type SettingsNavKey = 'profile' | 'language' | 'appearance' | 'collectionLock' | 'subscription' | 'account' | 'help' | 'support' | 'deleteAccount';
 
 export interface SettingsNavItem {
   readonly key: SettingsNavKey;
@@ -25,6 +25,8 @@ export const SETTINGS_NAV_ITEMS: readonly SettingsNavItem[] = [
   { key: 'collectionLock', href: '/me/collection-lock', paths: ['/me/collection-lock'], group: 1 },
   { key: 'subscription', href: '/me/subscription', paths: ['/me/subscription'], group: 2 },
   { key: 'account', href: '/me/account', paths: ['/me/account'], group: 2 },
+  // 도움말 (mobile HelpGuideScreen): the 기능 가이드 tours.
+  { key: 'help', href: '/me/help', paths: ['/me/help'], group: 3 },
   // 고객센터 (mobile CustomerCenterScreen): the legal documents and 문의하기.
   { key: 'support', href: '/me/support', paths: ['/me/support'], group: 3 },
   { key: 'deleteAccount', href: '/me/account/delete', paths: ['/me/account/delete'], group: 4, danger: true },
@@ -60,6 +62,8 @@ export function settingsNavLabel(key: SettingsNavKey, dictionary: AppDictionary)
       return dictionary.subscriptionTitle;
     case 'account':
       return dictionary.accountSectionTitle;
+    case 'help':
+      return dictionary.helpGuideTitle;
     case 'support':
       return dictionary.customerCenterTitle;
     case 'deleteAccount':

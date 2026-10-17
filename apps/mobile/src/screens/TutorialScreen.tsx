@@ -1,4 +1,4 @@
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -7,7 +7,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CloseIcon } from '../icons/CloseIcon';
 import { useLayoutDirection } from '../i18n/layoutDirection';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { markTutorialCompleted } from '../settings/tutorialPreference';
 import { TutorialPage } from '../support/TutorialPage';
 import { TUTORIAL_PAGES } from '../support/tutorialPages';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
@@ -15,16 +14,14 @@ import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/t
 const SWIPE_DISTANCE = 50;
 
 /**
- * The tutorial, one screen for both uses: `firstRun` (shown once after sign-in; 건너뛰기, 시작하기 and Android back all
- * record that this tutorial version is done) and `replay` (from 고객센터; closing it records nothing and returns to
- * where it was opened). Pages are bundled static content. Next / swipe move between pages; a page that is too tall
- * for a small screen or a long translation scrolls, with the buttons always in reach.
+ * Juple 소개: the six-page introduction, opened only from 도움말 (it is no longer part of signing up - the on-screen tour is the
+ * automatic first run). Closing it - the close button or Android back - returns to where it was opened and records nothing. Pages are
+ * bundled static content. Next / swipe move between pages; a page that is too tall for a small screen or a long translation
+ * scrolls, with the buttons always in reach.
  */
 export function TutorialScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const route = useRoute<RouteProp<RootStackParamList, 'Tutorial'>>();
-  const params = route.params;
   const direction = useLayoutDirection();
   const [pageIndex, setPageIndex] = useState(0);
   const isLastPage = pageIndex === TUTORIAL_PAGES.length - 1;
@@ -35,13 +32,10 @@ export function TutorialScreen() {
       return;
     }
     isFinishing.current = true;
-    if (params.mode === 'firstRun') {
-      markTutorialCompleted(params.userKey).catch(() => undefined);
-    }
     navigation.goBack();
-  }, [navigation, params]);
+  }, [navigation]);
 
-  // Android back is Skip (first run) / close (replay) - never a way to see the same tutorial again next launch.
+  // Android back closes it.
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       finish();
@@ -73,15 +67,9 @@ export function TutorialScreen() {
   return (
     <SafeAreaView style={styles.safeArea} testID="tutorial-screen">
       <View style={styles.topBar}>
-        {params.mode === 'firstRun' ? (
-          <Pressable accessibilityRole="button" onPress={finish} style={styles.skipButton} testID="tutorial-skip">
-            <Text numberOfLines={1} style={styles.skipLabel}>{t('tutorial.skip')}</Text>
-          </Pressable>
-        ) : (
-          <Pressable accessibilityLabel={t('tutorial.close')} accessibilityRole="button" onPress={finish} style={styles.skipButton} testID="tutorial-close">
-            <CloseIcon color={colors.textSecondary} size={22} />
-          </Pressable>
-        )}
+        <Pressable accessibilityLabel={t('tutorial.close')} accessibilityRole="button" onPress={finish} style={styles.skipButton} testID="tutorial-close">
+          <CloseIcon color={colors.textSecondary} size={22} />
+        </Pressable>
       </View>
       <View style={styles.body} {...swipe.panHandlers}>
         <ScrollView contentContainerStyle={styles.pageContent} key={pageIndex} testID="tutorial-scroll">

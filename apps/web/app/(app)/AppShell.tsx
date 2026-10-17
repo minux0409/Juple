@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { activeMainNav, MAIN_NAV_ITEMS } from '../../lib/appNavigation';
+import { navTourTarget } from '../../lib/tour';
 import { forgetUnlocksOutside } from '../../lib/collectionUnlock';
 import { forgetItemOpenGrantsOutside } from '../../lib/itemOpenGrant';
 import { isItemOverlayOpen } from '../../lib/itemOverlay';
@@ -46,7 +47,7 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
         </Link>
         <nav aria-label={dictionary.mainNavigation} className={styles.nav}>
           {MAIN_NAV_ITEMS.map(item => (
-            <Link aria-current={item.href === active ? 'page' : undefined} className={item.href === active ? styles.navLinkActive : styles.navLink} href={item.href} key={item.href}>
+            <Link aria-current={item.href === active ? 'page' : undefined} className={item.href === active ? styles.navLinkActive : styles.navLink} href={item.href} key={item.href} {...navTourTarget(item.href)}>
               <Glyph className={styles.navIcon} name={item.icon} size={20} />
               <span>{dictionary[item.labelKey]}</span>
             </Link>

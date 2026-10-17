@@ -54,6 +54,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
     topics: [
       { id: 'createCollection' },
       { id: 'longPress', extra: { key: 'shortcut', requires: 'homePin' } },
+      { id: 'homeShortcut', requires: 'homePin' },
       { id: 'manageLinks' },
     ],
   },
@@ -65,7 +66,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
   { id: 'protection', icon: LockIcon, topics: [{ id: 'collectionLock' }, { id: 'accessPassword' }] },
   { id: 'notifications', icon: BellIcon, topics: [{ id: 'notificationCenter' }] },
   { id: 'trash', icon: TrashIcon, topics: [{ id: 'deleteRestore' }] },
-  { id: 'account', icon: UserIcon, topics: [{ id: 'settings' }] },
+  { id: 'account', icon: UserIcon, topics: [{ id: 'profilePhoto' }, { id: 'settings' }] },
 ];
 
 export function findGuideSection(id: string): GuideSection | undefined {

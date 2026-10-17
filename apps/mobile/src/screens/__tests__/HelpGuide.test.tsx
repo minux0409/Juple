@@ -4,6 +4,7 @@ import i18n, { SUPPORTED_LANGUAGES } from '../../i18n';
 import { GUIDE_SECTIONS } from '../../help/guideContent';
 import { HelpGuideScreen } from '../HelpGuideScreen';
 import { HelpGuideSectionScreen } from '../HelpGuideSectionScreen';
+import { startTour } from '../../tour/tourController';
 
 const fs = jest.requireActual<{ readFileSync(file: string, encoding: string): string }>('fs');
 const path = jest.requireActual<{ join(...parts: string[]): string }>('path');
@@ -18,6 +19,7 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
+jest.mock('../../tour/tourController', () => ({ startTour: jest.fn(() => true) }));
 let mockSupport: { directShareSupported: boolean; homePinSupport: 'unknown' | 'supported' | 'unsupported' } = { directShareSupported: true, homePinSupport: 'supported' };
 jest.mock('../../shortcuts/useCollectionShortcutSupport', () => ({
   useCollectionShortcutSupport: () => ({ ...mockSupport, refreshHomePinSupport: jest.fn() }),
@@ -59,10 +61,10 @@ describe('Help Guide - the list', () => {
     expect(mockNavigate).toHaveBeenCalledWith('HelpGuideSection', { sectionId: 'sharing' });
   });
 
-  it('can replay the first-run introduction (records nothing)', async () => {
+  it('can open the six-page introduction (records nothing)', async () => {
     const renderer = await render(<HelpGuideScreen />);
     await act(async () => byId(renderer, 'guide-replay-tutorial').props.onPress());
-    expect(mockNavigate).toHaveBeenCalledWith('Tutorial', { mode: 'replay' });
+    expect(mockNavigate).toHaveBeenCalledWith('Tutorial');
   });
 
   it('keeps the three different ideas as separate topics: invitation, join request and link approval', () => {
@@ -198,5 +200,74 @@ describe('Help Guide - content in every locale', () => {
   it('the swipe hint does not promise specific actions', () => {
     expect(i18n.t('hints.savedLinkSwipe', { lng: 'ko' })).toBe('링크를 옆으로 밀면 빠른 작업을 할 수 있어요.');
     expect(i18n.t('hints.collectionLongPress', { lng: 'ko' })).toBe('컬렉션을 길게 눌러 빠른 관리 기능을 확인해 보세요.');
+  });
+});
+
+describe('Help Guide - 기능 가이드 (guided tours)', () => {
+  beforeEach(() => {
+    (startTour as jest.Mock).mockClear();
+  });
+
+  const tourIds = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    renderer.root.findAll(node => typeof node.props.onPress === 'function' && String(node.props.testID ?? '').startsWith('guide-tour-')).map(node => String(node.props.testID).replace('guide-tour-', ''));
+
+  it('lists the guides with a short title, a one-line summary and a 가이드 보기 button, and starts the chosen one', async () => {
+    const renderer = await render(<HelpGuideScreen />);
+    expect(texts(renderer)).toContain(i18n.t('tour.helpTitle'));
+    expect(tourIds(renderer)).toEqual(['mainOnboarding', 'saveLink', 'shareMenu', 'collections', 'friends', 'settings', 'homeShortcut']);
+    expect(texts(renderer)).toContain(i18n.t('tour.guides.saveLink.title'));
+    expect(texts(renderer)).toContain(i18n.t('tour.guides.saveLink.summary'));
+    await act(async () => byId(renderer, 'guide-tour-saveLink').props.onPress());
+    expect(startTour).toHaveBeenCalledWith('saveLink');
+  });
+
+  it('can start any guide again, finished or not (nothing is recorded or disabled)', async () => {
+    const renderer = await render(<HelpGuideScreen />);
+    await act(async () => byId(renderer, 'guide-tour-mainOnboarding').props.onPress());
+    await act(async () => byId(renderer, 'guide-tour-mainOnboarding').props.onPress());
+    expect(startTour).toHaveBeenCalledTimes(2);
+  });
+
+  it('lists the 1x1 Home screen shortcut guide only where the launcher can pin icons (never promised where it cannot)', async () => {
+    mockSupport = { directShareSupported: false, homePinSupport: 'unsupported' };
+    const unsupported = await render(<HelpGuideScreen />);
+    expect(tourIds(unsupported)).not.toContain('homeShortcut');
+    mockSupport = { directShareSupported: true, homePinSupport: 'unknown' };
+    const unknown = await render(<HelpGuideScreen />);
+    expect(tourIds(unknown)).not.toContain('homeShortcut');
+  });
+
+  it('explains the 1x1 shortcut as a Help topic with the real menu entry, only where supported', async () => {
+    const supported = await render(<HelpGuideSectionScreen />);
+    expect(topicIds(supported)).toContain('homeShortcut');
+    expect(joined(supported)).toContain(i18n.t('collections.homeShortcutAdd'));
+    expect(joined(supported)).toContain('1×1');
+    mockSupport = { directShareSupported: false, homePinSupport: 'unsupported' };
+    const unsupported = await render(<HelpGuideSectionScreen />);
+    expect(topicIds(unsupported)).not.toContain('homeShortcut');
+  });
+});
+
+describe('Help Guide - features without a spotlight tour are still findable', () => {
+  it('has a written topic for profile photo, notifications, locked Collections, shared Collections and the 1x1 shortcut, in every locale', () => {
+    const ids = GUIDE_SECTIONS.flatMap(section => section.topics.map(topic => topic.id));
+    for (const id of ['profilePhoto', 'notificationCenter', 'collectionLock', 'invite', 'roles', 'homeShortcut']) {
+      expect(ids).toContain(id);
+    }
+    for (const language of SUPPORTED_LANGUAGES) {
+      for (const id of ['profilePhoto', 'notificationCenter', 'collectionLock', 'homeShortcut']) {
+        expect(i18n.getResource(language, 'translation', `guide.topics.${id}.title`)).toEqual(expect.any(String));
+        expect(i18n.getResource(language, 'translation', `guide.topics.${id}.body`)).toEqual(expect.any(String));
+      }
+    }
+  });
+
+  it('calls the 1x1 icon a Home screen shortcut, never a widget', () => {
+    const fsx = jest.requireActual<{ readFileSync(file: string, encoding: string): string }>('fs');
+    const pathx = jest.requireActual<{ join(...parts: string[]): string }>('path');
+    const ko = JSON.parse(fsx.readFileSync(pathx.join(__dirname, '..', '..', 'i18n', 'locales', 'ko.json'), 'utf8'));
+    const text = JSON.stringify([ko.tour, ko.guide.topics.homeShortcut, ko.guide.topics.androidShortcuts]);
+    expect(text).not.toMatch(/위젯|widget/i);
+    expect(text).toContain('바로가기');
   });
 });

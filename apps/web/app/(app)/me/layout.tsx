@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { activeSettingsItem, SETTINGS_NAV_ITEMS, settingsNavLabel } from '../../../lib/settingsNav';
+import { settingsTourTarget } from '../../../lib/tour';
 import { isSubscriptionEntryShown } from '../../../lib/subscription';
 import { useSignedInApp } from '../AppRoot';
 import { ConfirmDialog } from '../ConfirmDialog';
@@ -35,6 +36,7 @@ export default function MeLayout({ children }: { readonly children: React.ReactN
                 aria-current={item.key === active.key ? 'page' : undefined}
                 className={`${item.key === active.key ? styles.settingsNavLinkActive : styles.settingsNavLink}${item.danger ? ` ${styles.settingsNavDanger}` : ''}`}
                 href={item.href}
+                {...settingsTourTarget(item.key)}
               >
                 {settingsNavLabel(item.key, dictionary)}
               </Link>

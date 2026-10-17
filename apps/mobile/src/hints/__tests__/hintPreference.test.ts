@@ -20,7 +20,7 @@ describe('hint preference', () => {
     expect(hintSeenKey('savedLinkSwipe', 'JUPLE-1')).toBe('juple.hint.savedLinkSwipe.v1.JUPLE-1');
     expect(hintSeenKey('collectionLongPress', 'JUPLE-1')).toBe('juple.hint.collectionLongPress.v1.JUPLE-1');
     expect(hintSeenKey('savedLinkSwipe', 'JUPLE-1')).not.toBe(hintSeenKey('collectionLongPress', 'JUPLE-1'));
-    expect(hintSeenKey('savedLinkSwipe', 'JUPLE-1')).not.toBe(tutorialCompletedKey('JUPLE-1'));
+    expect(hintSeenKey('savedLinkSwipe', 'JUPLE-1')).not.toBe(tutorialCompletedKey('JUPLE-1', 2));
   });
 
   it('is unseen until marked, then stays seen for that person only', async () => {

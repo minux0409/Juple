@@ -3,19 +3,15 @@ import { BackHandler, PanResponder, ScrollView, Text } from 'react-native';
 import i18n from '../../i18n';
 import { TutorialScreen } from '../TutorialScreen';
 import { TUTORIAL_PAGES } from '../../support/tutorialPages';
-import { markTutorialCompleted } from '../../settings/tutorialPreference';
 
 const mockGoBack = jest.fn();
-let mockParams: { mode: 'firstRun'; userKey: string } | { mode: 'replay' } = { mode: 'firstRun', userKey: 'JUPLE-1' };
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ goBack: mockGoBack }),
-  useRoute: () => ({ params: mockParams }),
 }));
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
-jest.mock('../../settings/tutorialPreference', () => ({ markTutorialCompleted: jest.fn(async () => undefined) }));
 
 let backHandlers: (() => boolean)[] = [];
 let panConfig: { onPanResponderRelease: (event: unknown, gesture: { dx: number; dy: number }) => void; onMoveShouldSetPanResponder: (event: unknown, gesture: { dx: number; dy: number }) => boolean };
@@ -24,7 +20,6 @@ beforeAll(async () => {
   await i18n.changeLanguage('ko');
 });
 beforeEach(() => {
-  mockParams = { mode: 'firstRun', userKey: 'JUPLE-1' };
   backHandlers = [];
   jest.spyOn(BackHandler, 'addEventListener').mockImplementation((_event, handler) => {
     backHandlers.push(handler as () => boolean);
@@ -68,10 +63,10 @@ describe('TutorialScreen - content and navigation', () => {
     }
   });
 
-  it('starts on 링크 저장 (v2 copy) with 건너뛰기 and 다음; Next walks the pages in order up to 시작하기', async () => {
+  it('starts on 링크 저장 (v2 copy) with a close button and 다음; Next walks the pages in order up to 시작하기', async () => {
     const renderer = await renderScreen();
     expect(texts(renderer)).toContain('링크는 어디서든 저장해요');
-    expect(texts(renderer)).toContain('건너뛰기');
+    expect(exists(renderer, 'tutorial-close')).toBe(true);
     expect(texts(renderer)).toContain('다음');
 
     const seen: string[] = [];
@@ -119,55 +114,7 @@ describe('TutorialScreen - content and navigation', () => {
   });
 });
 
-describe('TutorialScreen - first run', () => {
-  it('건너뛰기 marks this person\'s tutorial completed and closes', async () => {
-    const renderer = await renderScreen();
-    await act(async () => {
-      byId(renderer, 'tutorial-skip').props.onPress();
-    });
-    expect(markTutorialCompleted).toHaveBeenCalledWith('JUPLE-1');
-    expect(mockGoBack).toHaveBeenCalledTimes(1);
-  });
-
-  it('시작하기 on the last page marks completed and closes', async () => {
-    const renderer = await renderScreen();
-    for (let index = 0; index < TUTORIAL_PAGES.length - 1; index++) {
-      await next(renderer);
-    }
-    expect(markTutorialCompleted).not.toHaveBeenCalled();
-    await next(renderer);
-    expect(markTutorialCompleted).toHaveBeenCalledWith('JUPLE-1');
-    expect(mockGoBack).toHaveBeenCalledTimes(1);
-  });
-
-  it('Android back is Skip: marks completed, closes and is handled (never leaves it to repeat every launch)', async () => {
-    await renderScreen();
-    expect(backHandlers).toHaveLength(1);
-    let handled = false;
-    await act(async () => {
-      handled = backHandlers[0]();
-    });
-    expect(handled).toBe(true);
-    expect(markTutorialCompleted).toHaveBeenCalledWith('JUPLE-1');
-    expect(mockGoBack).toHaveBeenCalledTimes(1);
-  });
-
-  it('closes only once however it is dismissed twice', async () => {
-    const renderer = await renderScreen();
-    await act(async () => {
-      byId(renderer, 'tutorial-skip').props.onPress();
-      backHandlers[0]();
-    });
-    expect(mockGoBack).toHaveBeenCalledTimes(1);
-    expect(markTutorialCompleted).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('TutorialScreen - replay', () => {
-  beforeEach(() => {
-    mockParams = { mode: 'replay' };
-  });
-
+describe('TutorialScreen - Juple 소개 (opened from 도움말 only)', () => {
   it('has a close button instead of 건너뛰기, and closing records nothing', async () => {
     const renderer = await renderScreen();
     expect(exists(renderer, 'tutorial-skip')).toBe(false);
@@ -175,11 +122,10 @@ describe('TutorialScreen - replay', () => {
     await act(async () => {
       byId(renderer, 'tutorial-close').props.onPress();
     });
-    expect(markTutorialCompleted).not.toHaveBeenCalled();
     expect(mockGoBack).toHaveBeenCalledTimes(1);
   });
 
-  it('back and 시작하기 simply close - the first-run record is never touched', async () => {
+  it('back and 시작하기 simply close, and no first-run record exists to touch', async () => {
     const renderer = await renderScreen();
     await act(async () => {
       backHandlers[0]();
@@ -192,7 +138,6 @@ describe('TutorialScreen - replay', () => {
       await next(second);
     }
     expect(mockGoBack).toHaveBeenCalledTimes(1);
-    expect(markTutorialCompleted).not.toHaveBeenCalled();
     renderer.unmount();
   });
 });

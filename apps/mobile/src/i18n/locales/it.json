@@ -1163,6 +1163,14 @@
       "settings": {
         "title": "Account e impostazioni",
         "body": "Il mio profilo contiene il tuo profilo e ID Juple, lingua, Salvataggio rapido, Amici, Blocco raccolte, Eliminati di recente e gestione dell’account. Contatta l’assistenza dal Centro assistenza.\n\nIn Gestisci account puoi vedere come accedi ed eliminare il tuo account, il che elimina definitivamente account e dati."
+      },
+      "homeShortcut": {
+        "title": "Scorciatoia nella schermata Home (1×1)",
+        "body": "Tieni premuta una raccolta e scegli “Aggiungi scorciatoia alla schermata Home”. Nella schermata Home compare un’icona 1×1 di quella raccolta e toccandola si apre in Juple.\n\nLa voce di menu compare solo se il launcher supporta le scorciatoie nella schermata Home. Una raccolta bloccata chiede comunque la password. Per rimuovere l’icona, eliminala tu stesso dalla schermata Home."
+      },
+      "profilePhoto": {
+        "title": "Cambiare la foto del profilo",
+        "body": "In La mia pagina tocca il pulsante di modifica sulla scheda del profilo. Scegli una foto, spostala e ingrandiscila per adattarla al cerchio, poi salva.\n\nLa foto del profilo è visibile agli amici e nelle raccolte condivise."
       }
     }
   },
@@ -1248,5 +1256,129 @@
     "apply": "Applica",
     "preview": "Anteprima",
     "areaA11y": "Area della foto. Scorri su o giù per ingrandire o ridurre."
+  },
+  "tour": {
+    "previous": "Indietro",
+    "done": "Fine",
+    "start": "Avvia guida",
+    "helpTitle": "Guide alle funzioni",
+    "helpIntro": "Ti mostriamo tutto direttamente sullo schermo, un passo alla volta.",
+    "mobileOnlyNote": "Alcune guide sono disponibili solo nell’app per dispositivi mobili.",
+    "guides": {
+      "mainOnboarding": {
+        "title": "Per iniziare",
+        "summary": "Una rapida occhiata alle aree principali di Juple."
+      },
+      "saveLink": {
+        "title": "Salvare un link",
+        "summary": "Incolla un link e controllalo prima di salvarlo."
+      },
+      "shareMenu": {
+        "title": "Salvare da altre app",
+        "summary": "Invia link a Juple dal menu Condividi di qualsiasi app."
+      },
+      "collections": {
+        "title": "Raccolte",
+        "summary": "Crea, guarda, organizza e condividi raccolte."
+      },
+      "friends": {
+        "title": "Amici",
+        "summary": "Richieste, persone bloccate e raccolte condivise."
+      },
+      "settings": {
+        "title": "Impostazioni",
+        "summary": "Lingua, aspetto, aiuto e il tuo account."
+      },
+      "homeShortcut": {
+        "title": "Scorciatoia nella schermata Home",
+        "summary": "Apri una raccolta da un’icona 1×1 nella schermata Home."
+      }
+    },
+    "steps": {
+      "home": {
+        "title": "Salva un link",
+        "body": "Incolla qui un link e tocca il pulsante. Juple compila titolo e immagine quando può."
+      },
+      "share": {
+        "title": "Salva da qualsiasi app",
+        "body": "In un’altra app tocca Condividi e scegli Juple. Il link viene salvato subito."
+      },
+      "collections": {
+        "title": "Organizza con le raccolte",
+        "body": "Crea raccolte per i tuoi argomenti preferiti e raccogli lì i tuoi link. All’inizio non ne hai nessuna."
+      },
+      "archive": {
+        "title": "Ritrova i link",
+        "body": "L’archivio elenca tutto ciò che hai salvato, per data, e permette di cercare."
+      },
+      "myPage": {
+        "title": "Amici e impostazioni",
+        "body": "Amici, condivisione, lingua, aspetto e aiuto sono in La mia pagina."
+      },
+      "inputLink": {
+        "title": "Incolla un link",
+        "body": "Incolla o digita il link che vuoi salvare."
+      },
+      "reviewSave": {
+        "title": "Controlla, poi salva",
+        "body": "Tocca qui per aprire la schermata di revisione. Controlla titolo, nota e raccolta, poi salva."
+      },
+      "quickSave": {
+        "title": "Salvataggio rapido",
+        "body": "Attiva il salvataggio rapido in La mia pagina per salvare i link condivisi senza la schermata di revisione."
+      },
+      "newCollection": {
+        "title": "Nuova raccolta",
+        "body": "Tocca + per creare una raccolta e scegliere nome, icona e colore."
+      },
+      "viewMode": {
+        "title": "Modalità di visualizzazione",
+        "body": "Passa tra visualizzazione a elenco, griglia e immagini."
+      },
+      "longPress": {
+        "title": "Tieni premuto",
+        "body": "Tieni premuta una raccolta per preferiti, notifiche, modifica, blocco, eliminazione o uscita."
+      },
+      "shareCollection": {
+        "title": "Condividi una raccolta",
+        "body": "In una raccolta usa il pulsante di condivisione per invitare amici o condividere un link. Il proprietario ha una corona e ogni link mostra chi lo ha aggiunto."
+      },
+      "friendsEntry": {
+        "title": "Amici",
+        "body": "Qui aggiungi amici, rispondi alle richieste e gestisci le persone bloccate."
+      },
+      "friendsTabs": {
+        "title": "Quattro schede",
+        "body": "Amici, Richieste ricevute, Richieste inviate e Utenti bloccati hanno ciascuno la propria scheda."
+      },
+      "friendsShared": {
+        "title": "Raccolte condivise",
+        "body": "Tocca un amico per vedere le raccolte che condividete."
+      },
+      "language": {
+        "title": "Lingua",
+        "body": "Scegli la lingua usata da Juple."
+      },
+      "appearance": {
+        "title": "Aspetto",
+        "body": "Usa l’impostazione di sistema oppure scegli Chiaro o Scuro."
+      },
+      "helpGuide": {
+        "title": "Aiuto",
+        "body": "Puoi tornare a queste guide in qualsiasi momento."
+      },
+      "account": {
+        "title": "Account",
+        "body": "Gestisci qui i dati dell’account e l’accesso."
+      },
+      "shortcutLong": {
+        "title": "Tieni premuta una raccolta",
+        "body": "Tieni premuta la raccolta che apri più spesso."
+      },
+      "shortcutAdd": {
+        "title": "Aggiungi alla schermata Home",
+        "body": "Scegli “Aggiungi scorciatoia alla schermata Home” e conferma nel launcher. Toccando l’icona 1×1 si apre quella raccolta."
+      }
+    }
   }
 }

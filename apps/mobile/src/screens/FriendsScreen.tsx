@@ -47,6 +47,8 @@ import { ensurePushPermissionOnce } from '../push/pushPermissionFlow';
 import { useFocusedPolling, useLiveRefresh } from '../push/useLiveRefresh';
 import { useTheme } from '../theme/ThemeContext';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
+import { TOUR_TARGETS } from '../tour/tourGuides';
+import { useTourTarget } from '../tour/tourTargets';
 import { columnBasis, gridListKey, useSavedLinkColumns } from '../layout/responsiveGrid';
 
 const PAGE_LIMIT = 50;
@@ -74,6 +76,7 @@ export type FriendsTab = 'friends' | 'incoming' | 'outgoing' | 'blocked';
  */
 export function FriendsScreen() {
   const { t } = useTranslation();
+  const tabsTarget = useTourTarget(TOUR_TARGETS.friendsTabs);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const authenticatedRequest = useAuthenticatedApi();
   const [tab, setTab] = useState<FriendsTab>('friends');
@@ -424,7 +427,7 @@ export function FriendsScreen() {
 
   return (
     <StackScreenSafeArea style={styles.safeArea}>
-      <View accessibilityRole="tablist" style={styles.tabBar} testID="friends-tabs">
+      <View {...tabsTarget} accessibilityRole="tablist" style={styles.tabBar} testID="friends-tabs">
         {tabs.map(entry => {
           const isSelected = tab === entry.key;
           const count = entry.count ?? 0;

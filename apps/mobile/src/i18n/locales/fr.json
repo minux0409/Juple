@@ -1163,6 +1163,14 @@
       "settings": {
         "title": "Compte et réglages",
         "body": "Mon compte regroupe votre profil et ID Juple, la langue, l’Enregistrement rapide, les Amis, le Verrouillage des collections, Supprimés récemment et la gestion du compte. Contactez l’assistance depuis le Centre d'aide.\n\nDans Gérer le compte, vous pouvez voir comment vous vous connectez et supprimer votre compte, ce qui supprime définitivement votre compte et vos données."
+      },
+      "homeShortcut": {
+        "title": "Raccourci sur l’écran d’accueil (1×1)",
+        "body": "Appuyez longuement sur une collection et choisissez « Ajouter un raccourci à l’écran d’accueil ». Une icône 1×1 de cette collection apparaît sur votre écran d’accueil ; la toucher ouvre la collection dans Juple.\n\nCette entrée de menu n’apparaît que si votre lanceur prend en charge les raccourcis de l’écran d’accueil. Une collection verrouillée demande toujours son mot de passe. Pour retirer l’icône, supprimez-la vous-même de l’écran d’accueil."
+      },
+      "profilePhoto": {
+        "title": "Changer la photo de profil",
+        "body": "Dans Ma page, touchez le bouton de modification de votre carte de profil. Choisissez une photo, déplacez-la et agrandissez-la pour l’ajuster au cercle, puis enregistrez.\n\nVotre photo de profil est visible par vos amis et dans les collections partagées."
       }
     }
   },
@@ -1248,5 +1256,129 @@
     "apply": "Appliquer",
     "preview": "Aperçu",
     "areaA11y": "Zone de la photo. Glissez vers le haut ou le bas pour zoomer ou dézoomer."
+  },
+  "tour": {
+    "previous": "Précédent",
+    "done": "Terminé",
+    "start": "Lancer le guide",
+    "helpTitle": "Guides des fonctions",
+    "helpIntro": "Nous vous montrons les choses directement à l’écran, étape par étape.",
+    "mobileOnlyNote": "Certains guides ne sont disponibles que dans l’application mobile.",
+    "guides": {
+      "mainOnboarding": {
+        "title": "Premiers pas",
+        "summary": "Un coup d’œil rapide aux principaux espaces de Juple."
+      },
+      "saveLink": {
+        "title": "Enregistrer un lien",
+        "summary": "Collez un lien et vérifiez-le avant de l’enregistrer."
+      },
+      "shareMenu": {
+        "title": "Enregistrer depuis d’autres applis",
+        "summary": "Envoyez des liens vers Juple depuis le menu Partager de n’importe quelle appli."
+      },
+      "collections": {
+        "title": "Collections",
+        "summary": "Créez, consultez, organisez et partagez des collections."
+      },
+      "friends": {
+        "title": "Amis",
+        "summary": "Demandes, personnes bloquées et collections partagées."
+      },
+      "settings": {
+        "title": "Paramètres",
+        "summary": "Langue, apparence, aide et votre compte."
+      },
+      "homeShortcut": {
+        "title": "Raccourci sur l’écran d’accueil",
+        "summary": "Ouvrez une collection depuis une icône 1×1 de votre écran d’accueil."
+      }
+    },
+    "steps": {
+      "home": {
+        "title": "Enregistrer un lien",
+        "body": "Collez un lien ici et touchez le bouton. Juple remplit le titre et l’image quand c’est possible."
+      },
+      "share": {
+        "title": "Enregistrer depuis n’importe quelle appli",
+        "body": "Dans une autre appli, touchez Partager et choisissez Juple. Le lien est enregistré aussitôt."
+      },
+      "collections": {
+        "title": "Organiser en collections",
+        "body": "Créez des collections pour vos sujets préférés et réunissez-y vos liens. Au début, vous n’en avez aucune."
+      },
+      "archive": {
+        "title": "Retrouver vos liens",
+        "body": "Les archives listent tout ce que vous avez enregistré, par date, avec une recherche."
+      },
+      "myPage": {
+        "title": "Amis et paramètres",
+        "body": "Amis, partage, langue, apparence et aide se trouvent dans Ma page."
+      },
+      "inputLink": {
+        "title": "Collez un lien",
+        "body": "Collez ou saisissez le lien à enregistrer."
+      },
+      "reviewSave": {
+        "title": "Vérifier, puis enregistrer",
+        "body": "Touchez ici pour ouvrir l’écran de vérification. Contrôlez le titre, la note et la collection, puis enregistrez."
+      },
+      "quickSave": {
+        "title": "Enregistrement rapide",
+        "body": "Activez l’enregistrement rapide dans Ma page pour enregistrer les liens partagés sans écran de vérification."
+      },
+      "newCollection": {
+        "title": "Nouvelle collection",
+        "body": "Touchez + pour créer une collection et choisir son nom, son icône et sa couleur."
+      },
+      "viewMode": {
+        "title": "Mode d’affichage",
+        "body": "Passez de l’affichage en liste à la grille ou aux images."
+      },
+      "longPress": {
+        "title": "Appui long",
+        "body": "Appuyez longuement sur une collection pour gérer favori, notifications, modification, verrouillage, suppression ou départ."
+      },
+      "shareCollection": {
+        "title": "Partager une collection",
+        "body": "Dans une collection, utilisez le bouton de partage pour inviter des amis ou partager un lien. Le propriétaire porte une couronne et chaque lien indique qui l’a ajouté."
+      },
+      "friendsEntry": {
+        "title": "Amis",
+        "body": "Ajoutez des amis, répondez aux demandes et gérez les personnes bloquées ici."
+      },
+      "friendsTabs": {
+        "title": "Quatre onglets",
+        "body": "Amis, Demandes reçues, Demandes envoyées et Utilisateurs bloqués ont chacun leur onglet."
+      },
+      "friendsShared": {
+        "title": "Collections partagées",
+        "body": "Touchez un ami pour voir les collections que vous partagez avec lui."
+      },
+      "language": {
+        "title": "Langue",
+        "body": "Choisissez la langue utilisée par Juple."
+      },
+      "appearance": {
+        "title": "Apparence",
+        "body": "Suivez le réglage du système, ou choisissez Clair ou Sombre."
+      },
+      "helpGuide": {
+        "title": "Aide",
+        "body": "Retrouvez ces guides à tout moment."
+      },
+      "account": {
+        "title": "Compte",
+        "body": "Gérez ici les informations de votre compte et la connexion."
+      },
+      "shortcutLong": {
+        "title": "Appui long sur une collection",
+        "body": "Appuyez longuement sur la collection que vous ouvrez le plus souvent."
+      },
+      "shortcutAdd": {
+        "title": "Ajouter à l’écran d’accueil",
+        "body": "Choisissez « Ajouter un raccourci à l’écran d’accueil » et confirmez dans votre lanceur. Toucher l’icône 1×1 ouvre cette collection."
+      }
+    }
   }
 }

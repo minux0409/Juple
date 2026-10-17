@@ -29,6 +29,7 @@ import { Avatar } from '../../Avatar';
 import { Glyph } from '../../Glyph';
 import { CollectionTileView } from '../../collections/CollectionsView';
 import { BlockedUsersPanel } from '../blocked-users/BlockedUsers';
+import { TOUR_TARGETS, tourTarget } from '../../../../lib/tour';
 import { SearchField } from '../../SearchField';
 import { SettingsPage } from '../SettingsPage';
 import styles from '../../app.module.css';
@@ -185,7 +186,7 @@ export default function FriendsPage() {
           {message.text}
         </p>
       ) : null}
-      <div className={styles.filterTabs} role="tablist">
+      <div className={styles.filterTabs} role="tablist" {...tourTarget(TOUR_TARGETS.friendsTabs)}>
         {(
           [
             ['friends', dictionary.friendsTitle, null],

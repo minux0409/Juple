@@ -1163,6 +1163,14 @@
       "settings": {
         "title": "Konto und Einstellungen",
         "body": "Mein Bereich enthält dein Profil und deine Juple-ID, Sprache, Schnellspeichern, Freunde, Sammlungssperre, Kürzlich gelöscht und die Kontoverwaltung. Den Support erreichst du über das Kundencenter.\n\nUnter Konto verwalten siehst du, wie du dich anmeldest, und kannst dein Konto löschen. Das löscht dein Konto und deine Daten endgültig."
+      },
+      "homeShortcut": {
+        "title": "Startbildschirm-Verknüpfung (1×1)",
+        "body": "Halte eine Sammlung gedrückt und wähle „Verknüpfung zum Startbildschirm hinzufügen“. Auf deinem Startbildschirm erscheint ein 1×1-Symbol dieser Sammlung; ein Tipp darauf öffnet sie in Juple.\n\nDer Menüeintrag erscheint nur, wenn dein Launcher Verknüpfungen auf dem Startbildschirm unterstützt. Eine gesperrte Sammlung verlangt weiterhin ihr Passwort. Um das Symbol zu entfernen, lösche es selbst vom Startbildschirm."
+      },
+      "profilePhoto": {
+        "title": "Profilfoto ändern",
+        "body": "Tippe in „Mein Bereich“ auf der Profilkarte auf die Bearbeiten-Schaltfläche. Wähle ein Foto, verschiebe und vergrößere es passend zum Kreis und speichere.\n\nDein Profilfoto sehen Freunde und es erscheint in gemeinsamen Sammlungen."
       }
     }
   },
@@ -1248,5 +1256,129 @@
     "apply": "Übernehmen",
     "preview": "Vorschau",
     "areaA11y": "Fotobereich. Nach oben oder unten wischen, um zu vergrößern oder zu verkleinern."
+  },
+  "tour": {
+    "previous": "Zurück",
+    "done": "Fertig",
+    "start": "Anleitung starten",
+    "helpTitle": "Funktionsanleitungen",
+    "helpIntro": "Wir zeigen es dir direkt auf dem Bildschirm, Schritt für Schritt.",
+    "mobileOnlyNote": "Einige Anleitungen gibt es nur in der mobilen App.",
+    "guides": {
+      "mainOnboarding": {
+        "title": "Erste Schritte",
+        "summary": "Ein kurzer Blick auf die wichtigsten Bereiche von Juple."
+      },
+      "saveLink": {
+        "title": "Link speichern",
+        "summary": "Link einfügen und vor dem Speichern prüfen."
+      },
+      "shareMenu": {
+        "title": "Aus anderen Apps speichern",
+        "summary": "Sende Links aus dem Teilen-Menü jeder App an Juple."
+      },
+      "collections": {
+        "title": "Sammlungen",
+        "summary": "Sammlungen erstellen, ansehen, ordnen und teilen."
+      },
+      "friends": {
+        "title": "Freunde",
+        "summary": "Anfragen, blockierte Personen und gemeinsame Sammlungen."
+      },
+      "settings": {
+        "title": "Einstellungen",
+        "summary": "Sprache, Darstellung, Hilfe und dein Konto."
+      },
+      "homeShortcut": {
+        "title": "Startbildschirm-Verknüpfung",
+        "summary": "Öffne eine Sammlung über ein 1×1-Symbol auf dem Startbildschirm."
+      }
+    },
+    "steps": {
+      "home": {
+        "title": "Link speichern",
+        "body": "Füge hier einen Link ein und tippe auf die Schaltfläche. Juple ergänzt Titel und Bild, wenn möglich."
+      },
+      "share": {
+        "title": "Aus jeder App speichern",
+        "body": "Tippe in einer anderen App auf Teilen und wähle Juple. Der Link wird sofort gespeichert."
+      },
+      "collections": {
+        "title": "In Sammlungen ordnen",
+        "body": "Erstelle Sammlungen für deine Themen und sammle dort deine Links. Am Anfang gibt es keine."
+      },
+      "archive": {
+        "title": "Links wiederfinden",
+        "body": "Das Archiv zeigt alles Gespeicherte nach Datum und bietet eine Suche."
+      },
+      "myPage": {
+        "title": "Freunde und Einstellungen",
+        "body": "Freunde, Teilen, Sprache, Darstellung und Hilfe findest du unter „Mein Bereich“."
+      },
+      "inputLink": {
+        "title": "Link einfügen",
+        "body": "Füge den Link ein, den du speichern möchtest, oder tippe ihn ein."
+      },
+      "reviewSave": {
+        "title": "Prüfen, dann speichern",
+        "body": "Tippe hier, um die Prüfansicht zu öffnen. Kontrolliere Titel, Notiz und Sammlung und speichere dann."
+      },
+      "quickSave": {
+        "title": "Schnellspeichern",
+        "body": "Aktiviere Schnellspeichern unter „Mein Bereich“, um geteilte Links ohne Prüfansicht zu speichern."
+      },
+      "newCollection": {
+        "title": "Neue Sammlung",
+        "body": "Tippe auf +, um eine Sammlung zu erstellen und Namen, Symbol und Farbe zu wählen."
+      },
+      "viewMode": {
+        "title": "Ansicht",
+        "body": "Wechsle zwischen Listen-, Raster- und Bildansicht."
+      },
+      "longPress": {
+        "title": "Gedrückt halten",
+        "body": "Halte eine Sammlung gedrückt für Favorit, Benachrichtigungen, Bearbeiten, Sperren sowie Löschen oder Verlassen."
+      },
+      "shareCollection": {
+        "title": "Sammlung teilen",
+        "body": "Lade in einer Sammlung über die Teilen-Schaltfläche Freunde ein oder teile einen Link. Der Besitzer trägt eine Krone, und jeder Link zeigt, wer ihn hinzugefügt hat."
+      },
+      "friendsEntry": {
+        "title": "Freunde",
+        "body": "Hier fügst du Freunde hinzu, beantwortest Anfragen und verwaltest blockierte Personen."
+      },
+      "friendsTabs": {
+        "title": "Vier Tabs",
+        "body": "Freunde, Erhaltene Anfragen, Gesendete Anfragen und Blockierte Nutzer haben jeweils einen eigenen Tab."
+      },
+      "friendsShared": {
+        "title": "Gemeinsame Sammlungen",
+        "body": "Tippe auf einen Freund, um die Sammlungen zu sehen, die ihr teilt."
+      },
+      "language": {
+        "title": "Sprache",
+        "body": "Wähle die Sprache für Juple."
+      },
+      "appearance": {
+        "title": "Darstellung",
+        "body": "Nutze die Systemeinstellung oder wähle Hell oder Dunkel."
+      },
+      "helpGuide": {
+        "title": "Hilfe",
+        "body": "Hier findest du diese Anleitungen jederzeit wieder."
+      },
+      "account": {
+        "title": "Konto",
+        "body": "Verwalte hier deine Kontodaten und die Anmeldung."
+      },
+      "shortcutLong": {
+        "title": "Sammlung gedrückt halten",
+        "body": "Halte die Sammlung gedrückt, die du am häufigsten öffnest."
+      },
+      "shortcutAdd": {
+        "title": "Zum Startbildschirm hinzufügen",
+        "body": "Wähle „Verknüpfung zum Startbildschirm hinzufügen“ und bestätige in deinem Launcher. Ein Tipp auf das 1×1-Symbol öffnet die Sammlung."
+      }
+    }
   }
 }

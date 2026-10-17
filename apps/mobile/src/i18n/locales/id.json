@@ -1163,6 +1163,14 @@
       "settings": {
         "title": "Akun dan pengaturan",
         "body": "Halaman Saya berisi profil dan Juple ID, bahasa, Simpan cepat, Teman, Kunci koleksi, Baru Dihapus, dan pengelolaan akun. Hubungi dukungan dari Pusat Bantuan.\n\nDi Kelola akun, Anda bisa melihat cara masuk dan menghapus akun; menghapus akun menghapus permanen akun dan data Anda."
+      },
+      "homeShortcut": {
+        "title": "Pintasan layar utama (1×1)",
+        "body": "Tekan lama koleksi lalu pilih “Tambahkan pintasan ke layar Utama”. Ikon 1×1 koleksi itu muncul di layar utama, dan mengetuknya membuka koleksi di Juple.\n\nMenu ini hanya muncul jika launcher Anda mendukung pintasan layar utama. Koleksi yang dikunci tetap meminta kata sandi. Untuk menghapus ikon, hapus sendiri dari layar utama."
+      },
+      "profilePhoto": {
+        "title": "Ganti foto profil",
+        "body": "Di Halaman Saya, ketuk tombol ubah pada kartu profil. Pilih foto, geser dan perbesar agar pas dengan lingkaran, lalu simpan.\n\nFoto profil Anda terlihat oleh teman dan di koleksi bersama."
       }
     }
   },
@@ -1248,5 +1256,129 @@
     "apply": "Terapkan",
     "preview": "Pratinjau",
     "areaA11y": "Area foto. Geser ke atas atau bawah untuk memperbesar atau memperkecil."
+  },
+  "tour": {
+    "previous": "Kembali",
+    "done": "Selesai",
+    "start": "Mulai panduan",
+    "helpTitle": "Panduan fitur",
+    "helpIntro": "Kami tunjukkan langsung di layar, selangkah demi selangkah.",
+    "mobileOnlyNote": "Sebagian panduan hanya tersedia di aplikasi seluler.",
+    "guides": {
+      "mainOnboarding": {
+        "title": "Mulai menggunakan",
+        "summary": "Sekilas tentang bagian utama Juple."
+      },
+      "saveLink": {
+        "title": "Simpan tautan",
+        "summary": "Tempel tautan dan periksa sebelum menyimpan."
+      },
+      "shareMenu": {
+        "title": "Simpan dari aplikasi lain",
+        "summary": "Kirim tautan ke Juple dari menu Bagikan aplikasi apa pun."
+      },
+      "collections": {
+        "title": "Koleksi",
+        "summary": "Buat, lihat, atur, dan bagikan koleksi."
+      },
+      "friends": {
+        "title": "Teman",
+        "summary": "Permintaan, orang yang diblokir, dan koleksi bersama."
+      },
+      "settings": {
+        "title": "Pengaturan",
+        "summary": "Bahasa, tampilan, bantuan, dan akun Anda."
+      },
+      "homeShortcut": {
+        "title": "Pintasan layar utama",
+        "summary": "Buka koleksi dari ikon 1×1 di layar utama."
+      }
+    },
+    "steps": {
+      "home": {
+        "title": "Simpan tautan",
+        "body": "Tempel tautan di sini lalu ketuk tombol. Juple mengisi judul dan gambar jika bisa."
+      },
+      "share": {
+        "title": "Simpan dari aplikasi apa pun",
+        "body": "Di aplikasi lain, ketuk Bagikan lalu pilih Juple. Tautan langsung tersimpan."
+      },
+      "collections": {
+        "title": "Atur dengan Koleksi",
+        "body": "Buat koleksi untuk topik favorit Anda dan kumpulkan tautan di dalamnya. Awalnya belum ada koleksi."
+      },
+      "archive": {
+        "title": "Temukan tautan lagi",
+        "body": "Arsip menampilkan semua yang Anda simpan menurut tanggal dan bisa dicari."
+      },
+      "myPage": {
+        "title": "Teman dan pengaturan",
+        "body": "Teman, berbagi, bahasa, tampilan, dan bantuan ada di Halaman Saya."
+      },
+      "inputLink": {
+        "title": "Tempel tautan",
+        "body": "Tempel atau ketik tautan yang ingin disimpan."
+      },
+      "reviewSave": {
+        "title": "Periksa, lalu simpan",
+        "body": "Ketuk ini untuk membuka layar tinjauan. Periksa judul, catatan, dan koleksi, lalu simpan."
+      },
+      "quickSave": {
+        "title": "Simpan Cepat",
+        "body": "Aktifkan Simpan Cepat di Halaman Saya untuk menyimpan tautan yang dibagikan tanpa layar tinjauan."
+      },
+      "newCollection": {
+        "title": "Koleksi baru",
+        "body": "Ketuk + untuk membuat koleksi dan memilih nama, ikon, dan warnanya."
+      },
+      "viewMode": {
+        "title": "Mode tampilan",
+        "body": "Beralih antara tampilan daftar, kisi, dan gambar."
+      },
+      "longPress": {
+        "title": "Tekan lama",
+        "body": "Tekan lama koleksi untuk favorit, notifikasi, ubah, kunci, hapus, atau keluar."
+      },
+      "shareCollection": {
+        "title": "Bagikan koleksi",
+        "body": "Di dalam koleksi, gunakan tombol bagikan untuk mengundang teman atau membagikan tautan. Pemilik diberi tanda mahkota, dan setiap tautan menunjukkan siapa yang menambahkannya."
+      },
+      "friendsEntry": {
+        "title": "Teman",
+        "body": "Di sini Anda menambah teman, menjawab permintaan, dan mengelola orang yang diblokir."
+      },
+      "friendsTabs": {
+        "title": "Empat tab",
+        "body": "Teman, Permintaan masuk, Permintaan terkirim, dan Pengguna yang diblokir masing-masing punya tab sendiri."
+      },
+      "friendsShared": {
+        "title": "Koleksi bersama",
+        "body": "Ketuk seorang teman untuk melihat koleksi yang Anda bagikan bersamanya."
+      },
+      "language": {
+        "title": "Bahasa",
+        "body": "Pilih bahasa yang digunakan Juple."
+      },
+      "appearance": {
+        "title": "Tampilan",
+        "body": "Ikuti pengaturan sistem, atau pilih Terang atau Gelap."
+      },
+      "helpGuide": {
+        "title": "Bantuan",
+        "body": "Kembali ke panduan ini kapan saja."
+      },
+      "account": {
+        "title": "Akun",
+        "body": "Kelola data akun dan proses masuk di sini."
+      },
+      "shortcutLong": {
+        "title": "Tekan lama koleksi",
+        "body": "Tekan lama koleksi yang paling sering Anda buka."
+      },
+      "shortcutAdd": {
+        "title": "Tambahkan ke layar utama",
+        "body": "Pilih “Tambahkan pintasan ke layar Utama” dan konfirmasi di launcher Anda. Mengetuk ikon 1×1 membuka koleksi itu."
+      }
+    }
   }
 }

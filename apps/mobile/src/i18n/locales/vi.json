@@ -1163,6 +1163,14 @@
       "settings": {
         "title": "Tài khoản và cài đặt",
         "body": "Trang của tôi có hồ sơ và Juple ID, ngôn ngữ, Lưu nhanh, Bạn bè, Khóa bộ sưu tập, Đã xóa gần đây và quản lý tài khoản. Liên hệ hỗ trợ từ Trung tâm hỗ trợ.\n\nTrong Quản lý tài khoản, bạn xem cách đăng nhập và xóa tài khoản; xóa tài khoản sẽ xóa vĩnh viễn tài khoản và dữ liệu của bạn."
+      },
+      "homeShortcut": {
+        "title": "Lối tắt màn hình chính (1×1)",
+        "body": "Nhấn giữ một bộ sưu tập rồi chọn “Thêm lối tắt vào màn hình chính”. Biểu tượng 1×1 của bộ sưu tập đó xuất hiện trên màn hình chính, và chạm vào sẽ mở bộ sưu tập trong Juple.\n\nMục menu này chỉ hiện khi launcher của bạn hỗ trợ lối tắt màn hình chính. Bộ sưu tập bị khóa vẫn yêu cầu mật khẩu. Để gỡ biểu tượng, hãy tự xóa nó khỏi màn hình chính."
+      },
+      "profilePhoto": {
+        "title": "Đổi ảnh hồ sơ",
+        "body": "Trong Trang của tôi, chạm nút chỉnh sửa trên thẻ hồ sơ. Chọn ảnh, di chuyển và phóng to cho vừa khung tròn rồi lưu.\n\nẢnh hồ sơ hiển thị với bạn bè và trong các bộ sưu tập chung."
       }
     }
   },
@@ -1248,5 +1256,129 @@
     "apply": "Áp dụng",
     "preview": "Xem trước",
     "areaA11y": "Vùng ảnh. Vuốt lên hoặc xuống để phóng to hoặc thu nhỏ."
+  },
+  "tour": {
+    "previous": "Quay lại",
+    "done": "Xong",
+    "start": "Bắt đầu hướng dẫn",
+    "helpTitle": "Hướng dẫn tính năng",
+    "helpIntro": "Chúng tôi chỉ ngay trên màn hình, từng bước một.",
+    "mobileOnlyNote": "Một số hướng dẫn chỉ có trong ứng dụng di động.",
+    "guides": {
+      "mainOnboarding": {
+        "title": "Bắt đầu",
+        "summary": "Lướt nhanh các khu vực chính của Juple."
+      },
+      "saveLink": {
+        "title": "Lưu liên kết",
+        "summary": "Dán liên kết và xem lại trước khi lưu."
+      },
+      "shareMenu": {
+        "title": "Lưu từ ứng dụng khác",
+        "summary": "Gửi liên kết tới Juple từ menu Chia sẻ của bất kỳ ứng dụng nào."
+      },
+      "collections": {
+        "title": "Bộ sưu tập",
+        "summary": "Tạo, xem, sắp xếp và chia sẻ bộ sưu tập."
+      },
+      "friends": {
+        "title": "Bạn bè",
+        "summary": "Lời mời, người bị chặn và các bộ sưu tập chung."
+      },
+      "settings": {
+        "title": "Cài đặt",
+        "summary": "Ngôn ngữ, giao diện, trợ giúp và tài khoản của bạn."
+      },
+      "homeShortcut": {
+        "title": "Lối tắt màn hình chính",
+        "summary": "Mở một bộ sưu tập từ biểu tượng 1×1 trên màn hình chính."
+      }
+    },
+    "steps": {
+      "home": {
+        "title": "Lưu liên kết",
+        "body": "Dán liên kết vào đây rồi chạm nút. Juple tự điền tiêu đề và hình ảnh khi có thể."
+      },
+      "share": {
+        "title": "Lưu từ mọi ứng dụng",
+        "body": "Trong ứng dụng khác, chạm Chia sẻ rồi chọn Juple. Liên kết được lưu ngay."
+      },
+      "collections": {
+        "title": "Sắp xếp bằng Bộ sưu tập",
+        "body": "Tạo bộ sưu tập cho các chủ đề bạn thích và gom liên kết vào đó. Ban đầu bạn chưa có bộ sưu tập nào."
+      },
+      "archive": {
+        "title": "Tìm lại liên kết",
+        "body": "Kho lưu trữ liệt kê mọi thứ bạn đã lưu theo ngày và cho phép tìm kiếm."
+      },
+      "myPage": {
+        "title": "Bạn bè và cài đặt",
+        "body": "Bạn bè, chia sẻ, ngôn ngữ, giao diện và trợ giúp nằm trong Trang của tôi."
+      },
+      "inputLink": {
+        "title": "Dán liên kết",
+        "body": "Dán hoặc nhập liên kết bạn muốn lưu."
+      },
+      "reviewSave": {
+        "title": "Xem lại rồi lưu",
+        "body": "Chạm vào đây để mở màn hình xem lại. Kiểm tra tiêu đề, ghi chú và bộ sưu tập rồi lưu."
+      },
+      "quickSave": {
+        "title": "Lưu nhanh",
+        "body": "Bật Lưu nhanh trong Trang của tôi để lưu liên kết được chia sẻ mà không cần màn hình xem lại."
+      },
+      "newCollection": {
+        "title": "Bộ sưu tập mới",
+        "body": "Chạm + để tạo bộ sưu tập và chọn tên, biểu tượng, màu sắc."
+      },
+      "viewMode": {
+        "title": "Chế độ xem",
+        "body": "Chuyển giữa dạng danh sách, lưới và hình ảnh."
+      },
+      "longPress": {
+        "title": "Nhấn giữ",
+        "body": "Nhấn giữ một bộ sưu tập để yêu thích, thông báo, chỉnh sửa, khóa, xóa hoặc rời đi."
+      },
+      "shareCollection": {
+        "title": "Chia sẻ bộ sưu tập",
+        "body": "Trong bộ sưu tập, dùng nút chia sẻ để mời bạn bè hoặc chia sẻ liên kết. Chủ sở hữu có biểu tượng vương miện và mỗi liên kết cho biết ai đã thêm."
+      },
+      "friendsEntry": {
+        "title": "Bạn bè",
+        "body": "Tại đây bạn thêm bạn bè, trả lời lời mời và quản lý người bị chặn."
+      },
+      "friendsTabs": {
+        "title": "Bốn tab",
+        "body": "Bạn bè, Lời mời nhận được, Lời mời đã gửi và Người dùng bị chặn mỗi mục có một tab riêng."
+      },
+      "friendsShared": {
+        "title": "Bộ sưu tập chung",
+        "body": "Chạm vào một người bạn để xem các bộ sưu tập bạn chia sẻ với họ."
+      },
+      "language": {
+        "title": "Ngôn ngữ",
+        "body": "Chọn ngôn ngữ mà Juple sử dụng."
+      },
+      "appearance": {
+        "title": "Giao diện",
+        "body": "Dùng theo hệ thống hoặc chọn Sáng hay Tối."
+      },
+      "helpGuide": {
+        "title": "Trợ giúp",
+        "body": "Bạn có thể quay lại các hướng dẫn này bất cứ lúc nào."
+      },
+      "account": {
+        "title": "Tài khoản",
+        "body": "Quản lý thông tin tài khoản và đăng nhập tại đây."
+      },
+      "shortcutLong": {
+        "title": "Nhấn giữ một bộ sưu tập",
+        "body": "Nhấn giữ bộ sưu tập bạn mở nhiều nhất."
+      },
+      "shortcutAdd": {
+        "title": "Thêm vào màn hình chính",
+        "body": "Chọn “Thêm lối tắt vào màn hình chính” và xác nhận trong launcher. Chạm biểu tượng 1×1 sẽ mở bộ sưu tập đó."
+      }
+    }
   }
 }

@@ -170,7 +170,7 @@ describe('새 링크 검토 (/items/new) is never a Quick Detail sheet', () => {
     const home = source('app/(app)/HomeView.tsx');
     const form = home.slice(home.indexOf('function AddLinkForm'));
     assert.match(form, /<form className=\{styles\.addLinkPanel\} noValidate onSubmit=\{submit\}>/, 'Enter submits the form');
-    assert.match(form, /<button className=\{styles\.primaryAction\} disabled=\{!value\.trim\(\)\} type="submit">/, 'Save is a submit button of the same form');
+    assert.match(form, /<button className=\{styles\.primaryAction\} disabled=\{!value\.trim\(\)\} type="submit"(?: \{\.\.\.tourTarget\(TOUR_TARGETS\.homeCheck\)\})?>/, 'Save is a submit button of the same form');
     assert.match(form, /const url = normalizeEnteredUrl\(value\);[\s\S]*openReview\(url\);/);
     // The one client navigation on Home is a Juple Collection share link going to its Collection flow - never the review.
     assert.deepEqual(home.match(/router\.(push|replace)\([^)]*\)/g), ['router.push(destination.href)']);
