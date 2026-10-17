@@ -271,3 +271,18 @@ describe('Help Guide - features without a spotlight tour are still findable', ()
     expect(text).toContain('바로가기');
   });
 });
+
+describe('Help Guide - long-press menu includes 공유', () => {
+  it('describes 공유 in every language (with that language own menu word) and the friend tour no longer offers 신고 / 차단 as friend actions', () => {
+    for (const language of SUPPORTED_LANGUAGES) {
+      const body = String(i18n.getResource(language, 'translation', 'guide.topics.longPress.body'));
+      const word = String(i18n.getResource(language, 'translation', 'collections.shareAction'));
+      expect(body).toContain(`${word}\n`);
+    }
+    const ko = (key: string) => String(i18n.getResource('ko', 'translation', key));
+    for (const key of ['tour.steps.friendsEntry.body', 'tour.steps.friendsTabs.body', 'tour.guides.friends.summary']) {
+      // 차단한 사용자 is still a tab (to release an existing block); nothing says a friend can be reported or newly blocked.
+      expect(ko(key)).not.toMatch(/신고|친구를 차단|차단하/);
+    }
+  });
+});

@@ -1048,29 +1048,27 @@ describe('FriendsScreen - a friend', () => {
     expect(StyleSheet.flatten(remove.props.style).borderColor).toBe(colors.danger);
   });
 
-  it('메모 / 신고 / 차단 / 친구 삭제 each carry a meaningful icon AND keep their word (neutral / warning / destructive / destructive)', async () => {
+  it('메모 / 친구 삭제 each carry a meaningful icon AND keep their word - and 신고 / 차단 are no longer friend actions', async () => {
     const renderer = await openPikachu();
-    const report = byId(renderer, 'friend-report');
-    const block = byId(renderer, 'friend-block');
     const remove = byId(renderer, 'friend-remove');
 
     // 메모: a neutral pencil beside the section title (the save button keeps its check).
     expect(renderer.root.findAllByType(EditIcon)).toHaveLength(1);
     expect(renderer.root.findByType(EditIcon).props.color).toBe(colors.textPrimary);
     expect(texts(renderer.root.findByType(EditIcon).parent!)).toEqual(['메모']);
-    expect(report.findAllByType(FlagIcon)).toHaveLength(1);
-    expect(report.findByType(FlagIcon).props.color).toBe(colors.warningText);
-    expect(texts(report)).toEqual([i18n.t('safety.report')]);
-    expect(block.findAllByType(BlockIcon)).toHaveLength(1);
-    expect(block.findByType(BlockIcon).props.color).toBe(colors.danger);
-    expect(texts(block)).toEqual([i18n.t('safety.block')]);
     expect(remove.findByType(UserMinusIcon).props.color).toBe(colors.danger);
     expect(texts(remove)).toEqual(['친구 삭제']);
-    // All buttons are real rows: the icon beside the word, the word may wrap but never leaves the button.
-    for (const button of [report, block, remove]) {
-      expect(StyleSheet.flatten(button.props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' });
-      expect(button.findAllByType(Text)[0].props.numberOfLines).toBe(2);
-    }
+    expect(StyleSheet.flatten(remove.props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' });
+    expect(remove.findAllByType(Text)[0].props.numberOfLines).toBe(2);
+
+    // No new report / block entry point in a friend's detail (existing blocks are released in the 차단한 사용자 tab).
+    expect(exists(renderer, 'friend-report')).toBe(false);
+    expect(exists(renderer, 'friend-block')).toBe(false);
+    expect(renderer.root.findAllByType(FlagIcon)).toHaveLength(0);
+    expect(renderer.root.findAllByType(BlockIcon)).toHaveLength(0);
+    const detailTexts = texts(detail(renderer));
+    expect(detailTexts).not.toContain(i18n.t('safety.report'));
+    expect(detailTexts).not.toContain(i18n.t('safety.block'));
   });
 
   it('removes only after 이 친구를 삭제할까요? is confirmed, then closes and leaves the list', async () => {

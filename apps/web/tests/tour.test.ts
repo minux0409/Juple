@@ -238,7 +238,7 @@ describe('tour engine (Web) - behaviour in the source', () => {
     const block = css.slice(css.indexOf('/* ---- Guided tour'), css.indexOf('/* ---- Help page: guide list'));
     assert.ok(block.length > 500);
     assert.match(block, /var\(--scrim\)/);
-    assert.match(block, /\.tourCard,\s*\.tourCardStatic \{[\s\S]*background: var\(--app-surface\)/);
+    assert.match(block, /\.tourCard,\s*\.tourCardStatic \{[\s\S]*background: var\(--app-surface(?:, Canvas)?\)/);
     assert.doesNotMatch(block, /#[0-9a-f]{3,8}\b|rgba?\(/i, 'no literal colours in the tour styles');
     assert.match(block, /@media \(prefers-reduced-motion: reduce\)/);
     assert.doesNotMatch(block, /infinite|pulse/);
@@ -287,5 +287,30 @@ describe('tour targets (Web) - audit', () => {
         }
       }
     }
+  });
+});
+
+describe('tour card is a visible card (Web) - regression', () => {
+  const css = source('app/(app)/app.module.css');
+  const crlfFree = css.replace(/\r\n/g, '\n');
+
+  it('the tour layer sits OUTSIDE .shell, so it must join BOTH token scopes (light and dark) - otherwise every var(--app-*) is undefined and the card is transparent', () => {
+    assert.match(crlfFree, /\.toastHost,\s*\.tourRoot,\s*\.collectionDialog \{\s*--app-background/);
+    assert.match(crlfFree, /:global\(html\[data-theme='dark'\]\) \.tourRoot,\s*:global\(html\[data-theme='dark'\]\) \.collectionDialog \{/);
+    assert.match(crlfFree, /\.toastHost,\s*\.tourRoot \{\s*--juple-orange/);
+    assert.match(source('app/(app)/TourProvider.tsx'), /className=\{styles\.tourRoot\}/);
+  });
+
+  it('the card has a solid surface (never transparent), a readable text colour, a border, a shadow and rounded corners', () => {
+    const rule = crlfFree.slice(crlfFree.indexOf('.tourCard,\n.tourCardStatic {'), crlfFree.indexOf('.tourCard {\n  animation'));
+    assert.match(rule, /background: var\(--app-surface, Canvas\);/);
+    assert.match(rule, /color: var\(--app-text, CanvasText\);/);
+    assert.match(rule, /border: 1px solid var\(--app-border/);
+    assert.match(rule, /box-shadow: var\(--shadow-card\);/);
+    assert.match(rule, /border-radius: var\(--radius-card\);/);
+    assert.doesNotMatch(rule, /background:\s*(transparent|none)|background-color:\s*transparent|opacity:/);
+    // the dimming layer is a different token from the card surface
+    assert.match(crlfFree, /\.tourScrim \{\s*background: var\(--scrim\);/);
+    assert.notEqual('var(--scrim)', 'var(--app-surface, Canvas)');
   });
 });

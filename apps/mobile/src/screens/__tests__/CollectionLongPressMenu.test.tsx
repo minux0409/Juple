@@ -130,20 +130,21 @@ async function press(renderer: Renderer, label: string) {
 const t = (key: string, options?: Record<string, unknown>) => i18n.t(key, options);
 
 describe('Collection card long-press menu', () => {
-  it('Owner of a private Collection: favorite, 수정, 잠금 설정, 앱 바로가기, then 삭제 last (destructive) - and no 나가기', async () => {
+  it('Owner of a private Collection: favorite, 공유, 수정, 잠금 설정, 앱 바로가기, then 삭제 last (destructive) - and no 나가기', async () => {
     const renderer = await renderWith([collection({ id: 1, name: 'Mine', accessRole: 'owner', isFavorite: true })]);
 
     await longPress(renderer, 'Mine');
 
     expect(labels(renderer)).toEqual([
       t('collections.removeFavorite'),
+      t('collections.shareAction'),
       t('common.edit'),
       t('collections.lockSetTitle'),
       t('collections.homeShortcutAdd'),
       t('collections.delete'),
     ]);
     const actions = menu(renderer).props.actions as { destructive?: boolean; icon?: unknown }[];
-    expect(actions.map(action => action.destructive === true)).toEqual([false, false, false, false, true]);
+    expect(actions.map(action => action.destructive === true)).toEqual([false, false, false, false, false, true]);
     expect(actions.every(action => action.icon !== undefined)).toBe(true);
     expect(labels(renderer)).not.toContain(t('collections.leaveAction'));
     expect(getCollectionNotificationPreference).not.toHaveBeenCalled();
@@ -158,6 +159,7 @@ describe('Collection card long-press menu', () => {
     expect(labels(renderer)).toEqual([
       t('collections.addFavorite'),
       t('collections.newLinkNotificationsTurnOff'),
+      t('collections.shareAction'),
       t('common.edit'),
       t('collections.lockSetTitle'),
       t('collections.homeShortcutAdd'),
@@ -186,6 +188,34 @@ describe('Collection card long-press menu', () => {
       t('collections.leaveAction'),
     ]);
     expect((menu(renderer).props.actions as { destructive?: boolean }[]).at(-1)!.destructive).toBe(true);
+  });
+
+  describe('공유 (the Collection own share entry)', () => {
+    it('Owner: offered with its text label and an icon, between the notification row and 수정 - also for a locked Collection (the password prompt is the Collection own)', async () => {
+      const renderer = await renderWith([collection({ id: 1, name: 'Secret', accessRole: 'owner', isLocked: true })]);
+      await longPress(renderer, 'Secret');
+      const share = (menu(renderer).props.actions as { label: string; icon?: unknown }[]).find(action => action.label === t('collections.shareAction'));
+      expect(share).toBeDefined();
+      expect(share!.icon).toBeDefined();
+      expect(labels(renderer).indexOf(t('collections.shareAction'))).toBeLessThan(labels(renderer).indexOf(t('common.edit')));
+    });
+
+    it('choosing it opens the Collection with the 공유 request - the same handler as the header icon, no second share call', async () => {
+      const renderer = await renderWith([collection({ id: 4, name: 'Mine', accessRole: 'owner' })]);
+      await longPress(renderer, 'Mine');
+      await press(renderer, t('collections.shareAction'));
+      expect(mockNavigate).toHaveBeenCalledWith('CollectionDetails', { collectionId: 4, pendingAction: 'share' });
+    });
+
+    it('a member sees it only while the Owner public link is active (nobody else can be invited by a member)', async () => {
+      const without = await renderWith([collection({ id: 2, name: 'Shared', accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N' })]);
+      await longPress(without, 'Shared');
+      expect(labels(without)).not.toContain(t('collections.shareAction'));
+
+      const withLink = await renderWith([collection({ id: 3, name: 'Public', accessRole: 'viewer', ownerJupleId: 'K7MP4Q8N', isPublicShareActive: true })]);
+      await longPress(withLink, 'Public');
+      expect(labels(withLink)).toContain(t('collections.shareAction'));
+    });
   });
 
   it('a Viewer can have a Home icon (it only opens the Collection) and can still leave', async () => {
@@ -224,6 +254,7 @@ describe('Collection card long-press menu', () => {
 
     expect(labels(renderer)).toEqual([
       t('collections.addFavorite'),
+      t('collections.shareAction'),
       t('common.edit'),
       t('collections.lockSetTitle'),
       t('collections.homeShortcutAdd'),

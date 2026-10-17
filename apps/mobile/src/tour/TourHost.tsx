@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { AccessibilityInfo, Animated, BackHandler, Pressable, ScrollView, Text, View, useWindowDimensions, type HostInstance } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { navigationRef } from '../navigation/navigationRef';
-import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
+import { cardShadow, colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { cancelTour, endTour, getActiveTour, goToTourStep, subscribeTour, type ActiveTour } from './tourController';
 import { placeCard, sameRect, spotlightFor, TOUR_EDGE, type TourRect, type TourSize } from './tourPlacement';
 import { measureTourTarget } from './tourTargets';
@@ -233,7 +233,7 @@ const styles = themedStyles(() => ({
   scrimRight: { right: 0 },
   hole: { position: 'absolute' },
   spotlightRing: { borderColor: colors.brand, borderRadius: radii.md, borderWidth: 2, position: 'absolute' },
-  card: { backgroundColor: colors.surface, borderRadius: radii.lg, elevation: 8, padding: spacing.lg, position: 'absolute', rowGap: spacing.sm },
+  card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, padding: spacing.lg, position: 'absolute', rowGap: spacing.sm, ...cardShadow, elevation: 8, shadowOpacity: 0.2, shadowRadius: 12 },
   progress: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   textScroll: { flexGrow: 0, flexShrink: 1 },
   title: { color: colors.textPrimary, fontSize: 17, fontWeight: '800' },

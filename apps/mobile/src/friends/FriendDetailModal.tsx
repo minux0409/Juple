@@ -11,15 +11,11 @@ import { CategoryIconTile } from '../collections/CategoryIconTile';
 import type { Collection } from '../collections/api/collectionsApi';
 import { isCollectionLocked } from '../collections/collectionAccess';
 import { LockIcon } from '../icons/LockIcon';
-import { BlockIcon } from '../icons/BlockIcon';
 import { CheckIcon } from '../icons/CheckIcon';
 import { EditIcon } from '../icons/EditIcon';
-import { FlagIcon } from '../icons/FlagIcon';
 import { UserMinusIcon } from '../icons/UserMinusIcon';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { FRIEND_NOTE_MAX_STORAGE_LENGTH, getFriendSharedCollections, removeFriend, setFriendNote, type Friend } from './api/friendsApi';
-import { blockUser } from '../safety/safetyApi';
-import { ReportModal } from '../safety/ReportModal';
 import { atJupleId } from './friendIdentity';
 
 interface FriendDetailModalProps {
@@ -29,7 +25,6 @@ interface FriendDetailModalProps {
   readonly onChanged: (friend: Friend) => void;
   readonly onRemoved: (friendshipId: number) => void;
   /** The person was blocked from here (the friendship ended with it): the list refreshes. */
-  readonly onBlocked?: (friendshipId: number) => void;
   /**
    * Opens a Collection of the shared list. Given only where the host can navigate (the Friends screen); without it the section is not
    * offered at all - nothing is fetched for a modal that could not open what it lists.
@@ -48,7 +43,7 @@ type SharedState =
  * then 친구 삭제 behind a confirmation. While saving, removing or confirming it cannot be dismissed by
  * accident; a failed save keeps both the typed text and the note the list still shows.
  */
-export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onBlocked, onOpenCollection }: FriendDetailModalProps) {
+export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onOpenCollection }: FriendDetailModalProps) {
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const [note, setNote] = useState('');
@@ -56,10 +51,6 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onBlo
   const [isRemoving, setIsRemoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isRemoveConfirmVisible, setIsRemoveConfirmVisible] = useState(false);
-  const [isReporting, setIsReporting] = useState(false);
-  const [isBlockConfirmVisible, setIsBlockConfirmVisible] = useState(false);
-  const [isBlocking, setIsBlocking] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
 
   const friendshipId = friend?.friendshipId;
   const [shared, setShared] = useState<SharedState>({ kind: 'loading' });
@@ -154,26 +145,8 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onBlo
     }
   };
 
-  const block = async () => {
-    setIsBlockConfirmVisible(false);
-    if (isBlocking) {
-      return;
-    }
-    setIsBlocking(true);
-    setError(null);
-    try {
-      await blockUser(authenticatedRequest, friend.jupleId);
-      onBlocked?.(friend.friendshipId);
-      onRemoved(friend.friendshipId);
-    } catch {
-      setError(t('safety.blockFailed'));
-    } finally {
-      setIsBlocking(false);
-    }
-  };
-
   const hasNickname = !!friend.displayName?.trim();
-  const isBusy = isSaving || isRemoving || isBlocking;
+  const isBusy = isSaving || isRemoving;
 
   return (
     <>
@@ -304,39 +277,8 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onBlo
             )}
           </Pressable>
 
-          {/* 신고 / 차단: the other person's account - never shown for oneself (this modal is only ever a friend). */}
-          <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => setIsReporting(true)} style={[styles.actionButton, styles.safetyButton, isBusy && styles.disabled]} testID="friend-report">
-            <FlagIcon color={colors.warningText} size={ACTION_ICON_SIZE} />
-            <Text numberOfLines={2} style={[styles.actionLabel, styles.warningLabel]}>{t('safety.report')}</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => setIsBlockConfirmVisible(true)} style={[styles.actionButton, styles.safetyButton, isBusy && styles.disabled]} testID="friend-block">
-            {isBlocking ? <ActivityIndicator color={colors.danger} size="small" /> : (
-              <>
-                <BlockIcon color={colors.danger} size={ACTION_ICON_SIZE} />
-                <Text numberOfLines={2} style={[styles.actionLabel, styles.removeLabel]}>{t('safety.block')}</Text>
-              </>
-            )}
-          </Pressable>
-          {notice ? <Text accessibilityLiveRegion="polite" style={styles.notice} testID="friend-detail-notice">{notice}</Text> : null}
         </ScrollView>
       </AppModal>
-      <ReportModal
-        onClose={() => setIsReporting(false)}
-        onReported={alreadyReported => {
-          setIsReporting(false);
-          setNotice(t(alreadyReported ? 'safety.reportAlready' : 'safety.reportReceived'));
-        }}
-        target={isReporting ? { type: 'User', jupleId: friend.jupleId } : null}
-      />
-      <ConfirmDialog
-        cancelLabel={t('common.cancel')}
-        confirmLabel={t('safety.block')}
-        message={t('safety.blockMessage')}
-        onCancel={() => setIsBlockConfirmVisible(false)}
-        onConfirm={() => { block().catch(() => undefined); }}
-        title={t('safety.blockTitle')}
-        visible={isBlockConfirmVisible}
-      />
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('friends.remove')}
@@ -393,14 +335,11 @@ const styles = themedStyles(() => ({
   primaryLabel: { color: colors.surface },
   disabled: { opacity: 0.45 },
   removeButton: { borderColor: colors.danger },
-  safetyButton: { borderColor: colors.border, marginTop: spacing.sm },
-  warningLabel: { color: colors.warningText },
   sharedState: { marginTop: spacing.sm },
   sharedEmpty: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.sm },
   sharedRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: minTouchTarget, paddingVertical: spacing.xs },
   sharedMore: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget },
   sharedMoreLabel: { color: colors.brand, flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   sharedName: { color: colors.textPrimary, flex: 1, fontSize: 15, fontWeight: '600', minWidth: 0 },
-  notice: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.sm, textAlign: 'center' },
   removeLabel: { color: colors.danger },
 }));

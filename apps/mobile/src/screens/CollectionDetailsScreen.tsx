@@ -1000,6 +1000,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     action();
   };
 
+  /** The Owner's 공유: the one Share screen (after the password prompt of a locked Collection) - the header icon and the list's long-press menu both come here. */
+  const openOwnerShare = () => runUnlocked(() => navigation.navigate('CollectionShare', { collectionId }));
+
   const openEditDialog = () => {
     if (!collection || isSavingEdit) {
       return;
@@ -1173,6 +1176,13 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       runUnlocked(confirmDeleteCollection);
     } else if (pendingAction === 'leave' && capabilities.canLeave) {
       setIsLeaveConfirmVisible(true);
+    } else if (pendingAction === 'share' && capabilities.canShare) {
+      // Exactly the header icon's handlers: the Owner's Share screen, or a member's re-checked public link.
+      if (capabilities.isOwner) {
+        openOwnerShare();
+      } else {
+        openMemberLinkShare().catch(() => undefined);
+      }
     }
     // The handlers are re-created every render; this reacts only to the request itself and the loaded Collection.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1753,7 +1763,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
               <Pressable
                 accessibilityLabel={t('collections.shareAction')}
                 accessibilityRole="button"
-                onPress={() => runUnlocked(() => navigation.navigate('CollectionShare', { collectionId }))}
+                onPress={openOwnerShare}
                 style={styles.iconButton}
                 testID="collection-details-share"
               >

@@ -182,21 +182,23 @@ describe('Product polish 1: friend actions have icons and keep their labels', ()
   const friends = source('app/(app)/me/friends/page.tsx');
   const row = friends.slice(friends.indexOf('function FriendRow'));
 
-  it('메모 / 신고 / 차단 / 친구 삭제: an icon and the word, in the shared icon family', () => {
-    for (const glyph of ['Edit', 'Flag', 'Block', 'UserMinus']) {
+  it('메모 / 친구 삭제: an icon and the word, in the shared icon family', () => {
+    for (const glyph of ['Edit', 'UserMinus']) {
       assert.ok(glyph in STATUS_ICON_MARKUP, glyph);
     }
     assert.match(row, /<Glyph name="Edit" size=\{16\} \/>\s*\{dictionary\.friendsNote\}/);
-    assert.match(row, /<Glyph name="Flag" size=\{16\} \/>\s*\{dictionary\.safetyReport\}/);
-    assert.match(row, /<Glyph name="Block" size=\{16\} \/>\s*\{dictionary\.safetyBlock\}/);
     assert.match(row, /<Glyph name="UserMinus" size=\{16\} \/>\s*\{dictionary\.friendsRemove\}/);
   });
 
-  it('removal and block are destructive, report is a warning, the memo is neutral', () => {
-    assert.match(row, /className=\{styles\.dangerAction\} data-friend-block/);
+  it('a friend offers only 메모 (neutral) and 친구 삭제 (destructive): 신고 and 차단 are no longer friend actions', () => {
     assert.match(row, /className=\{styles\.dangerAction\} data-friend-remove/);
-    assert.match(row, /className=\{`\$\{styles\.settingsAction\} \$\{styles\.warningAction\}`\} data-friend-report/);
     assert.match(row, /className=\{styles\.settingsAction\} disabled=\{busy \|\| saving\}/);
-    assert.match(css, /\.warningAction \{[^}]*color: var\(--warning-text\);/);
+    assert.doesNotMatch(row, /data-friend-report|data-friend-block|safetyReport|safetyBlock\b|useSafety|safety\.(report|block)/);
+    assert.doesNotMatch(friends, /useSafety|onBlocked/);
+  });
+
+  it('an existing block can still be released: the 차단한 사용자 tab stays, with no way to block from Friends', () => {
+    assert.match(friends, /\['blocked', dictionary\.safetyBlockedUsers, null\]/);
+    assert.match(friends, /<BlockedUsersPanel \/>/);
   });
 });

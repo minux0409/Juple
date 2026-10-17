@@ -20,7 +20,6 @@ import {
 } from '../../../../lib/settings';
 import { ApiHttpError } from '../../../../lib/appApi';
 import { useSignedInApp } from '../../AppRoot';
-import { useSafety } from '../../SafetyProvider';
 import { ConfirmDialog } from '../../ConfirmDialog';
 import { LoadMore } from '../../InfiniteScroll';
 import { LoadFailed } from '../../PageStates';
@@ -221,7 +220,6 @@ export default function FriendsPage() {
                     busy={busy}
                     friend={friend}
                     key={friend.friendshipId}
-                    onBlocked={() => setReloadToken(token => token + 1)}
                     onRemove={() => setConfirm({ kind: 'remove', friend })}
                     onUpdated={updated =>
                       setFriends(current => (current.kind === 'loaded' ? { ...current, items: current.items.map(item => (item.friendshipId === updated.friendshipId ? updated : item)) } : current))
@@ -329,9 +327,8 @@ export default function FriendsPage() {
 }
 
 /** One friend: name, Juple ID, my private note (edited in place), and 친구 삭제. */
-function FriendRow({ friend, busy, onRemove, onUpdated, onBlocked }: { readonly friend: Friend; readonly busy: boolean; readonly onRemove: () => void; readonly onUpdated: (friend: Friend) => void; readonly onBlocked: () => void }) {
+function FriendRow({ friend, busy, onRemove, onUpdated }: { readonly friend: Friend; readonly busy: boolean; readonly onRemove: () => void; readonly onUpdated: (friend: Friend) => void }) {
   const { api, dictionary, onSessionLost } = useSignedInApp();
-  const safety = useSafety();
   const [editing, setEditing] = useState(false);
   const [note, setNote] = useState(friend.myNote ?? '');
   const [saving, setSaving] = useState(false);
@@ -381,15 +378,7 @@ function FriendRow({ friend, busy, onRemove, onUpdated, onBlocked }: { readonly 
             <Glyph name="Edit" size={16} />
             {dictionary.friendsNote}
           </button>
-          {/* Each action: a meaningful icon AND its word (the icon never replaces the label) - 메모 neutral, 신고 warning, 차단 / 친구 삭제 destructive. */}
-          <button className={`${styles.settingsAction} ${styles.warningAction}`} data-friend-report disabled={busy} onClick={() => safety.report({ type: 'User', jupleId: friend.jupleId })} type="button">
-            <Glyph name="Flag" size={16} />
-            {dictionary.safetyReport}
-          </button>
-          <button className={styles.dangerAction} data-friend-block disabled={busy} onClick={() => safety.block({ jupleId: friend.jupleId, name: personName(friend) }, onBlocked)} type="button">
-            <Glyph name="Block" size={16} />
-            {dictionary.safetyBlock}
-          </button>
+          {/* Friends offer 메모 and 친구 삭제 only: each an icon AND its word. (신고 / 차단 are not friend actions; 차단한 사용자 stays a tab to release an existing block.) */}
           <button className={styles.dangerAction} data-friend-remove disabled={busy} onClick={onRemove} type="button">
             <Glyph name="UserMinus" size={16} />
             {dictionary.friendsRemove}

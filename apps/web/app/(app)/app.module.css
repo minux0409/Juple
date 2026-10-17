@@ -15,6 +15,7 @@
 .signInPage,
 .agreementPage,
 .toastHost,
+.tourRoot,
 .collectionDialog {
   --app-background: #f7f9fc;
   --app-surface: #ffffff;
@@ -122,6 +123,7 @@
 :global(html[data-theme='dark']) .signInPage,
 :global(html[data-theme='dark']) .agreementPage,
 :global(html[data-theme='dark']) .toastHost,
+:global(html[data-theme='dark']) .tourRoot,
 :global(html[data-theme='dark']) .collectionDialog {
   --app-background: #101318;
   --app-surface: #181c23;
@@ -6737,7 +6739,8 @@ button.reactionChipMine:hover {
 .centered,
 .signInPage,
 .agreementPage,
-.toastHost {
+.toastHost,
+.tourRoot {
   --juple-orange: #fea248;
   --juple-coral: #fd616b;
   --juple-magenta: #f133c5;
@@ -6763,7 +6766,8 @@ button.reactionChipMine:hover {
 :global(html[data-theme='dark']) .centered,
 :global(html[data-theme='dark']) .signInPage,
 :global(html[data-theme='dark']) .agreementPage,
-:global(html[data-theme='dark']) .toastHost {
+:global(html[data-theme='dark']) .toastHost,
+:global(html[data-theme='dark']) .tourRoot {
   --brand-gradient-soft: linear-gradient(135deg, rgba(254, 162, 72, 0.16), rgba(253, 97, 107, 0.14) 30%, rgba(241, 51, 197, 0.12) 58%, rgba(103, 81, 252, 0.18) 82%, rgba(81, 161, 253, 0.18));
   --brand-line: rgba(122, 162, 255, 0.28);
   --brand-wash: linear-gradient(135deg, rgba(254, 162, 72, 0.1), rgba(253, 97, 107, 0.09) 30%, rgba(241, 51, 197, 0.08) 58%, rgba(103, 81, 252, 0.12) 82%, rgba(81, 161, 253, 0.12));
@@ -8022,7 +8026,8 @@ button.reactionChipMine:hover {
   box-shadow: 0 0 0 1px var(--app-border);
 }
 
-/* ---- Guided tour (Help > 기능 가이드): dimming layer, spotlight ring, explanation card. Tokens only, so Light and Dark both follow. ---- */
+/* ---- Guided tour (Help > 기능 가이드): the layer is rendered OUTSIDE .shell, so it joins the token scope lists above (.tourRoot) - without them
+   every var(--app-*) / var(--scrim) here was undefined and the card painted transparent. Dimming layer, spotlight ring, explanation card. Tokens only, so Light and Dark both follow. ---- */
 .tourRoot {
   position: fixed;
   inset: 0;
@@ -8069,10 +8074,10 @@ button.reactionChipMine:hover {
   max-height: calc(100vh - 32px);
   overflow-y: auto;
   padding: var(--space-4, 16px);
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--app-border, GrayText);
   border-radius: var(--radius-card);
-  background: var(--app-surface);
-  color: var(--app-text);
+  background: var(--app-surface, Canvas);
+  color: var(--app-text, CanvasText);
   box-shadow: var(--shadow-card);
 }
 

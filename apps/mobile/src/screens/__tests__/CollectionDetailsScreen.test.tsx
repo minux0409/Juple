@@ -1995,9 +1995,10 @@ describe('CollectionDetailsScreen - an action asked for by the Collections list 
     jest.clearAllMocks();
   });
 
-  async function renderForAction(pendingAction: 'edit' | 'lock' | 'delete' | 'leave') {
+  async function renderForAction(pendingAction: 'edit' | 'lock' | 'delete' | 'leave' | 'share') {
     const setParams = jest.fn();
-    const actionNavigation = { navigate: jest.fn(), goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn(), setParams } as never;
+    const navigateMock = jest.fn();
+    const actionNavigation = { navigate: navigateMock, goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn(), setParams } as never;
     const actionRoute = { key: 'CollectionDetails', name: 'CollectionDetails', params: { collectionId: 1, pendingAction } } as never;
     let renderer!: ReactTestRenderer.ReactTestRenderer;
     await act(async () => {
@@ -2010,7 +2011,7 @@ describe('CollectionDetailsScreen - an action asked for by the Collections list 
     await act(async () => {
       await new Promise<void>(resolve => setImmediate(() => resolve()));
     });
-    return { renderer, setParams };
+    return { renderer, setParams, navigateMock };
   }
 
   const visibleConfirm = (renderer: ReactTestRenderer.ReactTestRenderer, titleKey: string) =>
@@ -2043,6 +2044,31 @@ describe('CollectionDetailsScreen - an action asked for by the Collections list 
 
     const edit = await renderForAction('edit');
     expect(edit.renderer.root.findAll(node => node.props.mode === 'edit' && node.props.visible === true)).not.toHaveLength(0);
+  });
+
+  it('share (Owner): opens the one Share screen - exactly what the header icon does', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner' }));
+
+    const { navigateMock, setParams } = await renderForAction('share');
+
+    expect(navigateMock).toHaveBeenCalledWith('CollectionShare', { collectionId: 1 });
+    expect(setParams).toHaveBeenCalledWith({ pendingAction: undefined });
+  });
+
+  it('share (Owner of a locked Collection): nothing opens before the password prompt is passed', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', isLocked: true }));
+
+    const { navigateMock } = await renderForAction('share');
+
+    expect(navigateMock).not.toHaveBeenCalledWith('CollectionShare', expect.anything());
+  });
+
+  it('share (member without an active public link): nothing opens - the request is decided from the Collection itself', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', isPublicShareActive: false }));
+
+    const { navigateMock } = await renderForAction('share');
+
+    expect(navigateMock).not.toHaveBeenCalledWith('CollectionShare', expect.anything());
   });
 
   it('what the caller may do is decided from the Collection itself - a member asking for delete, edit or lock opens nothing, and an Owner asking to leave opens nothing', async () => {

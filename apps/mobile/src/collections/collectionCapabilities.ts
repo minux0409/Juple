@@ -25,6 +25,11 @@ export interface CollectionCapabilities {
   readonly canToggleFavorite: boolean;
   /** 새 링크 알림: wherever someone else can add links. */
   readonly canToggleNotification: boolean;
+  /**
+   * 공유: the Owner opens the Share screen; a member can only pass on the Owner's public link, so it is offered only while the
+   * list says that link is active (the Collection's own screen re-checks it with the server before sharing anything).
+   */
+  readonly canShare: boolean;
   /** Offered as an app-shortcut / Direct Share destination: writable, and not behind a lock or access password. */
   readonly canPinShortcut: boolean;
 }
@@ -43,6 +48,7 @@ export function getCollectionCapabilities(
     canAddItem,
     canToggleFavorite: true,
     canToggleNotification: isCollaborative(collection),
+    canShare: isOwner || collection.isPublicShareActive === true,
     canPinShortcut: canAddItem && contentGateOf(collection) === null,
   };
 }

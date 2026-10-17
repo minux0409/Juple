@@ -12,6 +12,7 @@ import { EditIcon } from '../icons/EditIcon';
 import { LockIcon } from '../icons/LockIcon';
 import { LogoutIcon } from '../icons/LogoutIcon';
 import { PlusIcon } from '../icons/PlusIcon';
+import { ShareIcon } from '../icons/ShareIcon';
 import { StarIcon } from '../icons/StarIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { UnlockIcon } from '../icons/UnlockIcon';
@@ -22,7 +23,7 @@ import { getCollectionCapabilities } from './collectionCapabilities';
 import { isCollectionLocked } from './collectionAccess';
 
 /** The Collection's own screen actions the list asks for (see RootStack's CollectionDetails.pendingAction). */
-export type CollectionManagementAction = 'edit' | 'lock' | 'delete' | 'leave';
+export type CollectionManagementAction = 'edit' | 'lock' | 'delete' | 'leave' | 'share';
 
 interface UseCollectionLongPressMenuOptions {
   /** The caller's own favorite mark - the list's existing toggle (optimistic, rolled back on failure). */
@@ -36,7 +37,7 @@ const FilledStarIcon = (props: { readonly color?: string; readonly size?: number
 /**
  * The long-press menu of a Collection card (List and Grid), shared so no screen builds its own. What it offers follows the
  * caller's role (getCollectionCapabilities - the server stays the judge of every call):
- *   즐겨찾기 on/off, 새 링크 알림 on/off (where others can add links), 수정 and 잠금 설정 (Owner), 앱 바로가기 추가/제거,
+ *   즐겨찾기 on/off, 새 링크 알림 on/off (where others can add links), 공유, 수정 and 잠금 설정 (Owner), 앱 바로가기 추가/제거,
  *   then ONE destructive row last - 삭제 for the Owner, 나가기 for a member, never both.
  * Each row reuses what already exists: the list's favorite toggle, the saved notification preference, and the Collection's
  * own screen for edit / lock / delete / leave (its dialogs, password prompt and undo) - nothing is rebuilt here. The
@@ -150,6 +151,10 @@ export function useCollectionLongPressMenu({ onToggleFavorite, onManage }: UseCo
         icon: notificationsEnabled ? BellOffIcon : BellIcon,
         onPress: () => { closeMenu(); changeNotifications(collection, !notificationsEnabled); },
       });
+    }
+    // 공유: the Collection's own share entry (Owner: the Share screen; member: the Owner's public link) - opened there, not rebuilt here.
+    if (capabilities.canShare) {
+      actions.push({ label: t('collections.shareAction'), icon: ShareIcon, onPress: () => { closeMenu(); onManage(collection, 'share'); } });
     }
     if (capabilities.canEdit) {
       actions.push({ label: t('common.edit'), icon: EditIcon, onPress: () => { closeMenu(); onManage(collection, 'edit'); } });

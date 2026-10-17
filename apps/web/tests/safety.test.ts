@@ -92,10 +92,10 @@ describe('reporting (the mobile reasons, the same API)', () => {
     assert.doesNotMatch(provider, /dangerouslySetInnerHTML/);
   });
 
-  it('is offered on somebody else\'s Collection, comment and friend - and never on one\'s own', () => {
+  it('is offered on somebody else\'s Collection and comment - and never on one\'s own (a friend no longer has 신고 / 차단)', () => {
     assert.match(source('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx'), /isSharedWithMe\(collection\)\s*\? \[\s*\{ key: 'report'/);
     assert.match(source('app/(app)/ItemCollaboration.tsx'), /onReport && !author\.isMe/);
-    assert.match(source('app/(app)/me/friends/page.tsx'), /safety\.report\(\{ type: 'User', jupleId: friend\.jupleId \}\)/);
+    assert.doesNotMatch(source('app/(app)/me/friends/page.tsx'), /safety\.(report|block)\(/);
   });
 
   it('no anonymous reporting: the public-only viewer has no report call', () => {

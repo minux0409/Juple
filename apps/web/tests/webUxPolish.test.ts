@@ -88,7 +88,7 @@ describe('새 컬렉션 dialog: one shell, normal flow, its own tokens', () => {
     for (const selector of ['.collectionDialog', '.collectionDialogBody', '.editorDialogForm', '.editorDialogFields', '.editorDialogFoot']) {
       assert.doesNotMatch(rule(selector) ?? '', /position:\s*(absolute|fixed)/, selector);
     }
-    assert.match(css, /\.toastHost,\s*\.collectionDialog \{\s*--app-background/);
+    assert.match(css, /\.toastHost,\s*\.tourRoot,\s*\.collectionDialog \{\s*--app-background/);
     assert.match(css, /:global\(html\[data-theme='dark'\]\) \.shell,\s*:global\(html\[data-theme='dark'\]\) \.centered,[\s\S]*?:global\(html\[data-theme='dark'\]\) \.collectionDialog \{/);
     assert.match(rule('.collectionDialog') ?? '', /width: min\(560px, calc\(100vw - 32px\)\)/);
   });

@@ -105,12 +105,12 @@ export type RootStackParamList = {
     /** A join-request notification: once the content is open (lock gate passed), the 참여 요청 bottom sheet opens over the Collection. Consumed once. */
     openJoinRequests?: boolean;
     /**
-     * The Collections list's long-press menu: 수정 / 잠금 설정 / 삭제 / 나가기 are this screen's own dialogs (with its
+     * The Collections list's long-press menu: 공유 (the same share entry as the header icon) and 수정 / 잠금 설정 / 삭제 / 나가기 are this screen's own dialogs (with its
      * password prompt for a locked Collection, its undo and its navigation back) - the list asks for one and this screen
      * opens it once the Collection is loaded, so no dialog or API call is duplicated. Consumed once; what the caller may do
      * is decided here from the Collection itself, never from this param.
      */
-    pendingAction?: 'edit' | 'lock' | 'delete' | 'leave';
+    pendingAction?: 'edit' | 'lock' | 'delete' | 'leave' | 'share';
   };
   /**
    * Owner-only sharing of one Collection, as a modal - one screen: 모든 사용자 (the public link),

@@ -25,6 +25,7 @@ describe('getCollectionCapabilities - the one role matrix', () => {
       canAddItem: true,
       canToggleFavorite: true,
       canToggleNotification: false,
+      canShare: true,
       canPinShortcut: true,
     });
   });
@@ -70,6 +71,15 @@ describe('getCollectionCapabilities - the one role matrix', () => {
     expect(getCollectionCapabilities(collection({ accessRole: 'contributor', isSharePasswordProtected: true })).canPinShortcut).toBe(false);
     expect(getCollectionCapabilities(collection({ accessRole: 'viewer' })).canPinShortcut).toBe(false);
     expect(getCollectionCapabilities(collection({ accessRole: 'contributor' })).canPinShortcut).toBe(true);
+  });
+
+  it('공유: the Owner always (even locked - the prompt is the Collection own); a member only while the Owner public link is active', () => {
+    expect(getCollectionCapabilities(collection({ accessRole: 'owner', isLocked: true })).canShare).toBe(true);
+    for (const accessRole of ['contributor', 'submitter', 'viewer'] as const) {
+      expect(getCollectionCapabilities(collection({ accessRole })).canShare).toBe(false);
+      expect(getCollectionCapabilities(collection({ accessRole, isPublicShareActive: false })).canShare).toBe(false);
+      expect(getCollectionCapabilities(collection({ accessRole, isPublicShareActive: true })).canShare).toBe(true);
+    }
   });
 
   it('says why a Collection is not a shortcut destination', () => {
