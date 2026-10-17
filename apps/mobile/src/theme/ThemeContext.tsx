@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
-import { Appearance, useColorScheme } from 'react-native';
-import { setActiveColorScheme, type ColorScheme } from './tokens';
+import { Appearance, NativeModules, Platform, useColorScheme } from 'react-native';
+import { colors, setActiveColorScheme, type ColorScheme } from './tokens';
 
 /**
  * Appearance (화면 모드): the device's own choice - 시스템 설정 사용 / 라이트 / 다크 - kept on THIS device only (AsyncStorage, like the
@@ -53,6 +53,21 @@ export function applyNativeAppearance(preference: ThemePreference): void {
   }
 }
 
+/**
+ * Android only: the system navigation bar (home / back / recents area) follows the resolved theme, live - icon appearance and the
+ * colour behind the bar (the same surface as the bottom tab bar), so no white strip is left under a dark app. iOS has no such bar.
+ */
+export function applyNavigationBarTheme(scheme: ColorScheme, color: string): void {
+  if (Platform.OS !== 'android') {
+    return;
+  }
+  try {
+    NativeModules.JupleSystemBars?.setNavigationBarTheme(scheme === 'dark', color);
+  } catch {
+    // Module missing (an older native build): the bar keeps the system's own look.
+  }
+}
+
 interface ThemeState {
   readonly preference: ThemePreference;
   readonly scheme: ColorScheme;
@@ -78,6 +93,12 @@ export function ThemeProvider({ initialPreference = DEFAULT_THEME_PREFERENCE, ch
   useEffect(() => {
     applyNativeAppearance(preference);
   }, [preference]);
+
+  // The resolved scheme (also when the OS flips while on 시스템 설정 사용) - the bar colour is the tab bar's surface.
+  const navigationBarColor = colors.surface;
+  useEffect(() => {
+    applyNavigationBarTheme(scheme, navigationBarColor);
+  }, [scheme, navigationBarColor]);
 
   const setPreference = useCallback((next: ThemePreference) => {
     setPreferenceState(next);

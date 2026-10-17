@@ -1322,3 +1322,25 @@ describe('FriendsScreen - 함께 공유 중인 컬렉션', () => {
   });
 
 });
+
+describe('FriendsScreen - shared Collections as compact tiles', () => {
+  it('each Collection is a vertical tile (icon above, name below, at most two lines) in one horizontal row; lock, label and tap are kept', async () => {
+    const items = [
+      { id: 21, name: '아주 아주 긴 컬렉션 이름이 두 줄을 넘어가는 경우', icon: 'Folder', color: null, itemCount: 1, isFavorite: false, accessRole: 'owner' },
+      { id: 22, name: '잠김', icon: 'Folder', color: null, itemCount: 1, isFavorite: false, accessRole: 'contributor', isLocked: true },
+    ] as never;
+    jest.mocked(getFriendSharedCollections).mockResolvedValue({ items, nextCursor: null });
+    const renderer = await renderScreen();
+    await press(renderer, 'friend-7');
+
+    const list = renderer.root.findAll(node => node.props.testID === 'friend-shared-list')[0];
+    expect(list.props.horizontal).toBe(true);
+    const tile = byId(renderer, 'friend-shared-21');
+    expect(StyleSheet.flatten(tile.props.style)).toMatchObject({ alignItems: 'center', width: 84 });
+    expect(StyleSheet.flatten(tile.props.style).flexDirection).toBeUndefined();
+    expect(tile.findByType(Text).props.numberOfLines).toBe(2);
+    expect(StyleSheet.flatten(tile.findByType(Text).props.style).textAlign).toBe('center');
+    expect(tile.props.accessibilityLabel).toBe('아주 아주 긴 컬렉션 이름이 두 줄을 넘어가는 경우');
+    expect(byId(renderer, 'friend-shared-22').findAllByType(LockIcon)).toHaveLength(1);
+  });
+});

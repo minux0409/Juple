@@ -11,6 +11,7 @@ class IncomingSharePackage : BaseReactPackage() {
   override fun getModule(name: String, reactContext: ReactApplicationContext): NativeModule? =
     when (name) {
       NativeIncomingShareModule.Name -> NativeIncomingShareModule(reactContext)
+      JupleSystemBarsModule.NAME -> JupleSystemBarsModule(reactContext)
       else -> null
     }
 
@@ -25,6 +26,7 @@ class IncomingSharePackage : BaseReactPackage() {
       annotation.isCxxModule,
       true,
     )
-    return ReactModuleInfoProvider { mapOf(NativeIncomingShareModule.Name to info) }
+    val bars = ReactModuleInfo(JupleSystemBarsModule.NAME, JupleSystemBarsModule::class.java.name, false, false, false, false)
+    return ReactModuleInfoProvider { mapOf(NativeIncomingShareModule.Name to info, JupleSystemBarsModule.NAME to bars) }
   }
 }

@@ -222,26 +222,31 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onOpe
               {shared.kind === 'loading' ? <ActivityIndicator style={styles.sharedState} /> : null}
               {shared.kind === 'failed' ? <Text style={styles.error} testID="friend-shared-error">{t('friends.sharedCollectionsFailed')}</Text> : null}
               {shared.kind === 'ready' && shared.items.length === 0 ? <Text style={styles.sharedEmpty} testID="friend-shared-empty">{t('friends.sharedCollectionsEmpty')}</Text> : null}
-              {shared.kind === 'ready'
-                ? shared.items.map(collection => (
+              {shared.kind === 'ready' && shared.items.length > 0 ? (
+                // Compact vertical tiles (icon above, name below) in ONE horizontally scrolling row: a long list never grows the modal.
+                <ScrollView contentContainerStyle={styles.sharedTiles} horizontal showsHorizontalScrollIndicator={false} testID="friend-shared-list">
+                  {shared.items.map(collection => (
                     <Pressable
                       accessibilityLabel={collection.name}
                       accessibilityRole="button"
                       key={collection.id}
                       onPress={() => onOpenCollection(collection.id)}
-                      style={styles.sharedRow}
+                      style={styles.sharedTile}
                       testID={`friend-shared-${collection.id}`}
                     >
-                      <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} imageVersion={collection.iconImageVersion} size={36} />
-                      <Text numberOfLines={1} style={styles.sharedName}>{collection.name}</Text>
-                      {isCollectionLocked(collection) ? (
-                        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-                          <LockIcon color={colors.textSecondary} size={16} />
-                        </View>
-                      ) : null}
+                      <View>
+                        <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} imageVersion={collection.iconImageVersion} size={44} />
+                        {isCollectionLocked(collection) ? (
+                          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.sharedLock}>
+                            <LockIcon color={colors.textSecondary} size={12} />
+                          </View>
+                        ) : null}
+                      </View>
+                      <Text numberOfLines={2} style={styles.sharedName}>{collection.name}</Text>
                     </Pressable>
-                  ))
-                : null}
+                  ))}
+                </ScrollView>
+              ) : null}
               {shared.kind === 'ready' && shared.nextCursor !== null ? (
                 <Pressable
                   accessibilityRole="button"
@@ -337,9 +342,11 @@ const styles = themedStyles(() => ({
   removeButton: { borderColor: colors.danger },
   sharedState: { marginTop: spacing.sm },
   sharedEmpty: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.sm },
-  sharedRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: minTouchTarget, paddingVertical: spacing.xs },
+  sharedTiles: { columnGap: spacing.sm, paddingVertical: spacing.xs },
+  sharedTile: { alignItems: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.xs, rowGap: spacing.xs, width: 84 },
+  sharedLock: { backgroundColor: colors.surface, borderRadius: 8, bottom: -3, padding: 2, position: 'absolute', right: -3 },
   sharedMore: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget },
   sharedMoreLabel: { color: colors.brand, flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },
-  sharedName: { color: colors.textPrimary, flex: 1, fontSize: 15, fontWeight: '600', minWidth: 0 },
+  sharedName: { color: colors.textPrimary, fontSize: 13, fontWeight: '600', textAlign: 'center' },
   removeLabel: { color: colors.danger },
 }));

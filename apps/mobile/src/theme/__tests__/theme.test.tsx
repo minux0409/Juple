@@ -424,3 +424,73 @@ describe('inside a real navigator', () => {
     expect(mounted).toBe(1);
   });
 });
+
+describe('Android navigation bar follows the resolved theme (live)', () => {
+  const { NativeModules, Platform } = jest.requireActual<typeof import('react-native')>('react-native');
+  const setBar = jest.fn();
+  let originalOs: typeof Platform.OS;
+
+  beforeEach(() => {
+    setBar.mockClear();
+    originalOs = Platform.OS;
+    (Platform as { OS: string }).OS = 'android';
+    (NativeModules as Record<string, unknown>).JupleSystemBars = { setNavigationBarTheme: setBar };
+    jest.spyOn(Appearance, 'setColorScheme').mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    (Platform as { OS: string }).OS = originalOs;
+    delete (NativeModules as Record<string, unknown>).JupleSystemBars;
+  });
+
+  async function mountWith(initial: 'system' | 'light' | 'dark') {
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(<ThemeProvider initialPreference={initial}><Text>x</Text></ThemeProvider>);
+    });
+    return renderer;
+  }
+  const update = (renderer: ReactTestRenderer.ReactTestRenderer, initial: 'system' | 'light' | 'dark') =>
+    act(async () => {
+      renderer.update(<ThemeProvider initialPreference={initial}><Text>x</Text></ThemeProvider>);
+    });
+
+  it('Dark: light icons on the dark tab-bar surface; Light: dark icons on the light surface', async () => {
+    await mountWith('dark');
+    expect(setBar).toHaveBeenLastCalledWith(true, darkColors.surface);
+    setBar.mockClear();
+    await mountWith('light');
+    expect(setBar).toHaveBeenLastCalledWith(false, lightColors.surface);
+  });
+
+  it('an OS theme flip while on 시스템 설정 사용 updates the bar at once; an explicit choice ignores the OS', async () => {
+    const system = await mountWith('system');
+    expect(setBar).toHaveBeenLastCalledWith(false, lightColors.surface);
+    mockSystemScheme = 'dark';
+    await update(system, 'system');
+    expect(setBar).toHaveBeenLastCalledWith(true, darkColors.surface);
+
+    const explicit = await mountWith('light');
+    setBar.mockClear();
+    mockSystemScheme = 'light';
+    await update(explicit, 'light');
+    mockSystemScheme = 'dark';
+    await update(explicit, 'light');
+    expect(setBar).not.toHaveBeenCalledWith(true, expect.anything());
+  });
+
+  it('does nothing on iOS or when the native module is missing', async () => {
+    (Platform as { OS: string }).OS = 'ios';
+    await mountWith('dark');
+    expect(setBar).not.toHaveBeenCalled();
+    (Platform as { OS: string }).OS = 'android';
+    delete (NativeModules as Record<string, unknown>).JupleSystemBars;
+    await expect(mountWith('dark')).resolves.toBeDefined();
+  });
+
+  it('the native side sets icon appearance, background and contrast on the window, with no extra dependency', () => {
+    const kt = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'android', 'app', 'src', 'main', 'java', 'com', 'com.juple.app', 'JupleSystemBarsModule.kt'), 'utf8');
+    expect(kt).toContain('isAppearanceLightNavigationBars = !isDark');
+    expect(kt).toContain('isNavigationBarContrastEnforced = false');
+    expect(kt).toContain('runOnUiThread');
+  });
+});
