@@ -16,6 +16,7 @@ import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { CheckIcon } from '../../icons/CheckIcon';
 import { CloseIcon } from '../../icons/CloseIcon';
 import { TrashIcon } from '../../icons/TrashIcon';
+import { LockIcon } from '../../icons/LockIcon';
 import { BlockIcon } from '../../icons/BlockIcon';
 import { EditIcon } from '../../icons/EditIcon';
 import { FlagIcon } from '../../icons/FlagIcon';
@@ -28,12 +29,14 @@ import { SwipeableItemRow } from '../../components/SwipeableItemRow';
 import { colors, radii, spacing } from '../../theme/tokens';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { emitSocialPushEvent } from '../../push/pushEvents';
+import { listBlockedUsers, unblockUser } from '../../safety/safetyApi';
 import { jupleIdForLookup } from '../../friends/friendIdentity';
 import {
   acceptFriendRequest,
   cancelFriendRequest,
   declineFriendRequest,
   getFriendRequests,
+  getFriendSharedCollections,
   getFriends,
   removeFriend,
   sendFriendRequest,
@@ -55,7 +58,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   },
 }));
 // The header's [+] is set through navigation options - kept here so a test can render and tap it.
-const mockNavigation = { setOptions: jest.fn() };
+const mockNavigation = { setOptions: jest.fn(), navigate: jest.fn() };
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (callback: () => void | (() => void)) => {
     const React = require('react');
@@ -71,9 +74,15 @@ jest.mock('../../collections/api/collaborationApi', () => ({
   ...jest.requireActual('../../collections/api/collaborationApi'),
   lookupJupleId: jest.fn(),
 }));
+jest.mock('../../safety/safetyApi', () => ({
+  ...jest.requireActual('../../safety/safetyApi'),
+  listBlockedUsers: jest.fn(),
+  unblockUser: jest.fn(),
+}));
 jest.mock('../../friends/api/friendsApi', () => ({
   ...jest.requireActual('../../friends/api/friendsApi'),
   getFriends: jest.fn(),
+  getFriendSharedCollections: jest.fn(),
   getFriendRequests: jest.fn(),
   sendFriendRequest: jest.fn(),
   acceptFriendRequest: jest.fn(),
@@ -112,6 +121,8 @@ beforeEach(() => {
   jest.useFakeTimers();
   jest.mocked(getFriends).mockResolvedValue({ items: [pikachu, noNickname], nextCursor: null });
   jest.mocked(getFriendRequests).mockResolvedValue([incomingCharmander, outgoingTogepi]);
+  jest.mocked(getFriendSharedCollections).mockResolvedValue({ items: [], nextCursor: null });
+  jest.mocked(listBlockedUsers).mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -170,13 +181,13 @@ async function openAddFromHeader(renderer: Renderer) {
 }
 
 describe('FriendsScreen - tabs', () => {
-  it('opens on 친구 with three tabs, and 받은 요청 carries its count', async () => {
+  it('opens on 친구 with four tabs (친구 · 받은 요청 · 보낸 요청 · 차단한 사용자), and 받은 요청 carries its count', async () => {
     const renderer = await renderScreen();
 
     const tabs = renderer.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'tab');
-    expect(tabs.map(tab => tab.props.testID)).toEqual(['friends-tab-friends', 'friends-tab-incoming', 'friends-tab-outgoing']);
+    expect(tabs.map(tab => tab.props.testID)).toEqual(['friends-tab-friends', 'friends-tab-incoming', 'friends-tab-outgoing', 'friends-tab-blocked']);
     expect(byId(renderer, 'friends-tab-friends').props.accessibilityState).toEqual({ selected: true });
-    expect(texts(byId(renderer, 'friends-tabs'))).toEqual(expect.arrayContaining([i18n.t('friends.title'), '받은 요청', '보낸 요청']));
+    expect(texts(byId(renderer, 'friends-tabs'))).toEqual(expect.arrayContaining([i18n.t('friends.title'), '받은 요청', '보낸 요청', i18n.t('safety.blockedUsers')]));
     expect(byId(renderer, 'friends-tab-incoming-count').props.children).toBe('1');
     expect(byId(renderer, 'friends-tab-outgoing-count').props.children).toBe('1');
     expect(exists(renderer, 'friend-7')).toBe(true);
@@ -1205,4 +1216,139 @@ describe('FriendsScreen - List / Grid', () => {
     expect(renderer.root.findByProps({ testID: 'friends-list' }).props.numColumns).toBe(1);
     expect(mockPrefs.get('juple.friendsViewMode')).toBe('list');
   });
+});
+
+describe('FriendsScreen - 차단한 사용자 is a tab of Friends', () => {
+  const blockedUser = { jupleId: 'BLCK2345', displayName: '차단된 사람', blockedAtUtc: '', profileImageUrl: null, profileImageVersion: null };
+
+  it('is the fourth tab; the blocked person is listed there with 차단 해제 and never among the friends', async () => {
+    jest.mocked(listBlockedUsers).mockResolvedValue([blockedUser]);
+    const renderer = await renderScreen();
+    expect(['friends', 'incoming', 'outgoing', 'blocked'].every(key => exists(renderer, `friends-tab-${key}`))).toBe(true);
+    // Not fetched, and not shown, until the tab is opened.
+    expect(listBlockedUsers).not.toHaveBeenCalled();
+    expect(exists(renderer, 'blocked-user-BLCK2345')).toBe(false);
+
+    await press(renderer, 'friends-tab-blocked');
+    expect(listBlockedUsers).toHaveBeenCalledTimes(1);
+    expect(exists(renderer, 'blocked-user-BLCK2345')).toBe(true);
+    expect(texts(renderer)).toContain(i18n.t('safety.unblock'));
+    // The friends list itself holds only friends (the server never returns a blocked person there).
+    expect(jest.mocked(getFriends).mock.results.length).toBeGreaterThan(0);
+  });
+
+  it('차단 해제 removes the row and does not bring a friendship back (no friend request or list change is made)', async () => {
+    jest.mocked(listBlockedUsers).mockResolvedValue([blockedUser]);
+    jest.mocked(unblockUser).mockResolvedValue(undefined);
+    const renderer = await renderScreen();
+    await press(renderer, 'friends-tab-blocked');
+    const friendsCalls = jest.mocked(getFriends).mock.calls.length;
+    await press(renderer, 'unblock-BLCK2345');
+
+    expect(unblockUser).toHaveBeenCalledWith(expect.any(Function), 'BLCK2345');
+    expect(exists(renderer, 'blocked-user-BLCK2345')).toBe(false);
+    expect(sendFriendRequest).not.toHaveBeenCalled();
+    expect(acceptFriendRequest).not.toHaveBeenCalled();
+    expect(jest.mocked(getFriends).mock.calls.length).toBe(friendsCalls);
+  });
+
+  it('an empty list says so', async () => {
+    const renderer = await renderScreen();
+    await press(renderer, 'friends-tab-blocked');
+    expect(exists(renderer, 'blocked-users-empty')).toBe(true);
+  });
+});
+
+describe('FriendsScreen - 함께 공유 중인 컬렉션', () => {
+  const mine = { id: 11, name: '여행', icon: 'Folder', color: null, itemCount: 3, isFavorite: false, accessRole: 'owner', hasCollaborators: true } as never;
+  const theirs = { id: 12, name: '맛집', icon: 'Folder', color: null, itemCount: 1, isFavorite: false, accessRole: 'contributor', isLocked: true } as never;
+  const detail = (renderer: Renderer) => renderer.root.findAllByType(AppModal).find(modal => modal.props.testID === 'friend-detail')!;
+
+  it('is read once for the OPENED friend only - never for the list cards', async () => {
+    jest.mocked(getFriendSharedCollections).mockResolvedValue({ items: [mine, theirs], nextCursor: null });
+    const renderer = await renderScreen();
+    expect(getFriendSharedCollections).not.toHaveBeenCalled();
+
+    await press(renderer, 'friend-7');
+    expect(getFriendSharedCollections).toHaveBeenCalledTimes(1);
+    expect(getFriendSharedCollections).toHaveBeenCalledWith(expect.any(Function), 7);
+    expect(texts(detail(renderer))).toEqual(expect.arrayContaining(['함께 공유 중인 컬렉션 2', '여행', '맛집']));
+  });
+
+  it('a Collection opens its Collection Details (and closes the modal); a locked one shows only its lock', async () => {
+    jest.mocked(getFriendSharedCollections).mockResolvedValue({ items: [mine, theirs], nextCursor: null });
+    const renderer = await renderScreen();
+    await press(renderer, 'friend-7');
+    expect(byId(renderer, 'friend-shared-12').findAllByType(LockIcon)).toHaveLength(1);
+    expect(byId(renderer, 'friend-shared-11').findAllByType(LockIcon)).toHaveLength(0);
+
+    await press(renderer, 'friend-shared-12');
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('CollectionDetails', { collectionId: 12 });
+    expect(renderer.root.findAllByType(AppModal).some(modal => modal.props.testID === 'friend-detail')).toBe(false);
+  });
+
+  it('says so when nothing is shared, and when the list cannot be read - the rest of the friend stays usable', async () => {
+    const empty = await renderScreen();
+    await press(empty, 'friend-7');
+    expect(exists(empty, 'friend-shared-empty')).toBe(true);
+
+    jest.mocked(getFriendSharedCollections).mockRejectedValue(new Error('down'));
+    const failed = await renderScreen();
+    await press(failed, 'friend-7');
+    expect(exists(failed, 'friend-shared-error')).toBe(true);
+    expect(exists(failed, 'friend-note-save')).toBe(true);
+  });
+
+  it('more than one page is marked with +', async () => {
+    jest.mocked(getFriendSharedCollections).mockResolvedValue({ items: [mine], nextCursor: 'next' });
+    const renderer = await renderScreen();
+    await press(renderer, 'friend-7');
+    expect(texts(detail(renderer))).toContain('함께 공유 중인 컬렉션 1+');
+  });
+
+  it('더 보기 reads the next page with the server cursor, appends it, and disappears on the last page', async () => {
+    const third = { id: 13, name: '독서', icon: 'Folder', color: null, itemCount: 0, isFavorite: false, accessRole: 'viewer' } as never;
+    jest.mocked(getFriendSharedCollections)
+      .mockResolvedValueOnce({ items: [mine], nextCursor: 'c1' })
+      .mockResolvedValueOnce({ items: [mine, theirs], nextCursor: 'c2' })
+      .mockResolvedValueOnce({ items: [third], nextCursor: null });
+    const renderer = await renderScreen();
+    await press(renderer, 'friend-7');
+    expect(exists(renderer, 'friend-shared-more')).toBe(true);
+
+    await press(renderer, 'friend-shared-more');
+    expect(getFriendSharedCollections).toHaveBeenLastCalledWith(expect.any(Function), 7, { cursor: 'c1' });
+    // a repeated row of the page boundary is not shown twice
+    expect(renderer.root.findAll(node => typeof node.props.testID === 'string' && node.props.testID.startsWith('friend-shared-1') && typeof node.props.onPress === 'function' && node.props.testID !== 'friend-shared-more').map(node => node.props.testID)).toEqual(['friend-shared-11', 'friend-shared-12']);
+    expect(texts(detail(renderer))).toContain('함께 공유 중인 컬렉션 2+');
+
+    await press(renderer, 'friend-shared-more');
+    expect(getFriendSharedCollections).toHaveBeenLastCalledWith(expect.any(Function), 7, { cursor: 'c2' });
+    expect(exists(renderer, 'friend-shared-13')).toBe(true);
+    expect(exists(renderer, 'friend-shared-more')).toBe(false);
+    expect(texts(detail(renderer))).toContain('함께 공유 중인 컬렉션 3');
+    expect(getFriendSharedCollections).toHaveBeenCalledTimes(3);
+  });
+
+  it('a failed next page keeps the rows and offers a retry; a press while loading sends nothing twice', async () => {
+    let finish!: (page: { items: never[]; nextCursor: string | null }) => void;
+    jest.mocked(getFriendSharedCollections)
+      .mockResolvedValueOnce({ items: [mine], nextCursor: 'c1' })
+      .mockRejectedValueOnce(new Error('down'))
+      .mockImplementationOnce(() => new Promise(resolve => { finish = resolve as never; }));
+    const renderer = await renderScreen();
+    await press(renderer, 'friend-7');
+
+    await press(renderer, 'friend-shared-more');
+    expect(exists(renderer, 'friend-shared-11')).toBe(true);
+    expect(exists(renderer, 'friend-shared-more')).toBe(true);
+    expect(texts(byId(renderer, 'friend-shared-more'))[0]).toContain(i18n.t('friends.sharedCollectionsFailed'));
+
+    await press(renderer, 'friend-shared-more');
+    await press(renderer, 'friend-shared-more');
+    expect(getFriendSharedCollections).toHaveBeenCalledTimes(3);
+    await act(async () => finish({ items: [], nextCursor: null }));
+    expect(exists(renderer, 'friend-shared-more')).toBe(false);
+  });
+
 });

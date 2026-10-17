@@ -1,4 +1,6 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/RootStack';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Clipboard from '@react-native-clipboard/clipboard';
@@ -18,6 +20,7 @@ import { ViewModeToggle } from '../components/ViewModeToggle';
 import { useViewModePreference, type ViewMode } from '../settings/viewModePreference';
 import { UserAvatar } from '../components/UserAvatar';
 import { AddFriendModal, getFriendRequestErrorMessage } from '../friends/AddFriendModal';
+import { BlockedUsersList } from '../friends/BlockedUsersList';
 import { FriendDetailModal } from '../friends/FriendDetailModal';
 import { usePersonProfile } from '../friends/PersonProfileModal';
 import { formatJupleId } from '../collections/api/collaborationApi';
@@ -57,20 +60,20 @@ export const OUTGOING_POLL_INTERVAL_MS = 10_000;
 /** Per visit - after that, Push / focus / returning to the app refresh it. */
 export const OUTGOING_POLL_MAX_MS = 10 * 60_000;
 
-export type FriendsTab = 'friends' | 'incoming' | 'outgoing';
+export type FriendsTab = 'friends' | 'incoming' | 'outgoing' | 'blocked';
 
 /**
  * 친구: an address book of Juple users added by exact Juple ID and mutual consent. Being friends
  * grants nothing - it only makes people easy to find again (e.g. when inviting to a Category).
  *
- * Three tabs over one screen - 친구 | 받은 요청 | 보낸 요청 - with 친구 추가 as the header's [+]. Each
+ * Four tabs over one screen - 친구 | 받은 요청 | 보낸 요청 | 차단한 사용자 - with 친구 추가 as the header's [+]. Each
  * tab keeps what it already loaded: switching tabs never reloads or blanks anything. The data is
  * refreshed on focus, pull-to-refresh, a friend Push, a sent request's short re-check, and after
  * each action (only the part that action changed). An action busies only its own row.
  */
 export function FriendsScreen() {
   const { t } = useTranslation();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const authenticatedRequest = useAuthenticatedApi();
   const [tab, setTab] = useState<FriendsTab>('friends');
   // The same List/Grid switch and persistence Home/History/Collections use.
@@ -415,6 +418,7 @@ export function FriendsScreen() {
     { key: 'friends', label: t('friends.title') },
     { key: 'incoming', label: t('friends.tabIncoming'), count: incoming.length, emphasized: true },
     { key: 'outgoing', label: t('friends.tabOutgoing'), count: outgoing.length },
+    { key: 'blocked', label: t('safety.blockedUsers') },
   ];
 
   return (
@@ -449,10 +453,14 @@ export function FriendsScreen() {
         })}
       </View>
 
-      {tab === 'friends' ? friendsList : tab === 'incoming' ? requestList('incoming', incoming) : requestList('outgoing', outgoing)}
+      {tab === 'friends' ? friendsList : tab === 'incoming' ? requestList('incoming', incoming) : tab === 'outgoing' ? requestList('outgoing', outgoing) : <BlockedUsersList />}
 
       <FriendDetailModal
         friend={selected}
+        onOpenCollection={collectionId => {
+          setSelected(null);
+          navigation.navigate('CollectionDetails', { collectionId });
+        }}
         onChanged={updated => {
           setFriends(previous => previous.map(friend => (friend.friendshipId === updated.friendshipId ? updated : friend)));
           setSelected(updated);

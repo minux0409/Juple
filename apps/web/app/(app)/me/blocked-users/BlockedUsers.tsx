@@ -10,16 +10,16 @@ import { Avatar } from '../../Avatar';
 import { LoadFailed } from '../../PageStates';
 import { SettingsRowSkeleton } from '../../Skeletons';
 import { useToast } from '../../Toaster';
-import { SettingsPage } from '../SettingsPage';
 import styles from '../../app.module.css';
 
 type State = { readonly kind: 'loading' } | { readonly kind: 'failed' } | { readonly kind: 'loaded'; readonly items: readonly BlockedUser[] };
 
 /**
- * 차단한 사용자 (mobile BlockedUsersScreen): who this person blocked - their nickname, Juple ID and photo - and 차단 해제 for each.
- * Unblocking does not make anyone a friend again. Only the caller's own list is ever shown, and never why or by whom.
+ * 차단한 사용자, a tab of 친구 (mobile FriendsScreen's 차단한 사용자 tab): who this person blocked - their nickname, Juple ID and photo -
+ * and 차단 해제 for each. Unblocking does not make anyone a friend again. Only the caller's own list is ever shown (never the people
+ * who blocked them), and never why or by whom. It is mounted only while its tab is open, so it always shows the server's current list.
  */
-export function BlockedUsers() {
+export function BlockedUsersPanel() {
   const { api, dictionary, onSessionLost } = useSignedInApp();
   const toast = useToast();
   const [state, setState] = useState<State>({ kind: 'loading' });
@@ -76,7 +76,7 @@ export function BlockedUsers() {
   );
 
   return (
-    <SettingsPage title={dictionary.safetyBlockedUsers}>
+    <div aria-label={dictionary.safetyBlockedUsers} data-blocked-users role="tabpanel">
       {state.kind === 'loading' ? <SettingsRowSkeleton count={3} /> : null}
       {state.kind === 'failed' ? <LoadFailed dictionary={dictionary} onRetry={() => { setState({ kind: 'loading' }); setReload(value => value + 1); }} /> : null}
       {state.kind === 'loaded' && state.items.length === 0 ? (
@@ -108,6 +108,6 @@ export function BlockedUsers() {
           ))}
         </ul>
       ) : null}
-    </SettingsPage>
+    </div>
   );
 }

@@ -828,7 +828,12 @@
     "you": "Anda",
     "requestCancelledByRequester": "Pengirim membatalkan permintaan pertemanan ini.",
     "requestNoLongerPending": "Permintaan pertemanan ini sudah diproses.",
-    "requestDialogTitle": "Permintaan pertemanan"
+    "requestDialogTitle": "Permintaan pertemanan",
+    "sharedCollectionsCount": "Koleksi yang dibagikan bersama {{count}}",
+    "sharedCollectionsEmpty": "Belum ada koleksi yang dibagikan dengan teman ini.",
+    "sharedCollectionsFailed": "Tidak dapat memuat koleksi yang dibagikan.",
+    "sharedCollectionsTitle": "Koleksi yang dibagikan bersama",
+    "sharedCollectionsMore": "Lihat lainnya"
   },
   "notifications": {
     "title": "Notifikasi",

@@ -828,7 +828,12 @@
     "you": "คุณ",
     "requestCancelledByRequester": "ผู้ส่งยกเลิกคำขอเป็นเพื่อนนี้แล้ว",
     "requestNoLongerPending": "คำขอเป็นเพื่อนนี้ได้รับการจัดการแล้ว",
-    "requestDialogTitle": "คำขอเป็นเพื่อน"
+    "requestDialogTitle": "คำขอเป็นเพื่อน",
+    "sharedCollectionsCount": "คอลเลกชันที่แชร์ร่วมกัน {{count}}",
+    "sharedCollectionsEmpty": "ยังไม่มีคอลเลกชันที่แชร์กับเพื่อนคนนี้",
+    "sharedCollectionsFailed": "ไม่สามารถโหลดคอลเลกชันที่แชร์ร่วมกันได้",
+    "sharedCollectionsTitle": "คอลเลกชันที่แชร์ร่วมกัน",
+    "sharedCollectionsMore": "ดูเพิ่มเติม"
   },
   "notifications": {
     "title": "การแจ้งเตือน",

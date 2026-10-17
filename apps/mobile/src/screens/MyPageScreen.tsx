@@ -249,18 +249,6 @@ export function MyPageScreen() {
           <View style={styles.settingsRowDivider} />
           <Pressable
             accessibilityRole="button"
-            onPress={() => navigation.navigate('BlockedUsers')}
-            style={styles.settingsRow}
-            testID="my-blocked-users"
-          >
-            <View style={styles.settingsRowIcon}>
-              <screenIcons.friends color={colors.textSecondary} size={18} />
-            </View>
-            <Text style={styles.settingsRowLabel}>{t('safety.blockedUsers')}</Text>
-          </Pressable>
-          <View style={styles.settingsRowDivider} />
-          <Pressable
-            accessibilityRole="button"
             onPress={() => navigation.navigate('CustomerCenter')}
             style={styles.settingsRow}
             testID="my-customer-center"

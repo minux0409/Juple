@@ -1,5 +1,6 @@
 import type { AppDictionary, AppLanguage, WebOnlyStrings } from './appI18n.ts';
 import { MOBILE_STRINGS } from './appI18nMobile.generated.ts';
+import { PUBLIC_ENTRY_STRINGS } from './appDictionaryPublicEntry.ts';
 
 /**
  * Server only: builds one language's dictionary for the signed-in Web app (the layout hands it to the page). The 17-language table
@@ -9,8 +10,6 @@ import { MOBILE_STRINGS } from './appI18nMobile.generated.ts';
 /** Strings the mobile app does not have (the Web's own sign-in setup, layout labels, and what the Web cannot do yet). */
 const WEB_ONLY: Readonly<Record<'ko' | 'en', WebOnlyStrings>> = {
   ko: {
-    signInHeadlineLine1: '발견한 것들을 모아두고,',
-    signInHeadlineLine2: '나중에 다시 꺼내보세요.',
     signInSupportingText: '링크를 저장하고, 컬렉션으로 정리하고, 필요할 때 다시 찾아보세요.',
     signInTitle: 'Juple 시작하기',
     signInDescription: '로그인하거나 새 계정을 만들어 저장한 링크를 어디서든 이어보세요.',
@@ -20,9 +19,13 @@ const WEB_ONLY: Readonly<Record<'ko' | 'en', WebOnlyStrings>> = {
     signInFeatureShare: '공유·협업',
     businessInfo: '사업자 정보',
     businessInfoTitle: '사업자 정보',
-    privacyLink: '개인정보처리방침',
-    termsLink: '이용약관',
     accountDeletionLink: '계정 삭제 안내',
+    businessOperator: '운영자',
+    businessRepresentative: '대표자',
+    businessRegistrationNumber: '사업자등록번호',
+    businessEcommerceNumber: '통신판매업 신고번호',
+    businessAddress: '사업장 주소',
+    businessSupportEmail: '문의 이메일',
     signInConfigError: '웹 로그인 설정에 문제가 있어 로그인할 수 없어요. 다시 시도해도 해결되지 않으면 관리자에게 알려 주세요.',
     sessionEnded: '로그인이 만료되었어요. 다시 로그인해 주세요.',
     configMissingTitle: '웹 로그인을 사용할 수 없어요',
@@ -65,8 +68,6 @@ const WEB_ONLY: Readonly<Record<'ko' | 'en', WebOnlyStrings>> = {
     mergeConfirmBody: "\"{source}\"의 링크 {count}개를 \"{target}\"에 합칩니다. 이미 \"{target}\"에 있는 링크는 중복되지 않아요. 병합이 완료되면 \"{source}\" 컬렉션은 삭제되며, 병합 직후에는 되돌릴 수 있어요.",
   },
   en: {
-    signInHeadlineLine1: 'Save what you discover,',
-    signInHeadlineLine2: 'and come back to it later.',
     signInSupportingText: 'Save links, organize them into collections, and find them again when you need them.',
     signInTitle: 'Get started with Juple',
     signInDescription: 'Sign in or create an account to keep your saved links with you everywhere.',
@@ -76,9 +77,13 @@ const WEB_ONLY: Readonly<Record<'ko' | 'en', WebOnlyStrings>> = {
     signInFeatureShare: 'Share and collaborate',
     businessInfo: 'Business information',
     businessInfoTitle: 'Business information',
-    privacyLink: 'Privacy Policy',
-    termsLink: 'Terms of Service',
     accountDeletionLink: 'Account deletion',
+    businessOperator: 'Operator',
+    businessRepresentative: 'Representative',
+    businessRegistrationNumber: 'Business registration number',
+    businessEcommerceNumber: 'Mail-order business report number',
+    businessAddress: 'Business address',
+    businessSupportEmail: 'Contact email',
     signInConfigError: "Web sign-in isn't set up correctly, so you can't sign in right now. If trying again doesn't help, please let the administrator know.",
     sessionEnded: 'Your sign-in has expired. Please sign in again.',
     configMissingTitle: 'Web sign-in is unavailable',
@@ -123,8 +128,11 @@ const WEB_ONLY: Readonly<Record<'ko' | 'en', WebOnlyStrings>> = {
 };
 
 export function getAppDictionary(language: AppLanguage): AppDictionary {
+  // Korean and English have hand-written Web-only text; the other 15 languages take the first-screen set (sign-in page, footer,
+  // business-information labels, sign-in setup messages) from appDictionaryPublicEntry.ts and, for the rest, English.
+  const webOnly = language === 'ko' ? WEB_ONLY.ko : language === 'en' ? WEB_ONLY.en : { ...WEB_ONLY.en, ...PUBLIC_ENTRY_STRINGS[language] };
   return {
-    ...WEB_ONLY[language === 'ko' ? 'ko' : 'en'],
+    ...webOnly,
     ...MOBILE_STRINGS[language],
   };
 }

@@ -1,6 +1,5 @@
 using Juple.Application.Identity;
 using Juple.Application.Users.BootstrapCurrentUser;
-using Juple.Domain.Collections;
 using Juple.Domain.Identity;
 using Juple.Domain.Users;
 using Juple.Infrastructure.Persistence;
@@ -68,24 +67,8 @@ public sealed class CurrentUserProvisioningStore(JupleDbContext dbContext)
             dbContext.Set<User>().Add(user);
             await dbContext.SaveChangesAsync(cancellationToken);
 
-            // One-time default-Category seed for brand-new users only (see DefaultCollectionSeed) -
-            // inserted in the same transaction as the User row so it either lands atomically with
-            // the new user or not at all (including on the race-recovery path below, which rolls
-            // back this whole transaction wholesale rather than partially committing it).
-            foreach (var name in DefaultCollectionSeed.NamesFor(data.PreferredLocale))
-            {
-                // Fixed literal names we control, not user input - CollectionNameNormalizer's
-                // normalization is inlined here (trim+uppercase) since it's `internal` to
-                // Juple.Application and this store intentionally doesn't take a dependency on an
-                // Application-layer service (see the seeding design note in the UI refactor plan).
-                // No explicit color (defaults to null) - these system-seeded defaults rely on the
-                // same id-deterministic palette fallback as any other pre-existing row (see
-                // Collection.Color's own remarks), not a color picked through the create UI.
-                dbContext.Set<Collection>().Add(
-                    new Collection(
-                        user.Id, name, name.Trim().ToUpperInvariant(), CollectionIcon.Folder, data.CreatedAtUtc));
-            }
-            await dbContext.SaveChangesAsync(cancellationToken);
+            // A new user starts with no Collections at all: the former one-time default seed (Wishlist / Food / Movies) was removed.
+            // Existing users' Collections are never touched - nothing here reads or deletes them.
 
             dbContext.Set<ExternalIdentity>().Add(new ExternalIdentity(
                 user.Id,

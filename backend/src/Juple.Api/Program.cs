@@ -242,6 +242,7 @@ builder.Services.AddScoped<ICollectionCollaborationService, CollectionCollaborat
 builder.Services.AddScoped<Juple.Application.Collections.Join.ICollectionJoinService, Juple.Application.Collections.Join.CollectionJoinService>();
 builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 builder.Services.AddScoped<Juple.Application.Friends.IFriendService, Juple.Application.Friends.FriendService>();
+builder.Services.AddScoped<Juple.Application.Friends.IFriendSharedCollectionsService, Juple.Application.Friends.FriendSharedCollectionsService>();
 builder.Services.AddSingleton<ICollectionLockPasswordHasher, CollectionLockPasswordHasher>();
 builder.Services.AddSingleton<ICollectionUnlockTokenProtector, CollectionUnlockTokenProtector>();
 builder.Services.AddSingleton<ICollectionSharePasswordProtector, CollectionSharePasswordProtector>();

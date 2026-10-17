@@ -1,5 +1,6 @@
 using Juple.Application.Identity;
 using Juple.Application.Users.BootstrapCurrentUser;
+using Juple.Domain.Collections;
 using Juple.Domain.Identity;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Users.BootstrapCurrentUser;
@@ -8,12 +9,10 @@ using Microsoft.EntityFrameworkCore;
 namespace Juple.IntegrationTests.Users;
 
 /// <summary>
-/// Covers the one-time default-Category seed added to CurrentUserProvisioningStore.CreateAsync
-/// (see the UI refactor plan's §5) - a brand-new external identity gets exactly 3 seeded Collections
-/// in the right locale's names, and calling CreateAsync again for the same identity (the same
-/// code path a concurrent race takes - see ExternalIdentityRaceRecovery) never doubles them.
+/// A brand-new user is provisioned with NO Collections (the former Wishlist / Food / Movies seed is gone), in every locale, while
+/// Collections that already exist for a user - including ones the user typed with those very names - are never touched.
 /// </summary>
-public sealed class DefaultCollectionSeedIntegrationTests : IAsyncLifetime
+public sealed class NewUserHasNoDefaultCollectionsIntegrationTests : IAsyncLifetime
 {
     private JupleDbContext _dbContext = null!;
     private readonly List<Guid> _tenantIdsToCleanUp = [];
@@ -74,72 +73,45 @@ public sealed class DefaultCollectionSeedIntegrationTests : IAsyncLifetime
         return identity.UserId;
     }
 
-    [Fact]
-    public async Task CreateOrGetAsync_ForANewKoreanLocaleUser_SeedsExactlyFourDefaultCollectionsInKorean()
+    [Theory]
+    [InlineData("ko-KR")]
+    [InlineData("en-US")]
+    [InlineData("ja-JP")]
+    public async Task CreateAsync_ForANewUser_CreatesNoCollections(string locale)
     {
         var store = new CurrentUserProvisioningStore(_dbContext);
-        var data = MakeBootstrapData(Guid.NewGuid(), "ko-KR");
+        var data = MakeBootstrapData(Guid.NewGuid(), locale);
 
         await store.CreateAsync(data);
         _dbContext.ChangeTracker.Clear();
 
         var userId = await GetSeededUserIdAsync(data.ExternalIdentity);
-        var names = await _dbContext.Collections.AsNoTracking()
-            .Where(c => c.UserId == userId)
-            .Select(c => c.Name)
-            .ToListAsync();
-
-        Assert.Equal(3, names.Count);
-        Assert.Equal(new[] { "위시리스트", "음식", "영화" }.OrderBy(n => n), names.OrderBy(n => n));
-        Assert.All(
-            await _dbContext.Collections.AsNoTracking().Where(c => c.UserId == userId).ToListAsync(),
-            c => Assert.False(c.IsFavorite));
+        Assert.Equal(0, await _dbContext.Collections.AsNoTracking().CountAsync(c => c.UserId == userId));
     }
 
     [Fact]
-    public async Task CreateOrGetAsync_ForANewEnglishLocaleUser_SeedsExactlyFourDefaultCollectionsInEnglish()
-    {
-        var store = new CurrentUserProvisioningStore(_dbContext);
-        var data = MakeBootstrapData(Guid.NewGuid(), "en-US");
-
-        await store.CreateAsync(data);
-        _dbContext.ChangeTracker.Clear();
-
-        var userId = await GetSeededUserIdAsync(data.ExternalIdentity);
-        var names = await _dbContext.Collections.AsNoTracking()
-            .Where(c => c.UserId == userId)
-            .Select(c => c.Name)
-            .ToListAsync();
-
-        Assert.Equal(3, names.Count);
-        Assert.Equal(new[] { "Food", "Movies", "Wishlist" }.OrderBy(n => n), names.OrderBy(n => n));
-    }
-
-    [Fact]
-    public async Task CreateOrGetAsync_CalledTwiceForTheSameExternalIdentity_NeverDoublesTheSeed()
+    public async Task CreateAsync_CalledAgainForAnExistingIdentity_LeavesTheUsersOwnCollectionsUntouched()
     {
         var store = new CurrentUserProvisioningStore(_dbContext);
         var data = MakeBootstrapData(Guid.NewGuid(), "ko-KR");
-
-        // First call: commits a new User + its 3 seeded Collections + the ExternalIdentity row.
         await store.CreateAsync(data);
         _dbContext.ChangeTracker.Clear();
 
-        // Second call for the exact same external identity takes the same code path a genuine
-        // concurrent race would (ExternalIdentityRaceRecovery): it still builds a brand-new User +
-        // 3 Collections in its own transaction, but the ExternalIdentity insert violates the unique
-        // (TenantId, ObjectId) index, so the whole second transaction - User and Collections
-        // included - rolls back. This must not throw (the recovery path swallows it) and must not
-        // leave a second User or a second set of Collections behind.
-        await store.CreateAsync(data);
-        _dbContext.ChangeTracker.Clear();
-
-        var identityCount = await _dbContext.ExternalIdentities.AsNoTracking()
-            .CountAsync(e => e.TenantId == data.ExternalIdentity.TenantId && e.ObjectId == data.ExternalIdentity.ObjectId);
-        Assert.Equal(1, identityCount);
-
+        // The user (an existing account) has Collections of their own - even with the old default names.
         var userId = await GetSeededUserIdAsync(data.ExternalIdentity);
-        var collectionCount = await _dbContext.Collections.AsNoTracking().CountAsync(c => c.UserId == userId);
-        Assert.Equal(3, collectionCount);
+        foreach (var name in new[] { "영화", "음식", "위시리스트", "My own" })
+        {
+            _dbContext.Collections.Add(new Collection(userId, name, name.Trim().ToUpperInvariant(), CollectionIcon.Folder, DateTimeOffset.UtcNow));
+        }
+        await _dbContext.SaveChangesAsync();
+        _dbContext.ChangeTracker.Clear();
+
+        // The race / repeat path rolls back its own transaction; it must not touch what exists.
+        await store.CreateAsync(data);
+        _dbContext.ChangeTracker.Clear();
+
+        var names = await _dbContext.Collections.AsNoTracking().Where(c => c.UserId == userId).Select(c => c.Name).ToListAsync();
+        Assert.Equal(new[] { "My own", "영화", "위시리스트", "음식" }.OrderBy(n => n), names.OrderBy(n => n));
+        Assert.Equal(1, await _dbContext.ExternalIdentities.AsNoTracking().CountAsync(e => e.TenantId == data.ExternalIdentity.TenantId && e.ObjectId == data.ExternalIdentity.ObjectId));
     }
 }

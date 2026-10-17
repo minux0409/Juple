@@ -828,7 +828,12 @@
     "you": "أنت",
     "requestCancelledByRequester": "ألغى المرسِل طلب الصداقة هذا.",
     "requestNoLongerPending": "تمت معالجة طلب الصداقة هذا بالفعل.",
-    "requestDialogTitle": "طلب صداقة"
+    "requestDialogTitle": "طلب صداقة",
+    "sharedCollectionsCount": "المجموعات المشتركة {{count}}",
+    "sharedCollectionsEmpty": "لا توجد مجموعات مشتركة مع هذا الصديق بعد.",
+    "sharedCollectionsFailed": "تعذّر تحميل المجموعات المشتركة.",
+    "sharedCollectionsTitle": "المجموعات المشتركة",
+    "sharedCollectionsMore": "عرض المزيد"
   },
   "notifications": {
     "title": "الإشعارات",

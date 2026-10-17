@@ -828,7 +828,12 @@
     "you": "Bạn",
     "requestCancelledByRequester": "Người gửi đã hủy lời mời kết bạn này.",
     "requestNoLongerPending": "Lời mời kết bạn này đã được xử lý.",
-    "requestDialogTitle": "Lời mời kết bạn"
+    "requestDialogTitle": "Lời mời kết bạn",
+    "sharedCollectionsCount": "Bộ sưu tập đang chia sẻ chung {{count}}",
+    "sharedCollectionsEmpty": "Chưa có bộ sưu tập nào được chia sẻ với bạn bè này.",
+    "sharedCollectionsFailed": "Không thể tải các bộ sưu tập đang chia sẻ.",
+    "sharedCollectionsTitle": "Bộ sưu tập đang chia sẻ chung",
+    "sharedCollectionsMore": "Xem thêm"
   },
   "notifications": {
     "title": "Thông báo",

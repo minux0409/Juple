@@ -69,6 +69,19 @@ public sealed class CollectionStore(
         ListPageAsync(
             userId, AccessibleCollections(userId, CollectionListScope.Shared), itemId, excludeItemId, cursor, limit, sink: null, cancellationToken);
 
+    public Task<CollectionPage> ListSharedWithUserAsync(
+        long userId,
+        long otherUserId,
+        CollectionPageCursor? cursor,
+        int limit,
+        CancellationToken cancellationToken = default) =>
+        ListPageAsync(
+            userId,
+            AccessibleCollections(userId, CollectionListScope.All).Where(collection =>
+                collection.UserId == otherUserId
+                || dbContext.CollectionCollaborators.Any(collaborator => collaborator.CollectionId == collection.Id && collaborator.UserId == otherUserId)),
+            itemId: null, excludeItemId: null, cursor, limit, sink: null, cancellationToken);
+
     public Task<CollectionPage> ListByScopeAsync(
         long userId,
         CollectionListScope scope,

@@ -4,12 +4,11 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from '
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { formatJupleId } from '../collections/api/collaborationApi';
 import { LoadFailureState } from '../components/LoadFailureState';
-import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { UserAvatar } from '../components/UserAvatar';
 import { useMessageDialog } from '../components/useMessageDialog';
-import { atJupleId, friendPrimaryLabel } from '../friends/friendIdentity';
 import { listBlockedUsers, unblockUser, type BlockedUser } from '../safety/safetyApi';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { atJupleId, friendPrimaryLabel } from './friendIdentity';
 
 type State =
   | { readonly kind: 'loading' }
@@ -17,10 +16,12 @@ type State =
   | { readonly kind: 'ready'; readonly users: readonly BlockedUser[] };
 
 /**
- * 차단한 사용자: who the signed-in person blocked - nickname, Juple ID and photo - each with 차단 해제. Unblocking does not make
- * anyone a friend again. Only the caller's own list is ever shown (the server returns nobody else's).
+ * 차단한 사용자, the last tab of 친구: who the signed-in person blocked - nickname, Juple ID and photo - each with 차단 해제. Unblocking
+ * does not make anyone a friend again (the server does not restore a friendship). Only the caller's own list is ever shown - the server
+ * returns nobody else's, so the people who blocked them never appear. Mounted only while its tab is open, so it shows the server's
+ * current list each time.
  */
-export function BlockedUsersScreen() {
+export function BlockedUsersList() {
   const { t } = useTranslation();
   const request = useAuthenticatedApi();
   const { showMessage, messageDialog } = useMessageDialog();
@@ -59,7 +60,7 @@ export function BlockedUsersScreen() {
   };
 
   return (
-    <StackScreenSafeArea style={styles.safeArea}>
+    <View style={styles.root} testID="blocked-users-panel">
       {state.kind === 'loading' ? <View style={styles.center}><ActivityIndicator /></View> : null}
       {state.kind === 'failed' ? <View style={styles.center}><LoadFailureState onRetry={() => { load().catch(() => undefined); }} testID="blocked-users-error" /></View> : null}
       {state.kind === 'ready' && state.users.length === 0 ? (
@@ -78,6 +79,7 @@ export function BlockedUsersScreen() {
                 {item.displayName?.trim() ? <Text numberOfLines={1} style={[styles.id, ltrTextStyle]}>{atJupleId(item.jupleId)}</Text> : null}
               </View>
               <Pressable
+                accessibilityLabel={`${t('safety.unblock')}, ${friendPrimaryLabel({ jupleId: formatJupleId(item.jupleId), displayName: item.displayName })}`}
                 accessibilityRole="button"
                 accessibilityState={{ disabled: busyId !== null, busy: busyId === item.jupleId }}
                 disabled={busyId !== null}
@@ -85,19 +87,19 @@ export function BlockedUsersScreen() {
                 style={[styles.unblock, busyId !== null && styles.disabled]}
                 testID={`unblock-${item.jupleId}`}
               >
-                {busyId === item.jupleId ? <ActivityIndicator size="small" /> : <Text style={styles.unblockLabel}>{t('safety.unblock')}</Text>}
+                {busyId === item.jupleId ? <ActivityIndicator size="small" /> : <Text numberOfLines={2} style={styles.unblockLabel}>{t('safety.unblock')}</Text>}
               </Pressable>
             </View>
           )}
         />
       ) : null}
       {messageDialog}
-    </StackScreenSafeArea>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { backgroundColor: colors.background, flex: 1 },
+  root: { flex: 1 },
   center: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: spacing.lg },
   empty: { color: colors.textSecondary, fontSize: 15, textAlign: 'center' },
   list: { gap: spacing.sm, padding: spacing.lg },
@@ -105,7 +107,7 @@ const styles = StyleSheet.create({
   identity: { flex: 1, minWidth: 0 },
   name: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
   id: { color: colors.textSecondary, fontSize: 13 },
-  unblock: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
-  unblockLabel: { color: colors.textPrimary, fontSize: 14, fontWeight: '600' },
+  unblock: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, justifyContent: 'center', maxWidth: '40%', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
+  unblockLabel: { color: colors.textPrimary, flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   disabled: { opacity: 0.45 },
 });

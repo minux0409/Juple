@@ -7793,3 +7793,112 @@ button.reactionChipMine:hover {
     transition: none;
   }
 }
+
+/* Friends: 함께 공유 중인 컬렉션 - a quiet disclosure under the friend's card, the Collections as compact link rows */
+.friendShared {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+.friendSharedToggle {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--app-text-secondary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.friendSharedToggle:hover {
+  background: var(--app-surface-muted);
+  color: var(--app-text);
+}
+
+.friendSharedToggle:focus-visible,
+.friendSharedItem:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 0;
+}
+
+.friendSharedList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.friendSharedItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 48px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-control);
+  color: var(--app-text);
+  text-decoration: none;
+}
+
+.friendSharedItem:hover {
+  background: var(--app-surface-muted);
+}
+
+.friendSharedName {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.friendSharedMore {
+  align-self: flex-start;
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--brand);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.friendSharedMore:hover:not(:disabled) {
+  background: var(--brand-soft);
+}
+
+.friendSharedMore:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 0;
+}
+
+.friendSharedMore:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* A long translation wraps inside the sign-in controls instead of crowding them */
+.signInButton {
+  padding-block: 12px;
+  overflow-wrap: anywhere;
+}
+
+.signInTitle,
+.signInDescription,
+.businessFacts dt {
+  overflow-wrap: anywhere;
+}

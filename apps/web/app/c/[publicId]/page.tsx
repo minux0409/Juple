@@ -1,7 +1,8 @@
 import { cookies, headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { getDictionary, resolveLocale } from '../../../lib/i18n';
+import { LANGUAGE_COOKIE } from '../../../lib/appI18n';
+import { getDictionary, resolvePublicLocale } from '../../../lib/i18n';
 import { resolveClientPlatform } from '../../../lib/platform';
 import { planSharePage } from '../../../lib/installCta';
 import { androidOpenInAppUrl, canonicalShareUrl, normalizeHost, WEB_ONLY_PARAM } from '../../../lib/shareLinks';
@@ -37,7 +38,7 @@ async function readUnlockToken(publicId: string): Promise<string | undefined> {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { publicId } = await params;
   const requestHeaders = await headers();
-  const dict = getDictionary(resolveLocale(requestHeaders.get('accept-language')));
+  const dict = getDictionary(resolvePublicLocale((await cookies()).get(LANGUAGE_COOKIE)?.value, requestHeaders.get('accept-language')));
   const host = normalizeHost(requestHeaders.get('x-forwarded-host') ?? requestHeaders.get('host'));
   const view = isValidPublicId(publicId)
     ? await loadShareView(resolveApiBaseUrl(), publicId, await readUnlockToken(publicId))
@@ -64,7 +65,7 @@ export default async function PublicCollectionPage({ params, searchParams }: Pag
   const apiBaseUrl = resolveApiBaseUrl();
 
   const requestHeaders = await headers();
-  const locale = resolveLocale(requestHeaders.get('accept-language'));
+  const locale = resolvePublicLocale((await cookies()).get(LANGUAGE_COOKIE)?.value, requestHeaders.get('accept-language'));
   const dict = getDictionary(locale);
   const platform = resolveClientPlatform(requestHeaders.get('user-agent'));
   const host = normalizeHost(requestHeaders.get('x-forwarded-host') ?? requestHeaders.get('host'));

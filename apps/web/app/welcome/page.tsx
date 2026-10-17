@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
-import { headers } from 'next/headers';
-import { getDictionary, resolveLocale } from '../../lib/i18n';
+import { cookies, headers } from 'next/headers';
+import { LANGUAGE_COOKIE } from '../../lib/appI18n';
+import { getDictionary, resolvePublicLocale } from '../../lib/i18n';
 import { resolveClientPlatform } from '../../lib/platform';
 import { planLandingStore } from '../../lib/publicLanding';
 import { buildSiteMetadata } from '../../lib/siteMetadata';
@@ -14,13 +15,13 @@ import { JupleLanding } from '../_components/JupleLanding';
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const dict = getDictionary(resolveLocale((await headers()).get('accept-language')));
+  const dict = getDictionary(resolvePublicLocale((await cookies()).get(LANGUAGE_COOKIE)?.value, (await headers()).get('accept-language')));
   return buildSiteMetadata(dict.landingDescription, '/');
 }
 
 export default async function WelcomePage() {
   const requestHeaders = await headers();
-  const locale = resolveLocale(requestHeaders.get('accept-language'));
+  const locale = resolvePublicLocale((await cookies()).get(LANGUAGE_COOKIE)?.value, requestHeaders.get('accept-language'));
   const store = planLandingStore({ platform: resolveClientPlatform(requestHeaders.get('user-agent')), googlePlayUrl: storeConfig.googlePlayUrl });
   return <JupleLanding locale={locale} store={store} />;
 }

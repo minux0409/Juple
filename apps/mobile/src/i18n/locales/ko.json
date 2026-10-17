@@ -828,7 +828,12 @@
     "you": "나",
     "requestCancelledByRequester": "요청자가 친구 요청을 취소했어요.",
     "requestNoLongerPending": "이미 처리된 친구 요청이에요.",
-    "requestDialogTitle": "친구 요청"
+    "requestDialogTitle": "친구 요청",
+    "sharedCollectionsCount": "함께 공유 중인 컬렉션 {{count}}",
+    "sharedCollectionsEmpty": "함께 공유 중인 컬렉션이 없어요.",
+    "sharedCollectionsFailed": "공유 중인 컬렉션을 불러오지 못했어요.",
+    "sharedCollectionsTitle": "함께 공유 중인 컬렉션",
+    "sharedCollectionsMore": "더 보기"
   },
   "notifications": {
     "title": "알림",

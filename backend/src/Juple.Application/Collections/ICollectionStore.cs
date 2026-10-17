@@ -48,6 +48,19 @@ public interface ICollectionStore
         Task.FromResult(new CollectionPage([], null));
 
     /// <summary>
+    /// The Collections the caller and <paramref name="otherUserId"/> BOTH take part in (as Owner or member, either way round): the
+    /// caller's own accessible list - same rows, roles and lock state they already see - narrowed to those the other person is also
+    /// in. Only memberships count; a public link alone shares nothing. Same cursor/limit as the list.
+    /// </summary>
+    Task<CollectionPage> ListSharedWithUserAsync(
+        long userId,
+        long otherUserId,
+        CollectionPageCursor? cursor,
+        int limit,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new CollectionPage([], null));
+
+    /// <summary>
     /// Home's Collections summary in a small, fixed number of statements - never a list per scope: the exact number of the caller's
     /// Collections in the All / Favorites / Shared scopes (same definitions as <see cref="ListByScopeAsync"/>) and the first
     /// <paramref name="favoriteLimit"/> favorite Collections (newest first, like the list).

@@ -100,8 +100,6 @@ export const LANGUAGE_LABEL_KEYS: Readonly<Record<LanguagePreference, MobileStri
 /** Strings the mobile app does not have - see appDictionary.ts (WEB_ONLY). */
 export interface WebOnlyStrings {
 
-  readonly signInHeadlineLine1: string;
-  readonly signInHeadlineLine2: string;
   readonly signInSupportingText: string;
   readonly signInTitle: string;
   readonly signInDescription: string;
@@ -111,9 +109,14 @@ export interface WebOnlyStrings {
   readonly signInFeatureShare: string;
   readonly businessInfo: string;
   readonly businessInfoTitle: string;
-  readonly privacyLink: string;
-  readonly termsLink: string;
   readonly accountDeletionLink: string;
+  /** The labels of the business-information dialog (the values are the operator's own data and are not translated). */
+  readonly businessOperator: string;
+  readonly businessRepresentative: string;
+  readonly businessRegistrationNumber: string;
+  readonly businessEcommerceNumber: string;
+  readonly businessAddress: string;
+  readonly businessSupportEmail: string;
   readonly signInConfigError: string;
   readonly sessionEnded: string;
   readonly configMissingTitle: string;

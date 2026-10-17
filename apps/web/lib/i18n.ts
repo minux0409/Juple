@@ -1,3 +1,5 @@
+import { parseLanguagePreference } from './appI18n.ts';
+
 /**
  * Deliberately not a shared package with the Mobile app's i18next setup - this Web Viewer is a
  * single route with a handful of strings, so a plain dictionary object is the maintainable choice
@@ -138,9 +140,44 @@ const dictionaries: Record<Locale, Dictionary> = {
   },
 };
 
+/**
+ * The public pages (shared Collection viewer, store landing, not-found) have Korean and English text only. The visitor's languages are
+ * read in their own order of preference (q-values, ties by position): the first one that is Korean or English decides; anything else -
+ * or nothing at all - is English, the fallback. A visitor who prefers French but also lists Korean gets Korean, not a guess.
+ */
 export function resolveLocale(acceptLanguageHeader: string | null): Locale {
-  const primary = acceptLanguageHeader?.split(',')[0]?.trim().toLowerCase() ?? '';
-  return primary.startsWith('ko') ? 'ko' : 'en';
+  const tags = (acceptLanguageHeader ?? '')
+    .split(',')
+    .map((part, index) => {
+      const [tag, ...params] = part.trim().split(';');
+      const q = params.map(param => param.trim()).find(param => param.startsWith('q='));
+      return { tag: tag.trim().toLowerCase(), q: q ? Number(q.slice(2)) : 1, index };
+    })
+    .filter(entry => entry.tag && !Number.isNaN(entry.q) && entry.q > 0)
+    .sort((a, b) => b.q - a.q || a.index - b.index);
+  for (const { tag } of tags) {
+    if (tag === 'ko' || tag.startsWith('ko-')) {
+      return 'ko';
+    }
+    if (tag === 'en' || tag.startsWith('en-')) {
+      return 'en';
+    }
+  }
+  return 'en';
+}
+
+/**
+ * The language of a public page (shared Collection, store landing, not-found, the link preview of "/"): the person's saved 언어 choice
+ * (the per-browser cookie the signed-in app writes) first - Korean or English is used as chosen; a saved choice we have no public text
+ * for (any of the other 15) is English, the fallback, rather than being overridden by the browser - then the browser's own
+ * languages (resolveLocale), then English. A missing or invalid cookie counts as no choice. Never read from an account: nobody is signed in.
+ */
+export function resolvePublicLocale(savedLanguageCookie: string | null | undefined, acceptLanguageHeader: string | null): Locale {
+  const saved = parseLanguagePreference(savedLanguageCookie);
+  if (saved === 'ko' || saved === 'en') {
+    return saved;
+  }
+  return saved === 'system' ? resolveLocale(acceptLanguageHeader) : 'en';
 }
 
 export function getDictionary(locale: Locale): Dictionary {

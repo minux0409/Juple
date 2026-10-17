@@ -828,7 +828,12 @@
     "you": "Tú",
     "requestCancelledByRequester": "El remitente canceló esta solicitud de amistad.",
     "requestNoLongerPending": "Esta solicitud de amistad ya se gestionó.",
-    "requestDialogTitle": "Solicitud de amistad"
+    "requestDialogTitle": "Solicitud de amistad",
+    "sharedCollectionsCount": "Colecciones compartidas {{count}}",
+    "sharedCollectionsEmpty": "Aún no hay colecciones compartidas con este amigo.",
+    "sharedCollectionsFailed": "No se pudieron cargar las colecciones compartidas.",
+    "sharedCollectionsTitle": "Colecciones compartidas",
+    "sharedCollectionsMore": "Ver más"
   },
   "notifications": {
     "title": "Notificaciones",

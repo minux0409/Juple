@@ -1,4 +1,5 @@
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
+import type { Collection } from '../../collections/api/collectionsApi';
 
 /**
  * Friends: a personal address book of other Juple users (exact Juple ID + mutual consent). A
@@ -27,6 +28,12 @@ export interface FriendRequest {
   readonly createdAtUtc: string;
   readonly profileImageUrl?: string | null;
   readonly profileImageVersion?: string | null;
+}
+
+/** A Collection both the signed-in user and a friend take part in, as the user's own Collections list shows it (role, lock, icon). */
+export interface FriendSharedCollectionsPage {
+  readonly items: readonly Collection[];
+  readonly nextCursor: string | null;
 }
 
 export interface FriendsPage {
@@ -107,4 +114,24 @@ export async function setFriendNote(request: AuthenticatedApiRequest, friendship
     throw new Error('Juple API returned no friend.');
   }
   return response.body;
+}
+
+/**
+ * 함께 공유 중인 컬렉션: one page (the server caps it) of the Collections the user and this friend are BOTH in, as Owner or member. One
+ * request per opened friend - never one per card. A friendship that is not the user's is a 404; across a block the list is empty.
+ */
+export async function getFriendSharedCollections(
+  request: AuthenticatedApiRequest,
+  friendshipId: number,
+  options: { readonly cursor?: string | null; readonly limit?: number } = {},
+): Promise<FriendSharedCollectionsPage> {
+  const query = new URLSearchParams({ limit: String(options.limit ?? 50) });
+  if (options.cursor) {
+    query.set('cursor', options.cursor);
+  }
+  const response = await request<FriendSharedCollectionsPage>({
+    method: 'GET',
+    path: `/api/v1/friends/${friendshipId}/shared-collections?${query.toString()}`,
+  });
+  return response.body ?? { items: [], nextCursor: null };
 }

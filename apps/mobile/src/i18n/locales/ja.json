@@ -828,7 +828,12 @@
     "you": "あなた",
     "requestCancelledByRequester": "申請者が友達申請を取り消しました。",
     "requestNoLongerPending": "この友達申請はすでに処理されています。",
-    "requestDialogTitle": "友達リクエスト"
+    "requestDialogTitle": "友達リクエスト",
+    "sharedCollectionsCount": "一緒に共有中のコレクション {{count}}",
+    "sharedCollectionsEmpty": "一緒に共有中のコレクションはありません。",
+    "sharedCollectionsFailed": "共有中のコレクションを読み込めませんでした。",
+    "sharedCollectionsTitle": "一緒に共有中のコレクション",
+    "sharedCollectionsMore": "もっと見る"
   },
   "notifications": {
     "title": "通知",

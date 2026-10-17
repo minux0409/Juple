@@ -140,7 +140,11 @@ describe('blocking', () => {
     const page = source('app/(app)/me/blocked-users/BlockedUsers.tsx');
     assert.match(page, /method: 'DELETE', path: blockPath\(user\.jupleId\)/);
     assert.match(page, /data-unblock/);
-    assert.match(source('lib/settingsNav.ts'), /key: 'blockedUsers', href: '\/me\/blocked-users'/);
+    // The list lives in 친구 (its 차단한 사용자 tab), not in the settings rail; the old address redirects there.
+    assert.doesNotMatch(source('lib/settingsNav.ts'), /blockedUsers/);
+    assert.match(source('app/(app)/me/blocked-users/page.tsx'), /redirect\('\/me\/friends\?tab=blocked'\)/);
+    assert.match(source('app/(app)/me/friends/page.tsx'), /\['blocked', dictionary\.safetyBlockedUsers, null\]/);
+    assert.match(source('app/(app)/me/friends/page.tsx'), /\{tab === 'blocked' \? <BlockedUsersPanel \/> : null\}/);
   });
 
   it('every safety string exists in every language', () => {

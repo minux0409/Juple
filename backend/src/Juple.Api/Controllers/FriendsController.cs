@@ -1,6 +1,7 @@
 ﻿using Juple.Api.Authentication;
 using Juple.Api.Collections;
 using Juple.Api.Configuration;
+using Juple.Application.Collections;
 using Juple.Application.Collections.Collaboration;
 using Juple.Application.Friends;
 using Juple.Application.Identity;
@@ -25,7 +26,8 @@ namespace Juple.Api.Controllers;
 public sealed class FriendsController(
     IExternalIdentityAccessor externalIdentityAccessor,
     ICurrentJupleUserAccessor currentUserAccessor,
-    IFriendService friendService) : ControllerBase
+    IFriendService friendService,
+    IFriendSharedCollectionsService sharedCollectionsService) : ControllerBase
 {
     private const int DefaultLimit = 50;
     private const int MaxLimit = 100;
@@ -41,6 +43,36 @@ public sealed class FriendsController(
             userId => friendService.ListFriendsAsync(userId, query, cursor, Math.Clamp(limit ?? DefaultLimit, 1, MaxLimit), cancellationToken),
             page => Ok(new FriendsResponse(page.Items, page.NextCursor?.ToString())),
             cancellationToken);
+
+    /// <summary>
+    /// The Collections the caller and this friend both take part in (memberships only), in the caller's own list shape. Paged and capped;
+    /// a friendship that is not the caller's is a plain 404, and a block in either direction answers an empty list.
+    /// </summary>
+    [HttpGet("{friendshipId:long}/shared-collections")]
+    public async Task<IActionResult> ListSharedCollectionsAsync(long friendshipId, [FromQuery] int? limit, [FromQuery] string? cursor, CancellationToken cancellationToken)
+    {
+        if (!CollectionsQueryParameters.TryParseLimit(limit, out var resolvedLimit))
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["limit"] = [$"limit must be between {CollectionsQueryParameters.MinLimit} and {CollectionsQueryParameters.MaxLimit}."],
+            }));
+        }
+
+        CollectionPageCursor? typedCursor = null;
+        if (cursor is not null && !CollectionPageCursorCodec.TryDecode(cursor, out typedCursor))
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["cursor"] = ["cursor is invalid."],
+            }));
+        }
+
+        return await ExecuteAsync(
+            userId => sharedCollectionsService.ListAsync(userId, friendshipId, typedCursor, resolvedLimit, cancellationToken),
+            page => Ok(new CollectionsController.CollectionsResponse(page.Items, page.NextCursor is { } next ? CollectionPageCursorCodec.Encode(next) : null)),
+            cancellationToken);
+    }
 
     [HttpGet("requests")]
     public Task<IActionResult> ListRequestsAsync(CancellationToken cancellationToken) =>

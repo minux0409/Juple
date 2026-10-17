@@ -258,6 +258,14 @@ public sealed class FriendStore(
         return new FriendPage(items, hasMore ? items[^1].FriendshipId : null);
     }
 
+    public async Task<long?> FindFriendUserIdAsync(long userId, long friendshipId, CancellationToken cancellationToken = default) =>
+        await dbContext.Friendships.AsNoTracking()
+            .Where(friendship => friendship.Id == friendshipId
+                && friendship.Status == FriendshipStatus.Accepted
+                && (friendship.UserLowId == userId || friendship.UserHighId == userId))
+            .Select(friendship => (long?)(friendship.UserLowId == userId ? friendship.UserHighId : friendship.UserLowId))
+            .FirstOrDefaultAsync(cancellationToken);
+
     private async Task<FriendDto?> GetFriendAsync(long userId, long friendshipId, CancellationToken cancellationToken)
     {
         var row = await FriendRows(userId).FirstOrDefaultAsync(entry => entry.FriendshipId == friendshipId, cancellationToken);

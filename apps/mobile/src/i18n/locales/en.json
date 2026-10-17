@@ -828,7 +828,12 @@
     "you": "You",
     "requestCancelledByRequester": "The sender cancelled this friend request.",
     "requestNoLongerPending": "This friend request was already handled.",
-    "requestDialogTitle": "Friend request"
+    "requestDialogTitle": "Friend request",
+    "sharedCollectionsCount": "Shared collections {{count}}",
+    "sharedCollectionsEmpty": "No collections are shared with this friend yet.",
+    "sharedCollectionsFailed": "Couldn't load the shared collections.",
+    "sharedCollectionsTitle": "Shared collections",
+    "sharedCollectionsMore": "Show more"
   },
   "notifications": {
     "title": "Notifications",

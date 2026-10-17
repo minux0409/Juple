@@ -1,10 +1,14 @@
 'use client';
 
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { formatJupleId } from '../../../../lib/accountDisplay';
 import { isSessionLost } from '../../../../lib/authSession';
 import { appendPage, canLoadMore, failLoadingMore, firstPage, startLoadingMore, type PagedState } from '../../../../lib/paging';
-import { isSafeHttpUrl } from '../../../../lib/savedLinks';
+import { collectionHref, isSafeHttpUrl } from '../../../../lib/savedLinks';
+import { formatMessage, type AppDictionary } from '../../../../lib/appI18n';
+import { isCollectionLocked, type CollectionSummary } from '../../../../lib/collectionsView';
 import {
   FRIEND_NOTE_MAX_STORAGE_LENGTH,
   friendRequestFailure,
@@ -23,11 +27,13 @@ import { LoadFailed } from '../../PageStates';
 import { SettingsRowSkeleton } from '../../Skeletons';
 import { Avatar } from '../../Avatar';
 import { Glyph } from '../../Glyph';
+import { CollectionTileView } from '../../collections/CollectionsView';
+import { BlockedUsersPanel } from '../blocked-users/BlockedUsers';
 import { SearchField } from '../../SearchField';
 import { SettingsPage } from '../SettingsPage';
 import styles from '../../app.module.css';
 
-type Tab = 'friends' | 'incoming' | 'outgoing';
+type Tab = 'friends' | 'incoming' | 'outgoing' | 'blocked';
 type FriendsState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | ({ readonly kind: 'loaded' } & PagedState<Friend>);
 type Confirm = { readonly kind: 'remove'; readonly friend: Friend } | { readonly kind: 'decline'; readonly request: FriendRequest } | null;
 
@@ -53,7 +59,8 @@ function friendsPath(query: string, cursor: string | null): string {
  */
 export default function FriendsPage() {
   const { api, dictionary, onSessionLost } = useSignedInApp();
-  const [tab, setTab] = useState<Tab>('friends');
+  // `?tab=blocked` (the old 차단한 사용자 address redirects there) opens the 차단한 사용자 tab.
+  const [tab, setTab] = useState<Tab>(useSearchParams().get('tab') === 'blocked' ? 'blocked' : 'friends');
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [friends, setFriends] = useState<FriendsState>({ kind: 'loading' });
@@ -184,6 +191,7 @@ export default function FriendsPage() {
             ['friends', dictionary.friendsTitle, null],
             ['incoming', dictionary.friendsTabIncoming, incoming.length],
             ['outgoing', dictionary.friendsTabOutgoing, outgoing.length],
+            ['blocked', dictionary.safetyBlockedUsers, null],
           ] as const
         ).map(([key, label, count]) => (
           <button aria-selected={tab === key} className={tab === key ? styles.filterTabSelected : styles.filterTab} key={key} onClick={() => setTab(key)} role="tab" type="button">
@@ -226,7 +234,9 @@ export default function FriendsPage() {
         </>
       ) : null}
 
-      {tab !== 'friends' ? (
+      {tab === 'blocked' ? <BlockedUsersPanel /> : null}
+
+      {tab === 'incoming' || tab === 'outgoing' ? (
         <>
           {requests === null && !requestsFailed ? <SettingsRowSkeleton count={3} /> : null}
           {requestsFailed ? <LoadFailed dictionary={dictionary} onRetry={() => setReloadToken(token => token + 1)} /> : null}
@@ -385,6 +395,7 @@ function FriendRow({ friend, busy, onRemove, onUpdated, onBlocked }: { readonly 
           </button>
         </span>
       </div>
+      <SharedCollections dictionary={dictionary} friendshipId={friend.friendshipId} />
       {editing ? (
         <form className={styles.friendNoteForm} noValidate onSubmit={saveNote}>
           <input
@@ -402,6 +413,117 @@ function FriendRow({ friend, busy, onRemove, onUpdated, onBlocked }: { readonly 
         </form>
       ) : null}
     </li>
+  );
+}
+
+type SharedState =
+  | { readonly kind: 'closed' }
+  | { readonly kind: 'loading' }
+  | { readonly kind: 'failed' }
+  | { readonly kind: 'loaded'; readonly items: readonly CollectionSummary[]; readonly nextCursor: string | null; readonly loadingMore: boolean; readonly moreFailed: boolean };
+
+/**
+ * 함께 공유 중인 컬렉션: the Collections this friend and I both take part in (Owner or member - the server decides, memberships only; a
+ * public link alone shares nothing). Closed until asked: a friends list does not fetch (or render) a list of Collections per card; the
+ * first opening reads one page of this friend's own, and each Collection opens its page like any other. The friend's identity is the
+ * friendship id - the server answers a friendship that is not mine with 404 and an empty list across a block.
+ */
+function SharedCollections({ friendshipId, dictionary }: { readonly friendshipId: number; readonly dictionary: AppDictionary }) {
+  const { api, onSessionLost } = useSignedInApp();
+  const [state, setState] = useState<SharedState>({ kind: 'closed' });
+
+  const toggle = () => {
+    if (state.kind !== 'closed') {
+      setState({ kind: 'closed' });
+      return;
+    }
+    setState({ kind: 'loading' });
+    api<{ readonly items: readonly CollectionSummary[]; readonly nextCursor: string | null }>({ path: `/api/v1/friends/${friendshipId}/shared-collections?limit=50` }).then(
+      page => setState({ kind: 'loaded', items: page.items, nextCursor: page.nextCursor, loadingMore: false, moreFailed: false }),
+      caught => {
+        if (isSessionLost(caught)) {
+          onSessionLost();
+          return;
+        }
+        setState({ kind: 'failed' });
+      },
+    );
+  };
+
+  // The next page by the server's own cursor: one request at a time; the rows already shown stay on a failure, and the button retries.
+  const loadMore = () => {
+    if (state.kind !== 'loaded' || state.nextCursor === null || state.loadingMore) {
+      return;
+    }
+    const cursor = state.nextCursor;
+    setState({ ...state, loadingMore: true, moreFailed: false });
+    api<{ readonly items: readonly CollectionSummary[]; readonly nextCursor: string | null }>({
+      path: `/api/v1/friends/${friendshipId}/shared-collections?limit=50&cursor=${encodeURIComponent(cursor)}`,
+    }).then(
+      page =>
+        setState(current =>
+          current.kind === 'loaded'
+            ? {
+                kind: 'loaded',
+                items: [...current.items, ...page.items.filter(entry => !current.items.some(known => known.id === entry.id))],
+                nextCursor: page.nextCursor,
+                loadingMore: false,
+                moreFailed: false,
+              }
+            : current,
+        ),
+      caught => {
+        if (isSessionLost(caught)) {
+          onSessionLost();
+          return;
+        }
+        setState(current => (current.kind === 'loaded' ? { ...current, loadingMore: false, moreFailed: true } : current));
+      },
+    );
+  };
+
+  const open = state.kind !== 'closed';
+  const title = state.kind === 'loaded' ? formatMessage(dictionary.friendsSharedCollectionsCount, { count: `${state.items.length}${state.nextCursor !== null ? '+' : ''}` }) : dictionary.friendsSharedCollectionsTitle;
+  return (
+    <div className={styles.friendShared} data-friend-shared>
+      <button aria-expanded={open} className={styles.friendSharedToggle} onClick={toggle} type="button">
+        <Glyph name="Folder" size={16} />
+        <span>{title}</span>
+        <span aria-hidden className={open ? styles.sectionChevronOpen : styles.sectionChevron}>
+          <Glyph name="Chevron" size={16} />
+        </span>
+      </button>
+      {state.kind === 'loading' ? <SettingsRowSkeleton count={1} /> : null}
+      {state.kind === 'failed' ? <p className={styles.fieldError} role="alert">{dictionary.friendsSharedCollectionsFailed}</p> : null}
+      {state.kind === 'loaded' && state.items.length === 0 ? <p className={styles.settingsSubValue}>{dictionary.friendsSharedCollectionsEmpty}</p> : null}
+      {state.kind === 'loaded' && state.items.length > 0 ? (
+        <ul className={styles.friendSharedList}>
+          {state.items.map(collection => (
+            <li key={collection.id}>
+              <Link className={styles.friendSharedItem} href={collectionHref(collection.id)}>
+                <CollectionTileView collection={collection} size={36} />
+                <span className={styles.friendSharedName} dir="auto">
+                  {collection.name}
+                </span>
+                {isCollectionLocked(collection) ? (
+                  <span aria-label={dictionary.lockedCollection} className={styles.badge} role="img" title={dictionary.lockedCollection}>
+                    <Glyph name="Lock" size={13} />
+                  </span>
+                ) : null}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {state.kind === 'loaded' && state.nextCursor !== null ? (
+        <>
+          {state.moreFailed ? <p className={styles.fieldError} role="alert">{dictionary.friendsSharedCollectionsFailed}</p> : null}
+          <button className={styles.friendSharedMore} data-friend-shared-more disabled={state.loadingMore} onClick={loadMore} type="button">
+            {state.loadingMore ? dictionary.processing : state.moreFailed ? dictionary.retry : dictionary.friendsSharedCollectionsMore}
+          </button>
+        </>
+      ) : null}
+    </div>
   );
 }
 

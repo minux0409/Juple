@@ -828,7 +828,12 @@
     "you": "Sen",
     "requestCancelledByRequester": "Gönderen bu arkadaşlık isteğini iptal etti.",
     "requestNoLongerPending": "Bu arkadaşlık isteği zaten işleme alınmış.",
-    "requestDialogTitle": "Arkadaşlık isteği"
+    "requestDialogTitle": "Arkadaşlık isteği",
+    "sharedCollectionsCount": "Birlikte paylaşılan koleksiyonlar {{count}}",
+    "sharedCollectionsEmpty": "Bu arkadaşla henüz paylaşılan koleksiyon yok.",
+    "sharedCollectionsFailed": "Paylaşılan koleksiyonlar yüklenemedi.",
+    "sharedCollectionsTitle": "Birlikte paylaşılan koleksiyonlar",
+    "sharedCollectionsMore": "Daha fazla göster"
   },
   "notifications": {
     "title": "Bildirimler",

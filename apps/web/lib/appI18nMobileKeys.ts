@@ -6,6 +6,10 @@
 export const MOBILE_STRING_KEYS = {
   // sign-in / shell
   signIn: 'auth.signIn',
+  signInHeadlineLine1: 'auth.taglineLine1',
+  signInHeadlineLine2: 'auth.taglineLine2',
+  privacyLink: 'customerCenter.privacy',
+  termsLink: 'customerCenter.terms',
   signingIn: 'auth.signingIn',
   checkingLogin: 'auth.progressCheckingLogin',
   signInFailed: 'auth.failed',
@@ -299,6 +303,11 @@ export const MOBILE_STRING_KEYS = {
   friendsNoteInvalid: 'friends.noteInvalid',
   friendsSaveNote: 'friends.saveNote',
   friendsRemove: 'friends.remove',
+  friendsSharedCollectionsTitle: 'friends.sharedCollectionsTitle',
+  friendsSharedCollectionsCount: 'friends.sharedCollectionsCount',
+  friendsSharedCollectionsMore: 'friends.sharedCollectionsMore',
+  friendsSharedCollectionsEmpty: 'friends.sharedCollectionsEmpty',
+  friendsSharedCollectionsFailed: 'friends.sharedCollectionsFailed',
   friendsRemoveConfirmTitle: 'friends.removeConfirmTitle',
   friendsRemoveConfirmMessage: 'friends.removeConfirmMessage',
   friendsJupleIdPlaceholder: 'friends.friendJupleIdPlaceholder',

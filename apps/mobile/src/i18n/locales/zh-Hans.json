@@ -828,7 +828,12 @@
     "you": "你",
     "requestCancelledByRequester": "对方已取消该好友申请。",
     "requestNoLongerPending": "该好友申请已处理。",
-    "requestDialogTitle": "好友请求"
+    "requestDialogTitle": "好友请求",
+    "sharedCollectionsCount": "共同共享的合集 {{count}}",
+    "sharedCollectionsEmpty": "还没有共同共享的合集。",
+    "sharedCollectionsFailed": "无法加载共同共享的合集。",
+    "sharedCollectionsTitle": "共同共享的合集",
+    "sharedCollectionsMore": "查看更多"
   },
   "notifications": {
     "title": "通知",

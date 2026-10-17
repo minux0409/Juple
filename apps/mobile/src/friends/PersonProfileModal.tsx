@@ -95,6 +95,8 @@ export function usePersonProfile(): { readonly openProfile: (person: PersonProfi
   const profileModal = destination === null ? (
     <></>
   ) : destination.kind === 'friend' ? (
+    // No onOpenCollection here on purpose: this path (a tapped avatar in a Collection, a link's adder) cannot navigate away, so it shows
+    // the friend without the 함께 공유 중인 컬렉션 list and makes no request for it - only the Friends screen offers that list.
     <FriendDetailModal
       friend={destination.friend}
       onChanged={friend => setDestination({ kind: 'friend', friend })}

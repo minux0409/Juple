@@ -75,8 +75,9 @@ export function Landing({
         </footer>
       </div>
       <Modal closeLabel={dictionary.close} onClose={() => setBusinessOpen(false)} open={businessOpen} title={dictionary.businessInfoTitle}>
-        <dl className={styles.businessFacts} lang="ko">
-          {businessFacts.map(fact => <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}
+        {/* The labels follow the page's language; the values are the operator's registered Korean data (the email is language-neutral). */}
+        <dl className={styles.businessFacts}>
+          {businessFacts.map(fact => <div key={fact.label}><dt>{fact.label}</dt><dd lang={fact.value.includes('@') ? undefined : 'ko'}>{fact.value}</dd></div>)}
         </dl>
       </Modal>
     </main>

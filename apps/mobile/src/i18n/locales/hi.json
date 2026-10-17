@@ -828,7 +828,12 @@
     "you": "आप",
     "requestCancelledByRequester": "भेजने वाले ने यह मित्र अनुरोध रद्द कर दिया है।",
     "requestNoLongerPending": "इस मित्र अनुरोध पर पहले ही कार्रवाई हो चुकी है।",
-    "requestDialogTitle": "मित्र अनुरोध"
+    "requestDialogTitle": "मित्र अनुरोध",
+    "sharedCollectionsCount": "साथ में साझा किए गए संग्रह {{count}}",
+    "sharedCollectionsEmpty": "इस मित्र के साथ अभी कोई संग्रह साझा नहीं है।",
+    "sharedCollectionsFailed": "साझा किए गए संग्रह लोड नहीं हो सके।",
+    "sharedCollectionsTitle": "साथ में साझा किए गए संग्रह",
+    "sharedCollectionsMore": "और दिखाएँ"
   },
   "notifications": {
     "title": "सूचनाएं",

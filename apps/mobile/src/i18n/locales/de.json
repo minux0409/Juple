@@ -828,7 +828,12 @@
     "you": "Du",
     "requestCancelledByRequester": "Der Absender hat diese Freundschaftsanfrage zurückgezogen.",
     "requestNoLongerPending": "Diese Freundschaftsanfrage wurde bereits bearbeitet.",
-    "requestDialogTitle": "Freundschaftsanfrage"
+    "requestDialogTitle": "Freundschaftsanfrage",
+    "sharedCollectionsCount": "Gemeinsame Sammlungen {{count}}",
+    "sharedCollectionsEmpty": "Mit diesem Freund sind noch keine Sammlungen geteilt.",
+    "sharedCollectionsFailed": "Die gemeinsamen Sammlungen konnten nicht geladen werden.",
+    "sharedCollectionsTitle": "Gemeinsame Sammlungen",
+    "sharedCollectionsMore": "Mehr anzeigen"
   },
   "notifications": {
     "title": "Benachrichtigungen",

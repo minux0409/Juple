@@ -1,6 +1,6 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { ApiError } from '../../api/ApiError';
-import { BlockedUsersScreen } from '../../screens/BlockedUsersScreen';
+import { BlockedUsersList } from '../../friends/BlockedUsersList';
 import i18n from '../../i18n';
 import { ReportModal } from '../ReportModal';
 import { Text } from 'react-native';
@@ -265,13 +265,13 @@ describe('Terms onboarding (the Agreement screen)', () => {
   });
 });
 
-describe('BlockedUsersScreen', () => {
+describe('BlockedUsersList (the 차단한 사용자 tab of Friends)', () => {
   const blocked = (jupleId: string, displayName: string | null) => ({ jupleId, displayName, blockedAtUtc: '', profileImageUrl: null, profileImageVersion: null });
 
   async function mount() {
     let renderer!: ReactTestRenderer.ReactTestRenderer;
     await act(async () => {
-      renderer = ReactTestRenderer.create(<BlockedUsersScreen />);
+      renderer = ReactTestRenderer.create(<BlockedUsersList />);
     });
     return renderer;
   }
@@ -287,6 +287,10 @@ describe('BlockedUsersScreen', () => {
     expect(unblockUser).toHaveBeenCalledWith(expect.any(Function), 'AAAA2222');
     expect(exists(renderer, 'blocked-user-AAAA2222')).toBe(false);
     expect(exists(renderer, 'blocked-user-BBBB3333')).toBe(true);
+    // Each row is avatar + name + a labelled 차단 해제 button; the label names the person it acts on.
+    const unblock = renderer.root.findAll(node => node.props.testID === 'unblock-BBBB3333' && typeof node.props.onPress === 'function')[0];
+    expect(unblock.props.accessibilityLabel).toContain(i18n.t('safety.unblock'));
+    expect(unblock.props.accessibilityRole).toBe('button');
   });
 
   it('says nobody is blocked, and offers a retry when the list cannot be read', async () => {

@@ -828,7 +828,12 @@
     "you": "Вы",
     "requestCancelledByRequester": "Отправитель отменил эту заявку в друзья.",
     "requestNoLongerPending": "Эта заявка в друзья уже обработана.",
-    "requestDialogTitle": "Запрос в друзья"
+    "requestDialogTitle": "Запрос в друзья",
+    "sharedCollectionsCount": "Общие коллекции {{count}}",
+    "sharedCollectionsEmpty": "С этим другом пока нет общих коллекций.",
+    "sharedCollectionsFailed": "Не удалось загрузить общие коллекции.",
+    "sharedCollectionsTitle": "Общие коллекции",
+    "sharedCollectionsMore": "Показать ещё"
   },
   "notifications": {
     "title": "Уведомления",

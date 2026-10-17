@@ -7,13 +7,17 @@ import { AppModal } from '../components/AppModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { CopyIconButton } from '../components/CopyIconButton';
 import { UserAvatar } from '../components/UserAvatar';
+import { CategoryIconTile } from '../collections/CategoryIconTile';
+import type { Collection } from '../collections/api/collectionsApi';
+import { isCollectionLocked } from '../collections/collectionAccess';
+import { LockIcon } from '../icons/LockIcon';
 import { BlockIcon } from '../icons/BlockIcon';
 import { CheckIcon } from '../icons/CheckIcon';
 import { EditIcon } from '../icons/EditIcon';
 import { FlagIcon } from '../icons/FlagIcon';
 import { UserMinusIcon } from '../icons/UserMinusIcon';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
-import { FRIEND_NOTE_MAX_STORAGE_LENGTH, removeFriend, setFriendNote, type Friend } from './api/friendsApi';
+import { FRIEND_NOTE_MAX_STORAGE_LENGTH, getFriendSharedCollections, removeFriend, setFriendNote, type Friend } from './api/friendsApi';
 import { blockUser } from '../safety/safetyApi';
 import { ReportModal } from '../safety/ReportModal';
 import { atJupleId } from './friendIdentity';
@@ -26,7 +30,17 @@ interface FriendDetailModalProps {
   readonly onRemoved: (friendshipId: number) => void;
   /** The person was blocked from here (the friendship ended with it): the list refreshes. */
   readonly onBlocked?: (friendshipId: number) => void;
+  /**
+   * Opens a Collection of the shared list. Given only where the host can navigate (the Friends screen); without it the section is not
+   * offered at all - nothing is fetched for a modal that could not open what it lists.
+   */
+  readonly onOpenCollection?: (collectionId: number) => void;
 }
+
+type SharedState =
+  | { readonly kind: 'loading' }
+  | { readonly kind: 'failed' }
+  | { readonly kind: 'ready'; readonly items: readonly Collection[]; readonly nextCursor: string | null; readonly isLoadingMore: boolean; readonly moreFailed: boolean };
 
 /**
  * One friend, in Juple's standard centered modal: their photo, nickname and Juple ID, then the
@@ -34,7 +48,7 @@ interface FriendDetailModalProps {
  * then 친구 삭제 behind a confirmation. While saving, removing or confirming it cannot be dismissed by
  * accident; a failed save keeps both the typed text and the note the list still shows.
  */
-export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onBlocked }: FriendDetailModalProps) {
+export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onBlocked, onOpenCollection }: FriendDetailModalProps) {
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const [note, setNote] = useState('');
@@ -48,6 +62,55 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onBlo
   const [notice, setNotice] = useState<string | null>(null);
 
   const friendshipId = friend?.friendshipId;
+  const [shared, setShared] = useState<SharedState>({ kind: 'loading' });
+  // One request per opened friend (never one per card of the list): the Collections both take part in.
+  useEffect(() => {
+    if (friendshipId === undefined || !onOpenCollection) {
+      return undefined;
+    }
+    let ignore = false;
+    setShared({ kind: 'loading' });
+    getFriendSharedCollections(authenticatedRequest, friendshipId).then(
+      page => {
+        if (!ignore) {
+          setShared({ kind: 'ready', items: page.items, nextCursor: page.nextCursor, isLoadingMore: false, moreFailed: false });
+        }
+      },
+      () => {
+        if (!ignore) {
+          setShared({ kind: 'failed' });
+        }
+      },
+    );
+    return () => {
+      ignore = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [friendshipId, !!onOpenCollection]);
+  // The next page of the same friend's list, by the server's own cursor: one request at a time, the loaded rows stay on a failure.
+  const loadMoreShared = () => {
+    if (friendshipId === undefined || shared.kind !== 'ready' || shared.nextCursor === null || shared.isLoadingMore) {
+      return;
+    }
+    const { nextCursor } = shared;
+    setShared({ ...shared, isLoadingMore: true, moreFailed: false });
+    getFriendSharedCollections(authenticatedRequest, friendshipId, { cursor: nextCursor }).then(
+      page =>
+        setShared(current =>
+          current.kind === 'ready'
+            ? {
+                kind: 'ready',
+                items: [...current.items, ...page.items.filter(entry => !current.items.some(known => known.id === entry.id))],
+                nextCursor: page.nextCursor,
+                isLoadingMore: false,
+                moreFailed: false,
+              }
+            : current,
+        ),
+      () => setShared(current => (current.kind === 'ready' ? { ...current, isLoadingMore: false, moreFailed: true } : current)),
+    );
+  };
+
   useEffect(() => {
     setNote(friend?.myNote ?? '');
     setError(null);
@@ -173,6 +236,54 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onBlo
             )}
           </Pressable>
 
+          {onOpenCollection ? (
+            <>
+              <View style={styles.divider} />
+              <View style={styles.sectionTitleRow}>
+                <Text style={styles.sectionTitle} testID="friend-shared-title">
+                  {shared.kind === 'ready'
+                    ? t('friends.sharedCollectionsCount', { count: `${shared.items.length}${shared.nextCursor !== null ? '+' : ''}` })
+                    : t('friends.sharedCollectionsTitle')}
+                </Text>
+              </View>
+              {shared.kind === 'loading' ? <ActivityIndicator style={styles.sharedState} /> : null}
+              {shared.kind === 'failed' ? <Text style={styles.error} testID="friend-shared-error">{t('friends.sharedCollectionsFailed')}</Text> : null}
+              {shared.kind === 'ready' && shared.items.length === 0 ? <Text style={styles.sharedEmpty} testID="friend-shared-empty">{t('friends.sharedCollectionsEmpty')}</Text> : null}
+              {shared.kind === 'ready'
+                ? shared.items.map(collection => (
+                    <Pressable
+                      accessibilityLabel={collection.name}
+                      accessibilityRole="button"
+                      key={collection.id}
+                      onPress={() => onOpenCollection(collection.id)}
+                      style={styles.sharedRow}
+                      testID={`friend-shared-${collection.id}`}
+                    >
+                      <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} imageVersion={collection.iconImageVersion} size={36} />
+                      <Text numberOfLines={1} style={styles.sharedName}>{collection.name}</Text>
+                      {isCollectionLocked(collection) ? (
+                        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                          <LockIcon color={colors.textSecondary} size={16} />
+                        </View>
+                      ) : null}
+                    </Pressable>
+                  ))
+                : null}
+              {shared.kind === 'ready' && shared.nextCursor !== null ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: shared.isLoadingMore, busy: shared.isLoadingMore }}
+                  disabled={shared.isLoadingMore}
+                  onPress={loadMoreShared}
+                  style={styles.sharedMore}
+                  testID="friend-shared-more"
+                >
+                  {shared.isLoadingMore ? <ActivityIndicator size="small" /> : <Text numberOfLines={2} style={styles.sharedMoreLabel}>{shared.moreFailed ? `${t('friends.sharedCollectionsFailed')} ${t('auth.retry')}` : t('friends.sharedCollectionsMore')}</Text>}
+                </Pressable>
+              ) : null}
+            </>
+          ) : null}
+
           <View style={styles.divider} />
 
           {/* The app's secondary-destructive look (red outline, like 계정 삭제); the confirmation
@@ -284,6 +395,12 @@ const styles = StyleSheet.create({
   removeButton: { borderColor: colors.danger },
   safetyButton: { borderColor: colors.border, marginTop: spacing.sm },
   warningLabel: { color: colors.warningText },
+  sharedState: { marginTop: spacing.sm },
+  sharedEmpty: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.sm },
+  sharedRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: minTouchTarget, paddingVertical: spacing.xs },
+  sharedMore: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget },
+  sharedMoreLabel: { color: colors.brand, flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  sharedName: { color: colors.textPrimary, flex: 1, fontSize: 15, fontWeight: '600', minWidth: 0 },
   notice: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.sm, textAlign: 'center' },
   removeLabel: { color: colors.danger },
 });

@@ -110,6 +110,10 @@ public interface IFriendStore
     /// own friends, never a directory search. Cursor: the last FriendshipId of the previous page.
     /// </summary>
     Task<FriendPage> ListFriendsAsync(long userId, string? query, long? cursor, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>The other user's internal id of an ACCEPTED friendship of the caller; null for anyone else's or an unknown id.</summary>
+    Task<long?> FindFriendUserIdAsync(long userId, long friendshipId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<long?>(null);
 }
 
 public interface IFriendService

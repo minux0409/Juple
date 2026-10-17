@@ -828,7 +828,12 @@
     "you": "Vous",
     "requestCancelledByRequester": "L’expéditeur a annulé cette demande d’ami.",
     "requestNoLongerPending": "Cette demande d’ami a déjà été traitée.",
-    "requestDialogTitle": "Demande d’ami"
+    "requestDialogTitle": "Demande d’ami",
+    "sharedCollectionsCount": "Collections partagées {{count}}",
+    "sharedCollectionsEmpty": "Aucune collection n'est encore partagée avec cet ami.",
+    "sharedCollectionsFailed": "Impossible de charger les collections partagées.",
+    "sharedCollectionsTitle": "Collections partagées",
+    "sharedCollectionsMore": "Afficher plus"
   },
   "notifications": {
     "title": "Notifications",

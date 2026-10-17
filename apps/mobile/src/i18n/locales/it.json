@@ -828,7 +828,12 @@
     "you": "Tu",
     "requestCancelledByRequester": "Il mittente ha annullato questa richiesta di amicizia.",
     "requestNoLongerPending": "Questa richiesta di amicizia è già stata gestita.",
-    "requestDialogTitle": "Richiesta di amicizia"
+    "requestDialogTitle": "Richiesta di amicizia",
+    "sharedCollectionsCount": "Raccolte condivise {{count}}",
+    "sharedCollectionsEmpty": "Nessuna raccolta è ancora condivisa con questo amico.",
+    "sharedCollectionsFailed": "Impossibile caricare le raccolte condivise.",
+    "sharedCollectionsTitle": "Raccolte condivise",
+    "sharedCollectionsMore": "Mostra altro"
   },
   "notifications": {
     "title": "Notifiche",

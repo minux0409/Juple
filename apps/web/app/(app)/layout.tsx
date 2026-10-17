@@ -4,7 +4,7 @@ import { getAppDictionary } from '../../lib/appDictionary';
 import { LANGUAGE_COOKIE, parseLanguagePreference, resolveAppLanguage } from '../../lib/appI18n';
 import { readWebAppConfig, WEB_APP_CONFIG_ENV } from '../../lib/webAppConfig';
 import { readLegalOperatorConfig } from '../../lib/legalConfig';
-import { operatorFacts } from '../../lib/legalContent';
+import { localizedBusinessFacts } from '../../lib/businessFacts';
 import { AppRoot } from './AppRoot';
 
 /**
@@ -28,10 +28,7 @@ export default async function SignedInAppLayout({ children, modal }: { children:
   const language = resolveAppLanguage(preference, requestHeaders.get('accept-language'));
   const dictionary = getAppDictionary(language);
   const legal = readLegalOperatorConfig();
-  const businessFacts = operatorFacts(legal).filter(fact => fact.label !== '서비스');
-  if (legal.supportEmail) {
-    businessFacts.push({ label: '문의 이메일', value: legal.supportEmail });
-  }
+  const businessFacts = localizedBusinessFacts(legal, dictionary);
 
   return (
     <AppRoot
