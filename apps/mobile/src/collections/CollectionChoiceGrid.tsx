@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { CategoryIconTile } from './CategoryIconTile';
 import { contentGateOf, isCollaborative, isCollectionLocked } from './collectionAccess';
 import { CollectionStatusBadges } from './CollectionStatusBadges';
 import { CloseIcon } from '../icons/CloseIcon';
 import { FolderPlusIcon } from '../icons/FolderPlusIcon';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { SelectionIndicator } from '../components/SelectionIndicator';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { useViewModePreference, type ViewModePreferenceKey } from '../settings/viewModePreference';
@@ -240,7 +240,7 @@ export function CollectionChoiceGrid({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   title: { color: colors.textPrimary, flexShrink: 1, fontSize: 18, fontWeight: '700' },
   titleRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, justifyContent: 'space-between' },
   // The same order chips as a Collection's own 시간순 | 이름순.
@@ -274,4 +274,4 @@ const styles = StyleSheet.create({
   listText: { flex: 1, minWidth: 0 },
   disabledCell: { opacity: 0.45 },
   disabledLabel: { color: colors.textSecondary, fontSize: 11, marginTop: 1, maxWidth: 76, textAlign: 'center' },
-});
+}));

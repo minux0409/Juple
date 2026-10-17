@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { formatJupleId } from '../collections/api/collaborationApi';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { UserAvatar } from '../components/UserAvatar';
 import { useMessageDialog } from '../components/useMessageDialog';
 import { listBlockedUsers, unblockUser, type BlockedUser } from '../safety/safetyApi';
-import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { atJupleId, friendPrimaryLabel } from './friendIdentity';
 
 type State =
@@ -98,7 +98,7 @@ export function BlockedUsersList() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   root: { flex: 1 },
   center: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: spacing.lg },
   empty: { color: colors.textSecondary, fontSize: 15, textAlign: 'center' },
@@ -110,4 +110,4 @@ const styles = StyleSheet.create({
   unblock: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, justifyContent: 'center', maxWidth: '40%', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   unblockLabel: { color: colors.textPrimary, flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   disabled: { opacity: 0.45 },
-});
+}));

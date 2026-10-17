@@ -11,7 +11,6 @@ import {
   Platform,
   Pressable,
   RefreshControl,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -63,7 +62,7 @@ import { StarIcon } from '../icons/StarIcon';
 import type { MainTabParamList } from '../navigation/MainTabs';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { useLayoutDirection } from '../i18n/layoutDirection';
-import { cardShadow, collectionFilterColors, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { cardShadow, collectionFilterColors, colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { columnBasis, gridListKey, useCollectionTileColumns } from '../layout/responsiveGrid';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { screenIcons } from '../navigation/screenIcons';
@@ -924,7 +923,7 @@ function PendingJoinCard({ join, onPress, variant }: { readonly join: MyJoinRequ
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   pendingJoinDim: { opacity: 0.45 },
   pendingJoinOverlay: { alignItems: 'center', bottom: 0, justifyContent: 'center', left: 0, position: 'absolute', right: 0, top: 0 },
   pendingJoinRow: { backgroundColor: colors.surfaceMuted },
@@ -1105,7 +1104,7 @@ const styles = StyleSheet.create({
   listText: { flex: 1, minWidth: 0 },
   listIconSlot: { position: 'relative' },
   listFavorite: { padding: spacing.sm },
-});
+}));
 
 /**
  * The List form keeps the same marker hierarchy as the Grid tile: lock at the icon's top-start,

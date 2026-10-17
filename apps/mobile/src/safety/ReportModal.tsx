@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { AppModal } from '../components/AppModal';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { REPORT_DETAILS_MAX_LENGTH, REPORT_REASONS, submitReport, type ReportReason, type ReportTarget } from './safetyApi';
 
 interface ReportModalProps {
@@ -125,7 +125,7 @@ export function ReportModal({ target, onClose, onReported }: ReportModalProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   heading: { color: colors.textPrimary, fontSize: 15, fontWeight: '700', marginBottom: spacing.sm },
   reason: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs + 2, minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   reasonSelected: { borderColor: colors.brand },
@@ -142,4 +142,4 @@ const styles = StyleSheet.create({
   submit: { backgroundColor: colors.brand },
   submitLabel: { color: colors.surface, fontSize: 15, fontWeight: '700', textAlign: 'center' },
   disabled: { opacity: 0.45 },
-});
+}));

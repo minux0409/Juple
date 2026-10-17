@@ -1,5 +1,5 @@
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
-import { colors, radii, spacing } from '../theme/tokens';
+import { useWindowDimensions, View } from 'react-native';
+import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 
 interface CollectionCardSkeletonProps {
   readonly variant: 'grid' | 'list';
@@ -28,7 +28,7 @@ export function CollectionCardSkeleton({ variant, gridBasis = '25%', testID }: C
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   gridCell: { alignItems: 'center', paddingVertical: spacing.md },
   gridIcon: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md + 4, height: 56, width: 56 },
   gridLabel: { marginTop: spacing.xs + 2, width: 56 },
@@ -36,4 +36,4 @@ const styles = StyleSheet.create({
   listRow: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.md, flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm, padding: spacing.sm },
   listIcon: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, height: 48, width: 48 },
   listName: { width: '50%' },
-});
+}));

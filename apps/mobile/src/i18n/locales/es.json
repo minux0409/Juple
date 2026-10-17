@@ -1231,5 +1231,11 @@
       "refusalTitle": "Derecho a rechazar",
       "refusalBody": "Puedes rechazar. Sin embargo, este punto es necesario para prestar el servicio, por lo que no podrás usar Juple sin aceptarlo."
     }
+  },
+  "appearance": {
+    "title": "Apariencia",
+    "system": "Usar ajuste del sistema",
+    "light": "Claro",
+    "dark": "Oscuro"
   }
 }

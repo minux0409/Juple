@@ -100,7 +100,7 @@ describe('Quick Detail sheet: size and responsiveness', () => {
   it('desktop: a floating bottom-centred panel, clamp(720px, 60vw, 900px), max 82vh, 28px radius, slide-up, dimmed backdrop', () => {
     assert.match(css, /\.quickSheet\[open\] \{\s*display: flex;\s*align-items: flex-end;\s*justify-content: center;/);
     assert.match(css, /\.quickPanel \{[^}]*width: clamp\(720px, 60vw, 900px\);[^}]*max-height: 82vh;[^}]*border-radius: 28px;[^}]*animation: quickRise/);
-    assert.match(css, /\.quickSheet::backdrop \{\s*background: rgba\(15, 23, 42, 0\.45\);/);
+    assert.match(css, /\.quickSheet::backdrop \{\s*background: var\(--scrim, rgba\(15, 23, 42, 0\.45\)\);/);
     assert.match(css, /\.quickScroll \{[^}]*overflow-y: auto;/);
     assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?animation: none;/);
   });

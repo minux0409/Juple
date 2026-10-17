@@ -2,7 +2,7 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
@@ -24,7 +24,7 @@ import {
 import { formatInquiryDateTime, inquiryStatusLabel, inquiryTypeLabel } from '../support/inquiryFormat';
 import { InquiryTypePickerDialog } from '../support/InquiryTypePickerDialog';
 import { useSupportInquiryHistory } from '../support/useSupportInquiryHistory';
-import { cardShadow, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { cardShadow, colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 type InquiryTab = 'write' | 'history';
 
@@ -243,7 +243,7 @@ function InquiryRow({ inquiry, onPress }: { readonly inquiry: SupportInquiry; re
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   flex: { flex: 1 },
   tabs: { alignSelf: 'center', flexDirection: 'row', maxWidth: 640, paddingHorizontal: spacing.xl, paddingTop: spacing.md, width: '100%' },
@@ -276,4 +276,4 @@ const styles = StyleSheet.create({
   rowStatusAnswered: { color: colors.brand },
   rowContent: { color: colors.textPrimary, fontSize: 15, lineHeight: 21, marginTop: spacing.xs },
   rowDate: { color: colors.textSecondary, fontSize: 12, marginTop: spacing.sm },
-});
+}));

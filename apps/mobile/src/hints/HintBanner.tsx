@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { CloseIcon } from '../icons/CloseIcon';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 /**
  * A non-blocking, dismissible one-line hint that sits inside a list's header (never a modal, never over content).
@@ -19,8 +19,8 @@ export function HintBanner({ message, onDismiss, testID }: { readonly message: s
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   banner: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: radii.md, columnGap: spacing.sm, flexDirection: 'row', marginBottom: spacing.sm, paddingStart: spacing.md },
   message: { color: colors.textPrimary, flex: 1, flexShrink: 1, fontSize: 14, lineHeight: 20, paddingVertical: spacing.sm },
   close: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, minWidth: minTouchTarget },
-});
+}));

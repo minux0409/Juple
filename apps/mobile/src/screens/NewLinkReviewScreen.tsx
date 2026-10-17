@@ -34,7 +34,7 @@ import { registerActiveNewLinkReviewDraft, clearActiveNewLinkReviewDraft } from 
 import { isHttpUrl, normalizeShareTextForComparison, resolveIncomingShare } from '../share/resolveIncomingShare';
 import type { PendingShare } from '../share/specs/NativeIncomingShare';
 import { useIncomingShare } from '../share/useIncomingShare';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { resolveUrlMetadata } from '../urlMetadata/api/urlMetadataApi';
 import {
   applyInstagramDeviceFallback,
@@ -582,7 +582,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   screen: { backgroundColor: colors.background, flex: 1 },
   preview: {
     alignItems: 'center',
@@ -637,4 +637,4 @@ const styles = StyleSheet.create({
   },
   saveButtonLabel: { color: colors.surface, fontSize: 16, fontWeight: '600' },
   disabledButton: { opacity: 0.5 },
-});
+}));

@@ -6,6 +6,10 @@
 export const MOBILE_STRING_KEYS = {
   // sign-in / shell
   signIn: 'auth.signIn',
+  appearanceTitle: 'appearance.title',
+  appearanceSystem: 'appearance.system',
+  appearanceLight: 'appearance.light',
+  appearanceDark: 'appearance.dark',
   signInHeadlineLine1: 'auth.taglineLine1',
   signInHeadlineLine2: 'auth.taglineLine2',
   privacyLink: 'customerCenter.privacy',

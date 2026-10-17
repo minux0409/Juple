@@ -2,7 +2,7 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BackHandler, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, PanResponder, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CloseIcon } from '../icons/CloseIcon';
 import { useLayoutDirection } from '../i18n/layoutDirection';
@@ -10,7 +10,7 @@ import type { RootStackParamList } from '../navigation/RootStack';
 import { markTutorialCompleted } from '../settings/tutorialPreference';
 import { TutorialPage } from '../support/TutorialPage';
 import { TUTORIAL_PAGES } from '../support/tutorialPages';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 const SWIPE_DISTANCE = 50;
 
@@ -110,7 +110,7 @@ export function TutorialScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   topBar: { alignItems: 'flex-end', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   skipButton: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, minWidth: minTouchTarget, paddingHorizontal: spacing.sm },
@@ -124,4 +124,4 @@ const styles = StyleSheet.create({
   dotActive: { backgroundColor: colors.brand, width: 22 },
   primaryButton: { alignItems: 'center', alignSelf: 'stretch', backgroundColor: colors.brand, borderRadius: radii.md, justifyContent: 'center', minHeight: minTouchTarget + 4, paddingHorizontal: spacing.lg },
   primaryLabel: { color: colors.surface, fontSize: 16, fontWeight: '700', textAlign: 'center' },
-});
+}));

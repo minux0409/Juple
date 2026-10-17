@@ -1,7 +1,7 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
-import { colors } from '../theme/tokens';
+import { colors, themedStyles } from '../theme/tokens';
 
 interface OpenOriginalLinkButtonProps {
   /** Opens the saved original URL (never Item Details) - the screen owns the "could not open" message. */
@@ -36,10 +36,10 @@ export function OpenOriginalLinkButton({ onPress, variant, testID = 'saved-link-
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   // 44dp: the minimum touch target; the row's text column ends before it (it is a sibling cell, not an overlay).
   row: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
   // A compact corner button: 28dp visible target + hitSlop, in the card's meta line - never over the picture or the title.
   card: { alignItems: 'center', height: 28, justifyContent: 'center', width: 28 },
   pressed: { opacity: 0.55 },
-});
+}));

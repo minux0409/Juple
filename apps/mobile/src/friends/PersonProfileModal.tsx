@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { AppModal } from '../components/AppModal';
@@ -11,7 +11,7 @@ import { BlockIcon } from '../icons/BlockIcon';
 import { FlagIcon } from '../icons/FlagIcon';
 import { blockUser } from '../safety/safetyApi';
 import { ReportModal } from '../safety/ReportModal';
-import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { FriendDetailModal } from './FriendDetailModal';
 import { getFriendRequestErrorMessage } from './AddFriendModal';
 import { getFriendRequests, getFriends, sendFriendRequest, type Friend } from './api/friendsApi';
@@ -233,7 +233,7 @@ export function PersonProfileModal({ person, relationship, onClose, onRequestSen
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   identity: { alignItems: 'center', gap: spacing.sm },
   name: { color: colors.textPrimary, fontSize: 18, fontWeight: '700', textAlign: 'center' },
   meta: { color: colors.textSecondary, fontSize: 13 },
@@ -246,4 +246,4 @@ const styles = StyleSheet.create({
   secondaryLabel: { color: colors.textPrimary, flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   warningLabel: { color: colors.warningText },
   dangerLabel: { color: colors.danger },
-});
+}));

@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { lookupJupleId, type JupleIdLookupResult } from '../collections/api/collaborationApi';
 import { AppModal } from '../components/AppModal';
 import { SearchIconButton } from '../components/SearchIconButton';
 import { UserAvatar } from '../components/UserAvatar';
-import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { sendFriendRequest, type Friend, type FriendRequest } from './api/friendsApi';
 import { atJupleId, friendPrimaryLabel, jupleIdForLookup } from './friendIdentity';
 import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
@@ -246,7 +246,7 @@ export function AddFriendModal({ visible, onClose, friends, requests, onRequestS
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   hint: { color: colors.textSecondary, fontSize: 14 },
   searchRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   input: {
@@ -298,4 +298,4 @@ const styles = StyleSheet.create({
   },
   primaryLabel: { color: colors.surface, fontSize: 14, fontWeight: '700', textAlign: 'center' },
   message: { color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginTop: spacing.md },
-});
+}));

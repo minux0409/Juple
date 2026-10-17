@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { AppModal } from '../components/AppModal';
 import { CheckIcon } from '../icons/CheckIcon';
-import { colors, minTouchTarget, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 import { SUPPORT_INQUIRY_TYPES, type SupportInquiryType } from './api/supportInquiryApi';
 import { inquiryTypeLabel } from './inquiryFormat';
 
@@ -40,8 +40,8 @@ export function InquiryTypePickerDialog({ visible, selected, onSelect, onClose }
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   option: { alignItems: 'center', columnGap: spacing.sm, flexDirection: 'row', minHeight: minTouchTarget, paddingVertical: spacing.sm },
   label: { color: colors.textPrimary, flex: 1, fontSize: 16 },
   labelSelected: { color: colors.brand, fontWeight: '700' },
-});
+}));

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, View } from 'react-native';
 import { useStableImageUri } from './stableImageUri';
+import { colors, themedStyles } from '../theme/tokens';
 
 interface ItemRepresentativeThumbnailProps {
   /**
@@ -43,13 +44,13 @@ export function ItemRepresentativeThumbnail({ imageUrl, cacheKey, fallback }: It
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   thumbnail: {
-    backgroundColor: '#E7ECF3',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 14,
     height: 60,
     marginEnd: 12,
     width: 60,
   },
   fallback: { alignItems: 'center', justifyContent: 'center' },
-});
+}));

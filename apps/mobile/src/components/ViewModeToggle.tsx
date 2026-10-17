@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { SavedLinkViewMode, TrashViewMode } from '../settings/viewModePreference';
-import { colors, radii } from '../theme/tokens';
+import { colors, radii, themedStyles } from '../theme/tokens';
 
 type ToggleMode = SavedLinkViewMode | TrashViewMode;
 
@@ -51,7 +51,7 @@ export function ViewModeToggle<Mode extends ToggleMode = ToggleMode>({ value, on
   </View>;
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, flexDirection: 'row', padding: 2 },
   button: { alignItems: 'center', borderRadius: radii.sm, height: 32, justifyContent: 'center', width: 32 },
   // With three options each keeps a full 44dp-wide, 44dp-tall (36 + hit slop) target.
@@ -65,4 +65,4 @@ const styles = StyleSheet.create({
   imageGlyph: { flexDirection: 'row', flexWrap: 'wrap', gap: 2.5, height: 20, width: 20 },
   imageDot: { backgroundColor: colors.textSecondary, borderRadius: 1, height: 5, width: 5 },
   glyphSelected: { backgroundColor: colors.brand },
-});
+}));

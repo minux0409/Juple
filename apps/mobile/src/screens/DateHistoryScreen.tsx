@@ -9,7 +9,6 @@ import {
   FlatList,
   Platform,
   RefreshControl,
-  StyleSheet,
   Text,
   View,
   type ListViewToken,
@@ -57,7 +56,7 @@ import { shareItem } from '../items/shareItem';
 import { useItemCardOpen } from '../items/useItemCardOpen';
 import { useSavedLinkActions } from '../items/useSavedLinkActions';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, spacing } from '../theme/tokens';
+import { colors, spacing, themedStyles } from '../theme/tokens';
 import { isNameSort, useSortPreference, type LinkSortOption } from '../settings/sortPreference';
 import { useViewModePreference, type SavedLinkViewMode } from '../settings/viewModePreference';
 import { ScreenTitle } from '../components/ScreenTitle';
@@ -547,7 +546,7 @@ export function DateHistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: {
     backgroundColor: colors.background,
     flex: 1,
@@ -594,4 +593,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: spacing.md,
   },
-});
+}));

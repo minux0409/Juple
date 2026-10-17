@@ -10,7 +10,6 @@ import {
   Platform,
   Pressable,
   RefreshControl,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -62,7 +61,7 @@ import type { RootStackParamList } from '../navigation/RootStack';
 import { isHttpUrl } from '../share/resolveIncomingShare';
 import { parseCollectionShareUrl } from '../share/collectionShareUrl';
 import { extractFirstHttpUrl } from '../share/sharedTextParser';
-import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { useViewModePreference } from '../settings/viewModePreference';
 import { isNameSort, nextDateSort, nextNameSort, useSortPreference } from '../settings/sortPreference';
 import { sortLinksByName } from '../collections/sortCollectionItems';
@@ -698,7 +697,7 @@ export function DailyInboxScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: {
     backgroundColor: colors.background,
     flex: 1,
@@ -798,4 +797,4 @@ const styles = StyleSheet.create({
   },
   skeletonCard: { overflow: 'hidden' },
   gridSkeletons: { flexDirection: 'row', flexWrap: 'wrap' },
-});
+}));

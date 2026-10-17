@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
-import { StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
-import { colors, spacing } from '../theme/tokens';
+import { Text, View, type StyleProp, type TextStyle } from 'react-native';
+import { useTheme } from '../theme/ThemeContext';
+import { colors, spacing, themedStyles } from '../theme/tokens';
 
 export type ScreenTitleIcon = ComponentType<{ readonly color?: string; readonly size?: number }>;
 
@@ -33,6 +34,7 @@ export function ScreenTitleGlyph({ icon: Icon }: { readonly icon: ScreenTitleIco
  * (the title is what is announced); a long translation shrinks and wraps the text, never the icon.
  */
 export function ScreenTitle({ icon, title, textStyle, testID }: ScreenTitleProps) {
+  useTheme(); // rendered by the native header, which is not one of the screens' themed wrappers
   return (
     <View style={styles.row} testID={testID}>
       <ScreenTitleGlyph icon={icon} />
@@ -41,8 +43,8 @@ export function ScreenTitle({ icon, title, textStyle, testID }: ScreenTitleProps
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: { alignItems: 'center', flexDirection: 'row', flexShrink: 1, gap: spacing.sm, minWidth: 0 },
   icon: { flexShrink: 0 },
   title: { color: colors.textPrimary, flexShrink: 1, fontSize: 17, fontWeight: '700' },
-});
+}));

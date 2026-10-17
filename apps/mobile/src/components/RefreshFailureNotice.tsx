@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { InfoIcon } from '../icons/InfoIcon';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 /**
  * A refresh (or "load more") failed while what was already loaded is still on screen: a compact, non-blocking status
@@ -23,7 +23,7 @@ export function RefreshFailureNotice({ onRetry, testID }: { readonly onRetry?: (
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: {
     alignItems: 'center',
     backgroundColor: colors.surfaceMuted,
@@ -36,4 +36,4 @@ const styles = StyleSheet.create({
   text: { color: colors.textSecondary, flex: 1, fontSize: 13, minWidth: 0, paddingVertical: spacing.sm },
   retry: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   retryLabel: { color: colors.brand, fontSize: 14, fontWeight: '600' },
-});
+}));

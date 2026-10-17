@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { formatJupleId, personLabel } from '../collections/api/collaborationApi';
 import { AppModal } from '../components/AppModal';
@@ -8,7 +8,7 @@ import { getFriendSearchEmptyState } from './friendSearchEmptyState';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { SelectionIndicator } from '../components/SelectionIndicator';
 import { UserAvatar } from '../components/UserAvatar';
-import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 const AVATAR_SIZE = 40;
 import { getFriends, type Friend } from './api/friendsApi';
@@ -202,7 +202,7 @@ export function FriendPickerModal({ visible, authenticatedRequest, unavailable, 
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   search: {
     backgroundColor: colors.background,
     borderColor: colors.inputBorder,
@@ -229,4 +229,4 @@ const styles = StyleSheet.create({
   secondaryLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: '600', textAlign: 'center' },
   primary: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.md, flex: 1, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.sm },
   primaryLabel: { color: colors.surface, fontSize: 15, fontWeight: '700', textAlign: 'center' },
-});
+}));

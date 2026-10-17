@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, spacing } from '../theme/tokens';
+import { Text, View } from 'react-native';
+import { colors, spacing, themedStyles } from '../theme/tokens';
 import { TutorialIllustration } from './TutorialIllustration';
 import type { TutorialPageDefinition } from './tutorialPages';
 
@@ -21,9 +21,9 @@ export function TutorialPage({ page }: { readonly page: TutorialPageDefinition }
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   page: { alignItems: 'center', paddingHorizontal: spacing.xl, paddingVertical: spacing.lg, width: '100%' },
   illustration: { alignSelf: 'stretch', marginBottom: spacing.xl },
   title: { color: colors.textPrimary, fontSize: 22, fontWeight: '800', textAlign: 'center' },
   description: { color: colors.textSecondary, fontSize: 15, lineHeight: 23, marginTop: spacing.md, maxWidth: 420, textAlign: 'center' },
-});
+}));

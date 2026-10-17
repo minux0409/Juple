@@ -6,7 +6,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
-import { colors, minTouchTarget, radii } from '../theme/tokens';
+import { colors, minTouchTarget, radii, themedStyles } from '../theme/tokens';
 
 const ACTION_ICON_SIZE = 22;
 
@@ -149,11 +149,11 @@ export function useCancelSubmission({ cancel, onGone }: UseCancelSubmissionOptio
   return { renderOpenAction, swipeToCancel, openLink, dialogs, busyId } as const;
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   // The card's own frame (radius) clips the revealed red action; the card inside keeps its approved geometry.
   // The row's whole outer shape: rounded corners, the card's hairline border and its surface, clipped together
   // (SwipeableItemRow keeps overflow hidden) - the embedded card inside draws no border/radius of its own.
   swipeFrame: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth },
   // Icon-only, a full 44dp touch target each; the red of the trash is the only emphasis (no filled or outlined box).
   iconButton: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
-});
+}));

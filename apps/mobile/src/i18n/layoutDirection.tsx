@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { RTL_LANGUAGES } from './index';
+import { colors, themedStyles } from '../theme/tokens';
 
 export type LayoutDirection = 'ltr' | 'rtl';
 
@@ -32,6 +33,6 @@ export function LayoutDirectionRoot({ children }: { readonly children: ReactNode
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1 },
-});
+const styles = themedStyles(() => ({
+  root: { backgroundColor: colors.background, flex: 1 },
+}));

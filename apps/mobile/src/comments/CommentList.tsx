@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { ActionMenuDialog } from '../components/ActionMenuDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EditIcon } from '../icons/EditIcon';
 import { TrashIcon } from '../icons/TrashIcon';
-import { colors, minTouchTarget, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 import { CommentRow, REPLY_INDENT } from './CommentRow';
 import type { ItemComment } from './commentsApi';
 import type { CommentsStatus, ThreadState } from './useItemComments';
@@ -203,7 +203,7 @@ export function CommentList({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   section: { borderTopColor: colors.divider, borderTopWidth: 1, marginTop: spacing.lg, paddingTop: spacing.md },
   title: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
   state: { alignItems: 'center', paddingVertical: spacing.md },
@@ -213,4 +213,4 @@ const styles = StyleSheet.create({
   threadAction: { marginStart: REPLY_INDENT },
   actionLabel: { color: colors.brand, fontSize: 14, fontWeight: '700' },
   failedLabel: { color: colors.danger, fontSize: 13, fontWeight: '700' },
-});
+}));

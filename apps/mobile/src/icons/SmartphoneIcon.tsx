@@ -1,4 +1,5 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
+import { themedStyles } from '../theme/tokens';
 
 interface SmartphoneIconProps {
   readonly size?: number;
@@ -29,7 +30,7 @@ export function SmartphoneIcon({ size = 16 }: SmartphoneIconProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   body: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -40,4 +41,4 @@ const styles = StyleSheet.create({
   homeIndicator: {
     backgroundColor: '#111111',
   },
-});
+}));

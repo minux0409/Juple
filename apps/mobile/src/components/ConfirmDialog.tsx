@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 import { DialogActions } from './DialogActions';
 
 interface ConfirmDialogProps {
@@ -93,7 +93,7 @@ export function ConfirmDialog({
 /** Back / outside tap on a dialog that can only be answered with its button: consumed, nothing happens. */
 function ignoreDismissRequest(): void {}
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   overlay: {
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
@@ -124,4 +124,4 @@ const styles = StyleSheet.create({
   actions: {
     marginTop: spacing.xl,
   },
-});
+}));

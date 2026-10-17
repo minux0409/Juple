@@ -6,7 +6,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EditIcon } from '../icons/EditIcon';
 import { ImageIcon } from '../icons/ImageIcon';
 import { TrashIcon } from '../icons/TrashIcon';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { StableImage } from './StableImage';
 
 const THUMBNAIL_SIZE = 96;
@@ -141,7 +141,7 @@ export function RepresentativePhotoField({ photoUrl, photoCacheKey = null, isRem
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   section: { alignItems: 'flex-start', marginTop: 20 },
   label: { color: colors.textSecondary, fontSize: 14, fontWeight: '600', marginBottom: spacing.sm },
   thumbnailButton: { borderRadius: radii.md, height: THUMBNAIL_SIZE, width: THUMBNAIL_SIZE },
@@ -183,4 +183,4 @@ const styles = StyleSheet.create({
   compactThumbnail: { height: COMPACT_THUMBNAIL_SIZE, width: COMPACT_THUMBNAIL_SIZE },
   compactEditBadge: { borderRadius: COMPACT_EDIT_BADGE_SIZE / 2, bottom: -4, end: -4, height: COMPACT_EDIT_BADGE_SIZE, width: COMPACT_EDIT_BADGE_SIZE },
   compactAddButton: { paddingHorizontal: spacing.md },
-});
+}));

@@ -1,6 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { OwnerCrown } from '../collections/OwnerCrown';
-import { colors, minTouchTarget, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 import { UserAvatar } from './UserAvatar';
 
 /** The part of a participant the stack needs - what the participant list already returns. */
@@ -96,7 +96,7 @@ export function ParticipantAvatarStack({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   // The row is a full touch target tall, though the circles are small.
   row: {
     alignItems: 'center',
@@ -124,4 +124,4 @@ const styles = StyleSheet.create({
     width: AVATAR_SIZE,
   },
   moreLabel: { color: colors.brand, fontSize: 11, fontWeight: '700' },
-});
+}));

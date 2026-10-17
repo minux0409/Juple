@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { BottomSheetModal } from '../components/BottomSheetModal';
 import { ImportantState } from '../components/ImportantState';
@@ -11,7 +11,7 @@ import { OwnerCrown } from './OwnerCrown';
 import { ParticipantGrid, type ParticipantTileData } from './ParticipantGrid';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { useViewModePreference } from '../settings/viewModePreference';
-import { colors, ltrTextStyle, minTouchTarget, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 import {
   formatJupleId,
   getCollectionParticipants,
@@ -215,7 +215,7 @@ export function CollectionParticipantsSheet({
 
 export { OwnerCrown };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   nameText: { flexShrink: 1 },
   titleRow: { marginBottom: spacing.sm },
   title: { color: colors.textPrimary, flexShrink: 1, fontSize: 17, fontWeight: '700' },
@@ -229,4 +229,4 @@ const styles = StyleSheet.create({
   sectionTitle: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', marginTop: spacing.md },
   close: { alignItems: 'center', borderTopColor: colors.divider, borderTopWidth: 1, marginTop: spacing.sm, minHeight: minTouchTarget, justifyContent: 'center' },
   closeLabel: { color: colors.textPrimary, fontSize: 16, fontWeight: '600' },
-});
+}));

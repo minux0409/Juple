@@ -1,11 +1,11 @@
 import { useRoute, type RouteProp } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { findGuideSection, type GuideRequirement } from '../help/guideContent';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { useCollectionShortcutSupport } from '../shortcuts/useCollectionShortcutSupport';
-import { cardShadow, colors, radii, spacing } from '../theme/tokens';
+import { cardShadow, colors, radii, spacing, themedStyles } from '../theme/tokens';
 
 /**
  * One Help Guide section: its topics as short cards. A topic (or an extra paragraph) that needs a device capability is
@@ -54,10 +54,10 @@ export function HelpGuideSectionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   content: { alignSelf: 'center', maxWidth: 640, padding: spacing.xl, paddingTop: spacing.lg, rowGap: spacing.md, width: '100%' },
   card: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg, rowGap: spacing.sm, ...cardShadow },
   topicTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: '800' },
   paragraph: { color: colors.textSecondary, fontSize: 14, lineHeight: 22 },
-});
+}));

@@ -13,6 +13,7 @@ import { LockIcon } from '../icons/LockIcon';
 import { PeopleIcon } from '../icons/PeopleIcon';
 import { ShareIcon } from '../icons/ShareIcon';
 import { TrashIcon } from '../icons/TrashIcon';
+import { ContrastIcon } from '../icons/ContrastIcon';
 import { UserIcon } from '../icons/UserIcon';
 import { UserMinusIcon } from '../icons/UserMinusIcon';
 
@@ -37,6 +38,7 @@ export const screenIcons = {
   account: UserIcon,
   deleteAccount: UserMinusIcon,
   language: GlobeIcon,
+  appearance: ContrastIcon,
   customerCenter: InfoIcon,
   help: HelpIcon,
   subscription: CreditCardIcon,

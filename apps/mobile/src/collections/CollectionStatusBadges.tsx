@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { LockIcon } from '../icons/LockIcon';
 import { PeopleIcon } from '../icons/PeopleIcon';
-import { cardShadow, colors } from '../theme/tokens';
+import { cardShadow, colors, themedStyles } from '../theme/tokens';
 
 interface CollectionStatusBadgesProps {
   readonly isLocked: boolean;
@@ -46,7 +46,7 @@ export function CollectionStatusBadges({ isLocked, isShared, size = 20 }: Collec
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   badge: {
     alignItems: 'center',
     backgroundColor: colors.surface,
@@ -56,4 +56,4 @@ const styles = StyleSheet.create({
   },
   topStart: { start: -4, top: -4 },
   bottomStart: { bottom: -4, start: -4 },
-});
+}));

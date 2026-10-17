@@ -1231,5 +1231,11 @@
       "refusalTitle": "Reddetme hakkı",
       "refusalBody": "Reddedebilirsiniz. Ancak bu madde hizmetin sunulması için gereklidir; kabul etmezseniz Juple'ı kullanamazsınız."
     }
+  },
+  "appearance": {
+    "title": "Görünüm",
+    "system": "Sistem ayarını kullan",
+    "light": "Açık",
+    "dark": "Koyu"
   }
 }

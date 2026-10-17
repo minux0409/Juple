@@ -1231,5 +1231,11 @@
       "refusalTitle": "Droit de refus",
       "refusalBody": "Vous pouvez refuser. Toutefois, cet élément est nécessaire à la fourniture du service : sans votre accord, vous ne pouvez pas utiliser Juple."
     }
+  },
+  "appearance": {
+    "title": "Apparence",
+    "system": "Utiliser le réglage du système",
+    "light": "Clair",
+    "dark": "Sombre"
   }
 }

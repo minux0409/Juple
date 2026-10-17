@@ -1,7 +1,7 @@
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { CloseIcon } from '../icons/CloseIcon';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { emojiOfReaction, REACTION_CATALOG } from './reactionCatalog';
 
 interface ReactionPickerDialogProps {
@@ -67,7 +67,7 @@ export function ReactionPickerDialog({ visible, myReaction, recent, onSelect, on
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   overlay: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)', flex: 1, justifyContent: 'center', padding: spacing.xl },
   // Capped for large screens; never taller than the screen - the body scrolls.
   card: { backgroundColor: colors.surface, borderRadius: radii.lg, maxHeight: '80%', maxWidth: 420, padding: spacing.lg, width: '100%' },
@@ -89,4 +89,4 @@ const styles = StyleSheet.create({
   },
   cellMine: { backgroundColor: colors.brandSoft, borderColor: colors.brand },
   emoji: { fontSize: 26 },
-});
+}));

@@ -1,6 +1,6 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { CrownIcon } from '../icons/CrownIcon';
-import { colors } from '../theme/tokens';
+import { colors, themedStyles } from '../theme/tokens';
 
 /** The crown glyph is this fraction of the avatar, never smaller than MIN_GLYPH (a 16dp meta avatar still gets a legible crown). */
 const GLYPH_RATIO = 0.42;
@@ -28,6 +28,6 @@ export function OwnerCrown({ avatarSize = 32, testID = 'participant-owner-crown'
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   chip: { alignItems: 'center', backgroundColor: colors.surface, justifyContent: 'center', position: 'absolute' },
-});
+}));

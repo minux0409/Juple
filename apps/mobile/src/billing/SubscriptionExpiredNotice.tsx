@@ -1,10 +1,10 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useOptionalAuth } from '../auth/AuthContext';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 /**
  * A quiet notice at the top of Home and Collections for an account whose free period ended with no subscription: saved links
@@ -32,10 +32,10 @@ export function SubscriptionExpiredNotice() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   notice: { backgroundColor: colors.brandSoft, borderRadius: radii.lg, marginBottom: spacing.md, padding: spacing.md, rowGap: spacing.xs },
   title: { color: colors.textPrimary, fontSize: 15, fontWeight: '800' },
   body: { color: colors.textSecondary, fontSize: 14, lineHeight: 20 },
   button: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.brand, borderRadius: radii.md, justifyContent: 'center', marginTop: spacing.xs, minHeight: minTouchTarget, paddingHorizontal: spacing.lg },
   buttonLabel: { color: colors.surface, fontSize: 15, fontWeight: '700', textAlign: 'center' },
-});
+}));

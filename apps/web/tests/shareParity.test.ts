@@ -204,9 +204,9 @@ describe('Web parity: the settings shell', () => {
 
   it('the rail lists exactly the real settings, grouped by dividers; 친구 and 삭제 이력 are not in it', async () => {
     const nav = await import('../lib/settingsNav.ts');
-    assert.deepEqual(nav.SETTINGS_NAV_ITEMS.map(item => item.key), ['profile', 'language', 'collectionLock', 'subscription', 'account', 'support', 'deleteAccount']);
+    assert.deepEqual(nav.SETTINGS_NAV_ITEMS.map(item => item.key), ['profile', 'language', 'appearance', 'collectionLock', 'subscription', 'account', 'support', 'deleteAccount']);
     assert.ok(nav.SETTINGS_NAV_ITEMS.every(item => !/friends|trash/.test(item.href)));
-    assert.deepEqual(nav.SETTINGS_NAV_ITEMS.map(item => item.group), [0, 0, 1, 2, 2, 3, 4]);
+    assert.deepEqual(nav.SETTINGS_NAV_ITEMS.map(item => item.group), [0, 0, 0, 1, 2, 2, 3, 4]);
     for (const [path, key] of [['/me', 'profile'], ['/me/profile', 'profile'], ['/me/language', 'language'], ['/me/collection-lock', 'collectionLock'], ['/me/subscription', 'subscription'], ['/me/account', 'account'], ['/me/support', 'support'], ['/me/account/delete', 'deleteAccount']] as const) {
       assert.equal(nav.activeSettingsItem(path)?.key, key, path);
     }
@@ -226,6 +226,6 @@ describe('Web: 내 페이지 is called 설정', () => {
     assert.equal(getAppDictionary('en').settingsSectionTitle, 'Settings');
     assert.doesNotMatch(source('app/(app)/AppShell.tsx') + nav, /navMyPage/);
     const routes = await import('../lib/settingsNav.ts');
-    assert.deepEqual(routes.SETTINGS_NAV_ITEMS.map(item => item.href), ['/me', '/me/language', '/me/collection-lock', '/me/subscription', '/me/account', '/me/support', '/me/account/delete']);
+    assert.deepEqual(routes.SETTINGS_NAV_ITEMS.map(item => item.href), ['/me', '/me/language', '/me/appearance', '/me/collection-lock', '/me/subscription', '/me/account', '/me/support', '/me/account/delete']);
   });
 });

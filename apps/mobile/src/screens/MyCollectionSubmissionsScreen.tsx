@@ -2,7 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, Text } from 'react-native';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import type { MyCollectionLinkSubmission, MyCollectionLinkSubmissionPage } from '../collections/api/collectionsApi';
 import { cancelMyPublicSubmission, getMyPublicSubmissions } from '../collections/api/publicShareWriteApi';
@@ -14,7 +14,7 @@ import { contentGateOfError } from '../collections/useCollectionItems';
 import { ImportantState } from '../components/ImportantState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, spacing } from '../theme/tokens';
+import { colors, spacing, themedStyles } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MyCollectionSubmissions'>;
 
@@ -150,10 +150,10 @@ export function MyCollectionSubmissionsScreen({ route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   screen: { backgroundColor: colors.background, flex: 1 },
   content: { flexGrow: 1, gap: spacing.sm, padding: spacing.lg },
   loading: { marginTop: spacing.xl },
   empty: { color: colors.textSecondary, fontSize: 15, marginTop: spacing.xl, textAlign: 'center' },
   error: { color: colors.danger, fontSize: 15, marginTop: spacing.xl, textAlign: 'center' },
-});
+}));

@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, type ScrollViewInstance, StyleSheet } from 'react-native';
+import { Pressable, ScrollView, type ScrollViewInstance } from 'react-native';
 import { COLLECTION_ICON_KEYS, resolveCollectionIconComponent, type CollectionIconKey } from './collectionIcons';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 interface CollectionIconPickerTile {
   readonly background: string;
@@ -61,7 +61,7 @@ export function CollectionIconPicker({ selected, onSelect, tile, disabled, isVis
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -84,4 +84,4 @@ const styles = StyleSheet.create({
   cellDisabled: {
     opacity: 0.5,
   },
-});
+}));

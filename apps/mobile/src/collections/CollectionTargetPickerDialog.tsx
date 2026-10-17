@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CategoryIconTile } from './CategoryIconTile';
 import { PlusIcon } from '../icons/PlusIcon';
 import type { Collection } from './api/collectionsApi';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { SheetHeader, useSheetDismissGesture } from '../components/sheetDismissGesture';
 
 // Comfortably past this component's own maxHeight ('75%') on any real device, so the sheet always
@@ -78,4 +78,4 @@ export function CollectionTargetPickerDialog({ visible, collections, isLoading, 
     </Animated.View></View>
   </Modal>;
 }
-const styles = StyleSheet.create({ overlay: { flex: 1, justifyContent: 'flex-end' }, backdrop: { backgroundColor: 'rgba(0,0,0,0.4)' }, card: { backgroundColor: colors.surface, borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg, maxHeight: '75%', padding: spacing.xl, paddingTop: 0 }, dragArea: { marginHorizontal: -spacing.xl, paddingHorizontal: spacing.xl }, listArea: { flexShrink: 1 }, title: { color: colors.textPrimary, fontSize: 18, fontWeight: '700', marginBottom: spacing.md, marginTop: spacing.sm }, row: { alignItems: 'center', borderTopColor: colors.divider, borderTopWidth: 1, flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.md }, name: { color: colors.textPrimary, flex: 1, fontSize: 16 }, createRow: { borderTopWidth: 0, minHeight: minTouchTarget }, createIcon: { alignItems: 'center', height: 32, justifyContent: 'center', width: 32 }, createLabel: { color: colors.brand, fontWeight: '600' }, cancel: { alignItems: 'center', paddingTop: spacing.lg } });
+const styles = themedStyles(() => ({ overlay: { flex: 1, justifyContent: 'flex-end' }, backdrop: { backgroundColor: 'rgba(0,0,0,0.4)' }, card: { backgroundColor: colors.surface, borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg, maxHeight: '75%', padding: spacing.xl, paddingTop: 0 }, dragArea: { marginHorizontal: -spacing.xl, paddingHorizontal: spacing.xl }, listArea: { flexShrink: 1 }, title: { color: colors.textPrimary, fontSize: 18, fontWeight: '700', marginBottom: spacing.md, marginTop: spacing.sm }, row: { alignItems: 'center', borderTopColor: colors.divider, borderTopWidth: 1, flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.md }, name: { color: colors.textPrimary, flex: 1, fontSize: 16 }, createRow: { borderTopWidth: 0, minHeight: minTouchTarget }, createIcon: { alignItems: 'center', height: 32, justifyContent: 'center', width: 32 }, createLabel: { color: colors.brand, fontWeight: '600' }, cancel: { alignItems: 'center', paddingTop: spacing.lg } }));

@@ -14,7 +14,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { cardShadow, colors, radii, spacing } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeContext';
+import { cardShadow, colors, radii, spacing, themedStyles } from '../theme/tokens';
 import { notificationBannerQueue, type BannerQueue, type NotificationBanner } from './bannerQueue';
 import { isHorizontalBannerDrag, resolveBannerSwipe, type BannerSwipeDirection } from './bannerGesture';
 import { NotificationTypeIcon } from './NotificationTypeIcon';
@@ -102,6 +103,7 @@ export function createBannerPanConfig(callbacks: BannerPanCallbacks): PanRespond
  */
 export function NotificationBannerHost({ queue = notificationBannerQueue }: { readonly queue?: BannerQueue }) {
   const { t, i18n } = useTranslation();
+  useTheme(); // outside any navigator: re-render the banner in place on a theme change
   const request = useAuthenticatedApi();
   const current = useSyncExternalStore(queue.subscribe, queue.current, queue.current);
   const [isUnavailableVisible, setIsUnavailableVisible] = useState(false);
@@ -263,7 +265,7 @@ function BannerCard({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   layer: { alignItems: 'center', end: 0, paddingHorizontal: spacing.lg, position: 'absolute', start: 0, zIndex: 1000, elevation: 1000 },
   card: {
     backgroundColor: colors.surface,
@@ -280,4 +282,4 @@ const styles = StyleSheet.create({
   text: { flex: 1, minWidth: 0 },
   title: { color: colors.textPrimary, fontSize: 14, fontWeight: '700' },
   body: { color: colors.textPrimary, fontSize: 14, marginTop: 2 },
-});
+}));

@@ -76,7 +76,7 @@ import {
 } from '../items/api/itemsApi';
 import { takeItemOpenGrant } from '../items/itemOpenGrant';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { isDefinitiveLoadError, LoadFailureState } from '../components/LoadFailureState';
 import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
@@ -1065,7 +1065,7 @@ const THUMBNAIL_SIZE = 88;
 const INFO_LABEL_WIDTH = 104;
 const TITLE_LINE_HEIGHT = 20;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   // The sheet sits at its keyboard-closed place (paddingTop) with its own height; the keyboard never resizes it.
   overlay: { flex: 1, justifyContent: 'flex-start' },
   backdropDim: { backgroundColor: 'rgba(0, 0, 0, 0.45)' },
@@ -1169,4 +1169,4 @@ const styles = StyleSheet.create({
   },
   saveActionLabel: { color: colors.surface, fontSize: 15, fontWeight: '700' },
   imagesLoading: { marginVertical: spacing.sm },
-});
+}));

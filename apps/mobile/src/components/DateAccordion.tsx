@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, Text } from 'react-native';
 import { ChevronIcon } from '../icons/ChevronIcon';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 
 interface DateSectionHeaderProps {
   /** The section's localized label - 오늘, 어제, 이번 주 or a month (see groupByLocalDate). */
@@ -32,7 +32,7 @@ export function DateSectionHeader({ label, count, isExpanded, onPress }: DateSec
   );
 }
 
-export const dateAccordionStyles = StyleSheet.create({
+export const dateAccordionStyles = themedStyles(() => ({
   // A date section reads as one grouped card: the header always rounds its top corners, and only
   // rounds its bottom corners (and gets a matching gap below) when collapsed - i.e. when it's the
   // entire visible card for that date on its own. When expanded, that bottom corner/gap job moves
@@ -113,4 +113,4 @@ export const dateAccordionStyles = StyleSheet.create({
     borderBottomWidth: 1,
     marginBottom: spacing.sm + 2,
   },
-});
+}));

@@ -3,14 +3,13 @@ import {
   Animated,
   Easing,
   PanResponder,
-  StyleSheet,
   View,
   useWindowDimensions,
   type GestureResponderHandlers,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { colors, minTouchTarget, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 
 /*
  * Every Juple bottom sheet - Item Details, the 승인 요청 sheets, 참여자, the Collection pickers, the link share sheet -
@@ -188,7 +187,7 @@ export function SheetHeader({ gesture, title, icon, actions, style, rowStyle, te
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   // Always the full width it is given (never shrink-wrapped around its content), and never shorter than a touch target.
   header: { alignSelf: 'stretch', minHeight: minTouchTarget },
   handleArea: { alignItems: 'center', paddingBottom: SHEET_HANDLE.bottomSpacing, paddingTop: SHEET_HANDLE.topSpacing },
@@ -197,4 +196,4 @@ const styles = StyleSheet.create({
   // Takes all the free width, so the empty space up to the actions belongs to the header's title side.
   titleArea: { alignItems: 'center', alignSelf: 'stretch', flex: 1, flexDirection: 'row', gap: spacing.sm, minWidth: 0 },
   actions: { alignItems: 'center', flexDirection: 'row', flexShrink: 0 },
-});
+}));

@@ -12,7 +12,7 @@ import { LoadFailureState } from '../components/LoadFailureState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { ChevronIcon } from '../icons/ChevronIcon';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 const METHOD_LABEL_KEYS: Record<SignInMethod, string> = {
   email: 'account.methodEmail',
@@ -178,7 +178,7 @@ export function AccountManagementScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   content: { alignSelf: 'center', maxWidth: 640, padding: spacing.xl, width: '100%' },
   loading: { paddingVertical: spacing.lg },
@@ -223,4 +223,4 @@ const styles = StyleSheet.create({
   guideCancelLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
   guideContinue: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.md, flex: 1, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   guideContinueLabel: { color: colors.surface, fontSize: 15, fontWeight: '700' },
-});
+}));

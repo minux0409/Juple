@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { resolveCollectionIconComponent } from './collectionIcons';
 import { EditIcon } from '../icons/EditIcon';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import type { Collection } from './api/collectionsApi';
 
 /** How many selected-category chips the compact summary row shows before collapsing the rest into a "+N" chip. */
@@ -80,7 +80,7 @@ export function CategoryField({ selectedCollections, isLoading, disabled, error,
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   label: {
     fontSize: 13,
     fontWeight: '700',
@@ -135,4 +135,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: spacing.md,
   },
-});
+}));

@@ -7,7 +7,7 @@ import { imageCacheKey, useStableImageUri } from '../images/stableImageUri';
 import { useTranslation } from 'react-i18next';
 import { resolveSavedLinkDisplayTitle } from '../items/savedLinkPrimaryText';
 import { resolveSiteInfo } from '../items/resolveSiteInfo';
-import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, radii, spacing, themedStyles } from '../theme/tokens';
 import { columnBasis, useSavedLinkColumns } from '../layout/responsiveGrid';
 import type { ItemAdderDisplay } from '../collections/itemAdder';
 import { GRID_CARD_PADDING_H, GRID_CELL_PADDING_H } from './savedLinkLayout';
@@ -76,7 +76,7 @@ export function SavedLinkGridCard({ item, isActionInFlight, preferEffectiveThumb
   return <View style={styles.card}>
     <View style={styles.image}>
       {imageUrl ? <Image onError={onImageError} source={{ uri: imageUrl }} style={styles.thumbnail} /> : <View style={styles.fallback}><SiteIcon siteId={site.id} size={42} /></View>}
-      {isActionInFlight ? <View style={styles.overlay}><ActivityIndicator color={colors.surface} size="small" /></View> : null}
+      {isActionInFlight ? <View style={styles.overlay}><ActivityIndicator color={colors.onOverlay} size="small" /></View> : null}
     </View>
     <Text numberOfLines={SAVED_LINK_GRID_TITLE_MAX_LINES} style={[styles.title, { minHeight: TITLE_LINE_HEIGHT * SAVED_LINK_GRID_TITLE_MAX_LINES * fontScale }, displayTitle.isTechnicalIdentifier && ltrTextStyle]}>{displayTitle.text}</Text>
     {/* The meta line (site icon / adder) and, at its end, the 바로가기 button - its own cell, so it never overlaps the picture or the title. */}
@@ -121,12 +121,12 @@ export function useSavedLinkGridCellStyle() {
   return useMemo(() => [savedLinkGridLayout.cell, { flexBasis: columnBasis(grid), maxWidth: columnBasis(grid) }], [grid]);
 }
 
-export const savedLinkGridLayout = StyleSheet.create({
+export const savedLinkGridLayout = themedStyles(() => ({
   cell: { flexBasis: '50%', marginBottom: spacing.sm, maxWidth: '50%', paddingHorizontal: GRID_CELL_PADDING_H },
   swipeContainer: { backgroundColor: colors.surface, borderColor: colors.inputBorder, borderRadius: radii.lg, borderWidth: StyleSheet.hairlineWidth, flexGrow: 1 },
-});
+}));
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   card: { paddingHorizontal: GRID_CARD_PADDING_H, paddingVertical: spacing.sm },
   image: { aspectRatio: 1, borderRadius: radii.md + 4, overflow: 'hidden', position: 'relative' },
   thumbnail: { height: '100%', width: '100%' },
@@ -136,4 +136,4 @@ const styles = StyleSheet.create({
   meta: { marginTop: 2 },
   metaLine: { alignItems: 'flex-end', flexDirection: 'row' },
   metaFill: { flex: 1, minWidth: 0 },
-});
+}));

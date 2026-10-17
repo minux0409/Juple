@@ -1231,5 +1231,11 @@
       "refusalTitle": "拒绝同意的权利",
       "refusalBody": "您可以拒绝同意。但此项为提供服务所必需的必选项目,不同意将无法使用 Juple。"
     }
+  },
+  "appearance": {
+    "title": "显示模式",
+    "system": "使用系统设置",
+    "light": "浅色",
+    "dark": "深色"
   }
 }

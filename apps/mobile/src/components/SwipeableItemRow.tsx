@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { ShareIcon } from '../icons/ShareIcon';
 import { TrashIcon } from '../icons/TrashIcon';
-import { colors, minTouchTarget, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 import { closeOpenRow, notifyRowClosed, notifyRowOpened } from './swipeableRowCoordinator';
 
 const ACTION_WIDTH = 76;
@@ -313,7 +313,7 @@ export function SwipeableItemRow({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   wrapper: {
     overflow: 'hidden',
   },
@@ -363,4 +363,4 @@ const styles = StyleSheet.create({
   deleteAction: {
     backgroundColor: colors.danger,
   },
-});
+}));

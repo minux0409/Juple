@@ -4,7 +4,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CloseIcon } from '../icons/CloseIcon';
 import { KeyboardSafeView } from './KeyboardSafeView';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 export const APP_MODAL_BACKDROP = 'rgba(0, 0, 0, 0.35)';
 
@@ -89,7 +89,7 @@ export function AppModal({ visible, title, onClose, dismissible = true, size = '
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   backdrop: { backgroundColor: APP_MODAL_BACKDROP, flex: 1 },
   frame: { alignItems: 'center', flex: 1, justifyContent: 'center' },
   card: {
@@ -107,4 +107,4 @@ const styles = StyleSheet.create({
   body: { flexShrink: 1, marginTop: spacing.sm },
   bodyLarge: { flex: 1 },
   footer: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-});
+}));

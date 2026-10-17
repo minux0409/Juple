@@ -1,13 +1,13 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { GUIDE_SECTIONS } from '../help/guideContent';
 import { ChevronIcon } from '../icons/ChevronIcon';
 import { useLayoutDirection } from '../i18n/layoutDirection';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { cardShadow, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { cardShadow, colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 /**
  * 도움말: the revisitable Feature Guide's home. A list of goal-based sections (each opens its own scrollable page) and a
@@ -60,7 +60,7 @@ export function HelpGuideScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   content: { alignSelf: 'center', maxWidth: 640, padding: spacing.xl, paddingTop: spacing.lg, width: '100%' },
   card: { backgroundColor: colors.surface, borderRadius: radii.lg, overflow: 'hidden', ...cardShadow },
@@ -71,4 +71,4 @@ const styles = StyleSheet.create({
   rowText: { flex: 1, flexShrink: 1 },
   rowTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
   rowSummary: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, marginTop: 2 },
-});
+}));

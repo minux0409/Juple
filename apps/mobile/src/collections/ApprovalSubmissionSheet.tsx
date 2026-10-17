@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { useAppToast } from '../components/AppToast';
@@ -13,7 +13,7 @@ import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { CloseIcon } from '../icons/CloseIcon';
 import { markCollectionSubmissionRequestsRead } from '../notifications/notificationsApi';
 import { setUnreadCount } from '../notifications/notificationState';
-import { colors, minTouchTarget, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 import { subscribeSocialPushEvents, type SocialPushEventType } from '../push/pushEvents';
 import {
   approveCollectionSubmission,
@@ -453,7 +453,7 @@ function Separator() {
   return <View style={styles.gap} />;
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   titleRow: { marginBottom: spacing.xs },
   title: { color: colors.textPrimary, flex: 1, fontSize: 17, fontWeight: '700' },
   closeButton: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', marginEnd: -spacing.sm, width: minTouchTarget },
@@ -466,4 +466,4 @@ const styles = StyleSheet.create({
   strip: { flexDirection: 'row' },
   stripAction: { alignItems: 'center', flex: 1, height: STRIP_ACTION_HEIGHT, justifyContent: 'center' },
   disabled: { opacity: 0.5 },
-});
+}));

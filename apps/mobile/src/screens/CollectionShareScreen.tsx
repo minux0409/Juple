@@ -8,7 +8,6 @@ import {
   Pressable,
   ScrollView,
   type ScrollViewInstance,
-  StyleSheet,
   Switch,
   Text,
   TextInput,
@@ -74,7 +73,7 @@ import { shareItem } from '../items/shareItem';
 import { ensurePushPermissionOnce } from '../push/pushPermissionFlow';
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { categoryTilePalette, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { categoryTilePalette, colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
@@ -1400,22 +1399,22 @@ export function CollectionShareScreen({ route }: Props) {
 
 // Role badges: 소유자 in the soft amber tile pair, 링크 추가 in the brand tint, 승인 후 추가 brand text
 // on the neutral tile, 읽기 전용 neutral - existing tokens only.
-const badgeStyles = StyleSheet.create({
+const badgeStyles = themedStyles(() => ({
   owner: { backgroundColor: categoryTilePalette[2].background },
   contributor: { backgroundColor: colors.brandSoft },
   submitter: { backgroundColor: colors.surfaceMuted },
   viewer: { backgroundColor: colors.surfaceMuted },
-});
+}));
 
-const badgeLabelStyles = StyleSheet.create({
+const badgeLabelStyles = themedStyles(() => ({
   owner: { color: categoryTilePalette[2].icon },
   contributor: { color: colors.brand },
   submitter: { color: colors.brand },
   viewer: { color: colors.textSecondary },
-});
+}));
 
 /** The selected segment of every selector here: raised white, subtle neutral outline - never brand blue. */
-const selectedSegment = {
+const selectedSegment = () => ({
   backgroundColor: colors.surface,
   borderColor: colors.inputBorder,
   elevation: 1,
@@ -1423,9 +1422,9 @@ const selectedSegment = {
   shadowOffset: { height: 1, width: 0 },
   shadowOpacity: 0.06,
   shadowRadius: 2,
-} as const;
+}) as const;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   content: { alignSelf: 'center', maxWidth: CONTENT_MAX_WIDTH, padding: spacing.lg, width: '100%' },
   // A section card: a light neutral 1px outline (the app's own soft card border) so each section
@@ -1481,7 +1480,7 @@ const styles = StyleSheet.create({
   // Every choice on this screen (권한, 친구 | ID, a person's permission, 공유 중 | 초대 대기) is a
   // neutral selection - a raised white segment with the strong text color, never the brand blue,
   // so it never reads as a button to press. Only the actions (공유 시작, 초대 보내기, …) are blue.
-  segmentSelected: { ...selectedSegment },
+  segmentSelected: { ...selectedSegment() },
   segmentLabel: { color: colors.textSecondary, flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   segmentLabelSelected: { color: colors.textPrimary, fontWeight: '700' },
   idArea: { gap: spacing.sm },
@@ -1580,7 +1579,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   roleOptionStretch: { flexBasis: 0, flexGrow: 1 },
-  roleOptionSelected: { ...selectedSegment },
+  roleOptionSelected: { ...selectedSegment() },
   roleOptionLabel: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
   roleOptionLabelSelected: { color: colors.textPrimary, fontWeight: '700' },
   // Below the public link's 링크 추가: visibly unavailable - faint, struck through.
@@ -1610,4 +1609,4 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.45 },
   loading: { paddingVertical: spacing.lg },
   error: { color: colors.danger, fontSize: 14 },
-});
+}));

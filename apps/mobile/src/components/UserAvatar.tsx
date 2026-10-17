@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, Text, View } from 'react-native';
 import { UserIcon } from '../icons/UserIcon';
 import { replaceFailedProfileImageUri, resolveProfileImageUri } from '../profile/profileImageCache';
-import { colors } from '../theme/tokens';
+import { colors, themedStyles } from '../theme/tokens';
 
 interface UserAvatarProps {
   /** The person's public Juple ID - the cache identity together with imageVersion (never an internal id). */
@@ -76,7 +76,7 @@ export function UserAvatar({ jupleId, displayName, imageUrl, imageVersion, size 
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   circle: {
     alignItems: 'center',
     backgroundColor: colors.brandSoft,
@@ -91,4 +91,4 @@ const styles = StyleSheet.create({
     color: colors.brand,
     fontWeight: '700',
   },
-});
+}));

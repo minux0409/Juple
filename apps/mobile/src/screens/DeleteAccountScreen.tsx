@@ -1,7 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { deleteAccount } from '../api/accountApi';
 import { ApiError } from '../api/ApiError';
 import { getMyProfile } from '../api/profileApi';
@@ -11,7 +11,7 @@ import { reauthenticateSameAccount } from '../auth/reauthentication';
 import { formatJupleId } from '../collections/api/collaborationApi';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { RECENT_AUTHENTICATION_REQUIRED_CODE } from '../settings/CollectionLockPasswordDialog';
-import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 type Step = 'warning' | 'reauthenticate' | 'confirm';
@@ -221,7 +221,7 @@ export function DeleteAccountScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   content: { alignSelf: 'center', maxWidth: 560, padding: spacing.xl, width: '100%' },
   title: { color: colors.textPrimary, fontSize: 20, fontWeight: '800' },
@@ -277,4 +277,4 @@ const styles = StyleSheet.create({
   notice: { color: colors.danger, fontSize: 14, marginTop: spacing.md },
   cancelButton: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.md, minHeight: minTouchTarget },
   cancelLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
-});
+}));

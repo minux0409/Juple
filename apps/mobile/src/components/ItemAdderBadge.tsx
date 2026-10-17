@@ -1,8 +1,8 @@
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { ItemAdderDisplay } from '../collections/itemAdder';
 import { OwnerCrown } from '../collections/OwnerCrown';
 import { UserIcon } from '../icons/UserIcon';
-import { colors, spacing } from '../theme/tokens';
+import { colors, spacing, themedStyles } from '../theme/tokens';
 import { UserAvatar } from './UserAvatar';
 
 /**
@@ -65,7 +65,7 @@ export function ItemAdderBadge({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
   publicLink: { color: colors.textSecondary, flexShrink: 1, fontWeight: '600' },
-});
+}));

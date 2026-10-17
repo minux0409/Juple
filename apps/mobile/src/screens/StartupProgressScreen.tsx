@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import {
   STEP_MESSAGE_KEYS,
   bootstrapStepFraction,
@@ -9,7 +9,7 @@ import {
 import { useAuth } from '../auth/AuthContext';
 import { JupleBrandMark } from '../components/JupleBrandMark';
 import { ProgressBar } from '../components/ProgressBar';
-import { colors, spacing } from '../theme/tokens';
+import { colors, spacing, themedStyles } from '../theme/tokens';
 
 /**
  * Rendered by RootStack while bootstrap has not reached MainTabs yet (session restore, Entra
@@ -59,7 +59,7 @@ export function StartupProgressScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     alignItems: 'center',
@@ -109,4 +109,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-});
+}));

@@ -6,7 +6,7 @@ import type { CollectionIconImageChange } from './collectionIconImage';
 import { CollectionUnlockDialog } from './CollectionUnlockDialog';
 import { DEFAULT_COLLECTION_COLOR, type CollectionColorValue } from './collectionColors';
 import { DEFAULT_COLLECTION_ICON, type CollectionIconKey } from './collectionIcons';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import type { ViewModePreferenceKey } from '../settings/viewModePreference';
 import type { LoadFailureInfo } from '../components/LoadFailureState';
 import { CollectionChoiceGrid } from './CollectionChoiceGrid';
@@ -236,7 +236,7 @@ export function CategoryPickerModal({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   // The dim behind the sheet - it fades as the sheet is dragged away.
   backdrop: { backgroundColor: 'rgba(0, 0, 0, 0.4)' },
   content: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceRaised,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     maxHeight: '80%',
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     alignItems: 'center',
-    borderColor: '#111111',
+    borderColor: colors.textPrimary,
     borderRadius: radii.md,
     borderWidth: 1,
     marginTop: 20,
@@ -289,8 +289,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   closeLabel: {
-    color: '#111111',
+    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '600',
   },
-});
+}));

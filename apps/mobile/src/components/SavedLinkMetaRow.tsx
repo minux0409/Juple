@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { ItemAdderDisplay } from '../collections/itemAdder';
 import i18n from '../i18n';
 import { SiteIcon } from '../icons/SiteIcon';
 import { ItemAdderBadge } from './ItemAdderBadge';
 import { resolveSiteInfo } from '../items/resolveSiteInfo';
-import { colors, spacing } from '../theme/tokens';
+import { colors, spacing, themedStyles } from '../theme/tokens';
 
 /**
  * 'time' shows only the time-of-day - correct when the surrounding section is exactly one calendar
@@ -99,7 +99,7 @@ export function SavedLinkMetaRow({ savedAtUtc, url, dateDisplayMode, style, adde
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   metaRow: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -134,4 +134,4 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-});
+}));

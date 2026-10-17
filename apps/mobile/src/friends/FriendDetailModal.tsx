@@ -16,7 +16,7 @@ import { CheckIcon } from '../icons/CheckIcon';
 import { EditIcon } from '../icons/EditIcon';
 import { FlagIcon } from '../icons/FlagIcon';
 import { UserMinusIcon } from '../icons/UserMinusIcon';
-import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { FRIEND_NOTE_MAX_STORAGE_LENGTH, getFriendSharedCollections, removeFriend, setFriendNote, type Friend } from './api/friendsApi';
 import { blockUser } from '../safety/safetyApi';
 import { ReportModal } from '../safety/ReportModal';
@@ -353,7 +353,7 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onBlo
 /** One icon size for every action (메모 / 메모 저장 / 친구 삭제 / 신고 / 차단). */
 const ACTION_ICON_SIZE = 16;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   identity: { alignItems: 'center', gap: 0, paddingTop: spacing.xs },
   name: { color: colors.textPrimary, fontSize: 18, fontWeight: '700', marginTop: spacing.sm, textAlign: 'center' },
   jupleId: { color: colors.textSecondary, fontSize: 14 },
@@ -403,4 +403,4 @@ const styles = StyleSheet.create({
   sharedName: { color: colors.textPrimary, flex: 1, fontSize: 15, fontWeight: '600', minWidth: 0 },
   notice: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.sm, textAlign: 'center' },
   removeLabel: { color: colors.danger },
-});
+}));

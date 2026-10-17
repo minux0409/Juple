@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, minTouchTarget, spacing } from '../theme/tokens';
+import { Modal, Pressable, Text, View } from 'react-native';
+import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 import type { Collection } from './api/collectionsApi';
 import { contentGateOf, isSharedWithMe } from './collectionAccess';
 import { CollectionUnlockPanel } from './CollectionUnlockPanel';
@@ -50,10 +50,10 @@ export function CollectionUnlockDialog({ collection, onGranted, onCancel, onStat
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   overlay: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)', flex: 1, justifyContent: 'center', padding: spacing.xl },
   container: { maxWidth: 420, width: '100%' },
   name: { color: colors.surface, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   cancel: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, minHeight: minTouchTarget },
   cancelLabel: { color: colors.surface, fontSize: 16, fontWeight: '600' },
-});
+}));

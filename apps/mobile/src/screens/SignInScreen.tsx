@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { JupleBrandMark } from '../components/JupleBrandMark';
+import { colors, themedStyles } from '../theme/tokens';
 
 export function SignInScreen() {
   const { t } = useTranslation();
@@ -30,7 +31,7 @@ export function SignInScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     alignItems: 'center',
@@ -43,11 +44,11 @@ const styles = StyleSheet.create({
   tagline: {
     fontSize: 15,
     textAlign: 'center',
-    color: '#666666',
+    color: colors.textSecondary,
     marginBottom: 32,
   },
   button: {
-    backgroundColor: '#111111',
+    backgroundColor: colors.textPrimary,
     borderRadius: 8,
     paddingVertical: 14,
     paddingHorizontal: 32,
@@ -56,14 +57,14 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonLabel: {
-    color: '#FFFFFF',
+    color: colors.textInverse,
     fontSize: 16,
     fontWeight: '600',
   },
   error: {
     marginTop: 16,
-    color: '#C0392B',
+    color: colors.danger,
     fontSize: 13,
     textAlign: 'center',
   },
-});
+}));

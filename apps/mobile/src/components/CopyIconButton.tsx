@@ -1,9 +1,9 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable } from 'react-native';
 import { CheckIcon } from '../icons/CheckIcon';
 import { CopyIcon } from '../icons/CopyIcon';
-import { colors, minTouchTarget } from '../theme/tokens';
+import { colors, minTouchTarget, themedStyles } from '../theme/tokens';
 
 /** How long the check mark stays after a copy. */
 const COPIED_FEEDBACK_MS = 1500;
@@ -48,7 +48,7 @@ export function CopyIconButton({ text, accessibilityLabel, testID, size = 18 }: 
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   button: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
   pressed: { opacity: 0.6 },
-});
+}));

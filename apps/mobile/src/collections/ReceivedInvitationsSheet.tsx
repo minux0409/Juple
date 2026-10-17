@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { useMessageDialog } from '../components/useMessageDialog';
 import { AppModal } from '../components/AppModal';
 import { useAppToast } from '../components/AppToast';
 import { UserAvatar } from '../components/UserAvatar';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import {
   acceptCollectionInvitation,
   declineCollectionInvitation,
@@ -160,7 +160,7 @@ export function ReceivedInvitationsSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   list: { flexGrow: 0, maxHeight: 420 },
   empty: { color: colors.textSecondary, fontSize: 14, paddingVertical: spacing.lg, textAlign: 'center' },
   card: { backgroundColor: colors.background, borderRadius: radii.lg, marginTop: spacing.sm, padding: spacing.md },
@@ -191,4 +191,4 @@ const styles = StyleSheet.create({
     minHeight: minTouchTarget,
   },
   acceptLabel: { color: colors.surface, fontSize: 15, fontWeight: '700' },
-});
+}));

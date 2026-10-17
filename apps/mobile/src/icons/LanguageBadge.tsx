@@ -1,5 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { SmartphoneIcon } from './SmartphoneIcon';
+import { themedStyles } from '../theme/tokens';
 
 export type LanguageBadgeContent =
   | { readonly kind: 'code'; readonly code: string }
@@ -35,7 +36,7 @@ export function LanguageBadge({ content }: LanguageBadgeProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   badge: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -52,4 +53,4 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-});
+}));

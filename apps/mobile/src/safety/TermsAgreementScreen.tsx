@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppModal } from '../components/AppModal';
 import { legalLinks } from '../config/legalLinks';
 import { ChevronIcon } from '../icons/ChevronIcon';
 import { CheckIcon } from '../icons/CheckIcon';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { JupleBrandMark } from '../components/JupleBrandMark';
 
 type Document = 'terms' | 'privacy';
@@ -207,7 +207,7 @@ function PrivacyDetail() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   screen: { backgroundColor: colors.surface, flex: 1 },
   scroll: { flex: 1 },
   content: { alignSelf: 'center', maxWidth: 560, paddingHorizontal: spacing.xl, paddingBottom: spacing.lg, width: '100%' },
@@ -234,4 +234,4 @@ const styles = StyleSheet.create({
   sectionBody: { color: colors.textPrimary, fontSize: 14, lineHeight: 21, marginTop: spacing.xs },
   fullLink: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget },
   fullLinkLabel: { color: colors.brand, fontSize: 15, fontWeight: '600' },
-});
+}));

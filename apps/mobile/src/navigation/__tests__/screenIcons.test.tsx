@@ -42,7 +42,7 @@ describe('navigation identity: one icon per navigation item', () => {
   it('the Subscription route exists only while the server says the paid program is live (no purchase can be reached before)', () => {
     const stack: string = require('fs').readFileSync(require('path').resolve(__dirname, '../RootStack.tsx'), 'utf8');
     expect(stack).toMatch(/const isSubscriptionProgramLive = entitlement\?\.programEnabled === true;/);
-    expect(stack).toMatch(/\{isSubscriptionProgramLive \? \(\s*<Stack\.Screen component=\{SubscriptionScreen\} name="Subscription"/);
+    expect(stack).toMatch(/\{isSubscriptionProgramLive \? \(\s*<Stack\.Screen component=\{themedScreen\(SubscriptionScreen\)\} name="Subscription"/);
   });
 
   it('every title uses the same icon size, in the brand color, with the title text beside it', () => {

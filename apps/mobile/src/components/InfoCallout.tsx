@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { InfoIcon } from '../icons/InfoIcon';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 const GLYPH_SIZE = 16;
 const SIDE_MARGIN = spacing.lg;
@@ -64,7 +64,7 @@ export function InfoCallout({ accessibilityLabel, message, testID }: {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   // A full 44dp target around a 16dp glyph; the negative margins keep the host row as compact as without it.
   button: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', marginVertical: -10, width: minTouchTarget },
   callout: {
@@ -82,4 +82,4 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   message: { color: colors.textPrimary, fontSize: 14, lineHeight: 20 },
-});
+}));

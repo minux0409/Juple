@@ -1,6 +1,6 @@
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { View, type StyleProp, type ViewStyle } from 'react-native';
 import { CheckIcon } from '../icons/CheckIcon';
-import { colors } from '../theme/tokens';
+import { colors, themedStyles } from '../theme/tokens';
 
 const SIZE = 18;
 
@@ -29,8 +29,8 @@ export function SelectionIndicator({ selected, style, testID }: SelectionIndicat
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   base: { alignItems: 'center', borderRadius: SIZE / 2, height: SIZE, justifyContent: 'center', width: SIZE },
   selected: { backgroundColor: colors.brand, borderColor: colors.surface, borderWidth: 2 },
   unselected: { borderColor: colors.border, borderWidth: 2 },
-});
+}));

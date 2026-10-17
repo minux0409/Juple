@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { BottomSheetModal } from '../components/BottomSheetModal';
@@ -11,7 +11,7 @@ import { useMessageDialog } from '../components/useMessageDialog';
 import { formatCommentTime } from '../comments/formatCommentTime';
 import { CloseIcon } from '../icons/CloseIcon';
 import { subscribeSocialPushEvents } from '../push/pushEvents';
-import { colors, ltrTextStyle, minTouchTarget, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 import { formatJupleId, personLabel } from './api/collaborationApi';
 import {
   approveCollectionJoinRequest,
@@ -282,7 +282,7 @@ function Separator() {
   return <View style={styles.gap} />;
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   titleRow: { marginBottom: spacing.xs },
   title: { color: colors.textPrimary, flex: 1, fontSize: 17, fontWeight: '700' },
   closeButton: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', marginEnd: -spacing.sm, width: minTouchTarget },
@@ -301,4 +301,4 @@ const styles = StyleSheet.create({
   reject: { color: colors.danger },
   approve: { color: colors.brand },
   disabled: { opacity: 0.5 },
-});
+}));

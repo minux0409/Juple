@@ -1,7 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { PlusIcon } from '../icons/PlusIcon';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { emojiOfReaction, QUICK_REACTION_KEYS } from './reactionCatalog';
 
 interface QuickReactionBarProps {
@@ -52,7 +52,7 @@ export function QuickReactionBar({ myReaction, onSelect, onMore }: QuickReaction
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   // Seven equal cells share the row; each stays at least a touch target wide on a narrow screen.
   row: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.xs, paddingVertical: spacing.xs },
   cell: {
@@ -67,4 +67,4 @@ const styles = StyleSheet.create({
   },
   cellMine: { backgroundColor: colors.brandSoft, borderColor: colors.brand },
   emoji: { fontSize: 22 },
-});
+}));

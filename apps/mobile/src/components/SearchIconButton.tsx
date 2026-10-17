@@ -1,6 +1,6 @@
-import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+import { ActivityIndicator, Pressable } from 'react-native';
 import { SearchIcon } from '../icons/SearchIcon';
-import { colors, minTouchTarget, radii } from '../theme/tokens';
+import { colors, minTouchTarget, radii, themedStyles } from '../theme/tokens';
 
 interface SearchIconButtonProps {
   /** What the button does, for assistive technology (e.g. 찾기) - the icon alone says nothing to a screen reader. */
@@ -32,7 +32,7 @@ export function SearchIconButton({ accessibilityLabel, onPress, disabled = false
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   button: {
     alignItems: 'center',
     borderColor: colors.border,
@@ -44,4 +44,4 @@ const styles = StyleSheet.create({
     width: minTouchTarget,
   },
   disabled: { opacity: 0.45 },
-});
+}));

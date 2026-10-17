@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { Animated, Pressable, StyleSheet, Text } from 'react-native';
-import { spacing } from '../theme/tokens';
+import { Animated, Pressable, Text } from 'react-native';
+import { colors, spacing, themedStyles } from '../theme/tokens';
 import { useAnimatedToastBottom } from './useAnimatedToastBottom';
 
 export const UNDO_TOAST_DURATION_MS = 5000;
@@ -18,4 +18,4 @@ export function UndoToast({ message, actionLabel, onUndo, onDismiss, isUndoing, 
   return <Animated.View style={[styles.surface, { bottom }]}><Text style={styles.message}>{message}</Text><Pressable accessibilityRole="button" accessibilityLabel={actionLabel} disabled={isUndoing} onPress={onUndo} style={styles.action}><Text style={styles.actionText}>{actionLabel}</Text></Pressable></Animated.View>;
 }
 
-const styles = StyleSheet.create({ surface: { position: 'absolute', alignSelf: 'center', flexDirection: 'row', alignItems: 'center', backgroundColor: '#1F2937', borderRadius: 14, paddingLeft: 18, paddingRight: 10, paddingVertical: 10, maxWidth: '92%' }, message: { color: '#FFFFFF', fontSize: 14, fontWeight: '600', flexShrink: 1 }, action: { paddingHorizontal: 10, paddingVertical: 4, marginLeft: 8 }, actionText: { color: '#60A5FA', fontSize: 14, fontWeight: '700' } });
+const styles = themedStyles(() => ({ surface: { position: 'absolute', alignSelf: 'center', flexDirection: 'row', alignItems: 'center', backgroundColor: colors.textPrimary, borderRadius: 14, paddingLeft: 18, paddingRight: 10, paddingVertical: 10, maxWidth: '92%' }, message: { color: colors.textInverse, fontSize: 14, fontWeight: '600', flexShrink: 1 }, action: { paddingHorizontal: 10, paddingVertical: 4, marginLeft: 8 }, actionText: { color: '#60A5FA', fontSize: 14, fontWeight: '700' } }));

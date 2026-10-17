@@ -1,6 +1,6 @@
 import type { ComponentType, ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 const ICON_SIZE = 20;
 
@@ -58,7 +58,7 @@ export function ActionMenuDialog({ visible, title, header, actions, cancelLabel,
   </Modal>;
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   overlay: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)', flex: 1, justifyContent: 'center', padding: spacing.xl },
   card: { backgroundColor: colors.surface, borderRadius: radii.lg, minWidth: 260, padding: spacing.md, width: '100%' },
   title: { color: colors.textPrimary, fontSize: 17, fontWeight: '700', marginBottom: spacing.sm },
@@ -70,4 +70,4 @@ const styles = StyleSheet.create({
   cancel: { borderTopColor: colors.divider, borderTopWidth: 1, marginTop: spacing.sm, paddingHorizontal: spacing.md, paddingTop: spacing.md },
   label: { color: colors.textPrimary, fontSize: 16, fontWeight: '600', textAlign: 'center' },
   labelWithIcon: { flex: 1, flexShrink: 1, textAlign: 'auto' },
-});
+}));

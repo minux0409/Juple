@@ -2,7 +2,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Linking, Pressable, Text, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { ActionMenuDialog } from '../components/ActionMenuDialog';
@@ -36,7 +36,8 @@ import {
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
 import { isNameSort, nextDateSort, nextNameSort, useSortPreference } from '../settings/sortPreference';
 import { useViewModePreference } from '../settings/viewModePreference';
-import { colors, minTouchTarget, spacing } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeContext';
+import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 /** Adapts an ItemTrashEntry to SavedLinkRow's expected shape - deletedAtUtc stands in for savedAtUtc (the row's own time display), matching the same display-shape-adapter pattern CollectionDetailsScreen already uses for its own Item list. */
@@ -115,19 +116,7 @@ export function TrashScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: hasEmptyAction
-        ? () => (
-            <Pressable
-              accessibilityLabel={t('trash.emptyA11y')}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: isEmptyingTrash }}
-              disabled={isEmptyingTrash}
-              onPress={() => setIsEmptyTrashConfirmVisible(true)}
-              style={styles.emptyTrashButton}
-              testID="trash-empty-button"
-            >
-              <EmptyTrashIcon color={colors.danger} size={22} />
-            </Pressable>
-          )
+        ? () => <EmptyTrashHeaderButton disabled={isEmptyingTrash} label={t('trash.emptyA11y')} onPress={() => setIsEmptyTrashConfirmVisible(true)} />
         : undefined,
     });
   }, [hasEmptyAction, isEmptyingTrash, navigation, t]);
@@ -437,7 +426,17 @@ export function TrashScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+/** Rendered by the native header, outside the screen's themed wrapper: it reads the theme itself so its colour follows a change. */
+function EmptyTrashHeaderButton({ disabled, label, onPress }: { readonly disabled: boolean; readonly label: string; readonly onPress: () => void }) {
+  useTheme();
+  return (
+    <Pressable accessibilityLabel={label} accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={styles.emptyTrashButton} testID="trash-empty-button">
+      <EmptyTrashIcon color={colors.danger} size={22} />
+    </Pressable>
+  );
+}
+
+const styles = themedStyles(() => ({
   screen: {
     backgroundColor: colors.background,
     flex: 1,
@@ -495,4 +494,4 @@ const styles = StyleSheet.create({
   },
   controlsSpacer: { flex: 1 },
   gridCard: { flexGrow: 1 },
-});
+}));

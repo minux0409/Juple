@@ -1,7 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { UserAvatar } from '../components/UserAvatar';
 import { OwnerCrown } from './OwnerCrown';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 /** One person as a compact tile - the same data whichever screen shows it (Share status, the participants popup). */
 export interface ParticipantTileData {
@@ -68,7 +68,7 @@ export function ParticipantGrid({ tiles, testID }: { readonly tiles: readonly Pa
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -spacing.xs },
   cell: { flexBasis: `${100 / PARTICIPANT_GRID_COLUMNS}%`, maxWidth: `${100 / PARTICIPANT_GRID_COLUMNS}%`, padding: spacing.xs },
   tile: { alignItems: 'center', borderRadius: radii.md, minHeight: minTouchTarget + 36, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
@@ -76,4 +76,4 @@ const styles = StyleSheet.create({
   avatarWrap: { alignItems: 'center', justifyContent: 'center' },
   name: { color: colors.textPrimary, fontSize: 13, fontWeight: '600', marginTop: spacing.xs, maxWidth: '100%', textAlign: 'center' },
   detail: { color: colors.textSecondary, fontSize: 11, marginTop: 1, maxWidth: '100%', textAlign: 'center' },
-});
+}));

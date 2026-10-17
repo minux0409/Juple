@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { Pressable, Text, View } from 'react-native';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { JupleBrandMark } from '../components/JupleBrandMark';
 
 /** The Terms status could not be read. Never a way past the Agreement: the person retries or signs out. */
@@ -20,7 +20,7 @@ export function TermsUnavailable({ onRetry, onSignOut }: { readonly onRetry: () 
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { alignItems: 'center', backgroundColor: colors.surface, flex: 1, justifyContent: 'center', paddingHorizontal: spacing.xl },
   brand: { marginBottom: spacing.xl },
   message: { color: colors.textPrimary, fontSize: 16, textAlign: 'center' },
@@ -28,4 +28,4 @@ const styles = StyleSheet.create({
   retryLabel: { color: colors.surface, fontSize: 16, fontWeight: '700' },
   signOut: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.md, minHeight: minTouchTarget, paddingHorizontal: spacing.xl },
   signOutLabel: { color: colors.textSecondary, fontSize: 15, fontWeight: '600' },
-});
+}));

@@ -5,7 +5,7 @@ import type { AppDictionary } from './appI18n.ts';
  * list, the content). Only features that really exist: 프로필, 언어, 컬렉션 잠금, 구독, 계정, 고객센터 and the deliberate 계정 삭제. 친구 (with its
  * 차단한 사용자 tab) and 삭제 이력 are main destinations of the side bar and are not part of it.
  */
-export type SettingsNavKey = 'profile' | 'language' | 'collectionLock' | 'subscription' | 'account' | 'support' | 'deleteAccount';
+export type SettingsNavKey = 'profile' | 'language' | 'appearance' | 'collectionLock' | 'subscription' | 'account' | 'support' | 'deleteAccount';
 
 export interface SettingsNavItem {
   readonly key: SettingsNavKey;
@@ -20,6 +20,8 @@ export interface SettingsNavItem {
 export const SETTINGS_NAV_ITEMS: readonly SettingsNavItem[] = [
   { key: 'profile', href: '/me', paths: ['/me', '/me/profile'], group: 0 },
   { key: 'language', href: '/me/language', paths: ['/me/language'], group: 0 },
+  // 화면 모드: 시스템 설정 사용 / 라이트 / 다크 - this browser's choice.
+  { key: 'appearance', href: '/me/appearance', paths: ['/me/appearance'], group: 0 },
   { key: 'collectionLock', href: '/me/collection-lock', paths: ['/me/collection-lock'], group: 1 },
   { key: 'subscription', href: '/me/subscription', paths: ['/me/subscription'], group: 2 },
   { key: 'account', href: '/me/account', paths: ['/me/account'], group: 2 },
@@ -50,6 +52,8 @@ export function settingsNavLabel(key: SettingsNavKey, dictionary: AppDictionary)
       return dictionary.profileEdit;
     case 'language':
       return dictionary.languageTitle;
+    case 'appearance':
+      return dictionary.appearanceTitle;
     case 'collectionLock':
       return dictionary.collectionLock;
     case 'subscription':

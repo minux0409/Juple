@@ -1,5 +1,5 @@
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { colors } from '../theme/tokens';
+import { Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { colors, themedStyles } from '../theme/tokens';
 import { formatBadgeCount } from './badgeCount';
 
 /**
@@ -24,7 +24,7 @@ export function CountBadge({ count, style, testID }: { readonly count: number; r
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   badge: {
     alignItems: 'center',
     backgroundColor: colors.danger,
@@ -36,5 +36,5 @@ const styles = StyleSheet.create({
     minWidth: 20,
     paddingHorizontal: 5,
   },
-  text: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
-});
+  text: { color: colors.surface, fontSize: 11, fontWeight: '700' },
+}));

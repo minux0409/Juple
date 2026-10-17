@@ -1,7 +1,7 @@
 import { useRoute, type RouteProp } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { LoadFailureState } from '../components/LoadFailureState';
@@ -9,7 +9,7 @@ import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { getSupportInquiry, type SupportInquiry } from '../support/api/supportInquiryApi';
 import { formatInquiryDateTime, inquiryStatusLabel, inquiryTypeLabel } from '../support/inquiryFormat';
-import { cardShadow, colors, radii, spacing } from '../theme/tokens';
+import { cardShadow, colors, radii, spacing, themedStyles } from '../theme/tokens';
 
 /**
  * 문의 상세: one inquiry in full, readable top to bottom - its type and status, what was asked and when, then the
@@ -105,7 +105,7 @@ export function SupportInquiryDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   loading: { marginTop: spacing.xl },
   content: { alignSelf: 'center', maxWidth: 640, padding: spacing.xl, width: '100%' },
@@ -120,4 +120,4 @@ const styles = StyleSheet.create({
   waiting: { color: colors.textSecondary, fontSize: 15, lineHeight: 23 },
   meta: { color: colors.textSecondary, fontSize: 12, fontWeight: '700', marginTop: spacing.md },
   metaValue: { color: colors.textPrimary, fontSize: 13, marginTop: 2 },
-});
+}));

@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 
 /**
  * The saved-link body's shared geometry - one set of values for Home, History, a Collection (any
@@ -30,7 +30,7 @@ export const LINK_CONTROLS_BOTTOM_GAP = spacing.md;
 /** The small horizontal gap between a header title and its inline count ("최근 저장  3개"). */
 export const TITLE_COUNT_GAP = spacing.sm;
 
-export const savedLinkLayout = StyleSheet.create({
+export const savedLinkLayout = themedStyles(() => ({
   // Passed as SwipeableItemRow's containerStyle (its wrapper needs overflow:'hidden' to clip the
   // revealed swipe actions to the card's rounded shape, so no shadow here - border + surface carry the look).
   card: {
@@ -40,4 +40,4 @@ export const savedLinkLayout = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     marginBottom: SAVED_LINK_CARD_GAP,
   },
-});
+}));

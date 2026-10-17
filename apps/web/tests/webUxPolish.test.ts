@@ -89,7 +89,7 @@ describe('새 컬렉션 dialog: one shell, normal flow, its own tokens', () => {
       assert.doesNotMatch(rule(selector) ?? '', /position:\s*(absolute|fixed)/, selector);
     }
     assert.match(css, /\.toastHost,\s*\.collectionDialog \{\s*--app-background/);
-    assert.match(css, /@media \(prefers-color-scheme: dark\) \{\s*\.shell,\s*\.centered,\s*\.signInPage,\s*\.agreementPage,\s*\.toastHost,\s*\.collectionDialog \{/);
+    assert.match(css, /:global\(html\[data-theme='dark'\]\) \.shell,\s*:global\(html\[data-theme='dark'\]\) \.centered,[\s\S]*?:global\(html\[data-theme='dark'\]\) \.collectionDialog \{/);
     assert.match(rule('.collectionDialog') ?? '', /width: min\(560px, calc\(100vw - 32px\)\)/);
   });
 });

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { AccessibilityInfo, ActivityIndicator, Modal, StyleSheet, Text, View } from 'react-native';
-import { colors, radii, spacing } from '../theme/tokens';
+import { AccessibilityInfo, ActivityIndicator, Modal, Text, View } from 'react-native';
+import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 import { APP_MODAL_BACKDROP } from './AppModal';
 
 interface BlockingProgressOverlayProps {
@@ -42,8 +42,8 @@ export function BlockingProgressOverlay({ visible, message, testID = 'blocking-p
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   backdrop: { alignItems: 'center', backgroundColor: APP_MODAL_BACKDROP, flex: 1, justifyContent: 'center', padding: spacing.xl },
   card: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.lg, gap: spacing.md, maxWidth: 280, paddingHorizontal: spacing.xl, paddingVertical: spacing.xl },
   message: { color: colors.textPrimary, fontSize: 15, fontWeight: '600', textAlign: 'center' },
-});
+}));

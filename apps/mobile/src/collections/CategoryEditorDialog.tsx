@@ -10,7 +10,7 @@ import { KEEP_ICON_IMAGE, pickCollectionIconImage, type CollectionIconImageChang
 import { type CollectionIconKey } from './collectionIcons';
 import { DialogActions } from '../components/DialogActions';
 import { ImageIcon } from '../icons/ImageIcon';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 interface CategoryEditorDialogProps {
@@ -199,7 +199,7 @@ export function CategoryEditorDialog({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   overlay: {
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
@@ -297,4 +297,4 @@ const styles = StyleSheet.create({
   confirmButtonDisabled: {
     opacity: 0.5,
   },
-});
+}));

@@ -9,7 +9,7 @@ import type { OfferUnavailableReason, PurchaseResult, RestoreResult } from '../b
 import { LoadFailureState } from '../components/LoadFailureState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { useMessageDialog } from '../components/useMessageDialog';
-import { cardShadow, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { cardShadow, colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 type OfferState =
   | { readonly kind: 'loading' }
@@ -287,7 +287,7 @@ export function SubscriptionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   content: { alignSelf: 'center', maxWidth: 640, padding: spacing.xl, paddingTop: spacing.lg, width: '100%' },
   card: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg, ...cardShadow },
@@ -312,4 +312,4 @@ const styles = StyleSheet.create({
   secondaryButton: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   secondaryLabel: { color: colors.brand, fontSize: 15, fontWeight: '600', textAlign: 'center' },
   disabledButton: { opacity: 0.5 },
-});
+}));

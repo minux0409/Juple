@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View, type TextLayoutEvent } from 'react-native';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { ActivityIndicator, Pressable, Text, View, type TextLayoutEvent } from 'react-native';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 /** secondary: outlined (취소); destructive / neutral / brand: filled. */
 export type DialogActionTone = 'secondary' | 'destructive' | 'neutral' | 'brand';
@@ -78,7 +78,7 @@ export function DialogActions({ actions }: { readonly actions: readonly DialogAc
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: { flexDirection: 'row', gap: spacing.sm },
   stacked: { flexDirection: 'column' },
   button: {
@@ -97,10 +97,10 @@ const styles = StyleSheet.create({
   label: { fontSize: 16, fontWeight: '600', textAlign: 'center' },
   labelSecondary: { color: colors.textPrimary },
   labelFilled: { color: colors.surface },
-});
+}));
 
-const toneStyles = StyleSheet.create({
+const toneStyles = themedStyles(() => ({
   destructive: { backgroundColor: colors.danger },
   neutral: { backgroundColor: colors.textPrimary },
   brand: { backgroundColor: colors.brand },
-});
+}));

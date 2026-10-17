@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LanguageBadge, type LanguageBadgeContent } from '../icons/LanguageBadge';
 import {
@@ -12,6 +12,7 @@ import {
   type LanguagePreference,
 } from '../i18n/languagePreference';
 import i18n from '../i18n';
+import { colors, themedStyles } from '../theme/tokens';
 
 interface LanguageOption {
   readonly preference: LanguagePreference;
@@ -139,7 +140,7 @@ export function LanguageSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: {
     flex: 1,
   },
@@ -153,7 +154,7 @@ const styles = StyleSheet.create({
   },
   row: {
     alignItems: 'center',
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.divider,
     borderBottomWidth: 1,
     flexDirection: 'row',
     paddingVertical: 16,
@@ -165,13 +166,13 @@ const styles = StyleSheet.create({
     marginEnd: 14,
   },
   label: {
-    color: '#111111',
+    color: colors.textPrimary,
     flex: 1,
     fontSize: 16,
   },
   checkmark: {
-    color: '#111111',
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: '700',
   },
-});
+}));

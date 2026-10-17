@@ -6,7 +6,7 @@ import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { changeCollectionLockPassword, resetCollectionLockPassword } from '../collections/api/collectionLockPasswordApi';
 import { LOCK_PASSWORD_MAX_LENGTH, LOCK_PASSWORD_MIN_LENGTH } from '../collections/CollectionLockDialog';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 export const RECENT_AUTHENTICATION_REQUIRED_CODE = 'recentAuthenticationRequired';
@@ -152,7 +152,7 @@ export function CollectionLockPasswordDialog({ visible, mode, onCancel, onSaved,
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   overlay: {
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
@@ -203,4 +203,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   confirmLabel: { color: colors.surface, fontSize: 15, fontWeight: '700', textAlign: 'center' },
-});
+}));

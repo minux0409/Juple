@@ -1,7 +1,7 @@
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, TextInput, View } from 'react-native';
 import { CloseIcon } from '../icons/CloseIcon';
 import { SearchIcon } from '../icons/SearchIcon';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 interface SearchFieldProps {
   readonly value: string;
@@ -45,7 +45,7 @@ export function SearchField({ value, onChangeText, placeholder, clearLabel, test
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   wrapper: { justifyContent: 'center' },
   input: {
     backgroundColor: colors.surface,
@@ -60,4 +60,4 @@ const styles = StyleSheet.create({
   },
   searchIcon: { alignItems: 'center', bottom: 0, justifyContent: 'center', position: 'absolute', start: spacing.md, top: 0, zIndex: 1 },
   clear: { alignItems: 'center', bottom: 0, end: 0, height: minTouchTarget, justifyContent: 'center', position: 'absolute', top: 0, width: minTouchTarget },
-});
+}));

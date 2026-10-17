@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { SiteIcon } from '../icons/SiteIcon';
 import { resolveSiteInfo } from '../items/resolveSiteInfo';
-import { colors, ltrTextStyle, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, spacing, themedStyles } from '../theme/tokens';
 
 interface SourceRowProps {
   readonly url: string;
@@ -32,7 +32,7 @@ export function SourceRow({ url, trailing }: SourceRowProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -51,4 +51,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-});
+}));

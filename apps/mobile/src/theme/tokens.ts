@@ -1,8 +1,9 @@
 /**
- * Shared spacing/color/radius values used by screens touched by the UI density refactor.
- * Plain constants only - no theming context/provider, not applied retroactively to
- * screens this refactor doesn't otherwise touch.
+ * Shared spacing/radius values and the semantic colour palette (light and dark). Spacing and radii are plain constants; colours are
+ * roles that answer for the theme in force - see `colors` and ThemeContext.
  */
+import { StyleSheet, type ImageStyle, type TextStyle, type ViewStyle } from 'react-native';
+
 export const spacing = {
   xs: 4,
   sm: 8,
@@ -20,28 +21,161 @@ export const radii = {
   xl: 24,
 } as const;
 
-export const colors = {
+/**
+ * The semantic palette. Every screen reads `colors.<role>` - a role (what the colour is FOR), never a hex - and the palette answers for
+ * the theme in force (light or dark, see ThemeContext): `colors` is a live view, so a style factory evaluated after a theme change
+ * (themedStyles) picks the other palette without a single screen naming a theme. Roles map to the Web's CSS tokens
+ * (--app-background, --app-surface, --app-text, --brand, --danger ...).
+ *
+ *  background / surface (card) / surfaceMuted / surfaceRaised (modal, sheet)   textPrimary / textSecondary / textMuted / textInverse
+ *  border (icon stroke, outlines) / inputBorder / divider                       brand / brandSoft / onBrand
+ *  danger / dangerSubtle / warning / warningText / success                      scrim / overlay / inputBackground / placeholder
+ *
+ * `surface` doubles as the label colour on a filled brand / danger control: it is white in Light and the dark card colour in Dark, where
+ * the brand and danger fills are the lighter variants - both pairings keep text contrast above 4.5:1.
+ */
+export type ColorRole =
+  | 'textPrimary'
+  | 'textSecondary'
+  | 'textMuted'
+  | 'textInverse'
+  | 'border'
+  | 'inputBorder'
+  | 'divider'
+  | 'danger'
+  | 'dangerSubtle'
+  | 'warning'
+  | 'warningText'
+  | 'success'
+  | 'surface'
+  | 'surfaceMuted'
+  | 'surfaceRaised'
+  | 'background'
+  | 'brand'
+  | 'brandSoft'
+  | 'onBrand'
+  | 'onOverlay'
+  | 'scrim'
+  | 'overlay'
+  | 'inputBackground'
+  | 'placeholder';
+
+export type ColorScheme = 'light' | 'dark';
+type Palette = Readonly<Record<ColorRole, string>>;
+
+export const lightColors: Palette = {
   textPrimary: '#111111',
   textSecondary: '#666666',
+  /** Muted helper text and disabled labels - still 4.5:1 on the light card. */
+  textMuted: '#6B7280',
+  /** Text on a surface of the opposite polarity (a dark toast in Light). */
+  textInverse: '#FFFFFF',
   /** Icon-stroke color (e.g. an unfilled star) - deliberately NOT used for input/card borders, which use the much lighter `inputBorder` instead. */
   border: '#9A9A9A',
   /** Soft input/card border for the redesigned form fields - barely visible against `surface`, unlike the older, darker `border`. */
   inputBorder: '#DDE4EF',
   divider: '#EDF1F7',
   danger: '#B42318',
+  dangerSubtle: '#FDECEA',
   warning: '#F5A623',
   /** A warning as TEXT or a thin icon on white (신고): a darker amber that stays readable, unlike the fill-only `warning`. */
   warningText: '#9A5B00',
   success: '#0F7A3D',
   surface: '#FFFFFF',
   surfaceMuted: '#F1F4F9',
-  /** Screen-level background - cool, light blue-gray so a white `surface` card reads as clearly lifted off it (this round's full visual redesign, mockup-matched). */
+  surfaceRaised: '#FFFFFF',
+  /** Screen-level background - cool, light blue-gray so a white `surface` card reads as clearly lifted off it. */
   background: '#F7F9FC',
   /** "Juple blue" - the app's primary/CTA color (buttons, selected tab, selected pill). */
   brand: '#3366CC',
   /** Pale brand tint - selected-chip backgrounds. */
   brandSoft: '#E9F0FE',
-} as const;
+  onBrand: '#FFFFFF',
+  /** A label or spinner on the translucent dark layer over a picture (identical in both themes). */
+  onOverlay: '#FFFFFF',
+  scrim: 'rgba(16, 24, 40, 0.45)',
+  overlay: 'rgba(0, 0, 0, 0.35)',
+  inputBackground: '#FFFFFF',
+  placeholder: '#747B87',
+};
+
+export const darkColors: Palette = {
+  textPrimary: '#F2F4F7',
+  textSecondary: '#A9B1BE',
+  textMuted: '#8D95A3',
+  textInverse: '#101318',
+  border: '#6B7482',
+  inputBorder: '#313846',
+  divider: '#262C36',
+  danger: '#FF8A8A',
+  dangerSubtle: '#3A1F22',
+  warning: '#F5A623',
+  warningText: '#F5C26B',
+  success: '#4CC38A',
+  surface: '#181C23',
+  surfaceMuted: '#20252E',
+  surfaceRaised: '#1F242D',
+  background: '#101318',
+  brand: '#7AA2FF',
+  brandSoft: '#1D2A45',
+  onBrand: '#0B1220',
+  onOverlay: '#FFFFFF',
+  scrim: 'rgba(0, 0, 0, 0.62)',
+  overlay: 'rgba(0, 0, 0, 0.5)',
+  inputBackground: '#181C23',
+  placeholder: '#7D8592',
+};
+
+const palettes: Readonly<Record<ColorScheme, Palette>> = { light: lightColors, dark: darkColors };
+let activeScheme: ColorScheme = 'light';
+/** Bumped on every change - themedStyles rebuilds its StyleSheet when it sees a new one. */
+let schemeVersion = 0;
+
+/** Set by ThemeProvider before the tree renders with a new theme (and once at startup). Idempotent. */
+export function setActiveColorScheme(scheme: ColorScheme): void {
+  if (scheme !== activeScheme) {
+    activeScheme = scheme;
+    schemeVersion += 1;
+  }
+}
+
+export function getActiveColorScheme(): ColorScheme {
+  return activeScheme;
+}
+
+/** A read-through view of the active theme's value: property reads, key listing and spread all answer for the theme in force. */
+function liveView<T extends object>(read: () => T): T {
+  return new Proxy({} as T, {
+    get: (_target, key) => (read() as Record<string | symbol, unknown>)[key],
+    has: (_target, key) => key in read(),
+    ownKeys: () => Reflect.ownKeys(read()),
+    getOwnPropertyDescriptor: (_target, key) => {
+      const descriptor = Reflect.getOwnPropertyDescriptor(read(), key);
+      return descriptor ? { ...descriptor, configurable: true } : undefined;
+    },
+  });
+}
+
+export const colors: Palette = liveView(() => palettes[activeScheme]);
+
+/**
+ * StyleSheet.create for a theme: `factory` runs again (once) the first time the styles are read after the theme changed, so a screen's
+ * `colors.surface` is evaluated for the theme in force instead of being frozen at import time. The result is read like any StyleSheet
+ * (`styles.card`); a component re-renders on a theme change (ThemeProvider), which is when it reads the new one.
+ */
+export function themedStyles<T extends { [name: string]: ViewStyle | TextStyle | ImageStyle }>(factory: () => T): T {
+  let builtFor = -1;
+  let built: T = {} as T;
+  const current = (): T => {
+    if (builtFor !== schemeVersion) {
+      built = StyleSheet.create(factory());
+      builtFor = schemeVersion;
+    }
+    return built;
+  };
+  return liveView(current);
+}
+
 
 /**
  * Small fixed palette for category tiles (see CollectionsScreen) - deterministically picked from a
@@ -67,15 +201,26 @@ export const categoryTilePalette = [
  * unselected cell keeps a visible border and a dark-enough label so it reads as tappable, never as
  * disabled.
  */
-export const collectionFilterColors = {
-  selectedBackground: categoryTilePalette[0].background,
-  /** The default blue folder glyph's stroke color - a crisp outline that keeps the soft fill. */
-  selectedBorder: categoryTilePalette[0].icon,
-  selectedText: categoryTilePalette[0].icon,
-  unselectedBackground: '#F1F2F4',
-  unselectedText: '#5F6368',
-  unselectedBorder: '#D9DCE1',
-} as const;
+export const collectionFilterColors = liveView(() =>
+  activeScheme === 'dark'
+    ? {
+        selectedBackground: '#1D2A45',
+        selectedBorder: '#7AA2FF',
+        selectedText: '#9DBBFF',
+        unselectedBackground: '#20252E',
+        unselectedText: '#B4BBC7',
+        unselectedBorder: '#3A4250',
+      }
+    : {
+        selectedBackground: categoryTilePalette[0].background,
+        /** The default blue folder glyph's stroke color - a crisp outline that keeps the soft fill. */
+        selectedBorder: categoryTilePalette[0].icon,
+        selectedText: categoryTilePalette[0].icon,
+        unselectedBackground: '#F1F2F4',
+        unselectedText: '#5F6368',
+        unselectedBorder: '#D9DCE1',
+      },
+);
 
 /**
  * Very soft card elevation (barely-there shadow, matching this round's "그림자는 약하게" - never a

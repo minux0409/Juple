@@ -1231,5 +1231,11 @@
       "refusalTitle": "Quyền từ chối",
       "refusalBody": "Bạn có thể từ chối. Tuy nhiên mục này cần thiết để cung cấp dịch vụ, nên nếu không đồng ý bạn không thể dùng Juple."
     }
+  },
+  "appearance": {
+    "title": "Giao diện",
+    "system": "Dùng cài đặt hệ thống",
+    "light": "Sáng",
+    "dark": "Tối"
   }
 }

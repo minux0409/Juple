@@ -1231,5 +1231,11 @@
       "refusalTitle": "Recht zur Ablehnung",
       "refusalBody": "Du kannst ablehnen. Dieser Punkt ist jedoch für die Bereitstellung des Dienstes erforderlich; ohne Zustimmung kannst du Juple nicht nutzen."
     }
+  },
+  "appearance": {
+    "title": "Darstellung",
+    "system": "Systemeinstellung verwenden",
+    "light": "Hell",
+    "dark": "Dunkel"
   }
 }

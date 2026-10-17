@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTheme } from '../theme/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { AppState, Platform } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
@@ -87,6 +88,7 @@ function useFetchedUpdatePolicy(): PlatformVersionPolicy | null {
  */
 export function AppUpdateGate() {
   const { t } = useTranslation();
+  useTheme(); // outside any navigator: re-render the prompt in place on a theme change
   const { isAuthenticated, userBootstrapStatus, mobileVersionPolicy } = useAuth();
   const [, setAnswered] = useState(0);
   const [storeFailed, setStoreFailed] = useState(false);

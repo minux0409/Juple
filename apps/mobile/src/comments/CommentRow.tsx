@@ -1,10 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { personLabel } from '../collections/api/collaborationApi';
 import { UserAvatar } from '../components/UserAvatar';
 import { CrownIcon } from '../icons/CrownIcon';
 import { HeartIcon } from '../icons/HeartIcon';
-import { colors, minTouchTarget, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 import type { ItemComment } from './commentsApi';
 import { formatCommentTime } from './formatCommentTime';
 import { stripLegacyReplyMention } from './replyMention';
@@ -164,7 +164,7 @@ export function CommentRow({ comment, onLongPress, onOpenProfile, onReply, onTog
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   // No bottom padding: the lower half of 답글 달기's 44dp touch box already is the room before the next comment.
   row: { alignItems: 'flex-start', columnGap: spacing.sm, flexDirection: 'row', paddingTop: spacing.sm - 2 },
   replyIndent: { marginStart: REPLY_INDENT },
@@ -188,4 +188,4 @@ const styles = StyleSheet.create({
   replyLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
   deletedBox: { flex: 1, minHeight: minTouchTarget - 16, justifyContent: 'center' },
   deletedText: { color: colors.textSecondary, fontSize: 13, fontStyle: 'italic' },
-});
+}));

@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { BellIcon } from '../icons/BellIcon';
 import { CheckIcon } from '../icons/CheckIcon';
 import { CloseIcon } from '../icons/CloseIcon';
@@ -8,7 +8,7 @@ import { FolderIcon } from '../icons/FolderIcon';
 import { LinkIcon } from '../icons/LinkIcon';
 import { PeopleIcon } from '../icons/PeopleIcon';
 import { SmileyPlusIcon } from '../icons/SmileyPlusIcon';
-import { colors } from '../theme/tokens';
+import { colors, themedStyles } from '../theme/tokens';
 
 /**
  * A neutral, type-specific glyph in a soft circle - shown where no person may (or can) be shown: an
@@ -62,6 +62,6 @@ function renderGlyph(type: string | null, size: number, color: string) {
   }
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   circle: { alignItems: 'center', backgroundColor: colors.brandSoft, justifyContent: 'center' },
-});
+}));

@@ -1,5 +1,5 @@
-import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
-import { spacing } from '../theme/tokens';
+import { Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { spacing, themedStyles } from '../theme/tokens';
 
 interface CollectionNameLabelProps {
   readonly name: string;
@@ -20,7 +20,7 @@ export function CollectionNameLabel({ name, textStyle, style }: CollectionNameLa
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, minWidth: 0 },
   name: { flexShrink: 1 },
-});
+}));

@@ -1,8 +1,10 @@
 import { useCallback, useContext, useEffect, useRef, useState, createContext, type ComponentRef } from 'react';
-import { Keyboard, Platform, StyleSheet, View } from 'react-native';
+import { Keyboard, Platform, View } from 'react-native';
 import { NotificationToast } from './NotificationToast';
 import { UndoToast } from './UndoToast';
 import { ConfirmDialog } from './ConfirmDialog';
+import { useTheme } from '../theme/ThemeContext';
+import { themedStyles } from '../theme/tokens';
 
 type Toast =
   | { readonly id: number; readonly kind: 'notification'; readonly message: string }
@@ -39,6 +41,7 @@ const missingProvider: AppToastContextValue = {
 const AppToastContext = createContext<AppToastContextValue>(missingProvider);
 
 export function AppToastProvider({ children }: { readonly children: React.ReactNode }) {
+  useTheme(); // outside any navigator: re-render the toast in place on a theme change
   const [toast, setToast] = useState<Toast | null>(null);
   const [bottomOffset, setBottomOffset] = useState(0);
   // The part of the screen's anchor that stays visible ABOVE an open keyboard (e.g. a sheet's own action row that
@@ -143,4 +146,4 @@ export function useAppToast(): AppToastContextValue {
   return useContext(AppToastContext);
 }
 
-const styles = StyleSheet.create({ container: { flex: 1 } });
+const styles = themedStyles(() => ({ container: { flex: 1 } }));

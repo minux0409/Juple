@@ -36,6 +36,11 @@
   --nav-active-indicator: var(--brand);
   --nav-focus-ring: var(--brand);
 
+  /* Text on a filled brand / danger surface, and the dimming layer behind dialogs: light values here, dark in the theme block below. */
+  --on-brand: #ffffff;
+  --on-danger: #ffffff;
+  --scrim: rgba(16, 24, 40, 0.45);
+
   /* A warning that is not an error (신고): readable text on white and a soft line, next to --danger for the destructive ones. */
   --warning-text: #9a5b00;
   --warning-line: #f0d29a;
@@ -110,29 +115,40 @@
   word-break: keep-all;
 }
 
-@media (prefers-color-scheme: dark) {
-  .shell,
-  .centered,
-  .signInPage,
-  .agreementPage,
-  .toastHost,
-  .collectionDialog {
-    --app-background: #101318;
-    --app-surface: #181c23;
-    --app-surface-muted: #20252e;
-    --app-surface-hover: #1d222a;
-    --app-text: #f2f4f7;
-    --app-text-secondary: #a3abb8;
-    --app-text-tertiary: #7d8592;
-    --app-divider: #262c36;
-    --app-border: #2c333e;
-    --brand: #7aa2ff;
-    --brand-soft: #1d2a45;
-    --danger: #ff7b7b;
-    --danger-soft: #3a1f22;
-    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-raised: 0 4px 16px rgba(0, 0, 0, 0.4);
-  }
+/* Dark: the resolved theme (html[data-theme='dark'], set before first paint by lib/themeBootstrap.ts) re-points the same tokens - no component
+   rule names a theme. Surfaces step up from the page (background < surface < raised/muted) instead of being one flat black. */
+:global(html[data-theme='dark']) .shell,
+:global(html[data-theme='dark']) .centered,
+:global(html[data-theme='dark']) .signInPage,
+:global(html[data-theme='dark']) .agreementPage,
+:global(html[data-theme='dark']) .toastHost,
+:global(html[data-theme='dark']) .collectionDialog {
+  --app-background: #101318;
+  --app-surface: #181c23;
+  --app-surface-muted: #20252e;
+  --app-surface-hover: #1d222a;
+  --app-text: #f2f4f7;
+  --app-text-secondary: #a9b1be;
+  --app-text-tertiary: #8d95a3;
+  --app-divider: #262c36;
+  --app-border: #313846;
+  --brand: #7aa2ff;
+  --brand-soft: #1d2a45;
+  --on-brand: #0b1220;
+  --danger: #ff8a8a;
+  --danger-soft: #3a1f22;
+  --on-danger: #2a0a0a;
+  --success: #4cc38a;
+  --warning-text: #f5c26b;
+  --warning-line: #5a4520;
+  --nav-active-bg: #1a2540;
+  --nav-hover-bg: var(--app-surface-hover);
+  --nav-active-indicator: var(--brand);
+  --nav-focus-ring: var(--brand);
+  --scrim: rgba(0, 0, 0, 0.62);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-floating: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 20px rgba(0, 0, 0, 0.4);
+  --shadow-raised: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 /* One focus ring for every interactive element of the app (keyboard only). */
@@ -1123,7 +1139,7 @@ a.imageBody:hover .imageTile img {
   padding: 0 18px;
   border-radius: var(--radius-control);
   background: var(--brand);
-  color: #ffffff;
+  color: var(--on-brand);
   font-weight: 700;
   text-decoration: none;
 }
@@ -1333,7 +1349,7 @@ a.imageBody:hover .imageTile img {
 
 .primaryAction {
   background: var(--brand);
-  color: #ffffff;
+  color: var(--on-brand);
 }
 
 .dangerAction {
@@ -1914,7 +1930,7 @@ a.imageBody:hover .imageTile img {
   padding: 0 6px;
   border-radius: 999px;
   background: var(--brand);
-  color: #ffffff;
+  color: var(--on-brand);
   font-size: 12px;
   line-height: 20px;
   text-align: center;
@@ -1991,7 +2007,7 @@ a.imageBody:hover .imageTile img {
 }
 
 .dialog::backdrop {
-  background: rgba(16, 24, 40, 0.45);
+  background: var(--scrim, rgba(16, 24, 40, 0.45));
 }
 
 .dialogTitle {
@@ -2128,7 +2144,7 @@ a.imageBody:hover .imageTile img {
 }
 
 .panelDialog::backdrop {
-  background: rgba(16, 24, 40, 0.45);
+  background: var(--scrim, rgba(16, 24, 40, 0.45));
 }
 
 .panelHeader {
@@ -2845,7 +2861,7 @@ a.imageBody:hover .imageTile img {
   border: 1.5px solid var(--app-surface);
   border-radius: 10px;
   background: var(--danger);
-  color: #fff;
+  color: var(--on-danger);
   font-size: 11px;
   font-weight: 700;
   line-height: 17px;
@@ -3107,7 +3123,7 @@ a.imageBody:hover .imageTile img {
   padding: 0 5px;
   border-radius: 10px;
   background: var(--danger);
-  color: #fff;
+  color: var(--on-danger);
   font-size: 11px;
   font-weight: 700;
   line-height: 20px;
@@ -3764,7 +3780,7 @@ a.imageBody:hover .imageTile img {
 }
 
 .friendPickerDialog::backdrop {
-  background: rgba(16, 24, 40, 0.45);
+  background: var(--scrim, rgba(16, 24, 40, 0.45));
 }
 
 .friendPickerHeader,
@@ -3826,7 +3842,7 @@ a.imageBody:hover .imageTile img {
   height: 24px;
   border: 2px solid var(--border);
   border-radius: 50%;
-  color: #ffffff;
+  color: var(--on-brand);
   font-size: 14px;
   font-weight: 800;
 }
@@ -5381,7 +5397,7 @@ ul.friendGrid > * + * {
 }
 
 .quickSheet::backdrop {
-  background: rgba(15, 23, 42, 0.45);
+  background: var(--scrim, rgba(15, 23, 42, 0.45));
   animation: quickFade 180ms ease-out;
 }
 
@@ -5787,7 +5803,7 @@ button.reactionChipMine:hover {
 }
 
 .reactionPicker::backdrop {
-  background: rgba(16, 24, 40, 0.45);
+  background: var(--scrim, rgba(16, 24, 40, 0.45));
 }
 
 .reactionPickerPanel {
@@ -6117,7 +6133,7 @@ button.reactionChipMine:hover {
   border: 0;
   border-radius: var(--radius-md);
   background: var(--brand);
-  color: #ffffff;
+  color: var(--on-brand);
   font: inherit;
   font-size: 14px;
   font-weight: 700;
@@ -6641,7 +6657,7 @@ button.reactionChipMine:hover {
 
 .toastError {
   background: var(--danger);
-  color: #ffffff;
+  color: var(--on-danger);
 }
 
 .toastText {
@@ -6743,24 +6759,23 @@ button.reactionChipMine:hover {
     var(--app-background);
 }
 
-@media (prefers-color-scheme: dark) {
-  .shell,
-  .centered,
-  .signInPage,
-  .agreementPage,
-  .toastHost {
-    --brand-gradient-soft: linear-gradient(135deg, rgba(254, 162, 72, 0.16), rgba(253, 97, 107, 0.14) 30%, rgba(241, 51, 197, 0.12) 58%, rgba(103, 81, 252, 0.18) 82%, rgba(81, 161, 253, 0.18));
-    --brand-line: rgba(122, 162, 255, 0.28);
-    --brand-wash: linear-gradient(135deg, rgba(254, 162, 72, 0.1), rgba(253, 97, 107, 0.09) 30%, rgba(241, 51, 197, 0.08) 58%, rgba(103, 81, 252, 0.12) 82%, rgba(81, 161, 253, 0.12));
-  }
-
-  .shell {
-    background:
-      radial-gradient(900px 440px at 100% -8%, rgba(103, 81, 252, 0.14), transparent 62%),
-      radial-gradient(760px 380px at 18% -10%, rgba(253, 97, 107, 0.09), transparent 60%),
-      var(--app-background);
-  }
+:global(html[data-theme='dark']) .shell,
+:global(html[data-theme='dark']) .centered,
+:global(html[data-theme='dark']) .signInPage,
+:global(html[data-theme='dark']) .agreementPage,
+:global(html[data-theme='dark']) .toastHost {
+  --brand-gradient-soft: linear-gradient(135deg, rgba(254, 162, 72, 0.16), rgba(253, 97, 107, 0.14) 30%, rgba(241, 51, 197, 0.12) 58%, rgba(103, 81, 252, 0.18) 82%, rgba(81, 161, 253, 0.18));
+  --brand-line: rgba(122, 162, 255, 0.28);
+  --brand-wash: linear-gradient(135deg, rgba(254, 162, 72, 0.1), rgba(253, 97, 107, 0.09) 30%, rgba(241, 51, 197, 0.08) 58%, rgba(103, 81, 252, 0.12) 82%, rgba(81, 161, 253, 0.12));
 }
+
+:global(html[data-theme='dark']) .shell {
+  background:
+    radial-gradient(900px 440px at 100% -8%, rgba(103, 81, 252, 0.14), transparent 62%),
+    radial-gradient(760px 380px at 18% -10%, rgba(253, 97, 107, 0.09), transparent 60%),
+    var(--app-background);
+}
+
 
 /* side bar: the logotype carries the icon's gradient; the active destination is a soft wash with a thin accent bar */
 .sidebarBrand > span {

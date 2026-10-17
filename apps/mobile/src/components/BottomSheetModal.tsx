@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, useWindowDimensions, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 import { SheetHeader, useSheetDismissGesture } from './sheetDismissGesture';
 
 /** How long the backdrop fade / sheet slide takes - an animation duration, not a wait before showing anything. */
@@ -107,7 +107,7 @@ export function BottomSheetModal({ visible, onClose, children, modalExtras, test
 /** The widest a bottom sheet gets (dp) - on a tablet the sheet stops here, so a grid inside it sizes its columns to this, not the window. */
 export const BOTTOM_SHEET_MAX_WIDTH = 640;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   overlay: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: {
@@ -125,4 +125,4 @@ const styles = StyleSheet.create({
   // Full width (over the sheet's side padding), so the whole header block - edge to edge - is the drag area.
   dragArea: { marginBottom: spacing.sm, marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg },
   content: { flexShrink: 1 },
-});
+}));

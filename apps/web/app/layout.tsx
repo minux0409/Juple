@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { getDictionary } from '../lib/i18n';
+import { THEME_BOOTSTRAP_SCRIPT, THEME_COLOR } from '../lib/theme';
+import { ThemeProvider } from './_components/ThemeProvider';
 import { SITE_SHARE_IMAGE, SITE_URL } from '../lib/siteMetadata';
 import './globals.css';
 
@@ -24,8 +26,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    // data-theme is set by the inline script below before first paint (and updated by ThemeProvider), so the attribute legitimately
+    // differs from the server markup.
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <meta content={THEME_COLOR.light} name="theme-color" />
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }} />
+      </head>
+      <body>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

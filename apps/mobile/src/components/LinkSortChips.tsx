@@ -1,6 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { isNameSort, type LinkSortOption } from '../settings/sortPreference';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 
 interface LinkSortChipsProps {
   /** The sort actually in effect ('newest' | 'oldest' = the date chip with ↓ / ↑, 'title' | 'titleDesc' = the name chip with ↑ / ↓). */
@@ -57,7 +57,7 @@ export function LinkSortChips({ sort, dateLabel, nameLabel, dateNewestA11yLabel,
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: { alignItems: 'center', flexDirection: 'row', flexShrink: 1, gap: spacing.xs },
   chip: {
     borderColor: colors.inputBorder,
@@ -69,4 +69,4 @@ const styles = StyleSheet.create({
   chipSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
   label: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   labelSelected: { color: colors.surface },
-});
+}));

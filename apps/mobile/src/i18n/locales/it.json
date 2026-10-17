@@ -1231,5 +1231,11 @@
       "refusalTitle": "Diritto di rifiuto",
       "refusalBody": "Puoi rifiutare. Tuttavia questo elemento è necessario per fornire il servizio, quindi senza il tuo consenso non puoi usare Juple."
     }
+  },
+  "appearance": {
+    "title": "Aspetto",
+    "system": "Usa impostazione di sistema",
+    "light": "Chiaro",
+    "dark": "Scuro"
   }
 }

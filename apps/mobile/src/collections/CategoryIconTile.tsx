@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, View } from 'react-native';
 import { isCustomCollectionColor, resolveCollectionColorKey, resolveCollectionColorTile, type CollectionColorValue } from './collectionColors';
 import { resolveCollectionIconComponent } from './collectionIcons';
 import { replaceFailedCollectionIconUri, resolveCollectionIconUri } from './collectionIconImageCache';
-import { categoryTilePalette, radii } from '../theme/tokens';
+import { categoryTilePalette, radii, themedStyles } from '../theme/tokens';
 
 interface CategoryIconTileProps {
   /** A Collection's `icon` wire value (see collectionsApi.ts) - unknown/legacy values fall back to Folder, never guessed. */
@@ -95,7 +95,7 @@ export function CategoryIconTile({ icon, collectionId, color, imageUrl, imageVer
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   tile: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -105,4 +105,4 @@ const styles = StyleSheet.create({
     height: '100%',
     width: '100%',
   },
-});
+}));

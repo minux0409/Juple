@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { reauthenticateSameAccount } from '../auth/reauthentication';
 import {
@@ -13,7 +13,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { CollectionLockPasswordDialog, type CollectionLockPasswordDialogMode } from '../settings/CollectionLockPasswordDialog';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 /** Why the user is asked to sign in again: a first setup, or "forgot password". */
 type SignInPurpose = 'setup' | 'forgot';
@@ -168,7 +168,7 @@ export function CollectionLockSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   content: { alignSelf: 'center', gap: spacing.md, maxWidth: 640, padding: spacing.lg, width: '100%' },
   loading: { paddingVertical: spacing.lg },
@@ -190,4 +190,4 @@ const styles = StyleSheet.create({
   help: { color: colors.textSecondary, fontSize: 13 },
   notice: { color: colors.textPrimary, fontSize: 13, fontWeight: '600' },
   error: { color: colors.danger, fontSize: 14 },
-});
+}));

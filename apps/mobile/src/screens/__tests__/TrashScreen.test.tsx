@@ -97,7 +97,15 @@ function openRowPopup(renderer: ReactTestRenderer.ReactTestRenderer, itemId: num
 function findEmptyButton() {
   const calls = mockSetOptions.mock.calls;
   const headerRight = calls.length > 0 ? calls[calls.length - 1][0].headerRight : undefined;
-  return headerRight ? (headerRight() as { props: Record<string, any> }) : undefined;
+  if (!headerRight) {
+    return undefined;
+  }
+  // The header renders it (it is a small component that reads the theme): render it the same way and hand back the button itself.
+  let header!: ReactTestRenderer.ReactTestRenderer;
+  act(() => {
+    header = ReactTestRenderer.create(headerRight() as never);
+  });
+  return header.root.findAll(node => node.props.testID === 'trash-empty-button' && typeof node.props.onPress === 'function')[0] as { props: Record<string, any> };
 }
 
 /** Opens a row's action popup, picks an action, and lets iOS's menu-dismissed hook run. */
@@ -304,8 +312,9 @@ describe('TrashScreen empty trash', () => {
   const progress = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByProps({ testID: 'trash-empty-progress' }).find(node => typeof node.type !== 'string');
 
   async function startEmpty(renderer: ReactTestRenderer.ReactTestRenderer) {
+    const emptyButton = findEmptyButton()!;
     await act(async () => {
-      findEmptyButton()!.props.onPress();
+      emptyButton.props.onPress();
     });
     await act(async () => {
       await getConfirmDialogButton(renderer, i18n.t('common.delete')).props.onPress();

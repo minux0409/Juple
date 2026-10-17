@@ -9,7 +9,7 @@ import { ShareIcon } from '../icons/ShareIcon';
 import { UserIcon } from '../icons/UserIcon';
 import { getHostnameFromUrl } from '../items/savedLinkPrimaryText';
 import { usablePreviewImageUrl } from '../items/usablePreviewImageUrl';
-import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, radii, spacing, themedStyles } from '../theme/tokens';
 import { personLabel } from './api/collaborationApi';
 import type { CollectionItemAdder } from './api/collectionsApi';
 
@@ -185,7 +185,7 @@ export function PendingSubmissionCardSkeleton({ testID }: { readonly testID?: st
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   skeletonLine: { backgroundColor: colors.surfaceMuted, borderRadius: radii.sm, height: 14, marginTop: LINE_GAP },
   skeletonTitle: { width: '80%' },
   skeletonSite: { width: '45%' },
@@ -218,4 +218,4 @@ const styles = StyleSheet.create({
   time: { color: colors.textSecondary, flexShrink: 0, fontSize: 12 },
   // A fixed area at the end: the title flexes and ellipsizes, the icons never wrap onto a row of their own.
   trailing: { alignItems: 'center', flexDirection: 'row', flexShrink: 0 },
-});
+}));

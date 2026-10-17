@@ -2,7 +2,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
@@ -23,7 +23,7 @@ import {
   loadQuickSaveOnSharePreference,
   saveQuickSaveOnSharePreference,
 } from '../settings/quickSaveOnSharePreference';
-import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 /**
  * 내 페이지: a compact profile header (photo, nickname, @Juple ID, 프로필 편집) → one card of rows (언어,
@@ -162,6 +162,18 @@ export function MyPageScreen() {
               <screenIcons.language color={colors.textSecondary} size={18} />
             </View>
             <Text style={styles.settingsRowLabel}>{t('settings.language')}</Text>
+          </Pressable>
+          <View style={styles.settingsRowDivider} />
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('AppearanceSettings')}
+            style={styles.settingsRow}
+            testID="my-appearance"
+          >
+            <View style={styles.settingsRowIcon}>
+              <screenIcons.appearance color={colors.textSecondary} size={18} />
+            </View>
+            <Text style={styles.settingsRowLabel}>{t('appearance.title')}</Text>
           </Pressable>
           <View style={styles.settingsRowDivider} />
           <View style={styles.settingsRow}>
@@ -305,7 +317,7 @@ export function MyPageScreen() {
 
 const AVATAR_SIZE = 60;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: {
     backgroundColor: colors.background,
     flex: 1,
@@ -406,4 +418,4 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 3,
   },
-});
+}));

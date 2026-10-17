@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { KeyIcon } from '../icons/KeyIcon';
 import { LockIcon } from '../icons/LockIcon';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { unlockCollection } from './api/collectionsApi';
 import { unlockSharePassword } from './api/sharePasswordApi';
 import { rememberCollectionUnlock } from './collectionUnlockGrants';
@@ -156,7 +156,7 @@ export function CollectionUnlockPanel({ collectionId, onUnlocked, onGranted, onS
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   card: {
     alignItems: 'stretch',
     alignSelf: 'center',
@@ -227,4 +227,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-});
+}));

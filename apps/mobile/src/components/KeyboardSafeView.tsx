@@ -8,6 +8,7 @@ import {
   type ViewProps,
   type ViewStyle,
 } from 'react-native';
+import { themedStyles } from '../theme/tokens';
 
 interface KeyboardSafeViewProps extends Pick<ViewProps, 'pointerEvents' | 'testID'> {
   /**
@@ -75,7 +76,7 @@ export function KeyboardSafeView({ style, children, enabled = true, pointerEvent
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   outer: { flex: 1 },
   inner: { flex: 1 },
-});
+}));

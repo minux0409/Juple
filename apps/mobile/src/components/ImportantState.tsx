@@ -1,9 +1,9 @@
 import type { ComponentType } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { InfoIcon } from '../icons/InfoIcon';
 import { BrokenLinkIcon } from '../icons/BrokenLinkIcon';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 /**
  * offline: the server could not be reached; loadFailed: it was reached but the load failed. Both are a LOAD FAILURE and
@@ -65,7 +65,7 @@ export function ImportantState({ variant = 'loadFailed', message, title, icon, o
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { alignItems: 'center', alignSelf: 'stretch', gap: spacing.sm, justifyContent: 'center', padding: spacing.xl },
   containerCompact: { gap: spacing.xs, padding: spacing.lg },
   iconCircle: { alignItems: 'center', backgroundColor: colors.brandSoft, borderRadius: 28, height: 56, justifyContent: 'center', width: 56 },
@@ -83,4 +83,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   retryLabel: { color: colors.brand, fontSize: 15, fontWeight: '600', textAlign: 'center' },
-});
+}));

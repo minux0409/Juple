@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { Image, StyleSheet, TextInput, View } from 'react-native';
+import { Image, TextInput, View } from 'react-native';
 import { usablePreviewImageUrl } from '../items/usablePreviewImageUrl';
-import { cardShadow, colors, radii, spacing } from '../theme/tokens';
+import { cardShadow, colors, radii, spacing, themedStyles } from '../theme/tokens';
 
 interface ContentPreviewCardProps {
   readonly previewImageUrl: string | null;
@@ -55,7 +55,7 @@ export function ContentPreviewCard({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   // overflow:hidden so previewImage's top corners actually clip to the card's own borderRadius.
   card: {
     backgroundColor: colors.surface,
@@ -86,4 +86,4 @@ const styles = StyleSheet.create({
     height: 1,
     marginVertical: spacing.sm + 2,
   },
-});
+}));

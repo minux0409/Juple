@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
-import { colors, radii } from '../theme/tokens';
+import { Animated, View } from 'react-native';
+import { colors, radii, themedStyles } from '../theme/tokens';
 
 interface ProgressBarProps {
   /** 0..1 - the real, currently-known fraction of work done. Never advanced by a timer. */
@@ -40,7 +40,7 @@ export function ProgressBar({ progress }: ProgressBarProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   track: {
     backgroundColor: colors.surfaceMuted,
     borderRadius: radii.sm,
@@ -53,4 +53,4 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     height: '100%',
   },
-});
+}));

@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
 import { resolveEffectiveThumbnail } from '../items/resolveEffectiveThumbnailUrl';
 import { imageCacheKey } from '../images/stableImageUri';
 import { useTranslation } from 'react-i18next';
 import { resolveSavedLinkDisplayTitle } from '../items/savedLinkPrimaryText';
-import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, radii, spacing, themedStyles } from '../theme/tokens';
 import { MoreIcon } from '../icons/MoreIcon';
 import { SiteIcon } from '../icons/SiteIcon';
 import { resolveSiteInfo } from '../items/resolveSiteInfo';
@@ -99,7 +99,7 @@ export function SavedLinkRow({
         <ItemRepresentativeThumbnail cacheKey={thumbnail.cacheKey} fallback={<SiteIcon siteId={resolveSiteInfo(item.url).id} size={28} />} imageUrl={thumbnail.url} />
         {isActionInFlight ? (
           <View style={styles.thumbnailOverlay}>
-            <ActivityIndicator color={colors.surface} size="small" />
+            <ActivityIndicator color={colors.onOverlay} size="small" />
           </View>
         ) : null}
       </View>
@@ -128,7 +128,7 @@ export function SavedLinkRow({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -179,4 +179,4 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   trailingAction: { paddingStart: spacing.sm, paddingVertical: spacing.sm },
-});
+}));

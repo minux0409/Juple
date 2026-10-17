@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { PlusIcon } from '../icons/PlusIcon';
 import { StarIcon } from '../icons/StarIcon';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { getCollections, type Collection } from './api/collectionsApi';
 
 /** How many of each kind the one-tap row offers - few on purpose: the rest is the picker. */
@@ -115,7 +115,7 @@ export function QuickCollectionChips({ options, favoriteIds, selectedIds, onTogg
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm },
   chip: {
     alignItems: 'center',
@@ -134,4 +134,4 @@ const styles = StyleSheet.create({
   chipLabel: { color: colors.textPrimary, flexShrink: 1, fontSize: 14, fontWeight: '600' },
   chipLabelSelected: { color: colors.surface },
   disabled: { opacity: 0.5 },
-});
+}));

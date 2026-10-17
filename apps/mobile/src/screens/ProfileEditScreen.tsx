@@ -2,7 +2,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import {
   DISPLAY_NAME_MAX_LENGTH,
@@ -29,7 +29,7 @@ import { EditIcon } from '../icons/EditIcon';
 import { ImageIcon } from '../icons/ImageIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { forgetProfileImage, rememberLocalProfileImage } from '../profile/profileImageCache';
-import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 /** What 저장 will do with the photo: leave it, or upload a newly picked one (removal happens at once, see removePhoto). */
@@ -360,7 +360,7 @@ export function ProfileEditScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   centered: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: spacing.xl },
   content: { alignSelf: 'center', maxWidth: 560, padding: spacing.xl, width: '100%' },
@@ -417,4 +417,4 @@ const styles = StyleSheet.create({
   },
   saveLabel: { color: colors.surface, fontSize: 16, fontWeight: '700' },
   disabled: { opacity: 0.6 },
-});
+}));

@@ -1,8 +1,8 @@
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useLayoutDirection } from '../i18n/layoutDirection';
 import { BellIcon } from '../icons/BellIcon';
 import { ChevronIcon } from '../icons/ChevronIcon';
-import { cardShadow, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { cardShadow, colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 /** Leading bell: 18-20dp, in the row's blue. */
 export const PENDING_ROW_ICON_SIZE = 18;
@@ -45,7 +45,7 @@ export function PendingActionRow({ label, accessibilityLabel, onPress, testID, s
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: {
     alignItems: 'center',
     backgroundColor: colors.brandSoft,
@@ -62,4 +62,4 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   icon: { flexShrink: 0 },
   label: { color: colors.brand, flex: 1, fontSize: 15, fontWeight: '700', minWidth: 0 },
-});
+}));

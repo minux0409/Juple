@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { SmileyPlusIcon } from '../icons/SmileyPlusIcon';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 import { emojiOfReaction, MAX_VISIBLE_REACTION_KINDS, summarizeForCard, type ItemReactions } from './reactionCatalog';
 
 interface ReactionChipsProps {
@@ -102,7 +102,7 @@ export function ReactionChips({ reactions, onToggle, onAdd, alwaysShowAdd = fals
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   // Wraps rather than clips: a long row on a narrow screen goes to a second line.
   row: { alignItems: 'center', columnGap: spacing.xs, flexDirection: 'row', flexWrap: 'wrap', marginTop: 6, rowGap: spacing.xs },
   // Inline (beside the author avatar): one row that never wraps; kinds that do not fit collapse into "+N".
@@ -125,4 +125,4 @@ const styles = StyleSheet.create({
   emoji: { fontSize: 13 },
   count: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
   countMine: { color: colors.brand },
-});
+}));

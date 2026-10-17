@@ -9,7 +9,7 @@ import { UserAvatar } from '../components/UserAvatar';
 import { FriendPickerModal, type FriendUnavailableReason } from '../friends/FriendPickerModal';
 import { CloseIcon } from '../icons/CloseIcon';
 import { ShareIcon } from '../icons/ShareIcon';
-import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { formatJupleId, getCollectionParticipants, lookupJupleId, personLabel } from './api/collaborationApi';
 import { MAX_LINK_SHARE_RECIPIENTS, sendCollectionShareLink } from './api/collectionsApi';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
@@ -399,7 +399,7 @@ export function CollectionLinkShareSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   backdrop: { backgroundColor: 'rgba(0,0,0,0.4)', flex: 1, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: colors.surface,
@@ -480,4 +480,4 @@ const styles = StyleSheet.create({
   },
   primaryLabel: { color: colors.surface, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   disabled: { opacity: 0.5 },
-});
+}));

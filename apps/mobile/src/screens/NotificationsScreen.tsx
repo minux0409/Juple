@@ -2,7 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Image, Pressable, RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, RefreshControl, SectionList, Text, View } from 'react-native';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { ImportantState } from '../components/ImportantState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
@@ -21,7 +21,8 @@ import { NotificationTypeIcon } from '../notifications/NotificationTypeIcon';
 import { openNotification } from '../notifications/openNotification';
 import { useNotificationInbox } from '../notifications/useNotificationInbox';
 import { useLiveRefresh } from '../push/useLiveRefresh';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeContext';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
 
@@ -97,19 +98,7 @@ export function NotificationsScreen({ navigation }: Props) {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: canMarkAllRead
-        ? () => (
-            <Pressable
-              accessibilityRole="button"
-              hitSlop={8}
-              onPress={() => {
-                markAllRead().catch(() => undefined);
-              }}
-              style={styles.headerAction}
-              testID="notifications-mark-all-read"
-            >
-              <Text numberOfLines={1} style={styles.headerActionText}>{t('notifications.markAllRead')}</Text>
-            </Pressable>
-          )
+        ? () => <MarkAllReadHeaderButton label={t('notifications.markAllRead')} onPress={() => { markAllRead().catch(() => undefined); }} />
         : undefined,
     });
   }, [canMarkAllRead, markAllRead, navigation, t]);
@@ -250,7 +239,17 @@ function NotificationRow({ notification, onPress, onDelete }: {
   );
 }
 
-const styles = StyleSheet.create({
+/** Rendered by the native header, outside the screen's themed wrapper: it reads the theme itself so its colours follow a change. */
+function MarkAllReadHeaderButton({ label, onPress }: { readonly label: string; readonly onPress: () => void }) {
+  useTheme();
+  return (
+    <Pressable accessibilityRole="button" hitSlop={8} onPress={onPress} style={styles.headerAction} testID="notifications-mark-all-read">
+      <Text numberOfLines={1} style={styles.headerActionText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+const styles = themedStyles(() => ({
   screen: { backgroundColor: colors.background, flex: 1 },
   centered: { alignItems: 'center', backgroundColor: colors.background, flex: 1, justifyContent: 'center', padding: spacing.xl },
   content: { paddingBottom: spacing.lg },
@@ -278,4 +277,4 @@ const styles = StyleSheet.create({
   meta: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
   thumbnail: { backgroundColor: colors.brandSoft, borderRadius: radii.md, height: THUMBNAIL_SIZE, width: THUMBNAIL_SIZE },
   unreadDot: { backgroundColor: colors.brand, borderRadius: 4, height: 8, width: 8 },
-});
+}));

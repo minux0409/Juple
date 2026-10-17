@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, AppState, Modal, Platform, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, AppState, Modal, Platform, Pressable, Switch, Text, TextInput, View } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
@@ -10,7 +10,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EyeIcon } from '../icons/EyeIcon';
 import { EyeOffIcon } from '../icons/EyeOffIcon';
 import { KeyIcon } from '../icons/KeyIcon';
-import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import {
   getSharePasswordStatus,
   removeSharePassword,
@@ -483,7 +483,7 @@ function SharePasswordDialog({ mode, isSaving, onSubmit, onCancel }: SharePasswo
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   // The Share screen's own compact section card (a light 1px outline), one of its four equal cards.
   card: {
     backgroundColor: colors.surface,
@@ -540,4 +540,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   dialogActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
-});
+}));

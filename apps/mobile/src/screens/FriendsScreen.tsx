@@ -45,7 +45,8 @@ import { UserMinusIcon } from '../icons/UserMinusIcon';
 import { UserIcon } from '../icons/UserIcon';
 import { ensurePushPermissionOnce } from '../push/pushPermissionFlow';
 import { useFocusedPolling, useLiveRefresh } from '../push/useLiveRefresh';
-import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeContext';
+import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { columnBasis, gridListKey, useSavedLinkColumns } from '../layout/responsiveGrid';
 
 const PAGE_LIMIT = 50;
@@ -555,6 +556,7 @@ export function FriendsScreen() {
 /** 친구 추가 - the header's [+], labelled for assistive technology. */
 function FriendsAddHeaderButton({ onPress }: { readonly onPress: () => void }) {
   const { t } = useTranslation();
+  useTheme(); // rendered by the native header, outside the screen's themed wrapper
   return (
     <Pressable
       accessibilityLabel={t('friends.add')}
@@ -722,7 +724,7 @@ function RequestRow({ request, isBusy, onAccept, onDecline, onCancel, onOpenPers
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   headerButton: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
   // The same segmented look as the Share screen's tabs.
@@ -821,4 +823,4 @@ const styles = StyleSheet.create({
   stateBlock: { alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.xl * 2 },
   stateTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '700', textAlign: 'center' },
   stateText: { color: colors.textSecondary, fontSize: 14, textAlign: 'center' },
-});
+}));

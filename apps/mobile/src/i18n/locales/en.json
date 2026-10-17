@@ -1231,5 +1231,11 @@
       "refusalTitle": "Right to refuse",
       "refusalBody": "You may refuse. However, this item is required to provide the service, so you cannot use Juple without agreeing."
     }
+  },
+  "appearance": {
+    "title": "Appearance",
+    "system": "Use system setting",
+    "light": "Light",
+    "dark": "Dark"
   }
 }

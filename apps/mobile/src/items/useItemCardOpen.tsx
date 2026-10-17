@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Keyboard, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Keyboard, Modal, Pressable, Text, View } from 'react-native';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getCollection } from '../collections/api/collectionsApi';
 import { contentGateOf, isSharedWithMe, type CollectionContentGate } from '../collections/collectionAccess';
@@ -10,7 +10,7 @@ import { getItemDetails, type ItemHistoryEntry } from './api/itemsApi';
 import { handOffItemOpenGrant, type ItemOpenContext } from './itemOpenGrant';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
-import { colors, minTouchTarget, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 
 interface PendingOpen {
   readonly itemId: number;
@@ -140,9 +140,9 @@ export function useItemCardOpen(onNavigate: (itemId: number, openContext?: ItemO
   return { open, dialog };
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   overlay: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.45)', flex: 1, justifyContent: 'center', padding: spacing.lg },
   panel: { backgroundColor: colors.surface, borderRadius: 16, maxWidth: 440, overflow: 'hidden', width: '100%' },
   cancel: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, padding: spacing.sm },
   cancelLabel: { color: colors.textSecondary, fontSize: 15 },
-});
+}));

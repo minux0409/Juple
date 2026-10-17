@@ -2,7 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { useMessageDialog } from '../components/useMessageDialog';
 import { legalLinks } from '../config/legalLinks';
@@ -10,7 +10,7 @@ import { ChevronIcon } from '../icons/ChevronIcon';
 import { JupleBrandMark } from '../components/JupleBrandMark';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { getAppInfo } from '../support/appInfo';
-import { cardShadow, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { cardShadow, colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 /**
  * 고객센터: one compact page for getting in touch (the guide itself is 내 페이지 > 도움말) - 문의하기 (the person's own mail app, a safe diagnostic footer, no mail backend), the legal
@@ -81,7 +81,7 @@ function NavigationRow({ label, onPress, testID }: { readonly label: string; rea
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   content: { alignSelf: 'center', maxWidth: 640, padding: spacing.xl, paddingTop: spacing.lg, width: '100%' },
   sectionTitle: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', marginBottom: spacing.sm, marginTop: spacing.xl },
@@ -91,4 +91,4 @@ const styles = StyleSheet.create({
   navLabel: { color: colors.textPrimary, flex: 1, fontSize: 15, fontWeight: '600' },
   appInfo: { padding: spacing.md },
   version: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
-});
+}));

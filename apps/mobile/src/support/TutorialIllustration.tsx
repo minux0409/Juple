@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { resolveCollectionColorTile, type CollectionColorKey } from '../collections/collectionColors';
 import { resolveCollectionIconComponent, type CollectionIconKey } from '../collections/collectionIcons';
 import { ViewModeToggle } from '../components/ViewModeToggle';
@@ -14,7 +14,7 @@ import { PeopleIcon } from '../icons/PeopleIcon';
 import { SearchIcon } from '../icons/SearchIcon';
 import { ShareIcon } from '../icons/ShareIcon';
 import { useLayoutDirection } from '../i18n/layoutDirection';
-import { cardShadow, colors, radii, spacing } from '../theme/tokens';
+import { cardShadow, colors, radii, spacing, themedStyles } from '../theme/tokens';
 import type { TutorialPageDefinition } from './tutorialPages';
 
 /**
@@ -253,7 +253,7 @@ function StartIllustration() {
 
 const TILE = 72;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   frame: { alignItems: 'center', alignSelf: 'center', justifyContent: 'center', maxWidth: 300, minHeight: 168, width: '100%' },
   stack: { alignItems: 'center', rowGap: spacing.sm, width: '100%' },
   card: { alignSelf: 'stretch', backgroundColor: colors.surface, borderColor: colors.inputBorder, borderRadius: radii.lg, borderWidth: 1, padding: spacing.sm, rowGap: spacing.sm, ...cardShadow },
@@ -312,4 +312,4 @@ const styles = StyleSheet.create({
   helpLabel: { color: colors.textPrimary, flex: 1, flexShrink: 1, fontSize: 12, fontWeight: '600' },
   mark: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.xl, justifyContent: 'center', paddingHorizontal: spacing.xl, paddingVertical: spacing.md },
   markText: { color: colors.surface, fontSize: 24, fontWeight: '800', letterSpacing: 0.5, writingDirection: 'ltr' },
-});
+}));

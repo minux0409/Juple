@@ -1,5 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, spacing } from '../theme/tokens';
+import { Text, View } from 'react-native';
+import { colors, spacing, themedStyles } from '../theme/tokens';
 
 interface CenteredEmptyStateProps {
   readonly message: string;
@@ -21,7 +21,7 @@ export function CenteredEmptyState({ message }: CenteredEmptyStateProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     alignItems: 'center',
     flex: 1,
@@ -33,4 +33,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
-});
+}));

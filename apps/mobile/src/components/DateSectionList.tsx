@@ -1,9 +1,9 @@
 import { useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle, type ListViewToken } from 'react-native';
+import { Pressable, Text, View, type StyleProp, type ViewStyle, type ListViewToken } from 'react-native';
 import type { DateSection, DateSectionPage } from '../items/useDateSectionPages';
 import { columnBasis, PHONE_SAVED_LINK_COLUMNS, useSavedLinkColumns, type SavedLinkColumns } from '../layout/responsiveGrid';
-import { colors, minTouchTarget, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 import { dateAccordionStyles } from './DateAccordion';
 import { chunkIntoImageLines, SavedLinkImageRowSkeleton } from './SavedLinkImageTile';
 import { SavedLinkGridCardSkeleton, SavedLinkRowSkeleton } from './SavedLinkSkeleton';
@@ -194,11 +194,11 @@ export function DateSectionErrorRow({ onRetry, testID, retryTestID }: { readonly
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   skeletonRow: { backgroundColor: colors.surface, overflow: 'hidden' },
   gridSkeletonCell: { flexBasis: '50%', maxWidth: '50%', paddingHorizontal: 2 },
   errorRow: { alignItems: 'center', backgroundColor: colors.surface, flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
   errorRowText: { color: colors.textSecondary, flex: 1, fontSize: 14 },
   retryButton: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   retryLabel: { color: colors.brand, fontSize: 14, fontWeight: '700' },
-});
+}));

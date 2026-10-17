@@ -1,8 +1,8 @@
 import { type ElementRef, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { CloseIcon } from '../icons/CloseIcon';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { MAX_COMMENT_LENGTH } from './commentsApi';
 import type { EditTarget, ReplyTarget } from './useItemComments';
 
@@ -142,7 +142,7 @@ export function CommentComposer({ isSending, onSubmit, replyTarget = null, onCan
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   wrapper: { backgroundColor: colors.surface, borderTopColor: colors.divider, borderTopWidth: 1 },
   replyBar: {
     alignItems: 'center',
@@ -184,4 +184,4 @@ const styles = StyleSheet.create({
   },
   sendDisabled: { opacity: 0.4 },
   sendLabel: { color: colors.surface, fontSize: 14, fontWeight: '700' },
-});
+}));

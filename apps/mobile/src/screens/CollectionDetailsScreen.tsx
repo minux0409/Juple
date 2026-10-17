@@ -11,7 +11,6 @@ import {
   Platform,
   Pressable,
   RefreshControl,
-  StyleSheet,
   Text,
   View,
   type StyleProp,
@@ -139,7 +138,7 @@ import { isNameSort, nextDateSort, nextNameSort, useSortPreference } from '../se
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import type { SocialPushEventType } from '../push/pushEvents';
 import { useViewModePreference, type SavedLinkViewMode } from '../settings/viewModePreference';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
@@ -2356,7 +2355,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   unlockOverlay: {
     backgroundColor: 'rgba(0,0,0,0.4)',
     flex: 1,
@@ -2472,7 +2471,7 @@ const styles = StyleSheet.create({
     minWidth: minTouchTarget,
   },
   error: {
-    color: '#B42318',
+    color: colors.danger,
     fontSize: 14,
     marginTop: 12,
   },
@@ -2528,4 +2527,4 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.5,
   },
-});
+}));

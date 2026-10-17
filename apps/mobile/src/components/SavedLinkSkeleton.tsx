@@ -1,5 +1,5 @@
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
-import { colors, radii, spacing } from '../theme/tokens';
+import { useWindowDimensions, View } from 'react-native';
+import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 import { GRID_CARD_PADDING_H } from './savedLinkLayout';
 
 /**
@@ -35,7 +35,7 @@ export function SavedLinkGridCardSkeleton({ testID }: { readonly testID?: string
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -58,4 +58,4 @@ const styles = StyleSheet.create({
   gridImage: { aspectRatio: 1, backgroundColor: colors.surfaceMuted, borderRadius: radii.md + 4 },
   gridTitle: { marginTop: spacing.sm, width: '80%' },
   gridMeta: { marginTop: spacing.xs + 2, width: '45%' },
-});
+}));

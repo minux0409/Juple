@@ -4,6 +4,7 @@ import { CollectionsScreen } from '../screens/CollectionsScreen';
 import { DailyInboxScreen } from '../screens/DailyInboxScreen';
 import { DateHistoryScreen } from '../screens/DateHistoryScreen';
 import { MyPageScreen } from '../screens/MyPageScreen';
+import { themedScreen, useTheme } from '../theme/ThemeContext';
 import { colors, radii, spacing } from '../theme/tokens';
 import { screenIcons } from './screenIcons';
 
@@ -46,6 +47,7 @@ function renderMyPageIcon({ focused }: { focused: boolean }) {
 
 export function MainTabs() {
   const { t } = useTranslation();
+  useTheme();
 
   return (
     <Tab.Navigator
@@ -79,22 +81,22 @@ export function MainTabs() {
       }}
     >
       <Tab.Screen
-        component={DailyInboxScreen}
+        component={themedScreen(DailyInboxScreen)}
         name="Home"
         options={{ tabBarLabel: t('tabs.home'), tabBarIcon: renderHomeIcon }}
       />
       <Tab.Screen
-        component={DateHistoryScreen}
+        component={themedScreen(DateHistoryScreen)}
         name="History"
         options={{ tabBarLabel: t('tabs.history'), tabBarIcon: renderHistoryIcon }}
       />
       <Tab.Screen
-        component={CollectionsScreen}
+        component={themedScreen(CollectionsScreen)}
         name="Collections"
         options={{ tabBarLabel: t('tabs.collections'), tabBarIcon: renderCollectionsIcon }}
       />
       <Tab.Screen
-        component={MyPageScreen}
+        component={themedScreen(MyPageScreen)}
         name="MyPage"
         options={{ tabBarLabel: t('tabs.myPage'), tabBarIcon: renderMyPageIcon }}
       />

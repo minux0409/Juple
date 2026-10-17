@@ -1231,5 +1231,11 @@
       "refusalTitle": "Hak untuk menolak",
       "refusalBody": "Anda dapat menolak. Namun, butir ini diperlukan untuk menyediakan layanan, sehingga tanpa persetujuan Anda tidak dapat menggunakan Juple."
     }
+  },
+  "appearance": {
+    "title": "Tampilan",
+    "system": "Gunakan pengaturan sistem",
+    "light": "Terang",
+    "dark": "Gelap"
   }
 }

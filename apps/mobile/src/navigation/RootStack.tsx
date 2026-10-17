@@ -26,6 +26,8 @@ import { CollectionSharedItemScreen } from '../screens/CollectionSharedItemScree
 import { DeleteAccountScreen } from '../screens/DeleteAccountScreen';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
 import type { ItemOpenContext } from '../items/itemOpenGrant';
+import { themedScreen, useTheme } from '../theme/ThemeContext';
+import { AppearanceSettingsScreen } from '../screens/AppearanceSettingsScreen';
 import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
 import { NewLinkReviewScreen } from '../screens/NewLinkReviewScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
@@ -139,6 +141,8 @@ export type RootStackParamList = {
     destinationUnavailable?: boolean;
   };
   LanguageSettings: undefined;
+  /** 화면 모드: 시스템 설정 사용 / 라이트 / 다크 (this device only). */
+  AppearanceSettings: undefined;
   /** Settings > 컬렉션 잠금: the user's own locked Collections and the passwords this device remembers. */
   CollectionLockSettings: undefined;
   /** 내 페이지 > 프로필 편집: the profile photo and nickname (the Juple ID is shown read-only). */
@@ -220,18 +224,20 @@ export function RootStack() {
   }, [isTermsAccepted]);
 
   const isReady = isTermsAccepted && showMainTabs;
+  // The headers (title, tint, background) are options computed here: reading the theme re-renders them on a change.
+  useTheme();
 
   return (
     <>
       <Stack.Navigator>
         {isReady ? (
           <Stack.Group>
-            <Stack.Screen component={MainTabs} name="MainTabs" options={{ headerShown: false }} />
+            <Stack.Screen component={themedScreen(MainTabs)} name="MainTabs" options={{ headerShown: false }} />
             {/* A bottom half-sheet over the screen it was opened from - never a full page: transparent, no header; the dimmed
                 backdrop fades in while the sheet itself slides up (see ItemDetailsScreen). The system back button (and the
                 sheet's own X / backdrop) close it. */}
             <Stack.Screen
-              component={ItemDetailsScreen}
+              component={themedScreen(ItemDetailsScreen)}
               name="ItemDetails"
               options={{
                 animation: 'fade',
@@ -242,66 +248,71 @@ export function RootStack() {
               }}
             />
             <Stack.Screen
-              component={CollectionDetailsScreen}
+              component={themedScreen(CollectionDetailsScreen)}
               name="CollectionDetails"
               options={{ title: t('nav.collectionDetails'), ...headerTitleWithIcon(screenIcons.collectionDetails, t('nav.collectionDetails')) }}
             />
             <Stack.Screen
-              component={CollectionShareScreen}
+              component={themedScreen(CollectionShareScreen)}
               name="CollectionShare"
               options={{ presentation: 'modal', title: t('nav.collectionShare'), ...headerTitleWithIcon(screenIcons.collectionShare, t('nav.collectionShare')) }}
             />
             <Stack.Screen
-              component={MyCollectionSubmissionsScreen}
+              component={themedScreen(MyCollectionSubmissionsScreen)}
               name="MyCollectionSubmissions"
               options={{ title: t('nav.myCollectionSubmissions'), ...headerTitleWithIcon(screenIcons.link, t('nav.myCollectionSubmissions')) }}
             />
             <Stack.Screen
-              component={FriendsScreen}
+              component={themedScreen(FriendsScreen)}
               name="Friends"
               options={{ title: t('friends.title'), ...headerTitleWithIcon(screenIcons.friends, t('friends.title')) }}
             />
             <Stack.Screen
-              component={NotificationsScreen}
+              component={themedScreen(NotificationsScreen)}
               name="Notifications"
               options={{ title: t('notifications.title'), ...headerTitleWithIcon(screenIcons.notifications, t('notifications.title')) }}
             />
             <Stack.Screen
-              component={CollectionSharedItemScreen}
+              component={themedScreen(CollectionSharedItemScreen)}
               name="CollectionSharedItem"
               options={{ title: t('nav.collectionSharedItem'), ...headerTitleWithIcon(screenIcons.link, t('nav.collectionSharedItem')) }}
             />
             <Stack.Screen
-              component={NewLinkReviewScreen}
+              component={themedScreen(NewLinkReviewScreen)}
               name="NewLinkReview"
               // A dedicated compact full-screen editor (no modal, no bottom sheet): header, compact preview, quick Collections, sticky Save.
               options={{ title: t('item.saveDialogTitle'), ...headerTitleWithIcon(screenIcons.link, t('item.saveDialogTitle')) }}
             />
             <Stack.Screen
-              component={LanguageSettingsScreen}
+              component={themedScreen(LanguageSettingsScreen)}
               name="LanguageSettings"
               options={{ title: t('nav.languageSettings'), ...headerTitleWithIcon(screenIcons.language, t('nav.languageSettings')) }}
             />
             <Stack.Screen
-              component={CollectionLockSettingsScreen}
+              component={themedScreen(AppearanceSettingsScreen)}
+              name="AppearanceSettings"
+              options={{ title: t('appearance.title'), ...headerTitleWithIcon(screenIcons.appearance, t('appearance.title')) }}
+            />
+            <Stack.Screen
+              component={themedScreen(CollectionLockSettingsScreen)}
               name="CollectionLockSettings"
               options={{ title: t('nav.collectionLockSettings'), ...headerTitleWithIcon(screenIcons.collectionLock, t('nav.collectionLockSettings')) }}
             />
-            <Stack.Screen component={TrashScreen} name="Trash" options={{ title: t('nav.trash'), ...headerTitleWithIcon(screenIcons.trash, t('nav.trash')) }} />
-            <Stack.Screen component={HelpGuideScreen} name="HelpGuide" options={{ title: t('guide.title'), ...headerTitleWithIcon(screenIcons.help, t('guide.title')) }} />
-            <Stack.Screen component={HelpGuideSectionScreen} name="HelpGuideSection" options={({ route }) => ({ title: t(`guide.sections.${route.params.sectionId}.title`), ...headerTitleWithIcon(screenIcons.help, t(`guide.sections.${route.params.sectionId}.title`)) })} />
-            <Stack.Screen component={CustomerCenterScreen} name="CustomerCenter" options={{ title: t('customerCenter.title'), ...headerTitleWithIcon(screenIcons.customerCenter, t('customerCenter.title')) }} />
+            <Stack.Screen component={themedScreen(TrashScreen)} name="Trash" options={{ title: t('nav.trash'), ...headerTitleWithIcon(screenIcons.trash, t('nav.trash')) }} />
+            <Stack.Screen component={themedScreen(HelpGuideScreen)} name="HelpGuide" options={{ title: t('guide.title'), ...headerTitleWithIcon(screenIcons.help, t('guide.title')) }} />
+            <Stack.Screen component={themedScreen(HelpGuideSectionScreen)} name="HelpGuideSection" options={({ route }) => ({ title: t(`guide.sections.${route.params.sectionId}.title`), ...headerTitleWithIcon(screenIcons.help, t(`guide.sections.${route.params.sectionId}.title`)) })} />
+            <Stack.Screen component={themedScreen(CustomerCenterScreen)} name="CustomerCenter" options={{ title: t('customerCenter.title'), ...headerTitleWithIcon(screenIcons.customerCenter, t('customerCenter.title')) }} />
             {/* Always registered: an account whose free period ended is sent here to subscribe or restore. Only the My Page ENTRY is limited to internal-test builds. */}
             {isSubscriptionProgramLive ? (
-              <Stack.Screen component={SubscriptionScreen} name="Subscription" options={{ title: t('subscription.title'), ...headerTitleWithIcon(screenIcons.subscription, t('subscription.title')) }} />
+              <Stack.Screen component={themedScreen(SubscriptionScreen)} name="Subscription" options={{ title: t('subscription.title'), ...headerTitleWithIcon(screenIcons.subscription, t('subscription.title')) }} />
             ) : null}
-            <Stack.Screen component={SupportInquiryScreen} name="SupportInquiry" options={{ title: t('inquiry.title'), ...headerTitleWithIcon(screenIcons.customerCenter, t('inquiry.title')) }} />
-            <Stack.Screen component={SupportInquiryDetailScreen} name="SupportInquiryDetail" options={{ title: t('inquiry.detailTitle'), ...headerTitleWithIcon(screenIcons.customerCenter, t('inquiry.detailTitle')) }} />
+            <Stack.Screen component={themedScreen(SupportInquiryScreen)} name="SupportInquiry" options={{ title: t('inquiry.title'), ...headerTitleWithIcon(screenIcons.customerCenter, t('inquiry.title')) }} />
+            <Stack.Screen component={themedScreen(SupportInquiryDetailScreen)} name="SupportInquiryDetail" options={{ title: t('inquiry.detailTitle'), ...headerTitleWithIcon(screenIcons.customerCenter, t('inquiry.detailTitle')) }} />
             {/* Full-screen, no header: its own skip/close and Android back (see TutorialScreen); no swipe-back gesture, so a first run is always recorded. */}
-            <Stack.Screen component={TutorialScreen} name="Tutorial" options={{ animation: 'fade', gestureEnabled: false, headerShown: false, presentation: 'fullScreenModal' }} />
-            <Stack.Screen component={ProfileEditScreen} name="ProfileEdit" options={{ title: t('profile.edit'), ...headerTitleWithIcon(screenIcons.profileEdit, t('profile.edit')) }} />
-            <Stack.Screen component={AccountManagementScreen} name="AccountManagement" options={{ title: t('account.title'), ...headerTitleWithIcon(screenIcons.account, t('account.title')) }} />
-            <Stack.Screen component={DeleteAccountScreen} name="DeleteAccount" options={{ title: t('account.deleteTitle'), ...headerTitleWithIcon(screenIcons.deleteAccount, t('account.deleteTitle')) }} />
+            <Stack.Screen component={themedScreen(TutorialScreen)} name="Tutorial" options={{ animation: 'fade', gestureEnabled: false, headerShown: false, presentation: 'fullScreenModal' }} />
+            <Stack.Screen component={themedScreen(ProfileEditScreen)} name="ProfileEdit" options={{ title: t('profile.edit'), ...headerTitleWithIcon(screenIcons.profileEdit, t('profile.edit')) }} />
+            <Stack.Screen component={themedScreen(AccountManagementScreen)} name="AccountManagement" options={{ title: t('account.title'), ...headerTitleWithIcon(screenIcons.account, t('account.title')) }} />
+            <Stack.Screen component={themedScreen(DeleteAccountScreen)} name="DeleteAccount" options={{ title: t('account.deleteTitle'), ...headerTitleWithIcon(screenIcons.deleteAccount, t('account.deleteTitle')) }} />
           </Stack.Group>
         ) : isTermsRequired ? (
           <Stack.Screen name="TermsAgreement" options={{ headerShown: false, gestureEnabled: false }}>
@@ -319,15 +330,15 @@ export function RootStack() {
           </Stack.Screen>
         ) : isInitializing || isAuthenticated ? (
           <Stack.Screen
-            component={StartupProgressScreen}
+            component={themedScreen(StartupProgressScreen)}
             name="AuthPending"
             options={{ headerShown: false }}
           />
         ) : (
-          <Stack.Screen component={SignInScreen} name="SignIn" options={{ headerShown: false }} />
+          <Stack.Screen component={themedScreen(SignInScreen)} name="SignIn" options={{ headerShown: false }} />
         )}
         <Stack.Screen
-          component={SharedCollectionScreen}
+          component={themedScreen(SharedCollectionScreen)}
           name="SharedCollection"
           options={{ title: t('nav.sharedCollection') }}
         />

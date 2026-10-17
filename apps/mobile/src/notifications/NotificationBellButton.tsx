@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable } from 'react-native';
 import { CountBadge } from '../components/CountBadge';
 import { BellIcon } from '../icons/BellIcon';
-import { colors, minTouchTarget } from '../theme/tokens';
+import { colors, minTouchTarget, themedStyles } from '../theme/tokens';
 import { useUnreadNotificationCount } from './notificationState';
 
 /**
@@ -27,7 +27,7 @@ export function NotificationBellButton({ onPress }: { readonly onPress: () => vo
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   button: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
   badge: { end: 0, position: 'absolute', top: 2 },
-});
+}));

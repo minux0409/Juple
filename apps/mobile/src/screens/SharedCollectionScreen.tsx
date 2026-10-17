@@ -2,7 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
@@ -25,7 +25,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 import { useMessageDialog } from '../components/useMessageDialog';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SharedCollection'>;
 
@@ -372,7 +372,7 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: {
     flex: 1,
   },
@@ -446,8 +446,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   unavailableMessage: {
-    color: '#666666',
+    color: colors.textSecondary,
     fontSize: 14,
     textAlign: 'center',
   },
-});
+}));
