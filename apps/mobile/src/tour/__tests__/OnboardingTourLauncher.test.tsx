@@ -151,3 +151,45 @@ describe('OnboardingTourLauncher - when it starts', () => {
     renderer.unmount();
   });
 });
+
+describe('OnboardingTourLauncher - polling lifecycle', () => {
+  it('stops polling once the tour has started (no further measures)', async () => {
+    profile('JUPLE-1');
+    await mount();
+    await tick();
+    expect(startTour).toHaveBeenCalledTimes(1);
+    const calls = measure.mock.calls.length;
+    await tick(3000);
+    expect(measure.mock.calls.length).toBe(calls);
+  });
+
+  it('never stacks measures: a slow answer is awaited, not queued behind the next tick', async () => {
+    let release!: (value: unknown) => void;
+    measure.mockReturnValue(new Promise(resolve => { release = resolve; }));
+    profile('JUPLE-1');
+    await mount();
+    await tick(3000);
+    expect(measure).toHaveBeenCalledTimes(1);
+    release(null);
+    await tick();
+  });
+
+  it('stops measuring after the give-up time, and after unmount', async () => {
+    measure.mockResolvedValue(null);
+    profile('JUPLE-1');
+    const renderer = await mount();
+    await tick(125_000);
+    const calls = measure.mock.calls.length;
+    await tick(5000);
+    expect(measure.mock.calls.length).toBe(calls);
+
+    const other = await mount();
+    await act(async () => {
+      other.unmount();
+    });
+    const afterUnmount = measure.mock.calls.length;
+    await tick(5000);
+    expect(measure.mock.calls.length).toBe(afterUnmount);
+    renderer.unmount();
+  });
+});

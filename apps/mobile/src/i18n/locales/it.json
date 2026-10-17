@@ -1283,7 +1283,7 @@
       },
       "friends": {
         "title": "Amici",
-        "summary": "Richieste, persone bloccate e raccolte condivise."
+        "summary": "Richieste e raccolte condivise."
       },
       "settings": {
         "title": "Impostazioni",
@@ -1345,11 +1345,11 @@
       },
       "friendsEntry": {
         "title": "Amici",
-        "body": "Qui aggiungi amici, rispondi alle richieste e gestisci le persone bloccate."
+        "body": "Qui aggiungi amici e rispondi alle richieste."
       },
       "friendsTabs": {
         "title": "Quattro schede",
-        "body": "Amici, Richieste ricevute, Richieste inviate e Utenti bloccati hanno ciascuno la propria scheda."
+        "body": "Amici, Richieste ricevute e Richieste inviate hanno ciascuno la propria scheda."
       },
       "friendsShared": {
         "title": "Raccolte condivise",

@@ -197,8 +197,7 @@ describe('Product polish 1: friend actions have icons and keep their labels', ()
     assert.doesNotMatch(friends, /useSafety|onBlocked/);
   });
 
-  it('an existing block can still be released: the 차단한 사용자 tab stays, with no way to block from Friends', () => {
-    assert.match(friends, /\['blocked', dictionary\.safetyBlockedUsers, null\]/);
-    assert.match(friends, /<BlockedUsersPanel \/>/);
+  it('Friends manages friends only: there is no 차단한 사용자 tab and no way to block from it', () => {
+    assert.doesNotMatch(friends, /blocked|Blocked|safetyBlock/);
   });
 });

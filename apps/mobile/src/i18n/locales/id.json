@@ -1283,7 +1283,7 @@
       },
       "friends": {
         "title": "Teman",
-        "summary": "Permintaan, orang yang diblokir, dan koleksi bersama."
+        "summary": "Permintaan dan koleksi bersama."
       },
       "settings": {
         "title": "Pengaturan",
@@ -1345,11 +1345,11 @@
       },
       "friendsEntry": {
         "title": "Teman",
-        "body": "Di sini Anda menambah teman, menjawab permintaan, dan mengelola orang yang diblokir."
+        "body": "Di sini Anda menambah teman dan menjawab permintaan."
       },
       "friendsTabs": {
         "title": "Empat tab",
-        "body": "Teman, Permintaan masuk, Permintaan terkirim, dan Pengguna yang diblokir masing-masing punya tab sendiri."
+        "body": "Teman, Permintaan masuk, dan Permintaan terkirim masing-masing punya tab sendiri."
       },
       "friendsShared": {
         "title": "Koleksi bersama",

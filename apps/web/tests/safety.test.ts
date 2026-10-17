@@ -137,14 +137,10 @@ describe('blocking', () => {
     const provider = source('app/(app)/SafetyProvider.tsx');
     assert.match(provider, /<ConfirmDialog[\s\S]*destructive[\s\S]*dictionary\.safetyBlockMessage/);
     assert.match(provider, /method: 'POST', path: blockPath\(subject\.jupleId\)/);
-    const page = source('app/(app)/me/blocked-users/BlockedUsers.tsx');
-    assert.match(page, /method: 'DELETE', path: blockPath\(user\.jupleId\)/);
-    assert.match(page, /data-unblock/);
-    // The list lives in 친구 (its 차단한 사용자 tab), not in the settings rail; the old address redirects there.
+    // Product decision: Friends no longer shows a 차단한 사용자 tab (data and API stay on the server); the old address lands on Friends.
     assert.doesNotMatch(source('lib/settingsNav.ts'), /blockedUsers/);
-    assert.match(source('app/(app)/me/blocked-users/page.tsx'), /redirect\('\/me\/friends\?tab=blocked'\)/);
-    assert.match(source('app/(app)/me/friends/page.tsx'), /\['blocked', dictionary\.safetyBlockedUsers, null\]/);
-    assert.match(source('app/(app)/me/friends/page.tsx'), /\{tab === 'blocked' \? <BlockedUsersPanel \/> : null\}/);
+    assert.ok(source('app/(app)/me/blocked-users/page.tsx').includes("redirect('/me/friends')"));
+    assert.doesNotMatch(source('app/(app)/me/friends/page.tsx'), /blocked|Blocked/);
   });
 
   it('every safety string exists in every language', () => {

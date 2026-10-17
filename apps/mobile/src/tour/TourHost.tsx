@@ -6,12 +6,12 @@ import { navigationRef } from '../navigation/navigationRef';
 import { cardShadow, colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { cancelTour, endTour, getActiveTour, goToTourStep, subscribeTour, type ActiveTour } from './tourController';
 import { placeCard, sameRect, spotlightFor, TOUR_EDGE, type TourRect, type TourSize } from './tourPlacement';
-import { measureTourTarget } from './tourTargets';
+import { measureTourTarget, subscribeTourTargetLayout } from './tourTargets';
 
 const CARD_MAX_WIDTH = 360;
 const FIND_ATTEMPTS = 20;
 const FIND_INTERVAL_MS = 100;
-const FOLLOW_INTERVAL_MS = 300;
+const SETTLE_MS = 400;
 const FADE_MS = 180;
 
 /**
@@ -30,7 +30,7 @@ export function TourHost() {
 function TourOverlay({ tour }: { readonly tour: ActiveTour }) {
   const { t } = useTranslation();
   useTheme();
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const step = tour.guide.steps[tour.index];
   const total = tour.guide.steps.length;
   const isFirst = tour.index === 0;
@@ -109,28 +109,48 @@ function TourOverlay({ tour }: { readonly tour: ActiveTour }) {
     };
   }, [fade, step]);
 
-  // Follow the target while the step is shown (scrolling, keyboard, rotation, font size).
+  // Follow the target without polling: re-measure only when the target reports a layout change, when the window changes size
+  // (rotation, split screen, font scale) and once shortly after it is first found (late layout of the screen behind). One measure at
+  // a time; a request that arrives while one is running is folded into a single follow-up.
+  const targetId = step.targetId;
+  const found = rect !== null;
   useEffect(() => {
-    const targetId = step.targetId;
-    if (!targetId || !rect) {
+    if (!targetId || !found) {
       return undefined;
     }
     let active = true;
-    const timer = setInterval(() => {
+    let inFlight = false;
+    let again = false;
+    const remeasure = () => {
+      if (inFlight) {
+        again = true;
+        return;
+      }
+      inFlight = true;
       measureContainer();
       measureTourTarget(targetId)
-        .then(found => {
-          if (active && found) {
-            setRect(current => (sameRect(current, found) ? current : found));
+        .then(next => {
+          if (active && next) {
+            setRect(current => (sameRect(current, next) ? current : next));
           }
         })
-        .catch(() => undefined);
-    }, FOLLOW_INTERVAL_MS);
+        .catch(() => undefined)
+        .finally(() => {
+          inFlight = false;
+          if (again && active) {
+            again = false;
+            remeasure();
+          }
+        });
+    };
+    const unsubscribe = subscribeTourTargetLayout(targetId, remeasure);
+    const settle = setTimeout(remeasure, SETTLE_MS);
     return () => {
       active = false;
-      clearInterval(timer);
+      clearTimeout(settle);
+      unsubscribe();
     };
-  }, [measureContainer, rect, step]);
+  }, [measureContainer, targetId, found, windowWidth, windowHeight]);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -189,7 +209,10 @@ function TourOverlay({ tour }: { readonly tour: ActiveTour }) {
       <Animated.View
         accessibilityLiveRegion="polite"
         accessible={false}
-        onLayout={event => setCardSize({ width: event.nativeEvent.layout.width, height: event.nativeEvent.layout.height })}
+        onLayout={event => {
+          const { width, height } = event.nativeEvent.layout;
+          setCardSize(current => (current && Math.abs(current.width - width) < 1 && Math.abs(current.height - height) < 1 ? current : { width, height }));
+        }}
         style={[
           styles.card,
           { maxHeight: Math.max(160, (container?.height ?? 600) - 2 * TOUR_EDGE), width: cardWidth },
@@ -233,7 +256,7 @@ const styles = themedStyles(() => ({
   scrimRight: { right: 0 },
   hole: { position: 'absolute' },
   spotlightRing: { borderColor: colors.brand, borderRadius: radii.md, borderWidth: 2, position: 'absolute' },
-  card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, padding: spacing.lg, position: 'absolute', rowGap: spacing.sm, ...cardShadow, elevation: 8, shadowOpacity: 0.2, shadowRadius: 12 },
+  card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, padding: spacing.lg, position: 'absolute', rowGap: spacing.sm, ...cardShadow, elevation: 4, shadowOpacity: 0.16, shadowRadius: 8 },
   progress: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   textScroll: { flexGrow: 0, flexShrink: 1 },
   title: { color: colors.textPrimary, fontSize: 17, fontWeight: '800' },

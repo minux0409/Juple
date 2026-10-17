@@ -29,7 +29,7 @@ import { SwipeableItemRow } from '../../components/SwipeableItemRow';
 import { colors, radii, spacing } from '../../theme/tokens';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { emitSocialPushEvent } from '../../push/pushEvents';
-import { listBlockedUsers, unblockUser } from '../../safety/safetyApi';
+import { listBlockedUsers } from '../../safety/safetyApi';
 import { jupleIdForLookup } from '../../friends/friendIdentity';
 import {
   acceptFriendRequest,
@@ -181,13 +181,14 @@ async function openAddFromHeader(renderer: Renderer) {
 }
 
 describe('FriendsScreen - tabs', () => {
-  it('opens on 친구 with four tabs (친구 · 받은 요청 · 보낸 요청 · 차단한 사용자), and 받은 요청 carries its count', async () => {
+  it('opens on 친구 with three tabs (친구 · 받은 요청 · 보낸 요청), and 받은 요청 carries its count', async () => {
     const renderer = await renderScreen();
 
     const tabs = renderer.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'tab');
-    expect(tabs.map(tab => tab.props.testID)).toEqual(['friends-tab-friends', 'friends-tab-incoming', 'friends-tab-outgoing', 'friends-tab-blocked']);
+    expect(tabs.map(tab => tab.props.testID)).toEqual(['friends-tab-friends', 'friends-tab-incoming', 'friends-tab-outgoing']);
     expect(byId(renderer, 'friends-tab-friends').props.accessibilityState).toEqual({ selected: true });
-    expect(texts(byId(renderer, 'friends-tabs'))).toEqual(expect.arrayContaining([i18n.t('friends.title'), '받은 요청', '보낸 요청', i18n.t('safety.blockedUsers')]));
+    expect(texts(byId(renderer, 'friends-tabs'))).toEqual(expect.arrayContaining([i18n.t('friends.title'), '받은 요청', '보낸 요청']));
+    expect(texts(byId(renderer, 'friends-tabs'))).not.toContain(i18n.t('safety.blockedUsers'));
     expect(byId(renderer, 'friends-tab-incoming-count').props.children).toBe('1');
     expect(byId(renderer, 'friends-tab-outgoing-count').props.children).toBe('1');
     expect(exists(renderer, 'friend-7')).toBe(true);
@@ -1216,44 +1217,15 @@ describe('FriendsScreen - List / Grid', () => {
   });
 });
 
-describe('FriendsScreen - 차단한 사용자 is a tab of Friends', () => {
-  const blockedUser = { jupleId: 'BLCK2345', displayName: '차단된 사람', blockedAtUtc: '', profileImageUrl: null, profileImageVersion: null };
-
-  it('is the fourth tab; the blocked person is listed there with 차단 해제 and never among the friends', async () => {
-    jest.mocked(listBlockedUsers).mockResolvedValue([blockedUser]);
+describe('FriendsScreen - no 차단한 사용자 tab', () => {
+  it('Friends has no blocked tab, never reads the blocked list, and shows nothing about blocking', async () => {
     const renderer = await renderScreen();
-    expect(['friends', 'incoming', 'outgoing', 'blocked'].every(key => exists(renderer, `friends-tab-${key}`))).toBe(true);
-    // Not fetched, and not shown, until the tab is opened.
+    expect(exists(renderer, 'friends-tab-blocked')).toBe(false);
+    await press(renderer, 'friends-tab-incoming');
+    await press(renderer, 'friends-tab-outgoing');
     expect(listBlockedUsers).not.toHaveBeenCalled();
-    expect(exists(renderer, 'blocked-user-BLCK2345')).toBe(false);
-
-    await press(renderer, 'friends-tab-blocked');
-    expect(listBlockedUsers).toHaveBeenCalledTimes(1);
-    expect(exists(renderer, 'blocked-user-BLCK2345')).toBe(true);
-    expect(texts(renderer)).toContain(i18n.t('safety.unblock'));
-    // The friends list itself holds only friends (the server never returns a blocked person there).
-    expect(jest.mocked(getFriends).mock.results.length).toBeGreaterThan(0);
-  });
-
-  it('차단 해제 removes the row and does not bring a friendship back (no friend request or list change is made)', async () => {
-    jest.mocked(listBlockedUsers).mockResolvedValue([blockedUser]);
-    jest.mocked(unblockUser).mockResolvedValue(undefined);
-    const renderer = await renderScreen();
-    await press(renderer, 'friends-tab-blocked');
-    const friendsCalls = jest.mocked(getFriends).mock.calls.length;
-    await press(renderer, 'unblock-BLCK2345');
-
-    expect(unblockUser).toHaveBeenCalledWith(expect.any(Function), 'BLCK2345');
-    expect(exists(renderer, 'blocked-user-BLCK2345')).toBe(false);
-    expect(sendFriendRequest).not.toHaveBeenCalled();
-    expect(acceptFriendRequest).not.toHaveBeenCalled();
-    expect(jest.mocked(getFriends).mock.calls.length).toBe(friendsCalls);
-  });
-
-  it('an empty list says so', async () => {
-    const renderer = await renderScreen();
-    await press(renderer, 'friends-tab-blocked');
-    expect(exists(renderer, 'blocked-users-empty')).toBe(true);
+    expect(exists(renderer, 'blocked-users-empty')).toBe(false);
+    expect(texts(renderer)).not.toContain(i18n.t('safety.blockedUsers'));
   });
 });
 

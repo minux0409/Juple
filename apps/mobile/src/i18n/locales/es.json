@@ -1283,7 +1283,7 @@
       },
       "friends": {
         "title": "Amigos",
-        "summary": "Solicitudes, personas bloqueadas y colecciones compartidas."
+        "summary": "Solicitudes y colecciones compartidas."
       },
       "settings": {
         "title": "Ajustes",
@@ -1345,11 +1345,11 @@
       },
       "friendsEntry": {
         "title": "Amigos",
-        "body": "Aquí añades amigos, respondes solicitudes y gestionas a las personas bloqueadas."
+        "body": "Aquí añades amigos y respondes solicitudes."
       },
       "friendsTabs": {
         "title": "Cuatro pestañas",
-        "body": "Amigos, Solicitudes recibidas, Solicitudes enviadas y Usuarios bloqueados tienen cada uno su pestaña."
+        "body": "Amigos, Solicitudes recibidas y Solicitudes enviadas tienen cada uno su pestaña."
       },
       "friendsShared": {
         "title": "Colecciones compartidas",

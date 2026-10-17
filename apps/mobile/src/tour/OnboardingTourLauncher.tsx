@@ -60,10 +60,15 @@ export function OnboardingTourLauncher(): null {
       return undefined;
     }
     let active = true;
+    let measuring = false;
     const startedAt = Date.now();
     const timer = setInterval(() => {
       if (startedRef.current || Date.now() - startedAt > GIVE_UP_AFTER_MS) {
         clearInterval(timer);
+        return;
+      }
+      // One measure at a time: a slow native answer never stacks up behind the next tick.
+      if (measuring) {
         return;
       }
       if (pendingShareRef.current || !navigationRef.isReady()) {
@@ -74,15 +79,19 @@ export function OnboardingTourLauncher(): null {
       if (rootState?.routes[rootState.index]?.name !== 'MainTabs') {
         return;
       }
+      measuring = true;
       measureTourTarget(TOUR_TARGETS.homeInput)
         .then(rect => {
+          measuring = false;
           if (active && rect && !startedRef.current && !pendingShareRef.current) {
             startedRef.current = true;
             clearInterval(timer);
             startTour(ONBOARDING_GUIDE_ID, { userKey: pendingUserKey });
           }
         })
-        .catch(() => undefined);
+        .catch(() => {
+          measuring = false;
+        });
     }, CHECK_INTERVAL_MS);
     return () => {
       active = false;

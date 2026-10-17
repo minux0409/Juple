@@ -20,7 +20,6 @@ import { ViewModeToggle } from '../components/ViewModeToggle';
 import { useViewModePreference, type ViewMode } from '../settings/viewModePreference';
 import { UserAvatar } from '../components/UserAvatar';
 import { AddFriendModal, getFriendRequestErrorMessage } from '../friends/AddFriendModal';
-import { BlockedUsersList } from '../friends/BlockedUsersList';
 import { FriendDetailModal } from '../friends/FriendDetailModal';
 import { usePersonProfile } from '../friends/PersonProfileModal';
 import { formatJupleId } from '../collections/api/collaborationApi';
@@ -63,13 +62,13 @@ export const OUTGOING_POLL_INTERVAL_MS = 10_000;
 /** Per visit - after that, Push / focus / returning to the app refresh it. */
 export const OUTGOING_POLL_MAX_MS = 10 * 60_000;
 
-export type FriendsTab = 'friends' | 'incoming' | 'outgoing' | 'blocked';
+export type FriendsTab = 'friends' | 'incoming' | 'outgoing';
 
 /**
  * 친구: an address book of Juple users added by exact Juple ID and mutual consent. Being friends
  * grants nothing - it only makes people easy to find again (e.g. when inviting to a Category).
  *
- * Four tabs over one screen - 친구 | 받은 요청 | 보낸 요청 | 차단한 사용자 - with 친구 추가 as the header's [+]. Each
+ * Three tabs over one screen - 친구 | 받은 요청 | 보낸 요청 - with 친구 추가 as the header's [+]. Each
  * tab keeps what it already loaded: switching tabs never reloads or blanks anything. The data is
  * refreshed on focus, pull-to-refresh, a friend Push, a sent request's short re-check, and after
  * each action (only the part that action changed). An action busies only its own row.
@@ -422,7 +421,6 @@ export function FriendsScreen() {
     { key: 'friends', label: t('friends.title') },
     { key: 'incoming', label: t('friends.tabIncoming'), count: incoming.length, emphasized: true },
     { key: 'outgoing', label: t('friends.tabOutgoing'), count: outgoing.length },
-    { key: 'blocked', label: t('safety.blockedUsers') },
   ];
 
   return (
@@ -457,7 +455,7 @@ export function FriendsScreen() {
         })}
       </View>
 
-      {tab === 'friends' ? friendsList : tab === 'incoming' ? requestList('incoming', incoming) : tab === 'outgoing' ? requestList('outgoing', outgoing) : <BlockedUsersList />}
+      {tab === 'friends' ? friendsList : tab === 'incoming' ? requestList('incoming', incoming) : requestList('outgoing', outgoing)}
 
       <FriendDetailModal
         friend={selected}

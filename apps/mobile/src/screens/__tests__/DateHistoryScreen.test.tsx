@@ -45,6 +45,10 @@ import { Text, TextInput } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const mockNavigate = jest.fn();
+// This suite renders the whole Archive in List, Grid and Image (and at several window sizes) inside single tests; the heaviest take ~5 s on a
+// busy machine, right at Jest's default limit. The allowance is for this file only - the global default is unchanged.
+jest.setTimeout(20000);
+
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: mockNavigate }),
   // Runs once on mount, like a first focus - History's summary load and useToastBottomAnchor.

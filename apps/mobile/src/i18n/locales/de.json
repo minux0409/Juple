@@ -1283,7 +1283,7 @@
       },
       "friends": {
         "title": "Freunde",
-        "summary": "Anfragen, blockierte Personen und gemeinsame Sammlungen."
+        "summary": "Anfragen und gemeinsame Sammlungen."
       },
       "settings": {
         "title": "Einstellungen",
@@ -1345,11 +1345,11 @@
       },
       "friendsEntry": {
         "title": "Freunde",
-        "body": "Hier fügst du Freunde hinzu, beantwortest Anfragen und verwaltest blockierte Personen."
+        "body": "Hier fügst du Freunde hinzu und beantwortest Anfragen."
       },
       "friendsTabs": {
         "title": "Vier Tabs",
-        "body": "Freunde, Erhaltene Anfragen, Gesendete Anfragen und Blockierte Nutzer haben jeweils einen eigenen Tab."
+        "body": "Freunde, Erhaltene Anfragen und Gesendete Anfragen haben jeweils einen eigenen Tab."
       },
       "friendsShared": {
         "title": "Gemeinsame Sammlungen",

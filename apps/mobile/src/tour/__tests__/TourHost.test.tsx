@@ -32,6 +32,7 @@ const TARGETS: Record<string, { x: number; y: number; width: number; height: num
 let registered: [string, HostInstance][] = [];
 
 let backHandlers: (() => boolean)[] = [];
+const hosts: ReactTestRenderer.ReactTestRenderer[] = [];
 
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
@@ -53,6 +54,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => {
     endTour();
+    hosts.splice(0).forEach(host => host.unmount());
   });
   registered.forEach(([id, node]) => unregisterTourTarget(id, node));
   jest.useRealTimers();
@@ -65,6 +67,7 @@ async function renderHost() {
   await act(async () => {
     renderer = ReactTestRenderer.create(<TourHost />);
   });
+  hosts.push(renderer);
   return renderer;
 }
 const flush = async () => {
@@ -268,5 +271,21 @@ describe('TourHost - dark mode', () => {
     // The ring is a border drawn AROUND the target; no node covers the target with a tint.
     const ring = renderer.root.find(node => node.props.testID === 'tour-spotlight');
     expect(flat(ring.props.style).backgroundColor).toBeUndefined();
+  });
+});
+
+describe('TourHost - measuring', () => {
+  it('measures a found target once, plus one settle re-measure - never repeatedly while nothing moves', async () => {
+    jest.useFakeTimers();
+    const node = { measureInWindow: jest.fn((cb: (...n: number[]) => void) => cb(16, 120, 368, 56)) };
+    registerTourTarget('home.input', node as unknown as HostInstance);
+    await renderHost();
+    await act(async () => {
+      startTour('saveLink');
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(10_000);
+    });
+    expect(node.measureInWindow.mock.calls.length).toBeLessThanOrEqual(3);
   });
 });

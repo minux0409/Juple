@@ -8,6 +8,30 @@ import type { TourRect } from './tourPlacement';
  * element cannot silently break a guide. Ids are constants in tourGuides.ts.
  */
 const targets = new Map<string, HostInstance>();
+const layoutListeners = new Map<string, Set<() => void>>();
+
+/**
+ * A marked element reports its own layout changes here (View onLayout), so the tour re-measures only when something actually moved
+ * - it never polls. Returns the unsubscribe function.
+ */
+export function subscribeTourTargetLayout(id: string, listener: () => void): () => void {
+  let set = layoutListeners.get(id);
+  if (!set) {
+    set = new Set();
+    layoutListeners.set(id, set);
+  }
+  set.add(listener);
+  return () => {
+    set.delete(listener);
+    if (set.size === 0) {
+      layoutListeners.delete(id);
+    }
+  };
+}
+
+function notifyTourTargetLayout(id: string): void {
+  layoutListeners.get(id)?.forEach(listener => listener());
+}
 
 export function registerTourTarget(id: string, node: HostInstance): void {
   targets.set(id, node);
@@ -36,8 +60,8 @@ export function measureTourTarget(id: string): Promise<TourRect | null> {
   });
 }
 
-/** Props for the element to mark. `collapsable: false` keeps Android from flattening a layout-only view away (it could not be measured). */
-export function useTourTarget(id: string): { readonly ref: (node: HostInstance | null) => void; readonly collapsable: false } {
+/** Props for the element to mark. `collapsable: false` keeps Android from flattening a layout-only view away (it could not be measured); `onLayout` tells the tour when the element moved or resized. */
+export function useTourTarget(id: string): { readonly ref: (node: HostInstance | null) => void; readonly collapsable: false; readonly onLayout: () => void } {
   const nodeRef = useRef<HostInstance | null>(null);
   const ref = useCallback(
     (node: HostInstance | null) => {
@@ -51,5 +75,6 @@ export function useTourTarget(id: string): { readonly ref: (node: HostInstance |
     },
     [id],
   );
-  return { ref, collapsable: false };
+  const onLayout = useCallback(() => notifyTourTargetLayout(id), [id]);
+  return { ref, collapsable: false, onLayout };
 }

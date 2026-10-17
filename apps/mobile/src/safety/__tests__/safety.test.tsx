@@ -1,6 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { ApiError } from '../../api/ApiError';
-import { BlockedUsersList } from '../../friends/BlockedUsersList';
 import i18n from '../../i18n';
 import { ReportModal } from '../ReportModal';
 import { Text } from 'react-native';
@@ -12,13 +11,11 @@ import {
   blockedInteractionKey,
   getTermsStatus,
   isTermsRequiredError,
-  listBlockedUsers,
   parseBlockedUsers,
   parseTermsStatus,
   reportBody,
   REPORT_REASONS,
   submitReport,
-  unblockUser,
 } from '../safetyApi';
 
 const mockRequest = jest.fn();
@@ -262,42 +259,5 @@ describe('Terms onboarding (the Agreement screen)', () => {
     expect(exists(renderer, 'agreement-error')).toBe(true);
     expect(exists(renderer, 'terms-agreement-screen')).toBe(true);
     expect(exists(renderer, 'home')).toBe(false);
-  });
-});
-
-describe('BlockedUsersList (the 차단한 사용자 tab of Friends)', () => {
-  const blocked = (jupleId: string, displayName: string | null) => ({ jupleId, displayName, blockedAtUtc: '', profileImageUrl: null, profileImageVersion: null });
-
-  async function mount() {
-    let renderer!: ReactTestRenderer.ReactTestRenderer;
-    await act(async () => {
-      renderer = ReactTestRenderer.create(<BlockedUsersList />);
-    });
-    return renderer;
-  }
-
-  it('lists the blocked people and unblocks one', async () => {
-    jest.mocked(listBlockedUsers).mockResolvedValue([blocked('AAAA2222', '철수'), blocked('BBBB3333', null)]);
-    jest.mocked(unblockUser).mockResolvedValue(undefined);
-    const renderer = await mount();
-    expect(exists(renderer, 'blocked-user-AAAA2222')).toBe(true);
-    expect(exists(renderer, 'blocked-user-BBBB3333')).toBe(true);
-
-    await press(renderer, 'unblock-AAAA2222');
-    expect(unblockUser).toHaveBeenCalledWith(expect.any(Function), 'AAAA2222');
-    expect(exists(renderer, 'blocked-user-AAAA2222')).toBe(false);
-    expect(exists(renderer, 'blocked-user-BBBB3333')).toBe(true);
-    // Each row is avatar + name + a labelled 차단 해제 button; the label names the person it acts on.
-    const unblock = renderer.root.findAll(node => node.props.testID === 'unblock-BBBB3333' && typeof node.props.onPress === 'function')[0];
-    expect(unblock.props.accessibilityLabel).toContain(i18n.t('safety.unblock'));
-    expect(unblock.props.accessibilityRole).toBe('button');
-  });
-
-  it('says nobody is blocked, and offers a retry when the list cannot be read', async () => {
-    jest.mocked(listBlockedUsers).mockResolvedValueOnce([]);
-    expect(exists(await mount(), 'blocked-users-empty')).toBe(true);
-
-    jest.mocked(listBlockedUsers).mockRejectedValueOnce(new ApiError('unavailable'));
-    expect(exists(await mount(), 'blocked-users-error')).toBe(true);
   });
 });

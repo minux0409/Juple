@@ -1283,7 +1283,7 @@
       },
       "friends": {
         "title": "Amis",
-        "summary": "Demandes, personnes bloquées et collections partagées."
+        "summary": "Demandes et collections partagées."
       },
       "settings": {
         "title": "Paramètres",
@@ -1345,11 +1345,11 @@
       },
       "friendsEntry": {
         "title": "Amis",
-        "body": "Ajoutez des amis, répondez aux demandes et gérez les personnes bloquées ici."
+        "body": "Ajoutez des amis et répondez aux demandes ici."
       },
       "friendsTabs": {
         "title": "Quatre onglets",
-        "body": "Amis, Demandes reçues, Demandes envoyées et Utilisateurs bloqués ont chacun leur onglet."
+        "body": "Amis, Demandes reçues et Demandes envoyées ont chacun leur onglet."
       },
       "friendsShared": {
         "title": "Collections partagées",

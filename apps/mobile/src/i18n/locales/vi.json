@@ -1283,7 +1283,7 @@
       },
       "friends": {
         "title": "Bạn bè",
-        "summary": "Lời mời, người bị chặn và các bộ sưu tập chung."
+        "summary": "Lời mời và các bộ sưu tập chung."
       },
       "settings": {
         "title": "Cài đặt",
@@ -1345,11 +1345,11 @@
       },
       "friendsEntry": {
         "title": "Bạn bè",
-        "body": "Tại đây bạn thêm bạn bè, trả lời lời mời và quản lý người bị chặn."
+        "body": "Tại đây bạn thêm bạn bè và trả lời lời mời."
       },
       "friendsTabs": {
         "title": "Bốn tab",
-        "body": "Bạn bè, Lời mời nhận được, Lời mời đã gửi và Người dùng bị chặn mỗi mục có một tab riêng."
+        "body": "Bạn bè, Lời mời nhận được và Lời mời đã gửi mỗi mục có một tab riêng."
       },
       "friendsShared": {
         "title": "Bộ sưu tập chung",

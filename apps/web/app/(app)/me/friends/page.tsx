@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { formatJupleId } from '../../../../lib/accountDisplay';
 import { isSessionLost } from '../../../../lib/authSession';
@@ -27,13 +26,12 @@ import { SettingsRowSkeleton } from '../../Skeletons';
 import { Avatar } from '../../Avatar';
 import { Glyph } from '../../Glyph';
 import { CollectionTileView } from '../../collections/CollectionsView';
-import { BlockedUsersPanel } from '../blocked-users/BlockedUsers';
 import { TOUR_TARGETS, tourTarget } from '../../../../lib/tour';
 import { SearchField } from '../../SearchField';
 import { SettingsPage } from '../SettingsPage';
 import styles from '../../app.module.css';
 
-type Tab = 'friends' | 'incoming' | 'outgoing' | 'blocked';
+type Tab = 'friends' | 'incoming' | 'outgoing';
 type FriendsState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | ({ readonly kind: 'loaded' } & PagedState<Friend>);
 type Confirm = { readonly kind: 'remove'; readonly friend: Friend } | { readonly kind: 'decline'; readonly request: FriendRequest } | null;
 
@@ -59,8 +57,7 @@ function friendsPath(query: string, cursor: string | null): string {
  */
 export default function FriendsPage() {
   const { api, dictionary, onSessionLost } = useSignedInApp();
-  // `?tab=blocked` (the old 차단한 사용자 address redirects there) opens the 차단한 사용자 tab.
-  const [tab, setTab] = useState<Tab>(useSearchParams().get('tab') === 'blocked' ? 'blocked' : 'friends');
+  const [tab, setTab] = useState<Tab>('friends');
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [friends, setFriends] = useState<FriendsState>({ kind: 'loading' });
@@ -191,7 +188,6 @@ export default function FriendsPage() {
             ['friends', dictionary.friendsTitle, null],
             ['incoming', dictionary.friendsTabIncoming, incoming.length],
             ['outgoing', dictionary.friendsTabOutgoing, outgoing.length],
-            ['blocked', dictionary.safetyBlockedUsers, null],
           ] as const
         ).map(([key, label, count]) => (
           <button aria-selected={tab === key} className={tab === key ? styles.filterTabSelected : styles.filterTab} key={key} onClick={() => setTab(key)} role="tab" type="button">
@@ -233,7 +229,6 @@ export default function FriendsPage() {
         </>
       ) : null}
 
-      {tab === 'blocked' ? <BlockedUsersPanel /> : null}
 
       {tab === 'incoming' || tab === 'outgoing' ? (
         <>

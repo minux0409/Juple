@@ -1283,7 +1283,7 @@
       },
       "friends": {
         "title": "Arkadaşlar",
-        "summary": "İstekler, engellenen kişiler ve ortak koleksiyonlar."
+        "summary": "İstekler ve ortak koleksiyonlar."
       },
       "settings": {
         "title": "Ayarlar",
@@ -1345,11 +1345,11 @@
       },
       "friendsEntry": {
         "title": "Arkadaşlar",
-        "body": "Burada arkadaş ekler, isteklere yanıt verir ve engellenen kişileri yönetirsiniz."
+        "body": "Burada arkadaş ekler ve isteklere yanıt verirsiniz."
       },
       "friendsTabs": {
         "title": "Dört sekme",
-        "body": "Arkadaşlar, Gelen istekler, Giden istekler ve Engellenen kullanıcılar için ayrı sekmeler vardır."
+        "body": "Arkadaşlar, Gelen istekler ve Giden istekler için ayrı sekmeler vardır."
       },
       "friendsShared": {
         "title": "Ortak koleksiyonlar",

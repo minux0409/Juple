@@ -219,3 +219,32 @@ describe('tour targets - registry', () => {
     expect(await measureTourTarget('audit.empty')).toBeNull();
   });
 });
+
+describe('tour target layout signal (no polling)', () => {
+  it('notifies only the subscribers of that target, and unsubscribes cleanly', () => {
+    const { subscribeTourTargetLayout } = jest.requireActual('../tourTargets');
+    const one = jest.fn();
+    const other = jest.fn();
+    const off = subscribeTourTargetLayout('perf.one', one);
+    subscribeTourTargetLayout('perf.other', other)();
+    function Marked() {
+      const target = useTourTarget('perf.one');
+      return <View {...target} />;
+    }
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = ReactTestRenderer.create(<Marked />);
+    });
+    renderer.root.findByType(View).props.onLayout();
+    expect(one).toHaveBeenCalledTimes(1);
+    expect(other).not.toHaveBeenCalled();
+    off();
+    renderer.root.findByType(View).props.onLayout();
+    expect(one).toHaveBeenCalledTimes(1);
+  });
+
+  it('the tour host has no interval that re-measures targets', () => {
+    const source = fs.readFileSync(path.join(__dirname, '..', 'TourHost.tsx'), 'utf8');
+    expect(source).not.toMatch(/setInterval/);
+  });
+});

@@ -1283,7 +1283,7 @@
       },
       "friends": {
         "title": "Friends",
-        "summary": "Requests, blocked people and shared collections."
+        "summary": "Requests and shared collections."
       },
       "settings": {
         "title": "Settings",
@@ -1345,11 +1345,11 @@
       },
       "friendsEntry": {
         "title": "Friends",
-        "body": "Add friends, answer requests and manage blocked people here."
+        "body": "Add friends and answer requests here."
       },
       "friendsTabs": {
         "title": "Four tabs",
-        "body": "Friends, Received requests, Sent requests and Blocked users each have their own tab."
+        "body": "Friends, Received requests and Sent requests each have their own tab."
       },
       "friendsShared": {
         "title": "Shared collections",
