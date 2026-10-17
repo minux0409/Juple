@@ -6,6 +6,15 @@
 export const MOBILE_STRING_KEYS = {
   // sign-in / shell
   signIn: 'auth.signIn',
+  profileCropTitle: 'profileCrop.title',
+  profileCropHint: 'profileCrop.hint',
+  profileCropNote: 'profileCrop.note',
+  profileCropZoom: 'profileCrop.zoom',
+  profileCropZoomIn: 'profileCrop.zoomIn',
+  profileCropZoomOut: 'profileCrop.zoomOut',
+  profileCropApply: 'profileCrop.apply',
+  profileCropPreview: 'profileCrop.preview',
+  profileCropAreaA11y: 'profileCrop.areaA11y',
   appearanceTitle: 'appearance.title',
   appearanceSystem: 'appearance.system',
   appearanceLight: 'appearance.light',

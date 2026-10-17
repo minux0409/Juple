@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import { launchImageLibrary } from 'react-native-image-picker';
+import { launchImageLibrary, type PhotoQuality } from 'react-native-image-picker';
 import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import {
@@ -30,20 +30,29 @@ export const KEEP_ICON_IMAGE: CollectionIconImageChange = { kind: 'keep' };
 const ICON_IMAGE_MAX_EDGE = 512;
 const ICON_IMAGE_QUALITY = 0.8;
 
+/** A picked photo; width / height are the picker's own, already in the orientation the person sees (EXIF applied), when it reports them. */
+export type PickedImageAsset = CollectionIconImageAsset & { readonly width?: number; readonly height?: number };
+
 export type PickedIconImage =
-  | { readonly kind: 'picked'; readonly asset: CollectionIconImageAsset }
+  | { readonly kind: 'picked'; readonly asset: PickedImageAsset }
   | { readonly kind: 'cancelled' }
   | { readonly kind: 'error'; readonly message: string };
 
-export async function pickCollectionIconImage(t: TFunction): Promise<PickedIconImage> {
+/** A picker call may ask for a larger working copy (a photo that is cropped afterwards needs more pixels than its final size). */
+export interface PickImageOptions {
+  readonly maxEdge?: number;
+  readonly quality?: PhotoQuality;
+}
+
+export async function pickCollectionIconImage(t: TFunction, options: PickImageOptions = {}): Promise<PickedIconImage> {
   try {
     const result = await launchImageLibrary({
       mediaType: 'photo',
       selectionLimit: 1,
       includeBase64: false,
-      maxWidth: ICON_IMAGE_MAX_EDGE,
-      maxHeight: ICON_IMAGE_MAX_EDGE,
-      quality: ICON_IMAGE_QUALITY,
+      maxWidth: options.maxEdge ?? ICON_IMAGE_MAX_EDGE,
+      maxHeight: options.maxEdge ?? ICON_IMAGE_MAX_EDGE,
+      quality: options.quality ?? ICON_IMAGE_QUALITY,
       // HEIC/HEIF becomes a JPEG-compatible file the server accepts (same as Item photos).
       assetRepresentationMode: 'compatible',
     });
@@ -57,7 +66,7 @@ export async function pickCollectionIconImage(t: TFunction): Promise<PickedIconI
         message: result.errorCode === 'permission' ? t('item.errorImagePickerPermission') : t('item.errorImagePickerFallback'),
       };
     }
-    return { kind: 'picked', asset: { uri: asset.uri, type: asset.type, fileName: asset.fileName } };
+    return { kind: 'picked', asset: { uri: asset.uri, type: asset.type, fileName: asset.fileName, width: asset.width, height: asset.height } };
   } catch {
     return { kind: 'error', message: t('item.errorImagePickerFallback') };
   }

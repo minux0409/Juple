@@ -1237,5 +1237,16 @@
     "system": "Sistem ayarını kullan",
     "light": "Açık",
     "dark": "Koyu"
+  },
+  "profileCrop": {
+    "title": "Profil fotoğrafını ayarla",
+    "hint": "İstediğin alanı seçmek için fotoğrafı kaydır ve yakınlaştır.",
+    "note": "Profil fotoğrafı kare olarak kaydedilir ve daire olarak gösterilir.",
+    "zoom": "Yakınlaştırma",
+    "zoomIn": "Yakınlaştır",
+    "zoomOut": "Uzaklaştır",
+    "apply": "Uygula",
+    "preview": "Önizleme",
+    "areaA11y": "Fotoğraf alanı. Yakınlaştırmak veya uzaklaştırmak için yukarı ya da aşağı kaydır."
   }
 }

@@ -1237,5 +1237,16 @@
     "system": "Systemeinstellung verwenden",
     "light": "Hell",
     "dark": "Dunkel"
+  },
+  "profileCrop": {
+    "title": "Profilfoto anpassen",
+    "hint": "Verschiebe und vergrößere das Foto, bis der gewünschte Ausschnitt passt.",
+    "note": "Dein Profilfoto wird quadratisch gespeichert und rund angezeigt.",
+    "zoom": "Zoom",
+    "zoomIn": "Vergrößern",
+    "zoomOut": "Verkleinern",
+    "apply": "Übernehmen",
+    "preview": "Vorschau",
+    "areaA11y": "Fotobereich. Nach oben oder unten wischen, um zu vergrößern oder zu verkleinern."
   }
 }

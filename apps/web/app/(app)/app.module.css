@@ -7917,3 +7917,107 @@ button.reactionChipMine:hover {
 .businessFacts dt {
   overflow-wrap: anywhere;
 }
+
+/* Photo crop dialog: a square viewport the photo is moved under, a circle showing how it will be displayed, a zoom slider and a live preview. */
+.cropBody {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5) var(--space-5);
+}
+
+.cropHint,
+.cropNote {
+  margin: 0;
+  max-width: 320px;
+  color: var(--app-text-secondary);
+  font-size: var(--text-secondary);
+  line-height: 1.5;
+  text-align: center;
+}
+
+.cropNote {
+  font-size: var(--text-caption);
+}
+
+.cropViewport {
+  position: relative;
+  flex: 0 0 auto;
+  width: 240px;
+  height: 240px;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--app-surface-muted);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.cropViewport:active {
+  cursor: grabbing;
+}
+
+.cropViewport:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.cropImage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+  /* the photo itself is never filtered or dimmed in Dark */
+  filter: none;
+  opacity: 1;
+}
+
+/* the circle shows what stays; the corners around it are dimmed */
+.cropMask {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 400px var(--scrim);
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: -2px;
+  pointer-events: none;
+}
+
+.cropControls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  width: 240px;
+  max-width: 100%;
+}
+
+.cropZoom {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  color: var(--app-text-secondary);
+  font-size: var(--text-caption);
+}
+
+.cropZoom input {
+  width: 100%;
+  accent-color: var(--brand);
+}
+
+.cropPreview {
+  flex: 0 0 auto;
+}
+
+.cropPreviewCircle {
+  position: relative;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--app-surface-muted);
+  box-shadow: 0 0 0 1px var(--app-border);
+}

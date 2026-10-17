@@ -267,8 +267,9 @@ describe('UI / parity fix pass', async () => {
     assert.match(image, /onError=\{onError\}/);
     assert.match(image, /setFailedSrcs\(previous => new Set\(previous\)\.add\(shown\)\)/);
     assert.match(image, /if \(!shown \|\| isExpiredMetaPreviewUrl\(shown, mountedAtMs\)\) \{\s*return <>\{fallback\}<\/>;/);
+    // PhotoCropDialog draws the person's own just-picked local file (an object URL) through the crop maths - nothing remote that could break.
     for (const file of readdirSync(new URL('../app/(app)/', import.meta.url), { recursive: true }) as string[]) {
-      if (file.endsWith('.tsx') && !file.endsWith('LinkImage.tsx') && !file.endsWith('CollectionEditor.tsx')) {
+      if (file.endsWith('.tsx') && !file.endsWith('LinkImage.tsx') && !file.endsWith('CollectionEditor.tsx') && !file.endsWith('PhotoCropDialog.tsx')) {
         assert.doesNotMatch(page(file.replaceAll('\\', '/')), /<img\b/, `${file} renders a picture without the fallback`);
       }
     }

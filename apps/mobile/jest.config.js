@@ -30,5 +30,7 @@ module.exports = {
     '^react-native-device-info$': 'react-native-device-info/jest/react-native-device-info-mock',
     // The package's own Jest mock (its native TurboModule does not exist under Jest).
     '^@react-native-clipboard/clipboard$': '@react-native-clipboard/clipboard/jest/clipboard-mock.js',
+    // The photo cropper's native crop (a TurboModule that does not exist under Jest): a stand-in that records the call and answers a file.
+    '^@react-native-community/image-editor$': '<rootDir>/src/images/__mocks__/imageEditor.ts',
   },
 };

@@ -1237,5 +1237,16 @@
     "system": "Usar configuração do sistema",
     "light": "Claro",
     "dark": "Escuro"
+  },
+  "profileCrop": {
+    "title": "Ajustar foto de perfil",
+    "hint": "Mova e amplie a foto para enquadrar a área que quiser.",
+    "note": "A foto de perfil é salva como um quadrado e exibida em círculo.",
+    "zoom": "Zoom",
+    "zoomIn": "Aumentar",
+    "zoomOut": "Diminuir",
+    "apply": "Aplicar",
+    "preview": "Pré-visualização",
+    "areaA11y": "Área da foto. Deslize para cima ou para baixo para aumentar ou diminuir."
   }
 }

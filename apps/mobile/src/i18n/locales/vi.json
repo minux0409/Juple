@@ -1237,5 +1237,16 @@
     "system": "Dùng cài đặt hệ thống",
     "light": "Sáng",
     "dark": "Tối"
+  },
+  "profileCrop": {
+    "title": "Chỉnh ảnh đại diện",
+    "hint": "Di chuyển và phóng to ảnh để chọn vùng bạn muốn.",
+    "note": "Ảnh đại diện được lưu dạng hình vuông và hiển thị dạng hình tròn.",
+    "zoom": "Thu phóng",
+    "zoomIn": "Phóng to",
+    "zoomOut": "Thu nhỏ",
+    "apply": "Áp dụng",
+    "preview": "Xem trước",
+    "areaA11y": "Vùng ảnh. Vuốt lên hoặc xuống để phóng to hoặc thu nhỏ."
   }
 }

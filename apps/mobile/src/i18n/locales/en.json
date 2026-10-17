@@ -1237,5 +1237,16 @@
     "system": "Use system setting",
     "light": "Light",
     "dark": "Dark"
+  },
+  "profileCrop": {
+    "title": "Adjust profile photo",
+    "hint": "Move and zoom the photo to fit the area you want.",
+    "note": "Your profile photo is saved as a square and shown as a circle.",
+    "zoom": "Zoom",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "apply": "Apply",
+    "preview": "Preview",
+    "areaA11y": "Photo area. Swipe up or down to zoom in or out."
   }
 }

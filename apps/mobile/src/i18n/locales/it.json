@@ -1237,5 +1237,16 @@
     "system": "Usa impostazione di sistema",
     "light": "Chiaro",
     "dark": "Scuro"
+  },
+  "profileCrop": {
+    "title": "Regola la foto del profilo",
+    "hint": "Sposta e ingrandisci la foto per inquadrare l’area che vuoi.",
+    "note": "La foto del profilo viene salvata quadrata e mostrata in un cerchio.",
+    "zoom": "Zoom",
+    "zoomIn": "Ingrandisci",
+    "zoomOut": "Riduci",
+    "apply": "Applica",
+    "preview": "Anteprima",
+    "areaA11y": "Area della foto. Scorri su o giù per ingrandire o ridurre."
   }
 }

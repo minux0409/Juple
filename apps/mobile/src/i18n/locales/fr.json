@@ -1237,5 +1237,16 @@
     "system": "Utiliser le réglage du système",
     "light": "Clair",
     "dark": "Sombre"
+  },
+  "profileCrop": {
+    "title": "Ajuster la photo de profil",
+    "hint": "Déplacez et zoomez la photo pour cadrer la zone souhaitée.",
+    "note": "La photo de profil est enregistrée en carré et affichée en cercle.",
+    "zoom": "Zoom",
+    "zoomIn": "Agrandir",
+    "zoomOut": "Réduire",
+    "apply": "Appliquer",
+    "preview": "Aperçu",
+    "areaA11y": "Zone de la photo. Glissez vers le haut ou le bas pour zoomer ou dézoomer."
   }
 }

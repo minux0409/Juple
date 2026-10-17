@@ -121,8 +121,9 @@ describe('프로필 사진 (the mobile flow, the same endpoints)', () => {
   });
 
   it('a picked photo is only previewed until 저장; the nickname goes first, the photo second; a failure keeps the picked photo', () => {
-    assert.match(view, /URL\.createObjectURL\(pickedPhoto\)/);
-    assert.match(view, /URL\.revokeObjectURL/);
+    // the temporary preview URL is made and revoked by the shared hook (file change / unmount), see photoCrop.test.ts
+    assert.match(view, /useObjectUrl\(pickedPhoto\)/);
+    assert.match(source('app/(app)/useObjectUrl.ts'), /URL\.revokeObjectURL/);
     assert.ok(view.indexOf("path: `${PROFILE_PATH}/display-name`") < view.indexOf('path: PROFILE_IMAGE_PATH, body'));
     assert.match(view, /updateProfile\(await api<UserProfile>\(\{ method: 'PUT', path: PROFILE_IMAGE_PATH[\s\S]*?\}\)\);\s*setPickedPhoto\(null\);/);
     assert.match(view, /setError\(profilePhotoErrorMessage\(caught, dictionary\)\)/);

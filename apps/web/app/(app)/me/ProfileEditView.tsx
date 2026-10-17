@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { formatJupleId, PROFILE_PATH, type UserProfile } from '../../../lib/accountDisplay';
 import { isSessionLost } from '../../../lib/authSession';
 import { isUsableProfilePhoto, PROFILE_IMAGE_PATH, PROFILE_PHOTO_ACCEPT, profilePhotoErrorMessage, profilePhotoForm } from '../../../lib/profilePhoto';
@@ -11,6 +11,8 @@ import { LinkImage } from '../LinkImage';
 import { Notice } from '../PageStates';
 import { SettingsPage } from './SettingsPage';
 import { Avatar } from '../Avatar';
+import { PhotoCropDialog } from '../PhotoCropDialog';
+import { useObjectUrl } from '../useObjectUrl';
 import styles from '../app.module.css';
 
 /**
@@ -28,18 +30,12 @@ export function ProfileEditView() {
   const [saved, setSaved] = useState(false);
   // A photo picked here is only previewed (a local object URL) until 저장; nothing is sent before.
   const [pickedPhoto, setPickedPhoto] = useState<File | null>(null);
+  // A chosen file is first fitted in the crop dialog; only its result becomes the picked photo (Cancel changes nothing).
+  const [cropSource, setCropSource] = useState<File | null>(null);
   const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false);
   const [isRemovingPhoto, setIsRemovingPhoto] = useState(false);
   const saving = useRef(false);
-  const pickedUrl = useMemo(() => (pickedPhoto ? URL.createObjectURL(pickedPhoto) : null), [pickedPhoto]);
-  useEffect(
-    () => () => {
-      if (pickedUrl) {
-        URL.revokeObjectURL(pickedUrl);
-      }
-    },
-    [pickedUrl],
-  );
+  const pickedUrl = useObjectUrl(pickedPhoto);
 
   if (!profile) {
     return (
@@ -63,7 +59,7 @@ export function ProfileEditView() {
       return;
     }
     setError(null);
-    setPickedPhoto(file);
+    setCropSource(file);
   };
 
   /** Mobile removePhoto: a picked (unsaved) photo is just dropped; a saved one is deleted on the server right away. */
@@ -143,6 +139,14 @@ export function ProfileEditView() {
 
   return (
     <SettingsPage title={dictionary.profileEdit}>
+      <PhotoCropDialog
+        file={cropSource}
+        onApply={cropped => {
+          setCropSource(null);
+          setPickedPhoto(cropped);
+        }}
+        onCancel={() => setCropSource(null)}
+      />
       <form className={styles.profileEditCard} noValidate onSubmit={save}>
         <div className={styles.profileEditAvatar}>
           {/* The picture itself is a way to change it, too (it is the label of a file input). */}

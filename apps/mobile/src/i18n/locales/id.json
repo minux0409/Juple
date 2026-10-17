@@ -1237,5 +1237,16 @@
     "system": "Gunakan pengaturan sistem",
     "light": "Terang",
     "dark": "Gelap"
+  },
+  "profileCrop": {
+    "title": "Atur foto profil",
+    "hint": "Geser dan perbesar foto agar sesuai area yang Anda inginkan.",
+    "note": "Foto profil disimpan berbentuk persegi dan ditampilkan bulat.",
+    "zoom": "Zoom",
+    "zoomIn": "Perbesar",
+    "zoomOut": "Perkecil",
+    "apply": "Terapkan",
+    "preview": "Pratinjau",
+    "areaA11y": "Area foto. Geser ke atas atau bawah untuk memperbesar atau memperkecil."
   }
 }

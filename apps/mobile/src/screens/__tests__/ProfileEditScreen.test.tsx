@@ -10,6 +10,8 @@ import { AppToastProvider } from '../../components/AppToast';
 import { CheckIcon } from '../../icons/CheckIcon';
 import { CopyIcon } from '../../icons/CopyIcon';
 import { ProfileEditScreen } from '../ProfileEditScreen';
+import ImageEditor from '@react-native-community/image-editor';
+import { Modal } from 'react-native';
 
 jest.mock('../../api/profileApi', () => ({
   ...jest.requireActual('../../api/profileApi'),
@@ -27,6 +29,7 @@ jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ goBack: mockGoBack }),
 }));
 jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
 }));
 
@@ -83,6 +86,11 @@ async function choosePhotoAction(renderer: ReactTestRenderer.ReactTestRenderer, 
   await act(async () => row.props.onPress());
   expect(photoMenu(renderer).props.visible).toBe(false);
   await act(async () => photoMenu(renderer).props.onDismiss());
+}
+
+/** The photo is now in the cropper (a 1200 x 900 picture): press 적용. */
+async function applyCrop(renderer: ReactTestRenderer.ReactTestRenderer) {
+  await act(async () => pressable(renderer, 'photo-cropper-apply').props.onPress());
 }
 
 /** 사진 삭제 → the "프로필 사진을 삭제할까요?" confirmation's 삭제. */
@@ -255,11 +263,15 @@ describe('ProfileEditScreen', () => {
     const renderer = await renderScreen();
 
     await choosePhotoAction(renderer, '사진 변경');
-    expect(byTestId(renderer, 'user-avatar-image').findByType(Image).props.source.uri).toBe('file:///new.jpg');
+    // The picked photo opens the cropper; nothing is previewed or sent until it is applied.
+    expect(renderer.root.findAll(node => node.props.testID === 'photo-cropper').length).toBeGreaterThan(0);
+    expect(setMyProfileImage).not.toHaveBeenCalled();
+    await applyCrop(renderer);
+    expect(byTestId(renderer, 'user-avatar-image').findByType(Image).props.source.uri).toBe('file:///cache/cropped.jpg');
     expect(setMyProfileImage).not.toHaveBeenCalled();
 
     await press(renderer, 'profile-save');
-    expect(setMyProfileImage).toHaveBeenCalledWith(expect.anything(), { uri: 'file:///new.jpg', type: 'image/jpeg' });
+    expect(setMyProfileImage).toHaveBeenCalledWith(expect.anything(), { uri: 'file:///cache/cropped.jpg', type: 'image/jpeg', fileName: 'profile.jpg' });
     expect(setMyDisplayName).not.toHaveBeenCalled();
     expect(mockGoBack).toHaveBeenCalledTimes(1);
   });
@@ -303,6 +315,7 @@ describe('ProfileEditScreen', () => {
     const renderer = await renderScreen();
 
     await choosePhotoAction(renderer, '사진 선택');
+    await applyCrop(renderer);
     await confirmPhotoRemoval(renderer);
     expect(removeMyProfileImage).not.toHaveBeenCalled();
     expect(renderer.root.findAll(node => node.props.testID === 'user-avatar-image')).toHaveLength(0);
@@ -318,6 +331,7 @@ describe('ProfileEditScreen', () => {
 
     await typeNickname(renderer, '파이리');
     await choosePhotoAction(renderer, '사진 변경');
+    await applyCrop(renderer);
     await press(renderer, 'profile-save');
 
     expect(setMyDisplayName).toHaveBeenCalledTimes(1);
@@ -341,5 +355,122 @@ describe('ProfileEditScreen', () => {
     const renderer = await renderScreen();
 
     expect(texts(renderer)).toEqual(expect.arrayContaining([i18n.t('importantState.loadFailedTitle'), i18n.t('importantState.loadFailedMessage')]));
+  });
+});
+
+describe('ProfileEditScreen - the photo cropper', () => {
+  const cropper = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAll(node => node.props.testID === 'photo-cropper');
+  const cropperModal = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    renderer.root.findAllByType(Modal).find(modal => modal.props.visible && modal.findAll(node => node.props.testID === 'photo-cropper').length > 0)!;
+
+  beforeEach(() => {
+    jest.mocked(ImageEditor.cropImage).mockClear();
+    jest.spyOn(Image, 'getSize').mockImplementation(((_uri: string, success: (width: number, height: number) => void) => success(1200, 900)) as never);
+    jest.mocked(pickCollectionIconImage).mockResolvedValue({ kind: 'picked', asset: { uri: 'file:///new.jpg', type: 'image/jpeg' } });
+  });
+
+  it('a picked photo opens the cropper at once - nothing is previewed, cropped or uploaded yet', async () => {
+    const renderer = await renderScreen();
+    await choosePhotoAction(renderer, '사진 변경');
+    expect(cropper(renderer).length).toBeGreaterThan(0);
+    expect(ImageEditor.cropImage).not.toHaveBeenCalled();
+    expect(setMyProfileImage).not.toHaveBeenCalled();
+    expect(pickCollectionIconImage).toHaveBeenCalledWith(expect.anything(), { maxEdge: 1600, quality: 0.9 });
+  });
+
+  it('Cancel (and the Android back button) closes it, keeps the current photo and uploads nothing', async () => {
+    const renderer = await renderScreen();
+    await choosePhotoAction(renderer, '사진 변경');
+    await act(async () => pressable(renderer, 'photo-cropper-cancel').props.onPress());
+    expect(cropper(renderer)).toHaveLength(0);
+
+    await choosePhotoAction(renderer, '사진 변경');
+    await act(async () => cropperModal(renderer).props.onRequestClose());
+    expect(cropper(renderer)).toHaveLength(0);
+
+    expect(renderer.root.findAllByType(Image).some(image => image.props.source?.uri === 'file:///new.jpg')).toBe(false);
+    expect(ImageEditor.cropImage).not.toHaveBeenCalled();
+    await press(renderer, 'profile-save');
+    expect(setMyProfileImage).not.toHaveBeenCalled();
+  });
+
+  it('Apply crops exactly the visible 1:1 square (the centred 900 x 900 of a 1200 x 900 photo), exported at 512 px at most', async () => {
+    const renderer = await renderScreen();
+    await choosePhotoAction(renderer, '사진 변경');
+    await applyCrop(renderer);
+    expect(ImageEditor.cropImage).toHaveBeenCalledTimes(1);
+    const [uri, data] = jest.mocked(ImageEditor.cropImage).mock.calls[0];
+    expect(uri).toBe('file:///new.jpg');
+    expect(data).toMatchObject({ offset: { x: 150, y: 0 }, size: { width: 900, height: 900 }, displaySize: { width: 512, height: 512 }, format: 'jpeg' });
+    expect(cropper(renderer)).toHaveLength(0);
+  });
+
+  it('uses the picker-reported size (EXIF applied, the space the native crop works in) instead of asking the image again', async () => {
+    jest.mocked(pickCollectionIconImage).mockResolvedValue({ kind: 'picked', asset: { uri: 'file:///portrait.jpg', type: 'image/jpeg', width: 600, height: 1000 } });
+    const getSize = jest.spyOn(Image, 'getSize');
+    getSize.mockClear();
+    const renderer = await renderScreen();
+    await choosePhotoAction(renderer, '사진 변경');
+    await applyCrop(renderer);
+    expect(getSize).not.toHaveBeenCalled();
+    const [, data] = jest.mocked(ImageEditor.cropImage).mock.calls[0];
+    // a portrait photo: the centred 600 x 600 square, nothing is enlarged (600 < 1600, exported at its own size 512 max)
+    expect(data).toMatchObject({ offset: { x: 0, y: 200 }, size: { width: 600, height: 600 }, displaySize: { width: 512, height: 512 } });
+  });
+
+  it('a second Apply while the crop runs does nothing', async () => {
+    let finish!: (value: unknown) => void;
+    jest.mocked(ImageEditor.cropImage).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }) as never);
+    const renderer = await renderScreen();
+    await choosePhotoAction(renderer, '사진 변경');
+    await act(async () => { pressable(renderer, 'photo-cropper-apply').props.onPress(); });
+    await act(async () => { pressable(renderer, 'photo-cropper-apply').props.onPress(); });
+    expect(ImageEditor.cropImage).toHaveBeenCalledTimes(1);
+    await act(async () => finish({ uri: 'file:///cache/cropped.jpg', type: 'image/jpeg' }));
+    expect(cropper(renderer)).toHaveLength(0);
+  });
+
+  it('a crop that fails keeps the cropper open with a message and the current photo untouched; it can be retried', async () => {
+    jest.mocked(ImageEditor.cropImage).mockRejectedValueOnce(new Error('native'));
+    const renderer = await renderScreen();
+    await choosePhotoAction(renderer, '사진 변경');
+    await applyCrop(renderer);
+    expect(cropper(renderer).length).toBeGreaterThan(0);
+    expect(byTestId(renderer, 'photo-cropper-error')).toBeDefined();
+    expect(setMyProfileImage).not.toHaveBeenCalled();
+    await applyCrop(renderer);
+    expect(cropper(renderer)).toHaveLength(0);
+  });
+
+  it('an upload that fails after the crop keeps the saved photo (the profile is not changed) and can be retried', async () => {
+    jest.mocked(setMyProfileImage).mockRejectedValueOnce(new ApiError('unavailable'));
+    const renderer = await renderScreen();
+    await choosePhotoAction(renderer, '사진 변경');
+    await applyCrop(renderer);
+    await press(renderer, 'profile-save');
+    expect(setMyProfileImage).toHaveBeenCalledTimes(1);
+    expect(mockGoBack).not.toHaveBeenCalled();
+    expect(byTestId(renderer, 'profile-error')).toBeDefined();
+    jest.mocked(setMyProfileImage).mockResolvedValueOnce({ ...PROFILE, profileImageUrl: 'https://blob/new?sig=1', profileImageVersion: 'v2' });
+    await press(renderer, 'profile-save');
+    expect(setMyProfileImage).toHaveBeenCalledTimes(2);
+    expect(mockGoBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('the controls are labelled and the area is an adjustable element with zoom actions (screen readers); zooming in shrinks the square', async () => {
+    const renderer = await renderScreen();
+    await choosePhotoAction(renderer, '사진 변경');
+    const area = renderer.root.findAll(node => node.props.testID === 'photo-cropper-area' && node.props.accessibilityRole === 'adjustable')[0];
+    expect(area.props.accessibilityLabel).toBe(i18n.t('profileCrop.areaA11y'));
+    expect(area.props.accessibilityActions.map((action: { name: string }) => action.name)).toEqual(['increment', 'decrement']);
+    for (const id of ['photo-cropper-apply', 'photo-cropper-cancel', 'photo-cropper-zoom-in', 'photo-cropper-zoom-out']) {
+      expect(pressable(renderer, id).props.accessibilityRole).toBe('button');
+      expect(typeof pressable(renderer, id).props.accessibilityLabel).toBe('string');
+    }
+    await act(async () => pressable(renderer, 'photo-cropper-zoom-in').props.onPress());
+    await applyCrop(renderer);
+    const [, data] = jest.mocked(ImageEditor.cropImage).mock.calls[0];
+    expect(data.size.width).toBeLessThan(900);
+    expect(data.size.width).toBe(data.size.height);
   });
 });

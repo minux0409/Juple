@@ -20,6 +20,7 @@ import { formatJupleId } from '../collections/api/collaborationApi';
 import { pickCollectionIconImage } from '../collections/collectionIconImage';
 import { ActionMenuDialog, type ActionMenuDialogAction } from '../components/ActionMenuDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { PhotoCropper } from '../images/PhotoCropper';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { UserAvatar } from '../components/UserAvatar';
@@ -39,8 +40,12 @@ type PhotoChange =
 
 const KEEP: PhotoChange = { kind: 'keep' };
 
-/** An avatar is at most ~104dp - the picker already resizes to 512px and re-encodes (same as a Collection's photo). */
-const pickProfileImage = pickCollectionIconImage;
+/**
+ * The picker hands back a working copy of at most 1600px (a phone photo never goes into the cropper at full size), which the person
+ * then fits in the square cropper; the crop is exported at 512px at most - what the server keeps - and is what is uploaded.
+ */
+const PROFILE_WORKING_COPY_EDGE = 1600;
+const pickProfileImage = (t: Parameters<typeof pickCollectionIconImage>[0]) => pickCollectionIconImage(t, { maxEdge: PROFILE_WORKING_COPY_EDGE, quality: 0.9 });
 
 const AVATAR_SIZE = 104;
 const EDIT_BADGE_SIZE = 28;
@@ -68,6 +73,8 @@ export function ProfileEditScreen() {
   const [reloadToken, setReloadToken] = useState(0);
   const [nickname, setNickname] = useState('');
   const [photoChange, setPhotoChange] = useState<PhotoChange>(KEEP);
+  // The picked photo waits here while it is fitted in the cropper; only the cropped result becomes a photoChange (Cancel changes nothing).
+  const [crop, setCrop] = useState<{ readonly uri: string; readonly width?: number; readonly height?: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isRemoveConfirmVisible, setIsRemoveConfirmVisible] = useState(false);
@@ -116,7 +123,7 @@ export function ProfileEditScreen() {
     try {
       const picked = await pickProfileImage(t);
       if (picked.kind === 'picked') {
-        setPhotoChange({ kind: 'set', asset: picked.asset });
+        setCrop({ uri: picked.asset.uri, width: picked.asset.width, height: picked.asset.height });
       } else if (picked.kind === 'error') {
         setError(picked.message);
       }
@@ -347,6 +354,17 @@ export function ProfileEditScreen() {
         onDismiss={runAfterPhotoMenu}
         visible={isPhotoMenuVisible}
       />
+      {crop !== null ? (
+        <PhotoCropper
+          onApply={cropped => {
+            setCrop(null);
+            setPhotoChange({ kind: 'set', asset: cropped });
+          }}
+          knownSize={crop}
+          onCancel={() => setCrop(null)}
+          uri={crop.uri}
+        />
+      ) : null}
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('common.delete')}

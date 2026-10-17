@@ -1237,5 +1237,16 @@
     "system": "Usar ajuste del sistema",
     "light": "Claro",
     "dark": "Oscuro"
+  },
+  "profileCrop": {
+    "title": "Ajustar foto de perfil",
+    "hint": "Mueve y amplía la foto para encuadrar la zona que quieras.",
+    "note": "La foto de perfil se guarda como un cuadrado y se muestra en un círculo.",
+    "zoom": "Zoom",
+    "zoomIn": "Acercar",
+    "zoomOut": "Alejar",
+    "apply": "Aplicar",
+    "preview": "Vista previa",
+    "areaA11y": "Zona de la foto. Desliza hacia arriba o abajo para acercar o alejar."
   }
 }
