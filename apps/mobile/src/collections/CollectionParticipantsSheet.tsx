@@ -161,14 +161,12 @@ export function CollectionParticipantsSheet({
                     jupleId={participant.jupleId}
                     size={32}
                   />
+                  {participant.role === 'owner' ? <OwnerCrown avatarSize={32} /> : null}
                 </View>
                 <View style={styles.rowText}>
-                  <View style={styles.nameRow}>
-                    {participant.role === 'owner' ? <OwnerCrown /> : null}
-                    <Text numberOfLines={1} style={[styles.name, styles.nameText]}>
-                      {participant.isMe ? t('collections.participantMe', { name: personLabel(participant) }) : personLabel(participant)}
-                    </Text>
-                  </View>
+                  <Text numberOfLines={1} style={[styles.name, styles.nameText]}>
+                    {participant.isMe ? t('collections.participantMe', { name: personLabel(participant) }) : personLabel(participant)}
+                  </Text>
                   <Text style={styles.role}>{t(participantRoleLabelKey(participant.role))}</Text>
                   <Text numberOfLines={1} style={[styles.jupleId, ltrTextStyle]} testID={`participants-sheet-id-${participant.jupleId}`}>
                     {formatJupleId(participant.jupleId)}
@@ -218,7 +216,6 @@ export function CollectionParticipantsSheet({
 export { OwnerCrown };
 
 const styles = StyleSheet.create({
-  nameRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
   nameText: { flexShrink: 1 },
   titleRow: { marginBottom: spacing.sm },
   title: { color: colors.textPrimary, flexShrink: 1, fontSize: 17, fontWeight: '700' },

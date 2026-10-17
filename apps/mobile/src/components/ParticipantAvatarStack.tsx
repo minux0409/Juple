@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { OwnerCrown } from '../collections/OwnerCrown';
 import { colors, minTouchTarget, spacing } from '../theme/tokens';
 import { UserAvatar } from './UserAvatar';
 
@@ -8,6 +9,8 @@ export interface StackedParticipant {
   readonly displayName: string | null;
   readonly profileImageUrl?: string | null;
   readonly profileImageVersion?: string | null;
+  /** The server's role name; "owner" marks the circle with the crown. */
+  readonly role?: string;
 }
 
 interface ParticipantAvatarStackProps {
@@ -68,7 +71,8 @@ export function ParticipantAvatarStack({
           ))
         : null}
       {visible.map((participant, index) => (
-        <View key={participant.jupleId} style={[styles.ring, index > 0 && styles.overlap]} testID={`${testID ?? 'participant-stack'}-avatar-${participant.jupleId}`}>
+        // Earlier circles paint above later ones (zIndex), so the Owner's crown on the first circle's end corner is never covered by the overlap.
+        <View key={participant.jupleId} style={[styles.ring, index > 0 && styles.overlap, { zIndex: visible.length - index }]} testID={`${testID ?? 'participant-stack'}-avatar-${participant.jupleId}`}>
           <UserAvatar
             displayName={participant.displayName}
             imageUrl={participant.profileImageUrl}
@@ -76,6 +80,7 @@ export function ParticipantAvatarStack({
             jupleId={participant.jupleId}
             size={AVATAR_SIZE}
           />
+          {participant.role === 'owner' ? <OwnerCrown avatarSize={AVATAR_SIZE} testID={`${testID ?? 'participant-stack'}-owner-crown`} /> : null}
         </View>
       ))}
       {hasOverflow ? (

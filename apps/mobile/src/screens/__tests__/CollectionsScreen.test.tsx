@@ -1310,7 +1310,7 @@ describe('CollectionsScreen - 내 승인 대기 (a popup of my waiting links, no
 });
 
 
-describe('CollectionsScreen - a crown before the name of a Collection I own', () => {
+describe('CollectionsScreen - no crown beside a Collection name (the Owner is marked on the avatar of a shared Collection)', () => {
   afterEach(() => {
     jest.clearAllMocks();
     mockRouteParams = undefined;
@@ -1330,6 +1330,7 @@ describe('CollectionsScreen - a crown before the name of a Collection I own', ()
   }
   const crown = (renderer: ReactTestRenderer.ReactTestRenderer, id: number) =>
     renderer.root.findAll(node => node.props.testID === `collection-owner-crown-${id}` && typeof node.type === 'string');
+  const anyCrown = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByType(CrownIcon);
   const mixed = [
     makeCollection({ id: 1, name: 'Mine', accessRole: 'owner' }),
     makeCollection({ id: 2, name: 'Theirs', accessRole: 'contributor' }),
@@ -1338,34 +1339,26 @@ describe('CollectionsScreen - a crown before the name of a Collection I own', ()
     makeCollection({ id: 5, name: 'Proposer', accessRole: 'submitter' }),
   ];
 
-  it.each(['grid', 'list'] as const)('%s: a crown only on Collections the server says I own - owner + shared still has it; a member role, a favorite or sharing never earn one', async mode => {
+  it.each(['grid', 'list'] as const)('%s: no Collection card has a crown - personal or shared, owned or joined', async mode => {
     const renderer = await renderIn(mode, mixed);
 
-    expect(crown(renderer, 1)).toHaveLength(1);
-    expect(crown(renderer, 3)).toHaveLength(1);
-    expect(crown(renderer, 2)).toHaveLength(0);
-    expect(crown(renderer, 4)).toHaveLength(0);
-    expect(crown(renderer, 5)).toHaveLength(0);
-    expect(renderer.root.findAllByType(CrownIcon)).toHaveLength(2);
-    // A vector glyph, never an emoji; the names are plain text.
+    for (const id of [1, 2, 3, 4, 5]) {
+      expect(crown(renderer, id)).toHaveLength(0);
+    }
+    expect(anyCrown(renderer)).toHaveLength(0);
+    // The names are plain text, never an emoji marker.
     expect(JSON.stringify(renderer.root.findAllByType(Text).map(text => text.props.children))).not.toContain('👑');
   });
 
-  it.each(['grid', 'list'] as const)('%s: the crown sits before the name on the same line - the name ellipsizes, the crown cannot wrap or shrink, and it is decorative only', async mode => {
+  it.each(['grid', 'list'] as const)('%s: a long name is one ellipsized line with nothing before it', async mode => {
     const renderer = await renderIn(mode, [makeCollection({ id: 1, name: '아주아주 긴 컬렉션 이름 '.repeat(8), accessRole: 'owner' })]);
 
-    const marker = crown(renderer, 1)[0];
-    expect(marker.props.accessibilityElementsHidden).toBe(true);
-    expect(marker.props.importantForAccessibility).toBe('no-hide-descendants');
-    expect(marker.props.onPress).toBeUndefined();
-    const row = marker.parent!.parent!;
-    const ordered = row.findAll(node => node === marker || node.type === Text).map(node => (node === marker ? 'crown' : 'name'));
-    expect(ordered[0]).toBe('crown');
-    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'center', minWidth: 0 });
-    expect(StyleSheet.flatten(marker.props.style)).toMatchObject({ flexShrink: 0 });
-    const name = row.findAllByType(Text)[0];
+    const name = renderer.root.findAllByType(Text).find(node => typeof node.props.children === 'string' && node.props.children.startsWith('아주아주'))!;
     expect(name.props.numberOfLines).toBe(1);
     expect(StyleSheet.flatten(name.props.style)).toMatchObject({ flexShrink: 1 });
+    const row = name.parent!;
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'center', minWidth: 0 });
+    expect(row.children).toHaveLength(1);
   });
 
   it.each(['grid', 'list'] as const)('%s: the card says it is mine to assistive technology without any visible ownership text, and the other markers stay', async mode => {
@@ -1378,14 +1371,13 @@ describe('CollectionsScreen - a crown before the name of a Collection I own', ()
     expect(renderer.root.findAllByType(StarIcon).length).toBeGreaterThan(0);
   });
 
-  it('the crown is the same on every filter - 즐겨찾기, 전체, 내 컬렉션, 공유 컬렉션 - not hidden by "내 컬렉션"', async () => {
+  it('no crown on any filter - 즐겨찾기, 전체, 내 컬렉션, 공유 컬렉션', async () => {
     const renderer = await renderIn('grid', mixed);
     for (const filter of ['favorites', 'all', 'owned', 'shared']) {
       await act(async () => {
         renderer.root.findAll(node => node.props.testID === `collections-filter-${filter}` && typeof node.props.onPress === 'function')[0].props.onPress();
       });
-      expect(crown(renderer, 1)).toHaveLength(1);
-      expect(crown(renderer, 2)).toHaveLength(0);
+      expect(anyCrown(renderer)).toHaveLength(0);
     }
   });
 });

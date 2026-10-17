@@ -16,6 +16,10 @@ import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { CheckIcon } from '../../icons/CheckIcon';
 import { CloseIcon } from '../../icons/CloseIcon';
 import { TrashIcon } from '../../icons/TrashIcon';
+import { BlockIcon } from '../../icons/BlockIcon';
+import { EditIcon } from '../../icons/EditIcon';
+import { FlagIcon } from '../../icons/FlagIcon';
+import { UserMinusIcon } from '../../icons/UserMinusIcon';
 import { UserIcon } from '../../icons/UserIcon';
 import { SearchIcon } from '../../icons/SearchIcon';
 import { CopyIcon } from '../../icons/CopyIcon';
@@ -1010,16 +1014,16 @@ describe('FriendsScreen - a friend', () => {
     expect(texts(byId(renderer, 'friend-7'))).toContain('회사 개발팀 김민수');
   });
 
-  it('메모 저장 has a save (check) icon like 친구 삭제 has its trash - the same button shape, only the color differs', async () => {
+  it('메모 저장 has a save (check) icon like 친구 삭제 has its person-minus - the same button shape, only the color differs', async () => {
     const renderer = await openPikachu();
     const save = byId(renderer, 'friend-note-save');
     const remove = byId(renderer, 'friend-remove');
 
     expect(save.findAllByType(CheckIcon)).toHaveLength(1);
     expect(texts(save)).toEqual(['메모 저장']);
-    expect(remove.findAllByType(TrashIcon)).toHaveLength(1);
+    expect(remove.findAllByType(UserMinusIcon)).toHaveLength(1);
     expect(texts(remove)).toEqual(['친구 삭제']);
-    expect(save.findByType(CheckIcon).props.size).toBe(remove.findByType(TrashIcon).props.size);
+    expect(save.findByType(CheckIcon).props.size).toBe(remove.findByType(UserMinusIcon).props.size);
 
     const shape = (node: ReactTestRenderer.ReactTestInstance) => {
       const { flexDirection, alignItems, justifyContent, gap, minHeight, borderRadius, borderWidth, paddingHorizontal } = StyleSheet.flatten(node.props.style);
@@ -1031,6 +1035,31 @@ describe('FriendsScreen - a friend', () => {
     // Blue default action vs red destructive outline.
     expect(StyleSheet.flatten(save.props.style).backgroundColor).toBe(colors.brand);
     expect(StyleSheet.flatten(remove.props.style).borderColor).toBe(colors.danger);
+  });
+
+  it('메모 / 신고 / 차단 / 친구 삭제 each carry a meaningful icon AND keep their word (neutral / warning / destructive / destructive)', async () => {
+    const renderer = await openPikachu();
+    const report = byId(renderer, 'friend-report');
+    const block = byId(renderer, 'friend-block');
+    const remove = byId(renderer, 'friend-remove');
+
+    // 메모: a neutral pencil beside the section title (the save button keeps its check).
+    expect(renderer.root.findAllByType(EditIcon)).toHaveLength(1);
+    expect(renderer.root.findByType(EditIcon).props.color).toBe(colors.textPrimary);
+    expect(texts(renderer.root.findByType(EditIcon).parent!)).toEqual(['메모']);
+    expect(report.findAllByType(FlagIcon)).toHaveLength(1);
+    expect(report.findByType(FlagIcon).props.color).toBe(colors.warningText);
+    expect(texts(report)).toEqual([i18n.t('safety.report')]);
+    expect(block.findAllByType(BlockIcon)).toHaveLength(1);
+    expect(block.findByType(BlockIcon).props.color).toBe(colors.danger);
+    expect(texts(block)).toEqual([i18n.t('safety.block')]);
+    expect(remove.findByType(UserMinusIcon).props.color).toBe(colors.danger);
+    expect(texts(remove)).toEqual(['친구 삭제']);
+    // All buttons are real rows: the icon beside the word, the word may wrap but never leaves the button.
+    for (const button of [report, block, remove]) {
+      expect(StyleSheet.flatten(button.props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' });
+      expect(button.findAllByType(Text)[0].props.numberOfLines).toBe(2);
+    }
   });
 
   it('removes only after 이 친구를 삭제할까요? is confirmed, then closes and leaves the list', async () => {

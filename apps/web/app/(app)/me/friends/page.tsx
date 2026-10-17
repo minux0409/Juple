@@ -370,13 +370,17 @@ function FriendRow({ friend, busy, onRemove, onUpdated, onBlocked }: { readonly 
             <Glyph name="Edit" size={16} />
             {dictionary.friendsNote}
           </button>
-          <button className={styles.settingsAction} data-friend-report disabled={busy} onClick={() => safety.report({ type: 'User', jupleId: friend.jupleId })} type="button">
+          {/* Each action: a meaningful icon AND its word (the icon never replaces the label) - 메모 neutral, 신고 warning, 차단 / 친구 삭제 destructive. */}
+          <button className={`${styles.settingsAction} ${styles.warningAction}`} data-friend-report disabled={busy} onClick={() => safety.report({ type: 'User', jupleId: friend.jupleId })} type="button">
+            <Glyph name="Flag" size={16} />
             {dictionary.safetyReport}
           </button>
-          <button className={styles.settingsAction} data-friend-block disabled={busy} onClick={() => safety.block({ jupleId: friend.jupleId, name: personName(friend) }, onBlocked)} type="button">
+          <button className={styles.dangerAction} data-friend-block disabled={busy} onClick={() => safety.block({ jupleId: friend.jupleId, name: personName(friend) }, onBlocked)} type="button">
+            <Glyph name="Block" size={16} />
             {dictionary.safetyBlock}
           </button>
           <button className={styles.dangerAction} data-friend-remove disabled={busy} onClick={onRemove} type="button">
+            <Glyph name="UserMinus" size={16} />
             {dictionary.friendsRemove}
           </button>
         </span>

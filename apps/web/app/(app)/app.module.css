@@ -29,6 +29,17 @@
   --brand-soft: #e9f0fe;
   --warning: #f5a623;
 
+  /* Side bar destinations: semantic tokens, so a later theme only redefines these (no gradient on a navigation state). */
+  --nav-hover-bg: var(--app-surface-hover);
+  --nav-active-bg: #f1f5fd;
+  --nav-active-fg: var(--brand);
+  --nav-active-indicator: var(--brand);
+  --nav-focus-ring: var(--brand);
+
+  /* A warning that is not an error (신고): readable text on white and a soft line, next to --danger for the destructive ones. */
+  --warning-text: #9a5b00;
+  --warning-line: #f0d29a;
+
   /* The Juple names for the same values (mobile colors.*) - new rules use these. */
   --juple-bg: var(--app-background);
   --surface: var(--app-surface);
@@ -4842,12 +4853,6 @@ ul.friendGrid > * + * {
   min-width: 0;
 }
 
-.ownerCrown {
-  display: inline-flex;
-  flex: 0 0 auto;
-  color: var(--warning);
-}
-
 .roleBadgeOwner {
   flex: 0 0 auto;
   padding: 2px 10px;
@@ -5038,6 +5043,16 @@ ul.friendGrid > * + * {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--space-2);
+}
+
+.warningAction {
+  border-color: var(--warning-line);
+  color: var(--warning-text);
+}
+
+.warningAction:hover:not(:disabled) {
+  border-color: var(--warning-text);
+  color: var(--warning-text);
 }
 
 .friendActions > * {
@@ -5270,7 +5285,7 @@ ul.friendGrid > * + * {
 .avatarCrown {
   position: absolute;
   top: -5px;
-  right: -5px;
+  inset-inline-end: -5px;
   display: inline-flex;
   padding: 1px;
   border-radius: 50%;
@@ -6383,6 +6398,29 @@ button.reactionChipMine:hover {
   overflow-wrap: anywhere;
 }
 
+/* A short form inside a Modal (the lock-removal password): one column with one gap scale, so the sentence, the field and the
+   buttons keep their spacing and every line wraps inside the panel - a long translation grows the dialog downward, never outward. */
+.modalForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4) var(--space-5) var(--space-5);
+}
+
+.modalForm .dialogMessage,
+.modalForm .formRow,
+.modalForm .fieldError {
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.modalForm .formFooter {
+  padding: var(--space-2) 0 0;
+}
+
 /* ======================================================================================================================
    A pill that opens a small panel in the same look (the participant role; PillListbox) and the ⋯ menus (ActionMenu): the same
    radius language, a thin border, a white surface, the chosen row in brand-soft, hover a quiet tint - not the platform's square menu.
@@ -6740,14 +6778,26 @@ button.reactionChipMine:hover {
 }
 
 .navLinkActive {
-  background: var(--brand-gradient-soft);
-  color: var(--brand);
+  background: var(--nav-active-bg);
+  color: var(--nav-active-fg);
 }
 
-/* On the side bar (wide screens) a thin accent bar at the start edge: a background layer, no generated content. */
+/* hover (neutral wash) / active (soft brand tint + accent) / keyboard focus (a ring) stay three different looks */
+.navLink:hover {
+  background: var(--nav-hover-bg);
+  color: var(--app-text);
+}
+
+.navLink:focus-visible,
+.navLinkActive:focus-visible {
+  outline: 2px solid var(--nav-focus-ring);
+  outline-offset: 2px;
+}
+
+/* On the side bar (wide screens) a thin solid accent bar at the start edge: a background layer, no generated content. */
 @media (min-width: 861px) {
   .navLinkActive {
-    background: linear-gradient(180deg, var(--juple-coral), var(--juple-violet)) left center / 3px 56% no-repeat, var(--brand-gradient-soft);
+    background: linear-gradient(var(--nav-active-indicator), var(--nav-active-indicator)) left center / 3px 56% no-repeat, var(--nav-active-bg);
   }
 
   [dir='rtl'] .navLinkActive {
@@ -7568,4 +7618,178 @@ button.reactionChipMine:hover {
   width: 100%;
   min-height: 52px;
   margin-top: var(--space-5);
+}
+
+/* ======================================================================================================================
+   Product polish round 1: saved links carry no time (Item Details has it) - List and Grid get a 바로가기 button to the saved
+   original page, a shared Collection's links show who added them, and a Collection card gets quick actions.
+   ==================================================================================================================== */
+.linkCard {
+  position: relative;
+}
+
+/* 바로가기: a sibling of the card's link (never inside it) with its own hit area */
+.linkOpen {
+  position: absolute;
+  top: 50%;
+  inset-inline-end: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--app-text-tertiary);
+  text-decoration: none;
+  transform: translateY(-50%);
+  transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out);
+}
+
+.linkOpen:hover {
+  background: var(--app-surface-muted);
+  color: var(--brand);
+}
+
+.linkOpen:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 0;
+}
+
+/* List: the row keeps clear of the button at its end */
+.linkList .linkRowBody {
+  padding-inline-end: calc(40px + var(--space-3));
+}
+
+.linkList .linkMetaCol {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Grid: the button sits at the card's bottom end, on the same line as the meta (adder / site), which stops short of it */
+.linkOpenGrid {
+  top: auto;
+  bottom: var(--space-2);
+  width: 32px;
+  height: 32px;
+  transform: none;
+}
+
+.linkGrid .cardBody .linkText {
+  padding-bottom: var(--space-2);
+}
+
+.linkGrid .cardBody .linkMeta {
+  min-height: 32px;
+  padding-inline-end: 36px;
+  overflow: visible;
+}
+
+.adderMeta {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  color: var(--app-text-tertiary);
+}
+
+/* Collection cards: quick actions (favorite, share, edit) as compact icon buttons, siblings of the card's link */
+.collectionCard {
+  position: relative;
+}
+
+.collectionActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.cardAction,
+.cardActionActive {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--app-text-secondary);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out);
+}
+
+.cardActionActive {
+  color: var(--favorite);
+}
+
+.cardAction:hover:not(:disabled),
+.cardActionActive:hover:not(:disabled) {
+  background: var(--app-surface-muted);
+  color: var(--brand);
+}
+
+.cardActionActive:hover:not(:disabled) {
+  color: var(--favorite);
+}
+
+.cardAction:focus-visible,
+.cardActionActive:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 0;
+}
+
+.cardAction:disabled,
+.cardActionActive:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* List: a wide row - the actions are its end cell, so they never sit over the row's text */
+.collectionList > .collectionCard {
+  display: flex;
+  align-items: center;
+}
+
+.collectionList > .collectionCard > .collectionBody {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.collectionList > .collectionCard > .collectionActions {
+  flex: 0 0 auto;
+  padding-inline-end: var(--space-3);
+}
+
+/* Grid: on the cover's top end corner - on a pointer device they appear with hover or keyboard focus, on touch they are always there */
+.collectionActionsGrid {
+  position: absolute;
+  top: calc(var(--space-3) + var(--space-2));
+  inset-inline-end: calc(var(--space-3) + var(--space-2));
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+@media (hover: hover) {
+  .collectionActionsGrid {
+    opacity: 0;
+    transition: opacity 120ms var(--ease-out);
+  }
+
+  .collectionCard:hover .collectionActionsGrid,
+  .collectionCard:focus-within .collectionActionsGrid {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .linkOpen,
+  .cardAction,
+  .cardActionActive,
+  .collectionActionsGrid {
+    transition: none;
+  }
 }

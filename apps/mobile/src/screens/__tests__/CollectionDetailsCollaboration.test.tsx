@@ -13,7 +13,7 @@ import { QuickReactionBar } from '../../reactions/QuickReactionBar';
 import { ReactionChips } from '../../reactions/ReactionChips';
 import { ReactionPickerDialog } from '../../reactions/ReactionPickerDialog';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, StyleSheet, Switch, Text } from 'react-native';
+import { FlatList, Linking, StyleSheet, Switch, Text } from 'react-native';
 import { dateAccordionStyles } from '../../components/DateAccordion';
 import { LinkSortChips } from '../../components/LinkSortChips';
 import { LINK_CONTROLS_BOTTOM_GAP, LINK_CONTROLS_TOP_GAP } from '../../components/savedLinkLayout';
@@ -568,6 +568,21 @@ describe('CollectionDetailsScreen - 전체 선택 for 내 컬렉션으로 복사
   afterEach(() => {
     jest.clearAllMocks();
     clearCollectionUnlockGrants();
+  });
+
+  it('a link without a picture keeps its media slot while selecting, so the selection mark sits on the slot and never on the title; no open button there', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N', itemCount: 2 }));
+    serve(allItems(2));
+    jest.mocked(getCollections).mockResolvedValue({ items: [makeCollection({ id: 7, name: 'My Picks' })], nextCursor: null });
+    const renderer = await renderScreen();
+    await pressMenu(renderer, i18n.t('collections.copyToMine'));
+
+    const selectRow = (id: number) => renderer.root.findAll(node => node.props.testID === `collection-copy-select-${id}` && typeof node.props.onPress === 'function')[0];
+    for (const id of [1, 2]) {
+      const selected = selectRow(id);
+      expect(selected.findAll(node => node.props.testID === 'saved-link-thumbnail-placeholder' && typeof node.type === 'string')).toHaveLength(1);
+      expect(selected.findAll(node => node.props.testID === 'saved-link-open-original')).toHaveLength(0);
+    }
   });
 
   it('selects every link of the Collection - also those on pages not loaded yet - and 전체 해제 clears them', async () => {
@@ -1322,6 +1337,25 @@ describe('CollectionDetailsScreen - who added each link', () => {
   });
   const membersLink = makeItem({ itemId: 3, title: 'Member', isMine: false, addedBy: { kind: 'member', jupleId: 'CNTRC234', displayName: null } });
   const myLink = makeItem({ itemId: 1, title: 'Mine', isMine: true, addedBy: { kind: 'me', jupleId: 'MEEE2345', displayName: '이상해씨' } });
+
+  it('바로가기 on each link opens the saved original page, not the link in the app; the Owner crown is on that adder avatar, a member link has none', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N' }));
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [myLink, ownersLink, membersLink], nextCursor: null });
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+    const renderer = await renderScreen();
+    mockNavigate.mockClear();
+
+    for (const link of [myLink, ownersLink, membersLink]) {
+      const button = row(renderer, link).root.findAll(node => node.props.testID === 'saved-link-open-original' && typeof node.props.onPress === 'function')[0];
+      await act(async () => button.props.onPress({ stopPropagation: jest.fn() }));
+      expect(openURL).toHaveBeenLastCalledWith(link.url);
+    }
+    expect(openURL).toHaveBeenCalledTimes(3);
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(hasOwnerCrown(row(renderer, ownersLink))).toBe(true);
+    expect(hasOwnerCrown(row(renderer, membersLink))).toBe(false);
+    openURL.mockRestore();
+  });
 
   it('in a shared Collection each link shows its adder as an avatar - their photo, or the fallback - with no nickname text', async () => {
     jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N' }));

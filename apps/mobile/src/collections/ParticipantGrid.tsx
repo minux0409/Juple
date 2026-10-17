@@ -10,7 +10,7 @@ export interface ParticipantTileData {
   readonly displayName?: string | null;
   readonly imageUrl?: string | null;
   readonly imageVersion?: string | null;
-  /** The Collection's Owner: a crown beside the avatar. */
+  /** The Collection's Owner: a crown on the avatar's top end corner. */
   readonly isOwner?: boolean;
   /** What is shown as the name (the display name, else the Juple ID - the screen decides, e.g. "(나)"). */
   readonly name: string;
@@ -40,7 +40,7 @@ export function ParticipantGrid({ tiles, testID }: { readonly tiles: readonly Pa
         const avatar = (
           <View style={styles.avatarWrap}>
             <UserAvatar displayName={tile.displayName} imageUrl={tile.imageUrl} imageVersion={tile.imageVersion} jupleId={tile.jupleId} size={TILE_AVATAR_SIZE} />
-            {tile.isOwner ? <View style={styles.crown}><OwnerCrown /></View> : null}
+            {tile.isOwner ? <OwnerCrown avatarSize={TILE_AVATAR_SIZE} /> : null}
           </View>
         );
         return (
@@ -74,7 +74,6 @@ const styles = StyleSheet.create({
   tile: { alignItems: 'center', borderRadius: radii.md, minHeight: minTouchTarget + 36, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
   pressed: { opacity: 0.6 },
   avatarWrap: { alignItems: 'center', justifyContent: 'center' },
-  crown: { bottom: -4, end: -6, position: 'absolute' },
   name: { color: colors.textPrimary, fontSize: 13, fontWeight: '600', marginTop: spacing.xs, maxWidth: '100%', textAlign: 'center' },
   detail: { color: colors.textSecondary, fontSize: 11, marginTop: 1, maxWidth: '100%', textAlign: 'center' },
 });

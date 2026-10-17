@@ -8,6 +8,9 @@ import { useTranslation } from 'react-i18next';
 import { resolveSavedLinkDisplayTitle } from '../items/savedLinkPrimaryText';
 import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
 import { MoreIcon } from '../icons/MoreIcon';
+import { SiteIcon } from '../icons/SiteIcon';
+import { resolveSiteInfo } from '../items/resolveSiteInfo';
+import { OpenOriginalLinkButton } from './OpenOriginalLinkButton';
 import type { ItemAdderDisplay } from '../collections/itemAdder';
 import { SavedLinkMetaRow, type SavedLinkDateDisplayMode } from './SavedLinkMetaRow';
 import { LockIcon } from '../icons/LockIcon';
@@ -26,6 +29,13 @@ interface SavedLinkRowProps {
    */
   readonly preferEffectiveThumbnail?: boolean;
   readonly trailingAction?: { readonly accessibilityLabel: string; readonly onPress: () => void };
+  /**
+   * 바로가기: opens the saved original page from a button at the row's end (never Item Details). Given only where the row is a real
+   * link list (Home, History, a Collection) - not in a selection, Trash or for a locked link, which never shows it.
+   */
+  readonly onOpenOriginal?: () => void;
+  /** Draw the item's time on the meta line. Off: a saved link's time is shown in Item Details only (Trash: its deleted time). */
+  readonly showTime?: boolean;
   /** Who added the link inside a shared Collection (see SavedLinkMetaRow) - omitted everywhere else. */
   readonly addedBy?: ItemAdderDisplay | null;
   /**
@@ -51,6 +61,8 @@ export function SavedLinkRow({
   dateDisplayMode = 'time',
   preferEffectiveThumbnail = false,
   trailingAction,
+  onOpenOriginal,
+  showTime = false,
   addedBy,
   reactions,
 }: SavedLinkRowProps) {
@@ -66,7 +78,7 @@ export function SavedLinkRow({
         </View>
         <View style={styles.textColumn}>
           <Text numberOfLines={2} style={styles.primaryText}>{t('item.lockedLinkPlaceholder')}</Text>
-          <SavedLinkMetaRow dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} showSiteIcon={false} style={styles.metaRow} url="" />
+          <SavedLinkMetaRow dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} showSiteIcon={false} showTime={showTime} style={styles.metaRow} url="" />
         </View>
       </View>
     );
@@ -82,7 +94,9 @@ export function SavedLinkRow({
   return (
     <View style={styles.row}>
       <View style={styles.thumbnailWrapper}>
-        <ItemRepresentativeThumbnail cacheKey={thumbnail.cacheKey} imageUrl={thumbnail.url} />
+        {/* The media slot is always there: without a picture the site's badge sits in the same 60 x 60 square (as the Grid card does and the
+            Web's link rows do), so the text column never moves under a selection mark. */}
+        <ItemRepresentativeThumbnail cacheKey={thumbnail.cacheKey} fallback={<SiteIcon siteId={resolveSiteInfo(item.url).id} size={28} />} imageUrl={thumbnail.url} />
         {isActionInFlight ? (
           <View style={styles.thumbnailOverlay}>
             <ActivityIndicator color={colors.surface} size="small" />
@@ -105,9 +119,10 @@ export function SavedLinkRow({
             {item.memo}
           </Text>
         ) : null}
-        <SavedLinkMetaRow adderTrailing={reactions} addedBy={addedBy} dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} style={styles.metaRow} url={item.url} />
+        <SavedLinkMetaRow adderTrailing={reactions} addedBy={addedBy} dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} showTime={showTime} style={styles.metaRow} url={item.url} />
         {addedBy ? null : reactions}
       </View>
+      {onOpenOriginal ? <OpenOriginalLinkButton onPress={onOpenOriginal} variant="row" /> : null}
       {trailingAction ? <Pressable accessibilityLabel={trailingAction.accessibilityLabel} accessibilityRole="button" hitSlop={8} onPress={event => { event?.stopPropagation(); trailingAction.onPress(); }} style={styles.trailingAction}><MoreIcon color={colors.textSecondary} size={20} /></Pressable> : null}
     </View>
   );

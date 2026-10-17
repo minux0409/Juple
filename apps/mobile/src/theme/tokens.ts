@@ -30,6 +30,8 @@ export const colors = {
   divider: '#EDF1F7',
   danger: '#B42318',
   warning: '#F5A623',
+  /** A warning as TEXT or a thin icon on white (신고): a darker amber that stays readable, unlike the fill-only `warning`. */
+  warningText: '#9A5B00',
   success: '#0F7A3D',
   surface: '#FFFFFF',
   surfaceMuted: '#F1F4F9',

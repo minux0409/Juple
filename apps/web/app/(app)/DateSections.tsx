@@ -7,7 +7,7 @@ import { affectsList, removesFromList, type ItemListScope } from '../../lib/item
 import { removeItemFromSections } from '../../lib/sectionRemoval';
 import { useItemsChanged } from './useItemsChanged';
 import { appendPage, canLoadMore, failLoadingMore, firstPage, startLoadingMore, type PagedState } from '../../lib/paging';
-import { initialSectionKey, sectionLabel, sectionShowsDate, formatLinkTimestamp, type DateSection, type LinkView, type LinkViewMode } from '../../lib/savedLinks';
+import { initialSectionKey, sectionLabel, type DateSection, type LinkView, type LinkViewMode } from '../../lib/savedLinks';
 import { Glyph } from './Glyph';
 import { LoadMore } from './InfiniteScroll';
 import { LoadFailed } from './PageStates';
@@ -207,7 +207,6 @@ export function DateSections({
       {sectionsState.sections.map(section => {
         const isOpen = expanded.has(section.key);
         const page = pages.get(section.key);
-        const withDate = sectionShowsDate(section.kind);
         return (
           <section className={styles.section} key={section.key}>
             <h2 className={styles.sectionHeading}>
@@ -225,7 +224,7 @@ export function DateSections({
                 {page?.kind === 'failed' ? <LoadFailed dictionary={dictionary} onRetry={() => fetchFirstPage(section)} /> : null}
                 {page?.kind === 'loaded' ? (
                   <>
-                    <SavedLinkList dictionary={dictionary} links={page.items} mode={viewMode} timestampOf={link => formatLinkTimestamp(link.timestampUtc, locale, withDate)} />
+                    <SavedLinkList dictionary={dictionary} links={page.items} mode={viewMode} />
                     <LoadMore
                       dictionary={dictionary}
                       onLoadMore={() => loadMore(section)}

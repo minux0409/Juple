@@ -89,6 +89,23 @@ export function avatarInitial(displayName: string | null | undefined): string | 
   return first ? first.toLocaleUpperCase() : null;
 }
 
+/**
+ * The people of a Collection's participant circles when only the list row's preview is known: the preview names the OTHER people
+ * (Owner first, never the caller), so the signed-in person is added - first when they own it (Owner leads), else last. A preview that
+ * already holds them, or an unknown profile, is returned unchanged; no face is invented.
+ */
+export function participantsWithSelf(
+  preview: readonly CollectionParticipant[],
+  accessRole: string | undefined,
+  self: { readonly jupleId: string; readonly displayName: string | null; readonly profileImageUrl?: string | null } | null,
+): readonly CollectionParticipant[] {
+  if (!self || preview.some(person => person.isMe || person.jupleId === self.jupleId)) {
+    return preview;
+  }
+  const me: CollectionParticipant = { jupleId: self.jupleId, displayName: self.displayName, profileImageUrl: self.profileImageUrl ?? null, role: accessRole ?? 'contributor', isMe: true };
+  return accessRole === 'owner' ? [me, ...preview] : [...preview, me];
+}
+
 /** Mobile ParticipantAvatarStack: up to `maxVisible` circles; with more people the last slot becomes "+N" (never an extra slot). */
 export function avatarStackLayout<T>(people: readonly T[], maxVisible = 4): { readonly visible: readonly T[]; readonly hiddenCount: number } {
   if (people.length <= maxVisible) {

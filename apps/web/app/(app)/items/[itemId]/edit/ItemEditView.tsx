@@ -398,6 +398,14 @@ export function ItemEditView({
             failed={destinationsFailed || collections.kind === 'failed'}
             isDeselectBlocked={collection => original.has(collection.id) && isRemovalOwnerOnly(collection)}
             noneSelected={selected.length === 0}
+            onCreated={created => {
+              // The new Collection is offered at once and chosen for this link (saved with 저장, like any other choice); what was chosen stays.
+              setDestinations(previous => [created, ...(previous ?? []).filter(entry => entry.id !== created.id)]);
+              setStaged(previous => {
+                const base = previous ?? memberships ?? EMPTY_COLLECTIONS;
+                return base.some(entry => entry.id === created.id) ? base : [...base, created];
+              });
+            }}
             onRefreshed={fresh => {
               setDestinations(previous => (previous ? previous.map(entry => (entry.id === fresh.id ? fresh : entry)) : previous));
               setStaged(previous => (previous ?? selected).map(entry => (entry.id === fresh.id ? { ...entry, ...fresh } : entry)));

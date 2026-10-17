@@ -7,6 +7,8 @@ import { AppModal } from '../components/AppModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { UserAvatar } from '../components/UserAvatar';
+import { BlockIcon } from '../icons/BlockIcon';
+import { FlagIcon } from '../icons/FlagIcon';
 import { blockUser } from '../safety/safetyApi';
 import { ReportModal } from '../safety/ReportModal';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
@@ -198,9 +200,11 @@ export function PersonProfileModal({ person, relationship, onClose, onRequestSen
         {relationship !== 'self' ? (
           <>
             <Pressable accessibilityRole="button" disabled={isSending || isBlocking} onPress={() => setIsReporting(true)} style={styles.secondaryButton} testID="person-profile-report">
-              <Text numberOfLines={2} style={styles.secondaryLabel}>{t('safety.report')}</Text>
+              <FlagIcon color={colors.warningText} size={16} />
+              <Text numberOfLines={2} style={[styles.secondaryLabel, styles.warningLabel]}>{t('safety.report')}</Text>
             </Pressable>
             <Pressable accessibilityRole="button" disabled={isSending || isBlocking} onPress={() => setIsBlockConfirmVisible(true)} style={styles.secondaryButton} testID="person-profile-block">
+              <BlockIcon color={colors.danger} size={16} />
               <Text numberOfLines={2} style={[styles.secondaryLabel, styles.dangerLabel]}>{t('safety.block')}</Text>
             </Pressable>
           </>
@@ -236,7 +240,8 @@ const styles = StyleSheet.create({
   message: { color: colors.danger, fontSize: 13, fontWeight: '600', textAlign: 'center' },
   primaryButton: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.md, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   primaryLabel: { color: colors.surface, fontSize: 14, fontWeight: '700', textAlign: 'center' },
-  secondaryButton: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
-  secondaryLabel: { color: colors.textPrimary, fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  secondaryButton: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs + 2, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
+  secondaryLabel: { color: colors.textPrimary, flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  warningLabel: { color: colors.warningText },
   dangerLabel: { color: colors.danger },
 });

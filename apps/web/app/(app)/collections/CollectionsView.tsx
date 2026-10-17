@@ -25,7 +25,10 @@ import {
 } from '../../../lib/collectionsView';
 import { formatBadgeCount } from '../../../lib/notifications';
 import { appendPage, canLoadMore, failLoadingMore, firstPage, startLoadingMore, type PagedState } from '../../../lib/paging';
-import { collectionHref } from '../../../lib/savedLinks';
+import { collectionHref, collectionShareHref } from '../../../lib/savedLinks';
+import { canEditCollection } from '../../../lib/collectionEditor';
+import { canShareCollection, participantsWithSelf } from '../../../lib/collectionSharing';
+import { collectionPath } from '../../../lib/collectionDetails';
 import { useSignedInApp } from '../AppRoot';
 import { CollectionGlyph, Glyph } from '../Glyph';
 import { LoadMore } from '../InfiniteScroll';
@@ -33,6 +36,7 @@ import { Avatar } from '../Avatar';
 import { LinkImage } from '../LinkImage';
 import { LoadFailed } from '../PageStates';
 import { CollectionSkeleton } from '../Skeletons';
+import { useToast } from '../Toaster';
 import { useStoredChoice } from '../useStoredChoice';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { PageHeader } from '../PageHeader';
@@ -62,6 +66,8 @@ export function CollectionsView() {
   const [viewMode, setViewMode] = useStoredChoice<CollectionViewMode>(COLLECTION_VIEW_MODE_STORAGE_KEY, parseCollectionViewMode);
   const [state, setState] = useState<ListState>({ kind: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
+  const toast = useToast();
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -100,6 +106,42 @@ export function CollectionsView() {
   const retry = () => {
     setState({ kind: 'loading' });
     setReloadToken(token => token + 1);
+  };
+
+  // The caller's own favorite mark, optimistic (the Collection page's and mobile's toggle): shown at once, the server's answer kept, the
+  // previous state restored when it fails. In 즐겨찾기 a Collection that is no longer a favorite leaves the list, as on mobile.
+  const toggleFavorite = (collection: CollectionSummary) => {
+    if (togglingId !== null) {
+      return;
+    }
+    const apply = (replacement: CollectionSummary) =>
+      setState(current =>
+        current.kind !== 'loaded'
+          ? current
+          : {
+              ...current,
+              items: current.items.flatMap(item => (item.id !== replacement.id ? [item] : filter === 'favorites' && !replacement.isFavorite ? [] : [replacement])),
+            },
+      );
+    setTogglingId(collection.id);
+    apply({ ...collection, isFavorite: !collection.isFavorite });
+    api<CollectionSummary>({ method: 'PUT', path: `${collectionPath(collection.id)}/favorite`, body: { isFavorite: !collection.isFavorite } }).then(
+      updated => {
+        setTogglingId(null);
+        apply({ ...collection, ...updated });
+      },
+      error => {
+        setTogglingId(null);
+        // Roll back: a card the optimistic flip took out of 즐겨찾기 comes back at its place of old (the top is the safe side).
+        setState(current => (current.kind === 'loaded' && !current.items.some(item => item.id === collection.id) ? { ...current, items: [collection, ...current.items] } : current));
+        apply(collection);
+        if (isSessionLost(error)) {
+          onSessionLost();
+          return;
+        }
+        toast.showNotice(dictionary.errorFavorite, 'error');
+      },
+    );
   };
 
   const loadMore = () => {
@@ -163,7 +205,13 @@ export function CollectionsView() {
           <ul className={viewMode === 'grid' ? styles.collectionGrid : styles.collectionList}>
             {state.items.map(collection => (
               <li className={styles.collectionCard} key={collection.id}>
-                <CollectionCard collection={collection} dictionary={dictionary} layout={viewMode === 'grid' ? 'grid' : 'list'} />
+                <CollectionCard
+                  collection={collection}
+                  dictionary={dictionary}
+                  favoriteBusy={togglingId === collection.id}
+                  layout={viewMode === 'grid' ? 'grid' : 'list'}
+                  onToggleFavorite={() => toggleFavorite(collection)}
+                />
               </li>
             ))}
           </ul>
@@ -193,14 +241,93 @@ export function CollectionTileView({
   );
 }
 
-export function CollectionCard({
+/**
+ * A Collection card's quick actions - 즐겨찾기 (everyone), 공유 and 편집 (only what the person really has: the Owner, and a locked
+ * Collection first needs its password on its own page). Siblings of the card's link, never inside it: a click on an action does not
+ * open the Collection, and the card's own hit area stays whole. Share and edit are plain links to the Collection's own screens, so
+ * no extra request is made for a card that is only looked at.
+ */
+function CollectionCardActions({
   collection,
   dictionary,
   layout,
+  favoriteBusy,
+  onToggleFavorite,
 }: {
   readonly collection: CollectionSummary;
   readonly dictionary: AppDictionary;
   readonly layout: 'grid' | 'list';
+  readonly favoriteBusy: boolean;
+  readonly onToggleFavorite: () => void;
+}) {
+  const open = !isCollectionLocked(collection);
+  const canShare = open && canShareCollection(collection, null);
+  const canEdit = open && canEditCollection(collection);
+  const favoriteLabel = collection.isFavorite ? dictionary.removeFavorite : dictionary.addFavorite;
+  return (
+    <div className={layout === 'grid' ? `${styles.collectionActions} ${styles.collectionActionsGrid}` : styles.collectionActions} data-collection-actions>
+      <button
+        aria-label={favoriteLabel}
+        aria-pressed={collection.isFavorite}
+        className={collection.isFavorite ? styles.cardActionActive : styles.cardAction}
+        data-card-action="favorite"
+        disabled={favoriteBusy}
+        onClick={onToggleFavorite}
+        title={favoriteLabel}
+        type="button"
+      >
+        <Glyph name={collection.isFavorite ? 'StarFilled' : 'Star'} size={18} />
+      </button>
+      {canShare ? (
+        <Link aria-label={dictionary.shareAction} className={styles.cardAction} data-card-action="share" href={collectionShareHref(collection.id)} title={dictionary.shareAction}>
+          <Glyph name="Share" size={18} />
+        </Link>
+      ) : null}
+      {canEdit ? (
+        <Link aria-label={dictionary.collectionEdit} className={styles.cardAction} data-card-action="edit" href={`${collectionHref(collection.id)}/edit`} title={dictionary.collectionEdit}>
+          <Glyph name="Edit" size={18} />
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
+export function CollectionCard({
+  collection,
+  dictionary,
+  layout,
+  favoriteBusy = false,
+  onToggleFavorite,
+}: {
+  readonly collection: CollectionSummary;
+  readonly dictionary: AppDictionary;
+  readonly layout: 'grid' | 'list';
+  readonly favoriteBusy?: boolean;
+  /** Present: the card carries its quick actions (the Collections list). */
+  readonly onToggleFavorite?: () => void;
+}) {
+  const actions = onToggleFavorite ? (
+    <CollectionCardActions collection={collection} dictionary={dictionary} favoriteBusy={favoriteBusy} layout={layout} onToggleFavorite={onToggleFavorite} />
+  ) : null;
+  return (
+    <>
+      <CollectionCardBody collection={collection} dictionary={dictionary} hasActions={actions !== null} layout={layout} />
+      {actions}
+    </>
+  );
+}
+
+function CollectionCardBody({
+  collection,
+  dictionary,
+  layout,
+  hasActions,
+}: {
+  readonly collection: CollectionSummary;
+  readonly dictionary: AppDictionary;
+  readonly layout: 'grid' | 'list';
+  /** The quick actions carry the favorite mark, so the card does not draw a second star. */
+  readonly hasActions: boolean;
 }) {
   const attention = collection.attentionCount ?? 0;
   if (layout === 'grid') {
@@ -213,7 +340,7 @@ export function CollectionCard({
       >
         <div className={styles.collectionCover}>
           <CollectionTileView collection={collection} fill size={96} />
-          {collection.isFavorite ? (
+          {collection.isFavorite && !hasActions ? (
             <span aria-label={dictionary.favorite} className={styles.coverStar} role="img" title={dictionary.favorite}>
               <Glyph name="StarFilled" size={18} />
             </span>
@@ -260,7 +387,7 @@ export function CollectionCard({
             {formatBadgeCount(attention)}
           </span>
         ) : null}
-        <CollectionBadges collection={collection} dictionary={dictionary} />
+        <CollectionBadges collection={collection} dictionary={dictionary} hideFavorite={hasActions} />
         <ParticipantPreview collection={collection} />
       </div>
     </Link>
@@ -299,12 +426,15 @@ export function CollectionBadges({
 
 /** The people in a shared Collection, as the list row reports them (mobile participantPreview: up to two, then how many more). */
 function ParticipantPreview({ collection }: { readonly collection: CollectionSummary }) {
-  const preview = collection.participantPreview ?? [];
-  const others = collection.otherParticipantCount ?? preview.length;
-  if (others === 0 || preview.length === 0) {
+  const { profile } = useSignedInApp();
+  const others = collection.otherParticipantCount ?? collection.participantPreview?.length ?? 0;
+  const known = collection.participantPreview ?? [];
+  if (others === 0 || known.length === 0) {
     return null;
   }
-  const more = others - preview.length;
+  // The preview names the OTHER people; the signed-in person is one of the circles too (the Owner's, with the crown, first).
+  const preview = participantsWithSelf(known, collection.accessRole ?? 'owner', profile);
+  const more = others + 1 - preview.length;
   return (
     <span aria-hidden className={styles.miniStack}>
       {preview.map(person => (

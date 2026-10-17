@@ -70,7 +70,7 @@ describe('Web parity: Trash', () => {
 describe('Web parity: Collection participants', () => {
   it('every participant surface draws the shared Avatar with the real profile image (Collections card, header stack, modal, rail)', () => {
     assert.match(sharing, /export function ParticipantIdentity/);
-    assert.match(sharing, /<Avatar person=\{\{ displayName: person\.displayName, profileImageUrl: person\.profileImageUrl \}\} size=\{40\} \/>/);
+    assert.match(sharing, /<Avatar person=\{\{ displayName: person\.displayName, profileImageUrl: person\.profileImageUrl, role: person\.role \}\} size=\{40\} \/>/);
     assert.equal((sharing.match(/<ParticipantIdentity/g) ?? []).length >= 4, true, 'modal list + rail: members and pending');
     assert.match(sharing, /<Avatar key=\{person\.jupleId\} person=\{person\} size=\{28\} \/>/, 'the header stack');
     assert.match(source('app/(app)/collections/CollectionsView.tsx'), /preview\.map\(person => \(\s*<Avatar key=\{person\.jupleId\} person=\{person\} size=\{22\} \/>/, 'the Collections grid / list card');
@@ -94,14 +94,14 @@ describe('Web parity: Collection participants', () => {
     const ten = Array.from({ length: 10 }, (_, i) => i);
     assert.deepEqual(avatarStackLayout(ten, 4), { visible: [0, 1, 2], hiddenCount: 7 });
     assert.deepEqual(avatarStackLayout([1, 2, 3, 4], 4), { visible: [1, 2, 3, 4], hiddenCount: 0 });
-    assert.match(source('app/(app)/collections/CollectionsView.tsx'), /const more = others - preview\.length;/);
+    assert.match(source('app/(app)/collections/CollectionsView.tsx'), /const more = others \+ 1 - preview\.length;/, 'the caller is one of the circles too');
   });
 
-  it('the Owner is marked with a gold crown and the role badge; others only with their role', () => {
+  it('the Owner is marked with a gold crown on the avatar corner and the role badge; never beside the name; others only with their role', () => {
     assert.ok('Crown' in STATUS_ICON_MARKUP);
     assert.match(sharing, /const isOwner = person\.role === 'owner';/);
-    assert.match(sharing, /\{isOwner \? \(\s*<span aria-label=\{dictionary\.roleOwner\} className=\{styles\.ownerCrown\}/);
-    assert.match(css, /\.ownerCrown \{[^}]*color: var\(--warning\);/);
+    assert.doesNotMatch(sharing, /styles\.ownerCrown/, 'no crown next to the name');
+    assert.match(css, /\.avatarCrown \{[^}]*inset-inline-end: -5px;[^}]*color: var\(--warning\);/);
     assert.equal(roleLabel('owner', ko), ko.roleOwner);
     assert.match(sharing, /isOwner \? styles\.roleBadgeOwner : styles\.roleBadge/);
   });

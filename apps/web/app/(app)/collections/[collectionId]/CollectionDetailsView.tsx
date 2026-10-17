@@ -20,7 +20,7 @@ import {
   type CollectionDetail,
 } from '../../../../lib/collectionDetails';
 import { canEditCollection } from '../../../../lib/collectionEditor';
-import { canShareCollection, isCollaborative, isSharedWithMe, type CollectionParticipants } from '../../../../lib/collectionSharing';
+import { canShareCollection, isCollaborative, isSharedWithMe, participantsWithSelf, type CollectionParticipants } from '../../../../lib/collectionSharing';
 import { forgetUnlock, unlockHeaders, unlockTokenFor } from '../../../../lib/collectionUnlock';
 import { isCollectionLocked, isCollectionShared } from '../../../../lib/collectionsView';
 import { setUnreadCount } from '../../../../lib/notificationState';
@@ -32,7 +32,7 @@ import { CloneResultBanner } from './CloneResultBanner';
 import { MergeCollection } from './MergeCollection';
 import { MergeUndoBanner } from './MergeUndoBanner';
 import { canMergeCollection, peekCloneResult, peekMergeUndo } from '../../../../lib/collectionOperations';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ActionMenu, type MenuAction } from '../../Popover';
 import { useSafety } from '../../SafetyProvider';
 import { UnlockPanel } from './UnlockPanel';
@@ -41,7 +41,7 @@ import {
   collectionHref,
   collectionLinkView,
   inCollectionContext,
-  formatLinkTimestamp,
+  shouldShowLinkAdders,
   parseRouteId,
   parseViewMode,
   VIEW_MODE_STORAGE_KEYS,
@@ -113,13 +113,21 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
   const [participantsFailed, setParticipantsFailed] = useState(false);
   const [participantsToken, setParticipantsToken] = useState(0);
   const [memberShareUrl, setMemberShareUrl] = useState<string | null>(null);
-  const [panel, setPanel] = useState<'share' | 'participants' | 'merge' | null>(null);
+  // A Collections card's 공유 arrives as `?panel=share`: the share screen opens at once (only if this person may share - checked below),
+  // and the address is cleaned so a reload or Back does not reopen it.
+  const wantsSharePanel = useSearchParams().get('panel') === 'share';
+  const [panel, setPanel] = useState<'share' | 'participants' | 'merge' | null>(wantsSharePanel ? 'share' : null);
   const [managementMode, setManagementMode] = useState<CollectionManagementMode>(null);
   // Arrived here from 다른 컬렉션과 병합: 되돌리기 is offered for a moment (in memory only; see MergeUndoBanner).
   const [mergeUndo, setMergeUndo] = useState(() => (collectionId === null ? null : peekMergeUndo(collectionId)));
   // Arrived here from 내 컬렉션으로 복제: how the copy went (in memory only; see CloneResultBanner).
   const [cloneResult, setCloneResult] = useState(() => (collectionId === null ? null : peekCloneResult(collectionId)));
   const router = useRouter();
+  useEffect(() => {
+    if (wantsSharePanel && collectionId !== null) {
+      router.replace(collectionHref(collectionId), { scroll: false });
+    }
+  }, [collectionId, router, wantsSharePanel]);
   const [mergeFailure, setMergeFailure] = useState<string | null>(null);
   const closeMergeUndo = useCallback(() => setMergeUndo(null), []);
 
@@ -301,6 +309,9 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
     setContentToken(token => token + 1);
   };
 
+  // Who added each link is shown only in a shared Collection (never repeated avatars of "me" in a personal one).
+  const showAdders = shouldShowLinkAdders(collection, []);
+
   return (
     <section className={styles.page}>
       {back}
@@ -365,7 +376,7 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
           router.push('/me/collection-lock');
         }}
       />
-      <Modal closeLabel={dictionary.close} onClose={() => setPanel(null)} open={panel === 'share'} title={dictionary.shareLinkTitle} wide>
+      <Modal closeLabel={dictionary.close} onClose={() => setPanel(null)} open={panel === 'share' && canShareCollection(collection, memberShareUrl)} title={dictionary.shareLinkTitle} wide>
         <SharePanel
           collection={collection}
           onMemberLinkGone={() => setMemberShareUrl(null)}
@@ -430,11 +441,11 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
           {isNameSort(sort) ? (
             <CollectionByName
               api={api}
+              showAdders={showAdders}
               collectionId={collection.id}
               dictionary={dictionary}
               direction={sort === 'titleDesc' ? 'desc' : 'asc'}
               key={`name-${sort}-${contentToken}`}
-              locale={locale}
               onBlocked={blockedBy}
               onOpened={markContentOpened}
               onSessionLost={onSessionLost}
@@ -447,7 +458,7 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
               key={`${sort}-${contentToken}`}
               loadPage={(section, cursor) =>
                 api<CollectionItemsPage>({ path: collectionSectionPagePath(collection.id, section, sort === 'oldest' ? 'oldest' : 'newest', cursor), headers: unlockHeaders(collection.id) }).then(page => ({
-                  links: page.items.map(entry => inCollectionContext(collectionLinkView(entry, collection.id), collection.id)),
+                  links: page.items.map(entry => inCollectionContext(collectionLinkView(entry, collection.id, { showAdder: showAdders }), collection.id)),
                   nextCursor: page.nextCursor,
                 }))
               }
@@ -502,7 +513,8 @@ function CollectionHeader({
   // Mobile: the circles exist whenever someone else is in it (the Collection says how many); the full list replaces the
   // placeholders, and if it cannot be loaded the Collection's own preview of people stands in.
   const others = collection.otherParticipantCount ?? collection.participantPreview?.length ?? 0;
-  const stackPeople = participants ? participants.participants : participantsFailed ? (collection.participantPreview ?? []) : null;
+  const { profile } = useSignedInApp();
+  const stackPeople = participants ? participants.participants : participantsFailed ? participantsWithSelf(collection.participantPreview ?? [], collection.accessRole, profile) : null;
   return (
     <div className={styles.detailHeader}>
       <CollectionTileView collection={collection} size={80} />
@@ -567,8 +579,8 @@ function CollectionByName({
   api,
   collectionId,
   dictionary,
-  locale,
   direction,
+  showAdders,
   viewMode,
   onBlocked,
   onOpened,
@@ -577,8 +589,9 @@ function CollectionByName({
   readonly api: AppApi;
   readonly collectionId: number;
   readonly dictionary: AppDictionary;
-  readonly locale: string;
   readonly direction: 'asc' | 'desc';
+  /** A shared Collection: each link shows who added it (never in a personal one). */
+  readonly showAdders: boolean;
   readonly viewMode: LinkViewMode;
   readonly onBlocked: (error: unknown) => boolean;
   /** The links were read (the content is open). */
@@ -663,9 +676,9 @@ function CollectionByName({
   if (state.items.length === 0) {
     return <p className={styles.emptyState}>{dictionary.collectionItemsEmpty}</p>;
   }
-  const links = state.items.map(entry => inCollectionContext(collectionLinkView(entry, collectionId), collectionId));
+  const links = state.items.map(entry => inCollectionContext(collectionLinkView(entry, collectionId, { showAdder: showAdders }), collectionId));
   return <>
-    <SavedLinkList dictionary={dictionary} links={links} mode={viewMode} timestampOf={link => formatLinkTimestamp(link.timestampUtc, locale, true)} />
+    <SavedLinkList dictionary={dictionary} links={links} mode={viewMode} />
     <LoadMore dictionary={dictionary} onLoadMore={loadMore} skeleton={<SavedLinkSkeleton count={6} mode={viewMode} />} state={state} />
   </>;
 }

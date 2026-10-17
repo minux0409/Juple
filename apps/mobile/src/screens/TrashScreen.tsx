@@ -329,6 +329,7 @@ export function TrashScreen() {
             >
               <SavedLinkGridCard
                 dateDisplayMode="dateTime"
+                showTime
                 isActionInFlight={actionInFlightId === item.id}
                 item={toSavedLinkRowItem(item)}
                 preferEffectiveThumbnail
@@ -358,6 +359,7 @@ export function TrashScreen() {
           >
             <SavedLinkRow
               dateDisplayMode="dateTime"
+              showTime
               isActionInFlight={actionInFlightId === item.id}
               item={toSavedLinkRowItem(item)}
               preferEffectiveThumbnail

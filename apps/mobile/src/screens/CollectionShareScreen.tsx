@@ -976,9 +976,10 @@ export function CollectionShareScreen({ route }: Props) {
 
   const { openProfile, profileModal } = usePersonProfile();
   /** A person's avatar - decoration only: the WHOLE row (see personRowProps) opens the profile / friend info, never a management action. */
-  const avatarButton = (person: PersonProfileTarget & { readonly displayName?: string | null }, testID: string) => (
+  const avatarButton = (person: PersonProfileTarget & { readonly displayName?: string | null }, testID: string, isOwner = false) => (
     <View testID={testID}>
       <UserAvatar displayName={person.displayName} imageUrl={person.profileImageUrl} imageVersion={person.profileImageVersion} jupleId={person.jupleId} size={STATUS_AVATAR_SIZE} />
+      {isOwner ? <OwnerCrown avatarSize={STATUS_AVATAR_SIZE} /> : null}
     </View>
   );
   /** Row-level tap: opens the person. The explicit ⋯ button inside is its own Pressable, so it never also triggers this. */
@@ -1285,8 +1286,7 @@ export function CollectionShareScreen({ route }: Props) {
                         style={[styles.listRow, styles.listRowMain, index > 0 && styles.listRowDivider]}
                         testID={`participant-${member.jupleId}`}
                       >
-                        {avatarButton({ jupleId: member.jupleId, displayName: member.displayName, profileImageUrl: member.profileImageUrl, profileImageVersion: member.profileImageVersion, isSelf: member.isMe }, `participant-avatar-${member.jupleId}`)}
-                        {kind === 'owner' ? <OwnerCrown /> : null}
+                        {avatarButton({ jupleId: member.jupleId, displayName: member.displayName, profileImageUrl: member.profileImageUrl, profileImageVersion: member.profileImageVersion, isSelf: member.isMe }, `participant-avatar-${member.jupleId}`, kind === 'owner')}
                         {personText(member, label)}
                         <RoleBadge kind={kind} testID={`participant-role-${member.jupleId}`} />
                         {kind !== 'owner' && isOwnerView

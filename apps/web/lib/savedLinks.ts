@@ -41,6 +41,9 @@ export interface CollectionItemAdder {
   readonly kind: 'me' | 'owner' | 'member' | 'publicLink';
   readonly jupleId?: string | null;
   readonly displayName?: string | null;
+  readonly profileImageUrl?: string | null;
+  /** The adder is this Collection's Owner (also when that is "me") - the server's own flag, mobile CollectionItemAdder. */
+  readonly isCollectionOwner?: boolean;
 }
 
 /** Mirrors one link of GET /api/v1/collections/{id}/items (apps/mobile collectionsApi.ts CollectionItemEntry) - the fields the Web shows. */
@@ -92,7 +95,22 @@ export interface LinkView {
   readonly timestampUtc: string;
   /** Where clicking it goes in this app - null when it cannot be opened here (a locked link). */
   readonly href: string | null;
+  /** The saved original page (the 바로가기 action): an http(s) URL only, null for a locked link or an unusable stored value. */
+  readonly externalUrl: string | null;
+  /** Who added it, in a shared Collection only (see adderViewOf) - never on Home / 보관함 or in a personal Collection. */
+  readonly adder?: LinkAdderView | null;
 }
+
+/** Who added a link, as the card draws it: an avatar (a crown on its corner for the Collection's Owner), or the anonymous public link. */
+export type LinkAdderView =
+  | {
+      readonly kind: 'person';
+      readonly name: string;
+      readonly profileImageUrl: string | null;
+      readonly isCollectionOwner: boolean;
+      readonly isMe: boolean;
+    }
+  | { readonly kind: 'publicLink' };
 
 export function siteOf(url: string): string | null {
   try {
@@ -204,6 +222,11 @@ export function collectionHref(collectionId: number): string {
   return `/collections/${collectionId}`;
 }
 
+/** The Collection's page with its share panel open (a card's 공유 action) - the page reads `?panel=share` once. */
+export function collectionShareHref(collectionId: number): string {
+  return `${collectionHref(collectionId)}?panel=share`;
+}
+
 /** Another member's link in a shared Collection: the read-only shared view, always IN that Collection (mobile CollectionSharedItem). */
 export function sharedItemHref(collectionId: number, itemId: number): string {
   return `/collections/${collectionId}/items/${itemId}`;
@@ -217,7 +240,7 @@ export function sharedItemHref(collectionId: number, itemId: number): string {
 export function historyLinkView(entry: ItemHistoryEntry): LinkView {
   if (entry.isCollectionLocked) {
     const href = typeof entry.collectionId === 'number' && entry.collectionId > 0 ? `${itemHref(entry.id)}${lockedContextSearch(entry.collectionId)}` : null;
-    return { id: entry.id, locked: true, title: { kind: 'locked' }, memo: null, site: null, siteId: null, thumbnailUrl: null, timestampUtc: entry.savedAtUtc, href };
+    return { id: entry.id, locked: true, title: { kind: 'locked' }, memo: null, site: null, siteId: null, thumbnailUrl: null, timestampUtc: entry.savedAtUtc, href, externalUrl: null };
   }
   return {
     id: entry.id,
@@ -230,11 +253,51 @@ export function historyLinkView(entry: ItemHistoryEntry): LinkView {
     thumbnailCacheKey: thumbnailKeyOf(entry),
     timestampUtc: entry.savedAtUtc,
     href: itemHref(entry.id),
+    externalUrl: isSafeHttpUrl(entry.url) ? entry.url : null,
   };
 }
 
+/**
+ * The adder of a Collection link as a card shows it (mobile describeItemAdder): a person by avatar (a signed-in view always carries
+ * the server's `isCollectionOwner`; `owner` also counts), or the anonymous public link. Null when the server could not say - no
+ * invented face. The caller decides per Collection whether adders are shown at all (shouldShowLinkAdders).
+ */
+export function adderViewOf(adder: CollectionItemAdder | null | undefined): LinkAdderView | null {
+  if (!adder) {
+    return null;
+  }
+  if (adder.kind === 'publicLink') {
+    return { kind: 'publicLink' };
+  }
+  if (adder.kind !== 'me' && !adder.jupleId) {
+    return null;
+  }
+  return {
+    kind: 'person',
+    name: adder.displayName?.trim() || (adder.jupleId ?? ''),
+    profileImageUrl: isSafeHttpUrl(adder.profileImageUrl) ? adder.profileImageUrl : null,
+    isCollectionOwner: adder.isCollectionOwner === true || adder.kind === 'owner',
+    isMe: adder.kind === 'me',
+  };
+}
+
+/**
+ * Adders mean something only where more than one person can add (mobile shouldShowItemAdders): a shared Collection, or one where a
+ * link came in through its public link. A personal Collection (every link "me") stays quiet. Decided once for the whole list.
+ */
+export function shouldShowLinkAdders(
+  collection: { readonly accessRole?: string; readonly hasCollaborators?: boolean; readonly isPublicShareActive?: boolean } | null,
+  items: readonly { readonly addedBy?: CollectionItemAdder | null }[],
+): boolean {
+  const sharedWithMe = collection?.accessRole === 'contributor' || collection?.accessRole === 'viewer' || collection?.accessRole === 'submitter';
+  if (sharedWithMe || collection?.hasCollaborators === true || collection?.isPublicShareActive === true) {
+    return true;
+  }
+  return items.some(item => item.addedBy != null && item.addedBy.kind !== 'me');
+}
+
 /** A Collection's link: mine opens my Item Details; another member's opens the read-only shared view in this Collection. */
-export function collectionLinkView(entry: CollectionItemEntry, collectionId: number): LinkView {
+export function collectionLinkView(entry: CollectionItemEntry, collectionId: number, options?: { readonly showAdder?: boolean }): LinkView {
   const mine = entry.isMine !== false;
   return {
     id: entry.itemId,
@@ -247,6 +310,8 @@ export function collectionLinkView(entry: CollectionItemEntry, collectionId: num
     thumbnailCacheKey: thumbnailKeyOf(entry),
     timestampUtc: entry.addedAtUtc,
     href: mine ? itemHref(entry.itemId) : sharedItemHref(collectionId, entry.itemId),
+    externalUrl: isSafeHttpUrl(entry.url) ? entry.url : null,
+    adder: options?.showAdder ? adderViewOf(entry.addedBy) : null,
   };
 }
 

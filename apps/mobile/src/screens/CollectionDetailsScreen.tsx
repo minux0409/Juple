@@ -1596,10 +1596,13 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         </Pressable>
       );
     }
+    // 바로가기 (List and Grid cards): the saved original page; the card's own tap still opens the link in this app.
+    const openOriginal = () => openLinkInBrowser(item.url);
     return inCell(
       <SwipeableItemRow
         containerStyle={frameStyle}
         disabled={itemActionInFlightId !== null || isRefreshing}
+        onOpenOriginal={isContentLocked ? undefined : openOriginal}
         // 컬렉션에서 제거 (never deletes anyone's Item): the Owner any link; a member only the links
         // they added themselves (their own Items) - the server enforces the same.
         onDelete={isOwner || isMine ? () => confirmUnlinkItem(item.itemId) : undefined}
@@ -1617,11 +1620,12 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
             a History section does - matches this row's own prior "always show the full date"
             behavior exactly - Grid passes the same mode, so both show the identical timestamp. */}
         {layoutMode === 'grid' ? (
-          <SavedLinkGridCard addedBy={addedBy} dateDisplayMode="dateTime" reactions={reactionFooter} isActionInFlight={itemActionInFlightId === item.itemId} item={toSavedLinkRowItem(item)} preferEffectiveThumbnail />
+          <SavedLinkGridCard addedBy={addedBy} dateDisplayMode="dateTime" onOpenOriginal={openOriginal} reactions={reactionFooter} isActionInFlight={itemActionInFlightId === item.itemId} item={toSavedLinkRowItem(item)} preferEffectiveThumbnail />
         ) : (
           <SavedLinkRow
             addedBy={addedBy}
             dateDisplayMode="dateTime"
+            onOpenOriginal={openOriginal}
             reactions={reactionFooter}
             isActionInFlight={itemActionInFlightId === item.itemId}
             item={toSavedLinkRowItem(item)}

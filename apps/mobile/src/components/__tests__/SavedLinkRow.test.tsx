@@ -108,11 +108,12 @@ describe('SavedLinkRow', () => {
     expect(withoutTitle.root.findAll(node => node.props.children === 'https://example.com/b')).toHaveLength(0);
   });
 
-  it('shows a known site icon for a recognized host, and the generic globe icon otherwise', async () => {
-    const known = await render(makeItem({ url: 'https://www.youtube.com/watch?v=abc' }));
+  it('shows a known site icon for a recognized host, and the generic globe icon otherwise (one on the meta line; the picture-less slot repeats it)', async () => {
+    const withPicture = { previewImageUrl: 'https://cdn.example/p.jpg' };
+    const known = await render(makeItem({ url: 'https://www.youtube.com/watch?v=abc', ...withPicture }), false, true);
     expect(known.root.findAllByType(YouTubeIcon)).toHaveLength(1);
 
-    const generic = await render(makeItem({ url: 'https://example.com/a' }));
+    const generic = await render(makeItem({ url: 'https://example.com/a', ...withPicture }), false, true);
     expect(generic.root.findAllByType(GlobeIcon)).toHaveLength(1);
   });
 
@@ -128,9 +129,9 @@ describe('SavedLinkRow', () => {
     const item = makeItem({ memo: null });
     const renderer = await render(item);
 
-    // Every Text this row can render is accounted for by title/domain and time - no second line
-    // of text should exist when there is no memo to show (the site icon is an Svg, not a Text).
-    expect(renderer.root.findAllByType(Text)).toHaveLength(2);
+    // Every Text this row can render is accounted for by the title/domain - no second line of text should exist
+    // when there is no memo to show (the site icon is an Svg, not a Text) and the saved time is not on a row at all.
+    expect(renderer.root.findAllByType(Text)).toHaveLength(1);
   });
 
   it('renders the memo when present, visually separate from the URL line', async () => {

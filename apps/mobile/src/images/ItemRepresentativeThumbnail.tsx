@@ -1,4 +1,5 @@
-import { Image, StyleSheet } from 'react-native';
+import type { ReactNode } from 'react';
+import { Image, StyleSheet, View } from 'react-native';
 import { useStableImageUri } from './stableImageUri';
 
 interface ItemRepresentativeThumbnailProps {
@@ -11,21 +12,26 @@ interface ItemRepresentativeThumbnailProps {
   readonly imageUrl: string | null;
   /** The photo's stable image-cache identity (resolveEffectiveThumbnail) - the kept URI then comes from the image cache. */
   readonly cacheKey?: string | null;
+  /**
+   * What fills the same 60 x 60 slot when there is no picture, or it fails to load. Without it the slot collapses to nothing (the
+   * text-only row). A row that must keep its media area - so a selection mark never lands on its title - passes one.
+   */
+  readonly fallback?: ReactNode;
 }
 
 /**
- * Fixed small square thumbnail for a list row (Inbox/Wishlist/Archive). Renders nothing - not
- * even a placeholder - when there's no image, or when the given URL fails to load: a broken
- * thumbnail must never break the row, so failure just means "no thumbnail", collapsing back to
- * the existing text-only row layout.
+ * Fixed small square thumbnail for a list row (Inbox/Wishlist/Archive). Without a `fallback` it renders
+ * nothing when there's no image, or when the given URL fails to load: a broken thumbnail must never break
+ * the row, so failure just means "no thumbnail", collapsing back to the text-only row layout. With a
+ * `fallback` the same square is kept and the fallback is drawn in it.
  */
-export function ItemRepresentativeThumbnail({ imageUrl, cacheKey }: ItemRepresentativeThumbnailProps) {
+export function ItemRepresentativeThumbnail({ imageUrl, cacheKey, fallback }: ItemRepresentativeThumbnailProps) {
   // The kept URI for this photo first, then (once) this response's fresh short-TTL URL; a later refresh hands back a new fresh
   // URL, which gets its own attempt rather than staying hidden forever because an earlier one failed.
   const { uri, onError } = useStableImageUri(cacheKey, imageUrl);
 
   if (!uri) {
-    return null;
+    return fallback ? <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.thumbnail, styles.fallback]} testID="saved-link-thumbnail-placeholder">{fallback}</View> : null;
   }
 
   return (
@@ -45,4 +51,5 @@ const styles = StyleSheet.create({
     marginEnd: 12,
     width: 60,
   },
+  fallback: { alignItems: 'center', justifyContent: 'center' },
 });

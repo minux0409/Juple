@@ -14,6 +14,7 @@ import { GRID_CARD_PADDING_H, GRID_CELL_PADDING_H } from './savedLinkLayout';
 import { SavedLinkMetaRow, type SavedLinkDateDisplayMode } from './SavedLinkMetaRow';
 import { SwipeableItemRow } from './SwipeableItemRow';
 import { LockIcon } from '../icons/LockIcon';
+import { OpenOriginalLinkButton } from './OpenOriginalLinkButton';
 
 export const SAVED_LINK_GRID_TITLE_MAX_LINES = 2;
 const TITLE_LINE_HEIGHT = 18;
@@ -33,6 +34,10 @@ interface SavedLinkGridCardProps {
   readonly addedBy?: ItemAdderDisplay | null;
   /** A shared link's reaction chips - see SavedLinkRow's `reactions`; omitted (nothing drawn) otherwise. */
   readonly reactions?: ReactNode;
+  /** 바로가기: a small corner button on the card's meta line that opens the saved original page - see SavedLinkRow's `onOpenOriginal`. */
+  readonly onOpenOriginal?: () => void;
+  /** Draw the item's time on the meta line - off by default (see SavedLinkRow's `showTime`). */
+  readonly showTime?: boolean;
 }
 
 /**
@@ -42,7 +47,7 @@ interface SavedLinkGridCardProps {
  * scales lineHeight with it too), so a one-line title card is exactly as tall as a two-line one and a
  * 2-column grid never turns ragged/masonry-like.
  */
-export function SavedLinkGridCard({ item, isActionInFlight, preferEffectiveThumbnail, dateDisplayMode = 'time', addedBy, reactions }: SavedLinkGridCardProps) {
+export function SavedLinkGridCard({ item, isActionInFlight, preferEffectiveThumbnail, dateDisplayMode = 'time', addedBy, reactions, onOpenOriginal, showTime = false }: SavedLinkGridCardProps) {
   const { fontScale } = useWindowDimensions();
   const { t } = useTranslation();
   // Before the locked early return (hook order): the kept URI for this photo, else this response's fresh URL, else the site icon.
@@ -61,7 +66,9 @@ export function SavedLinkGridCard({ item, isActionInFlight, preferEffectiveThumb
         <View style={styles.fallback}><LockIcon color={colors.textSecondary} size={34} /></View>
       </View>
       <Text numberOfLines={SAVED_LINK_GRID_TITLE_MAX_LINES} style={[styles.title, { minHeight: TITLE_LINE_HEIGHT * SAVED_LINK_GRID_TITLE_MAX_LINES * fontScale }]}>{t('item.lockedLinkPlaceholder')}</Text>
-      <SavedLinkMetaRow dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} showSiteIcon={false} style={[styles.meta, { minHeight: META_LINE_HEIGHT * fontScale }]} url="" />
+      <SavedLinkMetaRow dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} showSiteIcon={false} showTime={showTime} style={[styles.meta, { minHeight: META_LINE_HEIGHT * fontScale }]} url="" />
+      {/* Nothing to say on the meta line (no time, no site): its reserved height still keeps the card as tall as its neighbours. */}
+      {showTime ? null : <View style={[styles.meta, { minHeight: META_LINE_HEIGHT * fontScale }]} />}
     </View>;
   }
   const displayTitle = resolveSavedLinkDisplayTitle(item.title, item.url, t);
@@ -72,7 +79,11 @@ export function SavedLinkGridCard({ item, isActionInFlight, preferEffectiveThumb
       {isActionInFlight ? <View style={styles.overlay}><ActivityIndicator color={colors.surface} size="small" /></View> : null}
     </View>
     <Text numberOfLines={SAVED_LINK_GRID_TITLE_MAX_LINES} style={[styles.title, { minHeight: TITLE_LINE_HEIGHT * SAVED_LINK_GRID_TITLE_MAX_LINES * fontScale }, displayTitle.isTechnicalIdentifier && ltrTextStyle]}>{displayTitle.text}</Text>
-    <SavedLinkMetaRow adderTrailing={reactions} addedBy={addedBy} dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} style={[styles.meta, { minHeight: META_LINE_HEIGHT * (addedBy ? 2 : 1) * fontScale }]} url={item.url} />
+    {/* The meta line (site icon / adder) and, at its end, the 바로가기 button - its own cell, so it never overlaps the picture or the title. */}
+    <View style={styles.metaLine}>
+      <SavedLinkMetaRow adderTrailing={reactions} addedBy={addedBy} dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} showTime={showTime} style={[styles.meta, styles.metaFill, { minHeight: META_LINE_HEIGHT * (addedBy ? 2 : 1) * fontScale }]} url={item.url} />
+      {onOpenOriginal ? <OpenOriginalLinkButton onPress={onOpenOriginal} variant="card" /> : null}
+    </View>
     {addedBy ? null : reactions}
   </View>;
 }
@@ -95,7 +106,7 @@ interface SavedLinkGridCellProps extends SavedLinkGridCardProps {
 export function SavedLinkGridCell({ disabled, onPress, onDelete, onShare, onLongPress, ...cardProps }: SavedLinkGridCellProps) {
   const cellStyle = useSavedLinkGridCellStyle();
   return <View style={cellStyle}>
-    <SwipeableItemRow containerStyle={savedLinkGridLayout.swipeContainer} disabled={disabled} onDelete={onDelete} onLongPress={onLongPress} onPress={onPress} onShare={onShare}>
+    <SwipeableItemRow containerStyle={savedLinkGridLayout.swipeContainer} disabled={disabled} onOpenOriginal={cardProps.onOpenOriginal} onDelete={onDelete} onLongPress={onLongPress} onPress={onPress} onShare={onShare}>
       <SavedLinkGridCard {...cardProps} />
     </SwipeableItemRow>
   </View>;
@@ -123,4 +134,6 @@ const styles = StyleSheet.create({
   overlay: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.35)', bottom: 0, justifyContent: 'center', left: 0, position: 'absolute', right: 0, top: 0 },
   title: { color: colors.textPrimary, fontSize: 14, fontWeight: '600', lineHeight: TITLE_LINE_HEIGHT, marginTop: spacing.xs },
   meta: { marginTop: 2 },
+  metaLine: { alignItems: 'flex-end', flexDirection: 'row' },
+  metaFill: { flex: 1, minWidth: 0 },
 });

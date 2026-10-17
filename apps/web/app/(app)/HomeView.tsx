@@ -12,7 +12,7 @@ import { homeCountPath, homeHistoryPath } from '../../lib/homeItems';
 import { HOME_SUMMARY_PATH, parseHomeSummary } from '../../lib/homeSummary';
 import { classifyCollectionShareUrl, collectionShareDestination } from '../../lib/collectionShareUrl';
 import { normalizeEnteredUrl, openReview } from '../../lib/newLink';
-import { collectionHref, formatLinkTimestamp, historyLinkView, parseViewMode, VIEW_MODE_STORAGE_KEYS, type ItemHistoryPage, type LinkView } from '../../lib/savedLinks';
+import { collectionHref, historyLinkView, parseViewMode, VIEW_MODE_STORAGE_KEYS, type ItemHistoryPage, type LinkView } from '../../lib/savedLinks';
 import { useSignedInApp } from './AppRoot';
 import { CollectionTileView } from './collections/CollectionsView';
 import { CollectionGlyph, Glyph } from './Glyph';
@@ -190,7 +190,7 @@ export function HomeView() {
             {state.kind === 'loaded' && state.items.length === 0 ? <p className={styles.emptyState}>{dictionary.homeEmpty}</p> : null}
             {state.kind === 'loaded' && state.items.length > 0 ? (
               <>
-                <SavedLinkList dictionary={dictionary} links={state.items} mode={viewMode} timestampOf={link => formatLinkTimestamp(link.timestampUtc, locale, false)} />
+                <SavedLinkList dictionary={dictionary} links={state.items} mode={viewMode} />
                 <LoadMore dictionary={dictionary} onLoadMore={loadMore} skeleton={<SavedLinkSkeleton count={3} mode={viewMode} />} state={state} />
               </>
             ) : null}

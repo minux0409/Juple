@@ -871,14 +871,7 @@ function CollectionTile({
             />
           </Pressable>
         </View>
-        <CollectionNameLabel
-          crownSize={14}
-          isOwner={isOwnedByMe(collection)}
-          name={collection.name}
-          style={styles.tileNameRow}
-          testID={`collection-owner-crown-${collection.id}`}
-          textStyle={styles.tileLabel}
-        />
+        <CollectionNameLabel name={collection.name} style={styles.tileNameRow} textStyle={styles.tileLabel} />
       </Pressable>
     </View>
   );
@@ -1136,7 +1129,7 @@ function CollectionListRow({ collection, isFavoriteToggleDisabled, isTogglingFav
       <CollectionStatusBadges isLocked={isCollectionLocked(collection)} isShared={isCollaborative(collection)} size={18} />
     </View>
     <View style={styles.listText}>
-      <CollectionNameLabel crownSize={16} isOwner={isOwnedByMe(collection)} name={collection.name} testID={`collection-owner-crown-${collection.id}`} textStyle={styles.listName} />
+      <CollectionNameLabel name={collection.name} textStyle={styles.listName} />
     </View>
     <CountBadge count={collection.attentionCount ?? 0} testID={`collection-attention-${collection.id}`} />
     <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isFavoriteToggleDisabled, busy: isTogglingFavorite }} disabled={isFavoriteToggleDisabled} hitSlop={8} onPress={onToggleFavorite} style={styles.listFavorite}>

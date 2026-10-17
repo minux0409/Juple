@@ -124,6 +124,18 @@ describe('SwipeableItemRow without a share action (a friend row)', () => {
     expect(layer.props.accessibilityActions.map((action: { name: string }) => action.name)).toEqual(['delete', 'options']);
   });
 
+  it('offers 바로가기 as a screen-reader action (the in-card icon is not focusable inside the one-button row) only when given', async () => {
+    const onOpenOriginal = jest.fn();
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(<SwipeableItemRow onOpenOriginal={onOpenOriginal} onPress={jest.fn()}><Text>Row</Text></SwipeableItemRow>);
+    });
+    const layer = renderer.root.findAll(node => Array.isArray(node.props.accessibilityActions))[0];
+    expect(layer.props.accessibilityActions).toEqual([{ name: 'openOriginal', label: i18n.t('item.goToUrlA11y') }]);
+    act(() => layer.props.onAccessibilityAction({ nativeEvent: { actionName: 'openOriginal' } }));
+    expect(onOpenOriginal).toHaveBeenCalledTimes(1);
+  });
+
   it('offers the options accessibility action only when there is a long-press menu, and it opens that menu', async () => {
     const onLongPress = jest.fn();
     let renderer!: ReactTestRenderer.ReactTestRenderer;

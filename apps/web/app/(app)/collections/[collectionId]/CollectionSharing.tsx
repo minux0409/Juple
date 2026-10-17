@@ -98,7 +98,7 @@ export function ParticipantStack({
 
 /**
  * One person everywhere participants are drawn (header modal and share rail): the same Avatar (photo -> initial -> person glyph),
- * the name with "(나)", the Owner's crown, the Juple ID and the role.
+ * the name with "(나)", the Owner's crown on the avatar's corner, the Juple ID and the role.
  */
 export function ParticipantIdentity({
   person,
@@ -119,14 +119,10 @@ export function ParticipantIdentity({
   const role = roleLabel(person.role, dictionary);
   return (
     <>
-      <Avatar person={{ displayName: person.displayName, profileImageUrl: person.profileImageUrl }} size={40} />
+      {/* The Owner is marked on the avatar's corner (Avatar draws the crown for role "owner"), never beside the name. */}
+      <Avatar person={{ displayName: person.displayName, profileImageUrl: person.profileImageUrl, role: person.role }} size={40} />
       <span className={styles.personText}>
         <span className={styles.participantNameLine}>
-          {isOwner ? (
-            <span aria-label={dictionary.roleOwner} className={styles.ownerCrown} role="img" title={dictionary.roleOwner}>
-              <Glyph name="Crown" size={16} />
-            </span>
-          ) : null}
           <span className={styles.settingsValueStart} dir="auto" title={participantName(person, dictionary)}>
             {participantName(person, dictionary)}
           </span>

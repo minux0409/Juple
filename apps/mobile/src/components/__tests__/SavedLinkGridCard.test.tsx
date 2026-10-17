@@ -54,33 +54,35 @@ describe('SavedLinkGridCard', () => {
     ['YouTube', 'https://www.youtube.com/watch?v=abc', YouTubeIcon],
     ['Instagram', 'https://www.instagram.com/p/ABC123xyz/', InstagramIcon],
     ['a generic site', 'https://daangn.com/articles/1', GlobeIcon],
-  ])('secondary row for %s: saved time + that platform icon, never a hostname/site name', async (_label, url, Icon) => {
+  ])('secondary row for %s: that platform icon only - no saved time, never a hostname/site name', async (_label, url, Icon) => {
     const savedAtUtc = '2026-09-24T13:06:00Z';
     const renderer = await render(item({ url, savedAtUtc, memo: 'a memo', previewImageUrl: 'https://cdn.example/image.jpg' }));
 
     const metaRow = renderer.root.findByType(SavedLinkMetaRow);
     expect(metaRow.findAllByType(Icon)).toHaveLength(1);
-    const metaTexts = metaRow.findAllByType(Text).map(node => node.props.children);
-    expect(metaTexts).toEqual([formatSavedLinkTimestamp(savedAtUtc, 'time')]);
+    expect(metaRow.findAllByType(Text)).toHaveLength(0);
+    const everyText = renderer.root.findAllByType(Text).map(node => node.props.children);
+    expect(everyText).not.toContain(formatSavedLinkTimestamp(savedAtUtc, 'time'));
     const allTexts = renderer.root.findAllByType(Text).map(node => node.props.children);
     for (const siteText of ['YouTube', 'Instagram', 'daangn.com', 'a memo']) {
       expect(allTexts).not.toContain(siteText);
     }
   });
 
-  it('uses the exact same timestamp field and formatter as the List row for the same mode', async () => {
+  it('draws the saved time only where a caller asks (Trash: its deleted time) - the same field and formatter in the List row and the Grid card', async () => {
     const entry = item({ savedAtUtc: '2026-09-20T01:02:00Z', url: 'https://www.youtube.com/watch?v=abc' });
     for (const mode of ['time', 'dateTime'] as const) {
       let grid!: ReactTestRenderer.ReactTestRenderer;
       let list!: ReactTestRenderer.ReactTestRenderer;
       await act(async () => {
-        grid = ReactTestRenderer.create(<SavedLinkGridCard dateDisplayMode={mode} isActionInFlight={false} item={entry} />);
-        list = ReactTestRenderer.create(<SavedLinkRow dateDisplayMode={mode} isActionInFlight={false} item={entry} />);
+        grid = ReactTestRenderer.create(<SavedLinkGridCard dateDisplayMode={mode} isActionInFlight={false} item={entry} showTime />);
+        list = ReactTestRenderer.create(<SavedLinkRow dateDisplayMode={mode} isActionInFlight={false} item={entry} showTime />);
       });
       const gridMeta = grid.root.findByType(SavedLinkMetaRow).props;
       const listMeta = list.root.findByType(SavedLinkMetaRow).props;
-      expect(gridMeta).toMatchObject({ savedAtUtc: entry.savedAtUtc, url: entry.url, dateDisplayMode: mode });
-      expect(listMeta).toMatchObject({ savedAtUtc: entry.savedAtUtc, url: entry.url, dateDisplayMode: mode });
+      expect(gridMeta).toMatchObject({ savedAtUtc: entry.savedAtUtc, url: entry.url, dateDisplayMode: mode, showTime: true });
+      expect(listMeta).toMatchObject({ savedAtUtc: entry.savedAtUtc, url: entry.url, dateDisplayMode: mode, showTime: true });
+      expect(grid.root.findByType(SavedLinkMetaRow).findByType(Text).props.children).toBe(formatSavedLinkTimestamp(entry.savedAtUtc, mode));
       expect(grid.root.findByType(SavedLinkMetaRow).findByType(Text).props.children)
         .toBe(list.root.findByType(SavedLinkMetaRow).findByType(Text).props.children);
     }
@@ -101,11 +103,11 @@ describe('SavedLinkGridCard', () => {
     const short = layoutOf(await render(item({ title: 'Hi' })));
     const long = layoutOf(await render(item({ title: 'A very long title that will certainly need to wrap across more than two lines in a narrow grid card' })));
     expect(short).toEqual(long);
-    const [title, time] = short.texts;
+    const [title] = short.texts;
     expect(title.lines).toBe(SAVED_LINK_GRID_TITLE_MAX_LINES);
     expect(title.style.minHeight).toBe((title.style.lineHeight as number) * SAVED_LINK_GRID_TITLE_MAX_LINES * PixelRatio.getFontScale());
-    // Secondary row: exactly one line, with a reserved height.
-    expect(time.lines).toBe(1);
+    // Secondary row (no time text any more): a reserved height of its own.
+    expect(short.texts).toHaveLength(1);
     expect(short.meta.minHeight).toBeGreaterThan(0);
   });
 });

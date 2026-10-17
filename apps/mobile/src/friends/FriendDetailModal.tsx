@@ -7,8 +7,11 @@ import { AppModal } from '../components/AppModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { CopyIconButton } from '../components/CopyIconButton';
 import { UserAvatar } from '../components/UserAvatar';
+import { BlockIcon } from '../icons/BlockIcon';
 import { CheckIcon } from '../icons/CheckIcon';
-import { TrashIcon } from '../icons/TrashIcon';
+import { EditIcon } from '../icons/EditIcon';
+import { FlagIcon } from '../icons/FlagIcon';
+import { UserMinusIcon } from '../icons/UserMinusIcon';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { FRIEND_NOTE_MAX_STORAGE_LENGTH, removeFriend, setFriendNote, type Friend } from './api/friendsApi';
 import { blockUser } from '../safety/safetyApi';
@@ -139,7 +142,11 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onBlo
 
           <View style={styles.divider} />
 
-          <Text style={styles.sectionTitle}>{t('friends.note')}</Text>
+          {/* 메모: a neutral pencil with its word (the save button below keeps its check). */}
+          <View style={styles.sectionTitleRow}>
+            <EditIcon color={colors.textPrimary} size={ACTION_ICON_SIZE} />
+            <Text style={styles.sectionTitle}>{t('friends.note')}</Text>
+          </View>
           <TextInput
             accessibilityLabel={t('friends.note')}
             editable={!isBusy}
@@ -180,7 +187,7 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onBlo
           >
             {isRemoving ? <ActivityIndicator color={colors.danger} size="small" /> : (
               <>
-                <TrashIcon color={colors.danger} size={ACTION_ICON_SIZE} />
+                <UserMinusIcon color={colors.danger} size={ACTION_ICON_SIZE} />
                 <Text numberOfLines={2} style={[styles.actionLabel, styles.removeLabel]}>{t('friends.remove')}</Text>
               </>
             )}
@@ -188,10 +195,16 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onBlo
 
           {/* 신고 / 차단: the other person's account - never shown for oneself (this modal is only ever a friend). */}
           <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => setIsReporting(true)} style={[styles.actionButton, styles.safetyButton, isBusy && styles.disabled]} testID="friend-report">
-            <Text numberOfLines={2} style={[styles.actionLabel, styles.safetyLabel]}>{t('safety.report')}</Text>
+            <FlagIcon color={colors.warningText} size={ACTION_ICON_SIZE} />
+            <Text numberOfLines={2} style={[styles.actionLabel, styles.warningLabel]}>{t('safety.report')}</Text>
           </Pressable>
           <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => setIsBlockConfirmVisible(true)} style={[styles.actionButton, styles.safetyButton, isBusy && styles.disabled]} testID="friend-block">
-            {isBlocking ? <ActivityIndicator color={colors.danger} size="small" /> : <Text numberOfLines={2} style={[styles.actionLabel, styles.removeLabel]}>{t('safety.block')}</Text>}
+            {isBlocking ? <ActivityIndicator color={colors.danger} size="small" /> : (
+              <>
+                <BlockIcon color={colors.danger} size={ACTION_ICON_SIZE} />
+                <Text numberOfLines={2} style={[styles.actionLabel, styles.removeLabel]}>{t('safety.block')}</Text>
+              </>
+            )}
           </Pressable>
           {notice ? <Text accessibilityLiveRegion="polite" style={styles.notice} testID="friend-detail-notice">{notice}</Text> : null}
         </ScrollView>
@@ -226,7 +239,7 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onBlo
   );
 }
 
-/** One icon size for both actions (메모 저장 / 친구 삭제). */
+/** One icon size for every action (메모 / 메모 저장 / 친구 삭제 / 신고 / 차단). */
 const ACTION_ICON_SIZE = 16;
 
 const styles = StyleSheet.create({
@@ -237,7 +250,8 @@ const styles = StyleSheet.create({
   idRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'center', maxWidth: '100%' },
   idText: { flexShrink: 1 },
   divider: { backgroundColor: colors.border, height: StyleSheet.hairlineWidth, marginVertical: spacing.lg },
-  sectionTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
+  sectionTitle: { color: colors.textPrimary, flexShrink: 1, fontSize: 15, fontWeight: '700' },
+  sectionTitleRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs + 2 },
   // Inside a modal's ScrollView: a plain full-width field (flex: 1 would collapse it in a column).
   noteInput: {
     backgroundColor: colors.surface,
@@ -269,7 +283,7 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.45 },
   removeButton: { borderColor: colors.danger },
   safetyButton: { borderColor: colors.border, marginTop: spacing.sm },
-  safetyLabel: { color: colors.textPrimary },
+  warningLabel: { color: colors.warningText },
   notice: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.sm, textAlign: 'center' },
   removeLabel: { color: colors.danger },
 });

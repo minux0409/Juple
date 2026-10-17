@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import type { AppDictionary } from '../../lib/appI18n';
-import type { LinkDisplayTitle, LinkView, LinkViewMode } from '../../lib/savedLinks';
+import type { LinkAdderView, LinkDisplayTitle, LinkView, LinkViewMode } from '../../lib/savedLinks';
+import { Avatar } from './Avatar';
 import { Glyph } from './Glyph';
 import { LinkImage } from './LinkImage';
 import { SiteIcon } from './SiteIcon';
@@ -23,26 +24,25 @@ export function linkTitleText(title: LinkDisplayTitle, dictionary: AppDictionary
 
 /**
  * Saved links in the mobile List / Grid / Image presentations (SavedLinkRow, SavedLinkGridCard, SavedLinkImageTile): the name, the
- * memo (List), the time and the site. A link opens its page in this app (Item Details, or another member's shared view) - a real
- * route, so back / forward work; a locked one is shown but not opened.
+ * memo (List) and the site - never the saved time (that is Item Details'; the date sections above already group by day). A link
+ * opens its page in this app (Item Details, or another member's shared view) - a real route, so back / forward work; a locked one
+ * is shown but not opened. List and Grid also carry a 바로가기 button to the saved original page; it is a sibling of the link (an
+ * anchor never nests in an anchor) with its own hit area. The Image presentation stays picture-only, without it.
  */
 export function SavedLinkList({
   links,
   mode,
   dictionary,
-  timestampOf,
 }: {
   readonly links: readonly LinkView[];
   readonly mode: LinkViewMode;
   readonly dictionary: AppDictionary;
-  /** The row's time text (a time in a one-day section, else date and time). */
-  readonly timestampOf: (link: LinkView) => string;
 }) {
   return (
     <ul className={mode === 'list' ? styles.linkList : mode === 'grid' ? styles.linkGrid : styles.imageGrid}>
       {links.map(link => (
         <li className={mode === 'image' ? styles.imageCell : styles.linkCard} key={link.id}>
-          <LinkEntry dictionary={dictionary} link={link} mode={mode} timestamp={timestampOf(link)} />
+          <LinkEntry dictionary={dictionary} link={link} mode={mode} />
         </li>
       ))}
     </ul>
@@ -72,7 +72,39 @@ function SiteMeta({ link }: { readonly link: LinkView }) {
   );
 }
 
-function LinkEntry({ link, mode, timestamp, dictionary }: { readonly link: LinkView; readonly mode: LinkViewMode; readonly timestamp: string; readonly dictionary: AppDictionary }) {
+/** Who added the link (a shared Collection only): their avatar - the Owner's with a crown on its corner - or the anonymous public link. */
+function AdderMeta({ adder, dictionary }: { readonly adder: LinkAdderView; readonly dictionary: AppDictionary }) {
+  if (adder.kind === 'publicLink') {
+    return (
+      <span aria-label={dictionary.addedViaPublicLink} className={styles.adderMeta} data-link-adder="publicLink" role="img" title={dictionary.addedViaPublicLink}>
+        <Glyph name="User" size={14} />
+      </span>
+    );
+  }
+  const label = adder.isMe ? dictionary.addedByMe : adder.name;
+  const full = adder.isCollectionOwner ? `${label} (${dictionary.roleOwner})` : label;
+  return (
+    <span aria-label={full} className={styles.adderMeta} data-link-adder={adder.isCollectionOwner ? 'owner' : 'person'} role="img" title={full}>
+      <Avatar person={{ displayName: adder.name, profileImageUrl: adder.profileImageUrl, role: adder.isCollectionOwner ? 'owner' : null }} size={22} />
+    </span>
+  );
+}
+
+/** The meta line under a card / beside a row: the adder (shared Collections) and the site. Nothing at all when there is neither. */
+function hasMeta(link: LinkView): boolean {
+  return Boolean(link.adder) || Boolean(link.site);
+}
+
+function MetaContent({ link, dictionary }: { readonly link: LinkView; readonly dictionary: AppDictionary }) {
+  return (
+    <>
+      {link.adder ? <AdderMeta adder={link.adder} dictionary={dictionary} /> : null}
+      {link.site ? <SiteMeta link={link} /> : null}
+    </>
+  );
+}
+
+function LinkEntry({ link, mode, dictionary }: { readonly link: LinkView; readonly mode: LinkViewMode; readonly dictionary: AppDictionary }) {
   const title = linkTitleText(link.title, dictionary);
   const technical = link.title.kind === 'text' && link.title.technical;
   const body =
@@ -94,30 +126,48 @@ function LinkEntry({ link, mode, timestamp, dictionary }: { readonly link: LinkV
               {link.memo}
             </span>
           ) : null}
-          {mode === 'list' ? null : (
+          {mode === 'list' || !(hasMeta(link) || link.externalUrl) ? null : (
             <span className={styles.linkMeta}>
-              <time dateTime={link.timestampUtc}>{timestamp}</time>
-              {link.site ? <SiteMeta link={link} /> : null}
+              <MetaContent dictionary={dictionary} link={link} />
             </span>
           )}
         </div>
-        {mode === 'list' ? (
+        {mode === 'list' && hasMeta(link) ? (
           <span className={styles.linkMetaCol}>
-            <time dateTime={link.timestampUtc}>{timestamp}</time>
-            {link.site ? <SiteMeta link={link} /> : null}
+            <MetaContent dictionary={dictionary} link={link} />
           </span>
         ) : null}
       </>
     );
   const className = mode === 'list' ? styles.linkRowBody : mode === 'grid' ? styles.cardBody : styles.imageBody;
 
-  return link.href ? (
-    <Link className={className} href={link.href} title={mode === 'image' ? title : undefined}>
-      {body}
-    </Link>
-  ) : (
-    <div aria-disabled className={className} title={mode === 'image' ? title : undefined}>
-      {body}
-    </div>
+  const open =
+    mode !== 'image' && link.externalUrl ? (
+      <a
+        aria-label={dictionary.openLink}
+        className={mode === 'grid' ? `${styles.linkOpen} ${styles.linkOpenGrid}` : styles.linkOpen}
+        data-link-open
+        href={link.externalUrl}
+        rel="noopener noreferrer"
+        target="_blank"
+        title={dictionary.openLink}
+      >
+        <Glyph name="ExternalLink" size={mode === 'grid' ? 16 : 18} />
+      </a>
+    ) : null;
+
+  return (
+    <>
+      {link.href ? (
+        <Link className={className} href={link.href} title={mode === 'image' ? title : undefined}>
+          {body}
+        </Link>
+      ) : (
+        <div aria-disabled className={className} title={mode === 'image' ? title : undefined}>
+          {body}
+        </div>
+      )}
+      {open}
+    </>
   );
 }

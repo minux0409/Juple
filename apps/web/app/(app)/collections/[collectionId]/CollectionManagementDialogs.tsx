@@ -150,7 +150,7 @@ export function CollectionManagementDialogs({
         title={mode === 'delete' ? dictionary.collectionDeleteConfirmTitle : mode === 'leave' ? dictionary.collectionLeaveConfirmTitle : lockConfigured === false ? dictionary.lockSetTitle : dictionary.lockConfirmTitle}
       />
       <Modal closeLabel={dictionary.close} onClose={onClose} open={mode === 'remove'} title={dictionary.lockRemoveConfirmTitle}>
-        <form noValidate onSubmit={removeLock}>
+        <form className={styles.modalForm} noValidate onSubmit={removeLock}>
           <p className={styles.dialogMessage}>{dictionary.lockRemoveConfirmMessage}</p>
           <label className={styles.formRow}>
             <span className={styles.fieldLabel}>{dictionary.lockPasswordLabel}</span>

@@ -38,6 +38,7 @@ import { CloseIcon } from '../icons/CloseIcon';
 import { CopyIcon } from '../icons/CopyIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
+import { UserMinusIcon } from '../icons/UserMinusIcon';
 import { UserIcon } from '../icons/UserIcon';
 import { ensurePushPermissionOnce } from '../push/pushPermissionFlow';
 import { useFocusedPolling, useLiveRefresh } from '../push/useLiveRefresh';
@@ -474,7 +475,7 @@ export function FriendsScreen() {
           },
           {
             label: t('friends.remove'),
-            icon: TrashIcon,
+            icon: UserMinusIcon,
             destructive: true,
             onPress: () => {
               const friend = menuFriend;

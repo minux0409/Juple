@@ -641,6 +641,7 @@ export function DailyInboxScreen() {
             isActionInFlight={actionInFlightItemId === item.id}
             item={item}
             {...linkActions.menuProps(item)}
+            {...linkActions.originalLinkProps(item)}
             onDelete={() => confirmDelete(item.id)}
             onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
             onShare={getSavedLinkSwipeActions(item).share ? () => runShare(item) : undefined}
@@ -651,6 +652,7 @@ export function DailyInboxScreen() {
             containerStyle={savedLinkLayout.card}
             disabled={actionInFlightItemId !== null || isRefreshing}
             {...linkActions.menuProps(item)}
+            onOpenOriginal={linkActions.originalLinkProps(item).onOpenOriginal}
             onDelete={() => confirmDelete(item.id)}
             onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
             onShare={getSavedLinkSwipeActions(item).share ? () => runShare(item) : undefined}
@@ -658,6 +660,7 @@ export function DailyInboxScreen() {
             <SavedLinkRow
               isActionInFlight={actionInFlightItemId === item.id}
               item={item}
+              {...linkActions.originalLinkProps(item)}
               preferEffectiveThumbnail
             />
           </SwipeableItemRow>

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, type ScrollViewInstance, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, type ScrollViewInstance, StyleSheet } from 'react-native';
 import { COLLECTION_ICON_KEYS, resolveCollectionIconComponent, type CollectionIconKey } from './collectionIcons';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 

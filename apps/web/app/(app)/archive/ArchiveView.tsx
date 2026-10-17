@@ -17,7 +17,7 @@ import {
 import type { AppDictionary } from '../../../lib/appI18n';
 import type { AppApi } from '../../../lib/appApi';
 import { isSessionLost } from '../../../lib/authSession';
-import { formatLinkTimestamp, historyLinkView, parseViewMode, VIEW_MODE_STORAGE_KEYS, type DateSection, type ItemHistoryPage, type LinkView, type LinkViewMode } from '../../../lib/savedLinks';
+import { historyLinkView, parseViewMode, VIEW_MODE_STORAGE_KEYS, type DateSection, type ItemHistoryPage, type LinkView, type LinkViewMode } from '../../../lib/savedLinks';
 import { useSignedInApp } from '../AppRoot';
 import { DateSections } from '../DateSections';
 import { LoadMore } from '../InfiniteScroll';
@@ -82,7 +82,7 @@ export function ArchiveView() {
         {tooShort ? <p className={styles.searchHint}>{dictionary.archiveSearchMinHint}</p> : null}
       </div>
       {term !== null || sort === 'name' ? (
-        <ArchiveFlat api={api} dictionary={dictionary} key={`${sort}|${term ?? ''}`} locale={locale} onSessionLost={onSessionLost} sort={sort} term={term} viewMode={viewMode} />
+        <ArchiveFlat api={api} dictionary={dictionary} key={`${sort}|${term ?? ''}`} onSessionLost={onSessionLost} sort={sort} term={term} viewMode={viewMode} />
       ) : (
         <DateSections
           dictionary={dictionary}
@@ -112,7 +112,6 @@ function loadHistoryPage(api: AppApi, path: string): Promise<{ readonly links: r
 function ArchiveFlat({
   api,
   dictionary,
-  locale,
   viewMode,
   sort,
   term,
@@ -120,7 +119,6 @@ function ArchiveFlat({
 }: {
   readonly api: AppApi;
   readonly dictionary: AppDictionary;
-  readonly locale: string;
   readonly viewMode: LinkViewMode;
   readonly sort: ArchiveSort;
   readonly term: string | null;
@@ -203,7 +201,7 @@ function ArchiveFlat({
   }
   return (
     <>
-      <SavedLinkList dictionary={dictionary} links={state.items} mode={viewMode} timestampOf={link => formatLinkTimestamp(link.timestampUtc, locale, true)} />
+      <SavedLinkList dictionary={dictionary} links={state.items} mode={viewMode} />
       <LoadMore dictionary={dictionary} onLoadMore={loadMore} skeleton={<SavedLinkSkeleton count={6} mode={viewMode} />} state={state} />
     </>
   );

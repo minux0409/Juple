@@ -94,6 +94,11 @@ interface SwipeableItemRowProps {
    * leave long-press unhandled, exactly like every other screen using this component today.
    */
   readonly onLongPress?: () => void;
+  /**
+   * 바로가기 for assistive technology: the row is one accessible button (its in-card icon button cannot take focus of its own), so the
+   * saved original page is also offered as a screen-reader action, next to the row's other actions.
+   */
+  readonly onOpenOriginal?: () => void;
   /** testID of the content Pressable (the row's tap target). */
   readonly testID?: string;
   /** Overrides the content Pressable's own accessibility label - e.g. CollectionDetailsScreen's "Item N, long-press for options", which needs the row's position, not just its content. */
@@ -120,6 +125,7 @@ export function SwipeableItemRow({
   disabled,
   containerStyle,
   onLongPress,
+  onOpenOriginal,
   accessibilityLabel,
   testID,
 }: SwipeableItemRowProps) {
@@ -271,6 +277,7 @@ export function SwipeableItemRow({
           ...(onDelete ? [{ name: 'delete', label: deleteActionLabel }] : []),
           ...(startAction ? [{ name: 'start', label: startAction.label }] : onShare ? [{ name: 'share', label: t('common.share') }] : []),
           // The long-press menu is also an accessibility action, so it never depends on discovering a gesture.
+          ...(onOpenOriginal ? [{ name: 'openOriginal', label: t('item.goToUrlA11y') }] : []),
           ...(onLongPress ? [{ name: 'options', label: t('collections.linkActionsA11y') }] : []),
         ]}
         onAccessibilityAction={event => {
@@ -280,6 +287,8 @@ export function SwipeableItemRow({
             startAction?.onPress();
           } else if (event.nativeEvent.actionName === 'share') {
             onShare?.();
+          } else if (event.nativeEvent.actionName === 'openOriginal') {
+            onOpenOriginal?.();
           } else if (event.nativeEvent.actionName === 'options') {
             onLongPress?.();
           }

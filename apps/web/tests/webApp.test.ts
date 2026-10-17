@@ -229,6 +229,7 @@ describe('Home (오늘 저장한 링크)', () => {
       thumbnailCacheKey: null, // a photo without an id has no stable identity
       timestampUtc: '2026-10-12T01:00:00Z',
       href: '/items/1',
+      externalUrl: 'https://www.example.com/a',
     });
     assert.deepEqual(historyLinkView(entry({ title: null })).title, { kind: 'text', text: 'example.com', technical: true });
     // Mobile resolveEffectiveThumbnailUrl: the person's own (first uploaded) photo comes BEFORE the automatic preview.
@@ -600,13 +601,14 @@ describe('navigation: real routes for every page', () => {
   it('cards link to those routes; the original link opens only in a new tab without referrer / opener', () => {
     const list = readFileSync(page('SavedLinkList.tsx'), 'utf8');
     assert.match(list, /<Link className=\{className\} href=\{link\.href\}/);
-    assert.doesNotMatch(list, /target="_blank"/);
+    // 바로가기 (List / Grid): the saved original page, in a new tab without referrer / opener - a sibling of the card's link, never nested in it.
+    assert.match(list, /href=\{link\.externalUrl\}\s*rel="noopener noreferrer"\s*target="_blank"/);
     assert.match(readFileSync(page('ItemParts.tsx'), 'utf8'), /rel="noopener noreferrer" target="_blank"/);
     assert.match(readFileSync(page('collections/CollectionsView.tsx'), 'utf8'), /href=\{collectionHref\(collection\.id\)\}/);
   });
 
   it('the reading pages send nothing but GET (writes live only on the pages of the mobile write features)', () => {
-    for (const path of ['archive/ArchiveView.tsx', 'collections/[collectionId]/items/[itemId]/SharedItemView.tsx', 'DateSections.tsx', 'HomeView.tsx', 'collections/CollectionsView.tsx']) {
+    for (const path of ['archive/ArchiveView.tsx', 'collections/[collectionId]/items/[itemId]/SharedItemView.tsx', 'DateSections.tsx', 'HomeView.tsx']) {
       assert.doesNotMatch(readFileSync(page(path), 'utf8'), /method:\s*'(POST|PUT|PATCH|DELETE)'/, path);
     }
   });

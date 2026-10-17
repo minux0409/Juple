@@ -322,11 +322,12 @@ export function DateHistoryScreen() {
             containerStyle={savedLinkLayout.card}
             disabled={actionInFlightItemId !== null}
             {...linkActions.menuProps(row.item)}
+            onOpenOriginal={linkActions.originalLinkProps(row.item).onOpenOriginal}
             onDelete={() => confirmDelete(row.item.id)}
             onPress={() => { itemCardOpen.open(row.item).catch(() => undefined); }}
             onShare={getSavedLinkSwipeActions(row.item).share ? () => runShare(row.item) : undefined}
           >
-            <SavedLinkRow dateDisplayMode={row.dateDisplayMode} isActionInFlight={actionInFlightItemId === row.item.id} item={row.item} preferEffectiveThumbnail />
+            <SavedLinkRow dateDisplayMode={row.dateDisplayMode} isActionInFlight={actionInFlightItemId === row.item.id} item={row.item} {...linkActions.originalLinkProps(row.item)} preferEffectiveThumbnail />
           </SwipeableItemRow>
         );
       case 'flatGridRow':
@@ -340,6 +341,7 @@ export function DateHistoryScreen() {
                 item={item}
                 key={item.id}
                 {...linkActions.menuProps(item)}
+                {...linkActions.originalLinkProps(item)}
                 onDelete={() => confirmDelete(item.id)}
                 onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
                 onShare={getSavedLinkSwipeActions(item).share ? () => runShare(item) : undefined}
@@ -385,6 +387,7 @@ export function DateHistoryScreen() {
             containerStyle={[dateAccordionStyles.row, row.isLast && dateAccordionStyles.rowLast]}
             disabled={actionInFlightItemId !== null}
             {...linkActions.menuProps(item)}
+            onOpenOriginal={linkActions.originalLinkProps(item).onOpenOriginal}
             onDelete={() => confirmDelete(item.id)}
             onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
             onShare={getSavedLinkSwipeActions(item).share ? () => runShare(item) : undefined}
@@ -394,6 +397,7 @@ export function DateHistoryScreen() {
               dateDisplayMode={historySectionShowsItemDate(row.section.kind) ? 'dateTime' : 'time'}
               isActionInFlight={actionInFlightItemId === item.id}
               item={item}
+              {...linkActions.originalLinkProps(item)}
               preferEffectiveThumbnail
             />
           </SwipeableItemRow>
@@ -412,6 +416,7 @@ export function DateHistoryScreen() {
                 item={item}
                 key={item.id}
                 {...linkActions.menuProps(item)}
+                {...linkActions.originalLinkProps(item)}
                 onDelete={() => confirmDelete(item.id)}
                 onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
                 onShare={getSavedLinkSwipeActions(item).share ? () => runShare(item) : undefined}

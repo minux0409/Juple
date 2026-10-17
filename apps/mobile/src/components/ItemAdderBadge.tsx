@@ -1,14 +1,15 @@
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { ItemAdderDisplay } from '../collections/itemAdder';
-import { CrownIcon } from '../icons/CrownIcon';
+import { OwnerCrown } from '../collections/OwnerCrown';
 import { UserIcon } from '../icons/UserIcon';
 import { colors, spacing } from '../theme/tokens';
 import { UserAvatar } from './UserAvatar';
 
 /**
  * Who added a link to a shared Collection, drawn the same everywhere (List row, Grid tile, the
- * shared link's detail): the adder's avatar - their photo, else the fallback - with the crown beside
- * it when they own the Collection; no nickname or 소유자 text. Someone who added through the public
+ * shared link's detail): the adder's avatar - their photo, else the fallback - with the crown on its
+ * top end corner when they own the Collection (also when that is the signed-in user); no nickname or
+ * 소유자 text. Someone who added through the public
  * link stays anonymous: just that fact, in words. One accessible element whose label says it all
  * in words (who, and that they own the Collection).
  */
@@ -45,7 +46,7 @@ export function ItemAdderBadge({
           </Text>
         </>
       ) : (
-        <>
+        <View>
           {adder.jupleId ? (
             <UserAvatar
               displayName={adder.displayName}
@@ -57,12 +58,8 @@ export function ItemAdderBadge({
           ) : (
             <UserIcon color={colors.textSecondary} size={glyphSize} strokeWidth={2} />
           )}
-          {adder.isCollectionOwner ? (
-            <View testID="saved-link-adder-owner">
-              <CrownIcon color={colors.warning} size={glyphSize} strokeWidth={2} />
-            </View>
-          ) : null}
-        </>
+          {adder.isCollectionOwner ? <OwnerCrown avatarSize={avatarSize} testID="saved-link-adder-owner" /> : null}
+        </View>
       )}
     </Container>
   );

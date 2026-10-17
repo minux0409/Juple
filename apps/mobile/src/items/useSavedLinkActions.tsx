@@ -102,5 +102,11 @@ export function useSavedLinkActions({ onEdit, onDelete, onCollectionsChanged }: 
   /** The row/tile props that wire a card to this menu: nothing for a redacted (locked) card. */
   const menuProps = (item: SavedLinkActionTarget) => ({ onLongPress: hasSavedLinkMenu(item) ? () => openMenu(item) : undefined });
 
-  return { openMenu, menuProps, element } as const;
+  /**
+   * The card prop for 바로가기 (the button that opens the saved original page): nothing for a redacted (locked) card, whose URL the
+   * server never sent. A failure to open is reported by this hook's own notice.
+   */
+  const originalLinkProps = (item: SavedLinkActionTarget) => ({ onOpenOriginal: hasSavedLinkMenu(item) ? () => { openLink(item).catch(() => undefined); } : undefined });
+
+  return { openMenu, menuProps, originalLinkProps, element } as const;
 }
