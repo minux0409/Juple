@@ -12,8 +12,11 @@
  * at `next build` time. This is what keeps one Docker image usable across Dev/Staging/Prod with no
  * rebuild - only the store listings differ per environment, not the app.
  */
+import { resolveAppDownload } from './appDownload.ts';
+
 export const storeConfig = {
-  googlePlayUrl: process.env.GOOGLE_PLAY_URL || undefined,
+  // The Android package's real Play listing unless the environment says otherwise (lib/appDownload.ts is the one source).
+  googlePlayUrl: resolveAppDownload({ googlePlayUrl: process.env.GOOGLE_PLAY_URL }).googlePlayUrl as string | undefined,
   appStoreUrl: process.env.APP_STORE_URL || undefined,
   /**
    * Apple Smart App Banner's numeric App Store id (e.g. "123456789", no "id" prefix) - a

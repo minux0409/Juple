@@ -237,9 +237,10 @@ describe('tour engine (Web) - behaviour in the source', () => {
   it('Light / Dark: only theme tokens; the target itself is never recoloured; motion respects reduce-motion', () => {
     const block = css.slice(css.indexOf('/* ---- Guided tour'), css.indexOf('/* ---- Help page: guide list'));
     assert.ok(block.length > 500);
-    assert.match(block, /var\(--scrim\)/);
+    assert.ok(block.includes('var(--tour-scrim,'));
     assert.match(block, /\.tourCard,\s*\.tourCardStatic \{[\s\S]*background: var\(--app-surface(?:, Canvas)?\)/);
-    assert.doesNotMatch(block, /#[0-9a-f]{3,8}\b|rgba?\(/i, 'no literal colours in the tour styles');
+    // The only literal colours are the alpha-carrying fallbacks of the scrim token.
+    assert.doesNotMatch(block.replace(/var\(--tour-scrim, rgba\(0, 0, 0, 0\.\d+\)\)/g, ''), /#[0-9a-f]{3,8}\b|rgba?\(/i, 'no literal colours in the tour styles');
     assert.match(block, /@media \(prefers-reduced-motion: reduce\)/);
     assert.doesNotMatch(block, /infinite|pulse/);
     assert.match(provider, /prefers-reduced-motion: reduce/);
@@ -310,7 +311,40 @@ describe('tour card is a visible card (Web) - regression', () => {
     assert.match(rule, /border-radius: var\(--radius-card\);/);
     assert.doesNotMatch(rule, /background:\s*(transparent|none)|background-color:\s*transparent|opacity:/);
     // the dimming layer is a different token from the card surface
-    assert.match(crlfFree, /\.tourScrim \{\s*background: var\(--scrim\);/);
-    assert.notEqual('var(--scrim)', 'var(--app-surface, Canvas)');
+    assert.match(crlfFree, /\.tourScrim \{\s*background: var\(--tour-scrim,/);
+    assert.notEqual('var(--tour-scrim)', 'var(--app-surface, Canvas)');
+  });
+});
+
+describe('tour dimming is a translucent scrim (Web)', () => {
+  const css = source('app/(app)/app.module.css').replace(/\r\n/g, '\n');
+  const alphaOf = (value: string) => Number(/rgba\([^)]*,\s*([0-9.]+)\)/.exec(value)?.[1]);
+
+  it('Light and Dark each define --tour-scrim as an rgba with a real alpha, lighter than a dialog scrim - never a solid colour', () => {
+    const light = /--tour-scrim:\s*(rgba\([^;]+\));/.exec(css.slice(0, css.indexOf("html[data-theme='dark']")))?.[1] ?? '';
+    const dark = /--tour-scrim:\s*(rgba\([^;]+\));/.exec(css.slice(css.indexOf(":global(html[data-theme='dark']) .shell")))?.[1] ?? '';
+    for (const value of [light, dark]) {
+      assert.ok(alphaOf(value) > 0.15 && alphaOf(value) < 0.6, value);
+    }
+    assert.ok(alphaOf(light) < 0.45 && alphaOf(dark) < 0.62, 'lighter than the dialog scrim in both themes');
+  });
+
+  it('the full-screen layer and the spotlight shadow both use it, and their fallback also carries an alpha', () => {
+    const block = css.slice(css.indexOf('.tourScrim {'), css.indexOf('.tourCard,\n.tourCardStatic {'));
+    assert.match(block, /\.tourScrim \{\s*background: var\(--tour-scrim, rgba\(0, 0, 0, 0\.\d+\)\);/);
+    assert.match(block, /box-shadow: 0 0 0 100vmax var\(--tour-scrim, rgba\(0, 0, 0, 0\.\d+\)\);/);
+    assert.doesNotMatch(block, /background:\s*(#|rgb\(|black|gray|grey)/i);
+    assert.doesNotMatch(block, /opacity:/, 'no layer is dimmed with opacity');
+  });
+
+  it('the card stays a solid surface, separate from the scrim token', () => {
+    const card = css.slice(css.indexOf('.tourCard,\n.tourCardStatic {'), css.indexOf('.tourCard {\n  animation'));
+    assert.match(card, /background: var\(--app-surface, Canvas\);/);
+    assert.doesNotMatch(card, /tour-scrim|--scrim/);
+  });
+
+  it('.tourRoot is in both theme scopes (so the token resolves in Light and Dark)', () => {
+    assert.match(css, /\.toastHost,\s*\.tourRoot,\s*\.collectionDialog \{\s*--app-background/);
+    assert.match(css, /:global\(html\[data-theme='dark'\]\) \.tourRoot,\s*:global\(html\[data-theme='dark'\]\) \.collectionDialog \{/);
   });
 });

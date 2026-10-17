@@ -5,6 +5,7 @@ import { LANGUAGE_COOKIE, parseLanguagePreference, resolveAppLanguage } from '..
 import { readWebAppConfig, WEB_APP_CONFIG_ENV } from '../../lib/webAppConfig';
 import { readLegalOperatorConfig } from '../../lib/legalConfig';
 import { localizedBusinessFacts } from '../../lib/businessFacts';
+import { resolveAppDownload, resolveMobileOs } from '../../lib/appDownload';
 import { AppRoot } from './AppRoot';
 
 /**
@@ -30,8 +31,13 @@ export default async function SignedInAppLayout({ children, modal }: { children:
   const legal = readLegalOperatorConfig();
   const businessFacts = localizedBusinessFacts(legal, dictionary);
 
+  const appDownload = resolveAppDownload({ googlePlayUrl: process.env.GOOGLE_PLAY_URL, appStoreUrl: process.env.APP_STORE_URL });
+  const mobileOs = resolveMobileOs(requestHeaders.get('user-agent'));
+
   return (
     <AppRoot
+      appDownload={appDownload}
+      mobileOs={mobileOs}
       config={result.ok ? result.config : null}
       dictionary={dictionary}
       language={language}

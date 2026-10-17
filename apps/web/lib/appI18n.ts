@@ -161,6 +161,18 @@ export interface WebOnlyStrings {
   /** 다른 컬렉션과 병합 - the confirmation before anything happens */
   readonly mergeConfirmTitle: string;
   readonly mergeConfirmBody: string;
+  readonly mobileLandingTitle: string;
+  readonly mobileLandingBody: string;
+  readonly appOpen: string;
+  readonly appGetOnGooglePlay: string;
+  readonly appGetOnAppStore: string;
+  readonly appStoreSoon: string;
+  readonly appStoreSoonShort: string;
+  readonly appContinueOnWeb: string;
+  readonly sidebarAppTitle: string;
+  readonly sidebarAppBody: string;
+  readonly appGooglePlay: string;
+  readonly appAppStore: string;
 }
 
 export type AppDictionary = WebOnlyStrings & Readonly<Record<MobileStringKey, string>>;

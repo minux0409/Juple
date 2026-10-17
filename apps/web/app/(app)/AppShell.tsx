@@ -10,6 +10,7 @@ import { forgetItemOpenGrantsOutside } from '../../lib/itemOpenGrant';
 import { isItemOverlayOpen } from '../../lib/itemOverlay';
 import { useSignedInApp } from './AppRoot';
 import { BrandIcon } from './BrandIcon';
+import { SidebarAppCard } from './SidebarAppCard';
 import { Glyph } from './Glyph';
 import { resetUnreadCount } from '../../lib/notificationState';
 import styles from './app.module.css';
@@ -21,7 +22,7 @@ import styles from './app.module.css';
  * row of the same destinations on narrow ones, the bell at its end.
  */
 export function AppShell({ children }: { readonly children: React.ReactNode }) {
-  const { dictionary } = useSignedInApp();
+  const { dictionary, appDownload } = useSignedInApp();
   const pathname = usePathname();
   // Leaving a Collection's pages ends its visit: its unlock grant is forgotten (it asks for the password again next time).
   useEffect(() => {
@@ -53,6 +54,7 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
+        <SidebarAppCard dictionary={dictionary} download={appDownload} />
       </header>
       <main className={styles.content}>
         <div className={styles.contentInner}>{children}</div>

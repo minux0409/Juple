@@ -36,6 +36,8 @@ import { SafetyProvider } from './SafetyProvider';
 import { TermsAgreement } from './TermsAgreement';
 import { ToastProvider } from './Toaster';
 import { CenteredMessage, Landing, type BusinessFact } from './Landing';
+import { MobileAppLanding, useContinueOnWeb } from './MobileAppLanding';
+import type { AppDownload, MobileOs } from '../../lib/appDownload';
 import { ReauthDialog } from './ReauthDialog';
 import { clearStableImageUris } from '../../lib/stableImageUri';
 
@@ -64,6 +66,8 @@ interface SignedInApp {
   readonly signOut: () => void;
   /** The host of the canonical Collection share links (null = not configured: nothing pasted is taken for one). */
   readonly publicWebHost: string | null;
+  /** Where to get the app (Google Play; the App Store only when a listing is configured). */
+  readonly appDownload: AppDownload;
 }
 
 const SignedInAppContext = createContext<SignedInApp | null>(null);
@@ -108,6 +112,8 @@ export function AppRoot({
   language,
   languagePreference,
   businessFacts,
+  appDownload,
+  mobileOs,
   children,
 }: {
   readonly config: WebAppConfig | null;
@@ -115,9 +121,13 @@ export function AppRoot({
   readonly language: AppLanguage;
   readonly languagePreference: LanguagePreference;
   readonly businessFacts: readonly BusinessFact[];
+  readonly appDownload: AppDownload;
+  /** A phone-sized mobile browser (null = desktop / tablet): it is offered the app before the Web. */
+  readonly mobileOs: MobileOs | null;
   readonly children: React.ReactNode;
 }) {
   const router = useRouter();
+  const [continueOnWeb, chooseContinueOnWeb] = useContinueOnWeb();
   const [status, setStatus] = useState<AuthStatus>(config ? 'initializing' : 'configMissing');
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -410,12 +420,17 @@ export function AppRoot({
             onSessionLost,
             signOut,
             publicWebHost: config?.publicWebHost ?? null,
+            appDownload,
           }
         : null,
-    [account, api, clearReauthentication, config, dictionary, entitlement, language, languagePreference, onSessionLost, profile, reauthenticate, reauthentication, setLanguagePreference, signOut, storeSubscription],
+    [account, api, appDownload, clearReauthentication, config, dictionary, entitlement, language, languagePreference, onSessionLost, profile, reauthenticate, reauthentication, setLanguagePreference, signOut, storeSubscription],
   );
 
   const content = (() => {
+    // A phone gets the app first; "웹에서 계속하기" keeps the Web for this tab session. (Legal pages and share links are outside this app.)
+    if (mobileOs && !continueOnWeb) {
+      return <MobileAppLanding dictionary={dictionary} download={appDownload} onContinueOnWeb={chooseContinueOnWeb} os={mobileOs} />;
+    }
     if (status === 'configMissing') {
       return <CenteredMessage message={dictionary.configMissingMessage} title={dictionary.configMissingTitle} />;
     }
