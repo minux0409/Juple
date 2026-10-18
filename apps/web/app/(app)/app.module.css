@@ -5477,13 +5477,15 @@ ul.friendGrid > * + * {
   gap: var(--space-5);
 }
 
+/* The picture fills the header beside the action rail (up to five 44px buttons are about 250px tall): wider than before, 4:3 so the height
+   follows the width, capped, never stretched (object-fit: cover below). */
 .quickThumb {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 180px;
-  height: 135px;
+  width: clamp(200px, 40%, 300px);
+  aspect-ratio: 4 / 3;
   overflow: hidden;
   border-radius: var(--radius-xl);
   background: var(--app-surface-muted);
@@ -5728,8 +5730,7 @@ ul.friendGrid > * + * {
   }
 
   .quickThumb {
-    width: 112px;
-    height: 84px;
+    width: clamp(96px, 34%, 150px);
     border-radius: var(--radius-lg);
   }
 
@@ -6646,11 +6647,20 @@ button.reactionChipMine:hover {
 }
 
 /* ======================================================================================================================
-   Snackbar (the 되돌리기 offer of a reversible action, and short notices) - above every page and the Quick Detail sheet
+   Snackbar (the 되돌리기 offer of a reversible action, and short notices) - above every page, and above any modal <dialog>: the host
+   is a manual popover (Toaster.tsx), shown in the browser's top layer after the dialog, which z-index alone can never beat.
+   The reset below removes the popover's user-agent box (centred, bordered, filled) so it stays the transparent bottom strip.
    ==================================================================================================================== */
 .toastHost {
   position: fixed;
   inset: auto 0 0 0;
+  width: auto;
+  height: auto;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  overflow: visible;
   z-index: 60;
   display: flex;
   justify-content: center;
@@ -7868,21 +7878,33 @@ button.reactionChipMine:hover {
   outline-offset: 0;
 }
 
+/* Compact vertical tiles (icon above, name below) in ONE horizontally scrolling row - the same as the app: a long list never makes the
+   dialog taller. */
 .friendSharedList {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  flex-direction: row;
+  gap: var(--space-2);
   margin: 0;
-  padding: 0;
+  padding: 0 0 var(--space-1);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
   list-style: none;
+  scrollbar-width: thin;
+}
+
+.friendSharedList > li {
+  flex: 0 0 auto;
 }
 
 .friendSharedItem {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
-  min-height: 48px;
-  padding: var(--space-1) var(--space-3);
+  gap: var(--space-1);
+  box-sizing: border-box;
+  width: 84px;
+  min-height: 44px;
+  padding: var(--space-1);
   border-radius: var(--radius-control);
   color: var(--app-text);
   text-decoration: none;
@@ -7892,13 +7914,39 @@ button.reactionChipMine:hover {
   background: var(--app-surface-muted);
 }
 
+.friendSharedThumb {
+  position: relative;
+  display: inline-flex;
+}
+
+/* The lock sits on the thumbnail's top-start corner - it never takes a line of its own. */
+.friendSharedLock {
+  position: absolute;
+  top: -4px;
+  inset-inline-start: -4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  color: var(--app-text);
+}
+
 .friendSharedName {
+  display: -webkit-box;
+  width: 100%;
   min-width: 0;
-  flex: 1 1 auto;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+  text-align: center;
+  font-size: var(--text-caption, 12px);
   font-weight: 600;
+  line-height: 1.3;
 }
 
 .friendSharedMore {
@@ -8514,4 +8562,26 @@ button.reactionChipMine:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ---- Round 3: merge-picker lock badge ---- */
+.choiceThumb {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.choiceLockBadge {
+  position: absolute;
+  top: -5px;
+  inset-inline-start: -5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface, var(--app-surface));
+  border: 1px solid var(--border, var(--app-border));
+  color: var(--text, var(--app-text));
 }

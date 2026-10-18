@@ -485,16 +485,18 @@ function SharedCollections({ friendshipId, dictionary }: { readonly friendshipId
         <ul className={styles.friendSharedList}>
           {state.items.map(collection => (
             <li key={collection.id}>
-              <Link className={styles.friendSharedItem} href={collectionHref(collection.id)}>
-                <CollectionTileView collection={collection} size={36} />
+              <Link aria-label={collection.name} className={styles.friendSharedItem} href={collectionHref(collection.id)} title={collection.name}>
+                <span className={styles.friendSharedThumb}>
+                  <CollectionTileView collection={collection} size={44} />
+                  {isCollectionLocked(collection) ? (
+                    <span aria-label={dictionary.lockedCollection} className={styles.friendSharedLock} role="img" title={dictionary.lockedCollection}>
+                      <Glyph name="Lock" size={11} />
+                    </span>
+                  ) : null}
+                </span>
                 <span className={styles.friendSharedName} dir="auto">
                   {collection.name}
                 </span>
-                {isCollectionLocked(collection) ? (
-                  <span aria-label={dictionary.lockedCollection} className={styles.badge} role="img" title={dictionary.lockedCollection}>
-                    <Glyph name="Lock" size={13} />
-                  </span>
-                ) : null}
               </Link>
             </li>
           ))}

@@ -39,7 +39,7 @@ describe('Friends: 함께 공유 중인 컬렉션', () => {
   it('each Collection is a real link to its Collection Details, with its tile, name and lock state', () => {
     const component = friends.slice(friends.indexOf('function SharedCollections'), friends.indexOf('/** 친구 추가'));
     assert.match(component, /href=\{collectionHref\(collection\.id\)\}/);
-    assert.match(component, /<CollectionTileView collection=\{collection\} size=\{36\} \/>/);
+    assert.match(component, /<CollectionTileView collection=\{collection\} size=\{44\} \/>/);
     assert.match(component, /isCollectionLocked\(collection\)/);
     assert.match(component, /aria-expanded=\{open\}/);
     // the heading carries the count (with + when there is another page); empty / failure have their own words

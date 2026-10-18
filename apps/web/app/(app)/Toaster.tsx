@@ -64,6 +64,29 @@ export function ToastProvider({ children }: { readonly children: React.ReactNode
     [update],
   );
 
+  // A modal <dialog> (the link details, every Modal) lives in the browser's TOP LAYER, which no z-index can rise above - a toast in the
+  // normal page layer was drawn behind it. The host is a manual popover instead: showing it puts it in the top layer AFTER whatever
+  // dialog is already open, so a message always appears over it. A new toast re-enters the top layer (hide, then show), so it is also
+  // above a dialog that opened after the previous toast. A browser without the Popover API keeps the plain fixed strip.
+  const hostRef = useRef<HTMLDivElement>(null);
+  const toastId = toast?.id ?? null;
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || typeof host.showPopover !== 'function') {
+      return;
+    }
+    try {
+      if (host.matches(':popover-open')) {
+        host.hidePopover();
+      }
+      if (toastId !== null) {
+        host.showPopover();
+      }
+    } catch {
+      // Not showable right now: the strip stays where it is.
+    }
+  }, [toastId]);
+
   // The time of an offer / notice (none while an undo runs or a failure is being read).
   const timerKey = toast ? `${toast.id}:${toast.kind === 'undo' ? toast.phase : 'notice'}` : null;
   useEffect(() => {
@@ -113,7 +136,7 @@ export function ToastProvider({ children }: { readonly children: React.ReactNode
   return (
     <ToastContext.Provider value={api}>
       {children}
-      <div className={styles.toastHost}>
+      <div className={styles.toastHost} popover="manual" ref={hostRef}>
         {toast ? (
           <div
             className={isError ? `${styles.toast} ${styles.toastError}` : styles.toast}

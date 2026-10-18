@@ -308,11 +308,19 @@ export function CollectionPicker({
                 onClick={() => void requestToggle(collection)}
                 type="button"
               >
-                <CollectionTileView collection={collection} size={48} />
+                {/* Grid: the lock is a badge on the thumbnail's top-start corner, so a locked tile is exactly as tall as any other. */}
+                <span className={styles.choiceThumb}>
+                  <CollectionTileView collection={collection} size={48} />
+                  {isCollectionLocked(collection) && viewModes && layout === 'grid' ? (
+                    <span aria-label={dictionary.lockedCollection} className={styles.choiceLockBadge} data-choice-lock role="img" title={dictionary.lockedCollection}>
+                      <Glyph name="Lock" size={11} />
+                    </span>
+                  ) : null}
+                </span>
                 <span className={styles.choiceName} dir="auto">
                   {collection.name}
                 </span>
-                {isCollectionLocked(collection) ? <Glyph name="Lock" size={14} /> : null}
+                {isCollectionLocked(collection) && !(viewModes && layout === 'grid') ? <Glyph name="Lock" size={14} /> : null}
               </button>
             );
           })}

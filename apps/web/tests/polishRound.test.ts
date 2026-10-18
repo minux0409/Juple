@@ -221,3 +221,76 @@ describe('링크 복사 (the saved link\'s original URL)', () => {
     }
   });
 });
+
+describe('Toast is above every modal <dialog> (top layer)', () => {
+  const toaster = source('app/(app)/Toaster.tsx');
+  it('the host is a manual popover, re-shown for each toast, so it enters the top layer after any open dialog (z-index cannot beat a modal dialog)', () => {
+    assert.match(toaster, /<div className=\{styles\.toastHost\} popover="manual" ref=\{hostRef\}>/);
+    assert.match(toaster, /host\.showPopover\(\)/);
+    assert.match(toaster, /host\.hidePopover\(\)/);
+    assert.match(toaster, /\[toastId\]/);
+    // A browser without the Popover API keeps the plain fixed strip.
+    assert.match(toaster, /typeof host\.showPopover !== 'function'/);
+  });
+
+  it('the dialogs are real modal <dialog>s (the reason a z-index could never work) and no toast / dialog carries a magic z-index', () => {
+    for (const file of ['app/(app)/Modal.tsx', 'app/(app)/items/[itemId]/QuickDetailSheet.tsx', 'app/(app)/ConfirmDialog.tsx']) {
+      assert.match(source(file), /showModal\(\)/, file);
+    }
+    for (const match of css.matchAll(/z-index:\s*(\d+)/g)) {
+      assert.ok(Number(match[1]) <= 1000, `z-index ${match[1]}`);
+    }
+  });
+
+  it('the popover host stays the transparent bottom strip (the user-agent box is reset) and keeps the tour layer see-through', () => {
+    assert.match(css, /\.toastHost \{[^}]*width: auto;[^}]*margin: 0;[^}]*border: 0;[^}]*background: transparent;[^}]*overflow: visible;/);
+    assert.match(css, /\.tourRoot \{[^}]*Never paints/);
+  });
+
+  it('every caller shows its message through the one provider, so each action inside a dialog gets the same layering', () => {
+    for (const file of ['app/(app)/CopyLinkButton.tsx', 'app/(app)/items/[itemId]/ItemDetailContent.tsx']) {
+      assert.match(source(file), /useToast\(\)/, file);
+    }
+    assert.equal((source('app/(app)/AppRoot.tsx').match(/<ToastProvider>/g) ?? []).length, 1);
+  });
+});
+
+describe('Friend detail: shared collections as compact vertical tiles', () => {
+  const page = source('app/(app)/me/friends/page.tsx');
+  it('thumbnail above, name below (max 2 lines), a horizontally scrolling row, the lock on the thumbnail', () => {
+    assert.match(page, /<CollectionTileView collection=\{collection\} size=\{44\} \/>/);
+    assert.match(page, /styles\.friendSharedThumb/);
+    assert.match(page, /styles\.friendSharedLock/);
+    assert.match(css, /\.friendSharedList \{[^}]*flex-direction: row;[^}]*overflow-x: auto;/);
+    assert.match(css, /\.friendSharedItem \{[^}]*flex-direction: column;[^}]*width: 84px;/);
+    assert.match(css, /\.friendSharedName \{[^}]*-webkit-line-clamp: 2;[^}]*text-align: center;/);
+    assert.match(css, /\.friendSharedLock \{[^}]*position: absolute;[^}]*top: -4px;[^}]*inset-inline-start: -4px;/);
+  });
+  it('navigation, accessibility name, pagination and the API are unchanged', () => {
+    assert.match(page, /<Link aria-label=\{collection\.name\} className=\{styles\.friendSharedItem\} href=\{collectionHref\(collection\.id\)\}/);
+    assert.match(page, /\/api\/v1\/friends\/\$\{friendshipId\}\/shared-collections\?limit=50/);
+    assert.match(page, /data-friend-shared-more/);
+  });
+});
+
+describe('Merge picker Grid: the lock is a thumbnail badge', () => {
+  const picker = source('app/(app)/CollectionPicker.tsx');
+  it('in Grid the lock is overlaid on the thumbnail (top-start) and takes no row; List keeps its trailing lock', () => {
+    assert.match(picker, /styles\.choiceThumb/);
+    assert.match(picker, /isCollectionLocked\(collection\) && viewModes && layout === 'grid' \?[\s\S]*styles\.choiceLockBadge/);
+    assert.match(picker, /isCollectionLocked\(collection\) && !\(viewModes && layout === 'grid'\) \? <Glyph name="Lock" size=\{14\} \/> : null/);
+    assert.match(css, /\.choiceLockBadge \{[^}]*position: absolute;[^}]*top: -5px;[^}]*inset-inline-start: -5px;/);
+    assert.match(css, /\.choiceThumb \{[^}]*position: relative;/);
+  });
+});
+
+describe('Link detail thumbnail', () => {
+  it('is wider, keeps 4:3 (height follows width), is capped, covers without distortion, and shrinks on small screens', () => {
+    assert.match(css, /\.quickThumb \{[^}]*width: clamp\(200px, 40%, 300px\);[^}]*aspect-ratio: 4 \/ 3;/);
+    assert.match(css, /\.quickThumb img \{[^}]*object-fit: cover;/);
+    assert.match(css, /\.quickThumb \{\s*width: clamp\(96px, 34%, 150px\);/);
+  });
+  it('the placeholder tile of a link without a picture stays small', () => {
+    assert.match(css, /\.quickSiteTile \{[^}]*width: 64px;[^}]*height: 64px;/);
+  });
+});

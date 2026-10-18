@@ -710,7 +710,7 @@ describe('Web V4: a content workspace', () => {
     assert.match(content, /const hasImage = photoUrl !== null;/);
     assert.match(content, /<QuickThumb dictionary=\{dictionary\} photoKey=\{photoKey\} photoUrl=\{hasImage \? photoUrl : null\} siteId=\{siteId\} \/>/);
     assert.match(content, /return photoUrl !== null \? \(\s*<div className=\{styles\.quickThumb\}>/);
-    assert.match(css, /\.quickThumb \{[^}]*width: 180px;[^}]*height: 135px;/);
+    assert.match(css, /\.quickThumb \{[^}]*width: clamp\(200px, 40%, 300px\);[^}]*aspect-ratio: 4 \/ 3;/);
     assert.match(css, /\.quickTitle \{[^}]*-webkit-line-clamp: 3;/);
     assert.match(css, /\.quickGroup \{\s*display: grid;\s*grid-template-columns: 112px minmax\(0, 1fr\);[^}]*border-top: 1px solid var\(--app-divider\);/);
   });
