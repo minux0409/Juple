@@ -101,6 +101,7 @@
   },
   "collections": {
     "listSearchPlaceholder": "搜索合集或链接",
+    "searchSuggestionLinks": "链接",
     "attentionA11y": "{{name}}，{{count}} 项待处理",
     "title": "合集",
     "empty": "还没有合集。",

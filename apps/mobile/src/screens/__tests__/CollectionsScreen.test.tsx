@@ -21,6 +21,7 @@ import { ThemedTextInput } from '../../components/ThemedTextInput';
 import {
   createCollection,
   getCollections,
+  getCollectionSuggestions,
   getMyPendingSubmissionTotal,
   listMyJoinRequests,
   setCollectionFavorite,
@@ -1728,6 +1729,263 @@ describe('CollectionsScreen - 컬렉션 또는 링크 검색', () => {
       if (file !== 'en.json') {
         expect(value).not.toBe(en);
       }
+    }
+  });
+});
+
+describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
+  const searchField = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAll(node => node.props.testID === 'collections-search' && typeof node.props.onChangeText === 'function')[0];
+  const focus = async (renderer: ReactTestRenderer.ReactTestRenderer) => {
+    await act(async () => {
+      searchField(renderer).props.onFocus();
+    });
+  };
+  const type = async (renderer: ReactTestRenderer.ReactTestRenderer, text: string) => {
+    await act(async () => {
+      searchField(renderer).props.onChangeText(text);
+    });
+  };
+  const pause = async (ms: number) => {
+    await act(async () => {
+      jest.advanceTimersByTime(ms);
+    });
+  };
+  const panels = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAll(node => node.props.testID === 'collection-suggestions' && typeof node.type === 'string');
+  const rows = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) => renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onPress === 'function');
+  const textsOf = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByType(Text).map(node => [node.props.children].flat().join(''));
+  const link = (itemId: number, collectionId: number, title: string, hostname: string | null = 'youtube.com', isMine = true) => ({
+    itemId,
+    collectionId,
+    collectionName: `Col ${collectionId}`,
+    title,
+    hostname,
+    isMine,
+  });
+  const answer = (links = [link(10, 1, 'Mili - TIAN TIAN')]) => ({ collections: [ownedCollection], links });
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    setUpGetCollectionsMock();
+    jest.mocked(getCollectionSuggestions).mockResolvedValue(answer());
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.clearAllMocks();
+    mockRouteParams = undefined;
+  });
+
+  it('asks only while the box has focus and text - after the same 250ms pause as the list, once per burst, 1 character included', async () => {
+    const renderer = await renderScreen();
+    await type(renderer, 'tian');
+    await pause(400);
+    expect(getCollectionSuggestions).not.toHaveBeenCalled(); // typed, but never focused
+    await focus(renderer);
+    for (const text of ['t', 'ti', 'tia', 'tian']) {
+      await type(renderer, text);
+      await pause(100);
+    }
+    expect(getCollectionSuggestions).not.toHaveBeenCalled();
+    await pause(250);
+    expect(getCollectionSuggestions).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(getCollectionSuggestions).mock.calls[0][1]).toEqual({ scope: 'favorites', search: 'tian' });
+    await type(renderer, 't');
+    await pause(260);
+    expect(jest.mocked(getCollectionSuggestions).mock.calls.at(-1)?.[1]).toEqual({ scope: 'favorites', search: 't' });
+    act(() => renderer.unmount());
+  });
+
+  it('draws Collections and links under the field: the link second line is "Collection · host"; the headings are the existing words', async () => {
+    const renderer = await renderScreen();
+    await focus(renderer);
+    await type(renderer, 'tian');
+    await pause(260);
+    expect(panels(renderer)).toHaveLength(1);
+    expect(rows(renderer, 'collection-suggestion-collection')).toHaveLength(1);
+    expect(rows(renderer, 'collection-suggestion-link')).toHaveLength(1);
+    const texts = textsOf(renderer);
+    expect(texts).toContain('Mili - TIAN TIAN');
+    expect(texts).toContain('Col 1 · youtube.com');
+    expect(texts).toContain(i18n.t('collections.title'));
+    expect(texts).toContain(i18n.t('collections.searchSuggestionLinks'));
+    // The list below is still the complete answer for the same text (the screen's own request is unchanged).
+    expect(jest.mocked(getCollections).mock.calls.at(-1)?.[1]).toEqual({ scope: 'favorites', limit: 24, search: 'tian' });
+    act(() => renderer.unmount());
+  });
+
+  it('draws at most three of each kind', async () => {
+    jest.mocked(getCollectionSuggestions).mockResolvedValue({
+      collections: [1, 2, 3, 4].map(id => makeCollection({ id: 100 + id, name: `S${id}` })),
+      links: [1, 2, 3, 4].map(id => link(id, 1, `L${id}`)),
+    });
+    const renderer = await renderScreen();
+    await focus(renderer);
+    await type(renderer, 's');
+    await pause(260);
+    expect(rows(renderer, 'collection-suggestion-collection')).toHaveLength(3);
+    expect(rows(renderer, 'collection-suggestion-link')).toHaveLength(3);
+    act(() => renderer.unmount());
+  });
+
+  it('tapping a Collection opens it; tapping a link opens it IN its Collection (own / another member), and closes the panel', async () => {
+    jest.mocked(getCollectionSuggestions).mockResolvedValue(answer([link(10, 7, 'Mine'), link(11, 8, 'Theirs', null, false)]));
+    const renderer = await renderScreen();
+    await focus(renderer);
+    await type(renderer, 'x');
+    await pause(260);
+    await act(async () => {
+      rows(renderer, 'collection-suggestion-collection')[0].props.onPress();
+    });
+    expect(mockNavigate).toHaveBeenLastCalledWith('CollectionDetails', { collectionId: 1 });
+    expect(panels(renderer)).toHaveLength(0);
+
+    await focus(renderer);
+    await type(renderer, 'xy');
+    await pause(260);
+    expect(panels(renderer)).toHaveLength(1);
+    await act(async () => {
+      rows(renderer, 'collection-suggestion-link')[0].props.onPress();
+    });
+    expect(mockNavigate).toHaveBeenLastCalledWith('CollectionDetails', { collectionId: 7, openItem: { itemId: 10, focus: null, shared: false } });
+    await focus(renderer);
+    await type(renderer, 'xyz');
+    await pause(260);
+    await act(async () => {
+      rows(renderer, 'collection-suggestion-link')[1].props.onPress();
+    });
+    expect(mockNavigate).toHaveBeenLastCalledWith('CollectionDetails', { collectionId: 8, openItem: { itemId: 11, focus: null, shared: true } });
+    expect(searchField(renderer).props.value).toBe('xyz'); // the text (and the list) stay for the way back
+    act(() => renderer.unmount());
+  });
+
+  it('clearing closes it at once; blur closes it; dragging the list closes it', async () => {
+    const renderer = await renderScreen();
+    await focus(renderer);
+    await type(renderer, 'tian');
+    await pause(260);
+    expect(panels(renderer)).toHaveLength(1);
+    await type(renderer, '');
+    expect(panels(renderer)).toHaveLength(0);
+
+    await type(renderer, 'tian');
+    await pause(260);
+    expect(panels(renderer)).toHaveLength(1);
+    await act(async () => {
+      searchField(renderer).props.onBlur();
+    });
+    expect(panels(renderer)).toHaveLength(0);
+
+    await focus(renderer);
+    await type(renderer, 'tiany');
+    await pause(260);
+    expect(panels(renderer)).toHaveLength(1);
+    await act(async () => {
+      renderer.root.findAllByType(FlatList)[0].props.onScrollBeginDrag();
+    });
+    expect(panels(renderer)).toHaveLength(0);
+    act(() => renderer.unmount());
+  });
+
+  it('follows the tab: each tab asks for its own scope and never draws another tab answer', async () => {
+    jest.mocked(getCollectionSuggestions).mockImplementation(async (_request, options) =>
+      options.scope === 'shared' ? { collections: [sharedCollection], links: [] } : { collections: [ownedCollection], links: [] },
+    );
+    const renderer = await renderScreen();
+    await focus(renderer);
+    await type(renderer, 'a');
+    await pause(260);
+    expect(textsOf(renderer)).toContain('All A');
+    await selectFilter(renderer, 'shared');
+    // The favorites answer is gone at once (never shown under the shared tab) ...
+    expect(panels(renderer)).toHaveLength(0);
+    await pause(260);
+    // ... and the shared tab's own request has been made.
+    expect(jest.mocked(getCollectionSuggestions).mock.calls.at(-1)?.[1]).toEqual({ scope: 'shared', search: 'a' });
+    expect(textsOf(renderer)).toContain(sharedCollection.name);
+    act(() => renderer.unmount());
+  });
+
+  it('a late answer of an old text never replaces the newer one', async () => {
+    let releaseOld: (value: { collections: Collection[]; links: [] }) => void = () => undefined;
+    jest.mocked(getCollectionSuggestions).mockImplementation(async (_request, options) => {
+      if (options.search === 'old') {
+        return new Promise(resolve => {
+          releaseOld = resolve;
+        });
+      }
+      return { collections: [sharedCollection], links: [] };
+    });
+    const renderer = await renderScreen();
+    await focus(renderer);
+    await type(renderer, 'old');
+    await pause(260);
+    await type(renderer, 'new');
+    await pause(260);
+    await act(async () => releaseOld({ collections: [ownedCollection], links: [] }));
+    expect(textsOf(renderer)).toContain(sharedCollection.name);
+    expect(rows(renderer, 'collection-suggestion-collection')).toHaveLength(1);
+    act(() => renderer.unmount());
+  });
+
+  it('a failing suggestion request only leaves the panel away - the list is unaffected', async () => {
+    jest.mocked(getCollectionSuggestions).mockRejectedValue(new Error('boom'));
+    const renderer = await renderScreen();
+    await focus(renderer);
+    await type(renderer, 'tian');
+    await pause(260);
+    expect(panels(renderer)).toHaveLength(0);
+    expect(renderer.root.findAllByProps({ testID: 'collections-list-error' })).toHaveLength(0);
+    expect(jest.mocked(getCollections).mock.calls.at(-1)?.[1]).toEqual({ scope: 'favorites', limit: 24, search: 'tian' });
+    const data = renderer.root.findAllByType(FlatList)[0].props.data as Collection[];
+    expect(data.length).toBeGreaterThan(0);
+    act(() => renderer.unmount());
+  });
+
+  it('nothing to suggest = no panel', async () => {
+    jest.mocked(getCollectionSuggestions).mockResolvedValue({ collections: [], links: [] });
+    const renderer = await renderScreen();
+    await focus(renderer);
+    await type(renderer, 'zzz');
+    await pause(260);
+    expect(panels(renderer)).toHaveLength(0);
+    act(() => renderer.unmount());
+  });
+
+  it('is a floating overlay: absolute, with zIndex and Android elevation, rows at least 44dp, under the themed field', async () => {
+    const renderer = await renderScreen();
+    await focus(renderer);
+    await type(renderer, 'tian');
+    await pause(260);
+    const flat = StyleSheet.flatten(panels(renderer)[0].props.style);
+    expect(flat.position).toBe('absolute');
+    expect(flat.zIndex).toBeGreaterThan(0);
+    expect(flat.elevation).toBeGreaterThan(0);
+    expect(typeof flat.top).toBe('number');
+    expect(renderer.root.findAllByType(ThemedTextInput).some(input => input.props.testID === 'collections-search')).toBe(true);
+    const rowStyle = StyleSheet.flatten((rows(renderer, 'collection-suggestion-link')[0].props.style as (state: { pressed: boolean }) => never)({ pressed: false }));
+    expect((rowStyle as { minHeight: number }).minHeight).toBeGreaterThanOrEqual(44);
+    act(() => renderer.unmount());
+  });
+
+  it('keeps the suggestions in memory only and adds no overlay dependency', () => {
+    const fsx = jest.requireActual<{ readFileSync(file: string, encoding: string): string }>('fs');
+    const pathx = jest.requireActual<{ join(...parts: string[]): string }>('path');
+    const files = ['../CollectionsScreen.tsx', '../../collections/useCollectionSuggestions.ts', '../../collections/CollectionSuggestionPanel.tsx', '../../collections/collectionSuggestions.ts'];
+    for (const file of files) {
+      const source = fsx.readFileSync(pathx.join(__dirname, file), 'utf8');
+      expect(source).not.toMatch(/AsyncStorage|react-native-portal/);
+    }
+  });
+
+  it('the Links heading exists in all 17 languages', () => {
+    const fsx = jest.requireActual<{ readFileSync(file: string, encoding: string): string; readdirSync(dir: string): string[] }>('fs');
+    const pathx = jest.requireActual<{ join(...parts: string[]): string }>('path');
+    const dir = pathx.join(__dirname, '../../i18n/locales');
+    const files = fsx.readdirSync(dir).filter(file => file.endsWith('.json'));
+    expect(files).toHaveLength(17);
+    for (const file of files) {
+      const value = JSON.parse(fsx.readFileSync(pathx.join(dir, file), 'utf8')).collections.searchSuggestionLinks;
+      expect(typeof value).toBe('string');
+      expect(value.trim().length).toBeGreaterThan(0);
     }
   });
 });

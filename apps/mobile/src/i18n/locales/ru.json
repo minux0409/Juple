@@ -101,6 +101,7 @@
   },
   "collections": {
     "listSearchPlaceholder": "Поиск коллекций или ссылок",
+    "searchSuggestionLinks": "Ссылки",
     "attentionA11y": "{{name}}, требуют внимания: {{count}}",
     "title": "Коллекции",
     "empty": "Коллекций пока нет.",

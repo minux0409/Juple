@@ -1277,3 +1277,40 @@ export async function revokeCollectionShare(
     headers: storedUnlockHeaders(collectionId),
   });
 }
+
+/** One saved link that matched the search box, with the Collection it was found in. No memo, no adder, no URL - the host recognises it. */
+export interface CollectionLinkSuggestion {
+  readonly itemId: number;
+  readonly collectionId: number;
+  readonly collectionName: string;
+  readonly title: string;
+  readonly hostname: string | null;
+  /** The link is the caller's own Item (the Collection screen opens an own link and another member's through different views). */
+  readonly isMine: boolean;
+}
+
+export interface CollectionSearchSuggestions {
+  readonly collections: readonly Collection[];
+  readonly links: readonly CollectionLinkSuggestion[];
+}
+
+/**
+ * The quick suggestions under the Collections search box (GET /api/v1/collections/search-suggestions): a few Collections and a few
+ * links for the tab's scope - the server applies the same access and lock rules as the list search. A help, not the result.
+ */
+export async function getCollectionSuggestions(
+  request: AuthenticatedApiRequest,
+  options: { readonly scope: CollectionListScope; readonly search: string },
+): Promise<CollectionSearchSuggestions> {
+  const query = new URLSearchParams({ scope: options.scope, q: normalizeCollectionSearch(options.search) });
+  const response = await request<CollectionSearchSuggestions>({
+    method: 'GET',
+    path: `/api/v1/collections/search-suggestions?${query.toString()}`,
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Collection suggestions body.');
+  }
+
+  return response.body;
+}

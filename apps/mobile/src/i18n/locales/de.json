@@ -101,6 +101,7 @@
   },
   "collections": {
     "listSearchPlaceholder": "Sammlungen oder Links suchen",
+    "searchSuggestionLinks": "Links",
     "attentionA11y": "{{name}}, {{count}} Einträge erfordern Aufmerksamkeit",
     "title": "Sammlungen",
     "empty": "Es gibt noch keine Sammlungen.",

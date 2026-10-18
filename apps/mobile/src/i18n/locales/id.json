@@ -101,6 +101,7 @@
   },
   "collections": {
     "listSearchPlaceholder": "Cari koleksi atau tautan",
+    "searchSuggestionLinks": "Tautan",
     "attentionA11y": "{{name}}, {{count}} item perlu perhatian",
     "title": "Koleksi",
     "empty": "Belum ada koleksi.",

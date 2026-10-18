@@ -7,12 +7,16 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
   ActivityIndicator,
+  BackHandler,
   FlatList,
+  Keyboard,
   Platform,
   Pressable,
   RefreshControl,
   Text,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
@@ -67,6 +71,9 @@ import { TOUR_TARGETS } from '../tour/tourGuides';
 import { useTourTarget } from '../tour/tourTargets';
 import { columnBasis, gridListKey, useCollectionTileColumns } from '../layout/responsiveGrid';
 import { SearchField } from '../components/SearchField';
+import { CollectionSuggestionPanel } from '../collections/CollectionSuggestionPanel';
+import { suggestionRows, type CollectionSuggestionRow } from '../collections/collectionSuggestions';
+import { useCollectionSuggestions } from '../collections/useCollectionSuggestions';
 import { normalizeCollectionSearch } from '../collections/collectionSearch';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { screenIcons } from '../navigation/screenIcons';
@@ -226,6 +233,14 @@ export function CollectionsScreen() {
   const [searchText, setSearchText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  // The quick suggestions under the box (a help next to the list, never instead of it): shown while the box has focus and text, closed
+  // by a choice / Back / scrolling / the keyboard going away. `searchRowY` / `searchFieldHeight` / `scrollY` place the floating panel
+  // right under the field (it is an overlay of the screen, not part of the list's header, so it moves nothing and takes touches on Android).
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
+  const [searchRowY, setSearchRowY] = useState(0);
+  const [searchFieldHeight, setSearchFieldHeight] = useState(0);
+  const [scrollY, setScrollY] = useState(0);
   const searchRef = useRef('');
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -456,6 +471,7 @@ export function CollectionsScreen() {
 
   const changeSearchText = (next: string) => {
     setSearchText(next);
+    setSuggestionsDismissed(false);
     if (searchTimerRef.current !== null) {
       clearTimeout(searchTimerRef.current);
       searchTimerRef.current = null;
@@ -479,6 +495,29 @@ export function CollectionsScreen() {
     },
     [],
   );
+
+  const { suggestions, isLoading: suggestionsLoading } = useCollectionSuggestions(authenticatedRequest, filter, searchText, searchFocused);
+  const suggestionGroups = suggestionRows(suggestions);
+  const suggestionsOpen = searchFocused && !suggestionsDismissed && searchText.trim() !== '' && suggestionGroups.collections.length + suggestionGroups.links.length > 0;
+
+  // Back (Android) first closes the open suggestions; the keyboard going away closes them too (they belong to typing).
+  useEffect(() => {
+    if (!suggestionsOpen) {
+      return undefined;
+    }
+    const back = BackHandler.addEventListener('hardwareBackPress', () => {
+      setSuggestionsDismissed(true);
+      Keyboard.dismiss();
+      return true;
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setSuggestionsDismissed(true));
+    return () => {
+      back.remove();
+      hide.remove();
+    };
+  }, [suggestionsOpen]);
+
+  const onScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => setScrollY(event.nativeEvent.contentOffset.y);
 
   const loadMore = useCallback(() => {
     const current = lists[filter];
@@ -661,6 +700,20 @@ export function CollectionsScreen() {
   const openPendingJoin = (join: MyJoinRequest) => navigation.navigate('SharedCollection', { publicId: join.publicId });
   const openCollection = (collection: Collection) =>
     navigation.navigate('CollectionDetails', { collectionId: collection.id });
+  // A Collection suggestion opens the Collection; a link suggestion opens that link IN its Collection (the Collection screen's own
+  // openItem hand-off, as a comment notification does: the Collection resolves the real role and the lock gate).
+  const openSuggestion = (row: CollectionSuggestionRow) => {
+    setSuggestionsDismissed(true);
+    Keyboard.dismiss();
+    if (row.kind === 'collection') {
+      openCollection(row.collection);
+      return;
+    }
+    navigation.navigate('CollectionDetails', {
+      collectionId: row.link.collectionId,
+      openItem: { itemId: row.link.itemId, focus: null, shared: !row.link.isMine },
+    });
+  };
   // Long-press on a card: 즐겨찾기 / 알림 / 수정 / 잠금 설정 / 앱 바로가기 / 삭제 or 나가기 (see useCollectionLongPressMenu). Edit, lock,
   // delete and leave are the Collection's own screen's dialogs, opened there.
   const collectionMenu = useCollectionLongPressMenu({
@@ -682,6 +735,11 @@ export function CollectionsScreen() {
       <FlatList
         key={gridListKey(viewMode, viewMode === 'grid', gridColumns)}
         contentContainerStyle={styles.content}
+        // A tap on a card while the keyboard is up opens it at once (and the suggestions step aside as the list is dragged).
+        keyboardShouldPersistTaps="handled"
+        onMomentumScrollEnd={onScrollEnd}
+        onScrollBeginDrag={() => setSuggestionsDismissed(true)}
+        onScrollEndDrag={onScrollEnd}
         data={listData}
         keyExtractor={entry => ('pendingJoin' in entry ? `join-${entry.pendingJoin.requestId}` : entry.id.toString())}
         onEndReached={loadMore}
@@ -719,14 +777,21 @@ export function CollectionsScreen() {
             </View>
 
             {/* The search: right under the header, above the four filters. The shared Juple search field (themed input, clear button). */}
-            <View style={styles.searchRow}>
-              <SearchField
-                clearLabel={t('history.searchClear')}
-                onChangeText={changeSearchText}
-                placeholder={t('collections.listSearchPlaceholder')}
-                testID="collections-search"
-                value={searchText}
-              />
+            <View onLayout={event => setSearchRowY(event.nativeEvent.layout.y)} style={styles.searchRow}>
+              <View onLayout={event => setSearchFieldHeight(event.nativeEvent.layout.height)}>
+                <SearchField
+                  clearLabel={t('history.searchClear')}
+                  onBlur={() => setSearchFocused(false)}
+                  onChangeText={changeSearchText}
+                  onFocus={() => {
+                    setSearchFocused(true);
+                    setSuggestionsDismissed(false);
+                  }}
+                  placeholder={t('collections.listSearchPlaceholder')}
+                  testID="collections-search"
+                  value={searchText}
+                />
+              </View>
               {/* A changed term is being read: the cards stay, a small spinner says so. */}
               {isSearching ? <ActivityIndicator size="small" style={styles.searchSpinner} testID="collections-search-loading" /> : null}
             </View>
@@ -846,6 +911,18 @@ export function CollectionsScreen() {
         ) : <CollectionListRow collection={item} isFavoriteToggleDisabled={togglingFavoriteId !== null} isTogglingFavorite={togglingFavoriteId === item.id} onLongPress={() => openCollectionMenu(item)} onPress={() => openCollection(item)} onToggleFavorite={() => toggleFavoriteAction(item)} />}
         ListFooterComponent={isLoadingMore ? renderSkeletons(viewMode === 'grid' ? 1 : NEXT_PAGE_SKELETON_LIST_ROWS, 'collections-next-page-loading') : undefined}
       />
+
+      {suggestionsOpen ? (
+        <CollectionSuggestionPanel
+          collections={suggestionGroups.collections}
+          collectionsHeading={t('collections.title')}
+          isLoading={suggestionsLoading}
+          links={suggestionGroups.links}
+          linksHeading={t('collections.searchSuggestionLinks')}
+          onSelect={openSuggestion}
+          top={spacing.xl + searchRowY + searchFieldHeight + spacing.xs - scrollY}
+        />
+      ) : null}
 
       {collectionMenu.element}
 

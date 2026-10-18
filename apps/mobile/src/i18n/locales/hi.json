@@ -101,6 +101,7 @@
   },
   "collections": {
     "listSearchPlaceholder": "संग्रह या लिंक खोजें",
+    "searchSuggestionLinks": "लिंक",
     "attentionA11y": "{{name}}, ध्यान देने वाले {{count}} आइटम",
     "title": "संग्रह",
     "empty": "अभी तक कोई संग्रह नहीं है।",

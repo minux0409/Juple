@@ -101,6 +101,7 @@
   },
   "collections": {
     "listSearchPlaceholder": "Cerca raccolte o link",
+    "searchSuggestionLinks": "Link",
     "attentionA11y": "{{name}}, {{count}} elementi da controllare",
     "title": "Raccolte",
     "empty": "Non ci sono ancora raccolte.",

@@ -101,6 +101,7 @@
   },
   "collections": {
     "listSearchPlaceholder": "컬렉션 또는 링크 검색",
+    "searchSuggestionLinks": "링크",
     "attentionA11y": "{{name}}, 확인할 항목 {{count}}개",
     "title": "컬렉션",
     "empty": "컬렉션이 아직 없습니다.",

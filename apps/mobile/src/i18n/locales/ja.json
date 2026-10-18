@@ -101,6 +101,7 @@
   },
   "collections": {
     "listSearchPlaceholder": "コレクションまたはリンクを検索",
+    "searchSuggestionLinks": "リンク",
     "attentionA11y": "{{name}}、確認が必要な項目 {{count}} 件",
     "title": "コレクション",
     "empty": "コレクションはまだありません。",

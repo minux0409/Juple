@@ -101,6 +101,7 @@
   },
   "collections": {
     "listSearchPlaceholder": "Koleksiyon veya bağlantı ara",
+    "searchSuggestionLinks": "Bağlantılar",
     "attentionA11y": "{{name}}, ilgilenilmesi gereken {{count}} öğe",
     "title": "Koleksiyonlar",
     "empty": "Henüz koleksiyon yok.",

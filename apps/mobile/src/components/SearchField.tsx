@@ -13,10 +13,13 @@ interface SearchFieldProps {
   readonly testID?: string;
   /** Spoken after the label (e.g. the minimum length) - kept out of the visible placeholder. */
   readonly accessibilityHint?: string;
+  /** The field gained / lost the keyboard focus (the Collections search shows its suggestions only while it has it). */
+  readonly onFocus?: () => void;
+  readonly onBlur?: () => void;
 }
 
 /** A single-line search box with a clear button - the Archive's (and any list's) text filter field. */
-export function SearchField({ value, onChangeText, placeholder, clearLabel, testID = 'search-field', accessibilityHint }: SearchFieldProps) {
+export function SearchField({ value, onChangeText, placeholder, clearLabel, testID = 'search-field', accessibilityHint, onFocus, onBlur }: SearchFieldProps) {
   return (
     <View style={styles.wrapper}>
       {/* The magnifier is part of the field, not a control: it takes no touches of its own (a tap there
@@ -30,7 +33,9 @@ export function SearchField({ value, onChangeText, placeholder, clearLabel, test
         autoCapitalize="none"
         autoCorrect={false}
         clearButtonMode="never"
+        onBlur={onBlur}
         onChangeText={onChangeText}
+        onFocus={onFocus}
         placeholder={placeholder}
         placeholderTextColor={colors.placeholder}
         returnKeyType="search"
