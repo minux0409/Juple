@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { BottomSheetModal } from '../components/BottomSheetModal';
+import { CloseButton } from '../components/CloseButton';
 import { ImportantState } from '../components/ImportantState';
 import { RefreshFailureNotice } from '../components/RefreshFailureNotice';
 import { UserAvatar } from '../components/UserAvatar';
@@ -122,7 +123,12 @@ export function CollectionParticipantsSheet({
   return (
     <BottomSheetModal
       // 참여자 ........ [List/Grid]: one line, the switch at the far end - the sheet's header, so dragging it down closes the sheet.
-      headerActions={<ViewModeToggle onChange={changeViewMode} value={viewMode} />}
+      headerActions={
+        <View style={styles.headerActions}>
+          <ViewModeToggle onChange={changeViewMode} value={viewMode} />
+          <CloseButton onPress={onClose} testID="participants-sheet-close" />
+        </View>
+      }
       headerRowStyle={styles.titleRow}
       headerTitle={<Text style={styles.title}>{t('collections.participantsTitle')}</Text>}
       modalExtras={profileModal}
@@ -206,9 +212,6 @@ export function CollectionParticipantsSheet({
           </ScrollView>
           {/* Nothing to show yet: the centered failure state. Already showing people: they stay, with a compact retry row. */}
           {error && !data ? <ImportantState compact onRetry={load} testID="participants-sheet-error" /> : error ? <RefreshFailureNotice onRetry={load} testID="participants-sheet-refresh-failure" /> : null}
-          <Pressable accessibilityRole="button" onPress={onClose} style={styles.close}>
-            <Text style={styles.closeLabel}>{t('common.close')}</Text>
-          </Pressable>
     </BottomSheetModal>
   );
 }
@@ -227,6 +230,5 @@ const styles = themedStyles(() => ({
   role: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
   jupleId: { color: colors.textSecondary, fontSize: 12, marginTop: 1 },
   sectionTitle: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', marginTop: spacing.md },
-  close: { alignItems: 'center', borderTopColor: colors.divider, borderTopWidth: 1, marginTop: spacing.sm, minHeight: minTouchTarget, justifyContent: 'center' },
-  closeLabel: { color: colors.textPrimary, fontSize: 16, fontWeight: '600' },
+  headerActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
 }));

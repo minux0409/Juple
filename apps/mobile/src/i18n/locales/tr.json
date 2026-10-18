@@ -1,5 +1,9 @@
 {
   "common": {
+    "viewList": "Liste görünümü",
+    "viewGrid": "Izgara görünümü",
+    "viewImage": "Görsel görünümü",
+    "viewCompact": "Kompakt ızgara görünümü",
     "save": "Kaydet",
     "saving": "Kaydediliyor...",
     "cancel": "İptal",
@@ -476,6 +480,9 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "copyLink": "Bağlantıyı kopyala",
+    "linkCopied": "Bağlantı kopyalandı",
+    "linkCopyFailed": "Bağlantı kopyalanamadı",
     "lockedLinkPlaceholder": "Bu bağlantı kilitli.",
     "fallbackInstagramPost": "Instagram gönderisi",
     "fallbackInstagramReel": "Instagram Reels videosu",
@@ -1244,7 +1251,8 @@
     "title": "Görünüm",
     "system": "Sistem ayarını kullan",
     "light": "Açık",
-    "dark": "Koyu"
+    "dark": "Koyu",
+    "darkMode": "Karanlık mod"
   },
   "profileCrop": {
     "title": "Profil fotoğrafını ayarla",
@@ -1361,7 +1369,7 @@
       },
       "appearance": {
         "title": "Görünüm",
-        "body": "Sistem ayarını kullanın veya Açık ya da Koyu’yu seçin."
+        "body": "Karanlık modu açıp kapatabilirsin."
       },
       "helpGuide": {
         "title": "Yardım",

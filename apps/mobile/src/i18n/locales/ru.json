@@ -1,5 +1,9 @@
 {
   "common": {
+    "viewList": "Вид списком",
+    "viewGrid": "Вид сеткой",
+    "viewImage": "Вид изображений",
+    "viewCompact": "Компактная сетка",
     "save": "Сохранить",
     "saving": "Сохранение...",
     "cancel": "Отмена",
@@ -476,6 +480,9 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "copyLink": "Копировать ссылку",
+    "linkCopied": "Ссылка скопирована",
+    "linkCopyFailed": "Не удалось скопировать ссылку",
     "lockedLinkPlaceholder": "Эта ссылка заблокирована.",
     "fallbackInstagramPost": "Публикация в Instagram",
     "fallbackInstagramReel": "Reels в Instagram",
@@ -1244,7 +1251,8 @@
     "title": "Оформление",
     "system": "Использовать настройки системы",
     "light": "Светлая",
-    "dark": "Тёмная"
+    "dark": "Тёмная",
+    "darkMode": "Тёмный режим"
   },
   "profileCrop": {
     "title": "Настройка фото профиля",
@@ -1361,7 +1369,7 @@
       },
       "appearance": {
         "title": "Оформление",
-        "body": "Следуйте системной настройке или выберите светлую либо тёмную тему."
+        "body": "Включайте и выключайте тёмный режим."
       },
       "helpGuide": {
         "title": "Помощь",

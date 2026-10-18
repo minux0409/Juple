@@ -551,7 +551,7 @@ describe('DateHistoryScreen large history (1,200 links)', () => {
 
 describe('DateHistoryScreen grid', () => {
   async function switchToGrid(renderer: ReactTestRenderer.ReactTestRenderer) {
-    const gridToggle = renderer.root.findAll(node => node.props.accessibilityLabel === 'Grid view' && typeof node.props.onPress === 'function')[0];
+    const gridToggle = renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('common.viewGrid') && typeof node.props.onPress === 'function')[0];
     await act(async () => {
       gridToggle.props.onPress();
     });
@@ -659,7 +659,7 @@ describe('DateHistoryScreen swipe actions', () => {
     await act(async () => row.props.onLongPress());
 
     const menu = renderer.root.findAllByType(ActionMenuDialog)[0];
-    expect((menu.props.actions as { label: string }[]).map(action => action.label)).toEqual(['링크 열기', '수정', '컬렉션 변경', '삭제']);
+    expect((menu.props.actions as { label: string }[]).map(action => action.label)).toEqual(['링크 열기', '링크 복사', '수정', '컬렉션 변경', '삭제']);
     expect((menu.props.actions as { destructive?: boolean }[]).at(-1)!.destructive).toBe(true);
 
     const locked = getItemRow(renderer, 41).root.findAllByType(SwipeableItemRow)[0];

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Image, TextInput, View } from 'react-native';
+import { Image, View } from 'react-native';
+import { ThemedTextInput } from './ThemedTextInput';
 import { usablePreviewImageUrl } from '../items/usablePreviewImageUrl';
 import { cardShadow, colors, radii, spacing, themedStyles } from '../theme/tokens';
 
@@ -39,7 +40,7 @@ export function ContentPreviewCard({
     <View style={styles.card}>
       {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.image} /> : null}
       <View style={styles.body}>
-        <TextInput
+        <ThemedTextInput
           accessibilityLabel={titleAccessibilityLabel}
           editable={titleEditable}
           onChangeText={onChangeTitle}

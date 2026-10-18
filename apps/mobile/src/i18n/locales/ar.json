@@ -1,5 +1,9 @@
 {
   "common": {
+    "viewList": "عرض القائمة",
+    "viewGrid": "عرض الشبكة",
+    "viewImage": "عرض الصور",
+    "viewCompact": "عرض الشبكة المدمجة",
     "save": "حفظ",
     "saving": "جارٍ الحفظ...",
     "cancel": "إلغاء",
@@ -476,6 +480,9 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "copyLink": "نسخ الرابط",
+    "linkCopied": "تم نسخ الرابط",
+    "linkCopyFailed": "تعذّر نسخ الرابط",
     "lockedLinkPlaceholder": "هذا الرابط مقفل.",
     "fallbackInstagramPost": "منشور على Instagram",
     "fallbackInstagramReel": "مقطع Reels على Instagram",
@@ -1244,7 +1251,8 @@
     "title": "المظهر",
     "system": "استخدام إعداد النظام",
     "light": "فاتح",
-    "dark": "داكن"
+    "dark": "داكن",
+    "darkMode": "الوضع الداكن"
   },
   "profileCrop": {
     "title": "ضبط صورة الملف الشخصي",
@@ -1361,7 +1369,7 @@
       },
       "appearance": {
         "title": "المظهر",
-        "body": "اتبع إعداد النظام أو اختر الفاتح أو الداكن."
+        "body": "يمكنك تشغيل الوضع الداكن أو إيقافه."
       },
       "helpGuide": {
         "title": "المساعدة",

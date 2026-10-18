@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { AppModal } from '../components/AppModal';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
@@ -107,7 +108,7 @@ export function ReportModal({ target, onClose, onReported }: ReportModalProps) {
             </Pressable>
           );
         })}
-        <TextInput
+        <ThemedTextInput
           accessibilityLabel={t('safety.reportDetailsPlaceholder')}
           editable={!isSending}
           maxLength={REPORT_DETAILS_MAX_LENGTH}

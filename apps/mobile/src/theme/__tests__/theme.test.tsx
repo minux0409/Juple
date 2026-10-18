@@ -217,9 +217,10 @@ describe('semantic tokens', () => {
 });
 
 describe('Appearance screen', () => {
-  it('three radio choices, the current one checked; picking one stores it', async () => {
+  async function mount(initialPreference: 'system' | 'light' | 'dark', system: 'light' | 'dark' = 'light') {
     await i18n.changeLanguage('ko');
     jest.spyOn(Appearance, 'setColorScheme').mockImplementation(() => undefined);
+    mockSystemScheme = system;
     let state!: ReturnType<typeof useTheme>;
     function Capture() {
       state = useTheme();
@@ -228,30 +229,65 @@ describe('Appearance screen', () => {
     let renderer!: ReactTestRenderer.ReactTestRenderer;
     await act(async () => {
       renderer = ReactTestRenderer.create(
-        <ThemeProvider initialPreference="system">
+        <ThemeProvider initialPreference={initialPreference}>
           <Capture />
           <AppearanceSettingsScreen />
         </ThemeProvider>,
       );
     });
-    const row = (option: string) => renderer.root.findAll(node => node.props.testID === `appearance-${option}` && typeof node.props.onPress === 'function')[0];
-    expect(['system', 'light', 'dark'].every(option => row(option).props.accessibilityRole === 'radio')).toBe(true);
-    expect(row('system').props.accessibilityState.checked).toBe(true);
-    expect(renderer.root.findAllByType(Text).map(node => node.props.children)).toEqual(expect.arrayContaining(['시스템 설정 사용', '라이트', '다크']));
-    await act(async () => row('dark').props.onPress());
-    expect(state.preference).toBe('dark');
-    expect(row('dark').props.accessibilityState.checked).toBe(true);
+    const toggle = () => renderer.root.findAll(node => node.props.testID === 'appearance-dark-mode-switch' && typeof node.props.onValueChange === 'function')[0];
+    return { renderer, toggle, getState: () => state };
+  }
+
+  it('a single Dark mode switch with the switch role and a label; there is no System / Light / Dark list', async () => {
+    const { renderer, toggle } = await mount('light');
+    expect(toggle().props.accessibilityRole).toBe('switch');
+    expect(toggle().props.accessibilityLabel).toBe('다크 모드');
+    expect(toggle().props.accessibilityState.checked).toBe(false);
+    expect(renderer.root.findAll(node => String(node.props.testID ?? '').startsWith('appearance-') && node.props.testID !== 'appearance-dark-mode-switch')).toHaveLength(0);
+  });
+
+  it('a stored dark is ON and a stored light is OFF', async () => {
+    expect((await mount('dark')).toggle().props.value).toBe(true);
+    expect((await mount('light')).toggle().props.value).toBe(false);
+  });
+
+  it('a stored system choice shows the theme the system currently resolves to, and is not rewritten until the switch is used', async () => {
+    const dark = await mount('system', 'dark');
+    expect(dark.toggle().props.value).toBe(true);
+    expect(mockStore.has(THEME_STORAGE_KEY)).toBe(false);
+    expect(dark.getState().preference).toBe('system');
+    const light = await mount('system', 'light');
+    expect(light.toggle().props.value).toBe(false);
+  });
+
+  it('using the switch applies at once and stores an explicit dark / light', async () => {
+    const { toggle, getState } = await mount('system', 'light');
+    await act(async () => toggle().props.onValueChange(true));
+    expect(getState().preference).toBe('dark');
+    expect(getState().isDark).toBe(true);
+    expect(toggle().props.value).toBe(true);
     expect(mockStore.get(THEME_STORAGE_KEY)).toBe('dark');
+    await act(async () => toggle().props.onValueChange(false));
+    expect(getState().preference).toBe('light');
+    expect(mockStore.get(THEME_STORAGE_KEY)).toBe('light');
+  });
+
+  it('a switch from a stored system value to the opposite of what is shown stores the explicit value', async () => {
+    const { toggle, getState } = await mount('system', 'dark');
+    await act(async () => toggle().props.onValueChange(false));
+    expect(getState().preference).toBe('light');
+    expect(mockStore.get(THEME_STORAGE_KEY)).toBe('light');
   });
 });
 
 describe('localization', () => {
-  it('the four Appearance labels exist in every language, translated', () => {
+  it('the Appearance labels exist in every language, translated', () => {
     const dir = path.resolve(__dirname, '../../i18n/locales');
     const en = JSON.parse(fs.readFileSync(path.join(dir, 'en.json'), 'utf8')).appearance;
     for (const file of fs.readdirSync(dir)) {
       const appearance = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8')).appearance;
-      for (const key of ['title', 'system', 'light', 'dark']) {
+      for (const key of ['title', 'system', 'light', 'dark', 'darkMode']) {
         expect(typeof appearance?.[key]).toBe('string');
         expect(appearance[key].trim().length).toBeGreaterThan(0);
         if (file !== 'en.json') {

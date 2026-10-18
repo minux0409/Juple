@@ -3,17 +3,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  type ScrollViewInstance,
-  Switch,
-  Text,
-  TextInput,
-  View,
-  type ViewInstance,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, type ScrollViewInstance, Text, View, type ViewInstance } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
+import { ThemedSwitch } from '../components/ThemedSwitch';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import {
@@ -395,7 +387,7 @@ function PublicToggle({
       testID={testID}
     >
       <View importantForAccessibility="no-hide-descendants" pointerEvents="none">
-        <Switch disabled={disabled} value={value} />
+        <ThemedSwitch disabled={disabled} value={value} />
       </View>
     </Pressable>
   );
@@ -1129,7 +1121,7 @@ export function CollectionShareScreen({ route }: Props) {
               ) : (
                 <View ref={idAreaRef} style={styles.idArea} testID="share-id-invite">
                   <View style={styles.lookupRow}>
-                    <TextInput
+                    <ThemedTextInput
                       accessibilityLabel={t('collaboration.jupleIdLabel')}
                       autoCapitalize="characters"
                       autoCorrect={false}

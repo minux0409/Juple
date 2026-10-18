@@ -391,7 +391,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
         expect(makeCollectionSharePrivate).not.toHaveBeenCalled();
         expect(stopSharingButton(renderer)).toBeTruthy();
         // The visual switch is not a touch target of its own - only the Pressable around it takes the tap.
-        expect(publicToggle(renderer).findByType(Switch).parent!.props.pointerEvents).toBe('none');
+        expect(publicToggle(renderer).findByType(Switch).parent!.parent!.props.pointerEvents).toBe('none');
       });
 
       it('cancel leaves it ON - it never moved', async () => {

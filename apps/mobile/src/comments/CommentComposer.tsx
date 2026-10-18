@@ -1,5 +1,6 @@
 import { type ElementRef, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
 import { useTranslation } from 'react-i18next';
 import { CloseIcon } from '../icons/CloseIcon';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
@@ -110,7 +111,7 @@ export function CommentComposer({ isSending, onSubmit, replyTarget = null, onCan
         </View>
       ) : null}
       <View style={styles.bar}>
-      <TextInput
+      <ThemedTextInput
         accessibilityLabel={replyTarget ? t('comments.replyPlaceholder') : t('comments.placeholder')}
         editable={!isSending}
         maxLength={MAX_COMMENT_LENGTH}

@@ -1,21 +1,21 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, FlatList, Modal, Pressable, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+import { Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CategoryIconTile } from './CategoryIconTile';
-import { PlusIcon } from '../icons/PlusIcon';
+import { CollectionChoiceGrid } from './CollectionChoiceGrid';
 import type { Collection } from './api/collectionsApi';
-import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
-import { SheetHeader, useSheetDismissGesture } from '../components/sheetDismissGesture';
+import { colors, radii, spacing, themedStyles } from '../theme/tokens';
+import { useSheetDismissGesture } from '../components/sheetDismissGesture';
 
 // Comfortably past this component's own maxHeight ('75%') on any real device, so the sheet always
 // starts fully off-screen below regardless of exact screen height - see the entrance animation
 // below for why a precise Dimensions-based value isn't needed.
 const SHEET_ENTER_OFFSET = 800;
 const SHEET_ENTER_DURATION_MS = 250;
+const NO_SELECTION: ReadonlySet<number> = new Set();
 
 /**
- * Shared by Add/Move/Merge target selection (CollectionDetailsScreen's targetMode) - a bottom
+ * 병합 target selection (CollectionDetailsScreen's targetMode) - a bottom
  * sheet whose Cancel row must stay fully above the Android system navigation area (gesture bar or
  * 3-button nav), never underneath it. useSafeAreaInsets() is read directly here (not a prop
  * threaded through from the one current caller) so every caller of this shared component - now
@@ -31,13 +31,11 @@ const SHEET_ENTER_DURATION_MS = 250;
  * then-close would need to delay onCancel/onRequestClose itself, real complexity for a currently
  * unreported problem.
  */
-export function CollectionTargetPickerDialog({ visible, collections, isLoading, isLoadingMore, onSelect, onCancel, onLoadMore, title, onCreateNew }: {
+export function CollectionTargetPickerDialog({ visible, collections, isLoading, isLoadingMore, onSelect, onCancel, onLoadMore, title }: {
   readonly visible: boolean; readonly collections: readonly Collection[]; readonly isLoading: boolean;
   readonly onSelect: (collection: Collection) => void; readonly onCancel: () => void; readonly onLoadMore: () => void; readonly isLoadingMore: boolean;
   /** Defaults to 컬렉션 선택. */
   readonly title?: string;
-  /** When given, a leading "+ 새 컬렉션 만들기" row (e.g. 내 컬렉션으로 복사's destination picker). */
-  readonly onCreateNew?: () => void;
 }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -64,18 +62,23 @@ export function CollectionTargetPickerDialog({ visible, collections, isLoading, 
     <View style={styles.overlay}>
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: gesture.backdropOpacity }]} />
       <Animated.View style={[styles.card, { paddingBottom: spacing.xl + insets.bottom, transform: [{ translateY: Animated.add(sheetTranslateY, gesture.dragY) }] }]} testID="collection-target-sheet">
-      <SheetHeader gesture={gesture} style={styles.dragArea} testID="collection-target-drag-area" title={<Text style={styles.title}>{title ?? t('collections.targetPickerTitle')}</Text>} />
-      {onCreateNew && !isLoading ? (
-        <Pressable accessibilityRole="button" onPress={onCreateNew} style={[styles.row, styles.createRow]} testID="collection-target-create">
-          <View style={styles.createIcon}><PlusIcon color={colors.brand} size={20} /></View><Text style={[styles.name, styles.createLabel]}>{t('collections.copyCreateNew')}</Text>
-        </Pressable>
-      ) : null}
-      {isLoading ? <ActivityIndicator /> : <View style={styles.listArea}><FlatList data={collections} keyExtractor={item => String(item.id)} onEndReached={onLoadMore} onEndReachedThreshold={0.5} renderItem={({ item }) =>
-        <Pressable accessibilityLabel={item.name} accessibilityRole="button" onPress={() => onSelect(item)} style={styles.row}>
-          <CategoryIconTile collectionId={item.id} color={item.color} icon={item.icon} imageUrl={item.iconImageUrl} imageVersion={item.iconImageVersion} size={32} /><Text style={styles.name}>{item.name}</Text>
-        </Pressable>} ListFooterComponent={isLoadingMore ? <ActivityIndicator /> : undefined} /></View>}
-      <Pressable accessibilityLabel={t('common.cancel')} accessibilityRole="button" onPress={onCancel} style={styles.cancel}><Text>{t('common.cancel')}</Text></Pressable>
+      {/* The one shared Collection chooser: List | Grid (the same 4-column tiles as the other pickers, rows in List), paging, locked marks.
+          A tap picks the target at once (no multi-select), so nothing is shown as chosen. */}
+      <CollectionChoiceGrid
+        collectionPool={collections}
+        defaultViewMode="list"
+        isLoadingMore={isLoadingMore}
+        isLoadingOptions={isLoading}
+        listStyle={styles.listArea}
+        onLoadMore={onLoadMore}
+        onToggle={onSelect}
+        selectedIds={NO_SELECTION}
+        sheetHeader={{ gesture, style: styles.dragArea, testID: 'collection-target-drag-area' }}
+        showCreateTile={false}
+        title={title ?? t('collections.targetPickerTitle')}
+      />
+      <Pressable accessibilityLabel={t('common.cancel')} accessibilityRole="button" onPress={onCancel} style={styles.cancel}><Text style={styles.cancelLabel}>{t('common.cancel')}</Text></Pressable>
     </Animated.View></View>
   </Modal>;
 }
-const styles = themedStyles(() => ({ overlay: { flex: 1, justifyContent: 'flex-end' }, backdrop: { backgroundColor: 'rgba(0,0,0,0.4)' }, card: { backgroundColor: colors.surface, borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg, maxHeight: '75%', padding: spacing.xl, paddingTop: 0 }, dragArea: { marginHorizontal: -spacing.xl, paddingHorizontal: spacing.xl }, listArea: { flexShrink: 1 }, title: { color: colors.textPrimary, fontSize: 18, fontWeight: '700', marginBottom: spacing.md, marginTop: spacing.sm }, row: { alignItems: 'center', borderTopColor: colors.divider, borderTopWidth: 1, flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.md }, name: { color: colors.textPrimary, flex: 1, fontSize: 16 }, createRow: { borderTopWidth: 0, minHeight: minTouchTarget }, createIcon: { alignItems: 'center', height: 32, justifyContent: 'center', width: 32 }, createLabel: { color: colors.brand, fontWeight: '600' }, cancel: { alignItems: 'center', paddingTop: spacing.lg } }));
+const styles = themedStyles(() => ({ overlay: { flex: 1, justifyContent: 'flex-end' }, backdrop: { backgroundColor: 'rgba(0,0,0,0.4)' }, card: { backgroundColor: colors.surface, borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg, maxHeight: '75%', padding: spacing.xl, paddingTop: 0 }, dragArea: { marginHorizontal: -spacing.xl, paddingHorizontal: spacing.xl }, listArea: { flexShrink: 1 }, cancel: { alignItems: 'center', paddingTop: spacing.lg }, cancelLabel: { color: colors.textPrimary } }));

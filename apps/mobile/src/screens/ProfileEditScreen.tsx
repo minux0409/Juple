@@ -2,7 +2,8 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
 import { ApiError } from '../api/ApiError';
 import {
   DISPLAY_NAME_MAX_LENGTH,
@@ -303,7 +304,7 @@ export function ProfileEditScreen() {
         </View>
 
         <Text style={styles.label}>{t('myPage.nickname')}</Text>
-        <TextInput
+        <ThemedTextInput
           accessibilityLabel={t('myPage.nickname')}
           editable={!isSaving}
           maxLength={DISPLAY_NAME_MAX_STORAGE_LENGTH}

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
@@ -163,7 +164,7 @@ export function CollectionLockDialog({ visible, collectionId, mode, onCancel, on
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             {isChecking ? <ActivityIndicator style={styles.checking} /> : <Text style={styles.message}>{message}</Text>}
             {mode === 'remove' ? (
-              <TextInput
+              <ThemedTextInput
                 accessibilityLabel={t('collections.lockPasswordLabel')}
                 autoCapitalize="none"
                 autoComplete="off"

@@ -1,5 +1,9 @@
 {
   "common": {
+    "viewList": "列表视图",
+    "viewGrid": "网格视图",
+    "viewImage": "图片视图",
+    "viewCompact": "紧凑网格视图",
     "save": "保存",
     "saving": "保存中...",
     "cancel": "取消",
@@ -476,6 +480,9 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "copyLink": "复制链接",
+    "linkCopied": "已复制链接",
+    "linkCopyFailed": "无法复制链接",
     "lockedLinkPlaceholder": "此链接已锁定。",
     "fallbackInstagramPost": "Instagram 帖子",
     "fallbackInstagramReel": "Instagram Reels",
@@ -1244,7 +1251,8 @@
     "title": "显示模式",
     "system": "使用系统设置",
     "light": "浅色",
-    "dark": "深色"
+    "dark": "深色",
+    "darkMode": "深色模式"
   },
   "profileCrop": {
     "title": "调整头像",
@@ -1361,7 +1369,7 @@
       },
       "appearance": {
         "title": "显示模式",
-        "body": "可跟随系统设置，或选择浅色或深色。"
+        "body": "可以开启或关闭深色模式。"
       },
       "helpGuide": {
         "title": "帮助",

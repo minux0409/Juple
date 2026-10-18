@@ -413,7 +413,7 @@ describe('CollectionsScreen card contents', () => {
   }
 
   async function switchToListView(renderer: ReactTestRenderer.ReactTestRenderer) {
-    const listToggle = renderer.root.findAll(node => node.props.accessibilityLabel === 'List view' && typeof node.props.onPress === 'function')[0];
+    const listToggle = renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('common.viewList') && typeof node.props.onPress === 'function')[0];
     await act(async () => {
       listToggle.props.onPress();
     });
@@ -1099,7 +1099,7 @@ describe('CollectionsScreen attention badge (approvals waiting + unread new link
     jest.mocked(getCollections).mockImplementation(async () => ({ items: collections, nextCursor: null }));
     const renderer = await renderScreen();
     if (mode === 'list') {
-      const listToggle = renderer.root.findAll(node => node.props.accessibilityLabel === 'List view' && typeof node.props.onPress === 'function')[0];
+      const listToggle = renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('common.viewList') && typeof node.props.onPress === 'function')[0];
       await act(async () => {
         listToggle.props.onPress();
       });
@@ -1186,7 +1186,7 @@ describe('CollectionsScreen - 내 승인 대기 (a popup of my waiting links, no
     jest.mocked(getCollections).mockImplementation(async () => ({ items: normal, nextCursor: null }));
     const renderer = await renderScreen();
     if (mode === 'list') {
-      const listToggle = renderer.root.findAll(node => node.props.accessibilityLabel === 'List view' && typeof node.props.onPress === 'function')[0];
+      const listToggle = renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('common.viewList') && typeof node.props.onPress === 'function')[0];
       await act(async () => {
         listToggle.props.onPress();
       });
@@ -1321,7 +1321,7 @@ describe('CollectionsScreen - no crown beside a Collection name (the Owner is ma
     jest.mocked(getCollections).mockImplementation(async () => ({ items: collections, nextCursor: null }));
     const renderer = await renderScreen();
     if (mode === 'list') {
-      const listToggle = renderer.root.findAll(node => node.props.accessibilityLabel === 'List view' && typeof node.props.onPress === 'function')[0];
+      const listToggle = renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('common.viewList') && typeof node.props.onPress === 'function')[0];
       await act(async () => {
         listToggle.props.onPress();
       });
@@ -1466,7 +1466,7 @@ describe('CollectionsScreen - 승인 대기 중 placeholders (my own waiting joi
     const renderer = await renderScreen();
     await selectFilter(renderer, 'all');
     if (mode === 'list') {
-      const listToggle = renderer.root.findAll(node => node.props.accessibilityLabel === 'List view' && typeof node.props.onPress === 'function')[0];
+      const listToggle = renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('common.viewList') && typeof node.props.onPress === 'function')[0];
       await act(async () => {
         listToggle.props.onPress();
       });
@@ -1531,7 +1531,7 @@ describe('CollectionsScreen - 승인 대기 중 placeholders (my own waiting joi
     const renderer = await renderScreen();
     await selectFilter(renderer, 'all');
     if (mode === 'list') {
-      const listToggle = renderer.root.findAll(node => node.props.accessibilityLabel === 'List view' && typeof node.props.onPress === 'function')[0];
+      const listToggle = renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('common.viewList') && typeof node.props.onPress === 'function')[0];
       await act(async () => {
         listToggle.props.onPress();
       });

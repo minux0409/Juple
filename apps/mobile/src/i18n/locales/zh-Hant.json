@@ -1,5 +1,9 @@
 {
   "common": {
+    "viewList": "清單檢視",
+    "viewGrid": "格狀檢視",
+    "viewImage": "圖片檢視",
+    "viewCompact": "精簡格狀檢視",
     "save": "儲存",
     "saving": "儲存中...",
     "cancel": "取消",
@@ -476,6 +480,9 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "copyLink": "複製連結",
+    "linkCopied": "已複製連結",
+    "linkCopyFailed": "無法複製連結",
     "lockedLinkPlaceholder": "此連結已鎖定。",
     "fallbackInstagramPost": "Instagram 貼文",
     "fallbackInstagramReel": "Instagram Reels",
@@ -1244,7 +1251,8 @@
     "title": "顯示模式",
     "system": "使用系統設定",
     "light": "淺色",
-    "dark": "深色"
+    "dark": "深色",
+    "darkMode": "深色模式"
   },
   "profileCrop": {
     "title": "調整大頭貼",
@@ -1361,7 +1369,7 @@
       },
       "appearance": {
         "title": "顯示模式",
-        "body": "可跟隨系統設定，或選擇淺色或深色。"
+        "body": "可以開啟或關閉深色模式。"
       },
       "helpGuide": {
         "title": "說明",

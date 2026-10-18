@@ -11,9 +11,9 @@ import {
   Pressable,
   RefreshControl,
   Text,
-  TextInput,
   View,
 } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
@@ -158,8 +158,8 @@ function getShareErrorMessage(t: TFunction): string {
  */
 export function DailyInboxScreen() {
   const { t } = useTranslation();
-  const inputTarget = useTourTarget(TOUR_TARGETS.homeInput);
-  const checkTarget = useTourTarget(TOUR_TARGETS.homeCheck);
+  const inputTarget = useTourTarget(TOUR_TARGETS.homeInput, { radius: radii.lg });
+  const checkTarget = useTourTarget(TOUR_TARGETS.homeCheck, { radius: radii.lg });
   const authenticatedRequest = useAuthenticatedApi();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { showUndoToast } = useAppToast();
@@ -579,13 +579,14 @@ export function DailyInboxScreen() {
               <View pointerEvents="none" style={styles.inputIconContainer}>
                 <LinkIcon color={colors.textSecondary} size={18} />
               </View>
-              <TextInput
+              <ThemedTextInput
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="url"
                 multiline
                 onChangeText={setUrl}
                 placeholder={t('inbox.urlPlaceholder')}
+                placeholderTextColor={colors.placeholder}
                 style={[styles.input, url && ltrTextStyle]}
                 value={url}
               />

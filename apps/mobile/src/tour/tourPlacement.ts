@@ -24,6 +24,49 @@ export const TOUR_EDGE = 16;
 /** How far the spotlight reaches beyond the target itself. */
 export const TOUR_SPOTLIGHT_PADDING = 6;
 
+/** The corner radius assumed for a target that does not say its own (the common control radius). */
+export const DEFAULT_TOUR_TARGET_RADIUS = 8;
+
+/**
+ * The corner radius of the spotlight ring: the target's own radius grown by the padding the ring reaches beyond it (an outer
+ * rounded rectangle is R + P where the inner one is R), never more than a pill of the ring's own size.
+ */
+export function spotlightRadius(targetRadius: number | undefined, spotlight: TourSize): number {
+  const base = targetRadius !== undefined && Number.isFinite(targetRadius) && targetRadius >= 0 ? targetRadius : DEFAULT_TOUR_TARGET_RADIUS;
+  return Math.min(base + TOUR_SPOTLIGHT_PADDING, Math.min(spotlight.width, spotlight.height) / 2);
+}
+
+export type TourCorner = 'tl' | 'tr' | 'bl' | 'br';
+
+export interface TourCornerWedge {
+  readonly corner: TourCorner;
+  /** The r x r square at that corner of the spotlight (overflow hidden): the part of it OUTSIDE the quarter circle is what is dimmed. */
+  readonly box: TourRect;
+  /** The 4r x 4r ring (inner radius r, outer 2r, border r) whose centre is the corner circle's centre - positioned inside `box`. */
+  readonly ring: { readonly left: number; readonly top: number; readonly size: number };
+}
+
+/**
+ * The four corner pieces that make the dimmed area follow a rounded spotlight. The scrim is four rectangles around a rectangular
+ * hole; with a rounded ring the four corners of that hole would stay bright outside the curve. Each wedge is the r x r corner square
+ * minus the quarter disc of radius r, drawn with plain Views as a clipped, very wide border (no mask, no extra dependency). The same
+ * radius r as the ring is used, so the bright area and the ring are one shape. No wedges for a square spotlight.
+ */
+export function cornerWedges(spotlight: TourRect, radius: number): readonly TourCornerWedge[] {
+  const r = Math.min(radius, spotlight.width / 2, spotlight.height / 2);
+  if (!(r > 0)) {
+    return [];
+  }
+  const { x, y, width, height } = spotlight;
+  const size = 4 * r;
+  return [
+    { corner: 'tl', box: { x, y, width: r, height: r }, ring: { left: -r, top: -r, size } },
+    { corner: 'tr', box: { x: x + width - r, y, width: r, height: r }, ring: { left: -2 * r, top: -r, size } },
+    { corner: 'bl', box: { x, y: y + height - r, width: r, height: r }, ring: { left: -r, top: -2 * r, size } },
+    { corner: 'br', box: { x: x + width - r, y: y + height - r, width: r, height: r }, ring: { left: -2 * r, top: -2 * r, size } },
+  ];
+}
+
 /** The target grown by the spotlight padding and kept inside the container. */
 export function spotlightFor(target: TourRect, container: TourSize): TourRect {
   const x = Math.max(0, target.x - TOUR_SPOTLIGHT_PADDING);

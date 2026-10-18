@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
@@ -89,7 +90,7 @@ export function CollectionLockPasswordDialog({ visible, mode, onCancel, onSaved,
   };
 
   const passwordField = (value: string, onChange: (next: string) => void, label: string, testID: string) => (
-    <TextInput
+    <ThemedTextInput
       accessibilityLabel={label}
       autoCapitalize="none"
       autoComplete="off"

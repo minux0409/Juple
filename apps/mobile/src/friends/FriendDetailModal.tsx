@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { AppModal } from '../components/AppModal';
@@ -183,7 +184,7 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onOpe
             <EditIcon color={colors.textPrimary} size={ACTION_ICON_SIZE} />
             <Text style={styles.sectionTitle}>{t('friends.note')}</Text>
           </View>
-          <TextInput
+          <ThemedTextInput
             accessibilityLabel={t('friends.note')}
             editable={!isBusy}
             maxLength={FRIEND_NOTE_MAX_STORAGE_LENGTH}

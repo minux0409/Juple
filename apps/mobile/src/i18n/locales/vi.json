@@ -1,5 +1,9 @@
 {
   "common": {
+    "viewList": "Dạng danh sách",
+    "viewGrid": "Dạng lưới",
+    "viewImage": "Dạng ảnh",
+    "viewCompact": "Dạng lưới gọn",
     "save": "Lưu",
     "saving": "Đang lưu...",
     "cancel": "Hủy",
@@ -476,6 +480,9 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "copyLink": "Sao chép liên kết",
+    "linkCopied": "Đã sao chép liên kết",
+    "linkCopyFailed": "Không thể sao chép liên kết",
     "lockedLinkPlaceholder": "Liên kết này đã bị khóa.",
     "fallbackInstagramPost": "Bài viết Instagram",
     "fallbackInstagramReel": "Reels Instagram",
@@ -1244,7 +1251,8 @@
     "title": "Giao diện",
     "system": "Dùng cài đặt hệ thống",
     "light": "Sáng",
-    "dark": "Tối"
+    "dark": "Tối",
+    "darkMode": "Chế độ tối"
   },
   "profileCrop": {
     "title": "Chỉnh ảnh đại diện",
@@ -1361,7 +1369,7 @@
       },
       "appearance": {
         "title": "Giao diện",
-        "body": "Dùng theo hệ thống hoặc chọn Sáng hay Tối."
+        "body": "Bật hoặc tắt chế độ tối."
       },
       "helpGuide": {
         "title": "Trợ giúp",

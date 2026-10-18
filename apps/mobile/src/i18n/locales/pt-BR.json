@@ -1,5 +1,9 @@
 {
   "common": {
+    "viewList": "Visualização em lista",
+    "viewGrid": "Visualização em grade",
+    "viewImage": "Visualização em imagens",
+    "viewCompact": "Visualização em grade compacta",
     "save": "Salvar",
     "saving": "Salvando...",
     "cancel": "Cancelar",
@@ -476,6 +480,9 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "copyLink": "Copiar link",
+    "linkCopied": "Link copiado",
+    "linkCopyFailed": "Não foi possível copiar o link",
     "lockedLinkPlaceholder": "Este link está bloqueado.",
     "fallbackInstagramPost": "Publicação do Instagram",
     "fallbackInstagramReel": "Reel do Instagram",
@@ -1244,7 +1251,8 @@
     "title": "Aparência",
     "system": "Usar configuração do sistema",
     "light": "Claro",
-    "dark": "Escuro"
+    "dark": "Escuro",
+    "darkMode": "Modo escuro"
   },
   "profileCrop": {
     "title": "Ajustar foto de perfil",
@@ -1361,7 +1369,7 @@
       },
       "appearance": {
         "title": "Aparência",
-        "body": "Use a configuração do sistema ou escolha Claro ou Escuro."
+        "body": "Ative ou desative o modo escuro."
       },
       "helpGuide": {
         "title": "Ajuda",

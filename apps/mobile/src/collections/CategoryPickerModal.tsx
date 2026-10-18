@@ -181,6 +181,9 @@ export function CategoryPickerModal({
               sort={sort}
               title={title}
               viewModeKey={viewModeKey}
+              // Only a plain dismiss gets the header X; a sheet with its own 취소 / action row keeps that row.
+              closeDisabled={isCreatingCollection}
+              onClose={submit ? undefined : onClose}
               // 컬렉션 선택 + List/Grid under the shared handle: the sheet's header, so dragging it down closes it.
               sheetHeader={{ gesture, style: styles.dragArea, testID: 'category-picker-drag-area' }}
             />
@@ -209,11 +212,7 @@ export function CategoryPickerModal({
                 </Pressable>
               </View>
             </View>
-          ) : (
-            <Pressable accessibilityRole="button" disabled={isCreatingCollection} onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeLabel}>{t('common.close')}</Text>
-            </Pressable>
-          )}
+          ) : null}
         </Animated.View>
       </View>
 

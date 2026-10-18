@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { lookupJupleId, type JupleIdLookupResult } from '../collections/api/collaborationApi';
@@ -176,7 +177,7 @@ export function AddFriendModal({ visible, onClose, friends, requests, onRequestS
     <AppModal dismissible={!isSending} onClose={onClose} testID="friends-add-modal" title={t('friends.add')} visible={visible}>
       <Text style={styles.hint}>{t('friends.lookupHint')}</Text>
       <View style={styles.searchRow}>
-        <TextInput
+        <ThemedTextInput
           accessibilityLabel={t('friends.friendJupleIdPlaceholder')}
           autoCapitalize="characters"
           autoCorrect={false}

@@ -1,4 +1,5 @@
-import { Pressable, TextInput, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { ThemedTextInput } from './ThemedTextInput';
 import { CloseIcon } from '../icons/CloseIcon';
 import { SearchIcon } from '../icons/SearchIcon';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
@@ -23,7 +24,7 @@ export function SearchField({ value, onChangeText, placeholder, clearLabel, test
       <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.searchIcon} testID={`${testID}-icon`}>
         <SearchIcon color={colors.textSecondary} size={18} />
       </View>
-      <TextInput
+      <ThemedTextInput
         accessibilityHint={accessibilityHint}
         accessibilityLabel={placeholder}
         autoCapitalize="none"
@@ -31,6 +32,7 @@ export function SearchField({ value, onChangeText, placeholder, clearLabel, test
         clearButtonMode="never"
         onChangeText={onChangeText}
         placeholder={placeholder}
+        placeholderTextColor={colors.placeholder}
         returnKeyType="search"
         style={styles.input}
         testID={testID}

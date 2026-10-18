@@ -140,3 +140,61 @@ describe('CollectionTargetPickerDialog - the shared drag header', () => {
     act(() => renderer.unmount());
   });
 });
+
+describe('CollectionTargetPickerDialog - List | Grid', () => {
+  const collections = [makeCollection({ id: 11, name: 'Alpha' }), makeCollection({ id: 12, name: 'Beta' })];
+  const mount = (onSelect = jest.fn()) =>
+    render(
+      <CollectionTargetPickerDialog collections={collections} isLoading={false} isLoadingMore={false} onCancel={jest.fn()} onLoadMore={jest.fn()} onSelect={onSelect} visible />,
+    );
+  const toggleButton = (renderer: ReactTestRenderer.ReactTestRenderer, label: string) =>
+    renderer.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0];
+  const tile = (renderer: ReactTestRenderer.ReactTestRenderer, name: string) =>
+    renderer.root.findAll(node => node.props.accessibilityLabel === name && typeof node.props.onPress === 'function')[0];
+
+  it('offers the shared List / Grid toggle with the selected mode exposed, switching shows the same Collections in either layout', async () => {
+    const renderer = mount();
+    await act(async () => undefined);
+    const list = toggleButton(renderer, i18n.t('common.viewList'));
+    const grid = toggleButton(renderer, i18n.t('common.viewGrid'));
+    expect(list.props.accessibilityRole).toBe('button');
+    expect(grid.props.accessibilityRole).toBe('button');
+    // Either way every Collection is listed once, with its name as the accessible label.
+    for (const mode of [grid, list]) {
+      act(() => mode.props.onPress());
+      expect(tile(renderer, 'Alpha')).toBeTruthy();
+      expect(tile(renderer, 'Beta')).toBeTruthy();
+    }
+    expect(toggleButton(renderer, i18n.t('common.viewList')).props.accessibilityState).toEqual({ selected: true });
+    act(() => toggleButton(renderer, i18n.t('common.viewGrid')).props.onPress());
+    expect(toggleButton(renderer, i18n.t('common.viewGrid')).props.accessibilityState).toEqual({ selected: true });
+    expect(toggleButton(renderer, i18n.t('common.viewList')).props.accessibilityState).toEqual({ selected: false });
+    act(() => renderer.unmount());
+  });
+
+  it('a tap picks that Collection at once in both layouts (the merge flow continues from onSelect, unchanged)', async () => {
+    const onSelect = jest.fn();
+    const renderer = mount(onSelect);
+    await act(async () => undefined);
+    act(() => toggleButton(renderer, i18n.t('common.viewGrid')).props.onPress());
+    act(() => tile(renderer, 'Beta').props.onPress());
+    expect(onSelect).toHaveBeenLastCalledWith(expect.objectContaining({ id: 12 }));
+    act(() => toggleButton(renderer, i18n.t('common.viewList')).props.onPress());
+    act(() => tile(renderer, 'Alpha').props.onPress());
+    expect(onSelect).toHaveBeenLastCalledWith(expect.objectContaining({ id: 11 }));
+    act(() => renderer.unmount());
+  });
+});
+
+describe('CollectionTargetPickerDialog - default view', () => {
+  it('opens as the List it always was (the Grid is an option, not the new default); a stored choice would win', async () => {
+    const renderer = render(
+      <CollectionTargetPickerDialog collections={[makeCollection({ id: 21, name: 'Gamma' })]} isLoading={false} isLoadingMore={false} onCancel={jest.fn()} onLoadMore={jest.fn()} onSelect={jest.fn()} visible />,
+    );
+    await act(async () => undefined);
+    const selected = (label: string) => renderer.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0].props.accessibilityState;
+    expect(selected(i18n.t('common.viewList'))).toEqual({ selected: true });
+    expect(selected(i18n.t('common.viewGrid'))).toEqual({ selected: false });
+    act(() => renderer.unmount());
+  });
+});

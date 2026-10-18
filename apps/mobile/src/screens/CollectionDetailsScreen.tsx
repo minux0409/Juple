@@ -115,6 +115,7 @@ import { BellIcon } from '../icons/BellIcon';
 import { BellOffIcon } from '../icons/BellOffIcon';
 import { CheckIcon } from '../icons/CheckIcon';
 import { CopyIcon } from '../icons/CopyIcon';
+import { copySavedLinkUrl } from '../items/copyLink';
 import { EditIcon } from '../icons/EditIcon';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { LockIcon } from '../icons/LockIcon';
@@ -683,8 +684,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // Owner-only control below is hidden for a Contributor, and the server independently refuses
   // them (403) regardless.
   const isOwner = collection !== null && !isSharedWithMe(collection);
-  const [isReportingCollection, setIsReportingCollection] = useState(false);
-  // Another member's link in this Collection, reported from its ⋯ menu (the same modal and reasons as the Collection / a comment).
+  // Another member's link in this Collection, reported from its ⋯ menu (the same modal and reasons as a comment).
   const [reportingItemId, setReportingItemId] = useState<number | null>(null);
 
   // Whatever this screen learns about the Collection (opened, renamed, locked, role changed) also keeps its app shortcut
@@ -1653,6 +1653,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
    */
   const linkMenuActions = (menuItem: CollectionItemEntry): ActionMenuDialogAction[] => [
     { label: t('item.goToUrlA11y'), icon: ExternalLinkIcon, onPress: () => { setIsItemActionMenuVisible(false); setActionMenuItem(null); openLinkInBrowser(menuItem.url); } },
+    { label: t('item.copyLink'), icon: CopyIcon, onPress: () => { setIsItemActionMenuVisible(false); setActionMenuItem(null); showNotificationToast(t(copySavedLinkUrl(menuItem.url) ? 'item.linkCopied' : 'item.linkCopyFailed')); } },
     ...(menuItem.isMine === false
       ? [
         { label: t('collections.copyToMine'), icon: CopyIcon, onPress: openSingleCopyPicker },
@@ -1697,8 +1698,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
             setSelectAllForCopyCount(null);
             setSelectedItemIds(new Set());
           }) }]),
-        // Somebody else's Collection: it can be reported (never the caller's own - the Owner has no such entry).
-        { label: t('safety.report'), onPress: closeCollectionMenuThen(() => setIsReportingCollection(true)) },
         // An active member can always leave on their own (the Owner cannot - they delete instead).
         { label: t('collections.leaveAction'), destructive: true, icon: LogoutIcon, onPress: closeCollectionMenuThen(() => setIsLeaveConfirmVisible(true)) },
       ];
@@ -2190,13 +2189,12 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         visible={isItemActionMenuVisible}
       />
       <ReportModal
-        onClose={() => { setIsReportingCollection(false); setReportingItemId(null); }}
+        onClose={() => setReportingItemId(null)}
         onReported={alreadyReported => {
-          setIsReportingCollection(false);
           setReportingItemId(null);
           showNotificationToast(t(alreadyReported ? 'safety.reportAlready' : 'safety.reportReceived'));
         }}
-        target={isReportingCollection ? { type: 'Collection', collectionId } : reportingItemId !== null ? { type: 'Item', itemId: reportingItemId, collectionId } : null}
+        target={reportingItemId !== null ? { type: 'Item', itemId: reportingItemId, collectionId } : null}
       />
       <ActionMenuDialog
         actions={collectionMenuActions}

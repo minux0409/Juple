@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { KeyIcon } from '../icons/KeyIcon';
@@ -117,7 +118,7 @@ export function CollectionUnlockPanel({ collectionId, onUnlocked, onGranted, onS
       </View>
       <Text style={styles.title}>{t(isSharePassword ? 'collections.sharePasswordLockedTitle' : 'collections.lockedTitle')}</Text>
       <Text style={styles.message}>{t(isSharePassword ? 'collections.sharePasswordLockedMessage' : 'collections.lockedMessage')}</Text>
-      <TextInput
+      <ThemedTextInput
         accessibilityLabel={t(isSharePassword ? 'collections.sharePasswordLabel' : 'collections.lockPasswordLabel')}
         autoCapitalize="none"
         autoComplete="off"

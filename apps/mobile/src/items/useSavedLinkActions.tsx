@@ -5,6 +5,9 @@ import { ActionMenuDialog, type ActionMenuDialogAction } from '../components/Act
 import { useActionAfterMenu } from '../components/useActionAfterMenu';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useItemCollectionChange } from '../collections/useItemCollectionChange';
+import { CopyIcon } from '../icons/CopyIcon';
+import { useAppToast } from '../components/AppToast';
+import { copySavedLinkUrl } from './copyLink';
 import { EditIcon } from '../icons/EditIcon';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { FolderIcon } from '../icons/FolderIcon';
@@ -48,6 +51,7 @@ export function useSavedLinkActions({ onEdit, onDelete, onCollectionsChanged }: 
   const [isMenuMounted, setIsMenuMounted] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const { afterMenuCloses, onMenuDismiss } = useActionAfterMenu();
+  const { showNotificationToast } = useAppToast();
   const collectionChange = useItemCollectionChange(onCollectionsChanged);
 
   const openMenu = useCallback((item: SavedLinkActionTarget) => {
@@ -74,9 +78,14 @@ export function useSavedLinkActions({ onEdit, onDelete, onCollectionsChanged }: 
     }
   };
 
+  const copyLink = (item: SavedLinkActionTarget) => {
+    showNotificationToast(t(copySavedLinkUrl(item.url) ? 'item.linkCopied' : 'item.linkCopyFailed'));
+  };
+
   const actions: ActionMenuDialogAction[] = target
     ? [
         { label: t('item.goToUrlA11y'), icon: ExternalLinkIcon, onPress: () => { closeMenu(); openLink(target).catch(() => undefined); } },
+        { label: t('item.copyLink'), icon: CopyIcon, onPress: () => { closeMenu(); copyLink(target); } },
         { label: t('common.edit'), icon: EditIcon, onPress: () => { closeMenu(); onEdit(target); } },
         { label: t('collections.changeCollection'), icon: FolderIcon, onPress: () => afterMenuCloses(closeMenu, () => { collectionChange.start(target.id).catch(() => undefined); }) },
         { label: t('common.delete'), destructive: true, icon: TrashIcon, onPress: () => afterMenuCloses(closeMenu, () => onDelete(target)) },

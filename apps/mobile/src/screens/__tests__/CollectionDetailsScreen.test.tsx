@@ -1223,7 +1223,7 @@ describe('CollectionDetailsScreen', () => {
       expect(renderer.root.findAllByType(SavedLinkRow).length).toBeLessThanOrEqual(dateList(renderer).props.initialNumToRender);
 
       await act(async () => {
-        renderer.root.findByProps({ accessibilityLabel: 'Grid view' }).props.onPress();
+        renderer.root.findByProps({ accessibilityLabel: i18n.t('common.viewGrid') }).props.onPress();
       });
       // Image view: one virtualized row per pair of tiles - the same links, no extra request.
       expect(rows(renderer).filter(row => row.kind === 'gridRow').length).toBe(sections.reduce((sum, section) => sum + Math.ceil(Math.min(section.count, 25) / 2), 0));
@@ -1317,7 +1317,7 @@ describe('CollectionDetailsScreen', () => {
 
       // Switching List -> Grid view mode must not reset the sort choice just made.
       await act(async () => {
-        renderer.root.findByProps({ accessibilityLabel: 'Grid view' }).props.onPress();
+        renderer.root.findByProps({ accessibilityLabel: i18n.t('common.viewGrid') }).props.onPress();
       });
       expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
       expect(renderer.root.findByType(FlatList).props.data).toHaveLength(120);
@@ -1420,7 +1420,7 @@ describe('CollectionDetailsScreen', () => {
       await expectListInsideStackSafeArea(renderer);
 
       await act(async () => {
-        renderer.root.findByProps({ accessibilityLabel: 'Grid view' }).props.onPress();
+        renderer.root.findByProps({ accessibilityLabel: i18n.t('common.viewGrid') }).props.onPress();
       });
       // 시간순 Grid: tiles inside the open date section's card.
       expect(renderer.root.findAllByType(SavedLinkGridCard).length).toBeGreaterThan(0);
@@ -1434,7 +1434,7 @@ describe('CollectionDetailsScreen', () => {
       expect(listRows.every(row => row.props.dateDisplayMode === 'dateTime')).toBe(true);
 
       await act(async () => {
-        renderer.root.findByProps({ accessibilityLabel: 'Grid view' }).props.onPress();
+        renderer.root.findByProps({ accessibilityLabel: i18n.t('common.viewGrid') }).props.onPress();
       });
       const gridCards = renderer.root.findAllByType(SavedLinkGridCard);
       expect(gridCards.length).toBe(listRows.length);
@@ -1481,7 +1481,7 @@ describe('CollectionDetailsScreen', () => {
       jest.mocked(getCollectionItems).mockResolvedValue({ items: [item], nextCursor: null });
       const renderer = await renderScreen();
       await act(async () => {
-        renderer.root.findByProps({ accessibilityLabel: 'Grid view' }).props.onPress();
+        renderer.root.findByProps({ accessibilityLabel: i18n.t('common.viewGrid') }).props.onPress();
       });
       expect(renderer.root.findAllByType(SavedLinkGridCard).length).toBeGreaterThan(0);
       const tile = renderer.root.findAll(node => typeof node.props.onLongPress === 'function' && typeof node.props.onShare === 'function')[0];
@@ -1508,10 +1508,10 @@ describe('CollectionDetailsScreen', () => {
       );
       expect(itemMenu).toBeTruthy();
       const labels = itemMenu!.props.actions.map((action: { label: string }) => action.label);
-      expect(labels).toEqual(['링크 열기', '수정', '다른 컬렉션에 복제', '다른 컬렉션으로 이동', '컬렉션에서 삭제']);
+      expect(labels).toEqual(['링크 열기', '링크 복사', '수정', '다른 컬렉션에 복제', '다른 컬렉션으로 이동', '컬렉션에서 삭제']);
       expect(itemMenu!.props.actions.at(-1).destructive).toBe(true);
-      // 복제 (the same add-to-another-collection action as before, only named for what it does) and 이동, each with its icon.
-      expect(itemMenu!.findAllByType(CopyIcon)).toHaveLength(1);
+      // 링크 복사 and 복제 both use the copy glyph; 이동 has its own.
+      expect(itemMenu!.findAllByType(CopyIcon)).toHaveLength(2);
       expect(itemMenu!.findAllByType(MoveIcon)).toHaveLength(1);
     });
 

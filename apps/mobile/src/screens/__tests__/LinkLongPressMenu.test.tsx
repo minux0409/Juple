@@ -103,7 +103,7 @@ async function renderHome(items: readonly ItemHistoryEntry[]) {
 }
 
 async function switchToGrid(renderer: Renderer) {
-  const toggle = renderer.root.findAll(node => node.props.accessibilityLabel === 'Grid view' && typeof node.props.onPress === 'function')[0];
+  const toggle = renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('common.viewGrid') && typeof node.props.onPress === 'function')[0];
   await act(async () => toggle.props.onPress());
 }
 
@@ -117,7 +117,7 @@ const pressMenuAction = async (renderer: Renderer, label: string) => {
 };
 
 describe('link card long-press menu (Home)', () => {
-  it('List: long-press opens 링크 열기 / 수정 / 컬렉션 변경 / 삭제 with 삭제 last and destructive, each with an icon', async () => {
+  it('List: long-press opens 링크 열기 / 링크 복사 / 수정 / 컬렉션 변경 / 삭제 with 삭제 last and destructive, each with an icon', async () => {
     const renderer = await renderHome([item()]);
     expect(renderer.root.findAllByType(ActionMenuDialog)).toHaveLength(0);
 
@@ -125,8 +125,8 @@ describe('link card long-press menu (Home)', () => {
     await act(async () => row.props.onLongPress());
 
     const actions = menu(renderer).props.actions as { label: string; destructive?: boolean; icon?: unknown }[];
-    expect(actions.map(action => action.label)).toEqual(['링크 열기', '수정', '컬렉션 변경', '삭제']);
-    expect(actions.map(action => action.destructive === true)).toEqual([false, false, false, true]);
+    expect(actions.map(action => action.label)).toEqual(['링크 열기', '링크 복사', '수정', '컬렉션 변경', '삭제']);
+    expect(actions.map(action => action.destructive === true)).toEqual([false, false, false, false, true]);
     expect(actions.every(action => action.icon !== undefined)).toBe(true);
     expect(menu(renderer).props.visible).toBe(true);
   });
@@ -139,7 +139,7 @@ describe('link card long-press menu (Home)', () => {
     expect(cells).toHaveLength(2);
     expect(cells.every(cell => typeof cell.props.onLongPress === 'function')).toBe(true);
     await act(async () => cells[1].props.onLongPress());
-    expect((menu(renderer).props.actions as { label: string }[]).map(action => action.label)).toEqual(['링크 열기', '수정', '컬렉션 변경', '삭제']);
+    expect((menu(renderer).props.actions as { label: string }[]).map(action => action.label)).toEqual(['링크 열기', '링크 복사', '수정', '컬렉션 변경', '삭제']);
   });
 
   it('a tap still just opens the link, and the long-press is a screen-reader action too', async () => {
@@ -224,7 +224,7 @@ describe('image-only view (Home): the same link menu', () => {
     await act(async () => tiles[1].props.onLongPress());
 
     const actions = menu(renderer).props.actions as { label: string; destructive?: boolean }[];
-    expect(actions.map(action => action.label)).toEqual(['링크 열기', '수정', '컬렉션 변경', '삭제']);
+    expect(actions.map(action => action.label)).toEqual(['링크 열기', '링크 복사', '수정', '컬렉션 변경', '삭제']);
     expect(actions.at(-1)!.destructive).toBe(true);
   });
 

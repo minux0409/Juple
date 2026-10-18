@@ -203,7 +203,7 @@ describe('Collection Details - selectors and layout', () => {
     expect(part.root.findByType(LinkSortChips).props.dateLabel).toBe('시간순');
     expect(part.root.findByType(LinkSortChips).props.nameLabel).toBe('이름순');
     expect(part.root.findByType(ViewModeToggle).props.showImage).toBe(true);
-    for (const label of ['List view', 'Grid view', 'Image view']) {
+    for (const label of [i18n.t('common.viewList'), i18n.t('common.viewGrid'), i18n.t('common.viewImage')]) {
       expect(part.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function').length).toBeGreaterThan(0);
     }
     expect(part.root.findAll(node => node.props.testID === 'view-mode-image-glyph' && typeof node.type === 'string')[0].children).toHaveLength(9);

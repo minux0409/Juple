@@ -1,5 +1,9 @@
 {
   "common": {
+    "viewList": "목록 보기",
+    "viewGrid": "그리드 보기",
+    "viewImage": "이미지 보기",
+    "viewCompact": "촘촘한 그리드 보기",
     "save": "저장",
     "saving": "저장 중...",
     "cancel": "취소",
@@ -476,6 +480,9 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "copyLink": "링크 복사",
+    "linkCopied": "링크를 복사했어요",
+    "linkCopyFailed": "링크를 복사하지 못했어요",
     "lockedLinkPlaceholder": "잠금 상태의 링크입니다.",
     "fallbackInstagramPost": "Instagram 게시물",
     "fallbackInstagramReel": "Instagram 릴스",
@@ -1244,7 +1251,8 @@
     "title": "화면 모드",
     "system": "시스템 설정 사용",
     "light": "라이트",
-    "dark": "다크"
+    "dark": "다크",
+    "darkMode": "다크 모드"
   },
   "profileCrop": {
     "title": "프로필 사진 맞추기",
@@ -1361,7 +1369,7 @@
       },
       "appearance": {
         "title": "화면 모드",
-        "body": "시스템 설정을 따르거나 라이트/다크를 고를 수 있어요."
+        "body": "다크 모드를 켜거나 끌 수 있어요."
       },
       "helpGuide": {
         "title": "도움말",

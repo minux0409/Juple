@@ -1,5 +1,9 @@
 {
   "common": {
+    "viewList": "Listenansicht",
+    "viewGrid": "Rasteransicht",
+    "viewImage": "Bildansicht",
+    "viewCompact": "Kompakte Rasteransicht",
     "save": "Speichern",
     "saving": "Wird gespeichert...",
     "cancel": "Abbrechen",
@@ -476,6 +480,9 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "copyLink": "Link kopieren",
+    "linkCopied": "Link kopiert",
+    "linkCopyFailed": "Link konnte nicht kopiert werden",
     "lockedLinkPlaceholder": "Dieser Link ist gesperrt.",
     "fallbackInstagramPost": "Instagram-Beitrag",
     "fallbackInstagramReel": "Instagram-Reel",
@@ -1244,7 +1251,8 @@
     "title": "Darstellung",
     "system": "Systemeinstellung verwenden",
     "light": "Hell",
-    "dark": "Dunkel"
+    "dark": "Dunkel",
+    "darkMode": "Dunkelmodus"
   },
   "profileCrop": {
     "title": "Profilfoto anpassen",
@@ -1361,7 +1369,7 @@
       },
       "appearance": {
         "title": "Darstellung",
-        "body": "Nutze die Systemeinstellung oder wähle Hell oder Dunkel."
+        "body": "Schalte den Dunkelmodus ein oder aus."
       },
       "helpGuide": {
         "title": "Hilfe",

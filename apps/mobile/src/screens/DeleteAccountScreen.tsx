@@ -1,7 +1,8 @@
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
 import { deleteAccount } from '../api/accountApi';
 import { ApiError } from '../api/ApiError';
 import { getMyProfile } from '../api/profileApi';
@@ -177,7 +178,7 @@ export function DeleteAccountScreen() {
             <Text selectable style={[styles.jupleId, ltrTextStyle]} testID="delete-account-expected-id">
               {jupleId ? formatJupleId(jupleId) : '—'}
             </Text>
-            <TextInput
+            <ThemedTextInput
               accessibilityLabel={t('deleteAccount.confirmPlaceholder')}
               autoCapitalize="characters"
               autoCorrect={false}

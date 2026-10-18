@@ -1,5 +1,9 @@
 {
   "common": {
+    "viewList": "リスト表示",
+    "viewGrid": "グリッド表示",
+    "viewImage": "画像表示",
+    "viewCompact": "コンパクトグリッド表示",
     "save": "保存",
     "saving": "保存中...",
     "cancel": "キャンセル",
@@ -476,6 +480,9 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "copyLink": "リンクをコピー",
+    "linkCopied": "リンクをコピーしました",
+    "linkCopyFailed": "リンクをコピーできませんでした",
     "lockedLinkPlaceholder": "このリンクはロックされています。",
     "fallbackInstagramPost": "Instagramの投稿",
     "fallbackInstagramReel": "Instagramのリール",
@@ -1244,7 +1251,8 @@
     "title": "画面モード",
     "system": "システム設定を使用",
     "light": "ライト",
-    "dark": "ダーク"
+    "dark": "ダーク",
+    "darkMode": "ダークモード"
   },
   "profileCrop": {
     "title": "プロフィール写真を調整",
@@ -1361,7 +1369,7 @@
       },
       "appearance": {
         "title": "画面モード",
-        "body": "システム設定に合わせるか、ライト／ダークを選べます。"
+        "body": "ダークモードのオン/オフを切り替えられます。"
       },
       "helpGuide": {
         "title": "ヘルプ",

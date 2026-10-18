@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Animated, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
 import { SheetHeader, useSheetDismissGesture } from '../components/sheetDismissGesture';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
@@ -297,7 +298,7 @@ export function CollectionLinkShareSheet({
             ) : (
               <View>
                 <View style={styles.idRow}>
-                  <TextInput
+                  <ThemedTextInput
                     accessibilityLabel={t('shareSheet.inviteTabId')}
                     autoCapitalize="characters"
                     autoCorrect={false}

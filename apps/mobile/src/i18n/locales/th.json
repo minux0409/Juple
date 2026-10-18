@@ -1,5 +1,9 @@
 {
   "common": {
+    "viewList": "มุมมองรายการ",
+    "viewGrid": "มุมมองตาราง",
+    "viewImage": "มุมมองรูปภาพ",
+    "viewCompact": "มุมมองตารางแบบกะทัดรัด",
     "save": "บันทึก",
     "saving": "กำลังบันทึก...",
     "cancel": "ยกเลิก",
@@ -476,6 +480,9 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "copyLink": "คัดลอกลิงก์",
+    "linkCopied": "คัดลอกลิงก์แล้ว",
+    "linkCopyFailed": "คัดลอกลิงก์ไม่ได้",
     "lockedLinkPlaceholder": "ลิงก์นี้ถูกล็อก",
     "fallbackInstagramPost": "โพสต์ Instagram",
     "fallbackInstagramReel": "Reels Instagram",
@@ -1244,7 +1251,8 @@
     "title": "การแสดงผล",
     "system": "ใช้ตามการตั้งค่าระบบ",
     "light": "สว่าง",
-    "dark": "มืด"
+    "dark": "มืด",
+    "darkMode": "โหมดมืด"
   },
   "profileCrop": {
     "title": "ปรับรูปโปรไฟล์",
@@ -1361,7 +1369,7 @@
       },
       "appearance": {
         "title": "รูปลักษณ์",
-        "body": "ใช้ตามการตั้งค่าระบบ หรือเลือกสว่างหรือมืด"
+        "body": "เปิดหรือปิดโหมดมืดได้"
       },
       "helpGuide": {
         "title": "วิธีใช้",

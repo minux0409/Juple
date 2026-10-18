@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { formatJupleId, personLabel } from '../collections/api/collaborationApi';
 import { AppModal } from '../components/AppModal';
@@ -8,9 +9,13 @@ import { getFriendSearchEmptyState } from './friendSearchEmptyState';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { SelectionIndicator } from '../components/SelectionIndicator';
 import { UserAvatar } from '../components/UserAvatar';
+import { ViewModeToggle } from '../components/ViewModeToggle';
+import type { ViewMode } from '../settings/viewModePreference';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 const AVATAR_SIZE = 40;
+const GRID_AVATAR_SIZE = 56;
+const GRID_COLUMNS = 3;
 import { getFriends, type Friend } from './api/friendsApi';
 
 const PAGE_LIMIT = 50;
@@ -43,6 +48,9 @@ export function FriendPickerModal({ visible, authenticatedRequest, unavailable, 
   const [error, setError] = useState<{ readonly cause: unknown } | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [selected, setSelected] = useState<ReadonlyMap<string, Friend>>(new Map());
+  // List | Grid is only a way of looking at the same friends (this opening of the picker; nothing is stored).
+  const [layout, setLayout] = useState<ViewMode>('list');
+  const isGrid = layout === 'grid';
   const loadIdRef = useRef(0);
 
   useEffect(() => {
@@ -138,17 +146,23 @@ export function FriendPickerModal({ visible, authenticatedRequest, unavailable, 
       title={t('shareSheet.chooseFriends')}
       visible={visible}
     >
-      <TextInput
-        accessibilityLabel={t('friends.search')}
-        autoCorrect={false}
-        onChangeText={setSearch}
-        placeholder={t('friends.search')}
-        style={styles.search}
-        testID="friend-picker-search"
-        value={search}
-      />
+      <View style={styles.searchRow}>
+        <ThemedTextInput
+          accessibilityLabel={t('friends.search')}
+          autoCorrect={false}
+          onChangeText={setSearch}
+          placeholder={t('friends.search')}
+          style={[styles.search, styles.searchInput]}
+          testID="friend-picker-search"
+          value={search}
+        />
+        <ViewModeToggle onChange={setLayout} value={layout} />
+      </View>
       <FlatList
+        columnWrapperStyle={isGrid ? styles.gridRow : undefined}
         data={friends}
+        key={layout}
+        numColumns={isGrid ? GRID_COLUMNS : 1}
         initialNumToRender={20}
         keyboardShouldPersistTaps="handled"
         keyExtractor={friend => friend.friendshipId.toString()}
@@ -163,6 +177,31 @@ export function FriendPickerModal({ visible, authenticatedRequest, unavailable, 
           const reason = unavailable.get(item.jupleId);
           const isSelected = selected.has(item.jupleId);
           const disabled = reason !== undefined;
+          if (isGrid) {
+            return (
+              <Pressable
+                accessibilityLabel={personLabel(item)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isSelected, disabled }}
+                disabled={disabled}
+                onPress={() => toggle(item)}
+                style={[styles.tile, isSelected && styles.tileSelected, disabled && styles.disabled]}
+                testID={`friend-picker-${item.jupleId}`}
+              >
+                <UserAvatar
+                  displayName={item.displayName}
+                  imageUrl={item.profileImageUrl}
+                  imageVersion={item.profileImageVersion}
+                  jupleId={item.jupleId}
+                  size={GRID_AVATAR_SIZE}
+                />
+                <SelectionIndicator selected={isSelected} style={styles.tileIndicator} testID={`friend-picker-indicator-${item.jupleId}`} />
+                <Text numberOfLines={2} style={styles.tileName}>{personLabel(item)}</Text>
+                {item.displayName ? <Text numberOfLines={1} style={[styles.tileMeta, ltrTextStyle]}>{formatJupleId(item.jupleId)}</Text> : null}
+                {reason ? <Text numberOfLines={2} style={styles.tileReason}>{reasonLabel(reason)}</Text> : null}
+              </Pressable>
+            );
+          }
           return (
             <Pressable
               accessibilityRole="checkbox"
@@ -213,7 +252,27 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget,
     paddingHorizontal: spacing.md,
   },
+  searchRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
+  searchInput: { flex: 1 },
   list: { flex: 1, marginTop: spacing.sm },
+  gridRow: { gap: spacing.sm, marginBottom: spacing.sm },
+  tile: {
+    alignItems: 'center',
+    borderColor: colors.inputBorder,
+    borderRadius: radii.md + 4,
+    borderWidth: 1,
+    flexBasis: 0,
+    flexGrow: 1,
+    gap: spacing.xs,
+    minHeight: minTouchTarget,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.md,
+  },
+  tileSelected: { backgroundColor: colors.brandSoft, borderColor: colors.brand },
+  tileIndicator: { position: 'absolute', right: spacing.xs, top: spacing.xs },
+  tileName: { color: colors.textPrimary, fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  tileMeta: { color: colors.textSecondary, fontSize: 11, textAlign: 'center' },
+  tileReason: { color: colors.textSecondary, fontSize: 11, fontWeight: '600', textAlign: 'center' },
   row: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: minTouchTarget, paddingVertical: spacing.sm },
   rowText: { flex: 1, minWidth: 0 },
   name: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },

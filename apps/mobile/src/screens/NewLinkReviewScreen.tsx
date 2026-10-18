@@ -2,7 +2,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // react-native-get-random-values is imported once at the app entry point before anything else can
 // call uuid - see pushInstallationId.ts's own remarks on why uuid would otherwise silently fall
@@ -541,7 +542,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           keyboard (KeyboardSafeView) and the system navigation bar. */}
       <View style={[styles.bottomBar, { paddingBottom: spacing.md + insets.bottom }]}>
         {hasDestinationDecision ? (
-          <TextInput
+          <ThemedTextInput
             accessibilityLabel={t('item.memoPlaceholder')}
             editable={!isSaving}
             multiline

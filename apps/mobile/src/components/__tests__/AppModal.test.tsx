@@ -210,4 +210,45 @@ describe('FriendPickerModal (Share › 친구 선택)', () => {
     const picked = onConfirm.mock.calls[0][0] as Friend[];
     expect(picked).toHaveLength(14);
   });
+  describe('List | Grid', () => {
+    const toggle = (renderer: Renderer, label: string) =>
+      renderer.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0];
+
+    it('starts as the list; the shared List / Grid control switches the same friends to 3-column tiles and back', async () => {
+      const renderer = await renderPicker();
+      expect(renderer.root.findByType(FlatList).props.numColumns).toBe(1);
+      expect(toggle(renderer, i18n.t('common.viewList')).props.accessibilityState).toEqual({ selected: true });
+      act(() => toggle(renderer, i18n.t('common.viewGrid')).props.onPress());
+      expect(renderer.root.findByType(FlatList).props.numColumns).toBe(3);
+      expect(renderer.root.findByType(FlatList).props.data).toHaveLength(30);
+      expect(toggle(renderer, i18n.t('common.viewGrid')).props.accessibilityState).toEqual({ selected: true });
+      act(() => toggle(renderer, i18n.t('common.viewList')).props.onPress());
+      expect(renderer.root.findByType(FlatList).props.numColumns).toBe(1);
+    });
+
+    it('a Grid tile selects like a row (checkbox, checked state, the shared indicator) and the search and selected count are unchanged', async () => {
+      const onConfirm = jest.fn();
+      const renderer = await renderPicker(onConfirm);
+      act(() => toggle(renderer, i18n.t('common.viewGrid')).props.onPress());
+      const tile = (jupleId: string) => renderer.root.findByProps({ testID: `friend-picker-${jupleId}` });
+      expect(tile('F0002345').props.accessibilityRole).toBe('checkbox');
+      expect(tile('F0002345').props.accessibilityLabel).toContain('친구 0');
+      act(() => tile('F0002345').props.onPress());
+      expect(tile('F0002345').props.accessibilityState).toEqual({ checked: true, disabled: false });
+      expect(renderer.root.findByProps({ testID: 'friend-picker-indicator-F0002345' }).props.selected).toBe(true);
+      expect(renderer.root.findByProps({ testID: 'friend-picker-selected-count' })).toBeTruthy();
+      expect(renderer.root.findByProps({ testID: 'friend-picker-search' })).toBeTruthy();
+      act(() => renderer.root.findByProps({ testID: 'friend-picker-confirm' }).props.onPress());
+      expect(onConfirm).toHaveBeenCalledWith([expect.objectContaining({ jupleId: 'F0002345' })]);
+    });
+
+    it('a friend already in the Collection stays disabled in Grid, and the choice survives switching the view', async () => {
+      const renderer = await renderPicker();
+      act(() => toggle(renderer, i18n.t('common.viewGrid')).props.onPress());
+      expect(renderer.root.findByProps({ testID: 'friend-picker-F0012345' }).props.accessibilityState).toEqual({ checked: false, disabled: true });
+      act(() => renderer.root.findByProps({ testID: 'friend-picker-F0002345' }).props.onPress());
+      act(() => toggle(renderer, i18n.t('common.viewList')).props.onPress());
+      expect(renderer.root.findByProps({ testID: 'friend-picker-F0002345' }).props.accessibilityState).toEqual({ checked: true, disabled: false });
+    });
+  });
 });

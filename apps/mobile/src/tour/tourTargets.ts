@@ -8,6 +8,8 @@ import type { TourRect } from './tourPlacement';
  * element cannot silently break a guide. Ids are constants in tourGuides.ts.
  */
 const targets = new Map<string, HostInstance>();
+/** A marked element's own corner radius (optional): the spotlight ring follows it. React Native cannot read a style back from a view. */
+const targetRadii = new Map<string, number>();
 const layoutListeners = new Map<string, Set<() => void>>();
 
 /**
@@ -33,13 +35,24 @@ function notifyTourTargetLayout(id: string): void {
   layoutListeners.get(id)?.forEach(listener => listener());
 }
 
-export function registerTourTarget(id: string, node: HostInstance): void {
+export function registerTourTarget(id: string, node: HostInstance, radius?: number): void {
   targets.set(id, node);
+  if (radius === undefined) {
+    targetRadii.delete(id);
+  } else {
+    targetRadii.set(id, radius);
+  }
+}
+
+/** The radius the target declared, or undefined (the tour then uses its default). */
+export function getTourTargetRadius(id: string): number | undefined {
+  return targetRadii.get(id);
 }
 
 export function unregisterTourTarget(id: string, node: HostInstance): void {
   if (targets.get(id) === node) {
     targets.delete(id);
+    targetRadii.delete(id);
   }
 }
 
@@ -61,8 +74,9 @@ export function measureTourTarget(id: string): Promise<TourRect | null> {
 }
 
 /** Props for the element to mark. `collapsable: false` keeps Android from flattening a layout-only view away (it could not be measured); `onLayout` tells the tour when the element moved or resized. */
-export function useTourTarget(id: string): { readonly ref: (node: HostInstance | null) => void; readonly collapsable: false; readonly onLayout: () => void } {
+export function useTourTarget(id: string, options: { readonly radius?: number } = {}): { readonly ref: (node: HostInstance | null) => void; readonly collapsable: false; readonly onLayout: () => void } {
   const nodeRef = useRef<HostInstance | null>(null);
+  const { radius } = options;
   const ref = useCallback(
     (node: HostInstance | null) => {
       if (nodeRef.current) {
@@ -70,10 +84,10 @@ export function useTourTarget(id: string): { readonly ref: (node: HostInstance |
       }
       nodeRef.current = node;
       if (node) {
-        registerTourTarget(id, node);
+        registerTourTarget(id, node, radius);
       }
     },
-    [id],
+    [id, radius],
   );
   const onLayout = useCallback(() => notifyTourTargetLayout(id), [id]);
   return { ref, collapsable: false, onLayout };

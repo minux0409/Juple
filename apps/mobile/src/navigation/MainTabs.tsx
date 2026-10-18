@@ -43,7 +43,7 @@ function renderHomeIcon({ focused }: { focused: boolean }) {
 
 // The tab icons that a guided tour can spotlight: the icon area is the tour target (the tab bar buttons are navigator-owned).
 function TabIconTarget({ id, children }: { id: string; children: ReactNode }) {
-  const target = useTourTarget(id);
+  const target = useTourTarget(id, { radius: radii.md });
   return <View {...target} style={styles.tabIconTarget}>{children}</View>;
 }
 

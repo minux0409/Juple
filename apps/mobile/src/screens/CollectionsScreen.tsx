@@ -188,8 +188,8 @@ function getNameValidationError(name: string, t: TFunction): string | null {
  */
 export function CollectionsScreen() {
   const { t } = useTranslation();
-  const viewModeTarget = useTourTarget(TOUR_TARGETS.collectionsViewMode);
-  const createTarget = useTourTarget(TOUR_TARGETS.collectionsCreate);
+  const viewModeTarget = useTourTarget(TOUR_TARGETS.collectionsViewMode, { radius: radii.md });
+  const createTarget = useTourTarget(TOUR_TARGETS.collectionsCreate, { radius: radii.md + 4 });
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const tabNavigation = useNavigation<BottomTabNavigationProp<MainTabParamList, 'Collections'>>();
   const route = useRoute<RouteProp<MainTabParamList, 'Collections'>>();

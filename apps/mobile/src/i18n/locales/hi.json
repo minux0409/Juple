@@ -1,5 +1,9 @@
 {
   "common": {
+    "viewList": "सूची दृश्य",
+    "viewGrid": "ग्रिड दृश्य",
+    "viewImage": "छवि दृश्य",
+    "viewCompact": "कॉम्पैक्ट ग्रिड दृश्य",
     "save": "सेव करें",
     "saving": "सेव हो रहा है...",
     "cancel": "रद्द करें",
@@ -476,6 +480,9 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "copyLink": "लिंक कॉपी करें",
+    "linkCopied": "लिंक कॉपी हो गया",
+    "linkCopyFailed": "लिंक कॉपी नहीं हो सका",
     "lockedLinkPlaceholder": "यह लिंक लॉक है।",
     "fallbackInstagramPost": "Instagram पोस्ट",
     "fallbackInstagramReel": "Instagram रील",
@@ -1244,7 +1251,8 @@
     "title": "दिखावट",
     "system": "सिस्टम सेटिंग का उपयोग करें",
     "light": "लाइट",
-    "dark": "डार्क"
+    "dark": "डार्क",
+    "darkMode": "डार्क मोड"
   },
   "profileCrop": {
     "title": "प्रोफ़ाइल फ़ोटो समायोजित करें",
@@ -1361,7 +1369,7 @@
       },
       "appearance": {
         "title": "दिखावट",
-        "body": "सिस्टम सेटिंग अपनाएँ या लाइट अथवा डार्क चुनें।"
+        "body": "डार्क मोड को चालू या बंद करें।"
       },
       "helpGuide": {
         "title": "मदद",

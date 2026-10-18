@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { SavedLinkViewMode, TrashViewMode } from '../settings/viewModePreference';
 import { colors, radii, themedStyles } from '../theme/tokens';
@@ -30,6 +31,7 @@ function ImageGlyph({ selected }: { readonly selected: boolean }) {
 
 /** Compact List / Grid (/ Image) presentation switch shared by link and Collection screens. */
 export function ViewModeToggle<Mode extends ToggleMode = ToggleMode>({ value, onChange, showImage = false, showCompact = false, style }: ViewModeToggleProps<Mode>) {
+  const { t } = useTranslation();
   const hasThird = showImage || showCompact;
   const option = (mode: ToggleMode, label: string, glyph: ReactElement) => (
     <Pressable
@@ -44,10 +46,10 @@ export function ViewModeToggle<Mode extends ToggleMode = ToggleMode>({ value, on
     </Pressable>
   );
   return <View style={[styles.container, style]}>
-    {option('list', 'List view', <ListGlyph selected={value === 'list'} />)}
-    {option('grid', 'Grid view', <GridGlyph selected={value === 'grid'} />)}
-    {showImage ? option('image', 'Image view', <ImageGlyph selected={value === 'image'} />) : null}
-    {showCompact ? option('compact', 'Compact grid view', <ImageGlyph selected={value === 'compact'} />) : null}
+    {option('list', t('common.viewList'), <ListGlyph selected={value === 'list'} />)}
+    {option('grid', t('common.viewGrid'), <GridGlyph selected={value === 'grid'} />)}
+    {showImage ? option('image', t('common.viewImage'), <ImageGlyph selected={value === 'image'} />) : null}
+    {showCompact ? option('compact', t('common.viewCompact'), <ImageGlyph selected={value === 'compact'} />) : null}
   </View>;
 }
 

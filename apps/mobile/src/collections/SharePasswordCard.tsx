@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, AppState, Modal, Platform, Pressable, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, AppState, Modal, Platform, Pressable, Text, View } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
+import { ThemedSwitch } from '../components/ThemedSwitch';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
@@ -276,7 +278,7 @@ export function SharePasswordCard({ collectionId, authenticatedRequest, onModeCh
         </View>
         <Text accessibilityRole="header" style={styles.title}>{t('collections.sharePasswordTitle')}</Text>
         {status ? (
-          <Switch
+          <ThemedSwitch
             accessibilityLabel={t('collections.sharePasswordToggle')}
             disabled={isDisabled}
             onValueChange={value => {
@@ -440,7 +442,7 @@ function SharePasswordDialog({ mode, isSaving, onSubmit, onCancel }: SharePasswo
           <Text accessibilityRole="header" style={styles.dialogTitle}>
             {t(mode === 'change' ? 'collections.sharePasswordChangeTitle' : 'collections.sharePasswordSetTitle')}
           </Text>
-          <TextInput
+          <ThemedTextInput
             accessibilityLabel={label}
             autoCapitalize="none"
             autoComplete="off"

@@ -8,6 +8,7 @@ import { CloseIcon } from '../icons/CloseIcon';
 import { FolderPlusIcon } from '../icons/FolderPlusIcon';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { SelectionIndicator } from '../components/SelectionIndicator';
+import { CloseButton } from '../components/CloseButton';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { useViewModePreference, type ViewModePreferenceKey } from '../settings/viewModePreference';
 import type { Collection } from './api/collectionsApi';
@@ -35,6 +36,8 @@ export interface CollectionChoiceGridProps {
   readonly title?: string;
   /** Where this chooser's own List/Grid choice is kept (so another chooser's choice is never overwritten). */
   readonly viewModeKey?: ViewModePreferenceKey;
+  /** What a chooser shows until its person has picked a mode (a stored choice always wins). Grid unless the chooser was a list before. */
+  readonly defaultViewMode?: 'list' | 'grid';
   /** The leading "+ 새로 만들기" tile - on by default. */
   readonly showCreateTile?: boolean;
   readonly onOpenCreateDialog?: () => void;
@@ -63,6 +66,9 @@ export interface CollectionChoiceGridProps {
    * Inside a bottom sheet: the title row (title + List/Grid) goes under the shared handle as the sheet's drag area
    * (see SheetHeader / CategoryPickerModal). Absent: a plain title row.
    */
+  /** A simple dismiss: the sheet's X beside the List / Grid switch (a sheet that has its own 취소 / action row leaves it out). */
+  readonly onClose?: () => void;
+  readonly closeDisabled?: boolean;
   readonly sheetHeader?: { readonly gesture: Pick<SheetDismissGesture, 'dragAreaHandlers'>; readonly style?: StyleProp<ViewStyle>; readonly testID?: string };
 }
 
@@ -82,6 +88,7 @@ export function CollectionChoiceGrid({
   onLoadMore,
   title,
   viewModeKey = 'categoryPickerViewMode',
+  defaultViewMode = 'grid',
   showCreateTile = true,
   onOpenCreateDialog = () => undefined,
   createLabel,
@@ -93,15 +100,22 @@ export function CollectionChoiceGrid({
   onRetryLoad,
   listStyle,
   sheetHeader,
+  onClose,
+  closeDisabled,
 }: CollectionChoiceGridProps) {
   const { t } = useTranslation();
-  const { viewMode, changeViewMode } = useViewModePreference(viewModeKey, 'grid');
+  const { viewMode, changeViewMode } = useViewModePreference(viewModeKey, defaultViewMode);
   const isGrid = viewMode === 'grid';
   const gridColumns = useCollectionTileColumns(BOTTOM_SHEET_MAX_WIDTH);
   const gridCellStyle = useMemo(() => [styles.gridCell, { flexBasis: columnBasis(gridColumns) }], [gridColumns]);
 
   const titleText = <Text accessibilityRole="header" numberOfLines={2} style={styles.title}>{title ?? t('collections.selectTitle')}</Text>;
-  const toggle = <ViewModeToggle onChange={changeViewMode} value={viewMode} />;
+  const toggle = onClose ? (
+    <View style={styles.toggleWithClose}>
+      <ViewModeToggle onChange={changeViewMode} value={viewMode} />
+      <CloseButton disabled={closeDisabled} onPress={onClose} testID="category-picker-close" />
+    </View>
+  ) : <ViewModeToggle onChange={changeViewMode} value={viewMode} />;
 
   const leading: GridItem[] = [];
   if (showCreateTile) {
@@ -256,6 +270,7 @@ const styles = themedStyles(() => ({
   sortChipSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
   sortChipLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   sortChipLabelSelected: { color: colors.surface },
+  toggleWithClose: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   loading: { marginVertical: 20 },
   footerLoading: { paddingVertical: 12 },
   optionList: { marginTop: spacing.sm },

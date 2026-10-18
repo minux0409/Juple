@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CategoryIconTile } from './CategoryIconTile';
 import { CollectionColorPicker } from './CollectionColorPicker';
@@ -133,7 +134,7 @@ export function CategoryEditorDialog({
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <View style={styles.previewRow}>
               <CategoryIconTile collectionId={0} color={color} icon={icon} imageUrl={imageUri} size={44} />
-              <TextInput
+              <ThemedTextInput
                 autoFocus
                 editable={!isSubmitting}
                 onChangeText={setName}

@@ -48,7 +48,7 @@ function sourceFiles(dir: string): string[] {
 
 describe('every TextInput is keyboard-safe by construction', () => {
   const withInput = sourceFiles(SRC)
-    .filter(file => fs.readFileSync(file, 'utf8').includes('<TextInput'))
+    .filter(file => /<ThemedTextInput\b/.test(fs.readFileSync(file, 'utf8')))
     .map(file => path.relative(SRC, file).split(path.sep).join('/'));
 
   it('finds the known input holders (guards the scan itself)', () => {

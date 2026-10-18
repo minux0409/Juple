@@ -17,6 +17,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -838,7 +839,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
               uri={thumbnailUrl}
             />
             <View style={styles.linkText}>
-              <TextInput
+              <ThemedTextInput
                 accessibilityLabel={t('item.titleLabel')}
                 multiline
                 onChangeText={setTitle}
@@ -876,7 +877,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
               <EditIcon color={colors.textSecondary} size={15} />
               <Text style={styles.blockTitle}>{t('item.memo')}</Text>
             </View>
-            <TextInput
+            <ThemedTextInput
               accessibilityLabel={t('item.memo')}
               multiline
               onBlur={() => setIsMemoFocused(false)}

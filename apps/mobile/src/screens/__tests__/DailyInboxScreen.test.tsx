@@ -3,7 +3,8 @@ jest.mock('../../config/publicWebConfig', () => ({ publicWebConfig: { host: 'dev
 
 jest.mock('../../api/apiConfig', () => ({ apiConfig: { baseUrl: 'https://api.test' } }));
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Dimensions, FlatList, Image, Modal, Text, TextInput } from 'react-native';
+import { Dimensions, FlatList, Image, Modal, StyleSheet, Text, TextInput } from 'react-native';
+import { darkColors, lightColors, setActiveColorScheme } from '../../theme/tokens';
 import { CollectionUnlockPanel } from '../../collections/CollectionUnlockPanel';
 import i18n from '../../i18n';
 import { DailyInboxScreen, HOME_FIRST_PAGE_SKELETON_ROWS, HOME_NEXT_PAGE_SKELETON_ROWS, HOME_PAGE_SIZE } from '../DailyInboxScreen';
@@ -187,7 +188,7 @@ describe('DailyInboxScreen grid', () => {
     const items = [makeItem({ id: 1, title: 'Hi' }), makeItem({ id: 2, title: 'A much longer title that wraps onto a second line' })];
     setUpItems(items);
     const renderer = await renderScreen();
-    const gridToggle = renderer.root.findAll(node => node.props.accessibilityLabel === 'Grid view' && typeof node.props.onPress === 'function')[0];
+    const gridToggle = renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('common.viewGrid') && typeof node.props.onPress === 'function')[0];
     await act(async () => {
       gridToggle.props.onPress();
     });
@@ -204,7 +205,7 @@ describe('DailyInboxScreen grid', () => {
     const PHONE_PORTRAIT = [411, 1334] as const;
     afterEach(() => setWindow(...PHONE_PORTRAIT));
 
-    const choose = async (renderer: ReactTestRenderer.ReactTestRenderer, label: 'Grid view' | 'Image view') => {
+    const choose = async (renderer: ReactTestRenderer.ReactTestRenderer, label: string) => {
       const toggle = renderer.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0];
       await act(async () => {
         toggle.props.onPress();
@@ -214,7 +215,7 @@ describe('DailyInboxScreen grid', () => {
     it('Grid follows the window width live - a rotation changes numColumns (the list remounts) and keeps every link', async () => {
       setUpItems([makeItem({ id: 1 }), makeItem({ id: 2 }), makeItem({ id: 3 })]);
       const renderer = await renderScreen();
-      await choose(renderer, 'Grid view');
+      await choose(renderer, i18n.t('common.viewGrid'));
       expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
 
       await act(async () => {
@@ -243,7 +244,7 @@ describe('DailyInboxScreen grid', () => {
     it('Image view packs more tiles into a line on a tablet and stays a single-column list', async () => {
       setUpItems(Array.from({ length: 7 }, (_, index) => makeItem({ id: index + 1 })));
       const renderer = await renderScreen();
-      await choose(renderer, 'Image view');
+      await choose(renderer, i18n.t('common.viewImage'));
       const lineSizes = () => renderer.root.findByType(FlatList).props.data.map((line: { items: unknown[] }) => line.items.length);
       expect(lineSizes()).toEqual([3, 3, 1]);
 
@@ -821,7 +822,7 @@ describe('DailyInboxScreen image view', () => {
   const getList = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findByType(FlatList);
   const lines = (renderer: ReactTestRenderer.ReactTestRenderer) => getList(renderer).props.data as Line[];
   async function selectImage(renderer: ReactTestRenderer.ReactTestRenderer) {
-    const toggle = renderer.root.findAll(node => node.props.accessibilityLabel === 'Image view' && typeof node.props.onPress === 'function')[0];
+    const toggle = renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('common.viewImage') && typeof node.props.onPress === 'function')[0];
     await act(async () => {
       toggle.props.onPress();
     });
@@ -841,7 +842,7 @@ describe('DailyInboxScreen image view', () => {
     const renderer = await renderScreen();
     const toggle = renderer.root.findByType(ViewModeToggle);
     expect(toggle.props.showImage).toBe(true);
-    for (const label of ['List view', 'Grid view', 'Image view']) {
+    for (const label of [i18n.t('common.viewList'), i18n.t('common.viewGrid'), i18n.t('common.viewImage')]) {
       expect(toggle.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function').length).toBeGreaterThan(0);
     }
   });
@@ -916,5 +917,21 @@ describe('DailyInboxScreen image view', () => {
     });
     expect(lines(renderer).flatMap(line => line.items)).toHaveLength(HOME_PAGE_SIZE + 5);
     expect(lines(renderer).slice(0, -1).every(line => line.items.length === 3)).toBe(true);
+  });
+});
+
+describe('Home URL field in Dark mode', () => {
+  afterEach(() => setActiveColorScheme('light'));
+
+  it.each([
+    ['dark', darkColors],
+    ['light', lightColors],
+  ] as const)('%s: the typed text is the primary text colour and the placeholder the placeholder token (never the native default)', async (scheme, palette) => {
+    setActiveColorScheme(scheme);
+    setUpItems([]);
+    const renderer = await renderScreen();
+    const input = renderer.root.findAllByType(TextInput).find(node => node.props.keyboardType === 'url')!;
+    expect(StyleSheet.flatten(input.props.style).color).toBe(palette.textPrimary);
+    expect(input.props.placeholderTextColor).toBe(palette.placeholder);
   });
 });

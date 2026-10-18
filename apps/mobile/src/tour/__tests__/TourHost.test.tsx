@@ -2,11 +2,13 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import type { HostInstance } from 'react-native';
 import { AccessibilityInfo, BackHandler, Text, View } from 'react-native';
 import i18n from '../../i18n';
-import { getActiveColorScheme, setActiveColorScheme } from '../../theme/tokens';
+import { colors, darkColors, getActiveColorScheme, lightColors, setActiveColorScheme } from '../../theme/tokens';
 import { TourHost } from '../TourHost';
 import { endTour, getActiveTour, startTour } from '../tourController';
 import { hasCompletedTour, tourCompletedKey } from '../tourPreference';
 import { registerTourTarget, unregisterTourTarget } from '../tourTargets';
+import { StyleSheet } from 'react-native';
+import { DEFAULT_TOUR_TARGET_RADIUS, TOUR_SPOTLIGHT_PADDING } from '../tourPlacement';
 
 const mockStore = new Map<string, string>();
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -287,5 +289,136 @@ describe('TourHost - measuring', () => {
       jest.advanceTimersByTime(10_000);
     });
     expect(node.measureInWindow.mock.calls.length).toBeLessThanOrEqual(3);
+  });
+});
+
+describe("TourHost - the spotlight ring follows the target's own corner radius", () => {
+  const ringRadius = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    StyleSheet.flatten(renderer.root.find(node => node.props.testID === 'tour-spotlight' && typeof node.type === 'string').props.style).borderRadius;
+
+  it('a target that declared a radius gets radius + padding (the Home input is a large rounded field)', async () => {
+    registerTourTarget('home.input', registered.find(([id]) => id === 'home.input')![1], 20);
+    const renderer = await renderHost();
+    await start('mainOnboarding');
+    expect(ringRadius(renderer)).toBe(20 + TOUR_SPOTLIGHT_PADDING);
+  });
+
+  it('a square target (radius 0) still gets the padding only; a target that declares nothing gets the default', async () => {
+    registerTourTarget('home.input', registered.find(([id]) => id === 'home.input')![1], 0);
+    const first = await renderHost();
+    await start('mainOnboarding');
+    expect(ringRadius(first)).toBe(TOUR_SPOTLIGHT_PADDING);
+    act(() => endTour());
+    registerTourTarget('home.input', registered.find(([id]) => id === 'home.input')![1]);
+    await start('mainOnboarding');
+    expect(ringRadius(first)).toBe(DEFAULT_TOUR_TARGET_RADIUS + TOUR_SPOTLIGHT_PADDING);
+  });
+
+  it('different targets get different radii on different steps', async () => {
+    registerTourTarget('home.input', registered.find(([id]) => id === 'home.input')![1], 20);
+    registerTourTarget('tab.collections', registered.find(([id]) => id === 'tab.collections')![1], 8);
+    const renderer = await renderHost();
+    await start('mainOnboarding');
+    const homeRadius = ringRadius(renderer);
+    await press(renderer, 'tour-next');
+    await press(renderer, 'tour-next');
+    expect(ringRadius(renderer)).not.toBe(homeRadius);
+  });
+
+  it('the position, size, scrim and hole of the spotlight are unchanged by the radius', async () => {
+    registerTourTarget('home.input', registered.find(([id]) => id === 'home.input')![1], 20);
+    const renderer = await renderHost();
+    await start('mainOnboarding');
+    const ring = StyleSheet.flatten(renderer.root.find(node => node.props.testID === 'tour-spotlight' && typeof node.type === 'string').props.style);
+    expect(ring).toMatchObject({ left: 16 - TOUR_SPOTLIGHT_PADDING, top: 120 - TOUR_SPOTLIGHT_PADDING, width: 368 + 2 * TOUR_SPOTLIGHT_PADDING, height: 56 + 2 * TOUR_SPOTLIGHT_PADDING, borderWidth: 2 });
+  });
+});
+
+describe('TourHost - the dimmed area is rounded like the ring', () => {
+  const node = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) => renderer.root.findAll(item => item.props.testID === testID && typeof item.type === 'string');
+  const ringRadius = (renderer: ReactTestRenderer.ReactTestRenderer) => StyleSheet.flatten(node(renderer, 'tour-spotlight')[0].props.style).borderRadius as number;
+  const wedgeRingStyles = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    ['tl', 'tr', 'bl', 'br'].map(corner => {
+      const box = node(renderer, `tour-corner-${corner}`)[0];
+      return { box: StyleSheet.flatten(box.props.style), ring: StyleSheet.flatten(box.children.length ? (box.findAll(child => typeof child.type === 'string' && child !== box)[0]?.props.style) : undefined) };
+    });
+  const nodeFor = (id: string) => registered.find(([key]) => key === id)![1];
+
+  it('a rounded target gets four corner pieces whose radius IS the ring radius (one value for both)', async () => {
+    registerTourTarget('home.input', nodeFor('home.input'), 20);
+    const renderer = await renderHost();
+    await start('mainOnboarding');
+    const radius = ringRadius(renderer);
+    expect(radius).toBe(26);
+    const pieces = wedgeRingStyles(renderer);
+    expect(pieces).toHaveLength(4);
+    for (const { box, ring } of pieces) {
+      // The piece is the radius-sized corner square; its ring has the same radius as inner radius (border width) and 2x as outer.
+      expect(box.width).toBe(radius);
+      expect(box.height).toBe(radius);
+      expect(ring.borderWidth).toBe(radius);
+      expect(ring.width).toBe(4 * radius);
+      expect(ring.borderRadius).toBe(2 * radius);
+    }
+  });
+
+  it('a square target (radius 0) keeps a plain rectangle: the ring has the padding radius only and there is a corner piece for it too', async () => {
+    registerTourTarget('home.input', nodeFor('home.input'), 0);
+    const renderer = await renderHost();
+    await start('mainOnboarding');
+    expect(ringRadius(renderer)).toBe(6);
+    expect(node(renderer, 'tour-corner-tl')[0].props.style).toBeDefined();
+    expect(StyleSheet.flatten(node(renderer, 'tour-corner-tl')[0].props.style).width).toBe(6);
+  });
+
+  it('a pill is clamped to half the spotlight height, for the ring and the pieces alike', async () => {
+    registerTourTarget('home.input', nodeFor('home.input'), 500);
+    const renderer = await renderHost();
+    await start('mainOnboarding');
+    const half = (56 + 12) / 2;
+    expect(ringRadius(renderer)).toBe(half);
+    expect(StyleSheet.flatten(node(renderer, 'tour-corner-tl')[0].props.style).width).toBe(half);
+  });
+
+  it('a target that declares nothing uses the default radius for both', async () => {
+    const renderer = await renderHost();
+    await start('mainOnboarding');
+    expect(ringRadius(renderer)).toBe(14);
+    expect(StyleSheet.flatten(node(renderer, 'tour-corner-tl')[0].props.style).width).toBe(14);
+  });
+
+  it('the pieces follow the step: another target, another radius', async () => {
+    registerTourTarget('home.input', nodeFor('home.input'), 20);
+    registerTourTarget('tab.collections', nodeFor('tab.collections'), 8);
+    const renderer = await renderHost();
+    await start('mainOnboarding');
+    const first = StyleSheet.flatten(node(renderer, 'tour-corner-tl')[0].props.style).width;
+    await press(renderer, 'tour-next');
+    await press(renderer, 'tour-next');
+    expect(StyleSheet.flatten(node(renderer, 'tour-corner-tl')[0].props.style).width).not.toBe(first);
+    expect(StyleSheet.flatten(node(renderer, 'tour-corner-tl')[0].props.style).width).toBe(ringRadius(renderer));
+  });
+
+  it('the dimming colour is the theme scrim (Light and Dark), the rectangles and the spotlight position are unchanged', async () => {
+    registerTourTarget('home.input', nodeFor('home.input'), 20);
+    for (const [scheme, palette] of [['light', lightColors], ['dark', darkColors]] as const) {
+      setActiveColorScheme(scheme);
+      const renderer = await renderHost();
+      await start('mainOnboarding');
+      const ring = wedgeRingStyles(renderer)[0].ring;
+      expect(ring.borderColor).toBe(palette.scrim);
+      expect(ring.borderColor).toBe(colors.scrim);
+      const scrimRects = renderer.root.findAll(item => typeof item.type === 'string' && item.props.style !== undefined && StyleSheet.flatten(item.props.style).backgroundColor === palette.scrim);
+      expect(scrimRects).toHaveLength(4);
+      expect(StyleSheet.flatten(node(renderer, 'tour-spotlight')[0].props.style)).toMatchObject({ left: 10, top: 114, width: 380, height: 68 });
+      act(() => endTour());
+    }
+  });
+
+  it('the pieces never take a touch (the blocking hole is unchanged)', async () => {
+    registerTourTarget('home.input', nodeFor('home.input'), 20);
+    const renderer = await renderHost();
+    await start('mainOnboarding');
+    expect(node(renderer, 'tour-corner-tl')[0].props.pointerEvents).toBe('none');
   });
 });

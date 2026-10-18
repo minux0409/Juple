@@ -5,8 +5,8 @@ import { useTheme } from '../theme/ThemeContext';
 import { navigationRef } from '../navigation/navigationRef';
 import { cardShadow, colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { cancelTour, endTour, getActiveTour, goToTourStep, subscribeTour, type ActiveTour } from './tourController';
-import { placeCard, sameRect, spotlightFor, TOUR_EDGE, type TourRect, type TourSize } from './tourPlacement';
-import { measureTourTarget, subscribeTourTargetLayout } from './tourTargets';
+import { cornerWedges, placeCard, sameRect, spotlightFor, spotlightRadius, TOUR_EDGE, type TourRect, type TourSize } from './tourPlacement';
+import { getTourTargetRadius, measureTourTarget, subscribeTourTargetLayout } from './tourTargets';
 
 const CARD_MAX_WIDTH = 360;
 const FIND_ATTEMPTS = 20;
@@ -170,6 +170,8 @@ function TourOverlay({ tour }: { readonly tour: ActiveTour }) {
 
   const waitingForTarget = step.targetId !== undefined && rect === null && !missing;
   const spotlight = container && rect ? spotlightFor({ ...rect, x: rect.x - container.originX, y: rect.y - container.originY }, container) : null;
+  // ONE radius for the ring and the dimmed area's corners (the target's own radius + the padding, clamped to a pill).
+  const spotlightCornerRadius = spotlight ? spotlightRadius(step.targetId ? getTourTargetRadius(step.targetId) : undefined, spotlight) : 0;
   const cardWidth = Math.min(CARD_MAX_WIDTH, Math.max(0, (container?.width ?? windowWidth) - 2 * TOUR_EDGE));
   const placement = container && cardSize ? placeCard(spotlight, container, cardSize) : null;
 
@@ -198,9 +200,14 @@ function TourOverlay({ tour }: { readonly tour: ActiveTour }) {
           <View style={[styles.scrim, styles.scrimRight, { height: spotlight.height, left: spotlight.x + spotlight.width, top: spotlight.y }]} />
           <View
             pointerEvents="none"
-            style={[styles.spotlightRing, { height: spotlight.height, left: spotlight.x, top: spotlight.y, width: spotlight.width }]}
+            style={[styles.spotlightRing, { borderRadius: spotlightCornerRadius, height: spotlight.height, left: spotlight.x, top: spotlight.y, width: spotlight.width }]}
             testID="tour-spotlight"
           />
+          {cornerWedges(spotlight, spotlightCornerRadius).map(wedge => (
+            <View key={wedge.corner} pointerEvents="none" style={[styles.wedgeBox, { height: wedge.box.height, left: wedge.box.x, top: wedge.box.y, width: wedge.box.width }]} testID={`tour-corner-${wedge.corner}`}>
+              <View style={[styles.wedgeRing, { borderRadius: wedge.ring.size / 2, borderWidth: wedge.ring.size / 4, height: wedge.ring.size, left: wedge.ring.left, top: wedge.ring.top, width: wedge.ring.size }]} />
+            </View>
+          ))}
           {interactive ? null : <View style={[styles.hole, { height: spotlight.height, left: spotlight.x, top: spotlight.y, width: spotlight.width }]} />}
         </>
       ) : (
@@ -255,6 +262,8 @@ const styles = themedStyles(() => ({
   scrimLeft: { left: 0 },
   scrimRight: { right: 0 },
   hole: { position: 'absolute' },
+  wedgeBox: { overflow: 'hidden', position: 'absolute' },
+  wedgeRing: { borderColor: colors.scrim, position: 'absolute' },
   spotlightRing: { borderColor: colors.brand, borderRadius: radii.md, borderWidth: 2, position: 'absolute' },
   card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, padding: spacing.lg, position: 'absolute', rowGap: spacing.sm, ...cardShadow, elevation: 4, shadowOpacity: 0.16, shadowRadius: 8 },
   progress: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },

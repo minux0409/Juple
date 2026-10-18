@@ -2,7 +2,8 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ThemedSwitch } from '../components/ThemedSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
@@ -35,11 +36,11 @@ import { useTourTarget } from '../tour/tourTargets';
  */
 export function MyPageScreen() {
   const { t } = useTranslation();
-  const languageTarget = useTourTarget(TOUR_TARGETS.myLanguage);
-  const appearanceTarget = useTourTarget(TOUR_TARGETS.myAppearance);
-  const friendsTarget = useTourTarget(TOUR_TARGETS.myFriends);
-  const accountTarget = useTourTarget(TOUR_TARGETS.myAccount);
-  const helpTarget = useTourTarget(TOUR_TARGETS.myHelp);
+  const languageTarget = useTourTarget(TOUR_TARGETS.myLanguage, { radius: 0 });
+  const appearanceTarget = useTourTarget(TOUR_TARGETS.myAppearance, { radius: 0 });
+  const friendsTarget = useTourTarget(TOUR_TARGETS.myFriends, { radius: 0 });
+  const accountTarget = useTourTarget(TOUR_TARGETS.myAccount, { radius: 0 });
+  const helpTarget = useTourTarget(TOUR_TARGETS.myHelp, { radius: 0 });
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { signOut } = useAuth();
   const authenticatedRequest = useAuthenticatedApi();
@@ -197,7 +198,7 @@ export function MyPageScreen() {
                   : t('settings.quickSaveOnShareOffDescription')}
               </Text>
             </View>
-            <Switch
+            <ThemedSwitch
               disabled={isTogglingQuickSave || !isQuickSaveLoaded}
               onValueChange={onToggleQuickSave}
               value={isQuickSaveEnabled}

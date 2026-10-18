@@ -2,7 +2,8 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
@@ -131,7 +132,7 @@ export function SupportInquiryScreen() {
             <Text style={[styles.fieldLabel, styles.contentLabel]}>
               {t('inquiry.contentLabel')} <Text accessibilityLabel={t('inquiry.required')} style={styles.required}>*</Text>
             </Text>
-            <TextInput
+            <ThemedTextInput
               accessibilityLabel={`${t('inquiry.contentLabel')}, ${t('inquiry.required')}`}
               editable={!isSubmitting}
               maxLength={SUPPORT_INQUIRY_MAX_LENGTH}

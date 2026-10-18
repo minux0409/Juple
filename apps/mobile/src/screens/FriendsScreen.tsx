@@ -4,7 +4,8 @@ import type { RootStackParamList } from '../navigation/RootStack';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Clipboard from '@react-native-clipboard/clipboard';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { ActionMenuDialog } from '../components/ActionMenuDialog';
 import { formatBadgeCount } from '../components/badgeCount';
@@ -75,7 +76,7 @@ export type FriendsTab = 'friends' | 'incoming' | 'outgoing';
  */
 export function FriendsScreen() {
   const { t } = useTranslation();
-  const tabsTarget = useTourTarget(TOUR_TARGETS.friendsTabs);
+  const tabsTarget = useTourTarget(TOUR_TARGETS.friendsTabs, { radius: radii.md + 2 });
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const authenticatedRequest = useAuthenticatedApi();
   const [tab, setTab] = useState<FriendsTab>('friends');
@@ -351,7 +352,7 @@ export function FriendsScreen() {
               <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.searchIcon} testID="friends-search-icon">
                 <UserIcon color={colors.textSecondary} size={18} />
               </View>
-              <TextInput
+              <ThemedTextInput
                 accessibilityLabel={t('friends.search')}
                 autoCorrect={false}
                 onChangeText={setSearch}

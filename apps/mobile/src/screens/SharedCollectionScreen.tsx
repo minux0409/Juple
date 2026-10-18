@@ -2,7 +2,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ThemedTextInput } from '../components/ThemedTextInput';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
@@ -240,7 +241,7 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
           <View style={styles.lockedPanel} testID="shared-collection-locked">
             <Text style={styles.lockedTitle}>{t('sharedCollection.lockedTitle')}</Text>
             <Text style={styles.hint}>{t('sharedCollection.lockedMessage')}</Text>
-            <TextInput
+            <ThemedTextInput
               accessibilityLabel={t('sharedCollection.passwordLabel')}
               autoCapitalize="none"
               autoComplete="off"
