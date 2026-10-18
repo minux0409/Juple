@@ -10,6 +10,7 @@ import {
   BackHandler,
   FlatList,
   Keyboard,
+  Linking,
   Platform,
   Pressable,
   RefreshControl,
@@ -71,6 +72,8 @@ import { TOUR_TARGETS } from '../tour/tourGuides';
 import { useTourTarget } from '../tour/tourTargets';
 import { columnBasis, gridListKey, useCollectionTileColumns } from '../layout/responsiveGrid';
 import { SearchField } from '../components/SearchField';
+import { useAppToast } from '../components/AppToast';
+import { isHttpUrl } from '../share/resolveIncomingShare';
 import { CollectionSuggestionPanel } from '../collections/CollectionSuggestionPanel';
 import { suggestionRows, type CollectionSuggestionRow } from '../collections/collectionSuggestions';
 import { useCollectionSuggestions } from '../collections/useCollectionSuggestions';
@@ -700,6 +703,17 @@ export function CollectionsScreen() {
   const openPendingJoin = (join: MyJoinRequest) => navigation.navigate('SharedCollection', { publicId: join.publicId });
   const openCollection = (collection: Collection) =>
     navigation.navigate('CollectionDetails', { collectionId: collection.id });
+  const { showNotificationToast } = useAppToast();
+  // The "open original" icon of a link suggestion: the saved page in the browser. Only plain http(s) is ever opened (checked here as well as
+  // when the icon is drawn); no Linking.canOpenURL pre-check (Android package visibility - see ItemDetailsScreen.openOriginalUrl). The search,
+  // the tab and the panel are left as they are, so coming back finds the same state.
+  const openOriginalUrl = (url: string) => {
+    if (!isHttpUrl(url)) {
+      showNotificationToast(t('item.urlOpenFailed'));
+      return;
+    }
+    Linking.openURL(url).catch(() => showNotificationToast(t('item.urlOpenFailed')));
+  };
   // A Collection suggestion opens the Collection; a link suggestion opens that link IN its Collection (the Collection screen's own
   // openItem hand-off, as a comment notification does: the Collection resolves the real role and the lock gate).
   const openSuggestion = (row: CollectionSuggestionRow) => {
@@ -919,7 +933,9 @@ export function CollectionsScreen() {
           isLoading={suggestionsLoading}
           links={suggestionGroups.links}
           linksHeading={t('collections.searchSuggestionLinks')}
+          onOpenExternal={openOriginalUrl}
           onSelect={openSuggestion}
+          openExternalLabel={t('item.goToUrlA11y')}
           top={spacing.xl + searchRowY + searchFieldHeight + spacing.xs - scrollY}
         />
       ) : null}

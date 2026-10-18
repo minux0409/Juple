@@ -1,5 +1,6 @@
 import type { Collection, CollectionLinkSuggestion, CollectionSearchSuggestions } from './api/collectionsApi';
 import { resolveSiteInfo } from '../items/resolveSiteInfo';
+import { isHttpUrl } from '../share/resolveIncomingShare';
 import type { KnownSiteId } from '../items/resolveSiteInfo';
 
 /**
@@ -18,6 +19,8 @@ export type CollectionSuggestionRow =
       /** "Collection · host", the second line. */
       readonly detail: string;
       readonly siteId: KnownSiteId | null;
+      /** The original page, only when it is a plain http(s) address - anything else (javascript:, data:, file:, ...) gets no button at all. */
+      readonly externalUrl: string | null;
     };
 
 export function linkSuggestionDetail(link: Pick<CollectionLinkSuggestion, 'collectionName' | 'hostname'>): string {
@@ -40,6 +43,7 @@ export function suggestionRows(suggestions: CollectionSearchSuggestions | null):
       title: link.title,
       detail: linkSuggestionDetail(link),
       siteId: link.hostname ? resolveSiteInfo(`https://${link.hostname}`).id : null,
+      externalUrl: isHttpUrl(link.url) ? link.url : null,
     })),
   };
 }

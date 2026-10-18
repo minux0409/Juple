@@ -10,7 +10,7 @@ import { StarIcon } from '../../icons/StarIcon';
 import { PendingActionRow } from '../../components/PendingActionRow';
 import { radii, spacing } from '../../theme/tokens';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Dimensions, FlatList, Image, StyleSheet, Text, TextInput } from 'react-native';
+import { Dimensions, FlatList, Image, Linking, StyleSheet, Text, TextInput } from 'react-native';
 import { colors } from '../../theme/tokens';
 import { collectionFilterColors } from '../../theme/tokens';
 import { resolveCollectionColorTile } from '../../collections/collectionColors';
@@ -1753,13 +1753,14 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
   const panels = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAll(node => node.props.testID === 'collection-suggestions' && typeof node.type === 'string');
   const rows = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) => renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onPress === 'function');
   const textsOf = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByType(Text).map(node => [node.props.children].flat().join(''));
-  const link = (itemId: number, collectionId: number, title: string, hostname: string | null = 'youtube.com', isMine = true) => ({
+  const link = (itemId: number, collectionId: number, title: string, hostname: string | null = 'youtube.com', isMine = true, url = `https://${hostname ?? 'x.test'}/watch?v=${itemId}`) => ({
     itemId,
     collectionId,
     collectionName: `Col ${collectionId}`,
     title,
     hostname,
     isMine,
+    url,
   });
   const answer = (links = [link(10, 1, 'Mili - TIAN TIAN')]) => ({ collections: [ownedCollection], links });
 
@@ -1964,6 +1965,107 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
     const rowStyle = StyleSheet.flatten((rows(renderer, 'collection-suggestion-link')[0].props.style as (state: { pressed: boolean }) => never)({ pressed: false }));
     expect((rowStyle as { minHeight: number }).minHeight).toBeGreaterThanOrEqual(44);
     act(() => renderer.unmount());
+  });
+
+  it('a link row has the "open original" icon at its end (44dp, labelled); a Collection row has none', async () => {
+    const renderer = await renderScreen();
+    await focus(renderer);
+    await type(renderer, 'tian');
+    await pause(260);
+    const external = rows(renderer, 'collection-suggestion-external');
+    expect(external).toHaveLength(1);
+    expect(external[0].props.accessibilityLabel).toBe(i18n.t('item.goToUrlA11y'));
+    const style = StyleSheet.flatten((external[0].props.style as (state: { pressed: boolean }) => never)({ pressed: false })) as { height: number; width: number };
+    expect(style.height).toBeGreaterThanOrEqual(44);
+    expect(style.width).toBeGreaterThanOrEqual(44);
+    // The Collection suggestion carries no such button.
+    expect(rows(renderer, 'collection-suggestion-collection')).toHaveLength(1);
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-suggestion-collection').every(node => node.findAll(inner => inner.props.testID === 'collection-suggestion-external').length === 0)).toBe(true);
+    act(() => renderer.unmount());
+  });
+
+  it('pressing the icon opens the saved address and nothing else: no navigation, the search / tab / panel stay as they were', async () => {
+    const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+    jest.mocked(getCollectionSuggestions).mockResolvedValue(answer([link(10, 7, 'Mine', 'youtube.com', true, 'https://www.youtube.com/watch?v=abc')]));
+    const renderer = await renderScreen();
+    await focus(renderer);
+    await type(renderer, 'tian');
+    await pause(260);
+    await act(async () => {
+      rows(renderer, 'collection-suggestion-external')[0].props.onPress();
+    });
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(open).toHaveBeenCalledWith('https://www.youtube.com/watch?v=abc');
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(searchField(renderer).props.value).toBe('tian');
+    expect(panels(renderer)).toHaveLength(1);
+    expect(jest.mocked(getCollections).mock.calls.at(-1)?.[1]).toEqual({ scope: 'favorites', limit: 24, search: 'tian' });
+    open.mockRestore();
+    act(() => renderer.unmount());
+  });
+
+  it('the row itself still opens the Juple link, and does not open the original', async () => {
+    const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+    jest.mocked(getCollectionSuggestions).mockResolvedValue(answer([link(10, 7, 'Mine')]));
+    const renderer = await renderScreen();
+    await focus(renderer);
+    await type(renderer, 'x');
+    await pause(260);
+    await act(async () => {
+      rows(renderer, 'collection-suggestion-link')[0].props.onPress();
+    });
+    expect(mockNavigate).toHaveBeenLastCalledWith('CollectionDetails', { collectionId: 7, openItem: { itemId: 10, focus: null, shared: false } });
+    expect(open).not.toHaveBeenCalled();
+    open.mockRestore();
+    act(() => renderer.unmount());
+  });
+
+  it('only http(s) addresses get the icon - javascript:, data:, file: and junk get none (so nothing unsafe can be opened from here)', async () => {
+    jest.mocked(getCollectionSuggestions).mockResolvedValue(
+      answer([
+        link(1, 1, 'A', 'a.test', true, `${'java'}script:alert(1)`),
+        link(2, 1, 'B', 'a.test', true, 'data:text/html,x'),
+        link(3, 2, 'C', 'a.test', true, 'file:///etc/passwd'),
+        link(4, 2, 'D', 'a.test', true, 'not a url'),
+        link(5, 3, 'E', 'a.test', true, 'https://a.test/ok'),
+      ]),
+    );
+    const renderer = await renderScreen();
+    await focus(renderer);
+    await type(renderer, 'a');
+    await pause(260);
+    // Three links are drawn (the panel shows at most three); none of them has the icon.
+    expect(rows(renderer, 'collection-suggestion-link')).toHaveLength(3);
+    expect(rows(renderer, 'collection-suggestion-external')).toHaveLength(0);
+    act(() => renderer.unmount());
+  });
+
+  it('a failing open leaves the search, the tab and the list exactly as they were', async () => {
+    const open = jest.spyOn(Linking, 'openURL').mockRejectedValue(new Error('no app'));
+    const renderer = await renderScreen();
+    await focus(renderer);
+    await type(renderer, 'tian');
+    await pause(260);
+    await act(async () => {
+      rows(renderer, 'collection-suggestion-external')[0].props.onPress();
+    });
+    expect(open).toHaveBeenCalled();
+    expect(searchField(renderer).props.value).toBe('tian');
+    expect(renderer.root.findAllByProps({ testID: 'collections-list-error' })).toHaveLength(0);
+    open.mockRestore();
+    act(() => renderer.unmount());
+  });
+
+  it('is built from sibling Pressables (no nesting) and reuses the existing icon, label and failure strings', () => {
+    const fsx = jest.requireActual<{ readFileSync(file: string, encoding: string): string }>('fs');
+    const pathx = jest.requireActual<{ join(...parts: string[]): string }>('path');
+    const panel = fsx.readFileSync(pathx.join(__dirname, '../../collections/CollectionSuggestionPanel.tsx'), 'utf8');
+    expect(panel).toContain("import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';");
+    expect(panel).toMatch(/<View key=\{row\.key\} style=\{styles\.linkRow\}>\s*<Pressable[\s\S]*?<\/Pressable>\s*\{row\.externalUrl !== null \? \(\s*<Pressable/);
+    const screen = fsx.readFileSync(pathx.join(__dirname, '../CollectionsScreen.tsx'), 'utf8');
+    expect(screen).toContain("t('item.urlOpenFailed')");
+    expect(screen).toContain("t('item.goToUrlA11y')");
+    expect(screen).toContain('isHttpUrl(url)');
   });
 
   it('keeps the suggestions in memory only and adds no overlay dependency', () => {

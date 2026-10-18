@@ -1287,6 +1287,8 @@ export interface CollectionLinkSuggestion {
   readonly hostname: string | null;
   /** The link is the caller's own Item (the Collection screen opens an own link and another member's through different views). */
   readonly isMine: boolean;
+  /** The saved URL, for the "open original" button (only ever on a link the server may suggest). */
+  readonly url: string;
 }
 
 export interface CollectionSearchSuggestions {
