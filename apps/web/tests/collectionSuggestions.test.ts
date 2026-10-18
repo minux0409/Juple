@@ -6,6 +6,7 @@ import { getAppDictionary } from '../lib/appDictionary.ts';
 import {
   COLLECTION_SUGGESTION_DEBOUNCE_MS,
   COLLECTION_SUGGESTION_LIMIT,
+  LINK_SUGGESTION_LIMIT,
   collectionSuggestionsPath,
   linkSuggestionDetail,
   linkSuggestionHref,
@@ -98,16 +99,20 @@ describe('컬렉션 검색 자동완성: the rows', () => {
     assert.equal(linkSuggestionHref({ itemId: 5, collectionId: 9, isMine: false }), '/collections/9/items/5');
   });
 
-  it('draws at most four of each kind; nothing at all for no answer', () => {
+  it('draws at most four Collections and eight links - several links of ONE Collection included; nothing at all for no answer', () => {
     const many: CollectionSuggestions = {
       collections: Array.from({ length: 7 }, (_, index) => collection(index + 1, `N${index}`)),
-      links: Array.from({ length: 7 }, (_, index) => link(index + 1, 1, `L${index}`, 'a.test')),
+      links: Array.from({ length: 11 }, (_, index) => link(index + 1, 1, `L${index}`, 'a.test')),
     };
     assert.equal(COLLECTION_SUGGESTION_LIMIT, 4);
+    assert.equal(LINK_SUGGESTION_LIMIT, 8);
     const rows = suggestionRows(many);
     assert.equal(rows.collections.length, 4);
-    assert.equal(rows.links.length, 4);
+    assert.equal(rows.links.length, 8);
+    assert.equal(new Set(rows.links.map(row => row.key)).size, 8);
     assert.deepEqual(suggestionRows(null), { collections: [], links: [] });
+    // The panel scrolls inside its own maximum height, so eight links never push it off the screen.
+    assert.match(css, /\.suggestPanel \{[^}]*max-height: min\(70vh, 460px\);[^}]*overflow-y: auto;/);
   });
 });
 

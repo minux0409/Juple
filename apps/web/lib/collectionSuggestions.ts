@@ -28,8 +28,11 @@ export interface CollectionSuggestions {
 /** The suggestions follow the typing after the same pause as the list, so one burst of keys is one request of each. */
 export const COLLECTION_SUGGESTION_DEBOUNCE_MS = COLLECTION_SEARCH_DEBOUNCE_MS;
 
-/** At most this many of each kind are drawn (the server never sends more than 4 of each). */
+/** At most this many Collections are drawn (the server never sends more than 4). */
 export const COLLECTION_SUGGESTION_LIMIT = 4;
+
+/** At most this many links are drawn (the server never sends more than 8; any number of them may come from one Collection). */
+export const LINK_SUGGESTION_LIMIT = 8;
 
 export function collectionSuggestionsPath(filter: CollectionFilter, term: string): string {
   const query = new URLSearchParams({ scope: filter, q: normalizeCollectionSearch(term) });
@@ -71,7 +74,7 @@ export function suggestionRows(suggestions: CollectionSuggestions | null): { rea
       href: collectionHref(collection.id),
       collection,
     })),
-    links: suggestions.links.slice(0, COLLECTION_SUGGESTION_LIMIT).map(link => ({
+    links: suggestions.links.slice(0, LINK_SUGGESTION_LIMIT).map(link => ({
       kind: 'link' as const,
       key: `l${link.collectionId}-${link.itemId}`,
       href: linkSuggestionHref(link),
