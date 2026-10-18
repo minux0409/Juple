@@ -363,8 +363,7 @@ public sealed class CollectionStore(
     }
 
     private const int SuggestedCollectionCount = 4;
-    private const int SuggestedLinkCount = 4;
-    private const int SuggestedLinksPerCollection = 2;
+    private const int SuggestedLinkCount = 8;
 
     /// <summary>
     /// The same lock / access-password rule ApplyListSearch applies (kept next to it, and a parity test pins them together): true when the
@@ -418,11 +417,10 @@ public sealed class CollectionStore(
                     : item.Title != null && EF.Functions.Like(item.Title, contains, escape) ? 1 : 2
                 orderby rank, membership.AddedAtUtc descending, membership.Id descending
                 select new { ItemId = item.Id, CollectionId = collection.Id, CollectionName = collection.Name, item.Title, item.Url, IsMine = item.UserId == userId })
-            .Take(SuggestedLinkCount * 6)
+            .Take(SuggestedLinkCount * 4)
             .ToListAsync(cancellationToken);
 
         var seenItems = new HashSet<long>();
-        var perCollection = new Dictionary<long, int>();
         var links = new List<CollectionLinkSuggestionDto>(SuggestedLinkCount);
         foreach (var candidate in candidates)
         {
@@ -431,13 +429,12 @@ public sealed class CollectionStore(
                 break;
             }
 
-            if (!seenItems.Add(candidate.ItemId)
-                || perCollection.GetValueOrDefault(candidate.CollectionId) >= SuggestedLinksPerCollection)
+            // The same Item in two Collections is one suggestion; any number of links of ONE Collection may be suggested.
+            if (!seenItems.Add(candidate.ItemId))
             {
                 continue;
             }
 
-            perCollection[candidate.CollectionId] = perCollection.GetValueOrDefault(candidate.CollectionId) + 1;
             var hostname = HostnameOf(candidate.Url);
             var title = string.IsNullOrWhiteSpace(candidate.Title) ? hostname ?? candidate.Url : candidate.Title;
             links.Add(new CollectionLinkSuggestionDto(candidate.ItemId, candidate.CollectionId, candidate.CollectionName, title, hostname, candidate.IsMine, candidate.Url));

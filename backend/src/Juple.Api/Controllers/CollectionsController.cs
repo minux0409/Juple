@@ -224,7 +224,7 @@ public sealed class CollectionsController(
     }
 
     /// <summary>
-    /// The quick suggestions under the Collections search box: at most 4 Collections and 4 links that match q (name; link title / URL),
+    /// The quick suggestions under the Collections search box: at most 4 Collections and 8 links (any number of them from one Collection) that match q (name; link title / URL),
     /// within the same scope and with the same privacy as GET /collections?q= (a Collection behind a lock / access password offers its
     /// name only; no memo; no trash). q is required (1..100 characters after trimming). A helper next to the list - it never replaces it.
     /// </summary>

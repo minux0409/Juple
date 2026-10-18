@@ -292,12 +292,34 @@ public sealed class CollectionSearchSuggestionsIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task OneCollection_NeverFillsTheLinkList_AndASharedItemAppearsOnce()
+    public async Task ManyLinksOfOneCollection_AreAllSuggested_AndASharedItemAppearsOnce()
     {
+        // Tian Collection holds three matching links: all three are suggested (there is no per-Collection cap).
         var links = (await SuggestAsync(_owner, CollectionListScope.Owned, "tian")).Links;
-        Assert.True(links.Count(link => link.CollectionId == _prefix) <= 2);
+        Assert.Equal(3, links.Count(link => link.CollectionId == _prefix));
         Assert.Equal(links.Count, links.Select(link => link.ItemId).Distinct().Count());
         Assert.Single(links, link => link.Title == "Dup tian item");
+    }
+
+    [Fact]
+    public async Task SixMatchingLinksOfOneCollection_AreAllReturned_InRankingOrder()
+    {
+        for (var index = 0; index < 5; index++)
+        {
+            await AddLinkAsync(_owner, _prefix, $"https://more.example.test/{index}", $"Extra tian {index}");
+        }
+
+        var links = (await SuggestAsync(_owner, CollectionListScope.Owned, "tian")).Links;
+        // 3 + 5 in Tian Collection, plus the other Collections' own: far more than the old 2 per Collection - and never more than 8.
+        Assert.Equal(8, links.Count);
+        Assert.True(links.Count(link => link.CollectionId == _prefix) >= 5);
+        Assert.Equal(links.Count, links.Select(link => link.ItemId).Distinct().Count());
+        // Titles that START with the term still come before titles that only contain it.
+        var firstContains = links.ToList().FindIndex(link => !link.Title.StartsWith("tian", StringComparison.OrdinalIgnoreCase));
+        if (firstContains >= 0)
+        {
+            Assert.All(links.Skip(firstContains), link => Assert.False(link.Title.StartsWith("tian", StringComparison.OrdinalIgnoreCase)));
+        }
     }
 
     [Fact]
@@ -315,8 +337,8 @@ public sealed class CollectionSearchSuggestionsIntegrationTests : IAsyncLifetime
 
         var result = await SuggestAsync(_owner, CollectionListScope.Owned, "limit");
         Assert.Equal(4, result.Collections.Count);
-        Assert.Equal(4, result.Links.Count);
-        Assert.True(result.Links.GroupBy(link => link.CollectionId).All(group => group.Count() <= 2));
+        Assert.Equal(8, result.Links.Count);
+        Assert.Equal(result.Links.Count, result.Links.Select(link => link.ItemId).Distinct().Count());
     }
 
     [Fact]
