@@ -126,6 +126,39 @@ public sealed class CollectionSearchSuggestionsIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task OriginalUrl_IsTheSavedUrl_AndOnlyOnLinksThatMayBeSuggested()
+    {
+        var owner = (await SuggestAsync(_owner, CollectionListScope.Owned, "mili - tian")).Links;
+        Assert.Equal("https://www.youtube.com/watch?v=1", Assert.Single(owner).Url);
+
+        // Another member's link carries its URL too - the member may open it in the Collection anyway.
+        var member = (await SuggestAsync(_member, CollectionListScope.Shared, "tian trips")).Links;
+        Assert.Equal("https://trips.example.test/z", Assert.Single(member).Url);
+
+        // Never for a link that is hidden / not accessible / trashed: those are no suggestions at all, so no URL is in the answer.
+        foreach (var (user, term) in new[] { (_owner, "tian hidden"), (_member, "tian gated"), (_member, "locked.example"), (_stranger, "tian trips"), (_member, "tian foreign") })
+        {
+            var result = await SuggestAsync(user, CollectionListScope.All, term);
+            var json = System.Text.Json.JsonSerializer.Serialize(result);
+            Assert.DoesNotContain("hidden.example.test/y", json);
+            Assert.DoesNotContain("locked.example.test", json);
+            Assert.DoesNotContain("example.test/foreign", json);
+        }
+
+        await _db.Database.ExecuteSqlRawAsync("UPDATE items.Items SET DeletedAtUtc = SYSUTCDATETIME() WHERE UserId = {0} AND Title = {1}", _owner, "tian trips");
+        _db.ChangeTracker.Clear();
+        Assert.DoesNotContain("trips.example.test", System.Text.Json.JsonSerializer.Serialize(await SuggestAsync(_owner, CollectionListScope.All, "tian trips")));
+    }
+
+    [Fact]
+    public async Task LinkSuggestion_CarriesOnlyTheDocumentedFields()
+    {
+        var link = (await SuggestAsync(_owner, CollectionListScope.Owned, "mili - tian")).Links[0];
+        var names = System.Text.Json.JsonSerializer.SerializeToElement(link).EnumerateObject().Select(property => property.Name).Order().ToList();
+        Assert.Equal(["CollectionId", "CollectionName", "Hostname", "IsMine", "ItemId", "Title", "Url"], names);
+    }
+
+    [Fact]
     public async Task LinkRanking_TitleStartsWith_ThenTitleContains_ThenUrl()
     {
         await AddLinkAsync(_owner, _dupA, "https://tian.rank.example.test/", null);   // only the URL matches

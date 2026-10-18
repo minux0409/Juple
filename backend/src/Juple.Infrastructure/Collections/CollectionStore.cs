@@ -440,7 +440,7 @@ public sealed class CollectionStore(
             perCollection[candidate.CollectionId] = perCollection.GetValueOrDefault(candidate.CollectionId) + 1;
             var hostname = HostnameOf(candidate.Url);
             var title = string.IsNullOrWhiteSpace(candidate.Title) ? hostname ?? candidate.Url : candidate.Title;
-            links.Add(new CollectionLinkSuggestionDto(candidate.ItemId, candidate.CollectionId, candidate.CollectionName, title, hostname, candidate.IsMine));
+            links.Add(new CollectionLinkSuggestionDto(candidate.ItemId, candidate.CollectionId, candidate.CollectionName, title, hostname, candidate.IsMine, candidate.Url));
         }
 
         return new CollectionSearchSuggestions(collections, links);
