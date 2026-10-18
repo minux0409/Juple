@@ -2,16 +2,20 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { formatMessage, type AppDictionary } from '../../../lib/appI18n';
 import { isSessionLost } from '../../../lib/authSession';
 import {
   COLLECTION_FILTERS,
+  COLLECTION_SEARCH_DEBOUNCE_MS,
+  COLLECTION_SEARCH_PARAM,
   COLLECTION_VIEW_MODE_STORAGE_KEY,
   COLLECTION_VIEW_MODES,
   collectionIconImage,
   collectionsTabUrl,
   collectionsPath,
+  collectionsSearchUrl,
+  normalizeCollectionSearch,
   hasGridStatus,
   collectionTile,
   isCollectionLocked,
@@ -35,6 +39,7 @@ import { LoadMore } from '../InfiniteScroll';
 import { Avatar } from '../Avatar';
 import { LinkImage } from '../LinkImage';
 import { LoadFailed } from '../PageStates';
+import { SearchField } from '../SearchField';
 import { CollectionSkeleton } from '../Skeletons';
 import { useToast } from '../Toaster';
 import { useStoredChoice } from '../useStoredChoice';
@@ -63,7 +68,17 @@ export function CollectionsView() {
   const { api, dictionary, onSessionLost } = useSignedInApp();
   // The tab is the address's (?tab=): Back from a Collection returns to the tab that was open; no / an unknown value = 즐겨찾기.
   const router = useRouter();
-  const filter = parseCollectionTab(useSearchParams().get('tab'));
+  const searchParams = useSearchParams();
+  const filter = parseCollectionTab(searchParams.get('tab'));
+  // The search text is the address's too (?q=), like the tab: Back from a Collection returns to the same search. `text` is what is typed;
+  // `search` is what the list is read with - it follows the text after a pause (clearing is at once), so typing never asks per keystroke.
+  const urlSearch = normalizeCollectionSearch(searchParams.get(COLLECTION_SEARCH_PARAM));
+  const [text, setText] = useState(urlSearch);
+  const [search, setSearch] = useState(urlSearch);
+  // A request that is out for a changed search while the old list stays on screen (no full-page skeleton for a search).
+  const [searching, setSearching] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchRef = useRef(urlSearch);
   const [viewMode, setViewMode] = useStoredChoice<CollectionViewMode>(COLLECTION_VIEW_MODE_STORAGE_KEY, parseCollectionViewMode);
   const [state, setState] = useState<ListState>({ kind: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
@@ -72,16 +87,18 @@ export function CollectionsView() {
 
   useEffect(() => {
     let ignore = false;
-    api<CollectionsPage>({ path: collectionsPath(filter) }).then(
+    api<CollectionsPage>({ path: collectionsPath(filter, null, search) }).then(
       page => {
         if (!ignore) {
           setState({ kind: 'loaded', ...firstPage(page.items, page.nextCursor) });
+          setSearching(false);
         }
       },
       error => {
         if (ignore) {
           return;
         }
+        setSearching(false);
         if (isSessionLost(error)) {
           onSessionLost();
           return;
@@ -89,10 +106,48 @@ export function CollectionsView() {
         setState({ kind: 'failed' });
       },
     );
+    // A later search / tab makes this answer stale: it is dropped, so an old response can never replace a newer list.
     return () => {
       ignore = true;
     };
-  }, [api, filter, onSessionLost, reloadToken]);
+  }, [api, filter, onSessionLost, reloadToken, search]);
+
+  useEffect(
+    () => () => {
+      if (searchTimer.current !== null) {
+        clearTimeout(searchTimer.current);
+      }
+    },
+    [],
+  );
+
+  const applySearch = (term: string) => {
+    const normalized = normalizeCollectionSearch(term);
+    if (searchRef.current !== normalized) {
+      searchRef.current = normalized;
+      setSearching(true);
+      setSearch(normalized);
+    }
+    const target = collectionsSearchUrl(new URL(window.location.href), normalized);
+    router.replace(`${target.pathname}${target.search}`, { scroll: false });
+  };
+
+  const changeText = (next: string) => {
+    setText(next);
+    if (searchTimer.current !== null) {
+      clearTimeout(searchTimer.current);
+      searchTimer.current = null;
+    }
+    if (normalizeCollectionSearch(next) === '') {
+      // Clearing is immediate.
+      applySearch('');
+      return;
+    }
+    searchTimer.current = setTimeout(() => {
+      searchTimer.current = null;
+      applySearch(next);
+    }, COLLECTION_SEARCH_DEBOUNCE_MS);
+  };
 
   const selectFilter = (next: CollectionFilter) => {
     if (next !== filter) {
@@ -150,10 +205,12 @@ export function CollectionsView() {
       return;
     }
     const requestedFilter = filter;
+    const requestedSearch = search;
     const cursor = state.nextCursor;
     setState({ kind: 'loaded', ...startLoadingMore(state) });
-    api<CollectionsPage>({ path: collectionsPath(requestedFilter, cursor) }).then(
-      page => setState(current => (current.kind === 'loaded' && requestedFilter === filter ? { kind: 'loaded', ...appendPage(current, page, item => item.id) } : current)),
+    api<CollectionsPage>({ path: collectionsPath(requestedFilter, cursor, requestedSearch) }).then(
+      // A page of an earlier tab / search never lands in a newer list (its cursor belongs to that query).
+      page => setState(current => (current.kind === 'loaded' && requestedFilter === filter && requestedSearch === search ? { kind: 'loaded', ...appendPage(current, page, item => item.id) } : current)),
       error => {
         if (isSessionLost(error)) {
           onSessionLost();
@@ -165,7 +222,7 @@ export function CollectionsView() {
   };
 
   return (
-    <section aria-busy={state.kind === 'loading'} className={styles.page}>
+    <section aria-busy={state.kind === 'loading' || searching} className={styles.page}>
       <PageHeader icon="Folder" title={dictionary.navCollections} />
 
       {/* One toolbar: the mobile filters, then how they are shown and 새 컬렉션 (always in reach). It wraps on a narrow window. */}
@@ -199,12 +256,28 @@ export function CollectionsView() {
         </div>
       </div>
 
+      {/* Between the tabs and the cards (mobile: the same place, under the header and above the tabs' cards). */}
+      <div className={styles.collectionSearch} data-collection-search>
+        <SearchField onChange={changeText} placeholder={dictionary.collectionListSearchPlaceholder} value={text} />
+      </div>
+      <p aria-live="polite" className={styles.visuallyHidden} role="status">
+        {searching ? dictionary.processing : ''}
+      </p>
+
       {state.kind === 'loading' ? <CollectionSkeleton count={viewMode === 'grid' ? 10 : 6} mode={viewMode} /> : null}
       {state.kind === 'failed' ? <LoadFailed dictionary={dictionary} onRetry={retry} /> : null}
-      {state.kind === 'loaded' && state.items.length === 0 ? <p className={styles.emptyState}>{emptyLabel(dictionary, filter)}</p> : null}
+      {state.kind === 'loaded' && state.items.length === 0 ? (
+        search !== '' ? (
+          <p className={styles.emptyState} data-collection-search-empty>
+            {dictionary.searchEmpty}
+          </p>
+        ) : (
+          <p className={styles.emptyState}>{emptyLabel(dictionary, filter)}</p>
+        )
+      ) : null}
       {state.kind === 'loaded' && state.items.length > 0 ? (
         <>
-          <ul className={viewMode === 'grid' ? styles.collectionGrid : styles.collectionList}>
+          <ul aria-busy={searching} className={searching ? `${viewMode === 'grid' ? styles.collectionGrid : styles.collectionList} ${styles.listSearching}` : viewMode === 'grid' ? styles.collectionGrid : styles.collectionList}>
             {state.items.map(collection => (
               <li className={styles.collectionCard} key={collection.id}>
                 <CollectionCard

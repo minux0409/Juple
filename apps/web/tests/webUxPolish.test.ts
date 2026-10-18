@@ -239,7 +239,8 @@ describe('Collections: the selected tab is part of the address', () => {
 
   it('the view reads the tab from the address and writes it with router.replace (no history entries, no storage, no global state)', () => {
     const view = source('app/(app)/collections/CollectionsView.tsx');
-    assert.match(view, /const filter = parseCollectionTab\(useSearchParams\(\)\.get\('tab'\)\)/);
+    assert.match(view, /const filter = parseCollectionTab\(searchParams\.get\('tab'\)\)/);
+    assert.match(view, /const searchParams = useSearchParams\(\)/);
     assert.match(view, /router\.replace\(`\$\{target\.pathname\}\$\{target\.search\}`, \{ scroll: false \}\)/);
     assert.match(view, /collectionsTabUrl\(new URL\(window\.location\.href\), next\)/);
     assert.doesNotMatch(view, /localStorage|sessionStorage|useStoredChoice\(['"A-Z_]*FILTER/);

@@ -8585,3 +8585,14 @@ button.reactionChipMine:hover {
   border: 1px solid var(--border, var(--app-border));
   color: var(--text, var(--app-text));
 }
+
+/* ---- Collections: the search between the tabs and the cards ---- */
+.collectionSearch {
+  margin: 0 0 var(--space-4, 16px);
+}
+
+/* The old list stays while a changed search is read: dimmed a little, never replaced by a full-page skeleton. */
+.listSearching {
+  opacity: 0.6;
+  transition: opacity 120ms ease;
+}

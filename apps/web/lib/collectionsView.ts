@@ -51,6 +51,29 @@ export function parseCollectionTab(value: string | null | undefined): Collection
   return match ?? DEFAULT_COLLECTION_FILTER;
 }
 
+/** The address parameter that carries the search text, so Back from a Collection returns to the same search (like the tab). */
+export const COLLECTION_SEARCH_PARAM = 'q';
+/** The server's limit (CollectionListSearch.MaxLength): a longer term is cut here, never sent as an error. */
+export const COLLECTION_SEARCH_MAX_LENGTH = 100;
+export const COLLECTION_SEARCH_DEBOUNCE_MS = 250;
+
+/** The term as it is searched: trimmed, at most the server's length; blank means no search. */
+export function normalizeCollectionSearch(value: string | null | undefined): string {
+  return Array.from((value ?? '').trim()).slice(0, COLLECTION_SEARCH_MAX_LENGTH).join('').trim();
+}
+
+/** The address for a search term: blank removes the parameter; the tab and every other parameter are kept. */
+export function collectionsSearchUrl(current: URL, term: string): URL {
+  const next = new URL(current.href);
+  const normalized = normalizeCollectionSearch(term);
+  if (normalized === '') {
+    next.searchParams.delete(COLLECTION_SEARCH_PARAM);
+  } else {
+    next.searchParams.set(COLLECTION_SEARCH_PARAM, normalized);
+  }
+  return next;
+}
+
 /** The address for a filter: the default carries no parameter; every other tab carries its own. Other parameters are kept. */
 export function collectionsTabUrl(current: URL, filter: CollectionFilter): URL {
   const next = new URL(current.href);
@@ -74,10 +97,16 @@ export function parseCollectionViewMode(stored: string | null): CollectionViewMo
 /** The mobile screen's page size. */
 export const COLLECTIONS_PAGE_SIZE = 24;
 
-export function collectionsPath(filter: CollectionFilter, cursor?: string | null): string {
+export function collectionsPath(filter: CollectionFilter, cursor?: string | null, search?: string | null): string {
   const query = new URLSearchParams({ scope: filter, limit: String(COLLECTIONS_PAGE_SIZE) });
   if (cursor) {
     query.set('cursor', cursor);
+  }
+  // The text search is the server's (GET /api/v1/collections?q=): names and the Collection's own links, over everything the person can
+  // reach, with the same scope and paging - never matched in the browser against the pages loaded so far.
+  const term = normalizeCollectionSearch(search);
+  if (term !== '') {
+    query.set('q', term);
   }
   return `/api/v1/collections?${query.toString()}`;
 }
