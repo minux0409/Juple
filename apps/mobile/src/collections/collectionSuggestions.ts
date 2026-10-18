@@ -8,6 +8,8 @@ import type { KnownSiteId } from '../items/resolveSiteInfo';
  * sends up to four of each). A help to jump somewhere; the list below stays the complete answer for the same text.
  */
 export const COLLECTION_SUGGESTION_LIMIT = 3;
+/** Links: a Collection's own links are what people look for, so more are drawn (the server sends up to eight, any number from one Collection). */
+export const LINK_SUGGESTION_LIMIT = 6;
 
 export type CollectionSuggestionRow =
   | { readonly kind: 'collection'; readonly key: string; readonly collection: Collection }
@@ -36,7 +38,7 @@ export function suggestionRows(suggestions: CollectionSearchSuggestions | null):
   }
   return {
     collections: suggestions.collections.slice(0, COLLECTION_SUGGESTION_LIMIT).map(collection => ({ kind: 'collection' as const, key: `c${collection.id}`, collection })),
-    links: suggestions.links.slice(0, COLLECTION_SUGGESTION_LIMIT).map(link => ({
+    links: suggestions.links.slice(0, LINK_SUGGESTION_LIMIT).map(link => ({
       kind: 'link' as const,
       key: `l${link.collectionId}-${link.itemId}`,
       link,

@@ -1734,6 +1734,26 @@ describe('CollectionsScreen - 컬렉션 또는 링크 검색', () => {
 });
 
 describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
+  // react-test-renderer has no native views: measureInWindow is answered here. The container (the screen's measuring box) fills a 400x800
+  // window at y=24 (below the status bar); the search field's own box is at x=20 / y=140, 360 wide and 48 tall.
+  const ROOT = { x: 0, y: 24, width: 400, height: 776 };
+  const SEARCH = { x: 20, y: 140, width: 360, height: 48 };
+  const rectOf = (rect: { x: number; y: number; width: number; height: number }) => (callback: (x: number, y: number, width: number, height: number) => void) =>
+    callback(rect.x, rect.y, rect.width, rect.height);
+  // The React Native jest mock of View gives every instance a (jest.fn) measureInWindow: answered here for the two measured boxes.
+  const renderWithLayout = async () => {
+    const renderer = await renderScreen();
+    const boxes = renderer.root.findAll(node => typeof (node.instance as { measureInWindow?: unknown } | null)?.measureInWindow === 'function');
+    const rootBox = boxes.find(node => node.props.pointerEvents === 'none');
+    const searchBox = boxes.find(node => typeof node.props.onLayout === 'function' && node.props.collapsable === false);
+    expect(rootBox).toBeDefined();
+    expect(searchBox).toBeDefined();
+    // The mocked method is one shared jest.fn: it tells the two boxes apart by the instance it is called on.
+    (rootBox?.instance.measureInWindow as jest.Mock).mockImplementation(function measure(this: unknown, callback: (x: number, y: number, width: number, height: number) => void) {
+      rectOf(this === rootBox?.instance ? ROOT : SEARCH)(callback);
+    });
+    return renderer;
+  };
   const searchField = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAll(node => node.props.testID === 'collections-search' && typeof node.props.onChangeText === 'function')[0];
   const focus = async (renderer: ReactTestRenderer.ReactTestRenderer) => {
     await act(async () => {
@@ -1776,7 +1796,7 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
   });
 
   it('asks only while the box has focus and text - after the same 250ms pause as the list, once per burst, 1 character included', async () => {
-    const renderer = await renderScreen();
+    const renderer = await renderWithLayout();
     await type(renderer, 'tian');
     await pause(400);
     expect(getCollectionSuggestions).not.toHaveBeenCalled(); // typed, but never focused
@@ -1791,15 +1811,17 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
     expect(jest.mocked(getCollectionSuggestions).mock.calls[0][1]).toEqual({ scope: 'favorites', search: 'tian' });
     await type(renderer, 't');
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     expect(jest.mocked(getCollectionSuggestions).mock.calls.at(-1)?.[1]).toEqual({ scope: 'favorites', search: 't' });
     act(() => renderer.unmount());
   });
 
   it('draws Collections and links under the field: the link second line is "Collection · host"; the headings are the existing words', async () => {
-    const renderer = await renderScreen();
+    const renderer = await renderWithLayout();
     await focus(renderer);
     await type(renderer, 'tian');
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     expect(panels(renderer)).toHaveLength(1);
     expect(rows(renderer, 'collection-suggestion-collection')).toHaveLength(1);
     expect(rows(renderer, 'collection-suggestion-link')).toHaveLength(1);
@@ -1813,26 +1835,28 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
     act(() => renderer.unmount());
   });
 
-  it('draws at most three of each kind', async () => {
+  it('draws at most three Collections and six links - six links of ONE Collection included', async () => {
     jest.mocked(getCollectionSuggestions).mockResolvedValue({
       collections: [1, 2, 3, 4].map(id => makeCollection({ id: 100 + id, name: `S${id}` })),
-      links: [1, 2, 3, 4].map(id => link(id, 1, `L${id}`)),
+      links: [1, 2, 3, 4, 5, 6, 7, 8].map(id => link(id, 1, `L${id}`)),
     });
-    const renderer = await renderScreen();
+    const renderer = await renderWithLayout();
     await focus(renderer);
     await type(renderer, 's');
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     expect(rows(renderer, 'collection-suggestion-collection')).toHaveLength(3);
-    expect(rows(renderer, 'collection-suggestion-link')).toHaveLength(3);
+    expect(rows(renderer, 'collection-suggestion-link')).toHaveLength(6);
     act(() => renderer.unmount());
   });
 
   it('tapping a Collection opens it; tapping a link opens it IN its Collection (own / another member), and closes the panel', async () => {
     jest.mocked(getCollectionSuggestions).mockResolvedValue(answer([link(10, 7, 'Mine'), link(11, 8, 'Theirs', null, false)]));
-    const renderer = await renderScreen();
+    const renderer = await renderWithLayout();
     await focus(renderer);
     await type(renderer, 'x');
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     await act(async () => {
       rows(renderer, 'collection-suggestion-collection')[0].props.onPress();
     });
@@ -1842,6 +1866,7 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
     await focus(renderer);
     await type(renderer, 'xy');
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     expect(panels(renderer)).toHaveLength(1);
     await act(async () => {
       rows(renderer, 'collection-suggestion-link')[0].props.onPress();
@@ -1850,6 +1875,7 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
     await focus(renderer);
     await type(renderer, 'xyz');
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     await act(async () => {
       rows(renderer, 'collection-suggestion-link')[1].props.onPress();
     });
@@ -1859,16 +1885,18 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
   });
 
   it('clearing closes it at once; blur closes it; dragging the list closes it', async () => {
-    const renderer = await renderScreen();
+    const renderer = await renderWithLayout();
     await focus(renderer);
     await type(renderer, 'tian');
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     expect(panels(renderer)).toHaveLength(1);
     await type(renderer, '');
     expect(panels(renderer)).toHaveLength(0);
 
     await type(renderer, 'tian');
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     expect(panels(renderer)).toHaveLength(1);
     await act(async () => {
       searchField(renderer).props.onBlur();
@@ -1878,6 +1906,7 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
     await focus(renderer);
     await type(renderer, 'tiany');
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     expect(panels(renderer)).toHaveLength(1);
     await act(async () => {
       renderer.root.findAllByType(FlatList)[0].props.onScrollBeginDrag();
@@ -1890,15 +1919,17 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
     jest.mocked(getCollectionSuggestions).mockImplementation(async (_request, options) =>
       options.scope === 'shared' ? { collections: [sharedCollection], links: [] } : { collections: [ownedCollection], links: [] },
     );
-    const renderer = await renderScreen();
+    const renderer = await renderWithLayout();
     await focus(renderer);
     await type(renderer, 'a');
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     expect(textsOf(renderer)).toContain('All A');
     await selectFilter(renderer, 'shared');
     // The favorites answer is gone at once (never shown under the shared tab) ...
     expect(panels(renderer)).toHaveLength(0);
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     // ... and the shared tab's own request has been made.
     expect(jest.mocked(getCollectionSuggestions).mock.calls.at(-1)?.[1]).toEqual({ scope: 'shared', search: 'a' });
     expect(textsOf(renderer)).toContain(sharedCollection.name);
@@ -1915,12 +1946,14 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
       }
       return { collections: [sharedCollection], links: [] };
     });
-    const renderer = await renderScreen();
+    const renderer = await renderWithLayout();
     await focus(renderer);
     await type(renderer, 'old');
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     await type(renderer, 'new');
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     await act(async () => releaseOld({ collections: [ownedCollection], links: [] }));
     expect(textsOf(renderer)).toContain(sharedCollection.name);
     expect(rows(renderer, 'collection-suggestion-collection')).toHaveLength(1);
@@ -1929,10 +1962,11 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
 
   it('a failing suggestion request only leaves the panel away - the list is unaffected', async () => {
     jest.mocked(getCollectionSuggestions).mockRejectedValue(new Error('boom'));
-    const renderer = await renderScreen();
+    const renderer = await renderWithLayout();
     await focus(renderer);
     await type(renderer, 'tian');
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     expect(panels(renderer)).toHaveLength(0);
     expect(renderer.root.findAllByProps({ testID: 'collections-list-error' })).toHaveLength(0);
     expect(jest.mocked(getCollections).mock.calls.at(-1)?.[1]).toEqual({ scope: 'favorites', limit: 24, search: 'tian' });
@@ -1943,24 +1977,31 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
 
   it('nothing to suggest = no panel', async () => {
     jest.mocked(getCollectionSuggestions).mockResolvedValue({ collections: [], links: [] });
-    const renderer = await renderScreen();
+    const renderer = await renderWithLayout();
     await focus(renderer);
     await type(renderer, 'zzz');
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     expect(panels(renderer)).toHaveLength(0);
     act(() => renderer.unmount());
   });
 
   it('is a floating overlay: absolute, with zIndex and Android elevation, rows at least 44dp, under the themed field', async () => {
-    const renderer = await renderScreen();
+    const renderer = await renderWithLayout();
     await focus(renderer);
     await type(renderer, 'tian');
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     const flat = StyleSheet.flatten(panels(renderer)[0].props.style);
     expect(flat.position).toBe('absolute');
     expect(flat.zIndex).toBeGreaterThan(0);
     expect(flat.elevation).toBeGreaterThan(0);
-    expect(typeof flat.top).toBe('number');
+    // Right under the field's measured bottom edge (not over it), with the field's own left / width.
+    expect(flat.top).toBe(SEARCH.y - ROOT.y + SEARCH.height + spacing.xs);
+    expect(flat.top).toBeGreaterThanOrEqual(SEARCH.y - ROOT.y + SEARCH.height);
+    expect(flat.left).toBe(SEARCH.x - ROOT.x);
+    expect(flat.width).toBe(SEARCH.width);
+    expect(flat.maxHeight).toBeGreaterThan(0);
     expect(renderer.root.findAllByType(ThemedTextInput).some(input => input.props.testID === 'collections-search')).toBe(true);
     const rowStyle = StyleSheet.flatten((rows(renderer, 'collection-suggestion-link')[0].props.style as (state: { pressed: boolean }) => never)({ pressed: false }));
     expect((rowStyle as { minHeight: number }).minHeight).toBeGreaterThanOrEqual(44);
@@ -1968,10 +2009,11 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
   });
 
   it('a link row has the "open original" icon at its end (44dp, labelled); a Collection row has none', async () => {
-    const renderer = await renderScreen();
+    const renderer = await renderWithLayout();
     await focus(renderer);
     await type(renderer, 'tian');
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     const external = rows(renderer, 'collection-suggestion-external');
     expect(external).toHaveLength(1);
     expect(external[0].props.accessibilityLabel).toBe(i18n.t('item.goToUrlA11y'));
@@ -1987,10 +2029,11 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
   it('pressing the icon opens the saved address and nothing else: no navigation, the search / tab / panel stay as they were', async () => {
     const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
     jest.mocked(getCollectionSuggestions).mockResolvedValue(answer([link(10, 7, 'Mine', 'youtube.com', true, 'https://www.youtube.com/watch?v=abc')]));
-    const renderer = await renderScreen();
+    const renderer = await renderWithLayout();
     await focus(renderer);
     await type(renderer, 'tian');
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     await act(async () => {
       rows(renderer, 'collection-suggestion-external')[0].props.onPress();
     });
@@ -2007,10 +2050,11 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
   it('the row itself still opens the Juple link, and does not open the original', async () => {
     const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
     jest.mocked(getCollectionSuggestions).mockResolvedValue(answer([link(10, 7, 'Mine')]));
-    const renderer = await renderScreen();
+    const renderer = await renderWithLayout();
     await focus(renderer);
     await type(renderer, 'x');
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     await act(async () => {
       rows(renderer, 'collection-suggestion-link')[0].props.onPress();
     });
@@ -2030,22 +2074,24 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
         link(5, 3, 'E', 'a.test', true, 'https://a.test/ok'),
       ]),
     );
-    const renderer = await renderScreen();
+    const renderer = await renderWithLayout();
     await focus(renderer);
     await type(renderer, 'a');
     await pause(260);
-    // Three links are drawn (the panel shows at most three); none of them has the icon.
-    expect(rows(renderer, 'collection-suggestion-link')).toHaveLength(3);
-    expect(rows(renderer, 'collection-suggestion-external')).toHaveLength(0);
+    await pause(20); // the frame is measured on the next animation frame
+    // All five links are drawn; only the https one has the icon (the rest are unsafe or no address at all).
+    expect(rows(renderer, 'collection-suggestion-link')).toHaveLength(5);
+    expect(rows(renderer, 'collection-suggestion-external')).toHaveLength(1);
     act(() => renderer.unmount());
   });
 
   it('a failing open leaves the search, the tab and the list exactly as they were', async () => {
     const open = jest.spyOn(Linking, 'openURL').mockRejectedValue(new Error('no app'));
-    const renderer = await renderScreen();
+    const renderer = await renderWithLayout();
     await focus(renderer);
     await type(renderer, 'tian');
     await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
     await act(async () => {
       rows(renderer, 'collection-suggestion-external')[0].props.onPress();
     });
@@ -2089,5 +2135,49 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
       expect(typeof value).toBe('string');
       expect(value.trim().length).toBeGreaterThan(0);
     }
+  });
+
+  it('the panel is a scrollable list with its own maximum height (the field above never moves)', async () => {
+    const renderer = await renderWithLayout();
+    await focus(renderer);
+    await type(renderer, 'tian');
+    await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
+    const scroll = renderer.root.findAll(node => node.props.testID === 'collection-suggestions-scroll' && typeof node.type !== 'string')[0];
+    expect(scroll.props.keyboardShouldPersistTaps).toBe('handled');
+    expect(scroll.props.nestedScrollEnabled).toBe(true);
+    const flat = StyleSheet.flatten(panels(renderer)[0].props.style);
+    expect(flat.maxHeight).toBe(ROOT.y + ROOT.height - (ROOT.y + flat.top));
+    act(() => renderer.unmount());
+  });
+
+  it('is measured from the field\'s window rectangle - no scroll offset, safe area or header height is added up by hand, and the panel is not part of the list header', () => {
+    const fsx = jest.requireActual<{ readFileSync(file: string, encoding: string): string }>('fs');
+    const pathx = jest.requireActual<{ join(...parts: string[]): string }>('path');
+    const screen = fsx.readFileSync(pathx.join(__dirname, '../CollectionsScreen.tsx'), 'utf8');
+    expect(screen).toContain('measureInWindow');
+    expect(screen).toContain('getSuggestionOverlayFrame');
+    expect(screen).not.toMatch(/searchRowY|searchFieldHeight|scrollY|contentOffset/);
+    expect(screen).toContain('onScroll={suggestionsOpen ? measureOverlay : undefined}');
+    expect(screen).toContain('requestAnimationFrame');
+    // The overlay is a direct child of the screen, after the list - not inside ListHeaderComponent.
+    expect(screen.indexOf('<CollectionSuggestionPanel')).toBeGreaterThan(screen.indexOf('ListFooterComponent'));
+  });
+
+  it('typing keeps the focus: the panel never takes touches away from the field (it sits below it) and clear still works', async () => {
+    const renderer = await renderWithLayout();
+    await focus(renderer);
+    await type(renderer, 'tian');
+    await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
+    expect(panels(renderer)).toHaveLength(1);
+    await type(renderer, 'tians');
+    expect(searchField(renderer).props.value).toBe('tians');
+    await act(async () => {
+      renderer.root.findAll(node => node.props.testID === 'collections-search-clear')[0]?.props.onPress?.();
+    });
+    expect(searchField(renderer).props.value).toBe('');
+    expect(panels(renderer)).toHaveLength(0);
+    act(() => renderer.unmount());
   });
 });

@@ -1,17 +1,18 @@
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { CategoryIconTile } from './CategoryIconTile';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { SiteIcon } from '../icons/SiteIcon';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import type { CollectionSuggestionRow } from './collectionSuggestions';
+import type { SuggestionOverlayFrame } from './suggestionOverlay';
 
 interface CollectionSuggestionPanelProps {
   readonly collections: readonly CollectionSuggestionRow[];
   readonly links: readonly CollectionSuggestionRow[];
   readonly collectionsHeading: string;
   readonly linksHeading: string;
-  /** Distance from the top of the screen's list area: the panel floats under the search field, over the content below it. */
-  readonly top: number;
+  /** Where it floats: the search field's own left / width, right under its bottom edge (measured in the window), and the room below it. */
+  readonly frame: SuggestionOverlayFrame;
   readonly isLoading: boolean;
   readonly onSelect: (row: CollectionSuggestionRow) => void;
   /** The "open original" icon at the end of a link row (the saved page itself, not the Juple link). */
@@ -24,9 +25,11 @@ interface CollectionSuggestionPanelProps {
  * over the tabs and cards (it never moves them). A plain absolute overlay of the screen - no Portal, no Modal. Compact rows, at least
  * 44dp tall; the second line of a link reads "Collection · host".
  */
-export function CollectionSuggestionPanel({ collections, links, collectionsHeading, linksHeading, top, isLoading, onSelect, onOpenExternal, openExternalLabel }: CollectionSuggestionPanelProps) {
+export function CollectionSuggestionPanel({ collections, links, collectionsHeading, linksHeading, frame, isLoading, onSelect, onOpenExternal, openExternalLabel }: CollectionSuggestionPanelProps) {
   return (
-    <View accessibilityViewIsModal={false} style={[styles.panel, { top }]} testID="collection-suggestions">
+    <View accessibilityViewIsModal={false} style={[styles.panel, { left: frame.left, maxHeight: frame.maxHeight, top: frame.top, width: frame.width }]} testID="collection-suggestions">
+      {/* Only the list of suggestions scrolls (the field above never moves); taps still reach the rows while the keyboard is up. */}
+      <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled showsVerticalScrollIndicator={false} testID="collection-suggestions-scroll">
       {collections.length > 0 ? <Text style={styles.heading}>{collectionsHeading}</Text> : null}
       {collections.map(row =>
         row.kind === 'collection' ? (
@@ -94,6 +97,7 @@ export function CollectionSuggestionPanel({ collections, links, collectionsHeadi
         ) : null,
       )}
       {isLoading ? <ActivityIndicator color={colors.textSecondary} size="small" style={styles.loading} testID="collection-suggestions-loading" /> : null}
+      </ScrollView>
     </View>
   );
 }
@@ -107,14 +111,12 @@ const styles = themedStyles(() => ({
     borderRadius: radii.md + 4,
     borderWidth: 1,
     elevation: 8,
-    end: spacing.xl,
     padding: spacing.xs,
     position: 'absolute',
     shadowColor: '#000000',
     shadowOffset: { height: 4, width: 0 },
     shadowOpacity: 0.12,
     shadowRadius: 10,
-    start: spacing.xl,
     zIndex: 20,
   },
   heading: { color: colors.textSecondary, fontSize: 12, fontWeight: '700', paddingHorizontal: spacing.sm, paddingTop: spacing.sm, paddingBottom: spacing.xs },

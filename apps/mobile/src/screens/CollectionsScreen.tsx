@@ -2,7 +2,7 @@ import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/nativ
 import { useBottomTabBarHeight, type BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -14,10 +14,9 @@ import {
   Platform,
   Pressable,
   RefreshControl,
+  useWindowDimensions,
   Text,
   View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
@@ -75,6 +74,7 @@ import { SearchField } from '../components/SearchField';
 import { useAppToast } from '../components/AppToast';
 import { isHttpUrl } from '../share/resolveIncomingShare';
 import { CollectionSuggestionPanel } from '../collections/CollectionSuggestionPanel';
+import { getSuggestionOverlayFrame, type SuggestionOverlayFrame } from '../collections/suggestionOverlay';
 import { suggestionRows, type CollectionSuggestionRow } from '../collections/collectionSuggestions';
 import { useCollectionSuggestions } from '../collections/useCollectionSuggestions';
 import { normalizeCollectionSearch } from '../collections/collectionSearch';
@@ -237,13 +237,18 @@ export function CollectionsScreen() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   // The quick suggestions under the box (a help next to the list, never instead of it): shown while the box has focus and text, closed
-  // by a choice / Back / scrolling / the keyboard going away. `searchRowY` / `searchFieldHeight` / `scrollY` place the floating panel
-  // right under the field (it is an overlay of the screen, not part of the list's header, so it moves nothing and takes touches on Android).
+  // by a choice / Back / dragging / the keyboard going away. The floating panel is placed from the field's REAL window rectangle
+  // (measureInWindow, see suggestionOverlay) against the container's own: the field moves with the list (also when the list scrolls itself
+  // to show the focused input), and nothing about scroll offset, status bar or header height is ever added up by hand. It is an overlay of
+  // the screen, not part of the list's header, so it moves nothing and takes touches on Android.
   const [searchFocused, setSearchFocused] = useState(false);
   const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
-  const [searchRowY, setSearchRowY] = useState(0);
-  const [searchFieldHeight, setSearchFieldHeight] = useState(0);
-  const [scrollY, setScrollY] = useState(0);
+  const searchAnchorRef = useRef<ComponentRef<typeof View>>(null);
+  const overlayRootRef = useRef<ComponentRef<typeof View>>(null);
+  const [overlayFrame, setOverlayFrame] = useState<SuggestionOverlayFrame | null>(null);
+  const [keyboardTop, setKeyboardTop] = useState<number | null>(null);
+  const measureFrameRequestRef = useRef<number | null>(null);
+  const { height: windowHeight } = useWindowDimensions();
   const searchRef = useRef('');
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -520,7 +525,59 @@ export function CollectionsScreen() {
     };
   }, [suggestionsOpen]);
 
-  const onScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => setScrollY(event.nativeEvent.contentOffset.y);
+  // The field's and the container's window rectangles -> the panel's frame. At most one measurement per animation frame (a scroll fires
+  // many events); a result identical to the last one changes nothing.
+  const measureOverlay = useCallback(() => {
+    if (measureFrameRequestRef.current !== null) {
+      return;
+    }
+    measureFrameRequestRef.current = requestAnimationFrame(() => {
+      measureFrameRequestRef.current = null;
+      const anchor = searchAnchorRef.current;
+      const root = overlayRootRef.current;
+      if (!anchor || !root) {
+        return;
+      }
+      root.measureInWindow((rootX, rootY, rootWidth, rootHeight) => {
+        anchor.measureInWindow((x, y, width, height) => {
+          const next = getSuggestionOverlayFrame({
+            root: { x: rootX, y: rootY, width: rootWidth, height: rootHeight },
+            search: { x, y, width, height },
+            gap: spacing.xs,
+            bottomLimit: keyboardTop ?? windowHeight,
+          });
+          setOverlayFrame(previous =>
+            previous && previous.left === next.left && previous.top === next.top && previous.width === next.width && previous.maxHeight === next.maxHeight && previous.anchorHidden === next.anchorHidden
+              ? previous
+              : next,
+          );
+        });
+      });
+    });
+  }, [keyboardTop, windowHeight]);
+
+  // Measured again whenever something that can move the field happens: the panel opening, the keyboard, the window size (rotation,
+  // split screen), the tab / List-Grid switch (the list below changes, the header may wrap), and every scroll (see onScroll).
+  useEffect(() => {
+    if (suggestionsOpen) {
+      measureOverlay();
+    }
+  }, [suggestionsOpen, measureOverlay, filter, viewMode, gridColumns, searchTerm]);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', event => setKeyboardTop(event.endCoordinates.screenY));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardTop(null));
+    return () => {
+      show.remove();
+      hide.remove();
+      if (measureFrameRequestRef.current !== null) {
+        cancelAnimationFrame(measureFrameRequestRef.current);
+      }
+    };
+  }, []);
+
+  // The field scrolled out of view: the panel has nothing to hang from, so it goes.
+  const panelFrame = suggestionsOpen && overlayFrame !== null && !overlayFrame.anchorHidden ? overlayFrame : null;
 
   const loadMore = useCallback(() => {
     const current = lists[filter];
@@ -746,14 +803,16 @@ export function CollectionsScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
+      <View collapsable={false} pointerEvents="none" ref={overlayRootRef} style={styles.overlayRoot} />
       <FlatList
         key={gridListKey(viewMode, viewMode === 'grid', gridColumns)}
         contentContainerStyle={styles.content}
         // A tap on a card while the keyboard is up opens it at once (and the suggestions step aside as the list is dragged).
         keyboardShouldPersistTaps="handled"
-        onMomentumScrollEnd={onScrollEnd}
+        // The field moves with the list: the panel follows it (one measurement per frame), also when the list scrolls itself to show the focused input.
+        onScroll={suggestionsOpen ? measureOverlay : undefined}
         onScrollBeginDrag={() => setSuggestionsDismissed(true)}
-        onScrollEndDrag={onScrollEnd}
+        scrollEventThrottle={16}
         data={listData}
         keyExtractor={entry => ('pendingJoin' in entry ? `join-${entry.pendingJoin.requestId}` : entry.id.toString())}
         onEndReached={loadMore}
@@ -791,8 +850,8 @@ export function CollectionsScreen() {
             </View>
 
             {/* The search: right under the header, above the four filters. The shared Juple search field (themed input, clear button). */}
-            <View onLayout={event => setSearchRowY(event.nativeEvent.layout.y)} style={styles.searchRow}>
-              <View onLayout={event => setSearchFieldHeight(event.nativeEvent.layout.height)}>
+            <View style={styles.searchRow}>
+              <View collapsable={false} onLayout={measureOverlay} ref={searchAnchorRef}>
                 <SearchField
                   clearLabel={t('history.searchClear')}
                   onBlur={() => setSearchFocused(false)}
@@ -926,7 +985,7 @@ export function CollectionsScreen() {
         ListFooterComponent={isLoadingMore ? renderSkeletons(viewMode === 'grid' ? 1 : NEXT_PAGE_SKELETON_LIST_ROWS, 'collections-next-page-loading') : undefined}
       />
 
-      {suggestionsOpen ? (
+      {panelFrame ? (
         <CollectionSuggestionPanel
           collections={suggestionGroups.collections}
           collectionsHeading={t('collections.title')}
@@ -936,7 +995,7 @@ export function CollectionsScreen() {
           onOpenExternal={openOriginalUrl}
           onSelect={openSuggestion}
           openExternalLabel={t('item.goToUrlA11y')}
-          top={spacing.xl + searchRowY + searchFieldHeight + spacing.xs - scrollY}
+          frame={panelFrame}
         />
       ) : null}
 
@@ -1119,6 +1178,8 @@ const styles = themedStyles(() => ({
     flexGrow: 1,
     padding: spacing.xl,
   },
+  // An invisible, touch-transparent measuring box the size of the screen's content area: the container the panel's frame is relative to.
+  overlayRoot: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
   searchRow: { marginBottom: spacing.md },
   searchSpinner: { marginTop: spacing.xs },
   titleRow: {
