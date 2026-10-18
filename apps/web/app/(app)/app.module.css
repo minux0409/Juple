@@ -8616,6 +8616,12 @@ button.reactionChipMine:hover {
   opacity: 0.85;
 }
 
+.suggestList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
 .suggestHeading {
   padding: 8px 10px 4px;
   color: var(--app-text-tertiary);
@@ -8640,6 +8646,39 @@ button.reactionChipMine:hover {
 }
 
 .suggestOptionActive {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+
+/* A link row: the option, then the "open original" icon at the far end (always on the right, never shrinks; the text ellipsizes). */
+.suggestRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.suggestRow .suggestOption {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.suggestExternal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  color: var(--app-text-secondary);
+}
+
+.suggestExternal:hover {
+  background: var(--app-surface-hover);
+  color: var(--app-text);
+}
+
+.suggestExternal:focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: -2px;
 }

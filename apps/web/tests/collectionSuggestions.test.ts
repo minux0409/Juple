@@ -22,13 +22,14 @@ const view = source('app/(app)/collections/CollectionsView.tsx');
 const css = source('app/(app)/app.module.css');
 
 const collection = (id: number, name: string) => ({ id, name, icon: 'folder', color: null, itemCount: 0, isFavorite: false });
-const link = (itemId: number, collectionId: number, title: string, hostname: string | null, isMine = true) => ({
+const link = (itemId: number, collectionId: number, title: string, hostname: string | null, isMine = true, url = `https://${hostname ?? 'x.test'}/watch?v=${itemId}`) => ({
   itemId,
   collectionId,
   collectionName: `C${collectionId}`,
   title,
   hostname,
   isMine,
+  url,
 });
 
 describe('컬렉션 검색 자동완성: the request', () => {
@@ -138,15 +139,16 @@ describe('컬렉션 검색 자동완성: keyboard', () => {
 });
 
 describe('컬렉션 검색 자동완성: accessibility and look', () => {
-  it('a combobox with a listbox, groups and options; the active option is announced', () => {
-    assert.match(box, /role: 'combobox'/);
-    assert.match(box, /'aria-autocomplete': 'list'/);
-    assert.match(box, /'aria-expanded': open/);
-    assert.match(box, /'aria-activedescendant': activeIndex >= 0 \? optionId\(activeIndex\) : undefined/);
-    assert.match(box, /role="listbox"/);
-    assert.match(box, /role="group"/);
-    assert.match(box, /role="option"/);
-    assert.match(box, /aria-selected=\{active\}/);
+  it('no listbox / option / combobox pattern: a region with two lists of real links, labelled by their headings; the highlight is announced by the input', () => {
+    assert.doesNotMatch(box, /role="listbox"|role="option"|role: 'combobox'|aria-selected|aria-autocomplete|aria-expanded|role="presentation"|role="group"/);
+    assert.match(box, /role="region"/);
+    assert.match(box, /<ul aria-labelledby=\{`\$\{listId\}-collections`\} className=\{styles\.suggestList\}>/);
+    assert.match(box, /<ul aria-labelledby=\{`\$\{listId\}-links`\} className=\{styles\.suggestList\}>/);
+    assert.match(box, /<li key=\{row\.key\}>/);
+    // The input announces the highlighted Juple link; the highlighted link says so too.
+    assert.match(box, /'aria-activedescendant': activeIndex >= 0 \? rowId\(activeIndex\) : undefined/);
+    assert.match(box, /'aria-controls': open \? listId : undefined/);
+    assert.match(box, /aria-current=\{active \? 'true' : undefined\}/);
     assert.match(box, /aria-busy=\{loading\}/);
   });
 
@@ -199,5 +201,81 @@ describe('컬렉션 검색 자동완성: strings', () => {
     }
     assert.equal(getAppDictionary('ko').collectionSearchLinks, '링크');
     assert.equal(getAppDictionary('en').collectionSearchLinks, 'Links');
+  });
+});
+
+describe('컬렉션 검색 자동완성: 원본 링크 열기', () => {
+  const rows = (links: CollectionSuggestions['links']) => suggestionRows({ collections: [collection(1, 'A')], links }).links;
+
+  it('a link row carries the saved address; a Collection row has no such button', () => {
+    const [first] = rows([link(10, 1, 'T', 'youtube.com')]);
+    assert.equal(first.kind === 'link' && first.externalUrl, 'https://youtube.com/watch?v=10');
+    assert.match(box, /if \(row\.kind !== 'link' \|\| row\.externalUrl === null\) \{\s*return option;/);
+  });
+
+  it('only plain http(s) addresses get a button - javascript:, data:, file:, custom schemes and junk get none', () => {
+    for (const url of ['javascript:alert(1)', 'data:text/html,x', 'file:///etc/passwd', 'intent://x#Intent;end', 'ftp://a.test/x', 'not a url', '']) {
+      const [row] = rows([link(1, 1, 'T', 'a.test', true, url)]);
+      assert.equal(row.kind === 'link' && row.externalUrl, null, url);
+    }
+    for (const url of ['http://a.test/x', 'https://a.test/x?q=1#h']) {
+      const [row] = rows([link(1, 1, 'T', 'a.test', true, url)]);
+      assert.equal(row.kind === 'link' && row.externalUrl, url);
+    }
+  });
+
+  it('is its own anchor: the saved address, a new tab, noopener noreferrer, an accessible label (the existing "open link" word)', () => {
+    assert.match(box, /href=\{row\.externalUrl\}/);
+    assert.match(box, /rel="noopener noreferrer"/);
+    assert.match(box, /target="_blank"/);
+    assert.match(box, /aria-label=\{openLabel\}/);
+    assert.match(box, /title=\{openLabel\}/);
+    assert.match(box, /openLabel=\{dictionary\.openLink\}/);
+    assert.match(box, /<Glyph name="ExternalLink" size=\{18\} \/>/);
+  });
+
+  it('is a sibling of the Juple link, never inside it: no nested interactive markup, and its click cannot reach the navigation of the row', () => {
+    const tail = box.slice(box.indexOf('const option = ('));
+    const optionBlock = tail.slice(0, tail.indexOf("  if (row.kind !== 'link'"));
+    assert.doesNotMatch(optionBlock, /target="_blank"|data-suggestion-external/);
+    assert.match(tail, /<div className=\{styles\.suggestRow\} data-suggestion-row>\s*\{option\}\s*<a/);
+    // The Juple link keeps its own click (the internal navigation); the external anchor has none.
+    assert.match(box, /onClick=\{onChoose\}/);
+    assert.equal((box.match(/onClick=/g) ?? []).length, 1);
+  });
+
+  it('keyboard: ArrowDown / ArrowUp highlight Juple rows, Enter opens the highlighted one, Escape closes (from the input or a link); every link is a normal tab stop', () => {
+    // Real links, none removed from the tab order: the Juple rows AND the external anchors can be reached with Tab.
+    assert.doesNotMatch(box, /tabIndex/);
+    assert.match(box, /event\.key === 'Enter' && open && activeIndex >= 0/);
+    assert.match(box, /choose\(rows\[activeIndex\]\)/);
+    // Escape is handled where both the input and the links inside the panel bubble to, and focus returns to the input.
+    assert.match(box, /onKeyDown=\{onEscape\}/);
+    assert.match(box, /event\.key === 'Escape' && open/);
+    assert.match(box, /event\.currentTarget\.querySelector\('input'\)\?\.focus\(\)/);
+    // Enter / arrows act on rows (internal href), never on externalUrl.
+    assert.doesNotMatch(box.slice(box.indexOf('const onKeyDown'), box.indexOf('const onEscape')), /externalUrl/);
+  });
+
+  it('stays inside the box: focus moving to the icon does not close the panel', () => {
+    assert.match(box, /event\.currentTarget\.contains\(event\.relatedTarget\)/);
+  });
+
+  it('layout: the icon is a fixed 40px target at the far end, the text ellipsizes, the row keeps its compact height; theme tokens only', () => {
+    const rules = css.slice(css.indexOf('/* A link row: the option'), css.indexOf('.suggestSite {'));
+    assert.match(rules, /\.suggestRow \{[^}]*display: flex;[^}]*align-items: center;/);
+    assert.match(rules, /\.suggestRow \.suggestOption \{[^}]*flex: 1 1 auto;[^}]*min-width: 0;/);
+    assert.match(rules, /\.suggestExternal \{[^}]*flex: 0 0 40px;[^}]*width: 40px;[^}]*height: 40px;/);
+    assert.match(rules, /\.suggestExternal:hover/);
+    assert.match(rules, /\.suggestExternal:focus-visible \{[^}]*outline: 2px solid var\(--brand\)/);
+    assert.doesNotMatch(rules, /#[0-9a-fA-F]{3,8}|rgba?\(/);
+    // 40px stays under the 44px option: the row is not taller than before.
+    assert.match(css, /\.suggestOption \{[^}]*min-height: 44px;/);
+  });
+
+  it('the label is the existing, translated "open link" word in every language', () => {
+    for (const language of APP_LANGUAGES) {
+      assert.ok(getAppDictionary(language).openLink.trim().length > 0, language);
+    }
   });
 });

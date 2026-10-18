@@ -16,6 +16,7 @@ import {
 import { normalizeCollectionSearch, type CollectionFilter, type CollectionSummary } from '../../../lib/collectionsView';
 import { useSignedInApp } from '../AppRoot';
 import { SearchField } from '../SearchField';
+import { Glyph } from '../Glyph';
 import { SiteIcon } from '../SiteIcon';
 import styles from '../app.module.css';
 
@@ -25,7 +26,10 @@ import styles from '../app.module.css';
  * it never moves the list below - and a help only: the list itself is read by the screen from the same text, and a failing suggestion
  * request merely leaves the panel away.
  *
- * A combobox with a listbox: ArrowDown / ArrowUp move through the rows, Enter opens the highlighted one, Escape closes the panel.
+ * The panel is plain content under a search box - a region with two lists of real links - not a listbox: it also holds the "open original"
+ * link of a row, and an interactive link has no place inside a listbox / option. Every link is a normal tab stop. ArrowDown / ArrowUp
+ * additionally move a highlight through the Juple rows (announced through aria-activedescendant on the input), Enter opens the highlighted
+ * one, Escape closes the panel (from the input or from a link inside it).
  */
 export function CollectionSearchBox({
   filter,
@@ -92,7 +96,7 @@ export function CollectionSearchBox({
   const rows: readonly CollectionSuggestionRow[] = [...groups.collections, ...groups.links];
   const open = focused && !dismissed && term !== '' && rows.length > 0;
   const activeIndex = open && active >= 0 && active < rows.length ? active : -1;
-  const optionId = (index: number) => `${listId}-option-${index}`;
+  const rowId = (index: number) => `${listId}-row-${index}`;
 
   const change = (next: string) => {
     setDismissed(false);
@@ -118,17 +122,23 @@ export function CollectionSearchBox({
       choose(rows[activeIndex]);
       return;
     }
+  };
+
+  // Escape closes the panel from the input or from a link inside it (and brings the focus back to the input).
+  const onEscape = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape' && open) {
       event.preventDefault();
       event.stopPropagation();
       setDismissed(true);
       setActive(-1);
+      event.currentTarget.querySelector('input')?.focus();
     }
   };
 
   return (
     <div
       className={styles.suggestAnchor}
+      onKeyDown={onEscape}
       onBlur={event => {
         // Focus moving to a row inside the panel is still "in the box"; anywhere else closes it.
         if (!event.currentTarget.contains(event.relatedTarget)) {
@@ -138,11 +148,8 @@ export function CollectionSearchBox({
     >
       <SearchField
         inputProps={{
-          role: 'combobox',
-          'aria-autocomplete': 'list',
-          'aria-expanded': open,
           'aria-controls': open ? listId : undefined,
-          'aria-activedescendant': activeIndex >= 0 ? optionId(activeIndex) : undefined,
+          'aria-activedescendant': activeIndex >= 0 ? rowId(activeIndex) : undefined,
           autoComplete: 'off',
           onFocus: () => setFocused(true),
           onKeyDown,
@@ -160,27 +167,37 @@ export function CollectionSearchBox({
           id={listId}
           // Keep the focus in the input while a row is pressed, so the panel is not closed before the click lands.
           onMouseDown={event => event.preventDefault()}
-          role="listbox"
+          role="region"
         >
           {groups.collections.length > 0 ? (
-            <div aria-label={dictionary.navCollections} role="group">
-              <div aria-hidden className={styles.suggestHeading}>
+            <div>
+              <div className={styles.suggestHeading} id={`${listId}-collections`}>
                 {dictionary.navCollections}
               </div>
-              {groups.collections.map((row, index) => (
-                <SuggestionOption active={activeIndex === index} id={optionId(index)} key={row.key} onChoose={() => choose(row)} renderCollectionTile={renderCollectionTile} row={row} />
-              ))}
+              <ul aria-labelledby={`${listId}-collections`} className={styles.suggestList}>
+                {groups.collections.map((row, index) => (
+                  <li key={row.key}>
+                    <SuggestionRow active={activeIndex === index} id={rowId(index)} onChoose={() => choose(row)} openLabel={dictionary.openLink} renderCollectionTile={renderCollectionTile} row={row} />
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
           {groups.links.length > 0 ? (
-            <div aria-label={dictionary.collectionSearchLinks} role="group">
-              <div aria-hidden className={styles.suggestHeading}>
+            <div>
+              <div className={styles.suggestHeading} id={`${listId}-links`}>
                 {dictionary.collectionSearchLinks}
               </div>
-              {groups.links.map((row, index) => {
-                const position = groups.collections.length + index;
-                return <SuggestionOption active={activeIndex === position} id={optionId(position)} key={row.key} onChoose={() => choose(row)} renderCollectionTile={renderCollectionTile} row={row} />;
-              })}
+              <ul aria-labelledby={`${listId}-links`} className={styles.suggestList}>
+                {groups.links.map((row, index) => {
+                  const position = groups.collections.length + index;
+                  return (
+                    <li key={row.key}>
+                      <SuggestionRow active={activeIndex === position} id={rowId(position)} onChoose={() => choose(row)} openLabel={dictionary.openLink} renderCollectionTile={renderCollectionTile} row={row} />
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           ) : null}
         </div>
@@ -189,29 +206,29 @@ export function CollectionSearchBox({
   );
 }
 
-function SuggestionOption({
+function SuggestionRow({
   row,
   id,
   active,
   onChoose,
+  openLabel,
   renderCollectionTile,
 }: {
   readonly row: CollectionSuggestionRow;
+  readonly openLabel: string;
   readonly renderCollectionTile: (collection: CollectionSummary, size: number) => ReactNode;
   readonly id: string;
   readonly active: boolean;
   readonly onChoose: () => void;
 }) {
-  return (
+  const option = (
     <Link
-      aria-selected={active}
+      aria-current={active ? 'true' : undefined}
       className={active ? `${styles.suggestOption} ${styles.suggestOptionActive}` : styles.suggestOption}
       data-suggestion={row.kind}
       href={row.href}
       id={id}
       onClick={onChoose}
-      role="option"
-      tabIndex={-1}
     >
       {row.kind === 'collection' ? (
         <>
@@ -238,5 +255,27 @@ function SuggestionOption({
         </>
       )}
     </Link>
+  );
+  if (row.kind !== 'link' || row.externalUrl === null) {
+    return option;
+  }
+  // A link row = the Juple link (what ArrowUp / ArrowDown / Enter act on) and, NEXT to it - never inside it, an anchor cannot nest in an
+  // anchor - the original page. Its click is its own: it opens the saved address in a new tab and never reaches the Juple link, so the row
+  // does not also navigate. Both are real links and normal tab stops.
+  return (
+    <div className={styles.suggestRow} data-suggestion-row>
+      {option}
+      <a
+        aria-label={openLabel}
+        className={styles.suggestExternal}
+        data-suggestion-external
+        href={row.externalUrl}
+        rel="noopener noreferrer"
+        target="_blank"
+        title={openLabel}
+      >
+        <Glyph name="ExternalLink" size={18} />
+      </a>
+    </div>
   );
 }

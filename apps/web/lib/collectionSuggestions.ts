@@ -1,5 +1,5 @@
 import { COLLECTION_SEARCH_DEBOUNCE_MS, normalizeCollectionSearch, type CollectionFilter, type CollectionSummary } from './collectionsView.ts';
-import { collectionHref, itemHref, sharedItemHref, siteIdOf, type KnownSiteId } from './savedLinks.ts';
+import { collectionHref, isSafeHttpUrl, itemHref, sharedItemHref, siteIdOf, type KnownSiteId } from './savedLinks.ts';
 
 /**
  * The quick suggestions under the Collections search box (GET /api/v1/collections/search-suggestions): a few Collections and a few
@@ -16,6 +16,8 @@ export interface CollectionLinkSuggestion {
   readonly hostname: string | null;
   /** The link is the caller's own Item (opened through its own screen) rather than another member's. */
   readonly isMine: boolean;
+  /** The saved URL, for the "open original" button (only ever on a link the server may suggest). */
+  readonly url: string;
 }
 
 export interface CollectionSuggestions {
@@ -45,6 +47,8 @@ export type CollectionSuggestionRow =
       /** "Collection · host", the second line. */
       readonly detail: string;
       readonly siteId: KnownSiteId | null;
+      /** The original page, only when it is a plain http(s) address - anything else (javascript:, data:, file:, ...) gets no button at all. */
+      readonly externalUrl: string | null;
     };
 
 /** Where a link suggestion opens: the link itself, in its Collection (own link: its detail; another member's: the shared read-only view). */
@@ -74,6 +78,7 @@ export function suggestionRows(suggestions: CollectionSuggestions | null): { rea
       title: link.title,
       detail: linkSuggestionDetail(link),
       siteId: link.hostname ? siteIdOf(`https://${link.hostname}`) : null,
+      externalUrl: isSafeHttpUrl(link.url) ? link.url : null,
     })),
   };
 }
