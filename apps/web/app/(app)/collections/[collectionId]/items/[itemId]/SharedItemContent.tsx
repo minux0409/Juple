@@ -10,6 +10,7 @@ import { addCopyResults, copyItemsPath, copyResultMessage, grantHeaders, NO_COPY
 import { displayTitleOf, formatLinkTimestamp, isSafeHttpUrl, parseRouteId, siteIdOf, siteOf } from '../../../../../../lib/savedLinks';
 import { useSignedInApp } from '../../../../AppRoot';
 import { Glyph } from '../../../../Glyph';
+import { CopyLinkButton } from '../../../../CopyLinkButton';
 import { LoadFailed, Notice } from '../../../../PageStates';
 import { linkTitleText } from '../../../../SavedLinkList';
 import { SiteIcon } from '../../../../SiteIcon';
@@ -196,6 +197,7 @@ export function SharedItemQuickContent({ collectionIdParam, itemIdParam }: { rea
               <Glyph name="ExternalLink" size={20} />
             </a>
           ) : null}
+          {isSafeHttpUrl(item.url) ? <CopyLinkButton url={item.url} /> : null}
           {/* Not mine: never moved or edited here - only 내 컬렉션으로 복사 (a new link of my own). */}
           <ActionMenu actions={copy.actions} className={styles.quickActionButton} label={dictionary.linkActionsLabel} />
         </div>

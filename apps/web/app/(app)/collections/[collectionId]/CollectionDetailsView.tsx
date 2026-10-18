@@ -20,6 +20,7 @@ import {
   type CollectionDetail,
 } from '../../../../lib/collectionDetails';
 import { canEditCollection } from '../../../../lib/collectionEditor';
+import { collectionNotificationPreferencePath, type CollectionNotificationPreference } from '../../../../lib/collectionNotifications';
 import { canShareCollection, isCollaborative, isSharedWithMe, participantsWithSelf, type CollectionParticipants } from '../../../../lib/collectionSharing';
 import { forgetUnlock, unlockHeaders, unlockTokenFor } from '../../../../lib/collectionUnlock';
 import { isCollectionLocked, isCollectionShared } from '../../../../lib/collectionsView';
@@ -34,7 +35,6 @@ import { MergeUndoBanner } from './MergeUndoBanner';
 import { canMergeCollection, peekCloneResult, peekMergeUndo } from '../../../../lib/collectionOperations';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ActionMenu, type MenuAction } from '../../Popover';
-import { useSafety } from '../../SafetyProvider';
 import { UnlockPanel } from './UnlockPanel';
 import { CollectionManagementDialogs, type CollectionManagementMode } from './CollectionManagementDialogs';
 import {
@@ -76,7 +76,6 @@ type HeaderState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | 
  */
 export function CollectionDetailsView({ collectionIdParam }: { readonly collectionIdParam: string }) {
   const { api, dictionary, locale, onSessionLost } = useSignedInApp();
-  const safety = useSafety();
   const collectionId = parseRouteId(collectionIdParam);
   const [header, setHeader] = useState<HeaderState>(collectionId === null ? { kind: 'notFound' } : { kind: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
@@ -129,6 +128,58 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
     }
   }, [collectionId, router, wantsSharePanel]);
   const [mergeFailure, setMergeFailure] = useState<string | null>(null);
+  // 새 링크 알림 (mobile's header bell / long-press item): the caller's own On / Off for this Collection, offered wherever someone else
+  // can add links - a Collection shared with me, or mine with members or a public link. Null until the server has answered (nothing is
+  // offered on a guess). Only the latest change counts; a failed save puts the previous state back and says so.
+  const [notificationState, setNotificationState] = useState<{ readonly collectionId: number; readonly enabled: boolean } | null>(null);
+  const [notificationError, setNotificationError] = useState<string | null>(null);
+  const notificationRequest = useRef(0);
+  const offersNotifications = header.kind === 'loaded' && isCollaborative(header.collection);
+  // The answer belongs to the Collection it was read for: another Collection (or one that stopped being shared) shows nothing.
+  const newLinkNotifications = offersNotifications && notificationState?.collectionId === collectionId ? notificationState.enabled : null;
+  useEffect(() => {
+    if (collectionId === null || !offersNotifications) {
+      return undefined;
+    }
+    let current = true;
+    api<CollectionNotificationPreference>({ method: 'GET', path: collectionNotificationPreferencePath(collectionId) }).then(
+      preference => {
+        if (current) {
+          setNotificationState({ collectionId, enabled: preference.newItemNotificationsEnabled });
+        }
+      },
+      caught => {
+        if (current && isSessionLost(caught)) {
+          onSessionLost();
+        }
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [api, collectionId, offersNotifications, onSessionLost]);
+  const changeNotifications = (enabled: boolean) => {
+    if (collectionId === null) {
+      return;
+    }
+    const previous = notificationState;
+    const requestId = ++notificationRequest.current;
+    setNotificationState({ collectionId, enabled });
+    setNotificationError(null);
+    api<CollectionNotificationPreference>({ method: 'PUT', path: collectionNotificationPreferencePath(collectionId), body: { newItemNotificationsEnabled: enabled } }).then(
+      undefined,
+      caught => {
+        if (isSessionLost(caught)) {
+          onSessionLost();
+          return;
+        }
+        if (requestId === notificationRequest.current) {
+          setNotificationState(previous);
+          setNotificationError(dictionary.newLinkNotificationsError);
+        }
+      },
+    );
+  };
   const closeMergeUndo = useCallback(() => setMergeUndo(null), []);
 
   // The content is really open (its links were read, past the lock / share-password gate): that is reading its 새 링크 notifications,
@@ -328,12 +379,20 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
             ...(isSharedWithMe(collection) && !gate
               ? [{ key: 'clone', label: dictionary.cloneToMine, icon: 'Copy' as const, onSelect: () => router.push(`${collectionHref(collection.id)}/clone`) }]
               : canMergeCollection(collection, !gate && (!isCollectionLocked(collection) || unlockTokenFor(collection.id) !== null))
-                ? [{ key: 'merge', label: dictionary.mergeWithOther, icon: 'Move' as const, onSelect: () => setPanel('merge') }]
+                ? [{ key: 'merge', label: dictionary.mergeWithOther, icon: 'Merge' as const, onSelect: () => setPanel('merge') }]
                 : []),
-            // Somebody else's Collection (one shared with me): it can be reported - never my own.
+            ...(newLinkNotifications === null
+              ? []
+              : [
+                  {
+                    key: 'notifications',
+                    label: newLinkNotifications ? dictionary.newLinkNotificationsTurnOff : dictionary.newLinkNotificationsTurnOn,
+                    icon: newLinkNotifications ? ('BellOff' as const) : ('Bell' as const),
+                    onSelect: () => changeNotifications(!newLinkNotifications),
+                  },
+                ]),
             ...(isSharedWithMe(collection)
               ? [
-                  { key: 'report', label: dictionary.safetyReport, onSelect: () => safety.report({ type: 'Collection', collectionId: collection.id }) },
                   { key: 'leave', label: dictionary.collectionLeaveAction, icon: 'Logout' as const, destructive: true, onSelect: () => setManagementMode('leave') },
                 ]
               : [
@@ -407,6 +466,7 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
         <ParticipantsPanel data={participants} dictionary={dictionary} failed={participantsFailed} />
       </Modal>
       {favoriteError ? <p className={styles.fieldError} role="alert">{favoriteError}</p> : null}
+      {notificationError ? <p className={styles.fieldError} data-notification-failed role="alert">{notificationError}</p> : null}
       {gate ? (
         <UnlockPanel
           collectionId={collection.id}
@@ -556,7 +616,7 @@ function CollectionHeader({
             onClick={onOpenShare}
             type="button"
           >
-            <Glyph name="ExternalLink" size={16} />
+            <Glyph name="Share" size={16} />
             {dictionary.shareAction}
           </button>
         ) : null}

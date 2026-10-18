@@ -77,4 +77,8 @@ export const STATUS_ICON_MARKUP = {
   // apps/mobile/src/icons/CopyIcon.tsx (the Collection / link action menus).
   Copy: "<rect x=\"9\" y=\"9\" width=\"11\" height=\"11\" rx=\"2\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linejoin=\"round\"/><path d=\"M15 5.5V5a1 1 0 0 0-1-1H6a2 2 0 0 0-2 2v8a1 1 0 0 0 1 1h.5\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
   Close: "<path d=\"M6 6l12 12\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\"/><path d=\"M18 6L6 18\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\"/>",
+  // apps/mobile/src/icons/MoonIcon.tsx, BellOffIcon.tsx, MergeIcon.tsx (Dark mode; the Collection menu's 알림 끄기 / 병합).
+  Moon: "<path d=\"M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+  BellOff: "<path d=\"M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15L6 16.5Z\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M10 20.5a2 2 0 0 0 4 0\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\"/><path d=\"M4 3.5 20 20.5\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\"/>",
+  Merge: "<path d=\"M8.5 7.5 12 4l3.5 3.5\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M12 4v7l-5 5v4\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M12 11l5 5v4\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
 } as const;

@@ -2,31 +2,41 @@
 
 import { useTheme } from '../../../_components/ThemeProvider';
 import { useSignedInApp } from '../../AppRoot';
+import { Glyph } from '../../Glyph';
 import { SettingsPage } from '../SettingsPage';
-import type { AppDictionary } from '../../../../lib/appI18n';
-import { THEME_PREFERENCES, type ThemePreference } from '../../../../lib/theme';
 import styles from '../../app.module.css';
 
-function optionLabel(option: ThemePreference, dictionary: AppDictionary): string {
-  return option === 'system' ? dictionary.appearanceSystem : option === 'light' ? dictionary.appearanceLight : dictionary.appearanceDark;
-}
-
 /**
- * 화면 모드: 시스템 설정 사용 (the browser's own light / dark, followed live) / 라이트 / 다크 - the same radio list as 언어. The choice is this
- * browser's, applies at once, survives a reload and signing out, and is never sent to the account.
+ * 다크 모드: one On / Off switch. On = explicit Dark, Off = explicit Light. A browser that still stores the old 시스템 설정 사용 shows the
+ * theme the browser currently resolves to (the stored value is left alone until the switch is first used); from then on the choice is
+ * an explicit light / dark. This browser's, applies at once, survives a reload and signing out, and is never sent to the account.
  */
 export default function AppearancePage() {
   const { dictionary } = useSignedInApp();
-  const { preference, setPreference } = useTheme();
+  const { resolved, setPreference } = useTheme();
+  const isDark = resolved === 'dark';
   return (
     <SettingsPage title={dictionary.appearanceTitle}>
-      <div aria-label={dictionary.appearanceTitle} className={styles.settingsCard} role="radiogroup">
-        {THEME_PREFERENCES.map(option => (
-          <button aria-checked={preference === option} className={styles.settingsLinkRow} data-theme-option={option} key={option} onClick={() => setPreference(option)} role="radio" type="button">
-            <span className={styles.settingsLinkLabel}>{optionLabel(option, dictionary)}</span>
-            {preference === option ? <span aria-hidden className={styles.checkMark} /> : null}
+      <div className={styles.settingsCard}>
+        <div className={styles.settingsSwitchRow}>
+          <span aria-hidden className={styles.settingsRowIcon}>
+            <Glyph name="Moon" size={20} />
+          </span>
+          <span className={styles.settingsLinkLabel} id="dark-mode-label">
+            {dictionary.appearanceDarkMode}
+          </span>
+          <button
+            aria-checked={isDark}
+            aria-labelledby="dark-mode-label"
+            className={isDark ? styles.switchOn : styles.switchOff}
+            data-dark-mode-switch
+            onClick={() => setPreference(isDark ? 'light' : 'dark')}
+            role="switch"
+            type="button"
+          >
+            <span aria-hidden className={styles.switchKnob} />
           </button>
-        ))}
+        </div>
       </div>
     </SettingsPage>
   );

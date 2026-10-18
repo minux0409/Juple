@@ -19,6 +19,7 @@ import { ConfirmDialog } from '../../ConfirmDialog';
 import { DestinationDialog, type PickedDestination } from '../../DestinationDialog';
 import { ActionMenu } from '../../Popover';
 import { CollectionGlyph, Glyph } from '../../Glyph';
+import { CopyLinkButton } from '../../CopyLinkButton';
 import { LinkImage } from '../../LinkImage';
 import { LoadFailed, Notice } from '../../PageStates';
 import { SiteIcon } from '../../SiteIcon';
@@ -240,6 +241,7 @@ export function ItemDetailContent({
               <Glyph name="ExternalLink" size={20} />
             </a>
           ) : null}
+          {isSafeHttpUrl(item.url) ? <CopyLinkButton url={item.url} /> : null}
           <Link
             aria-label={dictionary.edit}
             className={styles.quickActionButton}

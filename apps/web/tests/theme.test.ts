@@ -85,19 +85,31 @@ describe('Web appearance: provider and settings', () => {
     assert.match(provider, /typeof window === 'undefined' \? 'system' : readStoredPreference\(\)/);
   });
 
-  it('the Settings rail has 화면 모드 and the page is a radiogroup of the three choices', () => {
+  it('the Settings rail has 화면 모드 and the page is ONE Dark mode switch (On = dark, Off = light), no three-way list', () => {
     assert.ok(SETTINGS_NAV_ITEMS.some(item => item.key === 'appearance' && item.href === '/me/appearance'));
-    const page = source('app/(app)/me/appearance/page.tsx');
-    assert.match(page, /role="radiogroup"/);
-    assert.match(page, /role="radio"/);
-    assert.match(page, /setPreference\(option\)/);
+    const page = source('app/(app)/me/appearance/page.tsx').replace(/\r\n/g, '\n');
+    assert.match(page, /role="switch"/);
+    assert.match(page, /aria-checked=\{isDark\}/);
+    assert.match(page, /aria-labelledby="dark-mode-label"/);
+    assert.match(page, /setPreference\(isDark \? 'light' : 'dark'\)/);
+    assert.doesNotMatch(page, /role="radio(group)?"|THEME_PREFERENCES|'system'/);
   });
 
-  it('the four labels exist in all 17 languages (translated, not an English fallback)', () => {
+  it('a stored system choice is still read, shown as the theme the browser resolves to, and replaced by an explicit value only when the switch is used', () => {
+    assert.equal(parseThemePreference('system'), 'system');
+    assert.equal(resolveTheme('system', true), 'dark');
+    assert.equal(resolveTheme('system', false), 'light');
+    const page = source('app/(app)/me/appearance/page.tsx');
+    assert.match(page, /resolved === 'dark'/);
+    assert.doesNotMatch(page, /setPreference\('system'\)/);
+    assert.doesNotMatch(provider, /setItem\(THEME_STORAGE_KEY, 'system'\)/);
+  });
+
+  it('the labels exist in all 17 languages (translated, not an English fallback)', () => {
     const en = getAppDictionary('en');
     for (const language of APP_LANGUAGES) {
       const words = getAppDictionary(language);
-      for (const key of ['appearanceTitle', 'appearanceSystem', 'appearanceLight', 'appearanceDark'] as const) {
+      for (const key of ['appearanceTitle', 'appearanceSystem', 'appearanceLight', 'appearanceDark', 'appearanceDarkMode'] as const) {
         assert.ok(words[key].trim().length > 0, `${language}.${key}`);
         if (language !== 'en') {
           assert.notEqual(words[key], en[key], `${language}.${key}`);
@@ -105,6 +117,7 @@ describe('Web appearance: provider and settings', () => {
       }
     }
     assert.equal(getAppDictionary('ko').appearanceDark, '다크');
+    assert.equal(getAppDictionary('ko').appearanceDarkMode, '다크 모드');
   });
 });
 

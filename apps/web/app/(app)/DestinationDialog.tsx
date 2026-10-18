@@ -34,6 +34,7 @@ export function DestinationDialog({
   onSubmit,
   errorMessage,
   onClose,
+  viewModes,
 }: {
   readonly title: string;
   readonly confirmLabel: string;
@@ -45,6 +46,8 @@ export function DestinationDialog({
   readonly onSubmit: (destinations: readonly PickedDestination[]) => Promise<void>;
   readonly errorMessage: (error: unknown) => string;
   readonly onClose: () => void;
+  /** Offers the picker's List | Grid switch (병합). */
+  readonly viewModes?: boolean;
 }) {
   const { api, dictionary, onSessionLost } = useSignedInApp();
   const [destinations, setDestinations] = useState<readonly CollectionSummary[] | null>(null);
@@ -145,6 +148,7 @@ export function DestinationDialog({
             }}
             selectedIds={new Set([...chosen, ...containedIds])}
             session={session}
+            viewModes={viewModes}
           />
         )}
         {failed ? <p className={styles.formError}>{dictionary.destinationsLoadFailed}</p> : null}

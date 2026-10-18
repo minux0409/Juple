@@ -8358,3 +8358,160 @@ button.reactionChipMine:hover {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
+
+/* ---- Round: Dark mode switch row, Collection picker List / Grid ---- */
+.settingsSwitchRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 18px;
+  box-sizing: border-box;
+}
+
+.pickerToolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}
+
+.pickerToolbar > .pickerSearch {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.choiceListRows {
+  grid-template-columns: 1fr;
+}
+
+.choiceGridTiles {
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+}
+
+.choice.choiceTile,
+.choiceSelected.choiceTile {
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: var(--space-2, 8px);
+  min-height: 0;
+  padding: var(--space-3, 12px) var(--space-2, 8px);
+  text-align: center;
+}
+
+.choiceTile .choiceName {
+  flex: 0 1 auto;
+  width: 100%;
+  -webkit-line-clamp: 2;
+  font-size: var(--text-caption, 12px);
+}
+
+/* ---- Round 2: the one close X, Friend picker List | Grid ---- */
+.modalCloseButton {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: -6px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+}
+
+.modalCloseButton:hover:not(:disabled) {
+  background: var(--app-surface-hover);
+  color: var(--app-text);
+}
+
+.modalCloseButton:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.modalCloseButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.friendPickerSearchRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.friendPickerSearchRow > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.friendPickGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  align-content: start;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.friendPickTile,
+.friendPickTileSelected {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 14px 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.friendPickTile:hover:not(:disabled) {
+  border-color: var(--brand);
+}
+
+.friendPickTileSelected {
+  border: 2px solid var(--brand);
+  background: var(--brand-soft);
+}
+
+.friendPickTile:disabled,
+.friendPickTileSelected:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.friendPickTile .pickMark,
+.friendPickTileSelected .pickMarkSelected {
+  position: absolute;
+  top: 6px;
+  inset-inline-end: 6px;
+}
+
+.friendPickTileText {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+}
+
+.friendPickTileText > * {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

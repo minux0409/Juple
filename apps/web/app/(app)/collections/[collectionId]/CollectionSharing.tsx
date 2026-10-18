@@ -588,7 +588,7 @@ export function SharePanel({
           <section className={styles.shareSection}>
             <div className={styles.shareSectionHead}>
               <span className={styles.shareSectionIcon} aria-hidden>
-                <Glyph name="ExternalLink" size={20} />
+                <Glyph name="Share" size={20} />
               </span>
               <span className={styles.shareSectionText}>
                 <h3 className={styles.shareSectionTitle}>{dictionary.shareLinkTitle}</h3>

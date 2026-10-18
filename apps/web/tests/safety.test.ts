@@ -92,8 +92,8 @@ describe('reporting (the mobile reasons, the same API)', () => {
     assert.doesNotMatch(provider, /dangerouslySetInnerHTML/);
   });
 
-  it('is offered on somebody else\'s Collection and comment - and never on one\'s own (a friend no longer has 신고 / 차단)', () => {
-    assert.match(source('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx'), /isSharedWithMe\(collection\)\s*\? \[\s*\{ key: 'report'/);
+  it("is offered on somebody else's comment, never on one's own, and no longer on a whole Collection (a friend has no 신고 / 차단 either)", () => {
+    assert.doesNotMatch(source('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx'), /key: 'report'|type: 'Collection'/);
     assert.match(source('app/(app)/ItemCollaboration.tsx'), /onReport && !author\.isMe/);
     assert.doesNotMatch(source('app/(app)/me/friends/page.tsx'), /safety\.(report|block)\(/);
   });

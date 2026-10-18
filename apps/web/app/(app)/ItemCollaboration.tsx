@@ -38,6 +38,7 @@ import { useSafety } from './SafetyProvider';
 import { Avatar } from './Avatar';
 import { ConfirmDialog } from './ConfirmDialog';
 import { CollectionGlyph, Glyph } from './Glyph';
+import { ModalCloseButton } from './ModalCloseButton';
 import { useItemComments, type CommentFailure, type EditTarget } from './useItemComments';
 import styles from './app.module.css';
 
@@ -415,9 +416,7 @@ function ReactionPicker({
           <h2 className={styles.dialogTitle} id="reaction-picker-title">
             {dictionary.reactionPickerTitle}
           </h2>
-          <button aria-label={dictionary.close} className={styles.iconButton} onClick={onClose} type="button">
-            <Glyph name="Close" size={20} />
-          </button>
+          <ModalCloseButton label={dictionary.close} onClick={onClose} />
         </div>
         {open ? (
           <div className={styles.reactionPickerBody}>

@@ -381,3 +381,45 @@ describe('the tour layer paints nothing itself (Web) - regression of the opaque 
     assert.ok(painted);
   });
 });
+
+describe('spotlight corner radius (Web)', () => {
+  it('reads the computed radius of the target: px, a pill percentage, the first value of an elliptical one', async () => {
+    const { parseCornerRadius } = await import('../lib/tour.ts');
+    const box = { width: 300, height: 48 };
+    assert.equal(parseCornerRadius('20px', box), 20);
+    assert.equal(parseCornerRadius('8.5px', box), 8.5);
+    assert.equal(parseCornerRadius('12px 6px', box), 12);
+    assert.equal(parseCornerRadius('12px / 6px', box), 12);
+    assert.equal(parseCornerRadius('50%', box), 24);
+    assert.equal(parseCornerRadius('9999px', box), 9999);
+    assert.equal(parseCornerRadius('0px', box), 0);
+  });
+
+  it('anything it cannot read is null, so the stylesheet default stays', async () => {
+    const { parseCornerRadius } = await import('../lib/tour.ts');
+    const box = { width: 300, height: 48 };
+    for (const value of ['', 'auto', 'var(--radius-control)', '1em', 'calc(4px + 2px)', null, undefined]) {
+      assert.equal(parseCornerRadius(value, box), null, String(value));
+    }
+  });
+
+  it('the ring is the target radius grown by the padding (R + P), never beyond a pill of its own size, and unknown stays unknown', async () => {
+    const { spotlightRadius, TOUR_SPOTLIGHT_PADDING } = await import('../lib/tour.ts');
+    assert.equal(spotlightRadius(20, { width: 380, height: 68 }), 20 + TOUR_SPOTLIGHT_PADDING);
+    assert.equal(spotlightRadius(0, { width: 300, height: 60 }), TOUR_SPOTLIGHT_PADDING);
+    assert.equal(spotlightRadius(9999, { width: 200, height: 30 }), 15);
+    assert.equal(spotlightRadius(null, { width: 200, height: 30 }), null);
+    assert.equal(spotlightRadius(Number.NaN, { width: 200, height: 30 }), null);
+  });
+
+  it('the provider applies it to the spotlight only; the scrim shadow, the blocker and the transparent tourRoot are unchanged', () => {
+    const provider = readFileSync(new URL('../app/(app)/TourProvider.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+    const css = readFileSync(new URL('../app/(app)/app.module.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+    assert.match(provider, /parseCornerRadius\(window\.getComputedStyle\(target\)\.borderTopLeftRadius, next\)/);
+    assert.match(provider, /borderRadius: spotlightRadius\(targetRadius, spotlight\) \?\? undefined/);
+    // The dimming is still the ring's own shadow, which follows its (now matching) rounded corners.
+    assert.match(css, /\.tourSpotlight,\s*\.tourSpotlightStatic \{[^}]*box-shadow: 0 0 0 100vmax var\(--tour-scrim/);
+    assert.match(css, /\.tourRoot \{[^}]*Never paints/);
+    assert.match(provider, /className=\{spotlight \? styles\.tourBlocker : styles\.tourScrim\}/);
+  });
+});

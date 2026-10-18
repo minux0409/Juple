@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import { setItemOverlayOpen } from '../../../../lib/itemOverlay';
 import { useSignedInApp } from '../../AppRoot';
 import { Glyph } from '../../Glyph';
+import { ModalCloseButton } from '../../ModalCloseButton';
 import { ItemDetailContent } from './ItemDetailContent';
 import styles from '../../app.module.css';
 
@@ -78,9 +79,7 @@ export function QuickSheetFrame({ children }: { readonly children: React.ReactNo
             <Glyph name="Link" size={18} />
           </span>
           <h1 className={styles.quickBarTitle}>{dictionary.itemDetailsTitle}</h1>
-          <button aria-label={dictionary.close} className={styles.iconButton} onClick={close} type="button">
-            <Glyph name="Close" size={20} />
-          </button>
+          <ModalCloseButton label={dictionary.close} onClick={close} />
         </header>
         <div className={styles.quickScroll}>{children}</div>
       </div>

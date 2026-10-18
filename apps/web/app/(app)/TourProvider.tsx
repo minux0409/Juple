@@ -9,7 +9,9 @@ import {
   isOnRoute,
   placeCard,
   sameRect,
+  parseCornerRadius,
   spotlightFor,
+  spotlightRadius,
   TOUR_FIND_INTERVAL_MS,
   TOUR_FIND_TIMEOUT_MS,
   type GuideId,
@@ -111,6 +113,8 @@ function TourStepView({ guide, index, onIndex, onClose }: { readonly guide: Tour
   const nextRef = useRef<HTMLButtonElement>(null);
   const [rect, setRect] = useState<Rect | null>(null);
   const [missing, setMissing] = useState(false);
+  // The target's own corner radius (px), read from its computed style; null = not readable (the spotlight keeps its default).
+  const [targetRadius, setTargetRadius] = useState<number | null>(null);
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
   const [cardSize, setCardSize] = useState<Size | null>(null);
 
@@ -150,6 +154,7 @@ function TourStepView({ guide, index, onIndex, onClose }: { readonly guide: Tour
         setMissing(true);
       }
       setRect(current => (sameRect(current, next) ? current : next));
+      setTargetRadius(next && target ? parseCornerRadius(window.getComputedStyle(target).borderTopLeftRadius, next) : null);
     };
     // Resize, scroll (any container) and layout changes (a sidebar collapsing, a list loading) all move the target.
     const timer = window.setInterval(measure, TOUR_FIND_INTERVAL_MS);
@@ -246,7 +251,7 @@ function TourStepView({ guide, index, onIndex, onClose }: { readonly guide: Tour
           aria-hidden
           className={reduceMotion ? styles.tourSpotlightStatic : styles.tourSpotlight}
           data-tour-spotlight
-          style={{ height: spotlight.height, left: spotlight.x, top: spotlight.y, width: spotlight.width }}
+          style={{ borderRadius: spotlightRadius(targetRadius, spotlight) ?? undefined, height: spotlight.height, left: spotlight.x, top: spotlight.y, width: spotlight.width }}
         />
       ) : null}
       <div

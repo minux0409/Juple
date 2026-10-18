@@ -173,6 +173,33 @@ export const TOUR_GAP = 12;
 export const TOUR_EDGE = 16;
 export const TOUR_SPOTLIGHT_PADDING = 6;
 
+/**
+ * The target's own corner radius in px from a computed `border-*-radius` value ("20px", "8px 12px" - the horizontal radius is taken -
+ * or a percentage of the box, 50% being a pill / circle). Anything else (a var() that did not resolve, `auto`, nothing) is null:
+ * the spotlight then keeps its stylesheet default. No attempt is made to read four different corners; the top-start corner stands
+ * for the control, which is how every Juple control is drawn.
+ */
+export function parseCornerRadius(value: string | null | undefined, box: Size): number | null {
+  const first = (value ?? '').trim().split(/[\s/]+/)[0] ?? '';
+  const match = /^(\d+(?:\.\d+)?)(px|%)$/.exec(first);
+  if (!match) {
+    return null;
+  }
+  const amount = Number(match[1]);
+  return match[2] === '%' ? (Math.min(box.width, box.height) * amount) / 100 : amount;
+}
+
+/**
+ * The spotlight ring's radius: the target's radius grown by the padding the ring reaches beyond it (R + P), never more than a pill of
+ * the ring's own size. Null (unknown) stays null so the stylesheet default applies.
+ */
+export function spotlightRadius(targetRadius: number | null, spotlight: Size): number | null {
+  if (targetRadius === null || !Number.isFinite(targetRadius) || targetRadius < 0) {
+    return null;
+  }
+  return Math.min(targetRadius + TOUR_SPOTLIGHT_PADDING, Math.min(spotlight.width, spotlight.height) / 2);
+}
+
 /** The target grown by the padding, kept inside the viewport. */
 export function spotlightFor(target: Rect, viewport: Size): Rect {
   const x = Math.max(0, target.x - TOUR_SPOTLIGHT_PADDING);

@@ -42,7 +42,7 @@ describe('Quick Detail sheet: behaviour', () => {
     assert.match(sheet, /onCancel=\{event => \{\s*event\.preventDefault\(\);\s*close\(\);/);
     assert.match(sheet, /event\.target === event\.currentTarget/);
     assert.match(sheet, /const close = \(\) => router\.back\(\);/);
-    assert.match(sheet, /aria-label=\{dictionary\.close\}/);
+    assert.match(sheet, /<ModalCloseButton label={dictionary.close}/);
     assert.match(sheet, /aria-label=\{dictionary\.itemDetailsTitle\}/);
     assert.doesNotMatch(sheet, /router\.(push|replace)|window\.history\.(push|replace)State/, 'closing never creates history');
   });

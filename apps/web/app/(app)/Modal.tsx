@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { ModalCloseButton } from './ModalCloseButton';
 import styles from './app.module.css';
 
 /** A modal panel (native <dialog>: focus kept inside, Escape closes) with a title and a close button. */
@@ -47,9 +48,7 @@ export function Modal({
         <h2 className={styles.dialogTitle} id="modal-title">
           {title}
         </h2>
-        <button className={styles.settingsAction} onClick={onClose} type="button">
-          {closeLabel}
-        </button>
+        <ModalCloseButton label={closeLabel} onClick={onClose} />
       </div>
       {/* The body scrolls on its own under the header: content can never paint over the title or the close button. */}
       <div className={styles.panelScroll} data-modal-body>

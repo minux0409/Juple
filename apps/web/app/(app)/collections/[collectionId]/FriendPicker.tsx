@@ -22,9 +22,13 @@ import { isSafeHttpUrl } from '../../../../lib/savedLinks';
 import { useSignedInApp } from '../../AppRoot';
 import { Avatar } from '../../Avatar';
 import { LoadMore } from '../../InfiniteScroll';
+import { ModalCloseButton } from '../../ModalCloseButton';
 import { SearchField } from '../../SearchField';
 import { SettingsRowSkeleton } from '../../Skeletons';
+import { ViewModeToggle } from '../../ViewModeToggle';
 import styles from '../../app.module.css';
+
+const FRIEND_PICKER_VIEW_MODES = ['list', 'grid'] as const;
 
 type ListState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | ({ readonly kind: 'loaded' } & PagedState<Friend>);
 
@@ -57,6 +61,8 @@ export function FriendPicker({
   const { api, dictionary, onSessionLost } = useSignedInApp();
   const ref = useRef<HTMLDialogElement>(null);
   const [text, setText] = useState('');
+  // List | Grid is a way of looking at the same friends (in memory for this opening; the order and the search are unchanged).
+  const [layout, setLayout] = useState<'list' | 'grid'>('list');
   const [query, setQuery] = useState('');
   const [list, setList] = useState<ListState>({ kind: 'loading' });
   const [picked, setPicked] = useState<ReadonlyMap<string, Friend>>(new Map());
@@ -201,11 +207,18 @@ export function FriendPicker({
         <h2 className={styles.dialogTitle} id="friend-picker-title">
           {dictionary.chooseFriends}
         </h2>
-        <button aria-label={dictionary.close} className={styles.iconButton} onClick={close} type="button">
-          ×
-        </button>
+        <ModalCloseButton label={dictionary.close} onClick={close} />
       </div>
-      <SearchField onChange={setText} placeholder={dictionary.friendsSearch} value={text} />
+      <div className={styles.friendPickerSearchRow}>
+        <SearchField onChange={setText} placeholder={dictionary.friendsSearch} value={text} />
+        <ViewModeToggle
+          groupLabel={dictionary.viewModeLabel}
+          labels={{ list: dictionary.viewList, grid: dictionary.viewGrid, image: dictionary.viewImage }}
+          modes={FRIEND_PICKER_VIEW_MODES}
+          onChange={setLayout}
+          value={layout}
+        />
+      </div>
       <div className={styles.friendPickerPermission}>
         <span className={styles.fieldLabel}>{dictionary.sharePermissionLabel}</span>
         <div aria-label={dictionary.sharePermissionLabel} className={styles.filterTabs} role="group">
@@ -235,7 +248,7 @@ export function FriendPicker({
         ) : null}
         {list.kind === 'loaded' && list.items.length === 0 ? <p className={styles.stateMessage}>{query ? dictionary.friendsSearchEmpty : dictionary.friendsEmpty}</p> : null}
         {list.kind === 'loaded' ? (
-          <ul className={styles.personList}>
+          <ul className={layout === 'grid' ? styles.friendPickGrid : styles.personList} data-friend-picker-layout={layout}>
             {list.items.map(friend => {
               const isPicked = picked.has(friend.jupleId);
               const blocked = unavailable.has(friend.jupleId);
@@ -243,7 +256,7 @@ export function FriendPicker({
                 <li key={friend.jupleId}>
                   <button
                     aria-pressed={isPicked}
-                    className={isPicked ? styles.friendPickRowSelected : styles.friendPickRow}
+                    className={layout === 'grid' ? (isPicked ? styles.friendPickTileSelected : styles.friendPickTile) : isPicked ? styles.friendPickRowSelected : styles.friendPickRow}
                     disabled={blocked || busy}
                     onClick={() => toggle(friend)}
                     type="button"
@@ -251,8 +264,8 @@ export function FriendPicker({
                     <span aria-hidden className={isPicked ? styles.pickMarkSelected : styles.pickMark}>
                       {isPicked ? '✓' : ''}
                     </span>
-                    <Avatar person={{ displayName: friend.displayName, profileImageUrl: isSafeHttpUrl(friend.profileImageUrl) ? friend.profileImageUrl : null }} size={40} />
-                    <span className={styles.personText}>
+                    <Avatar person={{ displayName: friend.displayName, profileImageUrl: isSafeHttpUrl(friend.profileImageUrl) ? friend.profileImageUrl : null }} size={layout === 'grid' ? 56 : 40} />
+                    <span className={layout === 'grid' ? styles.friendPickTileText : styles.personText}>
                       <span className={styles.settingsValueStart} dir="auto">
                         {personName(friend)}
                       </span>

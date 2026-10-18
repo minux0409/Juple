@@ -80,6 +80,7 @@ export function MergeCollection({ collection, onClose, onFailed }: { readonly co
         }}
         selection="single"
         title={dictionary.mergeTitle}
+        viewModes
       />
     );
   }

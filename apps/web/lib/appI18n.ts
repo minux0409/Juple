@@ -122,9 +122,6 @@ export interface WebOnlyStrings {
   readonly configMissingTitle: string;
   readonly configMissingMessage: string;
   readonly loadFailedMessage: string;
-  readonly viewList: string;
-  readonly viewGrid: string;
-  readonly viewImage: string;
   readonly viewModeLabel: string;
   readonly collectionsFilterLabel: string;
   readonly accountFallback: string;
