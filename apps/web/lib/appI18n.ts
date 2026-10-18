@@ -150,6 +150,10 @@ export interface WebOnlyStrings {
   readonly linkActionsLabel: string;
   /** a Collection shared with me -> a new one of mine */
   readonly cloneToMine: string;
+  readonly shortcutCreate: string;
+  readonly shortcutCreated: string;
+  readonly shortcutHint: string;
+  readonly shortcutFailed: string;
   readonly cloneHint: string;
   readonly cloneSubmit: string;
   readonly clonePartialFailure: string;

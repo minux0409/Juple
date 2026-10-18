@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { formatMessage, type AppDictionary } from '../../../../lib/appI18n';
 import type { AppApi } from '../../../../lib/appApi';
 import { isSessionLost } from '../../../../lib/authSession';
@@ -35,6 +35,8 @@ import { MergeUndoBanner } from './MergeUndoBanner';
 import { canMergeCollection, peekCloneResult, peekMergeUndo } from '../../../../lib/collectionOperations';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ActionMenu, type MenuAction } from '../../Popover';
+import { useToast } from '../../Toaster';
+import { buildShortcutFile, collectionShortcutUrl, downloadShortcutFile, resolveShortcutFormat, type ShortcutFormat } from '../../../../lib/desktopShortcut';
 import { UnlockPanel } from './UnlockPanel';
 import { CollectionManagementDialogs, type CollectionManagementMode } from './CollectionManagementDialogs';
 import {
@@ -134,6 +136,13 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
   const [notificationState, setNotificationState] = useState<{ readonly collectionId: number; readonly enabled: boolean } | null>(null);
   const [notificationError, setNotificationError] = useState<string | null>(null);
   const notificationRequest = useRef(0);
+  // 바로가기 만들기: only on a desktop browser (a phone gets the app instead). The format is read after mount - the server cannot know it.
+  const toast = useToast();
+  const shortcutFormat = useSyncExternalStore<ShortcutFormat | null>(
+    () => () => undefined,
+    () => resolveShortcutFormat(navigator.userAgent, navigator.maxTouchPoints),
+    () => null,
+  );
   const offersNotifications = header.kind === 'loaded' && isCollaborative(header.collection);
   // The answer belongs to the Collection it was read for: another Collection (or one that stopped being shared) shows nothing.
   const newLinkNotifications = offersNotifications && notificationState?.collectionId === collectionId ? notificationState.enabled : null;
@@ -389,6 +398,23 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
                     label: newLinkNotifications ? dictionary.newLinkNotificationsTurnOff : dictionary.newLinkNotificationsTurnOn,
                     icon: newLinkNotifications ? ('BellOff' as const) : ('Bell' as const),
                     onSelect: () => changeNotifications(!newLinkNotifications),
+                  },
+                ]),
+            ...(shortcutFormat === null
+              ? []
+              : [
+                  {
+                    key: 'shortcut',
+                    label: dictionary.shortcutCreate,
+                    icon: 'Link' as const,
+                    onSelect: () => {
+                      try {
+                        downloadShortcutFile(buildShortcutFile(shortcutFormat, collectionShortcutUrl(window.location.origin, collection.id), collection.name));
+                        toast.showNotice(`${dictionary.shortcutCreated} ${dictionary.shortcutHint}`);
+                      } catch {
+                        toast.showNotice(dictionary.shortcutFailed, 'error');
+                      }
+                    },
                   },
                 ]),
             ...(isSharedWithMe(collection)
