@@ -200,6 +200,7 @@ builder.Services.AddScoped<IRestoreItemService, RestoreItemService>();
 builder.Services.AddScoped<IPermanentlyDeleteItemService, PermanentlyDeleteItemService>();
 builder.Services.AddScoped<IEmptyItemTrashService, EmptyItemTrashService>();
 builder.Services.AddScoped<IListCollectionsService, ListCollectionsService>();
+builder.Services.AddScoped<CollectionSearchSuggestionsService>();
 builder.Services.AddScoped<Juple.Application.Collections.HomeSummary.IHomeCollectionsSummaryService, Juple.Application.Collections.HomeSummary.HomeCollectionsSummaryService>();
 builder.Services.AddScoped<ICreateCollectionService, CreateCollectionService>();
 builder.Services.AddScoped<IGetCollectionDetailService, GetCollectionDetailService>();

@@ -54,6 +54,21 @@ public sealed class CollectionsControllerTests
         Assert.Contains("itemId", problem.Errors.Keys);
     }
 
+    [Theory]
+    [InlineData(null, "all", "q")]
+    [InlineData("", "all", "q")]
+    [InlineData("   ", "all", "q")]
+    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "all", "q")]
+    [InlineData("tian", "myPending", "scope")]
+    [InlineData("tian", "nope", "scope")]
+    public async Task SearchSuggestionsAsync_WhenTheTermOrScopeIsInvalid_ReturnsBadRequest(string? q, string scope, string field)
+    {
+        var result = await ItemsController().SearchSuggestionsAsync(q, null!, CancellationToken.None, scope);
+
+        var problem = Assert.IsType<ValidationProblemDetails>(Assert.IsType<BadRequestObjectResult>(result).Value);
+        Assert.Contains(field, problem.Errors.Keys);
+    }
+
     private static CollectionsController ItemsController() => new(
         null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!);
 

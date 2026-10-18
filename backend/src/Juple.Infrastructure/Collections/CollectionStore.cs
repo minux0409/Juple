@@ -24,7 +24,7 @@ public sealed class CollectionStore(
     JupleDbContext dbContext,
     ICollectionIconImageStorage? iconImageStorage = null,
     IUserProfileImageStorage? profileImageStorage = null,
-    TimeProvider? timeProvider = null) : ICollectionContributedLinkStore, ICollectionStore, ICollectionItemStore, ICollectionManagementStore, IPublicCollectionWriteStore
+    TimeProvider? timeProvider = null) : ICollectionContributedLinkStore, ICollectionStore, ICollectionItemStore, ICollectionManagementStore, IPublicCollectionWriteStore, ICollectionSearchSuggestionStore
 {
     private TimeProvider Clock => timeProvider ?? TimeProvider.System;
 
@@ -360,6 +360,100 @@ public sealed class CollectionStore(
                         && item.DeletedAtUtc == null
                         && (EF.Functions.Like(item.Url, pattern, ItemSearchPattern.EscapeCharacter)
                             || (item.Title != null && EF.Functions.Like(item.Title, pattern, ItemSearchPattern.EscapeCharacter)))))));
+    }
+
+    private const int SuggestedCollectionCount = 4;
+    private const int SuggestedLinkCount = 4;
+    private const int SuggestedLinksPerCollection = 2;
+
+    /// <summary>
+    /// The same lock / access-password rule ApplyListSearch applies (kept next to it, and a parity test pins them together): true when the
+    /// caller may see the Collection's links without unlocking - not the Owner's lock, and not a member's access password.
+    /// </summary>
+    private System.Linq.Expressions.Expression<Func<Collection, bool>> LinksVisibleFor(long userId) =>
+        collection => !(collection.UserId == userId
+            ? collection.IsLocked
+            : dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
+                && (password.Mode == CollectionSharePasswordMode.PerCollection
+                    || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked))));
+
+    /// <summary>
+    /// A handful of Collections (name) and links (title / URL) for the search box. Same scope, same access, same privacy as the list
+    /// search: only the caller's accessible Collections, a gated Collection offers its NAME only, a trashed Item is no link, the memo is
+    /// never read. Everything is limited in SQL (TOP), ordered by relevance - starts-with before contains - then newest first. A fixed
+    /// number of statements however many rows match (Collections, their card data, links); no per-row query.
+    /// </summary>
+    public async Task<CollectionSearchSuggestions> SuggestAsync(
+        long userId,
+        CollectionListScope scope,
+        CollectionListSearch search,
+        CancellationToken cancellationToken = default)
+    {
+        var contains = search.Pattern;
+        var prefix = search.PrefixPattern;
+        var escape = ItemSearchPattern.EscapeCharacter;
+
+        var collectionRows = await ProjectRows(
+                userId,
+                AccessibleCollections(userId, scope)
+                    .Where(collection => EF.Functions.Like(collection.Name, contains, escape))
+                    .OrderBy(collection => EF.Functions.Like(collection.Name, prefix, escape) ? 0 : 1)
+                    .ThenByDescending(collection => collection.CreatedAtUtc)
+                    .ThenByDescending(collection => collection.Id)
+                    .Take(SuggestedCollectionCount))
+            .ToListAsync(cancellationToken);
+        var collections = await ToDtosAsync(userId, collectionRows, cancellationToken);
+
+        // A few more candidates than shown: the same Item in two Collections, or one Collection holding many matches, must not crowd the
+        // list out. Still bounded in SQL.
+        var candidates = await (
+                from collection in AccessibleCollections(userId, scope).Where(LinksVisibleFor(userId))
+                join membership in dbContext.CollectionItems.AsNoTracking() on collection.Id equals membership.CollectionId
+                join item in dbContext.Items.AsNoTracking() on membership.ItemId equals item.Id
+                where item.DeletedAtUtc == null
+                    && (EF.Functions.Like(item.Url, contains, escape)
+                        || (item.Title != null && EF.Functions.Like(item.Title, contains, escape)))
+                let rank = item.Title != null && EF.Functions.Like(item.Title, prefix, escape)
+                    ? 0
+                    : item.Title != null && EF.Functions.Like(item.Title, contains, escape) ? 1 : 2
+                orderby rank, membership.AddedAtUtc descending, membership.Id descending
+                select new { ItemId = item.Id, CollectionId = collection.Id, CollectionName = collection.Name, item.Title, item.Url, IsMine = item.UserId == userId })
+            .Take(SuggestedLinkCount * 6)
+            .ToListAsync(cancellationToken);
+
+        var seenItems = new HashSet<long>();
+        var perCollection = new Dictionary<long, int>();
+        var links = new List<CollectionLinkSuggestionDto>(SuggestedLinkCount);
+        foreach (var candidate in candidates)
+        {
+            if (links.Count == SuggestedLinkCount)
+            {
+                break;
+            }
+
+            if (!seenItems.Add(candidate.ItemId)
+                || perCollection.GetValueOrDefault(candidate.CollectionId) >= SuggestedLinksPerCollection)
+            {
+                continue;
+            }
+
+            perCollection[candidate.CollectionId] = perCollection.GetValueOrDefault(candidate.CollectionId) + 1;
+            var hostname = HostnameOf(candidate.Url);
+            var title = string.IsNullOrWhiteSpace(candidate.Title) ? hostname ?? candidate.Url : candidate.Title;
+            links.Add(new CollectionLinkSuggestionDto(candidate.ItemId, candidate.CollectionId, candidate.CollectionName, title, hostname, candidate.IsMine));
+        }
+
+        return new CollectionSearchSuggestions(collections, links);
+    }
+
+    private static string? HostnameOf(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || string.IsNullOrEmpty(uri.Host))
+        {
+            return null;
+        }
+
+        return uri.Host.StartsWith("www.", StringComparison.OrdinalIgnoreCase) ? uri.Host[4..] : uri.Host;
     }
 
     /// <summary>

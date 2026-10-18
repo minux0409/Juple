@@ -9,7 +9,7 @@ namespace Juple.Application.Collections.ListCollections;
 /// the user's own text: it becomes a LIKE "contains" pattern with its wildcards escaped (<see cref="ItemSearchPattern"/>) and is only
 /// ever a parameter.
 /// </summary>
-public sealed record CollectionListSearch(string Pattern)
+public sealed record CollectionListSearch(string Pattern, string PrefixPattern = "")
 {
     public const int MinLength = 1;
 
@@ -30,7 +30,7 @@ public sealed record CollectionListSearch(string Pattern)
             return false;
         }
 
-        search = new CollectionListSearch(ItemSearchPattern.ToContainsPattern(trimmed));
+        search = new CollectionListSearch(ItemSearchPattern.ToContainsPattern(trimmed), ItemSearchPattern.ToPrefixPattern(trimmed));
         return true;
     }
 }

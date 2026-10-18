@@ -21,13 +21,14 @@ public static class ItemSearchPattern
         return trimmed is { Length: >= MinLength and <= MaxLength } ? trimmed : null;
     }
 
-    public static string ToContainsPattern(string term)
-    {
-        var escaped = term
-            .Replace("\\", "\\\\", StringComparison.Ordinal)
-            .Replace("%", "\\%", StringComparison.Ordinal)
-            .Replace("_", "\\_", StringComparison.Ordinal)
-            .Replace("[", "\\[", StringComparison.Ordinal);
-        return "%" + escaped + "%";
-    }
+    public static string ToContainsPattern(string term) => "%" + Escape(term) + "%";
+
+    /// <summary>"Starts with" - the same escaping; only used to order suggestions, never to decide a match.</summary>
+    public static string ToPrefixPattern(string term) => Escape(term) + "%";
+
+    private static string Escape(string term) => term
+        .Replace("\\", "\\\\", StringComparison.Ordinal)
+        .Replace("%", "\\%", StringComparison.Ordinal)
+        .Replace("_", "\\_", StringComparison.Ordinal)
+        .Replace("[", "\\[", StringComparison.Ordinal);
 }

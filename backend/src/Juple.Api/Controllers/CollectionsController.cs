@@ -223,6 +223,62 @@ public sealed class CollectionsController(
         }
     }
 
+    /// <summary>
+    /// The quick suggestions under the Collections search box: at most 4 Collections and 4 links that match q (name; link title / URL),
+    /// within the same scope and with the same privacy as GET /collections?q= (a Collection behind a lock / access password offers its
+    /// name only; no memo; no trash). q is required (1..100 characters after trimming). A helper next to the list - it never replaces it.
+    /// </summary>
+    [HttpGet("search-suggestions")]
+    public async Task<IActionResult> SearchSuggestionsAsync(
+        [FromQuery] string? q,
+        [FromServices] CollectionSearchSuggestionsService searchSuggestionsService,
+        CancellationToken cancellationToken,
+        [FromQuery] string? scope = null)
+    {
+        if (!CollectionListSearch.TryCreate(q, out var search) || search is null)
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["q"] = [$"q is required and must be at most {CollectionListSearch.MaxLength} characters."],
+            }));
+        }
+
+        CollectionListScope resolvedScope;
+        switch (scope)
+        {
+            case null or "all":
+                resolvedScope = CollectionListScope.All;
+                break;
+            case "owned":
+                resolvedScope = CollectionListScope.Owned;
+                break;
+            case "shared":
+                resolvedScope = CollectionListScope.Shared;
+                break;
+            case "favorites":
+                resolvedScope = CollectionListScope.Favorites;
+                break;
+            default:
+                return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+                {
+                    ["scope"] = ["scope must be 'owned', 'shared', 'all' or 'favorites'."],
+                }));
+        }
+
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            return Ok(await searchSuggestionsService.SuggestAsync(currentUser.UserId, resolvedScope, search, cancellationToken));
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
+        }
+    }
+
     [HttpPost]
     public async Task<IActionResult> CreateAsync(CreateCollectionRequest request, CancellationToken cancellationToken)
     {
