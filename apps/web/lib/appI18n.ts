@@ -166,6 +166,8 @@ export interface WebOnlyStrings {
   readonly appStoreSoon: string;
   readonly appStoreSoonShort: string;
   readonly appContinueOnWeb: string;
+  readonly appOpenFailed: string;
+  readonly appOpenInAppBrowserHint: string;
   readonly sidebarAppTitle: string;
   readonly sidebarAppBody: string;
   readonly appGooglePlay: string;

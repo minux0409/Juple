@@ -114,6 +114,7 @@ export function AppRoot({
   businessFacts,
   appDownload,
   mobileOs,
+  inAppBrowser,
   children,
 }: {
   readonly config: WebAppConfig | null;
@@ -124,6 +125,8 @@ export function AppRoot({
   readonly appDownload: AppDownload;
   /** A phone-sized mobile browser (null = desktop / tablet): it is offered the app before the Web. */
   readonly mobileOs: MobileOs | null;
+  /** The phone's browser is an in-app / embedded one (KakaoTalk, ...): the landing adds one hint line for the app button. */
+  readonly inAppBrowser: boolean;
   readonly children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -429,7 +432,7 @@ export function AppRoot({
   const content = (() => {
     // A phone gets the app first; "웹에서 계속하기" keeps the Web for this tab session. (Legal pages and share links are outside this app.)
     if (mobileOs && !continueOnWeb) {
-      return <MobileAppLanding dictionary={dictionary} download={appDownload} onContinueOnWeb={chooseContinueOnWeb} os={mobileOs} />;
+      return <MobileAppLanding dictionary={dictionary} download={appDownload} inAppBrowser={inAppBrowser} onContinueOnWeb={chooseContinueOnWeb} os={mobileOs} publicWebHost={config?.publicWebHost ?? null} />;
     }
     if (status === 'configMissing') {
       return <CenteredMessage message={dictionary.configMissingMessage} title={dictionary.configMissingTitle} />;

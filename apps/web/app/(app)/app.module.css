@@ -8373,6 +8373,29 @@ button.reactionChipMine:hover {
   color: var(--app-text-secondary);
 }
 
+/* The two quiet lines of the landing: the app could not be opened / the in-app browser hint. Theme tokens only. */
+.mobileLandingNotice,
+.mobileLandingHint {
+  margin: 0;
+  max-width: 24em;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--app-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.mobileLandingNotice {
+  padding: 10px 14px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-md);
+  background: var(--app-surface-muted);
+  color: var(--app-text);
+}
+
+.mobileLandingHint {
+  font-size: 13px;
+}
+
 .mobileLandingActions {
   width: 100%;
   max-width: 320px;

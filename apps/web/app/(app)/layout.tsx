@@ -5,7 +5,7 @@ import { LANGUAGE_COOKIE, parseLanguagePreference, resolveAppLanguage } from '..
 import { readWebAppConfig, WEB_APP_CONFIG_ENV } from '../../lib/webAppConfig';
 import { readLegalOperatorConfig } from '../../lib/legalConfig';
 import { localizedBusinessFacts } from '../../lib/businessFacts';
-import { resolveAppDownload, resolveMobileOs } from '../../lib/appDownload';
+import { isInAppBrowser, resolveAppDownload, resolveMobileOs } from '../../lib/appDownload';
 import { AppRoot } from './AppRoot';
 
 /**
@@ -37,6 +37,7 @@ export default async function SignedInAppLayout({ children, modal }: { children:
   return (
     <AppRoot
       appDownload={appDownload}
+      inAppBrowser={isInAppBrowser(requestHeaders.get('user-agent'))}
       mobileOs={mobileOs}
       config={result.ok ? result.config : null}
       dictionary={dictionary}

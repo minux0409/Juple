@@ -3,8 +3,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { getAppDictionary } from '../lib/appDictionary.ts';
 import {
-  androidLaunchAppUrl,
+  androidOpenAppUrl,
   ANDROID_PACKAGE_ID,
+  APP_OPEN_FAILED_PARAM,
+  isInAppBrowser,
+  OPEN_APP_PATH,
   CONTINUE_ON_WEB_KEY,
   DEFAULT_GOOGLE_PLAY_URL,
   planMobileLanding,
@@ -58,12 +61,70 @@ describe('mobile detection and the landing plan', () => {
     assert.deepEqual(planMobileLanding('ios', resolveAppDownload({ appStoreUrl: 'https://apps.apple.com/app/id1' })), { open: false, googlePlay: false, appStore: true, appStoreSoon: false });
   });
 
-  it('"open the app": Android launcher intent whose fallback is the same page (no timer, no store redirect); share links keep their own intent', () => {
-    const url = androidLaunchAppUrl('https://juple.co.kr/?a=1');
-    assert.match(url, /^intent:\/\/#Intent;action=android\.intent\.action\.MAIN;category=android\.intent\.category\.LAUNCHER;package=com\.juple\.app;/);
-    assert.ok(url.includes(`S.browser_fallback_url=${encodeURIComponent('https://juple.co.kr/?a=1')};end`));
-    assert.doesNotMatch(url, /play\.google\.com|market:/);
+  it('"open the app": a VIEW intent for the dedicated /open-app App Link - package, https, BROWSABLE, a visible fallback; no launcher intent', () => {
+    const url = androidOpenAppUrl('juple.co.kr');
+    assert.equal(OPEN_APP_PATH, '/open-app');
+    assert.match(url, /^intent:\/\/juple\.co\.kr\/open-app#Intent;scheme=https;action=android\.intent\.action\.VIEW;category=android\.intent\.category\.BROWSABLE;package=com\.juple\.app;/);
+    assert.ok(url.endsWith(`S.browser_fallback_url=${encodeURIComponent('https://juple.co.kr/?appOpenFailed=1')};end`));
+    assert.equal(APP_OPEN_FAILED_PARAM, 'appOpenFailed');
+    // The old launcher intent (it never resolved: Chrome adds BROWSABLE, the launcher filter has none) is gone.
+    assert.doesNotMatch(url, /MAIN|LAUNCHER/);
+    // No timer / store redirect / custom scheme / foreign host: the fallback is this site over https, nothing of the current page is passed.
+    assert.doesNotMatch(url, /play\.google\.com|market:|juple:\/\/|[?&]utm|#.*#/);
+    assert.equal(decodeURIComponent(url.split('S.browser_fallback_url=')[1].replace(';end', '')), 'https://juple.co.kr/?appOpenFailed=1');
+    // Share links keep their own intent (the exact Collection).
     assert.match(androidOpenInAppUrl('juple.co.kr', 'abc'), /^intent:\/\/juple\.co\.kr\/c\/abc#Intent;scheme=https;package=com\.juple\.app;/);
+  });
+
+  it('the host is the app\'s own (dev and production differ): the intent and its fallback always use it', () => {
+    assert.match(androidOpenAppUrl('dev.juple.co.kr'), /^intent:\/\/dev\.juple\.co\.kr\/open-app#Intent;/);
+    assert.ok(androidOpenAppUrl('dev.juple.co.kr').includes(encodeURIComponent('https://dev.juple.co.kr/?appOpenFailed=1')));
+  });
+
+  it('the landing button is a real link (the intent starts from the person\'s tap) - no script navigation, no timer', () => {
+    const landing = source('app/(app)/MobileAppLanding.tsx');
+    assert.match(landing, /<a className=\{styles\.primaryAction\} data-app-open href=\{host \? androidOpenAppUrl\(host\) : undefined\}>/);
+    assert.doesNotMatch(landing, /window\.location\.href|location\.replace|window\.open|setTimeout|androidLaunchAppUrl/);
+    assert.doesNotMatch(landing, /MAIN|LAUNCHER/);
+  });
+
+  it('a failed open is said out loud (the fallback brings back appOpenFailed=1), with the store and 웹에서 계속하기 still there', () => {
+    const landing = source('app/(app)/MobileAppLanding.tsx');
+    assert.match(landing, /useSearchParams\(\)\.get\(APP_OPEN_FAILED_PARAM\) !== null/);
+    assert.match(landing, /data-app-open-failed role="status">\s*\{dictionary\.appOpenFailed\}/);
+    assert.match(landing, /data-store="google-play"/);
+    assert.match(landing, /data-continue-web/);
+    for (const language of ['ko', 'en'] as const) {
+      const words = getAppDictionary(language);
+      assert.ok(words.appOpenFailed.length > 10 && words.appOpenInAppBrowserHint.length > 10, language);
+    }
+    assert.equal(getAppDictionary('ko').appOpenFailed, 'Juple 앱을 열 수 없었어요. 앱이 설치되어 있지 않다면 Google Play에서 받아 주세요.');
+  });
+
+  it('an in-app browser gets one quiet hint next to the button; ordinary browsers never do', () => {
+    const kakao = 'Mozilla/5.0 (Linux; Android 14; SM-S936N Build/UP1A) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/130.0 Mobile Safari/537.36; KAKAOTALK 2511290';
+    const webview = 'Mozilla/5.0 (Linux; Android 14; SM-S936N; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/130.0 Mobile Safari/537.36';
+    assert.equal(isInAppBrowser(kakao), true);
+    assert.equal(isInAppBrowser(webview), true);
+    assert.equal(isInAppBrowser('Mozilla/5.0 (Linux; Android 14; SM-S936N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36 NAVER(inapp; search; 2000; 12.0)'), true);
+    for (const ua of [ANDROID_PHONE, IPHONE, DESKTOP, '', null, undefined, 'Mozilla/5.0 (Linux; Android 14; SM-S936N) AppleWebKit/537.36 SamsungBrowser/26.0 Chrome/122.0 Mobile Safari/537.36']) {
+      assert.equal(isInAppBrowser(ua), false, String(ua));
+    }
+    const landing = source('app/(app)/MobileAppLanding.tsx');
+    assert.match(landing, /\{plan\.open && inAppBrowser \? \(\s*<p className=\{styles\.mobileLandingHint\} data-in-app-browser-hint>/);
+    assert.doesNotMatch(landing, /kakao|kakaotalk:\/\//i, 'no vendor-specific scheme');
+    assert.match(source('app/(app)/layout.tsx'), /inAppBrowser=\{isInAppBrowser\(requestHeaders\.get\('user-agent'\)\)\}/);
+  });
+
+  it('only Android gets the app button; iPhone, desktop and the other buttons are untouched', () => {
+    const noStore = resolveAppDownload({});
+    assert.equal(planMobileLanding('android', noStore).open, true);
+    assert.equal(planMobileLanding('ios', noStore).open, false);
+    assert.equal(resolveMobileOs(DESKTOP), null);
+    const landing = source('app/(app)/MobileAppLanding.tsx');
+    assert.match(landing, /plan\.googlePlay \? \(/);
+    assert.match(landing, /plan\.appStore && download\.appStoreUrl/);
+    assert.match(landing, /onClick=\{onContinueOnWeb\}/);
   });
 });
 

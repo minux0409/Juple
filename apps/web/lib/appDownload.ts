@@ -60,13 +60,34 @@ export function planMobileLanding(os: MobileOs, download: AppDownload): MobileLa
   return { open: false, googlePlay: false, appStore: download.appStoreUrl !== null, appStoreSoon: download.appStoreUrl === null };
 }
 
+/** The one path the app registers (besides /c/{publicId}) as an App Link only to be STARTED: it opens no Collection, just the app. */
+export const OPEN_APP_PATH = '/open-app';
+
+/** Where the intent's fallback brings the visitor back: this page with the flag that makes the landing say the app could not be opened. */
+export const APP_OPEN_FAILED_PARAM = 'appOpenFailed';
+
 /**
- * Chrome's documented intent link that starts the installed app's launcher screen; if the app is not installed the browser stays on
- * `fallbackUrl` (the same page). No timer, no store redirect. Share links keep using androidOpenInAppUrl (lib/shareLinks.ts), which
- * opens the exact Collection - the app registers App Links only for /c/{publicId}.
+ * Chrome's intent link that starts the installed app: a VIEW of https://<host>/open-app addressed to com.juple.app. The app's
+ * AndroidManifest has a dedicated, verified App Link filter for exactly that path (VIEW + DEFAULT + BROWSABLE, https, the public host,
+ * path /open-app) - the launcher (MAIN / LAUNCHER) filter cannot be used: Chrome adds BROWSABLE to every intent it starts, which that
+ * filter does not have, so a launcher intent never resolved. Used as the href of a real link, so it runs from the person's own tap.
+ * If the app is not installed (or the browser refuses), the browser goes to the fallback: this site's root with appOpenFailed=1, which is
+ * a visible "could not open" message with the store link - never the same page unchanged. No timer, no custom scheme, no store redirect.
+ * `host` is the app's public web host (the one its App Link filter is built with); nothing of the current page's query or hash is passed.
+ * Share links keep using androidOpenInAppUrl (lib/shareLinks.ts), which opens the exact Collection (/c/{publicId}).
  */
-export function androidLaunchAppUrl(fallbackUrl: string): string {
-  return `intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${ANDROID_PACKAGE_ID};S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end`;
+export function androidOpenAppUrl(host: string): string {
+  const fallback = `https://${host}/?${APP_OPEN_FAILED_PARAM}=1`;
+  return `intent://${host}${OPEN_APP_PATH}#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;package=${ANDROID_PACKAGE_ID};S.browser_fallback_url=${encodeURIComponent(fallback)};end`;
+}
+
+/**
+ * An in-app / embedded browser (KakaoTalk, Naver app, Instagram, Facebook, Line, or an Android WebView), from the User-Agent. They may
+ * refuse to start another app, so the landing adds one quiet line there - "open in an external browser" - and nowhere else. Only the
+ * documented UA markers are used; no vendor-specific scheme is ever tried.
+ */
+export function isInAppBrowser(userAgent: string | null | undefined): boolean {
+  return /KAKAOTALK|NAVER\(inapp|FBAN|FBAV|Instagram|\bLine\/|; wv\)/i.test(userAgent ?? '');
 }
 
 /** The browser-side session flag of "웹에서 계속하기": the landing is skipped for this tab session only. */
