@@ -1,3 +1,4 @@
+import { normalizeCollectionSearch } from '../collectionSearch';
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
 import type { RepresentativeImage } from '../../images/api/imagesApi';
 import type { ReactionCount } from '../../reactions/reactionCatalog';
@@ -178,6 +179,11 @@ export interface GetCollectionsOptions {
    * "favorites" (all, only the caller's own favorites). isFavorite only applies to "owned".
    */
   readonly scope?: CollectionListScope;
+  /**
+   * The Collections list's text search (server-side, same scope / paging): Collections whose name - or one of whose links' title / URL -
+   * contains it, for a term of any length. Blank / absent = the list exactly as before. At most 100 characters.
+   */
+  readonly search?: string;
 }
 
 export type CollectionListScope = 'owned' | 'shared' | 'all' | 'favorites';
@@ -205,6 +211,10 @@ export async function getCollections(
   }
   if (options.cursor) {
     query.set('cursor', options.cursor);
+  }
+  const searchTerm = normalizeCollectionSearch(options.search);
+  if (searchTerm !== '') {
+    query.set('q', searchTerm);
   }
   const queryString = query.toString();
 

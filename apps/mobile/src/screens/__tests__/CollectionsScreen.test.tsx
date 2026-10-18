@@ -17,6 +17,7 @@ import { resolveCollectionColorTile } from '../../collections/collectionColors';
 import i18n from '../../i18n';
 import { CategoryIconTile } from '../../collections/CategoryIconTile';
 import { CollectionsScreen } from '../CollectionsScreen';
+import { ThemedTextInput } from '../../components/ThemedTextInput';
 import {
   createCollection,
   getCollections,
@@ -139,6 +140,10 @@ async function renderScreen() {
   });
   return renderer;
 }
+
+/** The create dialog's name field (the screen's own search field is a second TextInput). */
+const createNameInput = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+  renderer.root.findAllByType(TextInput).filter(input => input.props.testID !== 'collections-search')[0];
 
 describe('CollectionsScreen filters', () => {
   afterEach(() => {
@@ -525,7 +530,7 @@ describe('CollectionsScreen create form', () => {
     const renderer = await renderScreen();
 
     openCreateForm(renderer);
-    const nameInput = renderer.root.findByType(TextInput);
+    const nameInput = createNameInput(renderer);
     act(() => {
       nameInput.props.onChangeText('New one');
     });
@@ -543,7 +548,7 @@ describe('CollectionsScreen create form', () => {
     const renderer = await renderScreen();
 
     openCreateForm(renderer);
-    const nameInput = renderer.root.findByType(TextInput);
+    const nameInput = createNameInput(renderer);
     act(() => {
       nameInput.props.onChangeText('Trip');
     });
@@ -566,7 +571,7 @@ describe('CollectionsScreen create form', () => {
     const renderer = await renderScreen();
 
     openCreateForm(renderer);
-    const nameInput = renderer.root.findByType(TextInput);
+    const nameInput = createNameInput(renderer);
     act(() => {
       nameInput.props.onChangeText('Trip');
     });
@@ -589,7 +594,7 @@ describe('CollectionsScreen create form', () => {
     const renderer = await renderScreen();
 
     openCreateForm(renderer);
-    let nameInput = renderer.root.findByType(TextInput);
+    let nameInput = createNameInput(renderer);
     act(() => {
       nameInput.props.onChangeText('Trip');
     });
@@ -601,7 +606,7 @@ describe('CollectionsScreen create form', () => {
     });
 
     openCreateForm(renderer);
-    nameInput = renderer.root.findByType(TextInput);
+    nameInput = createNameInput(renderer);
     act(() => {
       nameInput.props.onChangeText('Second');
     });
@@ -617,7 +622,7 @@ describe('CollectionsScreen create form', () => {
     const renderer = await renderScreen();
 
     openCreateForm(renderer);
-    let nameInput = renderer.root.findByType(TextInput);
+    let nameInput = createNameInput(renderer);
     act(() => {
       nameInput.props.onChangeText('Abandoned');
     });
@@ -633,10 +638,10 @@ describe('CollectionsScreen create form', () => {
     act(() => {
       closeButton.props.onPress();
     });
-    expect(renderer.root.findAllByType(TextInput)).toHaveLength(0);
+    expect(renderer.root.findAllByType(TextInput).filter(input => input.props.testID !== 'collections-search')).toHaveLength(0);
 
     openCreateForm(renderer);
-    nameInput = renderer.root.findByType(TextInput);
+    nameInput = createNameInput(renderer);
     expect(nameInput.props.value).toBe('');
 
     expect(renderer.root.findByProps({ testID: 'collection-icon-option-Folder' }).props.accessibilityState.selected).toBe(true);
@@ -1568,5 +1573,161 @@ describe('CollectionsScreen - 승인 대기 중 placeholders (my own waiting joi
     });
     expect(cardById(renderer)).toBeUndefined();
     act(() => renderer.unmount());
+  });
+});
+
+describe('CollectionsScreen - 컬렉션 또는 링크 검색', () => {
+  const searchField = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByType(ThemedTextInput).filter(input => input.props.testID === 'collections-search')[0];
+  const type = async (renderer: ReactTestRenderer.ReactTestRenderer, text: string) => {
+    await act(async () => {
+      searchField(renderer).props.onChangeText(text);
+    });
+  };
+  const pause = async (ms: number) => {
+    await act(async () => {
+      jest.advanceTimersByTime(ms);
+    });
+  };
+  const optionsOfLastCall = () => jest.mocked(getCollections).mock.calls.at(-1)?.[1] as GetCollectionsOptions;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    setUpGetCollectionsMock();
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.clearAllMocks();
+    mockRouteParams = undefined;
+  });
+
+  it('sits right under the header and above the four filters, as the themed search field with its label and clear button', async () => {
+    const renderer = await renderScreen();
+    const field = searchField(renderer);
+    expect(field.props.accessibilityLabel).toBe(i18n.t('collections.listSearchPlaceholder'));
+    expect(field.props.placeholder).toBe(i18n.t('collections.listSearchPlaceholder'));
+    // The shared SearchField uses the themed input (placeholder / caret from the theme).
+    expect(renderer.root.findAllByType(ThemedTextInput).some(input => input.props.testID === 'collections-search')).toBe(true);
+    const hostOrder = renderer.root.findAll(node => typeof node.type === 'string').map(node => String(node.props.testID ?? node.props.accessibilityRole ?? ''));
+    const searchIndex = hostOrder.indexOf('collections-search');
+    expect(searchIndex).toBeGreaterThan(-1);
+    expect(searchIndex).toBeLessThan(hostOrder.indexOf('tablist'));
+    act(() => renderer.unmount());
+  });
+
+  it('typing asks the SERVER only after a pause (250ms): M-i-l-i is one request, with q and the current tab as the scope', async () => {
+    const renderer = await renderScreen();
+    jest.mocked(getCollections).mockClear();
+    for (const text of ['M', 'Mi', 'Mil', 'Mili']) {
+      await type(renderer, text);
+      await pause(100);
+    }
+    expect(getCollections).not.toHaveBeenCalled();
+    await pause(250);
+    expect(getCollections).toHaveBeenCalledTimes(1);
+    expect(optionsOfLastCall()).toEqual({ scope: 'favorites', limit: 24, search: 'Mili' });
+    act(() => renderer.unmount());
+  });
+
+  it('no search = the request exactly as before (no q at all); clearing is at once and goes back to the plain list', async () => {
+    const renderer = await renderScreen();
+    expect(optionsOfLastCall()).toEqual({ scope: 'favorites', limit: 24 });
+    await type(renderer, 'Mili');
+    await pause(260);
+    expect(optionsOfLastCall().search).toBe('Mili');
+    await type(renderer, '');
+    expect(optionsOfLastCall()).toEqual({ scope: 'favorites', limit: 24 });
+    // Blank is no search either.
+    await type(renderer, '   ');
+    await pause(260);
+    expect(optionsOfLastCall().search).toBeUndefined();
+    act(() => renderer.unmount());
+  });
+
+  it('keeps the term when the tab changes (each tab is read with it), and the other tabs never show another term\'s cards', async () => {
+    const renderer = await renderScreen();
+    await type(renderer, 'Mili');
+    await pause(260);
+    await selectFilter(renderer, 'owned');
+    expect(optionsOfLastCall()).toEqual({ scope: 'owned', limit: 24, search: 'Mili' });
+    await selectFilter(renderer, 'shared');
+    expect(optionsOfLastCall()).toEqual({ scope: 'shared', limit: 24, search: 'Mili' });
+    expect(searchField(renderer).props.value).toBe('Mili');
+    act(() => renderer.unmount());
+  });
+
+  it('a result with nothing says so (not the empty-account text); clearing brings the plain list back', async () => {
+    jest.mocked(getCollections).mockImplementation(async (_request, options: GetCollectionsOptions = {}) => (options.search ? { items: [], nextCursor: null } : { items: allCollections, nextCursor: null }));
+    const renderer = await renderScreen();
+    await type(renderer, 'zzzz');
+    await pause(260);
+    const empty = renderer.root.findByProps({ testID: 'collections-search-empty' });
+    expect(empty.props.children).toBe(i18n.t('history.searchEmpty'));
+    await type(renderer, '');
+    expect(renderer.root.findAllByProps({ testID: 'collections-search-empty' })).toHaveLength(0);
+    act(() => renderer.unmount());
+  });
+
+  it('a late answer of an old term never replaces the newer list (stale request protection)', async () => {
+    let releaseOld: (page: { items: Collection[]; nextCursor: string | null }) => void = () => undefined;
+    jest.mocked(getCollections).mockImplementation(async (_request, options: GetCollectionsOptions = {}) => {
+      if (options.search === 'old') {
+        return new Promise(resolve => {
+          releaseOld = resolve;
+        });
+      }
+      return { items: options.search === 'new' ? [sharedCollection] : allCollections, nextCursor: null };
+    });
+    const renderer = await renderScreen();
+    await type(renderer, 'old');
+    await pause(260);
+    await type(renderer, 'new');
+    await pause(260);
+    await act(async () => releaseOld({ items: [ownedCollection], nextCursor: null }));
+    const data = renderer.root.findAllByType(FlatList)[0].props.data as Collection[];
+    expect(data.map(entry => entry.id)).toEqual([sharedCollection.id]);
+    act(() => renderer.unmount());
+  });
+
+  it('the next page is read with the term of the page it continues (cursor + q)', async () => {
+    jest.mocked(getCollections).mockImplementation(async (_request, options: GetCollectionsOptions = {}) => (options.cursor ? { items: [sharedCollection], nextCursor: null } : { items: [ownedCollection], nextCursor: 'next' }));
+    const renderer = await renderScreen();
+    await type(renderer, 'Mili');
+    await pause(260);
+    await act(async () => {
+      renderer.root.findAllByType(FlatList)[0].props.onEndReached();
+    });
+    expect(optionsOfLastCall()).toEqual({ scope: 'favorites', limit: 24, cursor: 'next', search: 'Mili' });
+    act(() => renderer.unmount());
+  });
+
+  it('a long term is cut at the server\'s 100 characters; the input is not changed', async () => {
+    const renderer = await renderScreen();
+    await type(renderer, 'a'.repeat(130));
+    await pause(260);
+    expect(optionsOfLastCall().search).toHaveLength(100);
+    expect(searchField(renderer).props.value).toHaveLength(130);
+    act(() => renderer.unmount());
+  });
+
+  it('the matching is the server\'s: the screen has no client-side name filter and reads no Collection\'s links', () => {
+    const fsx = jest.requireActual<{ readFileSync(file: string, encoding: string): string }>('fs');
+    const pathx = jest.requireActual<{ join(...parts: string[]): string }>('path');
+    const source = fsx.readFileSync(pathx.join(__dirname, '../CollectionsScreen.tsx'), 'utf8');
+    expect(source).not.toMatch(/toLowerCase\(\)\.includes|getCollectionItems|getCollectionItemsPage/);
+    expect(source).toContain('...searchOption()');
+  });
+
+  it('the placeholder exists in all 17 languages, translated', () => {
+    const fsx = jest.requireActual<{ readFileSync(file: string, encoding: string): string; readdirSync(dir: string): string[] }>('fs');
+    const pathx = jest.requireActual<{ join(...parts: string[]): string }>('path');
+    const dir = pathx.join(__dirname, '../../i18n/locales');
+    const en = JSON.parse(fsx.readFileSync(pathx.join(dir, 'en.json'), 'utf8')).collections.listSearchPlaceholder;
+    for (const file of fsx.readdirSync(dir)) {
+      const value = JSON.parse(fsx.readFileSync(pathx.join(dir, file), 'utf8')).collections.listSearchPlaceholder;
+      expect(typeof value).toBe('string');
+      if (file !== 'en.json') {
+        expect(value).not.toBe(en);
+      }
+    }
   });
 });

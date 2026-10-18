@@ -100,6 +100,7 @@
     "searchMinHint": "请至少输入 2 个字符。"
   },
   "collections": {
+    "listSearchPlaceholder": "搜索合集或链接",
     "attentionA11y": "{{name}}，{{count}} 项待处理",
     "title": "合集",
     "empty": "还没有合集。",

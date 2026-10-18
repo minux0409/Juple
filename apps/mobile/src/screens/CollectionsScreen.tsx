@@ -66,6 +66,8 @@ import { cardShadow, collectionFilterColors, colors, minTouchTarget, radii, spac
 import { TOUR_TARGETS } from '../tour/tourGuides';
 import { useTourTarget } from '../tour/tourTargets';
 import { columnBasis, gridListKey, useCollectionTileColumns } from '../layout/responsiveGrid';
+import { SearchField } from '../components/SearchField';
+import { normalizeCollectionSearch } from '../collections/collectionSearch';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { screenIcons } from '../navigation/screenIcons';
 import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
@@ -75,6 +77,8 @@ import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 /** Collections per request - a few screenfuls of cards (the grid shows a row of tiles per screen width). */
 export const COLLECTIONS_PAGE_SIZE = 24;
 const PAGE_LIMIT = COLLECTIONS_PAGE_SIZE;
+/** Typing has to pause this long before the list is read for the term. */
+const SEARCH_DEBOUNCE_MS = 250;
 /** The server's page limit - a refresh never asks for more cards than this in one request. */
 const MAX_PAGE_LIMIT = 100;
 /** Skeleton cards while a filter's first page loads, and under the cards while a next one does. */
@@ -217,6 +221,13 @@ export function CollectionsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  // The search: `searchText` is what is typed, `searchTerm` / `searchRef` what the lists are read with (after a pause; clearing is at once).
+  // Kept in this screen's state: the tab screen stays mounted, so coming back from a Collection shows the same search - nothing is stored.
+  const [searchText, setSearchText] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const searchRef = useRef('');
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Category creation is a centered CategoryEditorDialog (see CategoryEditorDialog) - this screen
   // only knows whether it is open and the create request's own in-flight/error state.
@@ -238,6 +249,8 @@ export function CollectionsScreen() {
   const [pendingJoins, setPendingJoins] = useState<readonly MyJoinRequest[]>([]);
 
   const loadRequestIdRef = useRef(0);
+  /** The request options of the current search: nothing at all without one, so a plain list is asked exactly as it always was. */
+  const searchOption = useCallback(() => (searchRef.current === '' ? {} : { search: searchRef.current }), []);
   // Guards onEndReached firing multiple times before state updates are visible to new calls.
   const loadingMoreRef = useRef(false);
   const listsRef = useRef(lists);
@@ -250,10 +263,13 @@ export function CollectionsScreen() {
    * to its first page.
    */
   const load = useCallback(
-    async (target: CategoryFilter, mode: 'initial' | 'refresh') => {
+    async (target: CategoryFilter, mode: 'initial' | 'refresh' | 'search') => {
       const requestId = ++loadRequestIdRef.current;
       if (mode === 'refresh') {
         setIsRefreshing(true);
+      } else if (mode === 'search') {
+        // A changed search keeps the cards on screen until its answer arrives (no skeleton flash, no pull-to-refresh spinner).
+        setIsSearching(true);
       } else {
         setIsLoading(true);
       }
@@ -262,7 +278,7 @@ export function CollectionsScreen() {
       const limit = Math.min(Math.max(shown, PAGE_LIMIT), MAX_PAGE_LIMIT);
 
       try {
-        const page = await getCollections(authenticatedRequest, { scope: target, limit });
+        const page = await getCollections(authenticatedRequest, { scope: target, limit, ...searchOption() });
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
@@ -283,10 +299,11 @@ export function CollectionsScreen() {
         if (loadRequestIdRef.current === requestId) {
           setIsLoading(false);
           setIsRefreshing(false);
+          setIsSearching(false);
         }
       }
     },
-    [authenticatedRequest, t],
+    [authenticatedRequest, searchOption, t],
   );
 
   const loadReceivedInvitations = useCallback(() => {
@@ -412,8 +429,56 @@ export function CollectionsScreen() {
       loadRequestIdRef.current++;
       setIsLoading(false);
       setIsRefreshing(false);
+      setIsSearching(false);
     }
   };
+
+  /** The list is read again for a changed term: the shown tab keeps its cards meanwhile, the other tabs' pages (of the old term) are dropped. */
+  const applySearch = (term: string) => {
+    const normalized = normalizeCollectionSearch(term);
+    if (searchRef.current === normalized) {
+      return;
+    }
+    searchRef.current = normalized;
+    setSearchTerm(normalized);
+    const current = filterRef.current;
+    setLists(previous => {
+      const next = { ...previous };
+      for (const key of FILTERS) {
+        if (key !== current) {
+          next[key] = EMPTY_LIST;
+        }
+      }
+      return next;
+    });
+    load(current, 'search');
+  };
+
+  const changeSearchText = (next: string) => {
+    setSearchText(next);
+    if (searchTimerRef.current !== null) {
+      clearTimeout(searchTimerRef.current);
+      searchTimerRef.current = null;
+    }
+    if (normalizeCollectionSearch(next) === '') {
+      // Clearing is immediate.
+      applySearch('');
+      return;
+    }
+    searchTimerRef.current = setTimeout(() => {
+      searchTimerRef.current = null;
+      applySearch(next);
+    }, SEARCH_DEBOUNCE_MS);
+  };
+
+  useEffect(
+    () => () => {
+      if (searchTimerRef.current !== null) {
+        clearTimeout(searchTimerRef.current);
+      }
+    },
+    [],
+  );
 
   const loadMore = useCallback(() => {
     const current = lists[filter];
@@ -429,7 +494,8 @@ export function CollectionsScreen() {
 
     (async () => {
       try {
-        const page = await getCollections(authenticatedRequest, { scope: target, limit: PAGE_LIMIT, cursor });
+        // The cursor belongs to the query that produced it: the term is the one of this page (a newer search bumps loadRequestId).
+        const page = await getCollections(authenticatedRequest, { scope: target, limit: PAGE_LIMIT, cursor, ...searchOption() });
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
@@ -454,7 +520,7 @@ export function CollectionsScreen() {
         setIsLoadingMore(false);
       }
     })();
-  }, [authenticatedRequest, filter, isLoading, isRefreshing, lists, t]);
+  }, [authenticatedRequest, filter, isLoading, isRefreshing, lists, searchOption, t]);
 
   const handleCreateSubmit = async (name: string, icon: CollectionIconKey, color: CollectionColorValue, imageChange: CollectionIconImageChange) => {
     if (isCreating) {
@@ -589,7 +655,7 @@ export function CollectionsScreen() {
     );
   // The placeholders belong with 전체 and 공유 컬렉션 (they are people-shared things I asked into), ahead of the loaded cards.
   const listData: readonly (Collection | PendingJoinEntry)[] =
-    filter === 'all' || filter === 'shared'
+    (filter === 'all' || filter === 'shared') && searchTerm === ''
       ? [...pendingJoins.map<PendingJoinEntry>(join => ({ pendingJoin: join })), ...activeList.items]
       : activeList.items;
   const openPendingJoin = (join: MyJoinRequest) => navigation.navigate('SharedCollection', { publicId: join.publicId });
@@ -650,6 +716,19 @@ export function CollectionsScreen() {
                   <PlusIcon color={colors.surface} size={20} strokeWidth={2.25} />
                 </Pressable>
               </View>
+            </View>
+
+            {/* The search: right under the header, above the four filters. The shared Juple search field (themed input, clear button). */}
+            <View style={styles.searchRow}>
+              <SearchField
+                clearLabel={t('history.searchClear')}
+                onChangeText={changeSearchText}
+                placeholder={t('collections.listSearchPlaceholder')}
+                testID="collections-search"
+                value={searchText}
+              />
+              {/* A changed term is being read: the cards stay, a small spinner says so. */}
+              {isSearching ? <ActivityIndicator size="small" style={styles.searchSpinner} testID="collections-search-loading" /> : null}
             </View>
 
             {/* Four same-level filters as a 2x2 grid: every option is always visible, each cell takes
@@ -747,7 +826,9 @@ export function CollectionsScreen() {
             <LoadFailureState onRetry={() => load(filter, 'initial')} testID="collections-list-error" />
           ) : (
             <View style={styles.emptyContainer}>
-              <Text style={styles.empty}>{t(FILTER_EMPTY_KEYS[filter])}</Text>
+              <Text style={styles.empty} testID={searchTerm !== '' ? 'collections-search-empty' : undefined}>
+                {searchTerm !== '' ? t('history.searchEmpty') : t(FILTER_EMPTY_KEYS[filter])}
+              </Text>
             </View>
           )
         }
@@ -945,6 +1026,8 @@ const styles = themedStyles(() => ({
     flexGrow: 1,
     padding: spacing.xl,
   },
+  searchRow: { marginBottom: spacing.md },
+  searchSpinner: { marginTop: spacing.xs },
   titleRow: {
     alignItems: 'center',
     flexDirection: 'row',

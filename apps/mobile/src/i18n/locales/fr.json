@@ -100,6 +100,7 @@
     "searchMinHint": "Saisissez au moins 2 caractères."
   },
   "collections": {
+    "listSearchPlaceholder": "Rechercher des collections ou des liens",
     "attentionA11y": "{{name}}, {{count}} éléments à traiter",
     "title": "Collections",
     "empty": "Aucune collection pour le moment.",

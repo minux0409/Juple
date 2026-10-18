@@ -100,6 +100,7 @@
     "searchMinHint": "Escribe al menos 2 caracteres."
   },
   "collections": {
+    "listSearchPlaceholder": "Buscar colecciones o enlaces",
     "attentionA11y": "{{name}}, {{count}} elementos requieren atención",
     "title": "Colecciones",
     "empty": "Aún no hay colecciones.",
