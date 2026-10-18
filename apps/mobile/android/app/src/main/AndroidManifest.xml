@@ -53,6 +53,22 @@
                 android:host="${appLinksHost}"
                 android:pathPrefix="/c/" />
         </intent-filter>
+        <!--
+          Start-the-app App Link: the Web landing's "Juple 앱 열기" is an Android intent VIEW of https://<host>/open-app addressed to this
+          package. It is its OWN filter (never merged into the /c/ one above, so neither widens the other) and only the exact path
+          /open-app: no Collection, no other page - the app just comes up (see src/navigation/linking.ts: launch only). The MAIN / LAUNCHER
+          filter cannot serve this: Chrome adds BROWSABLE to every intent it starts and that filter has none.
+          Verified like the /c/ one (same host, same assetlinks.json).
+        -->
+        <intent-filter android:autoVerify="true">
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data
+                android:scheme="https"
+                android:host="${appLinksHost}"
+                android:path="/open-app" />
+        </intent-filter>
       </activity>
       <activity
         android:name=".ShareReceiverActivity"
