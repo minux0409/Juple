@@ -9,8 +9,9 @@ public sealed class ListCollectionsService(ICollectionStore collectionStore) : I
         bool? isFavorite,
         CollectionPageCursor? cursor,
         int limit,
-        CancellationToken cancellationToken = default) =>
-        collectionStore.ListAsync(userId, itemId, excludeItemId, isFavorite, cursor, limit, cancellationToken);
+        CancellationToken cancellationToken = default,
+        CollectionListSearch? search = null) =>
+        collectionStore.ListAsync(userId, itemId, excludeItemId, isFavorite, cursor, limit, search, cancellationToken);
 
     public Task<CollectionPage> ListByScopeAsync(
         long userId,
@@ -19,8 +20,9 @@ public sealed class ListCollectionsService(ICollectionStore collectionStore) : I
         long? excludeItemId,
         CollectionPageCursor? cursor,
         int limit,
-        CancellationToken cancellationToken = default) =>
-        collectionStore.ListByScopeAsync(userId, scope, itemId, excludeItemId, cursor, limit, cancellationToken);
+        CancellationToken cancellationToken = default,
+        CollectionListSearch? search = null) =>
+        collectionStore.ListByScopeAsync(userId, scope, itemId, excludeItemId, cursor, limit, cancellationToken, search);
 
     public Task<CollectionPage> ListSharedAsync(
         long userId,
@@ -28,6 +30,7 @@ public sealed class ListCollectionsService(ICollectionStore collectionStore) : I
         long? excludeItemId,
         CollectionPageCursor? cursor,
         int limit,
-        CancellationToken cancellationToken = default) =>
-        collectionStore.ListSharedAsync(userId, itemId, excludeItemId, cursor, limit, cancellationToken);
+        CancellationToken cancellationToken = default,
+        CollectionListSearch? search = null) =>
+        collectionStore.ListSharedAsync(userId, itemId, excludeItemId, cursor, limit, cancellationToken, search);
 }

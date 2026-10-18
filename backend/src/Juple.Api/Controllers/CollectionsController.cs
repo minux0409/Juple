@@ -92,6 +92,8 @@ public sealed class CollectionsController(
     /// either of them.
     /// </summary>
     /// <remarks>
+    /// Optional q (at most 100 characters after trimming; blank = no search) keeps the Collections whose NAME contains it or that hold a link whose title or URL contains it - in the same statement and the same cursor / scope / favorite
+    /// filters. A Collection behind a lock / access password is matched by name only; the memo is never searched.
     /// scope selects which accessible Collections to list: "owned" (내 컬렉션), "shared" (공유
     /// 컬렉션: shared with the caller, plus the caller's own currently-shared ones - see
     /// CollectionListScope.Shared), "all" (owned + shared with the caller, one server-side ordering - the
@@ -108,8 +110,19 @@ public sealed class CollectionsController(
         [FromQuery] int? limit,
         [FromQuery] string? cursor,
         CancellationToken cancellationToken,
-        [FromQuery] string? scope = null)
+        [FromQuery] string? scope = null,
+        [FromQuery] string? q = null)
     {
+        // Optional text search over the caller's accessible Collections (a name, or a link of the Collection - see CollectionListSearch).
+        // Absent / blank = exactly the list as before.
+        if (!CollectionListSearch.TryCreate(q, out var search))
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["q"] = [$"q must be at most {CollectionListSearch.MaxLength} characters."],
+            }));
+        }
+
         CollectionListScope resolvedScope;
         switch (scope)
         {
@@ -194,9 +207,9 @@ public sealed class CollectionsController(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
             var page = resolvedScope == CollectionListScope.Owned
                 ? await listCollectionsService.ListAsync(
-                    currentUser.UserId, resolvedItemId, resolvedExcludeItemId, isFavorite, typedCursor, resolvedLimit, cancellationToken)
+                    currentUser.UserId, resolvedItemId, resolvedExcludeItemId, isFavorite, typedCursor, resolvedLimit, cancellationToken, search)
                 : await listCollectionsService.ListByScopeAsync(
-                    currentUser.UserId, resolvedScope, resolvedItemId, resolvedExcludeItemId, typedCursor, resolvedLimit, cancellationToken);
+                    currentUser.UserId, resolvedScope, resolvedItemId, resolvedExcludeItemId, typedCursor, resolvedLimit, cancellationToken, search);
 
             return Ok(new CollectionsResponse(
                 page.Items,

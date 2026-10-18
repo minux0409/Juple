@@ -31,6 +31,23 @@ public interface ICollectionStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// <see cref="ListAsync(long, long?, long?, bool?, CollectionPageCursor?, int, CancellationToken)"/> with the optional text search (see
+    /// ListCollections.CollectionListSearch). Defaulted like the other later additions: only CollectionStore implements the search.
+    /// </summary>
+    Task<CollectionPage> ListAsync(
+        long userId,
+        long? itemId,
+        long? excludeItemId,
+        bool? isFavorite,
+        CollectionPageCursor? cursor,
+        int limit,
+        ListCollections.CollectionListSearch? search,
+        CancellationToken cancellationToken = default) =>
+        search is null
+            ? ListAsync(userId, itemId, excludeItemId, isFavorite, cursor, limit, cancellationToken)
+            : throw new NotSupportedException();
+
+    /// <summary>
     /// The "shared" scope (see CollectionListScope.Shared): Collections shared with the caller -
     /// each with their AccessRole, the Owner's Juple ID and lock state - plus the caller's own
     /// currently-shared ones (AccessRole "owner"). Same cursor/limit/filters as ListAsync except
@@ -42,7 +59,8 @@ public interface ICollectionStore
         long? excludeItemId,
         CollectionPageCursor? cursor,
         int limit,
-        CancellationToken cancellationToken = default) =>
+        CancellationToken cancellationToken = default,
+        ListCollections.CollectionListSearch? search = null) =>
         // Same defaulted-member convention as RestoreAsync below - only CollectionStore implements
         // it; single-purpose test fakes of this interface need not.
         Task.FromResult(new CollectionPage([], null));
@@ -85,7 +103,8 @@ public interface ICollectionStore
         long? excludeItemId,
         CollectionPageCursor? cursor,
         int limit,
-        CancellationToken cancellationToken = default) =>
+        CancellationToken cancellationToken = default,
+        ListCollections.CollectionListSearch? search = null) =>
         throw new NotSupportedException();
 
     Task<CollectionDto> CreateAsync(

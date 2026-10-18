@@ -44,6 +44,17 @@ public sealed class CollectionStore(
         bool? isFavorite,
         CollectionPageCursor? cursor,
         int limit,
+        CancellationToken cancellationToken = default) =>
+        ListAsync(userId, itemId, excludeItemId, isFavorite, cursor, limit, search: null, cancellationToken);
+
+    public Task<CollectionPage> ListAsync(
+        long userId,
+        long? itemId,
+        long? excludeItemId,
+        bool? isFavorite,
+        CollectionPageCursor? cursor,
+        int limit,
+        CollectionListSearch? search,
         CancellationToken cancellationToken = default)
     {
         var query = AccessibleCollections(userId, CollectionListScope.Owned);
@@ -55,7 +66,7 @@ public sealed class CollectionStore(
             query = query.Where(collection => collection.IsFavorite == requestedIsFavorite);
         }
 
-        return ListPageAsync(userId, query, itemId, excludeItemId, cursor, limit, sink: null, cancellationToken);
+        return ListPageAsync(userId, query, itemId, excludeItemId, cursor, limit, sink: null, cancellationToken, search);
     }
 
     /// <summary>"공유 컬렉션": shared with the caller, or the caller's own currently-shared ones (see AccessibleCollections).</summary>
@@ -65,9 +76,10 @@ public sealed class CollectionStore(
         long? excludeItemId,
         CollectionPageCursor? cursor,
         int limit,
-        CancellationToken cancellationToken = default) =>
+        CancellationToken cancellationToken = default,
+        CollectionListSearch? search = null) =>
         ListPageAsync(
-            userId, AccessibleCollections(userId, CollectionListScope.Shared), itemId, excludeItemId, cursor, limit, sink: null, cancellationToken);
+            userId, AccessibleCollections(userId, CollectionListScope.Shared), itemId, excludeItemId, cursor, limit, sink: null, cancellationToken, search);
 
     public Task<CollectionPage> ListSharedWithUserAsync(
         long userId,
@@ -89,8 +101,9 @@ public sealed class CollectionStore(
         long? excludeItemId,
         CollectionPageCursor? cursor,
         int limit,
-        CancellationToken cancellationToken = default) =>
-        ListPageAsync(userId, AccessibleCollections(userId, scope), itemId, excludeItemId, cursor, limit, sink: null, cancellationToken);
+        CancellationToken cancellationToken = default,
+        CollectionListSearch? search = null) =>
+        ListPageAsync(userId, AccessibleCollections(userId, scope), itemId, excludeItemId, cursor, limit, sink: null, cancellationToken, search);
 
     /// <summary>
     /// The first page of each scope the app opens first, translated only (start-up warm-up, no database access) - the SAME query the
@@ -263,8 +276,16 @@ public sealed class CollectionStore(
         CollectionPageCursor? cursor,
         int limit,
         QueryTranslationSink? sink,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        CollectionListSearch? search = null)
     {
+        // The text search narrows the caller's ACCESSIBLE Collections (the scope above already applied the same access rules as the
+        // plain list), so it can only ever remove rows - it never reaches a Collection the list would not show.
+        if (search is not null)
+        {
+            query = ApplyListSearch(userId, query, search);
+        }
+
         // A filter on the caller's accessible Collections, not a lookup of the Item itself - a
         // missing/other-user's itemId simply matches no Collections rather than throwing (mirrors
         // GetPurchases' itemId query param).
@@ -312,6 +333,33 @@ public sealed class CollectionStore(
             : null;
 
         return new CollectionPage(pageItems, nextCursor);
+    }
+
+    /// <summary>
+    /// The Collections list's text search, inside the same statement as the page (no per-Collection request): the name matches, or - for
+    /// any term - one EXISTS over the Collection's own links (title or URL, the URL carrying the host).
+    /// Rules, the same as the Collection's own link search (GetItemsPageAsync):
+    ///  - an Item in the trash is no link of the Collection;
+    ///  - the memo is never searched (another member's is private; matching it would reveal it through which Collections come back);
+    ///  - a Collection whose content the caller must unlock (the Owner's lock, or a member's access password) is matched by NAME only -
+    ///    its links are hidden until unlocked, so they must not decide whether it is listed.
+    /// Each Collection is a row of its own: EXISTS never multiplies it, however many links match.
+    /// </summary>
+    private IQueryable<Collection> ApplyListSearch(long userId, IQueryable<Collection> query, CollectionListSearch search)
+    {
+        var pattern = search.Pattern;
+        return query.Where(collection =>
+            EF.Functions.Like(collection.Name, pattern, ItemSearchPattern.EscapeCharacter)
+            || (!(collection.UserId == userId
+                    ? collection.IsLocked
+                    : dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
+                        && (password.Mode == CollectionSharePasswordMode.PerCollection
+                            || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked))))
+                && dbContext.CollectionItems.Any(membership => membership.CollectionId == collection.Id
+                    && dbContext.Items.Any(item => item.Id == membership.ItemId
+                        && item.DeletedAtUtc == null
+                        && (EF.Functions.Like(item.Url, pattern, ItemSearchPattern.EscapeCharacter)
+                            || (item.Title != null && EF.Functions.Like(item.Title, pattern, ItemSearchPattern.EscapeCharacter)))))));
     }
 
     /// <summary>

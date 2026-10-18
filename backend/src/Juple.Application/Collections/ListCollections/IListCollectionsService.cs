@@ -9,7 +9,8 @@ public interface IListCollectionsService
         bool? isFavorite,
         CollectionPageCursor? cursor,
         int limit,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        CollectionListSearch? search = null);
 
     Task<CollectionPage> ListByScopeAsync(
         long userId,
@@ -18,7 +19,8 @@ public interface IListCollectionsService
         long? excludeItemId,
         CollectionPageCursor? cursor,
         int limit,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        CollectionListSearch? search = null);
 
     Task<CollectionPage> ListSharedAsync(
         long userId,
@@ -26,5 +28,6 @@ public interface IListCollectionsService
         long? excludeItemId,
         CollectionPageCursor? cursor,
         int limit,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        CollectionListSearch? search = null);
 }
