@@ -70,7 +70,9 @@ describe('컬렉션 검색: the screen', () => {
     const search = view.indexOf('data-collection-search>');
     const list = view.indexOf("state.kind === 'loaded' && state.items.length > 0");
     assert.ok(toolbar > 0 && search > toolbar && list > search);
-    assert.match(view, /<SearchField onChange=\{changeText\} placeholder=\{dictionary\.collectionListSearchPlaceholder\} value=\{text\} \/>/);
+    // The field is the shared SearchField, wrapped by the suggestions box (it owns the combobox behaviour; the list is still read here).
+    assert.match(view, /<CollectionSearchBox[\s\S]*?onTextChange=\{changeText\}/);
+    assert.match(source('app/(app)/collections/CollectionSearchBox.tsx'), /<SearchField[\s\S]*placeholder=\{dictionary\.collectionListSearchPlaceholder\}[\s\S]*value=\{text\}/);
   });
 
   it('waits for the typing to pause (250ms), clears at once, and a newer term cancels the pending one', () => {

@@ -1,5 +1,6 @@
 'use client';
 
+import type { InputHTMLAttributes } from 'react';
 import { useSignedInApp } from './AppRoot';
 import { Glyph } from './Glyph';
 import styles from './app.module.css';
@@ -13,17 +14,21 @@ export function SearchField({
   onChange,
   placeholder,
   hero = false,
+  inputProps,
 }: {
   readonly value: string;
   readonly onChange: (value: string) => void;
   readonly placeholder: string;
   readonly hero?: boolean;
+  /** Extra attributes for the input itself (a combobox's role / aria / key handlers): applied after the field's own, which they never replace. */
+  readonly inputProps?: Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'placeholder' | 'type' | 'className' | 'dir' | 'aria-label'>;
 }) {
   const { dictionary } = useSignedInApp();
   return (
     <div className={hero ? `${styles.pickerSearch} ${styles.searchHero}` : styles.pickerSearch}>
       <Glyph className={styles.pickerSearchIcon} name="Search" size={hero ? 20 : 16} />
       <input
+        {...inputProps}
         aria-label={placeholder}
         className={styles.textInput}
         dir="auto"

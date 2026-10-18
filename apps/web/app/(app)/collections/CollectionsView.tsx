@@ -39,7 +39,7 @@ import { LoadMore } from '../InfiniteScroll';
 import { Avatar } from '../Avatar';
 import { LinkImage } from '../LinkImage';
 import { LoadFailed } from '../PageStates';
-import { SearchField } from '../SearchField';
+import { CollectionSearchBox } from './CollectionSearchBox';
 import { CollectionSkeleton } from '../Skeletons';
 import { useToast } from '../Toaster';
 import { useStoredChoice } from '../useStoredChoice';
@@ -258,7 +258,12 @@ export function CollectionsView() {
 
       {/* Between the tabs and the cards (mobile: the same place, under the header and above the tabs' cards). */}
       <div className={styles.collectionSearch} data-collection-search>
-        <SearchField onChange={changeText} placeholder={dictionary.collectionListSearchPlaceholder} value={text} />
+        <CollectionSearchBox
+          filter={filter}
+          onTextChange={changeText}
+          renderCollectionTile={(collection, size) => <CollectionTileView collection={collection} size={size} />}
+          text={text}
+        />
       </div>
       <p aria-live="polite" className={styles.visuallyHidden} role="status">
         {searching ? dictionary.processing : ''}

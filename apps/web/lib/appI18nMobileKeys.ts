@@ -257,6 +257,7 @@ export const MOBILE_STRING_KEYS = {
   accessPasswordFallback: 'collections.sharePasswordFallback',
   searchEmpty: 'history.searchEmpty',
   collectionListSearchPlaceholder: 'collections.listSearchPlaceholder',
+  collectionSearchLinks: 'collections.searchSuggestionLinks',
   // a link's page
   itemDetailsTitle: 'nav.itemDetails',
   openLink: 'item.goToUrlA11y',
