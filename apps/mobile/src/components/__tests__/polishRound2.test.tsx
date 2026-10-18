@@ -102,3 +102,16 @@ describe('Android popup windows follow the theme (JupleSystemBarsModule)', () =>
     expect(kotlin).toContain('dialogWindows.clear()');
   });
 });
+
+describe('Collection picker Grid tile: the lock is already a thumbnail badge (audit)', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../../collections/CollectionChoiceGrid.tsx'), 'utf8');
+
+  it('the status badges (lock / shared) are drawn inside the thumbnail slot, never as a line of their own, so a locked tile is as tall as any other', () => {
+    const slot = source.slice(source.indexOf('<View style={styles.tileIconSlot}>', source.indexOf('renderItem')));
+    expect(slot.indexOf('<CollectionStatusBadges')).toBeGreaterThan(-1);
+    expect(slot.indexOf('<CollectionStatusBadges')).toBeLessThan(slot.indexOf('</View>'));
+    expect(source).toContain("tileIconSlot: { position: 'relative' }");
+    expect(source).not.toMatch(/isLocked \?[^:]*<LockIcon/);
+  });
+});
+
