@@ -37,6 +37,7 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
     private static readonly Guid NoAccountOid = Guid.NewGuid();
 
     private readonly RecordingAdminService _service = new();
+    private readonly CannedAnalyticsStore _analyticsStore = new();
     private WebApplication _app = null!;
     private HttpClient _client = null!;
 
@@ -60,6 +61,9 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         // The same rule as the real store: only ACTIVE grants authorize.
         builder.Services.AddSingleton<IAdminAccessStore>(new FakeGrants([new(1, AdminRole.Owner, Active: true), new(2, AdminRole.Admin, Active: false)]));
         builder.Services.AddSingleton<IAdminService>(_service);
+        // The real range validation in front of a canned store (the SQL side is covered by AdminAnalyticsIntegrationTests).
+        builder.Services.AddSingleton<IAdminAnalyticsStore>(_analyticsStore);
+        builder.Services.AddSingleton<IAdminAnalyticsService, AdminAnalyticsService>();
         builder.Services.AddSingleton(TimeProvider.System);
         // The Production shape: Android 31 / 24 with its Play URL, iOS without a policy.
         builder.Services.AddSingleton(Options.Create(new MobileVersionPolicyOptions
@@ -93,6 +97,7 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         { "GET", "/api/v1/admin/dashboard/summary" },
         { "GET", "/api/v1/admin/users" },
         { "GET", "/api/v1/admin/operations/app-version" },
+        { "GET", "/api/v1/admin/analytics/overview?range=30d" },
         { "GET", "/api/v1/admin/operations/system" },
         { "GET", "/api/v1/admin/support/inquiries" },
         { "GET", "/api/v1/admin/support/inquiries/7" },
@@ -295,6 +300,45 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
     {
         public Task<AdminAccess?> FindActiveAsync(long userId, CancellationToken cancellationToken = default) =>
             Task.FromResult(grants.Where(grant => grant.UserId == userId && grant.Active).Select(grant => new AdminAccess(grant.UserId, grant.Role)).SingleOrDefault());
+    }
+
+    [Fact]
+    public async Task Analytics_RunsOnlyForAnAdmin_AndAnUnknownRangeIs400()
+    {
+        Assert.Equal(HttpStatusCode.Unauthorized, (await SendAsync("GET", "/api/v1/admin/analytics/overview", identity: null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await SendAsync("GET", "/api/v1/admin/analytics/overview", MemberOid)).StatusCode);
+        Assert.Equal(0, _analyticsStore.Calls);
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await SendAsync("GET", "/api/v1/admin/analytics/overview?range=1y", AdminOid)).StatusCode);
+        Assert.Equal(0, _analyticsStore.Calls);
+
+        var json = await (await SendAsync("GET", "/api/v1/admin/analytics/overview?range=7d", AdminOid)).Content.ReadAsStringAsync();
+        Assert.Equal(1, _analyticsStore.Calls);
+        Assert.Contains("\"range\":\"7d\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"activityTrackingSince\":\"2026-10-19\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"countries\":{\"available\":false}", json, StringComparison.Ordinal);
+    }
+
+    private sealed class CannedAnalyticsStore : IAdminAnalyticsStore
+    {
+        public int Calls { get; private set; }
+
+        public Task<AdminAnalyticsOverview> GetOverviewAsync(string range, int days, DateOnly todayUtc, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return Task.FromResult(new AdminAnalyticsOverview(
+                range,
+                todayUtc.AddDays(-(days - 1)),
+                todayUtc,
+                nowUtc,
+                new DateOnly(2026, 10, 19),
+                new AdminAnalyticsUsers(20, 0, 1, 3, 1, 1, 1, 1),
+                new AdminAnalyticsLinks(123, 0, 2, 9, 2, 1),
+                new AdminAnalyticsCollections(83, 5, 1, 4, 1),
+                new AdminAnalyticsPlatforms(1, [new AdminAnalyticsPlatform("Android", 1)]),
+                new AdminAnalyticsCountries(false),
+                []));
+        }
     }
 
     private sealed class RecordingAdminService : IAdminService

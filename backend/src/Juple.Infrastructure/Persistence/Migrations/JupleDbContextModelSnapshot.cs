@@ -103,6 +103,54 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Juple.Domain.Analytics.UserDailyActivity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateOnly>("ActivityDateUtc")
+                        .HasColumnType("date");
+
+                    b.Property<string>("AppBuild")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTimeOffset>("FirstSeenAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("LastSeenAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActivityDateUtc")
+                        .HasDatabaseName("IX_UserDailyActivities_ActivityDateUtc");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("ActivityDateUtc"), new[] { "UserId", "Platform" });
+
+                    b.HasIndex("UserId", "ActivityDateUtc", "Platform")
+                        .IsUnique()
+                        .HasDatabaseName("UX_UserDailyActivities_User_Date_Platform");
+
+                    b.ToTable("UserDailyActivities", "analytics", t =>
+                        {
+                            t.HasCheckConstraint("CK_UserDailyActivities_Platform_Valid", "[Platform] IN ('Unknown', 'Android', 'Ios', 'Web')");
+
+                            t.HasCheckConstraint("CK_UserDailyActivities_SeenOrder", "[LastSeenAtUtc] >= [FirstSeenAtUtc]");
+                        });
+                });
+
             modelBuilder.Entity("Juple.Domain.Billing.GoogleAccountLink", b =>
                 {
                     b.Property<long>("Id")
@@ -2193,6 +2241,15 @@ namespace Juple.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Juple.Domain.Admin.AdminUser", b =>
+                {
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Analytics.UserDailyActivity", b =>
                 {
                     b.HasOne("Juple.Domain.Users.User", null)
                         .WithMany()

@@ -135,6 +135,14 @@ if (!isOutsideHttpApi)
 
 if (!isOutsideHttpApi)
 {
+    // HTTP API only: daily activity for analytics (docs/analytics.md) - requests hand a key to the pump, its background loop writes
+    // at most one row per person, UTC day and platform.
+    builder.Services.AddSingleton<Juple.Infrastructure.Analytics.UserActivityPump>();
+    builder.Services.AddHostedService<Juple.Api.Analytics.UserActivityRecorderService>();
+}
+
+if (!isOutsideHttpApi)
+{
     // HTTP API only: fetch the Blob User Delegation Key in the background right after start, so the
     // first image read URL does not wait for it (see UserDelegationKeyWarmupService). The one-shot
     // Jobs never start the host anyway - this keeps them out of it explicitly.
@@ -171,6 +179,7 @@ builder.Services.AddScoped<IDeleteAccountService, DeleteAccountService>();
 builder.Services.AddScoped<IInboxEntrySaveService, InboxEntrySaveService>();
 builder.Services.AddScoped<Juple.Application.Support.ISupportInquiryService, Juple.Application.Support.SupportInquiryService>();
 builder.Services.AddScoped<Juple.Application.Admin.IAdminService, Juple.Application.Admin.AdminService>();
+builder.Services.AddScoped<Juple.Application.Admin.IAdminAnalyticsService, Juple.Application.Admin.AdminAnalyticsService>();
 builder.Services.AddSingleton(new Juple.Application.Safety.TermsOptions
 {
     CurrentVersion = builder.Configuration["Terms:CurrentVersion"] is { Length: > 0 } termsVersion ? termsVersion : Juple.Application.Safety.TermsOptions.DefaultVersion,
@@ -528,6 +537,8 @@ if (requestTimingEnabled)
     app.Use(RequestTimingMarks.AfterAuthentication);
 }
 
+// After authentication (the token's tid/oid are known), around everything else: it looks at the finished request only.
+app.UseMiddleware<Juple.Api.Analytics.UserActivityMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
 app.MapControllers();

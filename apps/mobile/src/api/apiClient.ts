@@ -1,6 +1,7 @@
 import { notifySubscriptionRequired, subscriptionRequiredKindOf } from '../billing/subscriptionRequired';
 import { ApiError } from './ApiError';
 import { apiConfig } from './apiConfig';
+import { clientIdentityHeaders } from './clientIdentityHeaders';
 
 export const DEFAULT_API_TIMEOUT_MS = 15_000;
 
@@ -78,6 +79,8 @@ export async function requestApi<T>({
     method,
     headers: {
       ...headers,
+      // After the caller's headers: a caller cannot rename the platform or the build.
+      ...clientIdentityHeaders(),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...(body ? { 'Content-Type': 'application/json' } : {}),
     },

@@ -59,6 +59,19 @@ describe('requestApi extra headers and problem codes', () => {
     }));
   });
 
+  it('names the app (platform + build) on every request for analytics, and a caller cannot rename it', async () => {
+    const fetchMock = respondWith(204);
+
+    await requestApi({ method: 'GET', path: '/x', accessToken: 't', headers: { 'X-Juple-Platform': 'web', 'X-Juple-App-Build': '999' } });
+
+    const sent = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
+    expect(sent['X-Juple-Platform']).toMatch(/^(android|ios)$/);
+    expect(sent['X-Juple-Platform']).not.toBe('web');
+    expect(sent['X-Juple-App-Build']).not.toBe('999');
+    // Nothing that identifies the person or the device.
+    expect(Object.keys(sent).sort()).toEqual(['Authorization', 'X-Juple-App-Build', 'X-Juple-Platform']);
+  });
+
   it.each([
     [403, 'forbidden', 'collectionLocked'],
     [403, 'forbidden', 'invalidCollectionPassword'],

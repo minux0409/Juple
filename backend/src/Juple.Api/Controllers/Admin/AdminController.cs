@@ -47,6 +47,11 @@ public sealed class AdminController(
             return Ok(new AdminPageResponse<AdminUserListItem>(page.Items, AdminResults.Cursor(page.NextCursor)));
         });
 
+    /// <summary>분석: every analytics number for the last 7d / 30d / 90d (UTC days; any other range is 400). See docs/analytics.md.</summary>
+    [HttpGet("analytics/overview")]
+    public Task<IActionResult> GetAnalyticsOverviewAsync([FromQuery] string? range, [FromServices] IAdminAnalyticsService analytics, CancellationToken cancellationToken) =>
+        AdminResults.RunAsync(this, async () => Ok(await analytics.GetOverviewAsync(range, cancellationToken)));
+
     /// <summary>The mobile version policy as the API serves it (read-only - changing it is a configuration deployment).</summary>
     [HttpGet("operations/app-version")]
     public IActionResult GetAppVersion()
