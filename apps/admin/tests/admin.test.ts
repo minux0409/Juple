@@ -22,6 +22,10 @@ import { activeHref, isActive, NAVIGATION, type NavEntry } from '../lib/navigati
 import {
   activeSeries,
   analyticsPath,
+  bucketLabel,
+  holdingRows,
+  membershipRows,
+  percentOf,
   labelIndexes,
   layoutBars,
   niceMax,
@@ -410,6 +414,33 @@ describe('analytics', () => {
     assert.equal(shortDay('2026-10-09'), '10/9');
     assert.equal(savesPerSaver(7, 3), 2.3);
     assert.equal(savesPerSaver(0, 0), null);
+  });
+
+  it('membership: no trial / paid numbers while the billing program does not run; exclusive groups adding up when it does', () => {
+    const base = { programStartAtUtc: null, totalUsers: 20, newToday: 1, signedUpWithin30Days: 3, signedUpOver30Days: 17 };
+    assert.equal(membershipRows({ ...base, billingProgramEnabled: false, groups: null }), null);
+    // Even a stray groups object is ignored while the program is off.
+    assert.equal(membershipRows({ ...base, billingProgramEnabled: false, groups: { paid: 0, gracePeriod: 0, inTrial: 0, trialEndedUnpaid: 0 } }), null);
+    const rows = membershipRows({ ...base, billingProgramEnabled: true, programStartAtUtc: '2026-11-01T00:00:00Z', groups: { paid: 2, gracePeriod: 1, inTrial: 5, trialEndedUnpaid: 12 } })!;
+    assert.deepEqual(rows.map(row => [row.key, row.value, row.percent]), [['paid', 2, 10], ['gracePeriod', 1, 5], ['inTrial', 5, 25], ['trialEndedUnpaid', 12, 60]]);
+    assert.equal(rows.reduce((sum, row) => sum + row.value, 0), 20);
+    assert.match(strings.membershipNotLaunched, /결제 미운영 · 집계 불가/);
+    assert.match(strings.membershipAgeNote, /체험·결제 상태가 아닙니다/);
+  });
+
+  it('link holdings: bucket labels, shares over every account, and no URL or content anywhere in the model', () => {
+    assert.deepEqual([{ min: 0, max: 0 }, { min: 1, max: 9 }, { min: 500, max: null }].map(bucketLabel), ['0개', '1~9개', '500개 이상']);
+    const holdings = {
+      totalLiveLinks: 120, usersWithLinks: 4, totalUsers: 10, maxLinksPerUser: 60, usersAtMax: 1,
+      buckets: [{ min: 0, max: 0, users: 6 }, { min: 1, max: 9, users: 2 }, { min: 10, max: 49, users: 1 }, { min: 50, max: 99, users: 1 }, { min: 100, max: 499, users: 0 }, { min: 500, max: null, users: 0 }],
+      topHolders: [{ jupleId: 'QZAMQBQK', liveLinks: 60 }],
+    };
+    assert.deepEqual(holdingRows(holdings).map(row => [row.key, row.value, row.percent]), [['0개', 6, 60], ['1~9개', 2, 20], ['10~49개', 1, 10], ['50~99개', 1, 10], ['100~499개', 0, 0], ['500개 이상', 0, 0]]);
+    assert.equal(percentOf(3, 0), 0);
+    const saves = readFileSync(new URL('../app/(admin)/analytics/saves/page.tsx', import.meta.url), 'utf8');
+    assert.match(saves, /strings\.holdingsNote/);
+    assert.match(saves, /strings\.savesActivityTitle/);
+    assert.doesNotMatch(saves, /\.url\b|\.title\b|memo/i);
   });
 
   it('every analytics page uses the shared frame, and the country page invents no numbers', () => {

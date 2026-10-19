@@ -27,6 +27,39 @@ export interface AnalyticsDay {
   readonly activeUsers: number;
   readonly linksSaved: number;
   readonly collectionsCreated: number;
+  /** Distinct active users per platform that day (absent on an older API). */
+  readonly activeAndroid?: number;
+  readonly activeIos?: number;
+  readonly activeWeb?: number;
+  readonly activeUnknown?: number;
+}
+
+export interface MembershipGroups {
+  readonly paid: number;
+  readonly gracePeriod: number;
+  readonly inTrial: number;
+  readonly trialEndedUnpaid: number;
+}
+
+export interface Membership {
+  readonly billingProgramEnabled: boolean;
+  readonly programStartAtUtc: string | null;
+  readonly totalUsers: number;
+  readonly newToday: number;
+  readonly signedUpWithin30Days: number;
+  readonly signedUpOver30Days: number;
+  /** Null while the billing program does not run: trial / paid states do not exist - never shown as 0. */
+  readonly groups: MembershipGroups | null;
+}
+
+export interface LinkHoldings {
+  readonly totalLiveLinks: number;
+  readonly usersWithLinks: number;
+  readonly totalUsers: number;
+  readonly maxLinksPerUser: number;
+  readonly usersAtMax: number;
+  readonly buckets: readonly { readonly min: number; readonly max: number | null; readonly users: number }[];
+  readonly topHolders: readonly { readonly jupleId: string; readonly liveLinks: number }[];
 }
 
 export interface AnalyticsOverview {
@@ -66,6 +99,53 @@ export interface AnalyticsOverview {
   };
   readonly countries: { readonly available: boolean };
   readonly series: readonly AnalyticsDay[];
+  /** Round 6 additions (absent on an older API - the pages then simply leave those sections out). */
+  readonly membership?: Membership | null;
+  readonly linkHoldings?: LinkHoldings | null;
+  readonly platformsSinceTrackingStart?: AnalyticsOverview['platforms'] | null;
+}
+
+// ---- membership --------------------------------------------------------------------------------------------------------------
+
+export interface ShareRow {
+  readonly key: string;
+  readonly value: number;
+  /** Share of the base, 0..100 with one decimal (0 when the base is 0). */
+  readonly percent: number;
+}
+
+export function percentOf(value: number, base: number): number {
+  return base > 0 ? Math.round((value / base) * 1000) / 10 : 0;
+}
+
+/**
+ * The exclusive membership groups as rows (they add up to the total), or null when the billing program does not run - then the page
+ * says "결제 미운영 - 집계 불가" instead of showing any trial / paid number.
+ */
+export function membershipRows(membership: Membership): readonly ShareRow[] | null {
+  const groups = membership.groups;
+  if (!membership.billingProgramEnabled || !groups) {
+    return null;
+  }
+  return (['paid', 'gracePeriod', 'inTrial', 'trialEndedUnpaid'] as const).map(key => ({
+    key,
+    value: groups[key],
+    percent: percentOf(groups[key], membership.totalUsers),
+  }));
+}
+
+// ---- link holdings -----------------------------------------------------------------------------------------------------------
+
+/** "0개", "1~9개", "500개 이상". */
+export function bucketLabel(bucket: { readonly min: number; readonly max: number | null }): string {
+  if (bucket.max === null) {
+    return `${bucket.min.toLocaleString()}개 이상`;
+  }
+  return bucket.min === bucket.max ? `${bucket.min.toLocaleString()}개` : `${bucket.min.toLocaleString()}~${bucket.max.toLocaleString()}개`;
+}
+
+export function holdingRows(holdings: LinkHoldings): readonly ShareRow[] {
+  return holdings.buckets.map(bucket => ({ key: bucketLabel(bucket), value: bucket.users, percent: percentOf(bucket.users, holdings.totalUsers) }));
 }
 
 /** Whole days between two UTC dates ("YYYY-MM-DD"), b - a. */

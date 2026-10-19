@@ -468,7 +468,36 @@ td.preview {
 }
 
 .platform-card {
+  min-width: 0;
   max-width: 640px;
+  margin-top: 12px;
+}
+
+.card-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.section {
+  margin-bottom: 24px;
+}
+
+/* KPI values may be text ("3 (15%)"): they wrap inside the card instead of overflowing it. */
+.card-value {
+  overflow-wrap: anywhere;
+}
+
+.top-list {
+  margin: 0;
+  padding-inline-start: 20px;
+}
+
+.top-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .share-bar {

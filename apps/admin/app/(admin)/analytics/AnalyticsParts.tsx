@@ -79,6 +79,29 @@ export function Kpis({ items }: { items: readonly (readonly [string, number | st
   );
 }
 
+/** Labelled counts with their share and a bar - every value stays inside its card (wraps on narrow screens). */
+export function ShareList({ title, note, rows }: { title?: string; note?: string; rows: readonly { readonly label: string; readonly value: number; readonly percent: number }[] }) {
+  return (
+    <section className="card platform-card">
+      {title ? <h2 className="card-title">{title}</h2> : null}
+      {note ? <p className="muted">{note}</p> : null}
+      <dl className="policy-rows">
+        {rows.map(row => (
+          <div key={row.label}>
+            <dt>{row.label}</dt>
+            <dd>
+              {formatCount(row.value)} <span className="muted">({row.percent}%)</span>
+            </dd>
+            <div aria-hidden="true" className="share-bar">
+              <span style={{ width: `${Math.min(100, row.percent)}%` }} />
+            </div>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 const PLOT_WIDTH = 600;
 const PLOT_HEIGHT = 160;
 const AXIS_WIDTH = 36;
