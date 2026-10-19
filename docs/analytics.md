@@ -109,6 +109,19 @@ This is **what every account holds right now**: live links, trash excluded, whic
 - **"Platform of every registered member" cannot be computed:** a member who has not been active since tracking started has no platform record. The page says this explicitly.
 - **Unknown** is always counted. The page shows it whenever it is non-zero.
 
+### Per-user link statistics (사용자 상세)
+
+`GET /api/v1/admin/users/{userId}/link-stats?range=7d|30d|90d` (same JupleAdmin policy as every admin endpoint; unknown account = 404, other range = 400). Admin → 사용자 → click the Juple ID.
+
+- **Returns counts and identifiers only:** Juple ID, sign-up time, live links (trash excluded), saved today / 7 / 30 / 90 UTC days, saved in the chosen range and a per-day series. No URL, title, memo or image, and nothing new is stored.
+- **Saved\* = `Items.SavedAtUtc` of links that still exist, trash included** (same condition as the overview's saved numbers); `liveLinks` excludes the trash. A permanently deleted link cannot be counted, and the page says so; nothing is estimated.
+- One grouped query over the person's last 90 UTC days (at most 90 rows) feeds the KPIs and the chart, so they cannot disagree. Days without a save are real zeros in the series.
+- `userId` in the path only selects whom to look at; it never grants access (the caller's own admin grant is checked first).
+
+### Exact values on charts
+
+Every Admin chart names its unit (명 for people, 개 for links / collections) and shows real counts without a tooltip: the number above each bar when they fit without touching (7 and 30 days), and a full value list under every chart (collapsible on wide screens, always open on narrow ones; 90 days and very large numbers rely on it). `0` is written as `0`; a day with no data is "데이터 없음" and never 0. Share lists show the count and the percentage together.
+
 ### Known limitations
 
 **Saved links and Collections are counted from the rows that still exist.** A link saved on day X and permanently deleted later (trash after 30 days, emptying the trash, account deletion) disappears from day X. So an older day can go down slightly over time.
