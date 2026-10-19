@@ -18,7 +18,20 @@ import {
   validateAnswer,
 } from '../lib/adminModel.ts';
 import { statusAfterAccessCheck, statusAfterInitialize, statusAfterPageFailure } from '../lib/adminSession.ts';
-import { isActive, NAVIGATION, type NavEntry } from '../lib/navigation.ts';
+import { activeHref, isActive, NAVIGATION, type NavEntry } from '../lib/navigation.ts';
+import {
+  activeSeries,
+  analyticsPath,
+  labelIndexes,
+  layoutBars,
+  niceMax,
+  parseRange,
+  platformShares,
+  savesPerSaver,
+  shortDay,
+  trackingCoverage,
+  type AnalyticsDay,
+} from '../lib/analytics.ts';
 import { authCallbackSecurityHeaders, contentSecurityPolicy, securityHeaders } from '../lib/securityHeaders.ts';
 import { strings } from '../lib/strings.ts';
 import { classifyTokenFailure } from '../lib/tokenFailure.ts';
@@ -311,11 +324,26 @@ describe('admin pages and model', () => {
     assert.equal(localTodayStartUtc(now), new Date(2026, 9, 19).toISOString());
   });
 
-  it('the sidebar has every section; ones without a reliable data source are disabled, never a page', () => {
+  it('the sidebar has every section; 콘텐츠 (no decided scope) stays disabled, every enabled entry is a real page', () => {
     assert.deepEqual(NAVIGATION.map(entry => entry.label), ['대시보드', '사용자', '콘텐츠', '문의', '분석', '운영']);
     const leaves = (entries: readonly NavEntry[]): NavEntry[] => entries.flatMap(entry => (entry.children ? leaves(entry.children) : [entry]));
     const enabled = leaves(NAVIGATION).filter(entry => entry.href).map(entry => entry.href);
-    assert.deepEqual(enabled, ['/', '/users', '/inquiries', '/operations/app-version', '/operations/system']);
+    assert.deepEqual(enabled, [
+      '/',
+      '/users',
+      '/inquiries',
+      '/analytics',
+      '/analytics/users',
+      '/analytics/saves',
+      '/analytics/countries',
+      '/analytics/platforms',
+      '/operations/app-version',
+      '/operations/system',
+    ]);
+    assert.deepEqual(leaves(NAVIGATION.find(entry => entry.label === '콘텐츠')!.children!).map(entry => entry.href), [null, null]);
+    assert.equal(activeHref('/analytics/users'), '/analytics/users');
+    assert.equal(activeHref('/analytics'), '/analytics');
+    assert.equal(activeHref('/inquiries/12'), '/inquiries');
     for (const href of enabled) {
       const page = href === '/' ? 'app/(admin)/page.tsx' : `app/(admin)${href}/page.tsx`;
       assert.ok(existsSync(new URL(`../${page}`, import.meta.url)), page);
@@ -327,6 +355,76 @@ describe('admin pages and model', () => {
   it('pages have no write path except the two inquiry actions, and users / app version are read-only', () => {
     const puts = sourceFiles().filter(file => /method: 'PUT'/.test(readFileSync(file, 'utf8')));
     assert.deepEqual(puts.map(file => file.replace(/\\/g, '/').replace(/^.*\/app\//, 'app/')), ['app/(admin)/inquiries/[inquiryId]/page.tsx']);
+  });
+});
+
+describe('analytics', () => {
+  const day = (date: string, activeUsers = 0): AnalyticsDay => ({ date, signups: 0, activeUsers, linksSaved: 0, collectionsCreated: 0 });
+
+  it('ranges are 7d / 30d / 90d; anything else falls back to 30d (the API refuses it with 400 anyway)', () => {
+    assert.deepEqual(['7d', '30d', '90d', 'x', null, '30D'].map(value => parseRange(value)), ['7d', '30d', '90d', '30d', '30d', '30d']);
+    assert.equal(analyticsPath('90d'), '/api/v1/admin/analytics/overview?range=90d');
+  });
+
+  it('the tracking-start notice: none before any activity, partial while the window starts before tracking, full afterwards', () => {
+    assert.deepEqual(trackingCoverage(null, '2026-09-20'), { kind: 'none' });
+    assert.deepEqual(trackingCoverage('2026-10-19', '2026-09-20'), { kind: 'partial', since: '2026-10-19' });
+    assert.deepEqual(trackingCoverage('2026-09-20', '2026-09-20'), { kind: 'full' });
+    assert.deepEqual(trackingCoverage('2026-08-01', '2026-09-20'), { kind: 'full' });
+  });
+
+  it('days before tracking started are "no data" (null), never 0; from the start day on they are real counts', () => {
+    const series = [day('2026-10-17'), day('2026-10-18'), day('2026-10-19', 3)];
+    assert.deepEqual(activeSeries(series, '2026-10-18'), [null, 0, 3]);
+    assert.deepEqual(activeSeries(series, null), [null, null, null]);
+  });
+
+  it('platforms: Android / iOS / Web always (0 as 0), Unknown only when present, shares of the distinct total', () => {
+    assert.deepEqual(platformShares({ activeUsersInRange: 0, items: [] }), [
+      { platform: 'Android', activeUsers: 0, percent: 0 },
+      { platform: 'Ios', activeUsers: 0, percent: 0 },
+      { platform: 'Web', activeUsers: 0, percent: 0 },
+    ]);
+    // One person on Android and Web: both 100% of the 1 distinct user.
+    const shares = platformShares({ activeUsersInRange: 3, items: [{ platform: 'Android', activeUsers: 2 }, { platform: 'Web', activeUsers: 1 }, { platform: 'Unknown', activeUsers: 1 }] });
+    assert.deepEqual(shares.map(share => [share.platform, share.activeUsers, share.percent]), [['Android', 2, 66.7], ['Ios', 0, 0], ['Web', 1, 33.3], ['Unknown', 1, 33.3]]);
+  });
+
+  it('chart geometry: nice axis maximum, bars inside the plot, null days without a bar', () => {
+    assert.deepEqual([0, 1, 3, 7, 12, 99, 101].map(niceMax), [1, 1, 5, 10, 20, 100, 200]);
+    const layout = layoutBars([0, 5, null, 10], ['a', 'b', 'c', 'd'], 400, 100);
+    assert.equal(layout.max, 10);
+    assert.deepEqual(layout.bars.map(bar => [bar.value, Math.round(bar.height)]), [[0, 0], [5, 50], [null, 0], [10, 100]]);
+    for (const bar of layout.bars) {
+      assert.ok(bar.x >= 0 && bar.x + bar.width <= 400 && bar.y >= 0 && bar.y + bar.height <= 100);
+    }
+    assert.deepEqual(layout.ticks.map(tick => tick.value), [0, 5, 10]);
+    // Counts never get a fractional grid line (max 5 -> 0 and 5 only).
+    assert.deepEqual(layoutBars([4], ['a'], 100, 100).ticks.map(tick => tick.value), [0, 5]);
+    // Date labels: about 8, the last (today) always, none crowding it.
+    assert.deepEqual(labelIndexes(30), [0, 4, 8, 12, 16, 20, 24, 29]);
+    assert.deepEqual(labelIndexes(7), [0, 1, 2, 3, 4, 5, 6]);
+    assert.equal(labelIndexes(90).at(-1), 89);
+    assert.ok(89 - labelIndexes(90).at(-2)! >= 7);
+    assert.equal(layoutBars(new Array(90).fill(1), new Array(90).fill(''), 600, 160).bars.length, 90);
+    assert.equal(shortDay('2026-10-09'), '10/9');
+    assert.equal(savesPerSaver(7, 3), 2.3);
+    assert.equal(savesPerSaver(0, 0), null);
+  });
+
+  it('every analytics page uses the shared frame, and the country page invents no numbers', () => {
+    for (const page of ['analytics/page.tsx', 'analytics/users/page.tsx', 'analytics/saves/page.tsx', 'analytics/platforms/page.tsx', 'analytics/countries/page.tsx']) {
+      const source = readFileSync(new URL(`../app/(admin)/${page}`, import.meta.url), 'utf8');
+      assert.match(source, /<AnalyticsFrame/, page);
+      assert.match(source, /<Suspense/, page);
+    }
+    const countries = readFileSync(new URL('../app/(admin)/analytics/countries/page.tsx', import.meta.url), 'utf8');
+    assert.match(countries, /strings\.countriesNotCollected/);
+    assert.doesNotMatch(countries, /locale|timeZone|language/i);
+    assert.equal(strings.countriesNotCollected, '국가 데이터 수집을 아직 시작하지 않았습니다.');
+    const parts = readFileSync(new URL('../app/(admin)/analytics/AnalyticsParts.tsx', import.meta.url), 'utf8');
+    assert.match(parts, /role="img"/);
+    assert.match(parts, /<title>/);
   });
 });
 

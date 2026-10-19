@@ -204,7 +204,7 @@ h2 {
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
   gap: 12px;
 }
 
@@ -415,6 +415,74 @@ td.preview {
 
 .state {
   margin: 12px 0;
+}
+
+/* ---- analytics ---- */
+
+.notice.tracking {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--pending);
+}
+
+.charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+  gap: 12px;
+}
+
+.chart {
+  min-width: 0;
+  margin: 12px 0 0;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.chart figcaption {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.chart-bar {
+  fill: var(--accent);
+}
+
+.chart-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.chart-axis {
+  fill: var(--muted);
+  font-size: 10px;
+}
+
+.platform-card {
+  max-width: 640px;
+}
+
+.share-bar {
+  flex: 1 1 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg);
+}
+
+.share-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
 }
 
 /* Juple IDs, URLs and technical identifiers stay left-to-right in any layout direction. */

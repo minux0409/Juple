@@ -8,8 +8,8 @@ export interface NavEntry {
 }
 
 /**
- * The sidebar. 콘텐츠 and 분석 have no reliable data source yet (no activity, country or per-platform usage is recorded - see
- * docs/admin.md), so they stay disabled instead of showing estimates.
+ * The sidebar. 콘텐츠 has no decided moderation scope yet, so it stays disabled instead of showing a placeholder. 분석 reads the
+ * analytics overview (docs/analytics.md).
  */
 export const NAVIGATION: readonly NavEntry[] = [
   { label: strings.navDashboard, href: '/' },
@@ -27,10 +27,11 @@ export const NAVIGATION: readonly NavEntry[] = [
     label: strings.navAnalytics,
     href: null,
     children: [
-      { label: strings.navAnalyticsUsers, href: null },
-      { label: strings.navAnalyticsSaves, href: null },
-      { label: strings.navAnalyticsCountries, href: null },
-      { label: strings.navAnalyticsPlatforms, href: null },
+      { label: strings.navAnalyticsOverview, href: '/analytics' },
+      { label: strings.navAnalyticsUsers, href: '/analytics/users' },
+      { label: strings.navAnalyticsSaves, href: '/analytics/saves' },
+      { label: strings.navAnalyticsCountries, href: '/analytics/countries' },
+      { label: strings.navAnalyticsPlatforms, href: '/analytics/platforms' },
     ],
   },
   {
@@ -47,4 +48,15 @@ export const NAVIGATION: readonly NavEntry[] = [
 export function isActive(href: string, pathname: string): boolean {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
   return href === '/' ? path === '/' : path === href || path.startsWith(`${href}/`);
+}
+
+function hrefs(entries: readonly NavEntry[]): string[] {
+  return entries.flatMap(entry => [...(entry.href ? [entry.href] : []), ...hrefs(entry.children ?? [])]);
+}
+
+/** The one sidebar link to mark as current: the most specific match (/analytics/users, not also /analytics). */
+export function activeHref(pathname: string, entries: readonly NavEntry[] = NAVIGATION): string | null {
+  return hrefs(entries)
+    .filter(href => isActive(href, pathname))
+    .sort((a, b) => b.length - a.length)[0] ?? null;
 }

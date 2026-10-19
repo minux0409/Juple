@@ -9,7 +9,7 @@ import type { AdminConfig } from '../../lib/adminConfig';
 import { adminPaths, failureMessage, type AdminMe } from '../../lib/adminModel';
 import { statusAfterAccessCheck, statusAfterInitialize, statusAfterPageFailure, type AdminSessionStatus } from '../../lib/adminSession';
 import { acquireApiToken, getMsal, resolveSignedInAccount, signIn, signOut } from '../../lib/msalClient';
-import { isActive, NAVIGATION, type NavEntry } from '../../lib/navigation';
+import { activeHref, NAVIGATION, type NavEntry } from '../../lib/navigation';
 import { strings } from '../../lib/strings';
 
 interface AdminContextValue {
@@ -227,7 +227,7 @@ function NavItem({ entry, pathname }: { entry: NavEntry; pathname: string }) {
   return (
     <li>
       {entry.href ? (
-        <Link aria-current={isActive(entry.href, pathname) ? 'page' : undefined} className="nav-link" href={entry.href}>
+        <Link aria-current={activeHref(pathname) === entry.href ? 'page' : undefined} className="nav-link" href={entry.href}>
           {entry.label}
         </Link>
       ) : (
