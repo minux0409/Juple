@@ -4,11 +4,15 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   ANALYTICS_RANGES,
   analyticsPath,
+  chartDataRows,
+  formatValue,
   labelIndexes,
   layoutBars,
   parseRange,
   shortDay,
   trackingCoverage,
+  valueLabelsFit,
+  type ChartUnit,
   type AnalyticsOverview,
   type AnalyticsRange,
 } from '../../../lib/analytics';
@@ -79,8 +83,18 @@ export function Kpis({ items }: { items: readonly (readonly [string, number | st
   );
 }
 
-/** Labelled counts with their share and a bar - every value stays inside its card (wraps on narrow screens). */
-export function ShareList({ title, note, rows }: { title?: string; note?: string; rows: readonly { readonly label: string; readonly value: number; readonly percent: number }[] }) {
+/** Labelled counts with their share and a bar - every value stays inside its card (wraps on narrow screens). Count + unit + %. */
+export function ShareList({
+  title,
+  note,
+  unit,
+  rows,
+}: {
+  title?: string;
+  note?: string;
+  unit: ChartUnit;
+  rows: readonly { readonly label: string; readonly value: number; readonly percent: number }[];
+}) {
   return (
     <section className="card platform-card">
       {title ? <h2 className="card-title">{title}</h2> : null}
@@ -90,7 +104,7 @@ export function ShareList({ title, note, rows }: { title?: string; note?: string
           <div key={row.label}>
             <dt>{row.label}</dt>
             <dd>
-              {formatCount(row.value)} <span className="muted">({row.percent}%)</span>
+              {formatValue(row.value, unit)} <span className="muted">({row.percent.toLocaleString()}%)</span>
             </dd>
             <div aria-hidden="true" className="share-bar">
               <span style={{ width: `${Math.min(100, row.percent)}%` }} />
@@ -106,53 +120,96 @@ const PLOT_WIDTH = 600;
 const PLOT_HEIGHT = 160;
 const AXIS_WIDTH = 36;
 const LABEL_HEIGHT = 18;
+/** Room above the plot so the number over the tallest bar is never cut off. */
+const TOP_PAD = 14;
 
 /**
- * A small SVG bar chart (no chart library): scales with its box (viewBox), each bar's <title> is its tooltip, and the figure has a
- * text summary for screen readers. A day without data (null) is drawn as no bar at all - never as a 0.
+ * A small SVG bar chart (no chart library): scales with its box (viewBox). The real count is written above every bar when they fit
+ * without touching (otherwise, and on narrow screens, the full data list under the chart carries every value), 0 is written as "0",
+ * and a day without data (null) is a "-" marker with no bar - never a 0. The unit is named in the caption.
  */
-export function BarChart({ title, days, values }: { title: string; days: readonly string[]; values: readonly (number | null)[] }) {
+export function BarChart({ title, unit, days, values }: { title: string; unit: ChartUnit; days: readonly string[]; values: readonly (number | null)[] }) {
   const layout = layoutBars(values, days, PLOT_WIDTH, PLOT_HEIGHT);
   const known = values.filter((value): value is number => value !== null);
   const total = known.reduce((sum, value) => sum + value, 0);
   const labelled = new Set(labelIndexes(days.length));
-  const summary = known.length > 0 ? `${title}: ${days.length}일, 합계 ${formatCount(total)}, 최대 ${formatCount(Math.max(...known))}` : `${title}: ${strings.chartNoData}`;
+  const showValues = valueLabelsFit(values, PLOT_WIDTH);
+  const summary = known.length > 0 ? `${title}: ${days.length}일, 합계 ${formatValue(total, unit)}, 최대 ${formatValue(Math.max(...known), unit)}` : `${title}: ${strings.chartNoData}`;
+  const rows = chartDataRows(days, values, unit);
 
   return (
     <figure className="chart">
-      <figcaption>{title}</figcaption>
-      <svg aria-label={summary} role="img" viewBox={`0 0 ${PLOT_WIDTH + AXIS_WIDTH} ${PLOT_HEIGHT + LABEL_HEIGHT}`}>
-        {layout.ticks.map(tick => (
-          <g key={tick.value}>
-            <line className="chart-grid" x1={AXIS_WIDTH} x2={AXIS_WIDTH + PLOT_WIDTH} y1={tick.y} y2={tick.y} />
-            <text className="chart-axis" textAnchor="end" x={AXIS_WIDTH - 4} y={Math.max(10, tick.y + 4)}>
-              {formatCount(tick.value)}
-            </text>
-          </g>
-        ))}
-        {layout.bars.map((bar, index) =>
-          bar.value === null ? null : (
-            <rect className="chart-bar" height={Math.max(bar.height, bar.value > 0 ? 1 : 0)} key={bar.label} width={bar.width} x={AXIS_WIDTH + bar.x} y={bar.height === 0 && bar.value > 0 ? PLOT_HEIGHT - 1 : bar.y}>
-              <title>{`${days[index]}: ${formatCount(bar.value)}`}</title>
-            </rect>
-          ),
-        )}
-        {layout.bars.map((bar, index) =>
-          labelled.has(index) ? (
-            <text
-              className="chart-axis"
-              key={`label-${bar.label}`}
-              // The first and last labels hug the plot edges so they are never cut off.
-              textAnchor={index === 0 && layout.bars.length > 1 ? 'start' : index === layout.bars.length - 1 ? 'end' : 'middle'}
-              x={index === 0 && layout.bars.length > 1 ? AXIS_WIDTH + bar.x : index === layout.bars.length - 1 ? AXIS_WIDTH + PLOT_WIDTH : AXIS_WIDTH + bar.x + bar.width / 2}
-              y={PLOT_HEIGHT + LABEL_HEIGHT - 4}
-            >
-              {shortDay(days[index] ?? '')}
-            </text>
-          ) : null,
-        )}
+      <figcaption>
+        {title} <span className="muted">({strings.chartUnit}: {unit})</span>
+      </figcaption>
+      <svg aria-label={summary} role="img" viewBox={`0 0 ${PLOT_WIDTH + AXIS_WIDTH} ${PLOT_HEIGHT + LABEL_HEIGHT + TOP_PAD}`}>
+        <g transform={`translate(0 ${TOP_PAD})`}>
+          {layout.ticks.map(tick => (
+            <g key={tick.value}>
+              <line className="chart-grid" x1={AXIS_WIDTH} x2={AXIS_WIDTH + PLOT_WIDTH} y1={tick.y} y2={tick.y} />
+              <text className="chart-axis" textAnchor="end" x={AXIS_WIDTH - 4} y={Math.max(10, tick.y + 4)}>
+                {formatCount(tick.value)}
+              </text>
+            </g>
+          ))}
+          {layout.bars.map((bar, index) =>
+            bar.value === null ? null : (
+              <rect className="chart-bar" height={Math.max(bar.height, bar.value > 0 ? 1 : 0)} key={bar.label} width={bar.width} x={AXIS_WIDTH + bar.x} y={bar.height === 0 && bar.value > 0 ? PLOT_HEIGHT - 1 : bar.y}>
+                <title>{`${days[index]}: ${formatValue(bar.value, unit)}`}</title>
+              </rect>
+            ),
+          )}
+          {showValues
+            ? layout.bars.map(bar => (
+                <text
+                  className={bar.value === null ? 'chart-value chart-nodata' : 'chart-value'}
+                  key={`value-${bar.label}`}
+                  textAnchor="middle"
+                  x={AXIS_WIDTH + bar.x + bar.width / 2}
+                  y={(bar.value === null ? PLOT_HEIGHT : bar.y) - 3}
+                >
+                  {bar.value === null ? '-' : formatCount(bar.value)}
+                </text>
+              ))
+            : null}
+          {layout.bars.map((bar, index) =>
+            labelled.has(index) ? (
+              <text
+                className="chart-axis"
+                key={`label-${bar.label}`}
+                // The first and last labels hug the plot edges so they are never cut off.
+                textAnchor={index === 0 && layout.bars.length > 1 ? 'start' : index === layout.bars.length - 1 ? 'end' : 'middle'}
+                x={index === 0 && layout.bars.length > 1 ? AXIS_WIDTH + bar.x : index === layout.bars.length - 1 ? AXIS_WIDTH + PLOT_WIDTH : AXIS_WIDTH + bar.x + bar.width / 2}
+                y={PLOT_HEIGHT + LABEL_HEIGHT - 4}
+              >
+                {shortDay(days[index] ?? '')}
+              </text>
+            ) : null,
+          )}
+        </g>
       </svg>
       {known.length === 0 ? <p className="muted">{strings.chartNoData}</p> : null}
+      {/* Wide screens: the list is one click away. Narrow screens (numbers on the bars would be tiny): it is always open. */}
+      <details className="chart-data chart-data-toggle">
+        <summary>{strings.chartShowValues}</summary>
+        <ChartDataList rows={rows} />
+      </details>
+      <div className="chart-data chart-data-open">
+        <ChartDataList rows={rows} />
+      </div>
     </figure>
+  );
+}
+
+function ChartDataList({ rows }: { rows: ReturnType<typeof chartDataRows> }) {
+  return (
+    <dl className="chart-values">
+      {rows.map(row => (
+        <div className={row.noData ? 'chart-nodata' : undefined} key={row.label}>
+          <dt className="ltr">{row.label}</dt>
+          <dd>{row.text}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

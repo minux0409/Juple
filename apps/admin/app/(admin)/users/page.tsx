@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { adminPaths, displayJupleId, formatCount, formatInstant, type AdminUserRow } from '../../../lib/adminModel';
 import { strings } from '../../../lib/strings';
@@ -63,7 +64,11 @@ export default function UsersPage() {
         <tbody>
           {list.items.map(user => (
             <tr key={user.userId}>
-              <td className="ltr">{displayJupleId(user.jupleId)}</td>
+              <td className="ltr">
+                <Link aria-label={`${displayJupleId(user.jupleId)} ${strings.userDetailOpen}`} href={`/users/${user.userId}`}>
+                  {displayJupleId(user.jupleId)}
+                </Link>
+              </td>
               <td>{user.displayName ?? '-'}</td>
               <td>{formatInstant(user.createdAtUtc)}</td>
               <td className="ltr">{user.preferredLocale}</td>

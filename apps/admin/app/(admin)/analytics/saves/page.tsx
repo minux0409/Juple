@@ -36,8 +36,8 @@ export default function AnalyticsSavesPage() {
                 />
                 <p className="muted">{strings.savesNote}</p>
                 <div className="charts">
-                  <BarChart days={data.series.map(day => day.date)} title={strings.chartLinksSaved} values={data.series.map(day => day.linksSaved)} />
-                  <BarChart days={data.series.map(day => day.date)} title={strings.chartCollectionsCreated} values={data.series.map(day => day.collectionsCreated)} />
+                  <BarChart days={data.series.map(day => day.date)} title={strings.chartLinksSaved} unit="개" values={data.series.map(day => day.linksSaved)} />
+                  <BarChart days={data.series.map(day => day.date)} title={strings.chartCollectionsCreated} unit="개" values={data.series.map(day => day.collectionsCreated)} />
                 </div>
               </section>
             </>
@@ -63,7 +63,7 @@ function HoldingsSection({ holdings, savedToday }: { holdings: LinkHoldings; sav
         ]}
       />
       <div className="charts">
-        <ShareList rows={holdingRows(holdings).map(row => ({ label: row.key, value: row.value, percent: row.percent }))} title={strings.holdingsDistribution} />
+        <ShareList rows={holdingRows(holdings).map(row => ({ label: row.key, value: row.value, percent: row.percent }))} title={strings.holdingsDistribution} unit="명" />
         <section className="card platform-card">
           <h2 className="card-title">{strings.holdingsTop}</h2>
           {holdings.topHolders.length === 0 ? (

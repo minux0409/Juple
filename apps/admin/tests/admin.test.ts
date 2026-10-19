@@ -22,6 +22,11 @@ import { activeHref, isActive, NAVIGATION, type NavEntry } from '../lib/navigati
 import {
   activeSeries,
   analyticsPath,
+  chartDataRows,
+  formatValue,
+  NO_DATA_TEXT,
+  userLinkStatsPath,
+  valueLabelsFit,
   bucketLabel,
   holdingRows,
   membershipRows,
@@ -414,6 +419,53 @@ describe('analytics', () => {
     assert.equal(shortDay('2026-10-09'), '10/9');
     assert.equal(savesPerSaver(7, 3), 2.3);
     assert.equal(savesPerSaver(0, 0), null);
+  });
+
+  it('exact values: unit written, 0 is a real zero, missing data is never 0, integers only', () => {
+    assert.equal(formatValue(0, '개'), '0개');
+    assert.equal(formatValue(1234, '명'), (1234).toLocaleString() + '명');
+    assert.equal(formatValue(null, '명'), NO_DATA_TEXT);
+    assert.ok(!formatValue(7, '개').includes('.'));
+    const rows = chartDataRows(['2026-10-01', '2026-10-02', 'a-very-long-label-2026-10-03-extra'], [0, null, 12], '개');
+    assert.deepEqual(rows.map(row => [row.text, row.noData]), [['0개', false], [NO_DATA_TEXT, true], ['12개', false]]);
+    assert.equal(rows[2]!.label, 'a-very-long-label-2026-10-03-extra'); // long labels are carried whole, never cut
+    assert.equal(chartDataRows([], [], '명').length, 0);
+  });
+
+  it('value labels on the bars only when none can touch its neighbour; otherwise the data list carries the values', () => {
+    assert.equal(valueLabelsFit(new Array(7).fill(5), 600), true);
+    assert.equal(valueLabelsFit(new Array(30).fill(99), 600), true); // 20 units per bar, 2 digits
+    assert.equal(valueLabelsFit(new Array(90).fill(5), 600), false); // 6.7 units per bar
+    assert.equal(valueLabelsFit(new Array(30).fill(123456), 600), false); // wide numbers
+    assert.equal(valueLabelsFit([], 600), true);
+    assert.equal(valueLabelsFit([null, null], 600), true);
+  });
+
+  it('per-user link statistics: path is numeric-only and range-scoped; the page and strings never touch link content', () => {
+    assert.equal(userLinkStatsPath(42, '7d'), '/api/v1/admin/users/42/link-stats?range=7d');
+    const page = readFileSync(join(import.meta.dirname, '..', 'app', '(admin)', 'users', '[userId]', 'page.tsx'), 'utf8');
+    assert.ok(!/[^a-z](?:data|day)[.](?:url|title|memo|previewImage|imageUrl)[^a-z]/i.test(page));
+    assert.ok(page.includes('parseId'));
+  });
+
+  it('every chart and share list in the Admin names its unit (명 / 개)', () => {
+    const root = join(import.meta.dirname, '..', 'app');
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir)) {
+        const full = join(dir, entry);
+        if (statSync(full).isDirectory()) walk(full);
+        else if (full.endsWith('page.tsx')) files.push(full);
+      }
+    };
+    walk(root);
+    for (const file of files) {
+      const source = readFileSync(file, 'utf8');
+      const uses = source.split('<BarChart').length + source.split('<ShareList').length - 2;
+      const units = (source.match(/unit="(명|개)"/g) ?? []).length;
+      assert.equal(units, uses, `${file}: ${uses} chart / share list uses, ${units} units`);
+    }
+    assert.ok(files.length > 5);
   });
 
   it('membership: no trial / paid numbers while the billing program does not run; exclusive groups adding up when it does', () => {

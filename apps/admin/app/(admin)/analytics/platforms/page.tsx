@@ -35,19 +35,20 @@ export default function AnalyticsPlatformsPage() {
           const hasUnknown = data.series.some(day => (day.activeUnknown ?? 0) > 0);
           return (
             <>
-              <ShareList note={strings.platformsNote} rows={shareRows(data.platforms)} />
+              <ShareList note={strings.platformsNote} unit="명" rows={shareRows(data.platforms)} />
               {data.series.some(day => day.activeAndroid !== undefined) ? (
                 <div className="charts">
-                  <BarChart days={days} title={strings.chartAndroid} values={tracked(day => day.activeAndroid)} />
-                  <BarChart days={days} title={strings.chartIos} values={tracked(day => day.activeIos)} />
-                  <BarChart days={days} title={strings.chartWeb} values={tracked(day => day.activeWeb)} />
-                  {hasUnknown ? <BarChart days={days} title={strings.chartUnknown} values={tracked(day => day.activeUnknown)} /> : null}
+                  <BarChart days={days} title={strings.chartAndroid} unit="명" values={tracked(day => day.activeAndroid)} />
+                  <BarChart days={days} title={strings.chartIos} unit="명" values={tracked(day => day.activeIos)} />
+                  <BarChart days={days} title={strings.chartWeb} unit="명" values={tracked(day => day.activeWeb)} />
+                  {hasUnknown ? <BarChart days={days} title={strings.chartUnknown} unit="명" values={tracked(day => day.activeUnknown)} /> : null}
                 </div>
               ) : null}
               {data.platformsSinceTrackingStart ? (
                 <ShareList
                   note={`${strings.platformsSinceNote}${data.activityTrackingSince ? ` (${strings.analyticsTrackingSince}: ${data.activityTrackingSince})` : ''}`}
                   rows={shareRows(data.platformsSinceTrackingStart)}
+                  unit="명"
                   title={`${strings.platformsSinceTitle} · ${formatCount(data.platformsSinceTrackingStart.activeUsersInRange)}`}
                 />
               ) : null}

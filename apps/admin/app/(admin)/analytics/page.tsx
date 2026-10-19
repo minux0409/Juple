@@ -24,7 +24,7 @@ export default function AnalyticsOverviewPage() {
                 [strings.kpiNew30, data.users.new30Days],
               ]}
             />
-            <BarChart days={data.series.map(day => day.date)} title={strings.chartActiveUsers} values={activeSeries(data.series, data.activityTrackingSince)} />
+            <BarChart days={data.series.map(day => day.date)} title={strings.chartActiveUsers} unit="명" values={activeSeries(data.series, data.activityTrackingSince)} />
           </>
         )}
       </AnalyticsFrame>

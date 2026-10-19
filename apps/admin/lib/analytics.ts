@@ -21,6 +21,29 @@ export function analyticsPath(range: AnalyticsRange): string {
   return `/api/v1/admin/analytics/overview?range=${range}`;
 }
 
+export interface UserLinkStats {
+  readonly userId: number;
+  readonly jupleId: string;
+  readonly createdAtUtc: string;
+  readonly range: AnalyticsRange;
+  readonly startDateUtc: string;
+  readonly todayUtc: string;
+  readonly generatedAtUtc: string;
+  /** Links not in the trash right now. */
+  readonly liveLinks: number;
+  /** Saved on that UTC day(s) and still existing (trash included); permanently deleted links cannot be counted. */
+  readonly savedToday: number;
+  readonly saved7Days: number;
+  readonly saved30Days: number;
+  readonly saved90Days: number;
+  readonly savedInRange: number;
+  readonly series: readonly { readonly date: string; readonly linksSaved: number }[];
+}
+
+export function userLinkStatsPath(userId: number, range: AnalyticsRange): string {
+  return `/api/v1/admin/users/${encodeURIComponent(String(userId))}/link-stats?range=${range}`;
+}
+
 export interface AnalyticsDay {
   readonly date: string;
   readonly signups: number;
@@ -262,4 +285,41 @@ export function labelIndexes(count: number, target = 8): readonly number[] {
 export function shortDay(date: string): string {
   const [, month, day] = date.split('-');
   return month && day ? `${Number(month)}/${Number(day)}` : date;
+}
+
+// ---- exact values on charts (no tooltip needed) ----------------------------------------------------------------------------------
+
+/** The unit written next to every count: people ("명") or links / collections ("개"). */
+export type ChartUnit = '명' | '개';
+
+export const NO_DATA_TEXT = '데이터 없음';
+
+/** "12명", "0개" - or "데이터 없음" for a missing value. 0 is a real zero and is always written as one. */
+export function formatValue(value: number | null, unit: ChartUnit): string {
+  return value === null ? NO_DATA_TEXT : `${value.toLocaleString()}${unit}`;
+}
+
+export interface ChartDataRow {
+  readonly label: string;
+  readonly text: string;
+  /** True for a missing value (not the same as 0). */
+  readonly noData: boolean;
+}
+
+/** Every value of a chart as text - the data list shown under it, so each number is readable without any tooltip. */
+export function chartDataRows(labels: readonly string[], values: readonly (number | null)[], unit: ChartUnit): readonly ChartDataRow[] {
+  return values.map((value, index) => ({ label: labels[index] ?? '', text: formatValue(value, unit), noData: value === null }));
+}
+
+/**
+ * Whether a number can be written above EVERY bar without touching its neighbour: the slot must be wider than the longest value
+ * (about 5.5 units per character at the chart's 9px label size). When not (e.g. 90 days, or 6-digit counts) the labels are left out
+ * and the data list carries all values instead - nothing is ever drawn overlapping.
+ */
+export function valueLabelsFit(values: readonly (number | null)[], plotWidth: number): boolean {
+  if (values.length === 0) {
+    return true;
+  }
+  const longest = Math.max(1, ...values.map(value => (value === null ? 1 : value.toLocaleString().length)));
+  return plotWidth / values.length >= longest * 5.5 + 2;
 }

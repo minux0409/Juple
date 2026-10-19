@@ -540,3 +540,66 @@ td.preview {
     overflow-x: auto;
   }
 }
+
+/* Exact values: numbers over the bars, and the full value list under every chart (always open on narrow screens). */
+.chart-value {
+  fill: var(--text);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-nodata,
+.chart-nodata dd {
+  fill: var(--muted);
+  color: var(--muted);
+}
+
+.chart-data {
+  margin-top: 8px;
+}
+
+.chart-data summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.chart-data-open {
+  display: none;
+}
+
+.chart-values {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 2px 16px;
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-values > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chart-values dt,
+.chart-values dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .chart-value {
+    display: none;
+  }
+
+  .chart-data-toggle {
+    display: none;
+  }
+
+  .chart-data-open {
+    display: block;
+  }
+}

@@ -36,8 +36,8 @@ export default function AnalyticsUsersPage() {
               ]}
             />
             <div className="charts">
-              <BarChart days={data.series.map(day => day.date)} title={strings.chartSignups} values={data.series.map(day => day.signups)} />
-              <BarChart days={data.series.map(day => day.date)} title={strings.chartActiveUsers} values={activeSeries(data.series, data.activityTrackingSince)} />
+              <BarChart days={data.series.map(day => day.date)} title={strings.chartSignups} unit="명" values={data.series.map(day => day.signups)} />
+              <BarChart days={data.series.map(day => day.date)} title={strings.chartActiveUsers} unit="명" values={activeSeries(data.series, data.activityTrackingSince)} />
             </div>
           </>
         )}
@@ -63,6 +63,7 @@ function MembershipSection({ membership }: { membership: Membership }) {
       {rows ? (
         <ShareList
           note={strings.membershipGroupsNote}
+          unit="명"
           rows={rows.map(row => ({ label: GROUP_LABELS[row.key] ?? row.key, value: row.value, percent: row.percent }))}
           title={`${strings.membershipTitle} · ${strings.membershipShare}`}
         />
@@ -76,6 +77,7 @@ function MembershipSection({ membership }: { membership: Membership }) {
             { label: strings.membershipOver30, value: membership.signedUpOver30Days, percent: percentOf(membership.signedUpOver30Days, membership.totalUsers) },
           ]}
           title={strings.membershipAgeNote}
+          unit="명"
         />
       )}
     </section>
