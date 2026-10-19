@@ -11,6 +11,8 @@
  * Entra and the Backend API must never disagree on which environment a build is running as.
  */
 
+import { Platform } from 'react-native';
+
 export interface EntraAuthConfig {
   readonly issuer: string;
   readonly authorizationEndpoint: string;
@@ -24,8 +26,20 @@ export interface EntraAuthConfig {
 // The custom OAuth redirect scheme is a fixed, app-level identifier (see android/app/build.gradle's
 // appAuthRedirectScheme manifest placeholder and ios/JupleMobile/Info.plist's CFBundleURLSchemes,
 // both literally "com.juple.app.auth") - it does not depend on which Entra tenant/app registration
-// is selected, so every environment shares this one value.
-const ENTRA_REDIRECT_URL = 'com.juple.app.auth://oauthredirect';
+// is selected, so every environment shares one value per platform.
+//
+// iOS uses the trailing-slash form. Entra normalizes the registered redirect and answers with
+// "com.juple.app.auth://oauthredirect/"; iOS AppAuth only consumes a callback whose path equals the
+// requested redirect's path exactly, so a slash-less request would leave authorize() and logout()
+// pending forever. Entra accepts both forms as the same registered URI, so authorize, token
+// exchange and logout all keep using this one value. Android's redirect is unchanged.
+export function entraRedirectUrlForPlatform(os: string): string {
+  return os === 'ios'
+    ? 'com.juple.app.auth://oauthredirect/'
+    : 'com.juple.app.auth://oauthredirect';
+}
+
+const ENTRA_REDIRECT_URL = entraRedirectUrlForPlatform(Platform.OS);
 
 const ENTRA_API_SCOPE_NAME = 'access_as_user';
 

@@ -1,6 +1,7 @@
 import {
   buildProductionEntraAuthConfig,
   entraDevAuthConfig,
+  entraRedirectUrlForPlatform,
   resolveEntraAuthConfig,
 } from '../entraAuthConfig';
 
@@ -69,9 +70,8 @@ describe('resolveEntraAuthConfig', () => {
     });
 
     expect(productionConfig.redirectUrl).toBe(entraDevAuthConfig.redirectUrl);
-    expect(entraDevAuthConfig.redirectUrl).toBe(
-      'com.juple.app.auth://oauthredirect',
-    );
+    // Jest runs as iOS (react-native preset default).
+    expect(entraDevAuthConfig.redirectUrl).toBe(entraRedirectUrlForPlatform('ios'));
   });
 
   it('throws (fail-closed) for a Production build missing any required value, naming only the missing ones', () => {
@@ -116,5 +116,15 @@ describe('buildProductionEntraAuthConfig', () => {
     const config = buildProductionEntraAuthConfig(fakeProductionEntraEnv);
 
     expect(config).not.toEqual(entraDevAuthConfig);
+  });
+});
+
+describe('entraRedirectUrlForPlatform', () => {
+  it('uses the trailing-slash form Entra answers with on iOS (AppAuth matches the path exactly)', () => {
+    expect(entraRedirectUrlForPlatform('ios')).toBe('com.juple.app.auth://oauthredirect/');
+  });
+
+  it('keeps the existing slash-less redirect on Android', () => {
+    expect(entraRedirectUrlForPlatform('android')).toBe('com.juple.app.auth://oauthredirect');
   });
 });
