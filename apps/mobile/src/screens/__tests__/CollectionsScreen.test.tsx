@@ -1915,6 +1915,40 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
     act(() => renderer.unmount());
   });
 
+  it('a touch outside the field and the panel closes it (no keyboard event needed - a hardware keyboard shows none); inside it stays; the text stays', async () => {
+    const renderer = await renderWithLayout();
+    // Touches bubble from the touched view outward: an inner handler runs before the screen root's.
+    const screenRoot = () => renderer.root.findAll(node => Array.isArray(node.props.edges) && typeof node.props.onTouchStart === 'function')[0];
+    const touchFrom = async (inner?: { props: { onTouchStart?: () => void } }) => {
+      await act(async () => {
+        inner?.props.onTouchStart?.();
+        screenRoot().props.onTouchStart();
+      });
+    };
+    const searchBox = () => renderer.root.findAll(node => typeof node.props.onLayout === 'function' && node.props.collapsable === false && typeof node.props.onTouchStart === 'function')[0];
+    await focus(renderer);
+    await type(renderer, 'tian');
+    await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
+    expect(panels(renderer)).toHaveLength(1);
+
+    await touchFrom(panels(renderer)[0]);
+    expect(panels(renderer)).toHaveLength(1);
+    await touchFrom(searchBox());
+    expect(panels(renderer)).toHaveLength(1);
+
+    await touchFrom();
+    expect(panels(renderer)).toHaveLength(0);
+    expect(searchField(renderer).props.value).toBe('tian');
+
+    // Typing again brings it back.
+    await type(renderer, 'tiany');
+    await pause(260);
+    await pause(20); // the frame is measured on the next animation frame
+    expect(panels(renderer)).toHaveLength(1);
+    act(() => renderer.unmount());
+  });
+
   it('follows the tab: each tab asks for its own scope and never draws another tab answer', async () => {
     jest.mocked(getCollectionSuggestions).mockImplementation(async (_request, options) =>
       options.scope === 'shared' ? { collections: [sharedCollection], links: [] } : { collections: [ownedCollection], links: [] },

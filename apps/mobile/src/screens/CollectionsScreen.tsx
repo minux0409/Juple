@@ -508,6 +508,24 @@ export function CollectionsScreen() {
   const suggestionGroups = suggestionRows(suggestions);
   const suggestionsOpen = searchFocused && !suggestionsDismissed && searchText.trim() !== '' && suggestionGroups.collections.length + suggestionGroups.links.length > 0;
 
+  // A touch that starts anywhere outside the field and the panel (a card, the filters, empty space, the list being dragged) closes the
+  // suggestions; the typed text stays. Touches bubble from the innermost view outward, so the field and the panel mark their own touches
+  // first. This does not depend on the keyboard: with a hardware keyboard (iOS Simulator, iPad, Chromebook) no soft keyboard is shown,
+  // so neither keyboardDidHide nor the list's tap-to-dismiss-keyboard ever fires.
+  const touchStartedInSearchRef = useRef(false);
+  const markTouchInSearch = useCallback(() => {
+    touchStartedInSearchRef.current = true;
+  }, []);
+  const closeSuggestionsOnOutsideTouch = useCallback(() => {
+    const startedInSearch = touchStartedInSearchRef.current;
+    touchStartedInSearchRef.current = false;
+    if (!startedInSearch) {
+      setSuggestionsDismissed(true);
+    }
+  }, []);
+  // Leaving the screen (another tab, a pushed screen) closes them too: the field may keep its focus while it is not on screen.
+  useFocusEffect(useCallback(() => () => setSuggestionsDismissed(true), []));
+
   // Back (Android) first closes the open suggestions; the keyboard going away closes them too (they belong to typing).
   useEffect(() => {
     if (!suggestionsOpen) {
@@ -802,7 +820,7 @@ export function CollectionsScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top']} style={styles.safeArea}>
+    <SafeAreaView edges={['top']} onTouchStart={closeSuggestionsOnOutsideTouch} style={styles.safeArea}>
       <View collapsable={false} pointerEvents="none" ref={overlayRootRef} style={styles.overlayRoot} />
       <FlatList
         key={gridListKey(viewMode, viewMode === 'grid', gridColumns)}
@@ -851,7 +869,7 @@ export function CollectionsScreen() {
 
             {/* The search: right under the header, above the four filters. The shared Juple search field (themed input, clear button). */}
             <View style={styles.searchRow}>
-              <View collapsable={false} onLayout={measureOverlay} ref={searchAnchorRef}>
+              <View collapsable={false} onLayout={measureOverlay} onTouchStart={markTouchInSearch} ref={searchAnchorRef}>
                 <SearchField
                   clearLabel={t('history.searchClear')}
                   onBlur={() => setSearchFocused(false)}
@@ -994,6 +1012,7 @@ export function CollectionsScreen() {
           linksHeading={t('collections.searchSuggestionLinks')}
           onOpenExternal={openOriginalUrl}
           onSelect={openSuggestion}
+          onTouchStart={markTouchInSearch}
           openExternalLabel={t('item.goToUrlA11y')}
           frame={panelFrame}
         />

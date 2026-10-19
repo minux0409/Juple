@@ -20,6 +20,7 @@ import { TourHost } from '../tour/TourHost';
 import { SubscriptionRequiredPrompt } from '../billing/SubscriptionRequiredPrompt';
 import { MyCollectionSubmissionsScreen } from '../screens/MyCollectionSubmissionsScreen';
 import { headerTitleWithIcon, screenIcons } from './screenIcons';
+import { iosHeaderBackOptions } from './sheetHeader';
 import { TermsAgreementScreen } from '../safety/TermsAgreementScreen';
 import { TermsUnavailable } from '../safety/TermsUnavailable';
 import { useTermsOnboarding } from '../safety/useTermsOnboarding';
@@ -232,7 +233,7 @@ export function RootStack() {
   return (
     <>
       <TourBackground>
-      <Stack.Navigator>
+      <Stack.Navigator screenOptions={({ navigation }) => iosHeaderBackOptions(() => navigation.goBack())}>
         {isReady ? (
           <Stack.Group>
             <Stack.Screen component={themedScreen(MainTabs)} name="MainTabs" options={{ headerShown: false }} />
@@ -255,6 +256,8 @@ export function RootStack() {
               name="CollectionDetails"
               options={{ title: t('nav.collectionDetails'), ...headerTitleWithIcon(screenIcons.collectionDetails, t('nav.collectionDetails')) }}
             />
+            {/* On iOS 'modal' is a page sheet with no back button of its own: the stack-wide back arrow (screenOptions) closes it
+                like the swipe-down does (the screen keeps no unsaved draft to guard). Android shows a normal stack screen. */}
             <Stack.Screen
               component={themedScreen(CollectionShareScreen)}
               name="CollectionShare"

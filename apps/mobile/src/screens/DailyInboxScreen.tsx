@@ -87,6 +87,10 @@ function isImageLine(entry: ItemHistoryEntry | ImageLine): entry is ImageLine {
 export const HOME_PAGE_SIZE = 25;
 /** The server's page limit - a refresh never asks for more rows than this in one request. */
 const MAX_PAGE_LIMIT = 100;
+/** The URL input's resting height: one touch target plus breathing room. */
+const URL_INPUT_MIN_HEIGHT = minTouchTarget + spacing.md;
+/** iOS line height of the URL input; its vertical padding is derived from it so one line sits centered. */
+const URL_INPUT_IOS_LINE_HEIGHT = 20;
 /** Skeleton rows while the first page loads, and under the loaded rows while a next one does. */
 export const HOME_FIRST_PAGE_SKELETON_ROWS = 6;
 export const HOME_NEXT_PAGE_SKELETON_ROWS = 2;
@@ -745,11 +749,20 @@ const styles = themedStyles(() => ({
     fontSize: 15,
     paddingEnd: minTouchTarget + spacing.xs,
     paddingStart: spacing.xl + spacing.xs,
-    paddingVertical: spacing.md,
     // A long URL wraps (the card grows) instead of scrolling sideways; the action stays centered.
     maxHeight: 160,
-    minHeight: minTouchTarget + spacing.md,
+    minHeight: URL_INPUT_MIN_HEIGHT,
     textAlignVertical: 'center',
+    // textAlignVertical is Android-only: an iOS multiline input starts its text (and placeholder) at the top, above the
+    // centered icons. A fixed line height with padding derived from the resting height centers one line there; longer
+    // URLs still grow the card one line at a time.
+    ...Platform.select({
+      ios: {
+        lineHeight: URL_INPUT_IOS_LINE_HEIGHT,
+        paddingVertical: (URL_INPUT_MIN_HEIGHT - URL_INPUT_IOS_LINE_HEIGHT) / 2,
+      },
+      default: { paddingVertical: spacing.md },
+    }),
     ...cardShadow,
   },
   // Overlays the input's own trailing edge (mirrors inputIconContainer's leading-edge overlay

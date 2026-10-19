@@ -89,7 +89,7 @@ describe('TourBackground - screen readers cannot reach the app behind a blocking
   it('the overlay is outside the hidden wrapper, so it stays reachable', () => {
     const root = fs.readFileSync(path.join(__dirname, '..', '..', 'navigation', 'RootStack.tsx'), 'utf8');
     const wrapped = root.slice(root.indexOf('<TourBackground>'), root.indexOf('</TourBackground>'));
-    expect(wrapped).toContain('<Stack.Navigator>');
+    expect(wrapped).toMatch(/<Stack\.Navigator[ >]/);
     expect(wrapped).not.toContain('<TourHost');
     expect(root).toMatch(/<TourHost \/>/);
   });

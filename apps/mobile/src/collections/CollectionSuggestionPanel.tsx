@@ -18,6 +18,8 @@ interface CollectionSuggestionPanelProps {
   /** The "open original" icon at the end of a link row (the saved page itself, not the Juple link). */
   readonly onOpenExternal: (url: string) => void;
   readonly openExternalLabel: string;
+  /** Called when a touch starts inside the panel (the screen closes the panel for touches that start anywhere else). */
+  readonly onTouchStart?: () => void;
 }
 
 /**
@@ -25,9 +27,9 @@ interface CollectionSuggestionPanelProps {
  * over the tabs and cards (it never moves them). A plain absolute overlay of the screen - no Portal, no Modal. Compact rows, at least
  * 44dp tall; the second line of a link reads "Collection · host".
  */
-export function CollectionSuggestionPanel({ collections, links, collectionsHeading, linksHeading, frame, isLoading, onSelect, onOpenExternal, openExternalLabel }: CollectionSuggestionPanelProps) {
+export function CollectionSuggestionPanel({ collections, links, collectionsHeading, linksHeading, frame, isLoading, onSelect, onOpenExternal, openExternalLabel, onTouchStart }: CollectionSuggestionPanelProps) {
   return (
-    <View accessibilityViewIsModal={false} style={[styles.panel, { left: frame.left, maxHeight: frame.maxHeight, top: frame.top, width: frame.width }]} testID="collection-suggestions">
+    <View accessibilityViewIsModal={false} onTouchStart={onTouchStart} style={[styles.panel, { left: frame.left, maxHeight: frame.maxHeight, top: frame.top, width: frame.width }]} testID="collection-suggestions">
       {/* Only the list of suggestions scrolls (the field above never moves); taps still reach the rows while the keyboard is up. */}
       <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled showsVerticalScrollIndicator={false} testID="collection-suggestions-scroll">
       {collections.length > 0 ? <Text style={styles.heading}>{collectionsHeading}</Text> : null}
