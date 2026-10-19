@@ -69,7 +69,8 @@ describe('public-only launch mode', () => {
     assert.match(prod, /^param signedInWebBaseUrl = 'https:\/\/juple\.co\.kr'\r?$/m);
     assert.doesNotMatch(prod.replace(/^\s*\/\/.*$/gm, ''), /localhost|dev\.juple|jupledev|d70ac03c|14bcc3b7/, 'no Dev or local value in Production');
     const api = infra('app/prod.bicepparam');
-    assert.match(api, /^param authenticatedWebAllowedOrigins = \['https:\/\/juple\.co\.kr'\]\r?$/m);
+    // The signed-in Web app and the Admin Web (admin.juple.co.kr, docs/admin.md) - nothing else.
+    assert.match(api, /^param authenticatedWebAllowedOrigins = \['https:\/\/juple\.co\.kr', 'https:\/\/admin\.juple\.co\.kr'\]\r?$/m);
     assert.doesNotMatch(infra('web/dev.bicepparam'), /publicOnly/);
     const main = infra('web/main.bicep');
     assert.match(main, /param publicOnly bool = false/);
