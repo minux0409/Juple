@@ -86,18 +86,14 @@ Granting further admins is a later, audited Owner flow. It is not built yet, and
 | 사용자 | read-only | `GET users`: newest first, keyset paging, exact Juple ID search; link and Collection counts. |
 | 콘텐츠 (링크/컬렉션) | disabled (준비중) | No moderation scope decided. |
 | 문의 | live | `GET support/inquiries` (전체/접수/처리중/답변완료), `GET {id}`, `PUT {id}/status` (접수 <-> 처리중 only; an answered inquiry cannot go back), `PUT {id}/answer` (1..8000 chars; replaces the answer). The answer is written to the **same row** the person reads in 고객센터 > 문의내역. |
-| 분석 | disabled (준비중) | See "Not available" below. |
+| 분석 (개요 / 사용자 / 저장 활동 / 국가 / 플랫폼) | live (Round 4) | `GET analytics/overview?range=7d\|30d\|90d`. It covers DAU/WAU/MAU from `analytics.UserDailyActivities`, signups, saved links, Collections and platforms; country is "not collected yet". All definitions are in `docs/analytics.md`. |
 | 운영 > 앱 버전 | read-only | `GET operations/app-version`: the `MobileVersionPolicy` the API serves. It changes only through a configuration deployment. |
 | 운영 > 시스템 상태 | live | API `/health`, `GET operations/system` (environment, API build, server time) and the Admin Web build (`JUPLE_ADMIN_BUILD_VERSION`). |
 
-### Not available (no reliable data, so nothing is shown)
+### Still not available
 
-- **DAU / MAU:** Juple records no per-user activity timestamps.
-  - Push device `LastSeenAtUtc` covers only push-registered mobile devices, never the Web, so it would undercount.
-  - A real number needs a deliberate daily-active record (e.g. one row per user per day, written by bootstrap), with a retention decision.
-- **Country:** nothing is stored, and raw IP addresses must not be.
-  - A future option is a coarse `CountryCode`, derived at request time from a trusted edge header and never from an IP kept in SQL. Privacy-policy review is needed first.
-- **Platform usage:** only inquiry diagnostics and push registrations carry a platform. Neither represents all users.
+- **DAU / WAU / MAU before activity tracking started:** not backfilled, because there is no reliable source. The pages show the tracking start date (`docs/analytics.md`).
+- **Country:** not collected, and raw IP addresses are never stored. The options and the recommendation are in `docs/analytics.md` "Country".
 
 ## Production infrastructure (`infra/azure/admin`)
 

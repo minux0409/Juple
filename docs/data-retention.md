@@ -15,6 +15,7 @@ pending legal/accounting review; all periods live in one place, `RetentionOption
 | In-app notifications | **90 days** after creation | retention Job (`notifications`) |
 | Push device tokens | **180 days** since last seen (a device that opens the app re-registers and moves `LastSeenAtUtc`) | retention Job (`stalePushTokens`) |
 | Trash (삭제 이력) links | the existing cap of 100 per user **and** anything deleted more than **30 days** ago | cap: `ItemTrashLimits` on delete; age: retention Job (`trashItems`, also removes the link's photos best effort) |
+| Daily activity (`analytics.UserDailyActivities`: user id, UTC day, platform, app build, first/last time; no IP, User-Agent or device id) | deleted **with the account** (FK cascade). Otherwise kept; **recommended 13 months**, then deleted or first rolled up into an anonymous daily aggregate - not enforced yet (`docs/analytics.md`) | account deletion; a future retention-Job category |
 | Server logs | 30 days (Log Analytics workspace) | platform, unchanged |
 | Notification outbox events | 7 days after processing | push-dispatch Job (`NotificationPipelineOptions.ProcessedEventRetentionDays`), unchanged |
 
