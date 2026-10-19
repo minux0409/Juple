@@ -20,12 +20,12 @@ param customDomainName = 'admin.juple.co.kr'
 // the deployer supplies it from the Entra portal. No default (BCP427 when unset).
 param entraClientId = readEnvironmentVariable('JUPLE_ADMIN_ENTRA_CLIENT_ID')
 
-// Phase switch (docs/admin.md): false until DNS and the managed certificate exist, then true on every later deployment. No default,
-// so the binding can never be dropped by omission (ingress.customDomains is replaced on every deployment).
-param bindCustomDomain = bool(readEnvironmentVariable('JUPLE_ADMIN_PROD_BIND_CUSTOM_DOMAIN'))
-// The managed certificate Azure created for admin.juple.co.kr (phase C). Never guessed; once it exists, replace this line with the
-// literal name (as ../web/prod.bicepparam does for juple.co.kr).
-param managedCertificateName = readEnvironmentVariable('JUPLE_ADMIN_PROD_MANAGED_CERTIFICATE_NAME', '')
+// admin.juple.co.kr is bound (2026-10-19: Gabia CNAME admin + TXT asuid.admin, `az containerapp hostname add/bind --validation-method
+// CNAME`). Both are literals now, as ../web/prod.bicepparam does for juple.co.kr, so every redeploy keeps the binding
+// (ingress.customDomains is replaced on every deployment). The certificate is the one Azure issued - free, renewed by the platform
+// while the DNS records stay in place.
+param bindCustomDomain = true
+param managedCertificateName = 'mc-cae-juple-prod-admin-juple-co-k-2603'
 
 // Operator-only traffic: scale to zero, one replica at most (docs/admin.md "Cost").
 param minReplicas = 0

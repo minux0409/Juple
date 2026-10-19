@@ -118,7 +118,7 @@ A read-only `what-if` of `admin/prod.bicepparam` against `rg-juple-prod` shows o
 | Replicas | min **0**, max **1** | operator-only traffic, so it costs nothing while idle (see "Cost" below) |
 | Probes | liveness and readiness `GET /health` | `app/health/route.ts`: 200 `ok` from the Next.js process, with no sign-in, API call or configuration |
 | Secrets | none | every env value is a public identifier |
-| Custom domain | `bindCustomDomain` switch, see the phases | `ingress.customDomains` is replaced on every deployment, so the switch has no default |
+| Custom domain | `admin.juple.co.kr`, certificate `mc-cae-juple-prod-admin-juple-co-k-2603` (bound 2026-10-19) | both literals in `admin/prod.bicepparam` (`bindCustomDomain = true`), because `ingress.customDomains` is replaced on every deployment |
 
 ### Runtime environment (7 values, all public configuration, none of them a secret)
 
@@ -205,7 +205,7 @@ So the migration comes first, then the API and the user Web. **No inquiry is set
 6. **First Owner.** See "Bootstrap" below.
 7. **Admin Container App, phase A.**
    1. Build and push `juple-admin` (see "Image").
-   2. Set the variables: `JUPLE_ADMIN_ENTRA_CLIENT_ID`, `JUPLE_ADMIN_PROD_BUILD_VERSION`, `JUPLE_ADMIN_PROD_IMAGE_DIGEST`, `JUPLE_ADMIN_PROD_ACR_LOGIN_SERVER`, `JUPLE_ADMIN_PROD_CONTAINER_APPS_ENVIRONMENT_ID`, `JUPLE_ADMIN_PROD_MANAGED_IDENTITY_RESOURCE_ID`, and `JUPLE_ADMIN_PROD_BIND_CUSTOM_DOMAIN=false`.
+   2. Set the variables: `JUPLE_ADMIN_ENTRA_CLIENT_ID`, `JUPLE_ADMIN_PROD_BUILD_VERSION`, `JUPLE_ADMIN_PROD_IMAGE_DIGEST`, `JUPLE_ADMIN_PROD_ACR_LOGIN_SERVER`, `JUPLE_ADMIN_PROD_CONTAINER_APPS_ENVIRONMENT_ID`, `JUPLE_ADMIN_PROD_MANAGED_IDENTITY_RESOURCE_ID`. In this phase `bindCustomDomain` was `false` (done 2026-10-19).
    3. Run `what-if`, then `az deployment group create -g rg-juple-prod --parameters infra/azure/admin/prod.bicepparam`.
    4. The outputs give `containerAppFqdn` and `customDomainVerificationId`.
    5. `https://<fqdn>/health` returns 200. Sign-in cannot work on the FQDN yet, because the redirect URI is `admin.juple.co.kr`.
@@ -223,7 +223,7 @@ So the migration comes first, then the API and the user Web. **No inquiry is set
     az containerapp env certificate list -g rg-juple-prod -n cae-juple-prod --managed-certificates-only -o table   # the new certificate's name
     ```
 
-    Then write that certificate name into `admin/prod.bicepparam` as a literal, replacing the `readEnvironmentVariable` line. From then on, **every** deployment sets `JUPLE_ADMIN_PROD_BIND_CUSTOM_DOMAIN=true`. A `what-if` must then show `ingress.customDomains` unchanged.
+    Then write that certificate name and `bindCustomDomain = true` into `admin/prod.bicepparam` as literals (done 2026-10-19: `mc-cae-juple-prod-admin-juple-co-k-2603`). A `what-if` must then show `ingress.customDomains` unchanged.
 11. **Admin login.** Open `https://admin.juple.co.kr` and sign in as the Owner.
 12. **Owner check.** The Owner gets the dashboard, and `GET /api/v1/admin/me` returns 200 with role `Owner`.
 13. **Non-admin check.** A non-admin Juple account sees only "관리자 권한이 없습니다." (403).
