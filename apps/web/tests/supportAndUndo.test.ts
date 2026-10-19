@@ -86,7 +86,8 @@ describe('customer center: inquiries on the Web (the mobile feature, same API)',
     assert.equal(inquiryPreview('a'.repeat(200)).length, 91);
     assert.equal(inquiryStatusLabel('Pending', dictionary), dictionary.inquiryStatusPending);
     assert.equal(inquiryStatusLabel('Answered', dictionary), dictionary.inquiryStatusAnswered);
-    assert.notEqual(dictionary.inquiryStatusPending, dictionary.inquiryStatusAnswered);
+    assert.equal(inquiryStatusLabel('InProgress', dictionary), dictionary.inquiryStatusInProgress);
+    assert.equal(new Set([dictionary.inquiryStatusPending, dictionary.inquiryStatusInProgress, dictionary.inquiryStatusAnswered]).size, 3);
     for (const type of SUPPORT_INQUIRY_TYPES) {
       assert.ok(inquiryTypeLabel(type, dictionary).length > 0);
     }
@@ -94,8 +95,10 @@ describe('customer center: inquiries on the Web (the mobile feature, same API)',
 
   it('reads pages defensively: a malformed row is dropped, an empty / garbage page is an empty list', () => {
     const good = { inquiryId: 1, type: 'Bug', status: 'Answered', content: 'hi', createdAtUtc: '2026-10-14T00:00:00Z', answer: 'ok', answeredAtUtc: '2026-10-15T00:00:00Z' };
-    const page = parseInquiryPage({ items: [good, { inquiryId: 'x' }, null, { ...good, inquiryId: 2, type: 'Hacked' }], nextCursor: '5' });
-    assert.deepEqual(page.items.map(item => item.inquiryId), [1]);
+    const inProgress = { ...good, inquiryId: 3, status: 'InProgress', answer: null, answeredAtUtc: null };
+    const page = parseInquiryPage({ items: [good, { inquiryId: 'x' }, null, { ...good, inquiryId: 2, type: 'Hacked' }, inProgress, { ...good, inquiryId: 4, status: 'Closed' }], nextCursor: '5' });
+    // 처리중 (set in the Admin Web) is a real state and is kept; an unknown status is still dropped.
+    assert.deepEqual(page.items.map(item => item.inquiryId), [1, 3]);
     assert.equal(page.nextCursor, '5');
     assert.deepEqual(parseInquiryPage(undefined), { items: [], nextCursor: null });
     assert.equal(parseInquiryPage({ items: [], nextCursor: '' }).nextCursor, null);

@@ -10,6 +10,7 @@ import { PUBLIC_ENTRY_STRINGS } from './appDictionaryPublicEntry.ts';
 /** Strings the mobile app does not have (the Web's own sign-in setup, layout labels, and what the Web cannot do yet). */
 const WEB_ONLY: Readonly<Record<'ko' | 'en', WebOnlyStrings>> = {
   ko: {
+    inquiryStatusInProgress: '처리중',
     signInSupportingText: '링크를 저장하고, 컬렉션으로 정리하고, 필요할 때 다시 찾아보세요.',
     signInTitle: 'Juple 시작하기',
     signInDescription: '로그인하거나 새 계정을 만들어 저장한 링크를 어디서든 이어보세요.',
@@ -79,6 +80,7 @@ const WEB_ONLY: Readonly<Record<'ko' | 'en', WebOnlyStrings>> = {
     mergeConfirmBody: "\"{source}\"의 링크 {count}개를 \"{target}\"에 합칩니다. 이미 \"{target}\"에 있는 링크는 중복되지 않아요. 병합이 완료되면 \"{source}\" 컬렉션은 삭제되며, 병합 직후에는 되돌릴 수 있어요.",
   },
   en: {
+    inquiryStatusInProgress: 'In progress',
     signInSupportingText: 'Save links, organize them into collections, and find them again when you need them.',
     signInTitle: 'Get started with Juple',
     signInDescription: 'Sign in or create an account to keep your saved links with you everywhere.',

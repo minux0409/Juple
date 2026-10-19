@@ -118,6 +118,8 @@ export interface WebOnlyStrings {
   readonly businessAddress: string;
   readonly businessSupportEmail: string;
   readonly signInConfigError: string;
+  /** 처리중 - an inquiry support has started on (Admin Web); the mobile app's own strings have only 접수 / 답변완료. */
+  readonly inquiryStatusInProgress: string;
   readonly sessionEnded: string;
   readonly configMissingTitle: string;
   readonly configMissingMessage: string;

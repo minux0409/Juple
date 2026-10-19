@@ -10,7 +10,9 @@ import { ApiHttpError } from './appApi.ts';
 /** The stable codes the server stores (never localized text), in the order of the type picker - the mobile SUPPORT_INQUIRY_TYPES. */
 export const SUPPORT_INQUIRY_TYPES = ['Account', 'Subscription', 'LinkSaving', 'CollectionSharing', 'Bug', 'FeatureRequest', 'Other'] as const;
 export type SupportInquiryType = (typeof SUPPORT_INQUIRY_TYPES)[number];
-export type SupportInquiryStatus = 'Pending' | 'Answered';
+/** 접수 / 처리중 / 답변완료 - the server's stored names (InProgress is set by support in the Admin Web). */
+export type SupportInquiryStatus = 'Pending' | 'InProgress' | 'Answered';
+const SUPPORT_INQUIRY_STATUSES: readonly string[] = ['Pending', 'InProgress', 'Answered'];
 
 /** The server's SupportInquiryService.MaxContentLength. */
 export const SUPPORT_INQUIRY_MAX_LENGTH = 4000;
@@ -83,9 +85,16 @@ export function inquiryTypeLabel(type: SupportInquiryType, dictionary: AppDictio
   }
 }
 
-/** 접수 / 답변 완료 - always spelled out, never a colour alone. */
+/** 접수 / 처리중 / 답변 완료 - always spelled out, never a colour alone. */
 export function inquiryStatusLabel(status: SupportInquiryStatus, dictionary: AppDictionary): string {
-  return status === 'Answered' ? dictionary.inquiryStatusAnswered : dictionary.inquiryStatusPending;
+  switch (status) {
+    case 'Answered':
+      return dictionary.inquiryStatusAnswered;
+    case 'InProgress':
+      return dictionary.inquiryStatusInProgress;
+    default:
+      return dictionary.inquiryStatusPending;
+  }
 }
 
 /** A 문의 can be sent when a type is chosen and the text is not blank - the mobile rule; nothing while a send is on its way. */
@@ -142,7 +151,8 @@ export function parseInquiry(raw: unknown): SupportInquiry | null {
   if (
     typeof row.inquiryId !== 'number' ||
     !isSupportInquiryType(row.type) ||
-    (row.status !== 'Pending' && row.status !== 'Answered') ||
+    typeof row.status !== 'string' ||
+    !SUPPORT_INQUIRY_STATUSES.includes(row.status) ||
     typeof row.content !== 'string' ||
     typeof row.createdAtUtc !== 'string'
   ) {
@@ -151,7 +161,7 @@ export function parseInquiry(raw: unknown): SupportInquiry | null {
   return {
     inquiryId: row.inquiryId,
     type: row.type,
-    status: row.status,
+    status: row.status as SupportInquiryStatus,
     content: row.content,
     createdAtUtc: row.createdAtUtc,
     answer: typeof row.answer === 'string' ? row.answer : null,
