@@ -1163,6 +1163,36 @@ alert는 이름으로 참조하는 리소스는 없지만 `ContainerAppSystemLog
 `DeadlineExceeded`가 414건이다(replicaTimeout 45초). Production 배포 전에 timeout/주기를 검토하거나
 `jobFailureThreshold`를 조정한다.
 
+### 한글/비ASCII Production 값 전달 규칙 (2026-10-19 사고 이후)
+
+**사고.** Production Web 재배포에서 운영자 법정 표시 값(한글)이 깨진 채 저장되어 `juple.co.kr`의 법적 고지 페이지에
+mojibake가 몇 시간 노출됐다. live 값을 `az` 출력에서 읽어 환경변수로 다시 넣는 과정이 Windows PowerShell 5.1을 거치면서
+한글이 CP949로 재인코딩되었다. 같은 경로로 받은 what-if 출력도 똑같이 깨져 있어 "변경 없음"으로 보였고, drift 검증이
+문제를 놓쳤다. 이 PC의 Git Bash에서 환경변수로 넘겨도, `az ... -o json` 출력을 파일로 받아도 한글이 보존되지 않았다.
+
+규칙:
+
+1. **Windows PowerShell 5.1에서 한글이나 그 밖의 비ASCII Production 값을 환경변수에 넣고 `az`/Bicep parameter로 넘기지
+   않는다.** `readEnvironmentVariable()`로 읽는 `.bicepparam` 값도 마찬가지다. 비ASCII 값을 PowerShell 5.1 env에서 `az`로
+   넘기는 deploy helper는 만들지 않는다.
+2. **비ASCII 값은 pure-ASCII parameter 표현으로 전달한다.** UTF-8 원본을 그대로 통과시키는 다른 경로가 검증되기 전까지
+   유일한 방법이다.
+   - `az bicep build-params`로 ASCII 값만 담은 ARM parameters JSON을 만든다.
+   - 비ASCII 값은 그 파일 안에 JSON `\uXXXX` 이스케이프로 채운다. 파일 전체가 ASCII여야 한다.
+   - `az deployment group what-if/create --template-file <main.bicep> --parameters @<file>`로 배포한다.
+   - 현재 Production의 운영자/법정 표시 값(`LEGAL_*`)이 이 방식으로 배포된다. 값 자체는 repo에 두지 않는다.
+3. **배포 전 확인.**
+   - 비교 기준은 Azure REST API로 직접 읽은 현재 값(source of truth)이다.
+   - what-if는 이름·ASCII 값·구조(도메인, scale, secret, probe)의 drift 확인용이다. 비ASCII 내용은 `az` 출력으로 검증하지
+     않는다.
+   - 비ASCII 값은 해시 비교만 믿지 않는다. 해시를 만든 입력 자체가 이미 깨져 있을 수 있다. 실제 Unicode 내용을 비교한다.
+4. **배포 후 확인.**
+   - Azure REST API(`management.azure.com`)로 저장된 값을 UTF-8 그대로 읽어, 의도한 값과 글자 단위로 같은지 확인한다.
+   - 실제로 서빙되는 페이지(`/privacy`, `/terms`, `/account-deletion` 등)를 받아 한국어가 그대로 나오는지 확인한다.
+   - 대체 문자(U+FFFD, `�`)나 mojibake가 없는지 확인한다.
+5. **작업자 개인 scratch 스크립트는 운영 절차가 아니다.** 이 runbook은 그런 스크립트를 참조하지 않는다. 위 규칙을 지키는
+   절차만 사용한다.
+
 ## Naming
 
 | 리소스 | 패턴 | 비고 |
