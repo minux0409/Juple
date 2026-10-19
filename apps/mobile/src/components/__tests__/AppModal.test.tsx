@@ -98,6 +98,15 @@ describe('FriendPickerModal (Share › 친구 선택)', () => {
         />,
       );
     });
+    // The first page is requested from a setTimeout(0) (the same debounce path a search takes), so creating the modal does not
+    // load it yet. Let that timer and the mocked request settle before any row is looked up - otherwise a test races the load
+    // and finds an empty list (it used to fail whenever the timer had not fired yet).
+    for (let attempt = 0; attempt < 10 && renderer.root.findByType(FlatList).props.data.length !== friends.length; attempt++) {
+      await act(async () => {
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
+      });
+    }
+    expect(renderer.root.findByType(FlatList).props.data).toHaveLength(friends.length);
     return renderer;
   }
 
