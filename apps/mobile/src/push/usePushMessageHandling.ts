@@ -10,6 +10,7 @@ import { dropRetractedSubmissionBanners } from '../notifications/retractedBanner
 import { refreshUnreadCount, resetNotificationState } from '../notifications/notificationState';
 import { notificationIdOf } from '../notifications/notificationTarget';
 import { openNotification } from '../notifications/openNotification';
+import { isFcmPlatform } from './fcmPlatform';
 import { emitSocialPushEvent, parseSocialPushEvent } from './pushEvents';
 import { consumePendingPushTarget, setPendingPushTarget } from './pendingPushTarget';
 
@@ -107,35 +108,45 @@ export function usePushMessageHandling(): void {
     return () => subscription.remove();
   }, [request]);
 
-  useEffect(
-    () =>
-      onMessage(getMessaging(), remoteMessage => {
-        const event = parseSocialPushEvent(remoteMessage?.data);
-        if (event) {
-          emitSocialPushEvent(event);
-          if (event.type === 'collectionContentChanged') {
-            // A requester may have cancelled a proposal: an Owner's approval-request banner (visible or
-            // queued) and the unread badge for it are re-checked against the server.
-            dropRetractedSubmissionBanners(notificationBannerQueue, request, event.collectionId, localeRef.current).catch(() => undefined);
-            refreshUnreadCount(request).catch(() => undefined);
-          }
-        }
-        if (!isReadyRef.current) {
-          return;
-        }
-        const banner = bannerFromRemoteMessage(remoteMessage);
-        if (banner) {
-          notificationBannerQueue.enqueue(banner);
+  // FCM listeners: Android only (see fcmPlatform.ts).
+  useEffect(() => {
+    if (!isFcmPlatform()) {
+      return;
+    }
+    return onMessage(getMessaging(), remoteMessage => {
+      const event = parseSocialPushEvent(remoteMessage?.data);
+      if (event) {
+        emitSocialPushEvent(event);
+        if (event.type === 'collectionContentChanged') {
+          // A requester may have cancelled a proposal: an Owner's approval-request banner (visible or
+          // queued) and the unread badge for it are re-checked against the server.
+          dropRetractedSubmissionBanners(notificationBannerQueue, request, event.collectionId, localeRef.current).catch(() => undefined);
           refreshUnreadCount(request).catch(() => undefined);
         }
-      }),
-    [request],
-  );
+      }
+      if (!isReadyRef.current) {
+        return;
+      }
+      const banner = bannerFromRemoteMessage(remoteMessage);
+      if (banner) {
+        notificationBannerQueue.enqueue(banner);
+        refreshUnreadCount(request).catch(() => undefined);
+      }
+    });
+  }, [request]);
 
-  useEffect(() => onNotificationOpenedApp(getMessaging(), handleTap), [handleTap]);
+  useEffect(() => {
+    if (!isFcmPlatform()) {
+      return;
+    }
+    return onNotificationOpenedApp(getMessaging(), handleTap);
+  }, [handleTap]);
 
   // Cold start from a tap - one-shot by design.
   useEffect(() => {
+    if (!isFcmPlatform()) {
+      return;
+    }
     getInitialNotification(getMessaging())
       .then(handleTap)
       .catch(() => undefined);

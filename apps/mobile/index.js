@@ -10,6 +10,7 @@ import { getMessaging, setBackgroundMessageHandler } from '@react-native-firebas
 import App from './App';
 import { name as appName } from './app.json';
 import { registerIncomingShareHeadlessTask } from './src/share/incomingShareHeadlessTask';
+import { isFcmPlatform } from './src/push/fcmPlatform';
 
 AppRegistry.registerComponent(appName, () => App);
 registerIncomingShareHeadlessTask();
@@ -18,5 +19,7 @@ registerIncomingShareHeadlessTask();
 // React tree. Friend request / Collection invitation Push carry a `notification` block, which Android
 // shows in the tray natively while the app is in the background or killed - no JS needed here. The
 // data-only refresh signals are only useful to an open app (see usePushMessageHandling), so they are
-// deliberately ignored in the background.
-setBackgroundMessageHandler(getMessaging(), async () => {});
+// deliberately ignored in the background. Android only - see src/push/fcmPlatform.ts.
+if (isFcmPlatform()) {
+  setBackgroundMessageHandler(getMessaging(), async () => {});
+}

@@ -1,5 +1,6 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { getInitialNotification, onMessage, onNotificationOpenedApp } from '@react-native-firebase/messaging';
+import { Platform } from 'react-native';
+import { getInitialNotification, getMessaging, onMessage, onNotificationOpenedApp } from '@react-native-firebase/messaging';
 import '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { navigationRef } from '../../navigation/navigationRef';
@@ -82,9 +83,16 @@ function readCalls() {
   return mockRequest.mock.calls.filter(([request]) => request.method === 'POST');
 }
 
+const originalOS = Platform.OS;
+
+beforeEach(() => {
+  Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
+});
+
 afterEach(() => {
   act(() => renderer?.unmount());
   renderer = null;
+  Object.defineProperty(Platform, 'OS', { value: originalOS, configurable: true });
   jest.clearAllMocks();
   mockDetails.clear();
   mockAuth.isAuthenticated = true;
@@ -93,6 +101,18 @@ afterEach(() => {
 });
 
 describe('usePushMessageHandling', () => {
+  it('on iOS subscribes to no Firebase listener and reads no initial notification (no FCM there)', async () => {
+    Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
+
+    await mount();
+    await flush();
+
+    expect(getMessaging).not.toHaveBeenCalled();
+    expect(onMessage).not.toHaveBeenCalled();
+    expect(onNotificationOpenedApp).not.toHaveBeenCalled();
+    expect(getInitialNotification).not.toHaveBeenCalled();
+  });
+
   it('a foreground refresh-only message refreshes open screens - no banner, no navigation', async () => {
     await mount();
     const received: string[] = [];

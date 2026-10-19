@@ -1,3 +1,4 @@
+import { getMessaging } from '@react-native-firebase/messaging';
 import { Platform } from 'react-native';
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
 import { getOrCreatePushInstallationId } from '../pushInstallationId';
@@ -20,9 +21,25 @@ const authenticatedRequest = jest.fn() as unknown as AuthenticatedApiRequest;
 describe('syncPushRegistrationIfPermitted', () => {
   const originalOS = Platform.OS;
 
+  beforeEach(() => {
+    Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
+  });
+
   afterEach(() => {
     jest.clearAllMocks();
     Object.defineProperty(Platform, 'OS', { value: originalOS, configurable: true });
+  });
+
+  it('never touches Firebase or the Backend on iOS (no FCM there - APNs is not implemented yet)', async () => {
+    Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
+    jest.mocked(getPushPermissionStatus).mockResolvedValue('granted');
+    mockGetToken.mockResolvedValue('token-1');
+
+    await syncPushRegistrationIfPermitted(authenticatedRequest);
+
+    expect(getMessaging).not.toHaveBeenCalled();
+    expect(mockGetToken).not.toHaveBeenCalled();
+    expect(registerPushDevice).not.toHaveBeenCalled();
   });
 
   it('does nothing when permission is not granted', async () => {

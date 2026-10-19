@@ -2,6 +2,7 @@ import { getMessaging, getToken } from '@react-native-firebase/messaging';
 import { Platform } from 'react-native';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import i18n from '../i18n';
+import { isFcmPlatform } from './fcmPlatform';
 import { getOrCreatePushInstallationId } from './pushInstallationId';
 import { getPushPermissionStatus } from './pushPermission';
 import { registerPushDevice, type PushPlatform } from './api/pushDevicesApi';
@@ -36,6 +37,10 @@ async function registerCurrentToken(
 export async function syncPushRegistrationIfPermitted(
   authenticatedRequest: AuthenticatedApiRequest,
 ): Promise<void> {
+  if (!isFcmPlatform()) {
+    return;
+  }
+
   try {
     const status = await getPushPermissionStatus();
     if (status !== 'granted') {

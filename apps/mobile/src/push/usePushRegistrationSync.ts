@@ -3,6 +3,7 @@ import { getMessaging, onTokenRefresh } from '@react-native-firebase/messaging';
 import { useAuth } from '../auth/AuthContext';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import i18n from '../i18n';
+import { isFcmPlatform } from './fcmPlatform';
 import { registerRefreshedPushToken, syncPushRegistrationIfPermitted } from './pushRegistrationSync';
 
 /**
@@ -47,7 +48,7 @@ export function usePushRegistrationSync(): void {
   // with the same InstallationId (see PushDeviceRegistration.Reregister on the Backend) whenever
   // that happens.
   useEffect(() => {
-    if (!isReady) {
+    if (!isReady || !isFcmPlatform()) {
       return;
     }
 
