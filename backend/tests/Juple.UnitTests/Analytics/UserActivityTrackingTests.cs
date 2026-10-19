@@ -167,7 +167,7 @@ public sealed class UserActivityTrackingTests
         var store = new CapturingAnalyticsStore();
         var clock = new Clock(new DateTimeOffset(2026, 10, 19, 23, 59, 0, TimeSpan.FromHours(9)));
 
-        await new AdminAnalyticsService(store, clock).GetOverviewAsync(requested);
+        await new AdminAnalyticsService(store, clock, new Juple.Application.Billing.BillingOptions()).GetOverviewAsync(requested);
 
         Assert.Equal((expectedRange, expectedDays, new DateOnly(2026, 10, 19)), (store.Range, store.Days, store.Today));
     }
@@ -179,7 +179,7 @@ public sealed class UserActivityTrackingTests
     [InlineData("-7d")]
     public async Task Analytics_AnyOtherRange_IsRefused(string range)
     {
-        var exception = await Assert.ThrowsAsync<InvalidAdminRequestException>(() => new AdminAnalyticsService(new CapturingAnalyticsStore(), TimeProvider.System).GetOverviewAsync(range));
+        var exception = await Assert.ThrowsAsync<InvalidAdminRequestException>(() => new AdminAnalyticsService(new CapturingAnalyticsStore(), TimeProvider.System, new Juple.Application.Billing.BillingOptions()).GetOverviewAsync(range));
         Assert.Equal("range", exception.Field);
     }
 
@@ -233,10 +233,55 @@ public sealed class UserActivityTrackingTests
 
         public DateOnly Today { get; private set; }
 
+        public DateTimeOffset? MembershipProgramStart { get; private set; } = DateTimeOffset.MinValue;
+
+        public int TopHoldersAsked { get; private set; }
+
         public Task<AdminAnalyticsOverview> GetOverviewAsync(string range, int days, DateOnly todayUtc, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
         {
             (Range, Days, Today) = (range, days, todayUtc);
-            return Task.FromResult<AdminAnalyticsOverview>(null!);
+            return Task.FromResult(new AdminAnalyticsOverview(
+                range,
+                todayUtc,
+                todayUtc,
+                nowUtc,
+                null,
+                new AdminAnalyticsUsers(0, 0, 0, 0, 0, 0, 0, 0),
+                new AdminAnalyticsLinks(0, 0, 0, 0, 0, 0),
+                new AdminAnalyticsCollections(0, 0, 0, 0, 0),
+                new AdminAnalyticsPlatforms(0, []),
+                new AdminAnalyticsCountries(false),
+                []));
         }
+
+        public Task<AdminMembership> GetMembershipAsync(DateTimeOffset nowUtc, DateOnly todayUtc, DateTimeOffset? programStartAtUtc, CancellationToken cancellationToken = default)
+        {
+            MembershipProgramStart = programStartAtUtc;
+            return Task.FromResult(new AdminMembership(programStartAtUtc is not null, programStartAtUtc, 0, 0, 0, 0, null));
+        }
+
+        public Task<AdminLinkHoldings> GetLinkHoldingsAsync(int topHolders, CancellationToken cancellationToken = default)
+        {
+            TopHoldersAsked = topHolders;
+            return Task.FromResult(new AdminLinkHoldings(0, 0, 0, 0, 0, [], []));
+        }
+    }
+
+    [Fact]
+    public async Task Membership_UsesTheBillingProgramsOwnSwitch_WithoutChangingIt()
+    {
+        var disabled = new CapturingAnalyticsStore();
+        var overview = await new AdminAnalyticsService(disabled, TimeProvider.System, new Juple.Application.Billing.BillingOptions { ProgramEnabled = false, ProgramStartAtUtc = DateTimeOffset.UnixEpoch }).GetOverviewAsync("7d");
+        Assert.Null(disabled.MembershipProgramStart); // not running: no trial / paid groups at all (even with a start date configured)
+        Assert.False(overview.Membership!.BillingProgramEnabled);
+        Assert.Equal(AdminAnalyticsService.TopHolders, disabled.TopHoldersAsked);
+        Assert.NotNull(overview.LinkHoldings);
+
+        var start = new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeSpan.Zero);
+        var enabledOptions = new Juple.Application.Billing.BillingOptions { ProgramEnabled = true, ProgramStartAtUtc = start };
+        var enabled = new CapturingAnalyticsStore();
+        await new AdminAnalyticsService(enabled, TimeProvider.System, enabledOptions).GetOverviewAsync("7d");
+        Assert.Equal(start, enabled.MembershipProgramStart);
+        Assert.True(enabledOptions.ProgramEnabled); // read, never written
     }
 }

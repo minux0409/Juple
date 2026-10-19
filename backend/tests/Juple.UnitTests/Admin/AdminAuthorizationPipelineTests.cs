@@ -64,6 +64,7 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         // The real range validation in front of a canned store (the SQL side is covered by AdminAnalyticsIntegrationTests).
         builder.Services.AddSingleton<IAdminAnalyticsStore>(_analyticsStore);
         builder.Services.AddSingleton<IAdminAnalyticsService, AdminAnalyticsService>();
+        builder.Services.AddSingleton(new Juple.Application.Billing.BillingOptions()); // the program off, as in Production
         builder.Services.AddSingleton(TimeProvider.System);
         // The Production shape: Android 31 / 24 with its Play URL, iOS without a policy.
         builder.Services.AddSingleton(Options.Create(new MobileVersionPolicyOptions
@@ -317,6 +318,9 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         Assert.Contains("\"range\":\"7d\"", json, StringComparison.Ordinal);
         Assert.Contains("\"activityTrackingSince\":\"2026-10-19\"", json, StringComparison.Ordinal);
         Assert.Contains("\"countries\":{\"available\":false}", json, StringComparison.Ordinal);
+        // Round 6 additions travel in the same answer; with the billing program off there are no trial / paid groups.
+        Assert.Contains("\"membership\":{\"billingProgramEnabled\":false,\"programStartAtUtc\":null,\"totalUsers\":20,\"newToday\":0,\"signedUpWithin30Days\":3,\"signedUpOver30Days\":17,\"groups\":null}", json, StringComparison.Ordinal);
+        Assert.Contains("\"topHolders\":[{\"jupleId\":\"QZAMQBQK\",\"liveLinks\":40}]", json, StringComparison.Ordinal);
     }
 
     private sealed class CannedAnalyticsStore : IAdminAnalyticsStore
@@ -339,6 +343,12 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
                 new AdminAnalyticsCountries(false),
                 []));
         }
+
+        public Task<AdminMembership> GetMembershipAsync(DateTimeOffset nowUtc, DateOnly todayUtc, DateTimeOffset? programStartAtUtc, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new AdminMembership(programStartAtUtc is not null, programStartAtUtc, 20, 0, 3, 17, null));
+
+        public Task<AdminLinkHoldings> GetLinkHoldingsAsync(int topHolders, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new AdminLinkHoldings(123, 9, 20, 40, 1, [new AdminLinkBucket(0, 0, 11)], [new AdminLinkHolder("QZAMQBQK", 40)]));
     }
 
     private sealed class RecordingAdminService : IAdminService
