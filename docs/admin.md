@@ -49,7 +49,11 @@ The operator tool at `https://admin.juple.co.kr` is a **separate Next.js app** (
 ## Bootstrap: the first Owner (one-time operator procedure)
 
 1. The person signs in to the Juple app once, so their account exists, and reads their Juple ID (내 페이지, e.g. `@K7MP-4Q8N`).
-2. An operator runs the script against the target database with **their own** Entra database login, never the application's identity:
+2. An operator runs the script against the target database. Use **their own** database sign-in, never the application's managed identity:
+   - **Preferred:** an Entra database login (`-G`), if the server has an Entra admin.
+   - **Otherwise:** the SQL administrator login, read from Key Vault into memory for this one run. It is never printed, typed into a file or committed.
+
+   In Production the server is `sql-juple-prod-y5v2isrk3zbwu.database.windows.net` and the database is `Juple`. Open a temporary firewall rule for the operator's IP the same way as for migrations, and remove it afterwards. Only the Juple ID is passed:
 
    ```
    sqlcmd -S <server> -d <database> -G -v JupleId="K7MP4Q8N" -i infra/sql/admin/grant-first-owner.sql
@@ -60,7 +64,15 @@ The operator tool at `https://admin.juple.co.kr` is a **separate Next.js app** (
    - It refuses an unknown Juple ID (error 51001).
    - It refuses when **another** active Owner already exists (51002).
    - Running it again for the same person changes nothing.
-3. The person opens the Admin Web and signs in.
+3. Verify that exactly one active Owner exists, and that it is that person:
+
+   ```sql
+   SELECT a.[Id], u.[PublicCode], a.[Role], a.[IsActive], a.[GrantedByUserId], a.[CreatedAtUtc]
+   FROM [admin].[AdminUsers] a JOIN [users].[Users] u ON u.[Id] = a.[UserId];
+   ```
+
+   Expect one row: the person's Juple ID, `Owner`, `IsActive = 1`, `GrantedByUserId` NULL.
+4. The person opens the Admin Web and signs in.
 
 **Emergency stop:** `infra/sql/admin/deactivate-admin.sql` (same `-v JupleId=`) sets `IsActive = 0`. Access ends with the very next request, and the row is kept for the record.
 
@@ -87,41 +99,173 @@ Granting further admins is a later, audited Owner flow. It is not built yet, and
   - A future option is a coarse `CountryCode`, derived at request time from a trusted edge header and never from an IP kept in SQL. Privacy-policy review is needed first.
 - **Platform usage:** only inquiry diagnostics and push registrations carry a platform. Neither represents all users.
 
-## Compatibility and rollout order
+## Production infrastructure (`infra/azure/admin`)
 
-1. Apply the migration (it is additive: the new schema, a nullable column, and widened constraints).
-2. Deploy the new API **and** the new user Web together.
-   - The previous Web parser would drop an `InProgress` inquiry.
-   - The previous API revision cannot read one.
-3. **Set nothing to 처리중** until the old API revision is fully retired.
-4. Older mobile builds show an `InProgress` inquiry as 접수. That is acceptable, and nothing breaks.
-5. Bootstrap the first Owner, then deploy the Admin Web.
+`ca-juple-admin-prod` follows the user Web (`infra/azure/web`) and creates nothing else. It shares with the user Web:
 
-## Azure deployment design (not created yet)
+- the Container Apps environment `cae-juple-prod`;
+- the ACR;
+- the identity `id-juple-prod`, which already has AcrPull;
+- Log Analytics, through the environment.
 
-- **Image:** `apps/admin/Dockerfile`, a standalone Next.js server on port 3000. The image is pushed to the existing ACR (e.g. `juple-admin:<tag>`).
-- **Container App** `ca-juple-admin-{env}` in the existing Container Apps environment:
-  - ingress external, HTTPS only;
-  - min replicas 0–1;
-  - no secrets: every value is a public identifier.
-- **Environment variables:**
+A read-only `what-if` of `admin/prod.bicepparam` against `rg-juple-prod` shows one change: **Create `ca-juple-admin-prod`**. Every other resource is Ignore.
 
-  | Variable | Value |
-  | --- | --- |
-  | `JUPLE_ADMIN_API_BASE_URL` | `https://api.juple.co.kr` |
-  | `JUPLE_ADMIN_ENTRA_AUTHORITY` | the External ID authority, the same tenant as the apps |
-  | `JUPLE_ADMIN_ENTRA_TENANT_ID` | the tenant id |
-  | `JUPLE_ADMIN_ENTRA_CLIENT_ID` | the **new** Admin SPA registration |
-  | `JUPLE_ADMIN_ENTRA_API_SCOPE` | `api://<api app id>/access_as_user` |
-  | `JUPLE_ADMIN_BASE_URL` | `https://admin.juple.co.kr` |
-  | `JUPLE_ADMIN_BUILD_VERSION` | the image tag |
+| Setting | Value | Why |
+| --- | --- | --- |
+| Ingress | external, target port 3000, `allowInsecure: false`, revisions `Single` | same as the user Web |
+| Image | `{acr}/juple-admin@sha256:...` (digest only in Production) | `app/image-reference-guard.bicep` rejects a missing or malformed digest |
+| CPU / memory | 0.25 vCPU / 0.5 GiB | the smallest Consumption pair; the app is a thin client-rendered UI |
+| Replicas | min **0**, max **1** | operator-only traffic, so it costs nothing while idle (see "Cost" below) |
+| Probes | liveness and readiness `GET /health` | `app/health/route.ts`: 200 `ok` from the Next.js process, with no sign-in, API call or configuration |
+| Secrets | none | every env value is a public identifier |
+| Custom domain | `bindCustomDomain` switch, see the phases | `ingress.customDomains` is replaced on every deployment, so the switch has no default |
 
-  A missing value shows "관리자 웹 설정이 완료되지 않았습니다." There are no defaults.
-- **Entra:** a separate **SPA app registration** for the Admin Web, so it can be disabled, restricted or monitored independently of the user Web:
-  - redirect URI `https://admin.juple.co.kr/auth/callback`;
-  - the delegated permission `access_as_user` on the Juple API, with admin consent.
+### Runtime environment (7 values, all public configuration, none of them a secret)
 
-  Optionally, set "assignment required" with only operators assigned, as a second barrier. The API grant table remains the authority.
-- **API configuration:** add `https://admin.juple.co.kr` to `AuthenticatedWeb:AllowedOrigins`. CORS is needed for the bearer calls and `/health`.
-- **DNS:** a CNAME `admin` pointing to the Container App FQDN, plus the `asuid.admin` TXT verification record. Then bind a custom domain with a managed certificate.
-- **CI/CD:** build, test (`npm test`, `tsc`, `eslint`, `next build`), push the image and update the Container App. Same pattern as the user Web.
+| Variable | Production value | Source in `admin/prod.bicepparam` |
+| --- | --- | --- |
+| `JUPLE_ADMIN_API_BASE_URL` | `https://api.juple.co.kr` | literal |
+| `JUPLE_ADMIN_ENTRA_AUTHORITY` | `https://juple.ciamlogin.com` | literal |
+| `JUPLE_ADMIN_ENTRA_TENANT_ID` | `9cc10dba-a023-436b-a90b-181829718f38` | literal (the same tenant as the user Web) |
+| `JUPLE_ADMIN_ENTRA_API_SCOPE` | `api://a61bc80e-2d14-4ff0-9fd7-bc6a63c8e2a0/access_as_user` | literal |
+| `JUPLE_ADMIN_BASE_URL` | `https://admin.juple.co.kr` | literal |
+| `JUPLE_ADMIN_ENTRA_CLIENT_ID` | the "Juple Admin Web (PROD)" SPA client id | deployer's shell: `JUPLE_ADMIN_ENTRA_CLIENT_ID`. **Not committed.** No default. |
+| `JUPLE_ADMIN_BUILD_VERSION` | the commit the image was built from | deployer's shell: `JUPLE_ADMIN_PROD_BUILD_VERSION`. No default. |
+
+- **Fail-fast in two places:**
+  - A missing variable fails the parameter build (BCP427).
+  - `admin/admin-config-guard.bicep` rejects the deployment during validation when any of these holds:
+    - a URL is not `https://host`;
+    - a tenant or client id is not a GUID;
+    - the scope is not `api://…/access_as_user`;
+    - Production points at localhost, `127.0.0.1`, a `dev.` host or `jupledev`;
+    - `bindCustomDomain=true` lacks the domain or certificate, or `adminBaseUrl` is not `https://<that domain>`.
+- **The app checks again:** in `next start` / the container, `lib/adminConfig.ts` accepts only https, no local host, GUID ids and the `access_as_user` scope. Otherwise it shows "관리자 웹 설정이 완료되지 않았습니다."
+- **Future secrets:** a secret added later goes through a Container Apps secret / Key Vault reference, never a plain env value or bicepparam literal.
+
+### API CORS
+
+`app/prod.bicepparam` now reads:
+
+```
+authenticatedWebAllowedOrigins = ['https://juple.co.kr', 'https://admin.juple.co.kr']
+```
+
+- It is https only, with no wildcard, no localhost and no credentials.
+- The Admin Web sends `Authorization: Bearer` and `Content-Type: application/json`, using GET, and PUT on the two inquiry actions. Both headers and methods are already in `AuthenticatedWebCors`. No cookie is involved (`credentials: 'omit'`).
+- `AuthenticatedWebCorsTests` reads this line from the file and runs a real preflight evaluation:
+  - the user Web and the Admin Web are allowed;
+  - `https://evil.example`, `http://admin.juple.co.kr` and `https://admin.juple.co.kr.evil.example` are refused.
+- A read-only `what-if` of the API with live values shows exactly one change: env `AuthenticatedWeb__AllowedOrigins__1 = https://admin.juple.co.kr`.
+- The same file now also states `mobileAndroidLatestBuild = 31`, the value the live API serves. It used to say 26, so a redeploy would have lowered it. The minimum stays 24.
+
+### Content-Security-Policy (per request, `proxy.ts`)
+
+```
+frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self';
+connect-src 'self' https://api.juple.co.kr https://juple.ciamlogin.com https://9cc10dba-a023-436b-a90b-181829718f38.ciamlogin.com; img-src 'self' data:
+```
+
+- `script-src` is not restricted, because Next's inline bootstrap needs nonces. There is no `*`.
+- The `/auth/callback` bridge alone uses `frame-ancestors 'self'`.
+- **Measured in headless Chrome against the production image:**
+  - Starting sign-in fetches only `https://juple.ciamlogin.com/juple.onmicrosoft.com/v2.0/.well-known/openid-configuration`, then navigates to `https://juple.ciamlogin.com/<tenant>/oauth2/v2.0/authorize`.
+  - No `login.microsoftonline.com` call is made (instance discovery is skipped because the authority is in `knownAuthorities`).
+  - There were no CSP violations.
+  - The token and logout endpoints in the discovery document are on `juple.ciamlogin.com` too.
+
+### Cost
+
+min 0 / max 1 at 0.25 vCPU / 0.5 GiB costs nothing while idle.
+
+- **Cold start:** the first request after idle waits for the platform to scale from zero. The user Web measured up to ~29 s.
+- **Impact:** an operator sees a slow first page. Sign-in itself is unaffected, because the redirect returns to a warm replica, and so are health probes.
+- **If it bothers the operators:** set `minReplicas = 1`, about USD 6 a month, the same as the user Web.
+
+## Production rollout (in this order)
+
+The `InProgress` state is the constraint:
+
+- an API revision older than migration `AddAdminUsersAuditLogAndInquiryProgress` cannot read an `InProgress` inquiry;
+- a user Web older than `b0baf7e` drops it from the list.
+
+So the migration comes first, then the API and the user Web. **No inquiry is set to 처리중 before both are fully rolled out.**
+
+1. **PROD DB migration.** Use the existing reviewed procedure (`infra/azure/README.md` "EF Core migration 적용"):
+   1. Open a temporary firewall rule.
+   2. `SELECT` `__EFMigrationsHistory`.
+   3. Generate the idempotent script, review it and apply it.
+   4. Remove the rule.
+
+   The migration is additive: the new `admin` schema, a nullable `UpdatedAtUtc`, and widened check constraints. The running API keeps working.
+2. **API.** Build `juple-api` from the release commit, push it, record its digest, then deploy `app/prod.bicepparam`. This one deployment carries the new code **and** the Admin CORS origin. Do a `what-if` first.
+3. **API healthy.** The new revision is Running, and `/health` and `/health/ready` return 200. Retire the old revision before anything is set to 처리중.
+4. **User Web.** Deploy `juple-web` from the same release, with the 처리중 label.
+5. **Web healthy.** Check `https://juple.co.kr` and the 고객센터 page.
+6. **First Owner.** See "Bootstrap" below.
+7. **Admin Container App, phase A.**
+   1. Build and push `juple-admin` (see "Image").
+   2. Set the variables: `JUPLE_ADMIN_ENTRA_CLIENT_ID`, `JUPLE_ADMIN_PROD_BUILD_VERSION`, `JUPLE_ADMIN_PROD_IMAGE_DIGEST`, `JUPLE_ADMIN_PROD_ACR_LOGIN_SERVER`, `JUPLE_ADMIN_PROD_CONTAINER_APPS_ENVIRONMENT_ID`, `JUPLE_ADMIN_PROD_MANAGED_IDENTITY_RESOURCE_ID`, and `JUPLE_ADMIN_PROD_BIND_CUSTOM_DOMAIN=false`.
+   3. Run `what-if`, then `az deployment group create -g rg-juple-prod --parameters infra/azure/admin/prod.bicepparam`.
+   4. The outputs give `containerAppFqdn` and `customDomainVerificationId`.
+   5. `https://<fqdn>/health` returns 200. Sign-in cannot work on the FQDN yet, because the redirect URI is `admin.juple.co.kr`.
+8. **CORS.** Already live since step 2.
+9. **DNS (Gabia, `ns.gabia.co.kr`), phase B:**
+   - `CNAME admin` → the `containerAppFqdn` from step 7.
+   - `TXT asuid.admin` → `customDomainVerificationId`. This is the environment's verification id, the same value `asuid` / `asuid.api` already carry.
+
+   Check with `nslookup -type=CNAME admin.juple.co.kr` and `nslookup -type=TXT asuid.admin.juple.co.kr`.
+10. **Certificate and binding, phase C.** This is a one-time step outside Bicep, the same as `juple.co.kr` and `api.juple.co.kr`:
+
+    ```
+    az containerapp hostname add  -g rg-juple-prod -n ca-juple-admin-prod --hostname admin.juple.co.kr
+    az containerapp hostname bind -g rg-juple-prod -n ca-juple-admin-prod --hostname admin.juple.co.kr --environment cae-juple-prod --validation-method CNAME
+    az containerapp env certificate list -g rg-juple-prod -n cae-juple-prod --managed-certificates-only -o table   # the new certificate's name
+    ```
+
+    Then write that certificate name into `admin/prod.bicepparam` as a literal, replacing the `readEnvironmentVariable` line. From then on, **every** deployment sets `JUPLE_ADMIN_PROD_BIND_CUSTOM_DOMAIN=true`. A `what-if` must then show `ingress.customDomains` unchanged.
+11. **Admin login.** Open `https://admin.juple.co.kr` and sign in as the Owner.
+12. **Owner check.** The Owner gets the dashboard, and `GET /api/v1/admin/me` returns 200 with role `Owner`.
+13. **Non-admin check.** A non-admin Juple account sees only "관리자 권한이 없습니다." (403).
+14. **Inquiry E2E.**
+    1. Write a test inquiry in the app.
+    2. Admin: 처리중. The app shows 처리중.
+    3. Admin: answer. The app shows 답변완료 and the answer.
+    4. The detail page's 처리 이력 shows both audit entries.
+
+### Image
+
+This follows the user Web's procedure: build locally, push, deploy by digest. There is no CI workflow (`.github/workflows` does not exist).
+
+```
+docker build -f apps/admin/Dockerfile -t <acr>.azurecr.io/juple-admin:admin-<commit>-prod-<yyyymmdd> apps/admin
+az acr login --name <acr>
+docker push <acr>.azurecr.io/juple-admin:admin-<commit>-prod-<yyyymmdd>
+docker inspect --format '{{index .RepoDigests 0}}' <acr>.azurecr.io/juple-admin:admin-<commit>-prod-<yyyymmdd>   # -> JUPLE_ADMIN_PROD_IMAGE_DIGEST
+```
+
+- The build context is `apps/admin`. The image has no build-time configuration, so one image serves every environment.
+- It runs as the non-root `node` user and is about 79 MB.
+
+### Rollback
+
+- **API:** redeploy the previous image digest with the same parameter file. Revisions are `Single`, so the previous revision cannot simply take traffic next to the new one. Do it **only if that image can read the current data.**
+  - Once anything is `InProgress`, a revision older than the migration fails on those rows.
+  - First set those inquiries back: an admin moves them to 접수. Or, as an operator, run `UPDATE support.SupportInquiries SET Status = N'Pending' WHERE Status = N'InProgress'`.
+- **User Web:** redeploy the previous image. Under the same condition, it would hide `InProgress` inquiries.
+- **Admin Web:** new and standalone. Deactivate its revision, scale it to 0, or remove the hostname binding and the DNS records. Nothing else depends on it.
+  - Removing the Admin origin from `authenticatedWebAllowedOrigins` (an API redeploy) closes the browser path entirely.
+  - The API's JupleAdmin policy stays the real barrier either way.
+- **Database:** do **not** run the migration's `Down` in Production once admin data exists. It drops `admin.AdminUsers` and `admin.AdminAuditLogs`, including the audit history, and rewrites `InProgress`.
+  - The migration is additive, so rolling back code never requires rolling back the schema. Leave it in place.
+
+## Compatibility notes
+
+- Older mobile builds show an `InProgress` inquiry as 접수. That is acceptable, and nothing breaks.
+- The Entra SPA registration "Juple Admin Web (PROD)" is configured as follows:
+  - redirect `https://admin.juple.co.kr/auth/callback`;
+  - the API's `access_as_user` with admin consent, and Microsoft Graph removed;
+  - implicit grant off, public client flows off, no secret;
+  - the `JupleSignUpSignIn` user flow.
+
+  Its client id goes only into `JUPLE_ADMIN_ENTRA_CLIENT_ID` at deployment.

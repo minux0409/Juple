@@ -30,6 +30,9 @@ Container App이 아직 존재하지 않는 이미지 태그를 참조해 Founda
 3. **App** (`app/`) — Foundation의 output(ACR login server, Container Apps Environment 리소스
    ID, Managed Identity 리소스 ID 등)을 parameter로 받아 실제 Container App을 배포한다.
 
+   Admin Web(`admin/`, `ca-juple-admin-prod`, `admin.juple.co.kr`)은 user Web(`web/`)과 같은 구조의 별도
+   Container App이다. 배포 순서·도메인 단계(A/B/C)·rollback은 `docs/admin.md`의 "Production rollout"을 따른다.
+
 ## 현재 배포 상태
 
 Azure Dev 환경(`rg-juple-dev`)에는 Foundation, App, Push dispatch Job 세 단계가 **모두 이미
