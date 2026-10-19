@@ -4,6 +4,9 @@ namespace Juple.Application.Admin;
 public interface IAdminAnalyticsService
 {
     Task<AdminAnalyticsOverview> GetOverviewAsync(string? range, CancellationToken cancellationToken = default);
+
+    /// <summary>One account's saved-link counts for 7d / 30d / 90d. An account that does not exist is <see cref="AdminUserNotFoundException"/>.</summary>
+    Task<AdminUserLinkStats> GetUserLinkStatsAsync(long userId, string? range, CancellationToken cancellationToken = default);
 }
 
 public sealed class AdminAnalyticsService(IAdminAnalyticsStore store, TimeProvider timeProvider, Juple.Application.Billing.BillingOptions billing) : IAdminAnalyticsService
@@ -30,6 +33,19 @@ public sealed class AdminAnalyticsService(IAdminAnalyticsStore store, TimeProvid
         }
 
         return GetAsync(name, days, cancellationToken);
+    }
+
+    public async Task<AdminUserLinkStats> GetUserLinkStatsAsync(long userId, string? range, CancellationToken cancellationToken = default)
+    {
+        var name = string.IsNullOrWhiteSpace(range) ? DefaultRange : range.Trim();
+        if (!Ranges.TryGetValue(name, out var days))
+        {
+            throw new InvalidAdminRequestException("range", "range must be 7d, 30d or 90d.");
+        }
+
+        var nowUtc = timeProvider.GetUtcNow();
+        var todayUtc = DateOnly.FromDateTime(nowUtc.UtcDateTime);
+        return await store.GetUserLinkStatsAsync(userId, name, days, todayUtc, nowUtc, cancellationToken) ?? throw new AdminUserNotFoundException();
     }
 
     private async Task<AdminAnalyticsOverview> GetAsync(string range, int days, CancellationToken cancellationToken)

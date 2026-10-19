@@ -102,6 +102,9 @@ public sealed record AdminInquiryDetail(
 /// <summary>The inquiry does not exist.</summary>
 public sealed class AdminInquiryNotFoundException : Exception;
 
+/// <summary>The account does not exist (or was deleted).</summary>
+public sealed class AdminUserNotFoundException : Exception;
+
 /// <summary>A request the admin endpoints refuse (bad status, empty or oversized answer, a transition the lifecycle forbids).</summary>
 public sealed class InvalidAdminRequestException(string field, string message) : Exception(message)
 {

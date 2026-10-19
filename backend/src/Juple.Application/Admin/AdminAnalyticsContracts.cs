@@ -115,4 +115,30 @@ public interface IAdminAnalyticsStore
     Task<AdminMembership> GetMembershipAsync(DateTimeOffset nowUtc, DateOnly todayUtc, DateTimeOffset? programStartAtUtc, CancellationToken cancellationToken = default);
 
     Task<AdminLinkHoldings> GetLinkHoldingsAsync(int topHolders, CancellationToken cancellationToken = default);
+
+    /// <summary>One account's link counts, or null when no such account exists (never an empty answer for a missing person).</summary>
+    Task<AdminUserLinkStats?> GetUserLinkStatsAsync(long userId, string range, int days, DateOnly todayUtc, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// One account's link activity for the Admin Web - identifiers and counts only, never a URL, title, memo or image. LiveLinks excludes
+/// the trash; every Saved* number counts the links of that UTC save day that still exist (trash included, matching the overview),
+/// so a permanently deleted link is gone from them and nothing is estimated.
+/// </summary>
+public sealed record AdminUserLinkStats(
+    long UserId,
+    string JupleId,
+    DateTimeOffset CreatedAtUtc,
+    string Range,
+    DateOnly StartDateUtc,
+    DateOnly TodayUtc,
+    DateTimeOffset GeneratedAtUtc,
+    int LiveLinks,
+    int SavedToday,
+    int Saved7Days,
+    int Saved30Days,
+    int Saved90Days,
+    int SavedInRange,
+    IReadOnlyList<AdminUserLinkDay> Series);
+
+public sealed record AdminUserLinkDay(DateOnly Date, int LinksSaved);

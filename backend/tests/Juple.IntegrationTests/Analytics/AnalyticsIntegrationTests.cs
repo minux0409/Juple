@@ -190,6 +190,70 @@ public sealed class AnalyticsIntegrationTests : IAsyncLifetime
         Assert.False(month.Countries.Available);
     }
 
+    [Fact]
+    public async Task UserLinkStats_CountsOnlyThatPerson_AtTheDayBoundaries_TrashIncluded_PurgedGone()
+    {
+        var a = await NewUserAsync(At(Today.AddDays(-200)));
+        var b = await NewUserAsync(At(Today.AddDays(-200)));
+        var empty = await NewUserAsync(At(Today.AddDays(-2)));
+
+        Item Saved(long userId, int n, DateTimeOffset at) => new(userId, $"https://example.com/userstats/{userId}/{n}", at);
+        var trashed = Saved(a.Id, 9, At(Today, 5));
+        trashed.SoftDelete(At(Today, 6));
+        var purged = Saved(a.Id, 11, At(Today, 7));
+        await using (var db = NewContext())
+        {
+            db.Items.AddRange(
+                Saved(a.Id, 1, At(Today, 0)),                                          // first instant of today (inclusive)
+                Saved(a.Id, 2, At(Today, 23).AddMinutes(59)),                          // last minute of today
+                Saved(a.Id, 3, At(Today.AddDays(-6))),                                 // oldest day of the 7d window
+                Saved(a.Id, 4, At(Today.AddDays(-7))),                                 // just outside 7d
+                Saved(a.Id, 5, At(Today.AddDays(-29))),                                // oldest day of 30d
+                Saved(a.Id, 6, At(Today.AddDays(-30))),                                // just outside 30d
+                Saved(a.Id, 7, At(Today.AddDays(-89), 0)),                             // oldest day of 90d
+                Saved(a.Id, 8, At(Today.AddDays(-90), 23).AddMinutes(59)),             // just outside 90d
+                Saved(a.Id, 10, At(Today.AddDays(1), 0)),                              // tomorrow: not counted
+                trashed,
+                purged,
+                Saved(b.Id, 1, At(Today)),                                             // another person's: must not leak in
+                Saved(b.Id, 2, At(Today.AddDays(-3))));
+            await db.SaveChangesAsync();
+            db.Items.Remove(purged); // permanently deleted - nothing is left to count
+            await db.SaveChangesAsync();
+        }
+
+        var now = At(Today, 23);
+        await using var read = NewContext();
+        var store = new AdminAnalyticsStore(read);
+
+        var month = (await store.GetUserLinkStatsAsync(a.Id, "30d", 30, Today, now))!;
+        Assert.Equal((a.Id, a.PublicCode), (month.UserId, month.JupleId));
+        Assert.Equal(9, month.LiveLinks); // 11 saved - trashed - purged; out-of-window links still live
+        // Trash counts as saved (same as the overview); the purged one and tomorrow's do not.
+        Assert.Equal((3, 4, 6, 8), (month.SavedToday, month.Saved7Days, month.Saved30Days, month.Saved90Days));
+        Assert.Equal(6, month.SavedInRange);
+        Assert.Equal(30, month.Series.Count);
+        Assert.Equal((Today.AddDays(-29), Today), (month.Series[0].Date, month.Series[^1].Date));
+        Assert.Equal(3, month.Series[^1].LinksSaved);
+        Assert.Equal(0, month.Series.Single(day => day.Date == Today.AddDays(-28)).LinksSaved); // a real 0, present in the series
+        Assert.Equal(month.SavedInRange, month.Series.Sum(day => day.LinksSaved));
+
+        var week = (await store.GetUserLinkStatsAsync(a.Id, "7d", 7, Today, now))!;
+        Assert.Equal((7, 4), (week.Series.Count, week.SavedInRange));
+        var quarter = (await store.GetUserLinkStatsAsync(a.Id, "90d", 90, Today, now))!;
+        Assert.Equal((90, 8), (quarter.Series.Count, quarter.SavedInRange));
+        Assert.Equal(1, quarter.Series[0].LinksSaved); // day -89
+
+        var other = (await store.GetUserLinkStatsAsync(b.Id, "30d", 30, Today, now))!;
+        Assert.Equal((2, 1, 2), (other.LiveLinks, other.SavedToday, other.Saved30Days));
+
+        var none = (await store.GetUserLinkStatsAsync(empty.Id, "30d", 30, Today, now))!;
+        Assert.Equal((0, 0, 0, 0, 0, 0), (none.LiveLinks, none.SavedToday, none.Saved7Days, none.Saved30Days, none.Saved90Days, none.SavedInRange));
+        Assert.All(none.Series, day => Assert.Equal(0, day.LinksSaved));
+
+        Assert.Null(await store.GetUserLinkStatsAsync(long.MaxValue, "30d", 30, Today, now));
+    }
+
     private async Task<AdminAnalyticsOverview> OverviewAsync(string range, int days)
     {
         await using var db = NewContext();

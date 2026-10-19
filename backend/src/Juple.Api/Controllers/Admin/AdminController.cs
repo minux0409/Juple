@@ -52,6 +52,11 @@ public sealed class AdminController(
     public Task<IActionResult> GetAnalyticsOverviewAsync([FromQuery] string? range, [FromServices] IAdminAnalyticsService analytics, CancellationToken cancellationToken) =>
         AdminResults.RunAsync(this, async () => Ok(await analytics.GetOverviewAsync(range, cancellationToken)));
 
+    /// <summary>One account's saved-link counts per UTC day (7d / 30d / 90d). Counts and identifiers only - no link content. Unknown account = 404.</summary>
+    [HttpGet("users/{userId:long}/link-stats")]
+    public Task<IActionResult> GetUserLinkStatsAsync(long userId, [FromQuery] string? range, [FromServices] IAdminAnalyticsService analytics, CancellationToken cancellationToken) =>
+        AdminResults.RunAsync(this, async () => Ok(await analytics.GetUserLinkStatsAsync(userId, range, cancellationToken)));
+
     /// <summary>The mobile version policy as the API serves it (read-only - changing it is a configuration deployment).</summary>
     [HttpGet("operations/app-version")]
     public IActionResult GetAppVersion()
@@ -94,7 +99,7 @@ internal static class AdminResults
             controller.ModelState.AddModelError(exception.Field, exception.Message);
             return controller.ValidationProblem(controller.ModelState);
         }
-        catch (AdminInquiryNotFoundException)
+        catch (Exception exception) when (exception is AdminInquiryNotFoundException or AdminUserNotFoundException)
         {
             return controller.NotFound();
         }

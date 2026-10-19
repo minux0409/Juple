@@ -273,5 +273,51 @@ public sealed class AdminAnalyticsStore(JupleDbContext dbContext) : IAdminAnalyt
             .Distinct()
             .CountAsync(cancellationToken);
 
+    public async Task<AdminUserLinkStats?> GetUserLinkStatsAsync(long userId, string range, int days, DateOnly todayUtc, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+    {
+        var person = await dbContext.Users.AsNoTracking()
+            .Where(user => user.Id == userId)
+            .Select(user => new { user.PublicCode, user.CreatedAtUtc })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (person is null)
+        {
+            return null;
+        }
+
+        // Always the 90-day window: one grouped query (at most 90 rows) answers today / 7 / 30 / 90 and the chosen range alike, so the
+        // KPI numbers and the chart can never disagree. Items.SavedAtUtc, this person's rows only; trash included, purged links gone.
+        var windowStartAt = StartOf(todayUtc.AddDays(-89));
+        var tomorrowStart = StartOf(todayUtc.AddDays(1));
+        var items = dbContext.Items.AsNoTracking().Where(item => item.UserId == userId);
+        var byDay = await items
+            .Where(item => item.SavedAtUtc >= windowStartAt && item.SavedAtUtc < tomorrowStart)
+            .GroupBy(item => item.SavedAtUtc.Date)
+            .Select(group => new { Day = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(row => DateOnly.FromDateTime(row.Day), row => row.Count, cancellationToken);
+        var live = await items.CountAsync(item => item.DeletedAtUtc == null, cancellationToken);
+
+        int Sum(int lastDays) => Enumerable.Range(0, lastDays).Sum(offset => byDay.GetValueOrDefault(todayUtc.AddDays(-offset)));
+        var series = Enumerable.Range(0, days)
+            .Select(offset => todayUtc.AddDays(-(days - 1) + offset))
+            .Select(day => new AdminUserLinkDay(day, byDay.GetValueOrDefault(day)))
+            .ToList();
+
+        return new AdminUserLinkStats(
+            userId,
+            person.PublicCode,
+            person.CreatedAtUtc,
+            range,
+            todayUtc.AddDays(-(days - 1)),
+            todayUtc,
+            nowUtc,
+            live,
+            Sum(1),
+            Sum(7),
+            Sum(30),
+            Sum(90),
+            series.Sum(day => day.LinksSaved),
+            series);
+    }
+
     private static DateTimeOffset StartOf(DateOnly day) => new(day.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
 }

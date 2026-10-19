@@ -99,6 +99,7 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         { "GET", "/api/v1/admin/users" },
         { "GET", "/api/v1/admin/operations/app-version" },
         { "GET", "/api/v1/admin/analytics/overview?range=30d" },
+        { "GET", "/api/v1/admin/users/5/link-stats?range=30d" },
         { "GET", "/api/v1/admin/operations/system" },
         { "GET", "/api/v1/admin/support/inquiries" },
         { "GET", "/api/v1/admin/support/inquiries/7" },
@@ -304,6 +305,31 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UserLinkStats_401_403_400_404_200_AndNoLinkContentInTheAnswer()
+    {
+        const string path = "/api/v1/admin/users/5/link-stats";
+        Assert.Equal(HttpStatusCode.Unauthorized, (await SendAsync("GET", path, identity: null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await SendAsync("GET", path, MemberOid)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await SendAsync("GET", path, InactiveAdminOid)).StatusCode);
+        Assert.Equal(0, _analyticsStore.UserStatsCalls);
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await SendAsync("GET", path + "?range=1y", AdminOid)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await SendAsync("GET", "/api/v1/admin/users/404/link-stats", AdminOid)).StatusCode);
+        Assert.Equal(1, _analyticsStore.UserStatsCalls);
+
+        var response = await SendAsync("GET", path + "?range=7d", AdminOid);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadAsStringAsync();
+        Assert.Contains("\"range\":\"7d\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"liveLinks\":7", json, StringComparison.Ordinal);
+        Assert.Contains("\"saved90Days\":4", json, StringComparison.Ordinal);
+        foreach (var forbidden in new[] { "url", "title", "memo", "image", "preview" })
+        {
+            Assert.DoesNotContain(forbidden, json, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
     public async Task Analytics_RunsOnlyForAnAdmin_AndAnUnknownRangeIs400()
     {
         Assert.Equal(HttpStatusCode.Unauthorized, (await SendAsync("GET", "/api/v1/admin/analytics/overview", identity: null)).StatusCode);
@@ -349,6 +375,16 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
 
         public Task<AdminLinkHoldings> GetLinkHoldingsAsync(int topHolders, CancellationToken cancellationToken = default) =>
             Task.FromResult(new AdminLinkHoldings(123, 9, 20, 40, 1, [new AdminLinkBucket(0, 0, 11)], [new AdminLinkHolder("QZAMQBQK", 40)]));
+
+        public int UserStatsCalls { get; private set; }
+
+        public Task<AdminUserLinkStats?> GetUserLinkStatsAsync(long userId, string range, int days, DateOnly todayUtc, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+        {
+            UserStatsCalls++;
+            return Task.FromResult<AdminUserLinkStats?>(userId == 404
+                ? null
+                : new AdminUserLinkStats(userId, "QZAMQBQK", nowUtc, range, todayUtc.AddDays(-(days - 1)), todayUtc, nowUtc, 7, 1, 2, 3, 4, 2, [new AdminUserLinkDay(todayUtc, 2)]));
+        }
     }
 
     private sealed class RecordingAdminService : IAdminService

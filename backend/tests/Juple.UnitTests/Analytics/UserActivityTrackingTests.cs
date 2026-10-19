@@ -265,6 +265,26 @@ public sealed class UserActivityTrackingTests
             TopHoldersAsked = topHolders;
             return Task.FromResult(new AdminLinkHoldings(0, 0, 0, 0, 0, [], []));
         }
+
+        public Task<AdminUserLinkStats?> GetUserLinkStatsAsync(long userId, string range, int days, DateOnly todayUtc, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+        {
+            (Range, Days, Today) = (range, days, todayUtc);
+            return Task.FromResult<AdminUserLinkStats?>(userId == 404 ? null : new AdminUserLinkStats(userId, "ABCD2345", nowUtc, range, todayUtc, todayUtc, nowUtc, 0, 0, 0, 0, 0, 0, []));
+        }
+    }
+
+    [Fact]
+    public async Task UserLinkStats_ValidatesTheRange_AndAMissingAccountIsNotFound()
+    {
+        var store = new CapturingAnalyticsStore();
+        var service = new AdminAnalyticsService(store, TimeProvider.System, new Juple.Application.Billing.BillingOptions());
+        await Assert.ThrowsAsync<InvalidAdminRequestException>(() => service.GetUserLinkStatsAsync(1, "1y"));
+        Assert.Null(store.Range); // the bad range never reached the store
+        await Assert.ThrowsAsync<AdminUserNotFoundException>(() => service.GetUserLinkStatsAsync(404, "7d"));
+
+        var stats = await service.GetUserLinkStatsAsync(1, null);
+        Assert.Equal("30d", stats.Range); // the overview's default
+        Assert.Equal(30, store.Days);
     }
 
     [Fact]
