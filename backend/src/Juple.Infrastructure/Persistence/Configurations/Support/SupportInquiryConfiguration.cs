@@ -16,11 +16,11 @@ public sealed class SupportInquiryConfiguration : IEntityTypeConfiguration<Suppo
             table.HasCheckConstraint(
                 "CK_SupportInquiries_Type_Valid",
                 "[Type] IN ('Account', 'Subscription', 'LinkSaving', 'CollectionSharing', 'Bug', 'FeatureRequest', 'Other')");
-            table.HasCheckConstraint("CK_SupportInquiries_Status_Valid", "[Status] IN ('Pending', 'Answered')");
-            // An answered inquiry has an answer and a time; a pending one has neither.
+            table.HasCheckConstraint("CK_SupportInquiries_Status_Valid", "[Status] IN ('Pending', 'InProgress', 'Answered')");
+            // An answered inquiry has an answer and a time; an unanswered one (접수 / 처리중) has neither.
             table.HasCheckConstraint(
                 "CK_SupportInquiries_Answer_Consistent",
-                "([Status] = 'Pending' AND [Answer] IS NULL AND [AnsweredAtUtc] IS NULL) " +
+                "([Status] IN ('Pending', 'InProgress') AND [Answer] IS NULL AND [AnsweredAtUtc] IS NULL) " +
                 "OR ([Status] = 'Answered' AND [Answer] IS NOT NULL AND [AnsweredAtUtc] IS NOT NULL)");
         });
 
@@ -63,6 +63,9 @@ public sealed class SupportInquiryConfiguration : IEntityTypeConfiguration<Suppo
             .IsRequired();
 
         builder.Property(inquiry => inquiry.AnsweredAtUtc)
+            .HasColumnType("datetimeoffset");
+
+        builder.Property(inquiry => inquiry.UpdatedAtUtc)
             .HasColumnType("datetimeoffset");
 
         builder.Property(inquiry => inquiry.AppVersion).HasColumnType("nvarchar(32)").HasMaxLength(32);

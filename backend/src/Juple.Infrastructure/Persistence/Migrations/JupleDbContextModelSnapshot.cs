@@ -22,6 +22,87 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("Juple.Domain.Admin.AdminAuditLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<long>("AdminUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<string>("TargetId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("TargetType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TargetType", "TargetId", "Id")
+                        .HasDatabaseName("IX_AdminAuditLogs_Target");
+
+                    b.ToTable("AdminAuditLogs", "admin");
+                });
+
+            modelBuilder.Entity("Juple.Domain.Admin.AdminUser", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long?>("GrantedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AdminUsers_UserId");
+
+                    b.ToTable("AdminUsers", "admin", t =>
+                        {
+                            t.HasCheckConstraint("CK_AdminUsers_Role_Valid", "[Role] IN ('Owner', 'Admin')");
+                        });
+                });
+
             modelBuilder.Entity("Juple.Domain.Billing.GoogleAccountLink", b =>
                 {
                     b.Property<long>("Id")
@@ -1977,6 +2058,9 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("nvarchar(32)");
 
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<long>("UserId")
                         .HasColumnType("bigint");
 
@@ -1991,9 +2075,9 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.ToTable("SupportInquiries", "support", t =>
                         {
-                            t.HasCheckConstraint("CK_SupportInquiries_Answer_Consistent", "([Status] = 'Pending' AND [Answer] IS NULL AND [AnsweredAtUtc] IS NULL) OR ([Status] = 'Answered' AND [Answer] IS NOT NULL AND [AnsweredAtUtc] IS NOT NULL)");
+                            t.HasCheckConstraint("CK_SupportInquiries_Answer_Consistent", "([Status] IN ('Pending', 'InProgress') AND [Answer] IS NULL AND [AnsweredAtUtc] IS NULL) OR ([Status] = 'Answered' AND [Answer] IS NOT NULL AND [AnsweredAtUtc] IS NOT NULL)");
 
-                            t.HasCheckConstraint("CK_SupportInquiries_Status_Valid", "[Status] IN ('Pending', 'Answered')");
+                            t.HasCheckConstraint("CK_SupportInquiries_Status_Valid", "[Status] IN ('Pending', 'InProgress', 'Answered')");
 
                             t.HasCheckConstraint("CK_SupportInquiries_Type_Valid", "[Type] IN ('Account', 'Subscription', 'LinkSaving', 'CollectionSharing', 'Bug', 'FeatureRequest', 'Other')");
                         });
@@ -2106,6 +2190,15 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("UX_Users_PublicCode");
 
                     b.ToTable("Users", "users");
+                });
+
+            modelBuilder.Entity("Juple.Domain.Admin.AdminUser", b =>
+                {
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Juple.Domain.Billing.GoogleAccountLink", b =>

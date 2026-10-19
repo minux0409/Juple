@@ -170,6 +170,7 @@ builder.Services.AddScoped<ICurrentUserBootstrapService, CurrentUserBootstrapSer
 builder.Services.AddScoped<IDeleteAccountService, DeleteAccountService>();
 builder.Services.AddScoped<IInboxEntrySaveService, InboxEntrySaveService>();
 builder.Services.AddScoped<Juple.Application.Support.ISupportInquiryService, Juple.Application.Support.SupportInquiryService>();
+builder.Services.AddScoped<Juple.Application.Admin.IAdminService, Juple.Application.Admin.AdminService>();
 builder.Services.AddSingleton(new Juple.Application.Safety.TermsOptions
 {
     CurrentVersion = builder.Configuration["Terms:CurrentVersion"] is { Length: > 0 } termsVersion ? termsVersion : Juple.Application.Safety.TermsOptions.DefaultVersion,
@@ -300,15 +301,10 @@ if (!isOutsideHttpApi)
             builder.Configuration.GetSection("Authentication:EntraExternalId"));
 }
 
-builder.Services.AddAuthorizationBuilder()
-    .AddPolicy(AuthorizationPolicies.JupleUser, policy =>
-    {
-        policy.RequireAuthenticatedUser();
-        policy.RequireScope(requiredScope);
-        policy.RequireAssertion(context =>
-            Guid.TryParse(context.User.GetTenantId(), out _)
-            && Guid.TryParse(context.User.GetObjectId(), out _));
-    });
+// JupleUser for every signed-in endpoint; JupleAdmin for api/v1/admin (JupleUser + an active grant in admin.AdminUsers, checked by
+// ActiveAdminAuthorizationHandler against the database for every request - never a client-sent role).
+builder.Services.AddAuthorizationBuilder().AddJuplePolicies(requiredScope);
+builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, ActiveAdminAuthorizationHandler>();
 
 // A block between two people stops an interaction wherever a service raises UserBlockedException (comments, hearts, reactions, invitations,
 // joins): one mapping for all controllers instead of a catch in each.

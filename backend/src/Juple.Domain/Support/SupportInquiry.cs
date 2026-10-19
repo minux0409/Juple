@@ -15,12 +15,19 @@ public enum SupportInquiryType
     Other,
 }
 
-/// <summary>Deliberately just two states for v1 - no assignment, escalation, closing or SLA states.</summary>
+/// <summary>
+/// 접수 (Pending) -> 처리중 (InProgress, set by an admin) -> 답변완료 (Answered). Stored by name, so appending a state never changes
+/// what an existing row means. Still no assignment, escalation, closing or SLA states.
+/// </summary>
 public enum SupportInquiryStatus
 {
     Pending,
     Answered,
+    InProgress,
 }
+
+/// <summary>A status change the inquiry's lifecycle does not allow (for example taking back an answer).</summary>
+public sealed class SupportInquiryTransitionException(string message) : Exception(message);
 
 /// <summary>
 /// One question a signed-in user sent to Juple support, and (once given) the answer. Owned by the internal
@@ -86,12 +93,43 @@ public sealed class SupportInquiry
 
     public string? Locale { get; private set; }
 
+    /// <summary>The last time support changed this inquiry (status or answer); null while untouched since it was created.</summary>
+    public DateTimeOffset? UpdatedAtUtc { get; private set; }
+
     /// <summary>Records (or replaces) the support answer; the answer time is that of the latest answer.</summary>
     public void RecordAnswer(string answer, DateTimeOffset answeredAtUtc)
     {
         Answer = answer;
         Status = SupportInquiryStatus.Answered;
         AnsweredAtUtc = answeredAtUtc;
+        UpdatedAtUtc = answeredAtUtc;
+    }
+
+    /// <summary>
+    /// Moves an unanswered inquiry between 접수 (Pending) and 처리중 (InProgress). Answered is reached only through
+    /// RecordAnswer, and an answered inquiry never goes back (that would hide the answer the user may already have read).
+    /// Returns false when the inquiry is already in that state (nothing changed).
+    /// </summary>
+    public bool ChangeUnansweredStatus(SupportInquiryStatus status, DateTimeOffset changedAtUtc)
+    {
+        if (status is not (SupportInquiryStatus.Pending or SupportInquiryStatus.InProgress))
+        {
+            throw new SupportInquiryTransitionException("Only Pending and InProgress can be set directly; Answered is set by an answer.");
+        }
+
+        if (Status == SupportInquiryStatus.Answered)
+        {
+            throw new SupportInquiryTransitionException("An answered inquiry cannot go back to an unanswered state.");
+        }
+
+        if (Status == status)
+        {
+            return false;
+        }
+
+        Status = status;
+        UpdatedAtUtc = changedAtUtc;
+        return true;
     }
 }
 

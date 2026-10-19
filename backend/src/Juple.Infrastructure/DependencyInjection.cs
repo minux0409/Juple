@@ -107,6 +107,12 @@ public static class DependencyInjection
         services.AddScoped<IBlobCleanupService, BlobCleanupService>();
         services.AddScoped<IInboxEntryStore, ItemStore>();
         services.AddScoped<Juple.Application.Support.ISupportInquiryStore, Juple.Infrastructure.Support.SupportInquiryStore>();
+        // Admin Web (api/v1/admin): the grant lookup the Admin policy runs, the dashboard aggregates, the read-only user directory
+        // and support-inquiry operations (each change saved together with its audit record).
+        services.AddScoped<Juple.Application.Admin.IAdminAccessStore, Juple.Infrastructure.Admin.AdminAccessStore>();
+        services.AddScoped<Juple.Application.Admin.IAdminDashboardStore, Juple.Infrastructure.Admin.AdminDashboardStore>();
+        services.AddScoped<Juple.Application.Admin.IAdminUserDirectoryStore, Juple.Infrastructure.Admin.AdminUserDirectoryStore>();
+        services.AddScoped<Juple.Application.Admin.IAdminSupportInquiryStore, Juple.Infrastructure.Admin.AdminSupportInquiryStore>();
         services.AddScoped<Juple.Application.Safety.ISafetyStore, Juple.Infrastructure.Safety.SafetyStore>();
         services.AddScoped<IItemLifecycleStore, ItemStore>();
         services.AddScoped<IItemDetailsStore, ItemStore>();

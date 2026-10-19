@@ -405,13 +405,13 @@ public sealed class ExpiredWriteAllowlistTests
             .Order()
             .ToArray();
 
-        // account deletion, support, the bootstrap/session plumbing, push-device registration and billing - plus the settings and
+        // account deletion, support, the Admin Web (operators are never stopped by their own subscription), the bootstrap/session plumbing, push-device registration and billing - plus the settings and
         // read-state controllers (lock password, per-Collection notification preference, notifications, recently opened links,
         // URL metadata lookup, profile) that change no shared content - and the safety controller (terms, reports, blocks): reporting and
         // blocking must always work.
         Assert.Equal(
             [
-                "AccountController", "AuthSessionController", "CollectionLockSettingsController", "CollectionNotificationPreferencesController",
+                "AccountController", "AdminController", "AdminSupportInquiriesController", "AuthSessionController", "CollectionLockSettingsController", "CollectionNotificationPreferencesController",
                 "CurrentUserBootstrapController", "GoogleBillingController", "NotificationsController", "PushDevicesController",
                 "RecentlyOpenedLinksController", "SafetyController", "SupportInquiriesController", "UrlMetadataController", "UserProfileController",
             ],
