@@ -1,0 +1,4 @@
+/* iOS 단축어: "컬렉션 열기" 동작 (CollectionShortcuts.swift 참고). */
+"collectionShortcut.entityName" = "컬렉션";
+"collectionShortcut.openTitle" = "컬렉션 열기";
+"collectionShortcut.openDescription" = "Juple에서 컬렉션을 엽니다.";

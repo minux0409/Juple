@@ -356,6 +356,8 @@
     "homeShortcutAdd": "加入主畫面捷徑",
     "homeShortcutUnsupported": "此裝置的啟動器不支援加入主畫面捷徑。",
     "homeShortcutLocked": "已鎖定的合集從主畫面開啟時仍需輸入密碼，且不會加入為分享目標。",
+    "iosShortcutHowTo": "請在「捷徑」App 中將「{{name}}」加入主畫面。\n\n1. 打開捷徑並點一下 +。\n2. 搜尋「Juple」，選擇“Open Collection”，再選擇「{{name}}」。\n3. 點一下分享按鈕，再點「加入主畫面」。\n\n在 iPhone 上，App 無法自行加入主畫面圖示。",
+    "iosShortcutLocked": "已鎖定的合集無法加入捷徑，因為合集名稱會在 Juple 以外的捷徑 App 中顯示。",
     "joinPending": "等待核准",
     "joinRequestsA11y": "加入申請 {{count}}",
     "joinRequests": "加入申請 {{count}}"

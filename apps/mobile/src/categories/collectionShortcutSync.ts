@@ -1,6 +1,7 @@
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { getCollections, type Collection } from '../collections/api/collectionsApi';
 import { collectionShortcutService } from '../shortcuts/CollectionShortcutService';
+import { iosCollectionShortcuts } from '../shortcuts/iosCollectionShortcuts';
 
 const PAGE_LIMIT = 50;
 
@@ -12,14 +13,25 @@ const PAGE_LIMIT = 50;
  * Cheap by design: with nothing pinned it makes no request at all, and otherwise it pages through the account's Collections
  * (scope 'all') only until every pinned one has been seen - never one request per Collection. Best-effort: a failure leaves
  * the shortcuts exactly as they were (a flaky network must not remove the user's choices), and the next call tries again.
- * Android-only (a no-op where there is no native shortcut support).
+ * Android's pinned set and iOS's Shortcuts choices (see iosCollectionShortcuts) - a no-op where neither exists.
  */
 export async function reconcileCollectionShortcuts(request: AuthenticatedApiRequest): Promise<void> {
-  if (!collectionShortcutService.isSupported()) {
+  const target = collectionShortcutService.isSupported()
+    ? {
+        getIds: () => collectionShortcutService.getPinnedCollectionIds(),
+        apply: (seen: readonly Collection[], judged: ReadonlySet<number>) => collectionShortcutService.applyAuthoritativeCollections(seen, judged),
+      }
+    : iosCollectionShortcuts.isSupported()
+      ? {
+          getIds: async () => new Set((await iosCollectionShortcuts.getChoices()).map(choice => choice.id)),
+          apply: (seen: readonly Collection[], judged: ReadonlySet<number>) => iosCollectionShortcuts.applyAuthoritativeCollections(seen, judged),
+        }
+      : null;
+  if (!target) {
     return;
   }
 
-  const pinnedIds = await collectionShortcutService.getPinnedCollectionIds();
+  const pinnedIds = await target.getIds();
   if (pinnedIds.size === 0) {
     return;
   }
@@ -37,5 +49,5 @@ export async function reconcileCollectionShortcuts(request: AuthenticatedApiRequ
   } while (cursor && stillToFind.size > 0);
 
   // Only a COMPLETE walk proves a pinned Collection is gone; stopping early (all found) is complete for them.
-  await collectionShortcutService.applyAuthoritativeCollections(seen, pinnedIds);
+  await target.apply(seen, pinnedIds);
 }

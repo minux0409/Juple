@@ -69,6 +69,11 @@
     "jsSrcsDir": "src/share/specs",
     "android": {
       "javaPackageName": "com.juple.app"
+    },
+    "ios": {
+      "modulesProvider": {
+        "NativeCollectionShortcutsIOS": "JupleCollectionShortcutsModule"
+      }
     }
   }
 }

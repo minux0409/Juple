@@ -1,4 +1,5 @@
 import { collectionShortcutService } from '../shortcuts/CollectionShortcutService';
+import { iosCollectionShortcuts } from '../shortcuts/iosCollectionShortcuts';
 
 /**
  * Removes the Collection shortcuts (launcher + Direct Share) and their stored set on sign-out, so a different account
@@ -10,5 +11,11 @@ export async function clearCollectionShortcutsOnLogoutBestEffort(): Promise<void
     await collectionShortcutService.clear();
   } catch {
     // Best-effort - a leftover shortcut is replaced by the next account's own reconcile (which drops any Collection it cannot reach).
+  }
+  try {
+    // iOS: the Collections offered to the Shortcuts app and any pending "컬렉션 열기" launch.
+    await iosCollectionShortcuts.clear();
+  } catch {
+    // Best-effort, as above. A shortcut run later still only opens what the next account can reach (CollectionShortcutRouter).
   }
 }

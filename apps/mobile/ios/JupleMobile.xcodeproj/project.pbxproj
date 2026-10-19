@@ -8,10 +8,14 @@
 
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		4863D046810000AD256F4B26 /* JupleCollectionShortcutsModule.mm in Sources */ = {isa = PBXBuildFile; fileRef = 96BAFC68D28946E23AB7E53B /* JupleCollectionShortcutsModule.mm */; };
 		56455DA21730A7F01071C3F6 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		C1DE754B67D2CE70AF441DC2 /* CollectionShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = D58E005E0C42CB4AAE99D972 /* CollectionShortcuts.swift */; };
 		C5D9EAFA4AEF830E41BB208E /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EBF9A0B28D516C65619E315 /* SceneDelegate.swift */; };
+		E83C03EABEDE7D91332ED1BF /* AppIntents.strings in Resources */ = {isa = PBXBuildFile; fileRef = CB0C7FB1F583F885E4C4D0BE /* AppIntents.strings */; };
+		E972067007C31501D1409DA2 /* AppShortcuts.strings in Resources */ = {isa = PBXBuildFile; fileRef = 283ABDD14A2E003D67CFB579 /* AppShortcuts.strings */; };
 		EF5B8BD3E3CE1F94B5264965 /* Pods_JupleMobile.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3E0B8847DE16C0A45F400CB9 /* Pods_JupleMobile.framework */; };
 /* End PBXBuildFile section */
 
@@ -24,8 +28,14 @@
 		3B4392A12AC88292D35C810B /* Pods-JupleMobile.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-JupleMobile.debug.xcconfig"; path = "Target Support Files/Pods-JupleMobile/Pods-JupleMobile.debug.xcconfig"; sourceTree = "<group>"; };
 		3E0B8847DE16C0A45F400CB9 /* Pods_JupleMobile.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_JupleMobile.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		5709B34CF0A7D63546082F79 /* Pods-JupleMobile.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-JupleMobile.release.xcconfig"; path = "Target Support Files/Pods-JupleMobile/Pods-JupleMobile.release.xcconfig"; sourceTree = "<group>"; };
+		6C9CB1C3702D19931D17139A /* ko */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = ko; path = JupleMobile/ko.lproj/AppIntents.strings; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = JupleMobile/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = JupleMobile/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		93E7CE652B6F06FEC8303CA4 /* en */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = en; path = JupleMobile/en.lproj/AppIntents.strings; sourceTree = "<group>"; };
+		96BAFC68D28946E23AB7E53B /* JupleCollectionShortcutsModule.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = JupleCollectionShortcutsModule.mm; path = JupleMobile/JupleCollectionShortcutsModule.mm; sourceTree = "<group>"; };
+		BC22EC25E0D40A1AF388628D /* ko */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = ko; path = JupleMobile/ko.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		D58E005E0C42CB4AAE99D972 /* CollectionShortcuts.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CollectionShortcuts.swift; path = JupleMobile/CollectionShortcuts.swift; sourceTree = "<group>"; };
+		E54591018C9E2647C81BC2FC /* en */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = en; path = JupleMobile/en.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -50,6 +60,10 @@
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
 				1EBF9A0B28D516C65619E315 /* SceneDelegate.swift */,
+				D58E005E0C42CB4AAE99D972 /* CollectionShortcuts.swift */,
+				96BAFC68D28946E23AB7E53B /* JupleCollectionShortcutsModule.mm */,
+				CB0C7FB1F583F885E4C4D0BE /* AppIntents.strings */,
+				283ABDD14A2E003D67CFB579 /* AppShortcuts.strings */,
 			);
 			name = JupleMobile;
 			sourceTree = "<group>";
@@ -146,6 +160,7 @@
 			knownRegions = (
 				en,
 				Base,
+				ko,
 			);
 			mainGroup = 83CBB9F61A601CBA00E9B192;
 			productRefGroup = 83CBBA001A601CBA00E9B192 /* Products */;
@@ -165,6 +180,8 @@
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				56455DA21730A7F01071C3F6 /* PrivacyInfo.xcprivacy in Resources */,
+				E83C03EABEDE7D91332ED1BF /* AppIntents.strings in Resources */,
+				E972067007C31501D1409DA2 /* AppShortcuts.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -265,11 +282,33 @@
 			files = (
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
 				C5D9EAFA4AEF830E41BB208E /* SceneDelegate.swift in Sources */,
+				C1DE754B67D2CE70AF441DC2 /* CollectionShortcuts.swift in Sources */,
+				4863D046810000AD256F4B26 /* JupleCollectionShortcutsModule.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXVariantGroup section */
+		283ABDD14A2E003D67CFB579 /* AppShortcuts.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				E54591018C9E2647C81BC2FC /* en */,
+				BC22EC25E0D40A1AF388628D /* ko */,
+			);
+			name = AppShortcuts.strings;
+			sourceTree = "<group>";
+		};
+		CB0C7FB1F583F885E4C4D0BE /* AppIntents.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				93E7CE652B6F06FEC8303CA4 /* en */,
+				6C9CB1C3702D19931D17139A /* ko */,
+			);
+			name = AppIntents.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {

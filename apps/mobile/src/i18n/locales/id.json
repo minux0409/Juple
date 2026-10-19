@@ -356,6 +356,8 @@
     "homeShortcutAdd": "Tambahkan pintasan ke layar Utama",
     "homeShortcutUnsupported": "Launcher perangkat ini tidak mendukung penambahan pintasan ke layar Utama.",
     "homeShortcutLocked": "Koleksi yang dikunci tetap meminta kata sandi saat dibuka dari layar Utama. Koleksi ini tidak ditambahkan sebagai tujuan berbagi.",
+    "iosShortcutHowTo": "Tambahkan pintasan untuk “{{name}}” ke Layar Utama dari app Pintasan.\n\n1. Buka Pintasan lalu ketuk +.\n2. Cari “Juple”, pilih “Open Collection”, lalu pilih “{{name}}”.\n3. Ketuk tombol Bagikan, lalu “Tambah ke Layar Utama”.\n\nDi iPhone, app tidak dapat menambahkan ikon Layar Utama sendiri.",
+    "iosShortcutLocked": "Koleksi yang dikunci tidak dapat ditambahkan ke Pintasan, karena namanya akan terlihat di luar Juple pada app Pintasan.",
     "joinPending": "Menunggu persetujuan",
     "joinRequestsA11y": "Permintaan {{count}}",
     "joinRequests": "Permintaan {{count}}"

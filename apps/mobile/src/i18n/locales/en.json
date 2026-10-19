@@ -356,6 +356,8 @@
     "homeShortcutAdd": "Add shortcut to Home screen",
     "homeShortcutUnsupported": "This device’s launcher doesn’t support adding Home-screen shortcuts.",
     "homeShortcutLocked": "A locked collection still asks for its password when opened from the Home screen. It is not added as a share destination.",
+    "iosShortcutHowTo": "Add a shortcut for “{{name}}” to your Home Screen in the Shortcuts app.\n\n1. Open Shortcuts and tap +.\n2. Search for “Juple”, choose “Open Collection” and pick “{{name}}”.\n3. Tap the Share button, then “Add to Home Screen”.\n\nOn iPhone, an app can’t add a Home Screen icon by itself.",
+    "iosShortcutLocked": "A locked collection can’t be added to Shortcuts, because its name would be visible outside Juple in the Shortcuts app.",
     "joinPending": "Waiting for approval",
     "joinRequestsA11y": "Join requests {{count}}",
     "joinRequests": "Join requests {{count}}"

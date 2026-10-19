@@ -17,6 +17,7 @@ import { StarIcon } from '../icons/StarIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { UnlockIcon } from '../icons/UnlockIcon';
 import { collectionShortcutService } from '../shortcuts/CollectionShortcutService';
+import { iosCollectionShortcuts } from '../shortcuts/iosCollectionShortcuts';
 import { useCollectionShortcutSupport } from '../shortcuts/useCollectionShortcutSupport';
 import { getCollectionNotificationPreference, setCollectionNotificationPreference, type Collection } from './api/collectionsApi';
 import { getCollectionCapabilities } from './collectionCapabilities';
@@ -126,6 +127,25 @@ export function useCollectionLongPressMenu({ onToggleFavorite, onManage }: UseCo
     }
   };
 
+  // iOS: no app can add a Home-screen icon itself. The Collection becomes selectable in the Shortcuts app's "컬렉션 열기", and the
+  // dialog says how to put that shortcut on the Home screen there.
+  const addIosShortcut = async (collection: Collection) => {
+    try {
+      const outcome = await iosCollectionShortcuts.add(collection);
+      if (outcome.status === 'added') {
+        setMessage(t('collections.iosShortcutHowTo', { name: collection.name }));
+      } else if (outcome.status === 'locked') {
+        setMessage(t('collections.iosShortcutLocked'));
+      } else if (outcome.status === 'limit') {
+        setMessage(t('collections.shortcutLimitReached', { count: outcome.max }));
+      } else {
+        setMessage(t('collections.homeShortcutUnsupported'));
+      }
+    } catch {
+      setMessage(t('collections.homeShortcutUnsupported'));
+    }
+  };
+
   const removeFromShareTargets = async (collection: Collection) => {
     try {
       await collectionShortcutService.unpin(collection.id);
@@ -172,6 +192,14 @@ export function useCollectionLongPressMenu({ onToggleFavorite, onManage }: UseCo
         label: t('collections.homeShortcutAdd'),
         icon: PlusIcon,
         onPress: () => { closeMenu(); addHomeShortcut(collection).catch(() => undefined); },
+      });
+    }
+    // iOS: the same entry, through the Shortcuts app (see addIosShortcut). Any role, as on Android - it only opens the Collection.
+    if (iosCollectionShortcuts.isSupported()) {
+      actions.push({
+        label: t('collections.homeShortcutAdd'),
+        icon: PlusIcon,
+        onPress: () => { closeMenu(); addIosShortcut(collection).catch(() => undefined); },
       });
     }
     // Only while it IS a Direct Share destination: takes it out of the share sheet. (A Home icon stays until the user deletes it.)

@@ -6,8 +6,9 @@ import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getCollection } from '../collections/api/collectionsApi';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { navigationRef } from '../navigation/navigationRef';
-import NativeIncomingShare from '../share/specs/NativeIncomingShare';
 import { collectionShortcutService } from './CollectionShortcutService';
+import { iosCollectionShortcuts } from './iosCollectionShortcuts';
+import { consumeShortcutLaunch, subscribeShortcutLaunch } from './shortcutLaunchSource';
 import {
   isShortcutNoticeCode,
   SHORTCUT_NOTICE_OPEN_UNAVAILABLE,
@@ -17,8 +18,10 @@ import {
 
 /**
  * Headless-ish (renders only a message when there is one), mounted once the app's navigation is up, next to
- * IncomingShareRouter. It is the app's side of two OS hand-offs (see NativeIncomingShare.consumeShortcutLaunch), checked on
- * mount and every time the app comes to the front:
+ * IncomingShareRouter. It is the app's side of the OS hand-offs (see shortcutLaunchSource: Android's
+ * NativeIncomingShare.consumeShortcutLaunch, iOS's "컬렉션 열기" shortcut), checked on mount, every time the app comes to the
+ * front, and (iOS) when a shortcut run leaves a launch while the app is already running. Mounted only when signed in, so a
+ * launch left while signed out waits until after sign-in:
  * - a launcher shortcut tap (the Home-screen icon or a launcher-menu entry): open that Collection. The id came from an Intent,
  *   so it is NOT trusted - the Collection is read from the backend with the CURRENT signed-in account first, so another
  *   account's icon, a deleted Collection or lost access all end the same safe way: the share target is removed, the user is
@@ -38,6 +41,7 @@ export function CollectionShortcutRouter() {
     } catch (caughtError) {
       if (caughtError instanceof ApiError && (caughtError.kind === 'notFound' || caughtError.kind === 'forbidden')) {
         collectionShortcutService.unpin(collectionId).catch(() => undefined);
+        iosCollectionShortcuts.remove(collectionId).catch(() => undefined);
         setNotice(SHORTCUT_NOTICE_OPEN_UNAVAILABLE);
         return;
       }
@@ -55,10 +59,10 @@ export function CollectionShortcutRouter() {
   }, [request]);
 
   const consume = useCallback(async () => {
-    if (!NativeIncomingShare) {
+    const launch = await consumeShortcutLaunch();
+    if (!launch) {
       return;
     }
-    const launch = await NativeIncomingShare.consumeShortcutLaunch();
     if (isShortcutNoticeCode(launch.notice)) {
       setNotice(launch.notice);
     }
@@ -74,7 +78,14 @@ export function CollectionShortcutRouter() {
         consume().catch(() => undefined);
       }
     });
-    return () => subscription.remove();
+    // iOS: an "컬렉션 열기" run may leave its launch after the app is already in front.
+    const unsubscribeLaunch = subscribeShortcutLaunch(() => {
+      consume().catch(() => undefined);
+    });
+    return () => {
+      subscription.remove();
+      unsubscribeLaunch();
+    };
   }, [consume]);
 
   return notice !== null ? (

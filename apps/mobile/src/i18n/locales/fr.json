@@ -356,6 +356,8 @@
     "homeShortcutAdd": "Ajouter un raccourci à l’écran d’accueil",
     "homeShortcutUnsupported": "Le lanceur de cet appareil ne permet pas d’ajouter des raccourcis à l’écran d’accueil.",
     "homeShortcutLocked": "Une collection verrouillée demande toujours son mot de passe depuis l’écran d’accueil. Elle n’est pas ajoutée comme destination de partage.",
+    "iosShortcutHowTo": "Ajoutez un raccourci vers « {{name}} » à l’écran d’accueil depuis l’app Raccourcis.\n\n1. Ouvrez Raccourcis et touchez +.\n2. Recherchez « Juple », choisissez “Open Collection” puis « {{name}} ».\n3. Touchez le bouton Partager, puis « Sur l’écran d’accueil ».\n\nSur iPhone, une app ne peut pas ajouter elle-même une icône à l’écran d’accueil.",
+    "iosShortcutLocked": "Une collection verrouillée ne peut pas être ajoutée à Raccourcis, car son nom serait visible hors de Juple dans l’app Raccourcis.",
     "joinPending": "En attente d'approbation",
     "joinRequestsA11y": "Demandes {{count}}",
     "joinRequests": "Demandes {{count}}"

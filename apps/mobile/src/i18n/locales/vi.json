@@ -356,6 +356,8 @@
     "homeShortcutAdd": "Thêm lối tắt vào màn hình chính",
     "homeShortcutUnsupported": "Trình khởi chạy của thiết bị này không hỗ trợ thêm lối tắt vào màn hình chính.",
     "homeShortcutLocked": "Bộ sưu tập đã khóa vẫn yêu cầu mật khẩu khi mở từ màn hình chính. Nó không được thêm làm đích chia sẻ.",
+    "iosShortcutHowTo": "Hãy thêm lối tắt cho “{{name}}” vào Màn hình chính trong ứng dụng Phím tắt.\n\n1. Mở Phím tắt và chạm vào +.\n2. Tìm “Juple”, chọn “Open Collection” rồi chọn “{{name}}”.\n3. Chạm vào nút Chia sẻ, rồi “Thêm vào MH chính”.\n\nTrên iPhone, ứng dụng không thể tự thêm biểu tượng vào Màn hình chính.",
+    "iosShortcutLocked": "Không thể thêm bộ sưu tập đã khóa vào Phím tắt, vì tên của nó sẽ hiển thị bên ngoài Juple trong ứng dụng Phím tắt.",
     "joinPending": "Đang chờ phê duyệt",
     "joinRequestsA11y": "Yêu cầu {{count}}",
     "joinRequests": "Yêu cầu {{count}}"
