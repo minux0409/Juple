@@ -122,4 +122,7 @@ param signedInWebPublicHost = 'juple.co.kr'
 // The full site: "/" is the Juple landing for a signed-out visitor (웹에서 시작하기 -> sign-in) and the app once signed in; the legal
 // pages, the shared-Collection viewer and the app-link files stay public. Public-only mode (apps/web/lib/publicOnly.ts) is off.
 param publicOnly = false
-// legalSupportEmail / legalPrivacyEmail are left unassigned: the code's confirmed contact mailbox applies.
+// The support mailbox and the 개인정보 보호책임자's mailbox, stated explicitly (the live values since the legal activation; equal to the
+// code's confirmed contact mailbox). legalPrivacyEmail stays unassigned: the code's confirmed contact mailbox applies.
+param legalSupportEmail = 'jupleinfo@gmail.com'
+param legalPrivacyOfficerEmail = 'jupleinfo@gmail.com'
