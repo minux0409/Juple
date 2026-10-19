@@ -74,6 +74,28 @@ describe('admin runtime config', () => {
     assert.equal(configFrom({ ...ENV, JUPLE_ADMIN_BUILD_VERSION: undefined }).buildVersion, null);
   });
 
+  it('in production (the container) accepts only https, never a local host; ids must be GUIDs and the scope access_as_user', () => {
+    const production = (env: Record<string, string | undefined>) => readAdminConfig(env, true);
+    assert.equal(production(ENV).ok, true);
+    assert.deepEqual(production({ ...ENV, JUPLE_ADMIN_API_BASE_URL: 'http://api.example.test' }), { ok: false, missing: [ADMIN_CONFIG_ENV.apiBaseUrl] });
+    assert.deepEqual(production({ ...ENV, JUPLE_ADMIN_BASE_URL: 'https://localhost:3100' }), { ok: false, missing: [ADMIN_CONFIG_ENV.adminBaseUrl] });
+    assert.deepEqual(production({ ...ENV, JUPLE_ADMIN_ENTRA_AUTHORITY: 'https://127.0.0.1' }), { ok: false, missing: [ADMIN_CONFIG_ENV.entraAuthority] });
+    assert.deepEqual(production({ ...ENV, JUPLE_ADMIN_ENTRA_CLIENT_ID: 'not-a-guid' }), { ok: false, missing: [ADMIN_CONFIG_ENV.entraClientId] });
+    assert.deepEqual(production({ ...ENV, JUPLE_ADMIN_ENTRA_TENANT_ID: 'juple' }), { ok: false, missing: [ADMIN_CONFIG_ENV.entraTenantId] });
+    assert.deepEqual(production({ ...ENV, JUPLE_ADMIN_ENTRA_API_SCOPE: 'api://x/User.Read' }), { ok: false, missing: [ADMIN_CONFIG_ENV.entraApiScope] });
+    // `next dev` may run against a local API.
+    assert.equal(readAdminConfig({ ...ENV, JUPLE_ADMIN_API_BASE_URL: 'http://localhost:5092', JUPLE_ADMIN_BASE_URL: 'http://localhost:3100' }, false).ok, true);
+  });
+
+  it('has a /health probe that needs no sign-in, API or configuration', async () => {
+    const { GET } = await import('../app/health/route.ts');
+    const response = GET();
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), 'ok');
+    const source = readFileSync(new URL('../app/health/route.ts', import.meta.url), 'utf8');
+    assert.doesNotMatch(source, /process\.env|fetch\(|adminConfig/);
+  });
+
   it('never reads NEXT_PUBLIC_ variables (one image for every environment)', () => {
     for (const file of sourceFiles()) {
       assert.doesNotMatch(readFileSync(file, 'utf8'), /process\.env\.NEXT_PUBLIC_|['"]NEXT_PUBLIC_/, file);

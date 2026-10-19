@@ -46,14 +46,25 @@ function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
 }
 
-function isHttpUrl(value: string): boolean {
+const LOCAL_HOSTS: ReadonlySet<string> = new Set(['localhost', '127.0.0.1', '[::1]', '0.0.0.0']);
+
+/**
+ * A URL setting: http(s) with a host. In production (NODE_ENV=production, i.e. `next start` / the container) only https and never a
+ * local host - a Production admin must not be pointed at a developer's machine. `next dev` may use http://localhost.
+ */
+function isAllowedUrl(value: string, production: boolean): boolean {
   try {
     const url = new URL(value);
+    if (production) {
+      return url.protocol === 'https:' && !LOCAL_HOSTS.has(url.hostname.toLowerCase());
+    }
     return url.protocol === 'https:' || url.protocol === 'http:';
   } catch {
     return false;
   }
 }
+
+const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const URL_SETTINGS: readonly string[] = [ADMIN_CONFIG_ENV.apiBaseUrl, ADMIN_CONFIG_ENV.entraAuthority, ADMIN_CONFIG_ENV.adminBaseUrl];
 const REQUIRED_SETTINGS: readonly string[] = [
@@ -67,11 +78,20 @@ const REQUIRED_SETTINGS: readonly string[] = [
  * Pure (the environment is a parameter). Nothing has a default - not even the API address: an admin tool pointed at the wrong
  * environment is worse than one that says it is not configured. A missing or malformed value is reported by NAME only.
  */
-export function readAdminConfig(env: Readonly<Record<string, string | undefined>>): AdminConfigResult {
+export function readAdminConfig(env: Readonly<Record<string, string | undefined>>, production = process.env.NODE_ENV === 'production'): AdminConfigResult {
   const value = (name: string) => env[name]?.trim() || undefined;
   const missing = REQUIRED_SETTINGS.filter(name => {
     const found = value(name);
-    return !found || (URL_SETTINGS.includes(name) && !isHttpUrl(found));
+    if (!found) {
+      return true;
+    }
+    if (URL_SETTINGS.includes(name)) {
+      return !isAllowedUrl(found, production);
+    }
+    if (name === ADMIN_CONFIG_ENV.entraTenantId || name === ADMIN_CONFIG_ENV.entraClientId) {
+      return !GUID_PATTERN.test(found);
+    }
+    return name === ADMIN_CONFIG_ENV.entraApiScope && !/^api:\/\/.+\/access_as_user$/.test(found);
   });
   if (missing.length > 0) {
     return { ok: false, missing };

@@ -157,8 +157,9 @@ param entraAccountDeletionClientSecretName = 'entra-account-deletion-client-secr
 //   3. raise mobileAndroidMinimumSupportedBuild only when older builds must stop (forced update: a blocking dialog with no way in).
 // A forced minimum for a build Play is not yet serving would lock users out of the app.
 //   optional update:  latest = 25, minimum = 24     required update:  latest = 25, minimum = 25
-// Initial values for the first build that carries this client (versionCode 24); 23 predates the pre-sign-in check.
-param mobileAndroidLatestBuild = 26
+// 24 is the first build that carries this client (23 predates the pre-sign-in check). The latest is 31 (Android Alpha v31), the value
+// the live API has served since that rollout - kept equal here so a redeploy from this file never lowers it.
+param mobileAndroidLatestBuild = 31
 param mobileAndroidMinimumSupportedBuild = 24
 param mobileAndroidStoreUrl = 'https://play.google.com/store/apps/details?id=com.juple.app'
 // iOS is not released: mobileIos* stay at main.bicep's own defaults (0 / 0 / empty).
@@ -178,7 +179,7 @@ param efCommandLogLevel = 'Warning'
 // without a trailing path belongs here.
 param publicWebBaseUrl = readEnvironmentVariable('JUPLE_APP_PROD_PUBLIC_WEB_BASE_URL')
 
-// Browser origin of the signed-in Juple Web app allowed to call the Production API (AuthenticatedWeb:AllowedOrigins - the API's
-// default CORS policy): only the Production site itself. Never localhost or a Dev origin. Activated 2026-10-16 with the Production
-// Web app (../web/prod.bicepparam signedInWeb* values).
-param authenticatedWebAllowedOrigins = ['https://juple.co.kr']
+// Browser origins allowed to call the Production API with a bearer token (AuthenticatedWeb:AllowedOrigins - the API's default CORS
+// policy, no credentials): the signed-in Juple Web app (activated 2026-10-16, ../web/prod.bicepparam signedInWeb*) and the Admin Web
+// (../admin/prod.bicepparam). https only - never localhost, a Dev origin or a wildcard (AuthenticatedWebCorsTests reads this line).
+param authenticatedWebAllowedOrigins = ['https://juple.co.kr', 'https://admin.juple.co.kr']
