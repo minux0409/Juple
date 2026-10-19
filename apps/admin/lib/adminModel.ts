@@ -208,6 +208,53 @@ export function auditActionLabel(action: string): string {
   return AUDIT_ACTION_LABELS[action] ?? action;
 }
 
+// ---- app version policy ------------------------------------------------------------------------------------------------------
+
+/** What the 앱 버전 card shows for one platform. Nothing is invented: an unset platform is "미설정", a malformed answer "unreadable". */
+export type PolicyView =
+  | { readonly kind: 'configured'; readonly latestBuild: number; readonly minimumSupportedBuild: number; readonly storeUrl: string | null }
+  | { readonly kind: 'notConfigured' }
+  | { readonly kind: 'unreadable' };
+
+function isBuild(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
+
+/** Only an https URL becomes a link; anything else is not shown as one. */
+export function safeStoreUrl(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  try {
+    return new URL(value).protocol === 'https:' ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * One platform of GET /api/v1/admin/operations/app-version - the API's MobileVersionPolicy, the same values as the public
+ * GET /api/v1/app-update/{platform}. `enabled` is the API's own derivation (0 / 0 = no policy).
+ */
+export function policyView(raw: unknown): PolicyView {
+  if (!raw || typeof raw !== 'object') {
+    return { kind: 'unreadable' };
+  }
+  const policy = raw as Partial<Record<keyof AppVersionPolicy, unknown>>;
+  if (policy.enabled === false) {
+    return { kind: 'notConfigured' };
+  }
+  if (policy.enabled !== true || !isBuild(policy.latestBuild) || !isBuild(policy.minimumSupportedBuild)) {
+    return { kind: 'unreadable' };
+  }
+  return {
+    kind: 'configured',
+    latestBuild: policy.latestBuild,
+    minimumSupportedBuild: policy.minimumSupportedBuild,
+    storeUrl: safeStoreUrl(policy.storeUrl),
+  };
+}
+
 // ---- display -----------------------------------------------------------------------------------------------------------------
 
 /** "@K7MP-4Q8N" - how the apps show a Juple ID. */

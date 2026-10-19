@@ -13,6 +13,8 @@ import {
   localTodayStartUtc,
   manualStatusTargets,
   parseInquiryFilter,
+  policyView,
+  safeStoreUrl,
   validateAnswer,
 } from '../lib/adminModel.ts';
 import { statusAfterAccessCheck, statusAfterInitialize, statusAfterPageFailure } from '../lib/adminSession.ts';
@@ -260,6 +262,47 @@ describe('admin pages and model', () => {
     assert.equal(validateAnswer('   '), 'empty');
     assert.equal(validateAnswer('x'.repeat(8001)), 'tooLong');
     assert.equal(validateAnswer(`  ${'x'.repeat(8000)}  `), null);
+  });
+
+  it('app version: the Production answer shows Android 31 / 24 with its store URL and iOS as not configured', () => {
+    // The exact JSON GET /api/v1/admin/operations/app-version returns in Production (AdminAuthorizationPipelineTests pins it).
+    const production = JSON.parse(
+      '{"android":{"platform":"android","enabled":true,"latestBuild":31,"minimumSupportedBuild":24,"storeUrl":"https://play.google.com/store/apps/details?id=com.juple.app"},"ios":{"platform":"ios","enabled":false,"latestBuild":0,"minimumSupportedBuild":0,"storeUrl":null}}',
+    );
+    assert.deepEqual(policyView(production.android), {
+      kind: 'configured',
+      latestBuild: 31,
+      minimumSupportedBuild: 24,
+      storeUrl: 'https://play.google.com/store/apps/details?id=com.juple.app',
+    });
+    assert.deepEqual(policyView(production.ios), { kind: 'notConfigured' });
+  });
+
+  it('app version: a missing or malformed policy is "unreadable", never invented numbers; only https store URLs are links', () => {
+    assert.deepEqual(policyView(undefined), { kind: 'unreadable' });
+    assert.deepEqual(policyView({ enabled: true, latestBuild: '31', minimumSupportedBuild: 24 }), { kind: 'unreadable' });
+    assert.deepEqual(policyView({ Enabled: true, LatestBuild: 31, MinimumSupportedBuild: 24 }), { kind: 'unreadable' });
+    assert.deepEqual(policyView({ enabled: true, latestBuild: 31, minimumSupportedBuild: 24, storeUrl: null }), {
+      kind: 'configured',
+      latestBuild: 31,
+      minimumSupportedBuild: 24,
+      storeUrl: null,
+    });
+    assert.equal(safeStoreUrl('javascript:alert(1)'), null);
+    assert.equal(safeStoreUrl('http://play.google.com/x'), null);
+    const long = `https://play.google.com/store/apps/details?id=com.juple.app&${'x'.repeat(400)}`;
+    assert.equal(safeStoreUrl(long), long);
+  });
+
+  it('app version page: values stay inside each card (no max-content label column) and go through policyView', () => {
+    const page = readFileSync(new URL('../app/(admin)/operations/app-version/page.tsx', import.meta.url), 'utf8');
+    assert.match(page, /policyView\(raw\)/);
+    assert.match(page, /strings\.policyNotConfigured/);
+    assert.match(page, /rel="noopener noreferrer"/);
+    const css = readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8');
+    assert.doesNotMatch(css, /grid-template-columns:\s*max-content\s+1fr/);
+    assert.match(css, /\.policy-rows dd\.policy-url \{[^}]*overflow-wrap: anywhere/);
+    assert.equal(strings.policyNotConfigured, '정책 미설정');
   });
 
   it('shows Juple IDs the way the apps do and uses the browser midnight for "today"', () => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { adminPaths, type AppVersionPolicy, type AppVersionResponse } from '../../../../lib/adminModel';
+import { adminPaths, policyView, type AppVersionResponse } from '../../../../lib/adminModel';
 import { strings } from '../../../../lib/strings';
 import { PageState, useAdminQuery } from '../../AdminRoot';
 
@@ -15,29 +15,54 @@ export default function AppVersionPage() {
       <p className="muted">{strings.appVersionNote}</p>
       <PageState error={error} loading={loading && !data} onRetry={reload} />
       {data ? (
-        <section className="cards">
-          <Policy name="Android" policy={data.android} />
-          <Policy name="iOS" policy={data.ios} />
+        <section className="policy-cards">
+          <PolicyCard name="Android" raw={data.android} />
+          <PolicyCard name="iOS" raw={data.ios} />
         </section>
       ) : null}
     </>
   );
 }
 
-function Policy({ name, policy }: { name: string; policy: AppVersionPolicy }) {
+/** One platform, entirely inside its card: title + state, then label/value rows that wrap instead of leaving the card. */
+function PolicyCard({ name, raw }: { name: string; raw: unknown }) {
+  const view = policyView(raw);
   return (
-    <div className="card">
-      <div className="card-label">{name}</div>
-      <dl className="facts">
-        <dt>{strings.policyEnabled}</dt>
-        <dd>{policy.enabled ? strings.policyOn : strings.policyOff}</dd>
-        <dt>{strings.policyLatest}</dt>
-        <dd>{policy.enabled ? policy.latestBuild : '-'}</dd>
-        <dt>{strings.policyMinimum}</dt>
-        <dd>{policy.enabled ? policy.minimumSupportedBuild : '-'}</dd>
-        <dt>{strings.policyStoreUrl}</dt>
-        <dd className="ltr break">{policy.storeUrl ?? '-'}</dd>
-      </dl>
+    <div className="card policy-card" data-platform={name}>
+      <div className="policy-head">
+        <h2>
+          {name} {strings.policyTitle}
+        </h2>
+        <span className={view.kind === 'configured' ? 'badge health-healthy' : 'badge'}>
+          {view.kind === 'configured' ? strings.policyOn : strings.policyOff}
+        </span>
+      </div>
+      {view.kind === 'configured' ? (
+        <dl className="policy-rows">
+          <div>
+            <dt>{strings.policyLatest}</dt>
+            <dd>{view.latestBuild}</dd>
+          </div>
+          <div>
+            <dt>{strings.policyMinimum}</dt>
+            <dd>{view.minimumSupportedBuild}</dd>
+          </div>
+          <div>
+            <dt>{strings.policyStoreUrl}</dt>
+            <dd className="ltr policy-url">
+              {view.storeUrl ? (
+                <a href={view.storeUrl} rel="noopener noreferrer" target="_blank">
+                  {view.storeUrl}
+                </a>
+              ) : (
+                '-'
+              )}
+            </dd>
+          </div>
+        </dl>
+      ) : (
+        <p className="muted">{view.kind === 'notConfigured' ? strings.policyNotConfigured : strings.policyUnreadable}</p>
+      )}
     </div>
   );
 }

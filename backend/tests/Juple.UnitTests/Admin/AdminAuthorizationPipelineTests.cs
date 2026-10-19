@@ -61,7 +61,16 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         builder.Services.AddSingleton<IAdminAccessStore>(new FakeGrants([new(1, AdminRole.Owner, Active: true), new(2, AdminRole.Admin, Active: false)]));
         builder.Services.AddSingleton<IAdminService>(_service);
         builder.Services.AddSingleton(TimeProvider.System);
-        builder.Services.AddSingleton(Options.Create(new MobileVersionPolicyOptions()));
+        // The Production shape: Android 31 / 24 with its Play URL, iOS without a policy.
+        builder.Services.AddSingleton(Options.Create(new MobileVersionPolicyOptions
+        {
+            Android = new MobilePlatformVersionPolicy
+            {
+                LatestBuild = 31,
+                MinimumSupportedBuild = 24,
+                StoreUrl = "https://play.google.com/store/apps/details?id=com.juple.app",
+            },
+        }));
         builder.Services.AddControllers().AddApplicationPart(typeof(AdminController).Assembly);
 
         _app = builder.Build();
@@ -138,6 +147,17 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         var response = await SendAsync(method, path, AdminOid);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    /// <summary>The exact JSON the Admin Web reads: the configured MobileVersionPolicy, the same values as GET /api/v1/app-update/{platform}.</summary>
+    [Fact]
+    public async Task AppVersion_ServesTheConfiguredPolicy_InTheShapeTheAdminWebReads()
+    {
+        var json = await (await SendAsync("GET", "/api/v1/admin/operations/app-version", AdminOid)).Content.ReadAsStringAsync();
+
+        Assert.Equal(
+            """{"android":{"platform":"android","enabled":true,"latestBuild":31,"minimumSupportedBuild":24,"storeUrl":"https://play.google.com/store/apps/details?id=com.juple.app"},"ios":{"platform":"ios","enabled":false,"latestBuild":0,"minimumSupportedBuild":0,"storeUrl":null}}""",
+            json);
     }
 
     [Fact]
