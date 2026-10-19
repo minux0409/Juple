@@ -78,6 +78,37 @@ All days are **UTC calendar days**, because the service is global and DB times a
 
 DAU, WAU and MAU are separate distinct counts. **WAU is never the sum of 7 DAUs.**
 
+### Membership (회원 상태, Round 6)
+
+The sources are `users.Users`, `billing.StorePurchases` and the billing configuration, which is only read, never written. All times are UTC, and "now" is the request time.
+
+- **Total users / today's signups:** existing accounts; a deleted account is removed, so it is never counted.
+- **Account age, "가입 30일 이내 / 경과":** whether `CreatedAtUtc` is less than exactly 30 × 24 h before now. This is **account age only**, never a trial or payment state.
+- **Trial and paid groups exist only while `Billing:ProgramEnabled` is true.** Production runs with it **off**: nobody has a trial and nobody needs a subscription (`Entitlement.NotLaunched`). So the API returns `groups: null` and the page says "결제 미운영 · 집계 불가". It never shows 0 and never a projection.
+- **When the program runs**, every account is in exactly one group. The order is `EntitlementCalculator.Effective`'s own:
+  1. **Paid:** a live purchase that is `Active` or `Canceled` (cancelled but the paid period not over), with `AccessEndsAtUtc` after now.
+  2. **GracePeriod:** otherwise, only a live `GracePeriod` purchase.
+  3. **InTrial:** otherwise, now is before the trial end. The trial end is the settled `Users.TrialEndsAtUtc` (which can be the ledger's original window), or, not settled yet, `max(CreatedAtUtc, ProgramStartAtUtc) + 30 × 24 h` (`TrialPolicy.WindowFor`).
+  4. **TrialEndedUnpaid:** otherwise. This is the read-only state, never shown as "paid".
+
+  The groups add up to the total. `OnHold`, `Paused`, `Expired`, `Revoked` and `Pending` purchases give no access, so those accounts fall through to InTrial or TrialEndedUnpaid like the calculator. A detached purchase (deleted account) belongs to no account.
+
+### Link holdings (현재 링크 보유량, Round 6)
+
+This is **what every account holds right now**: live links, trash excluded, which is the same condition as "total links".
+
+- It is computed over every account with a `LEFT JOIN`, so an account without links counts as 0.
+- **Buckets:** 0, 1–9, 10–49, 50–99, 100–499, 500+ (they add up to the total accounts).
+- **Also reported:** accounts with at least one link and their share, the maximum per account, how many accounts share that maximum, and the top 5 holders. The top holders show **Juple ID and count only**: no URL, title or memo. Ties are broken by oldest account first.
+- This is a different number from the saved-per-day activity series. The page labels the two sections separately.
+
+### Platforms (Round 6 additions)
+
+- **Per day:** the series now carries distinct active users per platform for each UTC day. Days before tracking started are drawn as no data.
+- **"측정 시작 이후 활동 사용자"** counts distinct users ever active since tracking started, overall and per platform.
+- **"Platform of every registered member" cannot be computed:** a member who has not been active since tracking started has no platform record. The page says this explicitly.
+- **Unknown** is always counted. The page shows it whenever it is non-zero.
+
 ### Known limitations
 
 **Saved links and Collections are counted from the rows that still exist.** A link saved on day X and permanently deleted later (trash after 30 days, emptying the trash, account deletion) disappears from day X. So an older day can go down slightly over time.
@@ -106,6 +137,22 @@ Not collected. The page says "국가 데이터 수집을 아직 시작하지 않
 3. **Azure Front Door in front of the API.** Its WAF can match by geography, but forwarding a country header to the backend needs verification. It also adds a new resource and cost.
 
 Recommendation: option 1 when the product needs country statistics, after the privacy-policy text is updated. Nothing is built yet.
+
+**Round 6 review, the same conclusion with details:**
+
+| Source | Accuracy | Cost / operation | Privacy | License |
+| --- | --- | --- | --- | --- |
+| GeoLite2 Country, in-process lookup at activity time | about 99% at country level; VPN or proxy gives the exit country | a monthly file update (Job or image build); no per-request call | IP used in memory only; store only `CountryCode` | free with an account; attribution required (CC BY-SA 4.0); EULA |
+| Commercial GeoIP API, per request | similar | per-call cost, latency, an external dependency on the request path | sends every IP to a third party: a new processor to disclose | paid |
+| Entra External ID "Country/Region" sign-up attribute | the person's own statement, not their location | a user-flow and token change; existing accounts have none | collected with consent at sign-up | none |
+| Locale / time zone / language | **not a country**: never used | – | – | – |
+
+**Design if it is approved:**
+- A nullable `CountryCode char(2)` on `analytics.UserDailyActivities`, written by the same upsert (the first lookup of the day).
+- Accounts without it are shown as **"미분류"**, never dropped and never guessed.
+- Country statistics count distinct active users per country in the range, plus "미분류".
+- Before any collection starts: add the country to the 개인정보처리방침 (collected item: 국가 코드, derived from the connection, IP not stored) and get the operator's approval.
+- Nothing is collected in Production until both are done.
 
 ## Privacy and retention
 
