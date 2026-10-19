@@ -141,6 +141,35 @@ describe('legal text', () => {
     assert.doesNotMatch(text(privacyDocument(noOperator)), /분석.*(하지 않|없)|analytics/i);
   });
 
+  it('discloses the service usage record exactly: what is kept, what is not, why, for how long and on deletion', () => {
+    const privacy = privacyDocument(noOperator);
+    const section = (id: string) => text({ ...privacy, title: '', description: '', intro: '', sections: privacy.sections.filter(s => s.id === id) });
+    const collected = section('collected');
+    for (const phrase of ['서비스 이용 기록', '이용한 날짜(UTC 기준)', '이용 플랫폼(Android·iOS·웹)', '앱 빌드 번호', '최초·마지막 이용 시각']) {
+      assert.ok(collected.includes(phrase), phrase);
+    }
+    // Precisely what is NOT kept - never a broad "no device information" (platform and build ARE kept).
+    for (const phrase of ['원본 IP 주소', '전체 User-Agent 문자열', '정확한 위치정보', '기기 고유 식별값']) {
+      assert.ok(collected.includes(phrase), phrase);
+    }
+    assert.doesNotMatch(collected, /기기 정보를 저장하지 않/);
+    assert.match(section('purpose'), /서비스 이용 통계 작성과 개선: 일간·주간·월간 이용자 수, 플랫폼별 이용 현황/);
+    assert.doesNotMatch(section('purpose'), /광고|마케팅/);
+    // Its own retention line, separate from the 30-day operating logs, and no fixed period that is not enforced.
+    const retention = section('retention');
+    assert.ok(retention.includes('운영 로그: 최대 30일'));
+    assert.ok(retention.includes('서비스 이용 기록(운영 로그와 별도): 회원 계정을 유지하는 동안 보관하며, 계정 삭제 시 함께 삭제'));
+    assert.doesNotMatch(retention, /서비스 이용 기록[^\n]*13개월/);
+    assert.match(section('account-deletion'), /해당 계정에 연결된 서비스 이용 기록도 함께 삭제됩니다/);
+    assert.match(privacy.intro, /광고 목적의 행동 추적을 하지 않으며/);
+  });
+
+  it('dates each document on its own: the policy change does not re-date the terms or the deletion page', () => {
+    assert.equal(privacyDocument(noOperator).updated, '2026-10-19');
+    assert.equal(termsDocument(noOperator).updated, '2026-10-14');
+    assert.equal(accountDeletionDocument(noOperator).updated, '2026-10-14');
+  });
+
   it('gives every section a unique anchor id', () => {
     for (const doc of docs()) {
       const ids = doc.sections.map(s => s.id);

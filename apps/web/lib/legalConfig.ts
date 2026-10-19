@@ -30,8 +30,14 @@ export interface LegalOperatorConfig {
   readonly effectiveDate?: string;
 }
 
-/** When the wording of the pages was last changed. Update it together with lib/legalContent.ts. */
+/**
+ * When the wording of the terms and the account-deletion page was last changed. The privacy policy carries its own date
+ * (PRIVACY_POLICY_UPDATED), so a policy-only change never re-dates the other documents. Update together with lib/legalContent.ts.
+ */
 export const LEGAL_CONTENT_UPDATED = '2026-10-14';
+
+/** When the privacy policy's wording was last changed (2026-10-19: service usage records for analytics). */
+export const PRIVACY_POLICY_UPDATED = '2026-10-19';
 
 function clean(value: string | undefined): string | undefined {
   const trimmed = value?.trim();

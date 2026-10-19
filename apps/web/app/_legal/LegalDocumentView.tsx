@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { formatLegalDate, LEGAL_CONTENT_UPDATED, type LegalOperatorConfig } from '../../lib/legalConfig';
+import { formatLegalDate, type LegalOperatorConfig } from '../../lib/legalConfig';
 import { operatorFacts, type LegalDocument } from '../../lib/legalContent';
 
 /** Splits "**bold**" markers into <strong> - the only inline markup the legal text uses. */
@@ -30,7 +30,7 @@ export function LegalDocumentView({ doc, config }: { doc: LegalDocument; config:
       <article>
         <h1 className="legalTitle">{doc.title}</h1>
         <p className="legalDates">
-          {config.effectiveDate ? `시행일 ${formatLegalDate(config.effectiveDate)} · ` : ''}최종 수정일 {formatLegalDate(LEGAL_CONTENT_UPDATED)}
+          {config.effectiveDate ? `시행일 ${formatLegalDate(config.effectiveDate)} · ` : ''}최종 수정일 {formatLegalDate(doc.updated)}
         </p>
         <p className="legalIntro">{doc.intro}</p>
 

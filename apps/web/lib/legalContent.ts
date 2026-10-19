@@ -1,4 +1,4 @@
-import type { LegalOperatorConfig } from './legalConfig.ts';
+import { LEGAL_CONTENT_UPDATED, PRIVACY_POLICY_UPDATED, type LegalOperatorConfig } from './legalConfig.ts';
 
 /**
  * The text of the three public legal pages. It describes only what the product does today (see docs/data-retention.md and
@@ -21,6 +21,8 @@ export interface LegalDocument {
   readonly title: string;
   readonly description: string;
   readonly intro: string;
+  /** This document's own 최종 수정일 (YYYY-MM-DD) - changing one document never re-dates the others. */
+  readonly updated: string;
   readonly sections: readonly LegalSection[];
 }
 
@@ -155,6 +157,7 @@ export function privacyDocument(config: LegalOperatorConfig): LegalDocument {
     description: 'Juple이 처리하는 정보, 이용 목적, 보관 기간, 계정 삭제 시 처리 방법을 안내합니다.',
     intro:
       'Juple은 링크를 저장하고 컬렉션으로 정리·공유하는 서비스입니다. 이 방침은 Juple 앱과 공유 링크용 웹 페이지에서 처리하는 정보와 그 보관·삭제 방법을 설명합니다. 광고 목적의 행동 추적을 하지 않으며 개인정보를 판매하지 않습니다.',
+    updated: PRIVACY_POLICY_UPDATED,
     sections: numbered([
       {
         id: 'collected',
@@ -183,6 +186,7 @@ export function privacyDocument(config: LegalOperatorConfig): LegalDocument {
           p('**공유와 협업**: 컬렉션을 공유하면 참여자는 그 컬렉션과 안의 링크, 제목, 링크를 추가한 사람의 닉네임 또는 Juple ID, 프로필 사진을 볼 수 있습니다. 공개 링크를 켜면 링크를 아는 누구나 컬렉션 이름과 링크의 제목·주소·자동 미리보기를 볼 수 있으며, 메모·업로드한 사진·추가한 사람은 공개되지 않습니다. 공유 비밀번호를 설정할 수 있습니다.'),
           p('**푸시 알림**: 알림을 받으려면 기기 식별 값(앱 설치 ID), 푸시 토큰, 언어를 서버에 등록합니다. 푸시 전송에는 Google Firebase Cloud Messaging을 사용합니다. 알림 기록은 앱 안의 알림 목록에 저장됩니다.'),
           p('**구독 결제(Google Play)**: 결제는 Google Play가 처리하며 Juple은 카드 정보를 받지 않습니다. 구독 기능을 사용하면 구독 확인과 복원을 위해 구매 토큰(암호화하여 저장), 상품, 상태, 만료일 등을 처리합니다. 무료 이용 기간의 중복 적용을 막기 위해, 로그인 식별 값과 로그인 이메일 주소를 정해진 방식으로 정리한 뒤 원래 값으로 되돌릴 수 없게 바꾼 변환값(해시)과 이용 기간을 저장합니다. 이 기록에는 이메일 주소 자체를 저장하지 않습니다.'),
+          p('**서비스 이용 기록**: 서비스 이용 통계와 서비스 개선을 위해 계정별로 서비스를 이용한 날짜(UTC 기준), 이용 플랫폼(Android·iOS·웹), 앱 빌드 번호, 그날의 최초·마지막 이용 시각을 기록합니다. 이 이용 기록에는 원본 IP 주소, 전체 User-Agent 문자열, 정확한 위치정보, 기기 고유 식별값을 저장하지 않습니다.'),
           p('**운영 로그와 진단 정보**: 서비스의 안정성, 보안, 장애 대응을 위해 요청 처리 결과, 오류, 내부 식별자 등이 담긴 운영 로그와 진단 정보를 처리할 수 있습니다. 로그에는 비밀번호나 결제 토큰을 남기지 않습니다.'),
         ],
       },
@@ -197,6 +201,7 @@ export function privacyDocument(config: LegalOperatorConfig): LegalDocument {
             '구독 확인, 복원, 무료 이용 기간 관리',
             '고객 문의 대응',
             '서비스 안정성 확인과 장애 대응',
+            '서비스 이용 통계 작성과 개선: 일간·주간·월간 이용자 수, 플랫폼별 이용 현황 등 서비스 이용 통계를 작성하고 서비스 품질과 기능을 개선',
           ),
         ],
       },
@@ -228,6 +233,7 @@ export function privacyDocument(config: LegalOperatorConfig): LegalDocument {
             '푸시 알림용 기기 토큰: 마지막 사용 후 180일',
             '결제 알림 처리 기록: 처리 후 90일',
             '운영 로그: 최대 30일',
+            '서비스 이용 기록(운영 로그와 별도): 회원 계정을 유지하는 동안 보관하며, 계정 삭제 시 함께 삭제',
             '구독 구매 기록: 암호화된 구매 값은 구독 종료 후 180일, 구매 식별 해시와 상태·날짜 등 최소 정보는 구독 종료 후 최대 5년 이내에 삭제합니다.',
             '무료 이용 기간 중복 방지용 해시와 이용 기간: 이용 기간 종료 후 24개월(진행 중인 기간의 기록은 삭제하지 않음)',
             '차단 관계: 차단을 해제하거나 관련된 어느 한쪽의 계정이 삭제될 때까지',
@@ -240,7 +246,7 @@ export function privacyDocument(config: LegalOperatorConfig): LegalDocument {
         id: 'account-deletion',
         title: '계정 삭제 시 처리',
         blocks: [
-          p('앱에서 직접 계정을 삭제할 수 있습니다(계정 삭제 안내 페이지 참고). 계정을 삭제하면 프로필, 링크, 컬렉션, 사진, 친구, 알림, 문의, 댓글 등이 삭제됩니다. 다음 정보는 계정과 분리된 상태로 위 보관 기간 동안 남을 수 있습니다.'),
+          p('앱에서 직접 계정을 삭제할 수 있습니다(계정 삭제 안내 페이지 참고). 계정을 삭제하면 프로필, 링크, 컬렉션, 사진, 친구, 알림, 문의, 댓글 등이 삭제되며, 해당 계정에 연결된 서비스 이용 기록도 함께 삭제됩니다. 다음 정보는 계정과 분리된 상태로 위 보관 기간 동안 남을 수 있습니다.'),
           ul(
             '구독 구매 기록(프로필과 분리): 결제 확인과 복원, 토큰 재사용 방지를 위한 최소 정보',
             '무료 이용 기간 중복 방지용 해시와 이용 기간',
@@ -287,6 +293,7 @@ export function termsDocument(config: LegalOperatorConfig): LegalDocument {
     title: '이용약관',
     description: 'Juple 서비스 이용 조건, 콘텐츠와 공유, 무료 이용 기간·구독, 계정 삭제에 대한 약관입니다.',
     intro: '이 약관은 Juple 앱과 공유 링크용 웹 페이지의 이용 조건을 설명합니다. 서비스를 이용하면 이 약관에 따르는 것으로 봅니다.',
+    updated: LEGAL_CONTENT_UPDATED,
     sections: [
       {
         id: 'service',
@@ -418,6 +425,7 @@ export function accountDeletionDocument(config: LegalOperatorConfig): LegalDocum
     title: '계정 삭제 안내',
     description: 'Juple 계정을 삭제하는 방법, 삭제되는 데이터, 삭제 후 일정 기간 남는 정보를 안내합니다.',
     intro: '이 페이지는 로그인 없이 볼 수 있습니다. 계정을 삭제하면 되돌릴 수 없습니다.',
+    updated: LEGAL_CONTENT_UPDATED,
     sections: [
       {
         id: 'in-app',
