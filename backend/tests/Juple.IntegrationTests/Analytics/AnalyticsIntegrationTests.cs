@@ -12,12 +12,12 @@ namespace Juple.IntegrationTests.Analytics;
 
 /// <summary>
 /// analytics.UserDailyActivities and the Admin analytics aggregates against the real SQL Server schema. The aggregates are checked in
-/// a synthetic UTC window in 2001 that no other data touches (activity dates, signups, saves and Collections are all placed there),
+/// a synthetic UTC window in 2003 (the 2001 rows other integration tests seed are outside any 90-day window ending there) that no other data touches (activity dates, signups, saves and Collections are all placed there),
 /// so the counts are exact; unwindowed totals are compared as deltas.
 /// </summary>
 public sealed class AnalyticsIntegrationTests : IAsyncLifetime
 {
-    private static readonly DateOnly Today = new(2001, 3, 31);
+    private static readonly DateOnly Today = new(2003, 3, 31);
 
     private string _connectionString = null!;
     private readonly List<long> _userIds = [];
