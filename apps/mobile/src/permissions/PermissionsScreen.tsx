@@ -33,11 +33,7 @@ import {
   themedStyles,
 } from '../theme/tokens';
 
-export function PermissionsScreen({
-  onDone,
-}: {
-  readonly onDone?: () => void;
-}) {
+export function PermissionsScreen() {
   const { t } = useTranslation();
   const request = useAuthenticatedApi();
   const [permission, setPermission] =
@@ -155,22 +151,6 @@ export function PermissionsScreen({
           <Text style={styles.heading}>{t('permissions.photos')}</Text>
           <Text style={styles.body}>{t('permissions.picker')}</Text>
         </View>
-        {onDone ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={onDone}
-            style={styles.button}
-            testID="permission-later"
-          >
-            <Text style={styles.action}>
-              {t(
-                permission === 'granted'
-                  ? 'permissions.continue'
-                  : 'permissions.later',
-              )}
-            </Text>
-          </Pressable>
-        ) : null}
       </ScrollView>
     </StackScreenSafeArea>
   );

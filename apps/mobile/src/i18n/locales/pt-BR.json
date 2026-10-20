@@ -1447,8 +1447,6 @@
     "photos": "Escolher fotos",
     "picker": "Usamos apenas as fotos escolhidas no seletor do sistema. Não pedimos acesso à biblioteca inteira nem à câmera. A seleção limitada também funciona.",
     "allow": "Permitir notificações",
-    "later": "Configurar depois",
-    "continue": "Continuar",
     "settings": "Abrir configurações do dispositivo",
     "retry": "Tentar registro novamente",
     "granted": "Permitido",

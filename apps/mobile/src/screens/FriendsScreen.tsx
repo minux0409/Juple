@@ -43,7 +43,6 @@ import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { UserMinusIcon } from '../icons/UserMinusIcon';
 import { UserIcon } from '../icons/UserIcon';
-import { ensurePushPermissionOnce } from '../push/pushPermissionFlow';
 import { useFocusedPolling, useLiveRefresh } from '../push/useLiveRefresh';
 import { useTheme } from '../theme/ThemeContext';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
@@ -179,7 +178,6 @@ export function FriendsScreen() {
     useCallback(() => {
       loadFriends(searchRef.current);
       loadRequests();
-      ensurePushPermissionOnce(authenticatedRequest);
     }, [authenticatedRequest, loadFriends, loadRequests]),
   );
 

@@ -1,4 +1,4 @@
-import { NativeModules, PermissionsAndroid, Platform } from 'react-native';
+import { AppState, NativeModules, PermissionsAndroid, Platform } from 'react-native';
 
 export type PushPermissionStatus =
   | 'granted'
@@ -38,6 +38,8 @@ export async function getPushPermissionStatus(): Promise<PushPermissionStatus> {
 export async function requestPushPermission(): Promise<PushPermissionStatus> {
   const before = await getPushPermissionStatus();
   if (before === 'granted') return before;
+  if (Platform.OS === 'ios' && before !== 'notDetermined') return before;
+  if (AppState.currentState !== 'active') return 'unavailable';
   try {
     if (Platform.OS === 'android') {
       if (Number(Platform.Version) < 33) return before;

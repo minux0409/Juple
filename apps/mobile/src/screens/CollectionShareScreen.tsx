@@ -62,7 +62,6 @@ import { PlusIcon } from '../icons/PlusIcon';
 import { ShareIcon } from '../icons/ShareIcon';
 import { UserIcon } from '../icons/UserIcon';
 import { shareItem } from '../items/shareItem';
-import { ensurePushPermissionOnce } from '../push/pushPermissionFlow';
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { categoryTilePalette, colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
@@ -546,7 +545,6 @@ export function CollectionShareScreen({ route }: Props) {
   useFocusEffect(
     useCallback(() => {
       load();
-      ensurePushPermissionOnce(authenticatedRequest);
     }, [authenticatedRequest, load]),
   );
 

@@ -1447,8 +1447,6 @@
     "photos": "Choisir des photos",
     "picker": "Seules les photos choisies dans le sélecteur système sont utilisées. Aucun accès global aux photos ou à la caméra n’est demandé. La sélection limitée fonctionne aussi.",
     "allow": "Autoriser les notifications",
-    "later": "Configurer plus tard",
-    "continue": "Continuer",
     "settings": "Ouvrir les réglages",
     "retry": "Réessayer l’inscription",
     "granted": "Autorisé",

@@ -1447,8 +1447,6 @@
     "photos": "Elegir fotos",
     "picker": "Solo se usan las fotos que elijas en el selector del sistema. No se solicita acceso a toda la fototeca ni a la cámara; también funciona la selección limitada.",
     "allow": "Permitir notificaciones",
-    "later": "Configurar más tarde",
-    "continue": "Continuar",
     "settings": "Abrir ajustes del dispositivo",
     "retry": "Reintentar registro",
     "granted": "Permitido",

@@ -46,7 +46,6 @@ beforeAll(async () => {
   await i18n.changeLanguage('ko');
 });
 
-jest.mock('../../push/pushPermissionFlow', () => ({ ensurePushPermissionOnce: jest.fn() }));
 const mockPrefs = new Map<string, string>();
 beforeEach(() => mockPrefs.clear());
 jest.mock('@react-native-async-storage/async-storage', () => ({

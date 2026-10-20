@@ -1,24 +1,29 @@
+import { AppState } from 'react-native';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { hasRequestedPushPermission, markPushPermissionRequested } from './pushPermissionRequestState';
 import { requestPushPermission } from './pushPermission';
-import { syncPushRegistrationIfPermitted } from './pushRegistrationSync';
+import { syncPushRegistration } from './pushRegistrationSync';
 
-/**
- * The one place the OS notification prompt is shown: the first time the user opens a social screen
- * (친구, 공유) - where friend requests and Collection invitations are about - never at app start.
- * Asked at most once (PermissionsAndroid.check cannot tell "never asked" from "denied", hence the
- * persisted flag). A denial changes nothing else: badges and lists still refresh in the app.
- */
-export async function ensurePushPermissionOnce(authenticatedRequest: AuthenticatedApiRequest): Promise<void> {
-  try {
-    if (await hasRequestedPushPermission()) {
-      return;
+let tail: Promise<void> = Promise.resolve();
+/** Serialize OS sheets across remounts; persist before asking so interruption never loops prompts. */
+export function ensurePushPermissionOnce(
+  request: AuthenticatedApiRequest,
+  isCurrent: () => boolean = () => true,
+): Promise<void> {
+  const run = async () => {
+    try {
+      if (!isCurrent() || AppState.currentState !== 'active') return;
+      if (await hasRequestedPushPermission()) return;
+      if (!isCurrent() || AppState.currentState !== 'active') return;
+      await markPushPermissionRequested();
+      if (!isCurrent() || AppState.currentState !== 'active') return;
+      const status = await requestPushPermission();
+      if (status === 'granted' && isCurrent()) await syncPushRegistration(request, isCurrent);
+    } catch {
+      // Storage/system errors must never block Home or claim a permission grant.
     }
-    await markPushPermissionRequested();
-    if ((await requestPushPermission()) === 'granted') {
-      await syncPushRegistrationIfPermitted(authenticatedRequest);
-    }
-  } catch {
-    // Best effort - never affects the screen that asked.
-  }
+  };
+  const result = tail.then(run, run);
+  tail = result;
+  return result;
 }

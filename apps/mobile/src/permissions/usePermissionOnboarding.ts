@@ -1,36 +1,44 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
+import { AppState } from 'react-native';
+import { navigationRef } from '../navigation/navigationRef';
+import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { ensurePushPermissionOnce } from '../push/pushPermissionFlow';
+import { pushRegistrationEpoch } from '../push/pushMutationQueue';
 
-// Installation-scoped, not account-scoped. This is an explanation/decision marker, never an OS grant.
-export const PERMISSION_REVIEW_KEY = 'juple.permissionReview.v1';
+/** Keep startup mounted until the OS decision finishes; there is no permission route. */
 export function usePermissionOnboarding(enabled: boolean) {
-  const [status, setStatus] = useState<'loading' | 'required' | 'done'>(
-    'loading',
-  );
+  const [status, setStatus] = useState<'loading' | 'done'>('loading');
+  const request = useAuthenticatedApi();
   useEffect(() => {
+    setStatus('loading');
+    if (!enabled) return;
     let current = true;
-    if (!enabled)
-      return () => {
-        current = false;
-      };
-    AsyncStorage.getItem(PERMISSION_REVIEW_KEY).then(
-      value => {
-        if (current) setStatus(value === 'reviewed' ? 'done' : 'required');
-      },
-      () => {
-        if (current) setStatus('required');
-      },
-    );
-    return () => {
-      current = false;
+    let running = false;
+    let finished = false;
+    const epoch = pushRegistrationEpoch();
+    const isCurrent = () => current && epoch === pushRegistrationEpoch();
+    const run = async () => {
+      if (!isCurrent() || running || finished || !navigationRef.isReady() || AppState.currentState !== 'active') return;
+      running = true;
+      try {
+        await ensurePushPermissionOnce(request, isCurrent);
+      } finally {
+        running = false;
+        if (isCurrent() && AppState.currentState === 'active') {
+          finished = true;
+          clearInterval(timer);
+          setStatus('done');
+        }
+      }
     };
-  }, [enabled]);
-  const complete = async () => {
-    // Storage failure may cause a later explanation again, but may never trap the person here.
-    await AsyncStorage.setItem(PERMISSION_REVIEW_KEY, 'reviewed').catch(
-      () => undefined,
-    );
-    setStatus('done');
-  };
-  return { status, complete };
+    const start = () => { run().catch(() => undefined); };
+    const foreground = AppState.addEventListener('change', state => {
+      if (state === 'active') start();
+    });
+    // NavigationContainer readiness can follow this effect.
+    const timer = setInterval(start, 250);
+    start();
+    return () => { current = false; clearInterval(timer); foreground.remove(); };
+  }, [enabled, request]);
+  return { status };
 }

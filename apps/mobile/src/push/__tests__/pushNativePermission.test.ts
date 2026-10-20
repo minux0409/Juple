@@ -1,10 +1,11 @@
-import { NativeModules, PermissionsAndroid, Platform } from 'react-native';
+import { AppState, NativeModules, PermissionsAndroid, Platform } from 'react-native';
 import {
   getPushPermissionStatus,
   requestPushPermission,
 } from '../pushPermission';
 const os = Platform.OS;
 const version = Platform.Version;
+beforeEach(() => { Object.defineProperty(AppState, 'currentState', { configurable: true, value: 'active', writable: true }); });
 afterEach(() => {
   Object.defineProperty(Platform, 'OS', { value: os, configurable: true });
   Object.defineProperty(Platform, 'Version', {
@@ -57,4 +58,28 @@ it('Android grant response is checked against actual OS status after the prompt'
     .spyOn(PermissionsAndroid, 'request')
     .mockResolvedValue(PermissionsAndroid.RESULTS.GRANTED);
   expect(await requestPushPermission()).toBe('denied');
+});
+it('iOS denial never repeats the system request', async () => {
+  Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
+  const request = jest.fn();
+  NativeModules.JupleNotificationPermissions = { getStatus: jest.fn().mockResolvedValue('denied'), request };
+  expect(await requestPushPermission()).toBe('denied');
+  expect(request).not.toHaveBeenCalled();
+});
+it('Android 12 never requests POST_NOTIFICATIONS', async () => {
+  Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
+  Object.defineProperty(Platform, 'Version', { value: 32, configurable: true });
+  NativeModules.JupleNotificationPermissions = { getStatus: jest.fn().mockResolvedValue('denied') };
+  const request = jest.spyOn(PermissionsAndroid, 'request');
+  expect(await requestPushPermission()).toBe('denied');
+  expect(request).not.toHaveBeenCalled();
+});
+
+it('does not open a permission sheet after the app leaves foreground', async () => {
+  Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
+  const request = jest.fn();
+  NativeModules.JupleNotificationPermissions = { getStatus: jest.fn().mockResolvedValue('notDetermined'), request };
+  AppState.currentState = 'background';
+  expect(await requestPushPermission()).toBe('unavailable');
+  expect(request).not.toHaveBeenCalled();
 });
