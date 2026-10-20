@@ -28,6 +28,7 @@ export const strings = {
   navContentLinks: '링크',
   navContentCollections: '컬렉션',
   navInquiries: '문의',
+  navExpenses: '사업비용',
   navAnalytics: '분석',
   navAnalyticsUsers: '사용자 분석',
   navAnalyticsSaves: '저장 활동',

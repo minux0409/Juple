@@ -603,3 +603,18 @@ td.preview {
     display: block;
   }
 }
+
+/* Company ledger: shared Admin surfaces, with narrow-screen forms and scrollable financial tables. */
+.expense-filters, .expense-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 12px; margin: 16px 0; align-items: end; }
+.expense-filters label, .expense-form label { display: grid; gap: 5px; min-width: 0; }
+.expense-form input, .expense-filters input, .expense-form select, .expense-filters select, .expense-form textarea { width: 100%; min-width: 0; }
+.expense-wide { grid-column: 1 / -1; }
+.expense-table { overflow-x: auto; }
+.expense-detail { margin-top: 20px; overflow-wrap: anywhere; }
+.expense-detail pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 300px; overflow: auto; }
+.expense-bars { display: grid; gap: 12px; }
+.expense-bars > div { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; }
+.expense-bars dd { margin: 0; font-variant-numeric: tabular-nums; }
+.expense-bars meter { grid-column: 1 / -1; width: 100%; height: 12px; }
+.expense-form input[type='checkbox'] { width: auto; }
+@media (max-width: 600px) { .expense-table table { min-width: 680px; } .expense-bars > div { grid-template-columns: 1fr; } }

@@ -334,13 +334,14 @@ describe('admin pages and model', () => {
   });
 
   it('the sidebar has every section; 콘텐츠 (no decided scope) stays disabled, every enabled entry is a real page', () => {
-    assert.deepEqual(NAVIGATION.map(entry => entry.label), ['대시보드', '사용자', '콘텐츠', '문의', '분석', '운영']);
+    assert.deepEqual(NAVIGATION.map(entry => entry.label), ['대시보드', '사용자', '콘텐츠', '문의', '사업비용', '분석', '운영']);
     const leaves = (entries: readonly NavEntry[]): NavEntry[] => entries.flatMap(entry => (entry.children ? leaves(entry.children) : [entry]));
     const enabled = leaves(NAVIGATION).filter(entry => entry.href).map(entry => entry.href);
     assert.deepEqual(enabled, [
       '/',
       '/users',
       '/inquiries',
+      '/expenses',
       '/analytics',
       '/analytics/users',
       '/analytics/saves',
@@ -361,7 +362,7 @@ describe('admin pages and model', () => {
     assert.equal(isActive('/', '/users'), false);
   });
 
-  it('pages have no write path except the two inquiry actions, and users / app version are read-only', () => {
+  it('existing user, analytics and app-version pages stay read-only; ledger has its own controlled writes', () => {
     const puts = sourceFiles().filter(file => /method: 'PUT'/.test(readFileSync(file, 'utf8')));
     assert.deepEqual(puts.map(file => file.replace(/\\/g, '/').replace(/^.*\/app\//, 'app/')), ['app/(admin)/inquiries/[inquiryId]/page.tsx']);
   });

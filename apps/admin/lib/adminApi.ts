@@ -44,9 +44,10 @@ export class ApiHttpError extends Error {
 export type AccessTokenSource = (options: { readonly forceRefresh: boolean }) => Promise<string | null>;
 
 export interface AdminApiRequest {
-  readonly method?: 'GET' | 'PUT';
+  readonly method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   readonly path: string;
   readonly body?: unknown;
+  readonly responseType?: 'json' | 'blob';
 }
 
 export type AdminApi = <T>(request: AdminApiRequest) => Promise<T>;
@@ -60,14 +61,15 @@ export function createAdminApi(options: {
 
   const send = async (request: AdminApiRequest, token: string): Promise<Response> => {
     const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
-    if (request.body !== undefined) {
+    const multipart = typeof FormData !== 'undefined' && request.body instanceof FormData;
+    if (request.body !== undefined && !multipart) {
       headers['Content-Type'] = 'application/json';
     }
     try {
       return await fetchImpl(`${options.apiBaseUrl}${request.path}`, {
         method: request.method ?? 'GET',
         headers,
-        body: request.body === undefined ? undefined : JSON.stringify(request.body),
+        body: request.body === undefined ? undefined : multipart ? request.body as FormData : JSON.stringify(request.body),
         cache: 'no-store',
         // The API never needs cookies; the bearer token is the only credential.
         credentials: 'omit',
@@ -110,7 +112,7 @@ export function createAdminApi(options: {
     if (response.status === 204) {
       return undefined as T;
     }
-    return (await response.json()) as T;
+    return (request.responseType === 'blob' ? await response.blob() : await response.json()) as T;
   };
 }
 

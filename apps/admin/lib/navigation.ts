@@ -23,6 +23,7 @@ export const NAVIGATION: readonly NavEntry[] = [
     ],
   },
   { label: strings.navInquiries, href: '/inquiries' },
+  { label: strings.navExpenses, href: '/expenses' },
   {
     label: strings.navAnalytics,
     href: null,
