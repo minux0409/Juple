@@ -515,3 +515,22 @@ CREATE INDEX [IX_DataRetentionSchedules_Due] ON [billing].[DataRetentionSchedule
 3. Measure the deployed log/job reductions over their stated windows: COST-02 and COST-03.
 4. Run CT-02 and decide on COST-01 from measured concurrency and rollback evidence.
 5. Keep POST-01, SQL managed identity, CIAM cleanup, FCM FID, external-thumbnail storage, and Android auth bundle hygiene in their explicit post-launch tracks.
+
+## Permission / pricing / business-expense source round (2026-10-20)
+
+Implemented from `1f71382`; final source review and logical Commit/fast-forward Push are authorized. Undeployed; feature activation, PROD migration, RBAC, Job creation and store changes remain separately gated. Details and local validation: [implementation and operator notes](permissions-pricing-business-expenses.md).
+
+| ID | Status | Priority | Evidence / remaining gate |
+|---|---|---|---|
+| PERM-01 | IMPLEMENTED; DEVICE QA PENDING | P1 | Post-auth/Terms permission explanation, Later/Settings, OS-derived Android/iOS state, 17 locale translations. Device/reinstall/account-switch/RTL QA remains. |
+| PERM-02 | IMPLEMENTED; DELIVERY QA PENDING | P1 | Android token/server error distinction, foreground/token-refresh recovery, bounded retries, unregister serialization and old-epoch guard. Real FCM grant/revoke/recovery delivery QA remains. |
+| PERM-03 | OPEN; iOS RELEASE BLOCKER | P1 | iOS APNs registration/server delivery unimplemented. Permission authorization is not push delivery; preserve the existing iOS/APNs blocker. Mac build/device QA required. |
+| PRICE-01 | SOURCE POLICY UPDATED; STORE CHANGE BLOCKED | P1 | USD 1.99/P1M/30-day business reference; checkout uses actual store metadata. Billing OFF and RET 6 months unchanged. |
+| PRICE-02 | BLOCKED ON AUTHENTICATED STORE READ + APPROVAL | P0 for selling | Read current product/base plan/territories/prices/cohorts and official KRW price points; report notice/consent effects before approval. No numeric KRW price invented, no price mutation/activation. |
+| EXP-01 | IMPLEMENTED; LOCAL VALIDATION | P1 | Admin expense CRUD, currency/status-separated dashboard/filter/trend, exact tax/FX, refunds, optimistic edits, recurring forecasts, private evidence, CSV/XLSX and audit. Default OFF. Actual authenticated Admin/API end-to-end QA remains. |
+| EXP-02 | ADAPTER + JOB ENTRY IMPLEMENTED; NOT DEPLOYED | P1 | ARM daily/service RG queries with whitelist, bounded paging/retry, DB lease/dedup/corrections, estimate/invoice reconciliation. CLI DEV/PROD read succeeded in KRW; API MI Cost Query remains unverified. |
+| EXP-03 | BLOCKED ON RBAC / OPERATIONS APPROVAL | P1 | Review least Cost Management Reader at required Juple RGs and shared UAMI impact; do not copy CLI user's access claim to MI. No role/resource/Job changes made. Deployment/Migration/scheduler/failure alert setup require separate approval. |
+| EXP-04 | FAIL-CLOSED; REAL SCANNER QA PENDING | P0 for evidence enablement | Private blob and clamd adapter implemented. Unconfigured/unavailable scanner blocks uploads; loopback protocol fixture is not a real malware-engine certification. Validate actual EICAR, encrypted PDF and scan-limit behavior before enablement. |
+| EXP-05 | MANUAL + ON-SCREEN DUE DATES | P2 | Apple Developer annual fee manual recurring cost; no supported automatic Apple fee API claimed. External upcoming-payment notifications/dispatch history remain future work. |
+
+Existing RET-03-SESSION server-session export revocation, RET-04 language/platform QA, RET notices/legal review, ownership transfer/copy, and separately approved deletion remain blocked exactly as before. No new deletion Job and no PROD change in this round.
