@@ -154,6 +154,15 @@ builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 // The subscription program switch (default OFF - nobody restricted, no trial consumed). Validated at API startup below.
 var billingOptions = builder.Configuration.GetSection("Billing").Get<Juple.Application.Billing.BillingOptions>() ?? new Juple.Application.Billing.BillingOptions();
 builder.Services.AddSingleton(billingOptions);
+// The person's own data export: off by default (the endpoints answer 404 and the apps show no entry); an invalid limit stops the API.
+var dataExportOptions = builder.Configuration.GetSection(Juple.Application.DataExport.DataExportOptions.SectionName).Get<Juple.Application.DataExport.DataExportOptions>()
+    ?? new Juple.Application.DataExport.DataExportOptions();
+if (dataExportOptions.Validate() is { } dataExportOptionsError)
+{
+    throw new InvalidOperationException(dataExportOptionsError);
+}
+
+builder.Services.AddSingleton(dataExportOptions);
 {
     // A half-configured Entra account deletion would silently never delete the sign-in account: refuse to start instead.
     var entraDeletionOptionsError = (builder.Configuration.GetSection(Juple.Application.Users.DeleteAccount.EntraAccountDeletionOptions.SectionName)
@@ -170,6 +179,7 @@ if (isBillingWorker)
 }
 builder.Services.AddScoped<Juple.Application.Billing.ITrialIdentityHasher, Juple.Application.Billing.TrialIdentityHasher>();
 builder.Services.AddScoped<Juple.Application.Billing.IEntitlementService, Juple.Application.Billing.EntitlementService>();
+builder.Services.AddScoped<Juple.Application.Billing.IDataRetentionService, Juple.Application.Billing.DataRetentionService>();
 builder.Services.AddSingleton<Juple.Application.Billing.IPurchaseTokenProtector, Juple.Application.Billing.PurchaseTokenProtector>();
 builder.Services.AddSingleton<Juple.Application.Billing.GooglePlay.IGoogleAccountIdProvider, Juple.Application.Billing.GooglePlay.GoogleAccountIdProvider>();
 builder.Services.AddScoped<Juple.Application.Billing.GooglePlay.IGoogleBillingService, Juple.Application.Billing.GooglePlay.GoogleBillingService>();
@@ -334,6 +344,13 @@ builder.Services.AddProblemDetails();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(RateLimitPolicies.DataExport, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(RateLimitPolicies.IdentityPartitionKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    // Bounded active streaming responses per API replica; no waiting requests retain resources.
+    options.AddPolicy(RateLimitPolicies.DataExportDownload, _ =>
+        RateLimitPartition.GetConcurrencyLimiter("export-downloads",
+            _ => new ConcurrencyLimiterOptions { PermitLimit = 4, QueueLimit = 0 }));
     options.AddPolicy(RateLimitPolicies.JupleIdLookup, httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             RateLimitPolicies.IdentityPartitionKey(httpContext),

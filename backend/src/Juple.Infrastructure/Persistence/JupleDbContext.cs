@@ -97,6 +97,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
 
     public DbSet<Juple.Domain.Billing.GoogleAccountLink> GoogleAccountLinks => Set<Juple.Domain.Billing.GoogleAccountLink>();
 
+    public DbSet<DataExportLink> DataExportLinks => Set<DataExportLink>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

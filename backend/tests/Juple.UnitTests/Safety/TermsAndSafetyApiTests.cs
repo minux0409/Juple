@@ -146,6 +146,9 @@ public sealed class TermsAndSafetyApiTests
                 "AccountController.DeleteAsync",
                 "AuthSessionController.Get",
                 "CurrentUserBootstrapController.BootstrapAsync",
+                // Taking your own data with you never depends on agreeing to new terms (RET-03; product/legal sign-off pending).
+                "DataExportController.CreateLinksAsync",
+                "DataExportController.GetSummaryAsync",
                 "PushDevicesController.RegisterAsync",
                 "PushDevicesController.UnregisterAsync",
                 "SafetyController.AcceptTermsAsync",

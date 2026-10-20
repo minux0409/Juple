@@ -405,6 +405,7 @@ public sealed class ExpiredWriteAllowlistTests
             .Order()
             .ToArray();
 
+        // The data export (reading your own data and asking for its download links) stays open too: RET-03.
         // account deletion, support, the Admin Web (operators are never stopped by their own subscription), the bootstrap/session plumbing, push-device registration and billing - plus the settings and
         // read-state controllers (lock password, per-Collection notification preference, notifications, recently opened links,
         // URL metadata lookup, profile) that change no shared content - and the safety controller (terms, reports, blocks): reporting and
@@ -412,7 +413,7 @@ public sealed class ExpiredWriteAllowlistTests
         Assert.Equal(
             [
                 "AccountController", "AdminController", "AdminSupportInquiriesController", "AuthSessionController", "CollectionLockSettingsController", "CollectionNotificationPreferencesController",
-                "CurrentUserBootstrapController", "GoogleBillingController", "NotificationsController", "PushDevicesController",
+                "CurrentUserBootstrapController", "DataExportController", "GoogleBillingController", "NotificationsController", "PushDevicesController",
                 "RecentlyOpenedLinksController", "SafetyController", "SupportInquiriesController", "UrlMetadataController", "UserProfileController",
             ],
             allowed);
@@ -454,7 +455,7 @@ public sealed class ExpiredWriteAllowlistTests
         Assert.Empty(unreviewed);
 
         Assert.Equal(
-            ["GoogleRtdnController", "PublicCollectionsController"],
+            ["DataExportDownloadController", "GoogleRtdnController", "PublicCollectionsController"],
             anonymous.Select(entry => entry.controller.Name).Distinct().Order(StringComparer.Ordinal).ToArray());
         Assert.All(anonymous, entry => Assert.False(string.IsNullOrWhiteSpace(entry.method.GetCustomAttribute<AnonymousMutationReviewedAttribute>()!.Reason)));
     }

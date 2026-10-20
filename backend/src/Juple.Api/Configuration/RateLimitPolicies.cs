@@ -13,6 +13,8 @@ public static class RateLimitPolicies
     public const string SupportInquiryCreate = "support-inquiry-create";
     public const string ReportCreate = "report-create";
     public const string BlockChange = "block-change";
+    public const string DataExport = "data-export";
+    public const string DataExportDownload = "data-export-download";
 
     /// <summary>Google Play billing catalog / verify / restore: per signed-in identity (the public RTDN webhook has none, on purpose).</summary>
     public const string BillingGoogle = "billing-google";

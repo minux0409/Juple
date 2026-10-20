@@ -28,6 +28,9 @@ public sealed class CurrentUserBootstrapController : ControllerBase
         [FromServices] IOptions<MobileVersionPolicyOptions> versionPolicy,
         [FromServices] ICurrentJupleUserAccessor currentUserAccessor,
         [FromServices] Juple.Application.Safety.ITermsConsentService termsService,
+        [FromServices] Juple.Application.Billing.IDataRetentionService dataRetentionService,
+        [FromServices] Juple.Application.DataExport.DataExportOptions dataExportOptions,
+        [FromServices] TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
         try
@@ -40,7 +43,18 @@ public sealed class CurrentUserBootstrapController : ControllerBase
             // never during startup; the API remains the source of truth for protected writes.
             var currentUser = await currentUserAccessor.GetRequiredAsync(externalIdentityAccessor.GetRequired(), cancellationToken);
             var terms = await termsService.GetStatusAsync(currentUser.UserId, cancellationToken);
-            return Ok(new BootstrapCurrentUserResponse(result.Plan.ToString(), result.TimeZoneId, EntitlementResponse.From(result.Entitlement), MobileVersionPolicyResponse.From(versionPolicy.Value), StoreSubscriptionResponse.From(result.StoreSubscription), TermsStatusResponse.From(terms)));
+            // After the entitlement above (which settled the trial): the retention schedule reads the same account facts. Off / not in
+            // effect = nothing is read and the block is omitted, so the apps show no retention date at all.
+            var retention = await dataRetentionService.GetForUserAsync(currentUser.UserId, cancellationToken);
+            return Ok(new BootstrapCurrentUserResponse(
+                result.Plan.ToString(),
+                result.TimeZoneId,
+                EntitlementResponse.From(result.Entitlement),
+                MobileVersionPolicyResponse.From(versionPolicy.Value),
+                StoreSubscriptionResponse.From(result.StoreSubscription),
+                TermsStatusResponse.From(terms),
+                DataRetentionResponse.From(retention, timeProvider.GetUtcNow()),
+                new DataExportAvailabilityResponse(dataExportOptions.Enabled)));
         }
         catch (AccountDeletionPendingException)
         {
@@ -72,7 +86,47 @@ public sealed class CurrentUserBootstrapController : ControllerBase
         EntitlementResponse Entitlement,
         MobileVersionPolicyResponse MobileVersionPolicy,
         StoreSubscriptionResponse StoreSubscription,
-        TermsStatusResponse? Terms = null);
+        TermsStatusResponse? Terms = null,
+        DataRetentionResponse? DataRetention = null,
+        DataExportAvailabilityResponse? DataExport = null);
+
+    /// <summary>
+    /// The account's place in the post-subscription data retention policy (additive; an older client ignores it). Derived from the same
+    /// facts as <see cref="EntitlementResponse"/> - not a second subscription model. Omitted (null) whenever nothing is scheduled: billing
+    /// program off, policy not in effect, live access, or no ended access to count from - so no retention date is ever shown then.
+    /// Phase is billingHold (a payment is being retried or the subscription is paused: read-only, the clock waits) | readOnly | deletionDue.
+    /// Basis is paidAccessEnded | trialEnded. ReadOnly is always true here (writes are refused by the server's write gate, not by this).
+    /// DeletionScheduledAtUtc is when the account's own content becomes ELIGIBLE for deletion under the policy; nothing is deleted by it.
+    /// </summary>
+    public sealed record DataRetentionResponse(
+        string Phase,
+        string? Basis,
+        DateTimeOffset? AccessEndedAtUtc,
+        DateTimeOffset? DeletionScheduledAtUtc,
+        DateTimeOffset? NextNoticeAtUtc,
+        bool ReadOnly)
+    {
+        public static DataRetentionResponse? From(DataRetentionState state, DateTimeOffset nowUtc) => state.Phase switch
+        {
+            DataRetentionPhase.BillingHold => new("billingHold", null, null, null, null, true),
+            DataRetentionPhase.ReadOnly or DataRetentionPhase.DeletionDue => new(
+                state.Phase == DataRetentionPhase.ReadOnly ? "readOnly" : "deletionDue",
+                state.Basis switch
+                {
+                    DataRetentionBasis.PaidAccessEnded => "paidAccessEnded",
+                    DataRetentionBasis.TrialEnded => "trialEnded",
+                    _ => null,
+                },
+                state.RetentionStartedAtUtc,
+                state.DeletionDueAtUtc,
+                DataRetentionPolicy.NextNoticeAtUtc(state, nowUtc),
+                true),
+            _ => null,
+        };
+    }
+
+    /// <summary>Whether the person can download their data (DataExport:Enabled) - the apps show the export entry only then (additive).</summary>
+    public sealed record DataExportAvailabilityResponse(bool Enabled);
 
     /// <summary>Which Terms of Service version is current and whether this person accepted it (additive; an older client ignores it).</summary>
     public sealed record TermsStatusResponse(string CurrentVersion, string? AcceptedVersion, DateTimeOffset? AcceptedAtUtc, bool IsAccepted)

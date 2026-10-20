@@ -2131,6 +2131,69 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Juple.Domain.Users.DataExportLink", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long?>("FromImageId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("ImagePartNumber")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ImagePlanJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset?>("LastUsedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte>("Part")
+                        .HasColumnType("tinyint");
+
+                    b.Property<long?>("ThroughImageId")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("binary(32)");
+
+                    b.Property<int>("UseCount")
+                        .HasColumnType("int");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("UX_DataExportLinks_TokenHash");
+
+                    b.HasIndex("UserId", "CreatedAtUtc")
+                        .HasDatabaseName("IX_DataExportLinks_User_CreatedAtUtc");
+
+                    b.ToTable("DataExportLinks", "users", t =>
+                        {
+                            t.HasCheckConstraint("CK_DataExportLinks_Expiry", "[ExpiresAtUtc] > [CreatedAtUtc]");
+
+                            t.HasCheckConstraint("CK_DataExportLinks_ImageRange", "([Part] = 1 AND [ImagePartNumber] IS NULL AND [FromImageId] IS NULL AND [ThroughImageId] IS NULL) OR ([Part] = 2 AND [ImagePartNumber] >= 1 AND [FromImageId] IS NOT NULL AND [ThroughImageId] >= [FromImageId])");
+
+                            t.HasCheckConstraint("CK_DataExportLinks_Part_Valid", "[Part] IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_DataExportLinks_UseCount", "[UseCount] >= 0");
+                        });
+                });
+
             modelBuilder.Entity("Juple.Domain.Users.PendingEntraIdentityDeletion", b =>
                 {
                     b.Property<long>("Id")
@@ -2739,6 +2802,15 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Users.DataExportLink", b =>
+                {
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 #pragma warning restore 612, 618

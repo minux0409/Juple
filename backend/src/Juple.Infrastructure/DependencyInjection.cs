@@ -165,6 +165,13 @@ public static class DependencyInjection
         services.AddScoped<Juple.Application.Collections.SetCollectionIconImage.ICollectionIconImageStorage, ItemImageStore>();
         services.AddScoped<Juple.Application.Users.Profile.IUserProfileImageStorage, ItemImageStore>();
 
+        // The person's own data export (off unless DataExport:Enabled - see DataExportOptions).
+        services.AddScoped<Juple.Application.DataExport.IDataExportReader, Juple.Infrastructure.DataExport.DataExportReader>();
+        services.AddScoped<Juple.Application.DataExport.IDataExportLinkStore, Juple.Infrastructure.DataExport.DataExportLinkStore>();
+        services.AddScoped<Juple.Application.DataExport.IDataExportFileSource, Juple.Infrastructure.DataExport.DataExportBlobFileSource>();
+        services.AddScoped<Juple.Application.DataExport.DataExportArchiveWriter>();
+        services.AddScoped<Juple.Application.DataExport.IDataExportService, Juple.Application.DataExport.DataExportService>();
+
         // Construction itself makes no network call, so this does not require a live Blob
         // endpoint at app startup - only whichever caller first resolves
         // BlobServiceClient/BlobContainerClient needs BlobStorage configured.
