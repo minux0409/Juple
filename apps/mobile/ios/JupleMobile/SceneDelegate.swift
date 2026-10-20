@@ -20,6 +20,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     let window = UIWindow(windowScene: windowScene)
+    // The launch screen's background, so no systemBackground frame shows before the root view is in place.
+    window.backgroundColor = UIColor(named: "LaunchBackground")
     self.window = window
     appDelegate.window = window
 
