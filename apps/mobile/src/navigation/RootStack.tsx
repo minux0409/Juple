@@ -245,7 +245,7 @@ export function RootStack() {
       <Stack.Navigator screenOptions={({ navigation }) => iosHeaderBackOptions(() => navigation.goBack())}>
         {needsPermissionReview ? (
           <Stack.Screen name="PermissionOnboarding" options={{ headerShown: false }}>
-            {() => <PermissionsScreen onDone={() => { permissionReview.complete().catch(() => undefined); }} />}
+            {() => <PermissionsScreen onDone={() => { permissionReview.complete().catch(() => undefined); }} withoutHeader />}
           </Stack.Screen>
         ) : isReady ? (
           <Stack.Group>

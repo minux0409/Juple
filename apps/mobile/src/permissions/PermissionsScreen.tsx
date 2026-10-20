@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import {
@@ -35,8 +36,14 @@ import {
 
 export function PermissionsScreen({
   onDone,
+  withoutHeader = false,
 }: {
   readonly onDone?: () => void;
+  /**
+   * Shown with no native header (the first-run onboarding route): nothing else keeps the title out of the status bar /
+   * Dynamic Island, so this screen applies the real top inset itself. With a header (Settings > 권한) the header owns the top.
+   */
+  readonly withoutHeader?: boolean;
 }) {
   const { t } = useTranslation();
   const request = useAuthenticatedApi();
@@ -94,8 +101,7 @@ export function PermissionsScreen({
     Platform.OS === 'ios'
       ? permission === 'notDetermined'
       : Number(Platform.Version) >= 33 && permission !== 'granted' && !asked;
-  return (
-    <StackScreenSafeArea style={styles.safe}>
+  const body = (
       <ScrollView contentContainerStyle={styles.content}>
         <Text accessibilityRole="header" style={styles.title}>
           {t('permissions.title')}
@@ -172,7 +178,13 @@ export function PermissionsScreen({
           </Pressable>
         ) : null}
       </ScrollView>
-    </StackScreenSafeArea>
+  );
+  return withoutHeader ? (
+    <SafeAreaView edges={['top', 'bottom']} style={styles.safe} testID="permissions-safe-area">
+      {body}
+    </SafeAreaView>
+  ) : (
+    <StackScreenSafeArea style={styles.safe}>{body}</StackScreenSafeArea>
   );
 }
 const styles = themedStyles(() => ({
