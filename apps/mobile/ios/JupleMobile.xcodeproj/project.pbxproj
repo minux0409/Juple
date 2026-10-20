@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+        9A1470514F204C6A91E53701 /* JupleNotificationPermissions.mm in Sources */ = {isa = PBXBuildFile; fileRef = 9A1470514F204C6A91E53702; };
+        9A1470514F204C6A91E53703 /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9A1470514F204C6A91E53704; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		4863D046810000AD256F4B26 /* JupleCollectionShortcutsModule.mm in Sources */ = {isa = PBXBuildFile; fileRef = 96BAFC68D28946E23AB7E53B /* JupleCollectionShortcutsModule.mm */; };
 		56455DA21730A7F01071C3F6 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
@@ -20,6 +22,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+        9A1470514F204C6A91E53702 /* JupleNotificationPermissions.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = JupleNotificationPermissions.mm; path = JupleMobile/JupleNotificationPermissions.mm; sourceTree = "<group>"; };
+        9A1470514F204C6A91E53704 /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
 		13B07F961A680F5B00A75B9A /* JupleMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JupleMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = JupleMobile/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = JupleMobile/Info.plist; sourceTree = "<group>"; };
@@ -45,6 +49,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				EF5B8BD3E3CE1F94B5264965 /* Pods_JupleMobile.framework in Frameworks */,
+                9A1470514F204C6A91E53703 /* UserNotifications.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -62,6 +67,7 @@
 				1EBF9A0B28D516C65619E315 /* SceneDelegate.swift */,
 				D58E005E0C42CB4AAE99D972 /* CollectionShortcuts.swift */,
 				96BAFC68D28946E23AB7E53B /* JupleCollectionShortcutsModule.mm */,
+                9A1470514F204C6A91E53702 /* JupleNotificationPermissions.mm */,
 				CB0C7FB1F583F885E4C4D0BE /* AppIntents.strings */,
 				283ABDD14A2E003D67CFB579 /* AppShortcuts.strings */,
 			);
@@ -73,6 +79,7 @@
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
 				3E0B8847DE16C0A45F400CB9 /* Pods_JupleMobile.framework */,
+                9A1470514F204C6A91E53704 /* UserNotifications.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -284,6 +291,7 @@
 				C5D9EAFA4AEF830E41BB208E /* SceneDelegate.swift in Sources */,
 				C1DE754B67D2CE70AF441DC2 /* CollectionShortcuts.swift in Sources */,
 				4863D046810000AD256F4B26 /* JupleCollectionShortcutsModule.mm in Sources */,
+                9A1470514F204C6A91E53701 /* JupleNotificationPermissions.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

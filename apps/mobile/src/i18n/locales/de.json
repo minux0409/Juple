@@ -1438,5 +1438,34 @@
     "reauthBody": "Your export can contain private memos and locked Collections, so confirm your identity first.",
     "reauthAction": "Sign in again",
     "create": "Prepare download links"
+  },
+  "permissions": {
+    "title": "App-Berechtigungen",
+    "intro": "Wähle nur die gewünschten Berechtigungen. Du kannst Juple auch nach einer Ablehnung nutzen oder später entscheiden.",
+    "notifications": "Benachrichtigungen",
+    "reason": "Erhalte Freundschaftsanfragen und Einladungen zu Sammlungen.",
+    "photos": "Fotos auswählen",
+    "picker": "Nur im Systemdialog ausgewählte Fotos werden verwendet. Kein Zugriff auf die ganze Mediathek oder Kamera wird verlangt. Begrenzte Fotoauswahl wird unterstützt.",
+    "allow": "Benachrichtigungen erlauben",
+    "later": "Später einrichten",
+    "continue": "Weiter",
+    "settings": "Geräteeinstellungen öffnen",
+    "retry": "Registrierung wiederholen",
+    "granted": "Erlaubt",
+    "denied": "Nicht erlaubt",
+    "notDetermined": "Noch nicht entschieden",
+    "unavailable": "Berechtigungsstatus nicht verfügbar",
+    "apnsNotReady": "Push-Zustellung für iPhone ist noch nicht verfügbar. Eine Erlaubnis aktiviert derzeit keinen Push-Empfang.",
+    "sync": {
+      "idle": "Registrierung noch nicht geprüft.",
+      "permissionDenied": "Nicht erlaubt",
+      "permissionUnavailable": "Berechtigungsstatus nicht verfügbar",
+      "tokenUnavailable": "Das Gerät hat kein Push-Token ausgegeben. Bitte erneut versuchen.",
+      "tokenFailed": "Push-Token konnte nicht abgerufen werden.",
+      "registrationFailed": "Benachrichtigungen konnten nicht beim Server registriert werden. Bitte erneut versuchen.",
+      "registered": "Dieses Gerät ist beim Server registriert.",
+      "apnsNotReady": "Push-Zustellung für iPhone ist noch nicht verfügbar. Eine Erlaubnis aktiviert derzeit keinen Push-Empfang.",
+      "cancelled": "Registrierung noch nicht geprüft."
+    }
   }
 }

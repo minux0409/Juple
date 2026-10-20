@@ -1,6 +1,8 @@
 import { requestAuthenticatedApi } from '../api/authenticatedApiClient';
 import { getOrCreatePushInstallationId } from './pushInstallationId';
 import { unregisterPushDevice } from './api/pushDevicesApi';
+import { invalidatePushRegistration, serializePushMutation } from './pushMutationQueue';
+import { reportPushSync } from './pushRegistrationStatus';
 
 /**
  * Called from AuthContext.signOut, before the session/access token is cleared - the Backend needs
@@ -10,9 +12,11 @@ import { unregisterPushDevice } from './api/pushDevicesApi';
  * independently of this call.
  */
 export async function unregisterCurrentPushDeviceBestEffort(): Promise<void> {
+  invalidatePushRegistration();
+  reportPushSync('idle');
   try {
     const installationId = await getOrCreatePushInstallationId();
-    await unregisterPushDevice(requestAuthenticatedApi, installationId);
+    await serializePushMutation(() => unregisterPushDevice(requestAuthenticatedApi, installationId));
   } catch {
     // Best-effort - see this function's own doc comment.
   }

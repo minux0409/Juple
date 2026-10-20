@@ -3,6 +3,8 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
+import { PermissionsScreen } from '../permissions/PermissionsScreen';
+import { usePermissionOnboarding } from '../permissions/usePermissionOnboarding';
 import { AccountManagementScreen } from '../screens/AccountManagementScreen';
 import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
 import { CollectionLockSettingsScreen } from '../screens/CollectionLockSettingsScreen';
@@ -157,6 +159,8 @@ export type RootStackParamList = {
   DeleteAccount: undefined;
   /** 계정 관리 / 구독 > 데이터 내보내기: the person's own data as download links (shown only when the server enables export). */
   DataExport: undefined;
+  PermissionOnboarding: undefined;
+  Permissions: undefined;
   Trash: undefined;
   /** 내 페이지 > 고객센터: tutorial replay, FAQ, 문의하기 (system mail app), legal documents and the app version. */
   CustomerCenter: undefined;
@@ -216,6 +220,8 @@ export function RootStack() {
   const termsOnboarding = useTermsOnboarding(isBootstrapComplete);
   const isTermsAccepted = isBootstrapComplete && termsOnboarding.status === 'accepted';
   const isTermsRequired = isBootstrapComplete && termsOnboarding.status === 'required';
+  const permissionReview = usePermissionOnboarding(isTermsAccepted);
+  const needsPermissionReview = isTermsAccepted && permissionReview.status === 'required';
 
   // Lets the Startup Progress UI's completed state (full bar, "준비가 완료되었습니다") register
   // on screen for READY_LINGER_MS before swapping to MainTabs - see that constant's own comment.
@@ -229,7 +235,7 @@ export function RootStack() {
     return () => clearTimeout(timer);
   }, [isTermsAccepted]);
 
-  const isReady = isTermsAccepted && showMainTabs;
+  const isReady = isTermsAccepted && showMainTabs && permissionReview.status === 'done';
   // The headers (title, tint, background) are options computed here: reading the theme re-renders them on a change.
   useTheme();
 
@@ -237,9 +243,14 @@ export function RootStack() {
     <>
       <TourBackground>
       <Stack.Navigator screenOptions={({ navigation }) => iosHeaderBackOptions(() => navigation.goBack())}>
-        {isReady ? (
+        {needsPermissionReview ? (
+          <Stack.Screen name="PermissionOnboarding" options={{ headerShown: false }}>
+            {() => <PermissionsScreen onDone={() => { permissionReview.complete().catch(() => undefined); }} />}
+          </Stack.Screen>
+        ) : isReady ? (
           <Stack.Group>
             <Stack.Screen component={themedScreen(MainTabs)} name="MainTabs" options={{ headerShown: false }} />
+            <Stack.Screen component={themedScreen(PermissionsScreen)} name="Permissions" options={{ title: t('permissions.title') }} />
             {/* A bottom half-sheet over the screen it was opened from - never a full page: transparent, no header; the dimmed
                 backdrop fades in while the sheet itself slides up (see ItemDetailsScreen). The system back button (and the
                 sheet's own X / backdrop) close it. */}

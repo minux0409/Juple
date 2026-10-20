@@ -1438,5 +1438,34 @@
     "reauthBody": "Your export can contain private memos and locked Collections, so confirm your identity first.",
     "reauthAction": "Sign in again",
     "create": "Prepare download links"
+  },
+  "permissions": {
+    "title": "أذونات التطبيق",
+    "intro": "اختر الأذونات التي تريدها فقط. يمكنك استخدام Juple عند الرفض أو اتخاذ القرار لاحقًا.",
+    "notifications": "الإشعارات",
+    "reason": "تلقَّ طلبات الصداقة ودعوات المجموعات.",
+    "photos": "اختيار الصور",
+    "picker": "نستخدم فقط الصور التي تختارها من منتقي النظام. لا نطلب الوصول إلى مكتبة الصور كاملة أو الكاميرا، وندعم الاختيار المحدود.",
+    "allow": "السماح بالإشعارات",
+    "later": "الإعداد لاحقًا",
+    "continue": "متابعة",
+    "settings": "فتح إعدادات الجهاز",
+    "retry": "إعادة محاولة التسجيل",
+    "granted": "مسموح",
+    "denied": "غير مسموح",
+    "notDetermined": "لم يُحسم بعد",
+    "unavailable": "حالة الإذن غير متاحة",
+    "apnsNotReady": "إرسال إشعارات push على iPhone غير جاهز بعد. السماح بالإشعارات لا يفعّل استقبالها حاليًا.",
+    "sync": {
+      "idle": "لم يتم التحقق من التسجيل بعد.",
+      "permissionDenied": "غير مسموح",
+      "permissionUnavailable": "حالة الإذن غير متاحة",
+      "tokenUnavailable": "لم يصدر الجهاز رمز push. أعد المحاولة.",
+      "tokenFailed": "تعذر الحصول على رمز push.",
+      "registrationFailed": "تعذر تسجيل الإشعارات في الخادم. أعد المحاولة.",
+      "registered": "هذا الجهاز مسجل في الخادم.",
+      "apnsNotReady": "إرسال إشعارات push على iPhone غير جاهز بعد. السماح بالإشعارات لا يفعّل استقبالها حاليًا.",
+      "cancelled": "لم يتم التحقق من التسجيل بعد."
+    }
   }
 }

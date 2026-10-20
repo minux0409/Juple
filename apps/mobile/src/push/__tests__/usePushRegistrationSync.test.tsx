@@ -1,7 +1,7 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { getMessaging, onTokenRefresh } from '@react-native-firebase/messaging';
-import { registerRefreshedPushToken, syncPushRegistrationIfPermitted } from '../pushRegistrationSync';
+import { syncPushRegistration } from '../pushRegistrationSync';
 import { usePushRegistrationSync } from '../usePushRegistrationSync';
 
 const mockUnsubscribe = jest.fn();
@@ -12,8 +12,7 @@ jest.mock('@react-native-firebase/messaging', () => ({
   onTokenRefresh: jest.fn(() => mockUnsubscribe),
 }));
 jest.mock('../pushRegistrationSync', () => ({
-  syncPushRegistrationIfPermitted: jest.fn(() => Promise.resolve()),
-  registerRefreshedPushToken: jest.fn(() => Promise.resolve()),
+  syncPushRegistration: jest.fn(() => Promise.resolve('registered')),
 }));
 jest.mock('../../auth/AuthContext', () => ({
   useAuth: () => ({ isAuthenticated: true, userBootstrapStatus: 'ready' }),
@@ -27,6 +26,7 @@ function Host() {
 }
 
 const originalOS = Platform.OS;
+const originalAppState = Object.getOwnPropertyDescriptor(AppState, 'currentState')!;
 let renderer: ReactTestRenderer.ReactTestRenderer | null = null;
 
 async function mount() {
@@ -39,20 +39,55 @@ afterEach(() => {
   act(() => renderer?.unmount());
   renderer = null;
   Object.defineProperty(Platform, 'OS', { value: originalOS, configurable: true });
+  Object.defineProperty(AppState, 'currentState', originalAppState);
   jest.clearAllMocks();
+  jest.useRealTimers();
+  jest.restoreAllMocks();
+  jest.mocked(syncPushRegistration).mockResolvedValue('registered');
 });
 
 describe('usePushRegistrationSync', () => {
+  it('retries transient failure at bounded intervals and releases timers on unmount', async () => {
+    jest.useFakeTimers();
+    Object.defineProperty(AppState, 'currentState', { value: 'active', configurable: true });
+    Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
+    jest.mocked(syncPushRegistration).mockResolvedValue('tokenFailed');
+    await mount();
+    for (const [index, delay] of [15_000, 60_000, 180_000].entries()) {
+      await act(async () => { jest.advanceTimersByTime(delay - 1); });
+      expect(syncPushRegistration).toHaveBeenCalledTimes(index + 1);
+      await act(async () => { jest.advanceTimersByTime(1); });
+      expect(syncPushRegistration).toHaveBeenCalledTimes(index + 2);
+    }
+    expect(syncPushRegistration).toHaveBeenCalledTimes(4);
+    await act(async () => { jest.advanceTimersByTime(600_000); });
+    expect(syncPushRegistration).toHaveBeenCalledTimes(4);
+    const refreshed = jest.mocked(onTokenRefresh).mock.calls[0][1] as (token: string) => void;
+    await act(async () => { refreshed('synthetic-refresh'); });
+    expect(syncPushRegistration).toHaveBeenCalledTimes(5);
+    act(() => renderer?.unmount()); renderer = null;
+    await act(async () => { jest.advanceTimersByTime(600_000); });
+    expect(syncPushRegistration).toHaveBeenCalledTimes(5);
+  });
+
+  it('does not keep retrying a denied permission', async () => {
+    jest.useFakeTimers();
+    jest.mocked(syncPushRegistration).mockResolvedValue('permissionDenied');
+    await mount();
+    await act(async () => { jest.advanceTimersByTime(600_000); });
+    expect(syncPushRegistration).toHaveBeenCalledTimes(1);
+  });
+
   it('on Android syncs at bootstrap and re-registers a refreshed FCM token', async () => {
     Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
 
     await mount();
 
-    expect(syncPushRegistrationIfPermitted).toHaveBeenCalledWith(mockRequest);
+    expect(syncPushRegistration).toHaveBeenCalledWith(mockRequest, expect.any(Function));
     expect(onTokenRefresh).toHaveBeenCalledTimes(1);
     const listener = jest.mocked(onTokenRefresh).mock.calls[0][1] as (token: string) => void;
     listener('token-2');
-    expect(registerRefreshedPushToken).toHaveBeenCalledWith(mockRequest, 'token-2');
+    expect(syncPushRegistration).toHaveBeenCalledTimes(2);
 
     act(() => renderer?.unmount());
     renderer = null;

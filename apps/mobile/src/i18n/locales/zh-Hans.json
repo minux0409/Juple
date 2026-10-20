@@ -1438,5 +1438,34 @@
     "reauthBody": "Your export can contain private memos and locked Collections, so confirm your identity first.",
     "reauthAction": "Sign in again",
     "create": "Prepare download links"
+  },
+  "permissions": {
+    "title": "应用权限",
+    "intro": "只选择您需要的权限。拒绝或稍后设置也能继续使用Juple。",
+    "notifications": "通知",
+    "reason": "接收好友请求和收藏集邀请等消息。",
+    "photos": "选择照片",
+    "picker": "仅使用您在系统选择器中选中的照片。不请求整个相册或相机权限，也支持有限照片选择。",
+    "allow": "允许通知",
+    "later": "稍后设置",
+    "continue": "继续",
+    "settings": "打开设备设置",
+    "retry": "重试注册",
+    "granted": "已允许",
+    "denied": "未允许",
+    "notDetermined": "尚未选择",
+    "unavailable": "无法确认权限状态",
+    "apnsNotReady": "iPhone推送功能尚未就绪。即使允许通知，目前也无法接收推送。",
+    "sync": {
+      "idle": "尚未检查注册状态。",
+      "permissionDenied": "未允许",
+      "permissionUnavailable": "无法确认权限状态",
+      "tokenUnavailable": "设备尚未发放推送令牌，请重试。",
+      "tokenFailed": "无法获取推送令牌。",
+      "registrationFailed": "无法向服务器注册通知，请重试。",
+      "registered": "此设备已在服务器注册。",
+      "apnsNotReady": "iPhone推送功能尚未就绪。即使允许通知，目前也无法接收推送。",
+      "cancelled": "尚未检查注册状态。"
+    }
   }
 }

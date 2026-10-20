@@ -1438,5 +1438,34 @@
     "reauthBody": "Your export can contain private memos and locked Collections, so confirm your identity first.",
     "reauthAction": "Sign in again",
     "create": "Prepare download links"
+  },
+  "permissions": {
+    "title": "ऐप की अनुमतियाँ",
+    "intro": "केवल अपनी पसंद की अनुमतियाँ चुनें। मना करने या बाद में तय करने पर भी Juple इस्तेमाल कर सकते हैं।",
+    "notifications": "सूचनाएँ",
+    "reason": "मित्र अनुरोधों और संग्रह के निमंत्रणों की जानकारी पाएँ।",
+    "photos": "फ़ोटो चुनें",
+    "picker": "सिस्टम पिकर से चुनी गई फ़ोटो ही इस्तेमाल होती हैं। पूरी लाइब्रेरी या कैमरे की अनुमति नहीं माँगी जाती; सीमित फ़ोटो चयन भी काम करता है।",
+    "allow": "सूचनाओं की अनुमति दें",
+    "later": "बाद में सेट करें",
+    "continue": "जारी रखें",
+    "settings": "डिवाइस सेटिंग खोलें",
+    "retry": "पंजीकरण फिर आज़माएँ",
+    "granted": "अनुमति मिली",
+    "denied": "अनुमति नहीं मिली",
+    "notDetermined": "अभी तय नहीं किया",
+    "unavailable": "अनुमति की स्थिति उपलब्ध नहीं",
+    "apnsNotReady": "iPhone पर push भेजना अभी तैयार नहीं है। अनुमति देने से अभी push प्राप्त होना चालू नहीं होगा।",
+    "sync": {
+      "idle": "पंजीकरण अभी जाँचा नहीं गया।",
+      "permissionDenied": "अनुमति नहीं मिली",
+      "permissionUnavailable": "अनुमति की स्थिति उपलब्ध नहीं",
+      "tokenUnavailable": "डिवाइस ने push टोकन नहीं दिया। फिर कोशिश करें।",
+      "tokenFailed": "push टोकन नहीं मिल सका।",
+      "registrationFailed": "सर्वर पर सूचनाओं का पंजीकरण नहीं हो सका। फिर कोशिश करें।",
+      "registered": "यह डिवाइस सर्वर पर पंजीकृत है।",
+      "apnsNotReady": "iPhone पर push भेजना अभी तैयार नहीं है। अनुमति देने से अभी push प्राप्त होना चालू नहीं होगा।",
+      "cancelled": "पंजीकरण अभी जाँचा नहीं गया।"
+    }
   }
 }

@@ -34,10 +34,10 @@ describe('getPushPermissionStatus', () => {
     expect(status).toBe('granted');
   });
 
-  it('resolves denied (never throws) when the native call rejects', async () => {
+  it('distinguishes unavailable native state from a user denial', async () => {
     Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
     jest.spyOn(PermissionsAndroid, 'check').mockRejectedValue(new Error('native module unavailable'));
 
-    await expect(getPushPermissionStatus()).resolves.toBe('denied');
+    await expect(getPushPermissionStatus()).resolves.toBe('unavailable');
   });
 });

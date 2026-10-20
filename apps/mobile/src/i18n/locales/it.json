@@ -1438,5 +1438,34 @@
     "reauthBody": "Your export can contain private memos and locked Collections, so confirm your identity first.",
     "reauthAction": "Sign in again",
     "create": "Prepare download links"
+  },
+  "permissions": {
+    "title": "Permessi dell’app",
+    "intro": "Scegli solo i permessi desiderati. Puoi usare Juple anche se rifiuti o decidi più tardi.",
+    "notifications": "Notifiche",
+    "reason": "Ricevi richieste di amicizia e inviti alle Raccolte.",
+    "photos": "Scegli foto",
+    "picker": "Usiamo solo le foto scelte nel selettore di sistema. Non chiediamo accesso all’intera libreria o alla fotocamera. È supportata anche la selezione limitata.",
+    "allow": "Consenti notifiche",
+    "later": "Configura più tardi",
+    "continue": "Continua",
+    "settings": "Apri impostazioni del dispositivo",
+    "retry": "Riprova registrazione",
+    "granted": "Consentito",
+    "denied": "Non consentito",
+    "notDetermined": "Non ancora deciso",
+    "unavailable": "Stato del permesso non disponibile",
+    "apnsNotReady": "Le notifiche push su iPhone non sono ancora disponibili. Autorizzarle non ne abilita la ricezione al momento.",
+    "sync": {
+      "idle": "Registrazione non ancora verificata.",
+      "permissionDenied": "Non consentito",
+      "permissionUnavailable": "Stato del permesso non disponibile",
+      "tokenUnavailable": "Il dispositivo non ha emesso un token push. Riprova.",
+      "tokenFailed": "Impossibile ottenere un token push.",
+      "registrationFailed": "Impossibile registrare le notifiche sul server. Riprova.",
+      "registered": "Questo dispositivo è registrato sul server.",
+      "apnsNotReady": "Le notifiche push su iPhone non sono ancora disponibili. Autorizzarle non ne abilita la ricezione al momento.",
+      "cancelled": "Registrazione non ancora verificata."
+    }
   }
 }

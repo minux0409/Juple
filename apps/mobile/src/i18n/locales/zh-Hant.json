@@ -1438,5 +1438,34 @@
     "reauthBody": "Your export can contain private memos and locked Collections, so confirm your identity first.",
     "reauthAction": "Sign in again",
     "create": "Prepare download links"
+  },
+  "permissions": {
+    "title": "應用程式權限",
+    "intro": "只選擇需要的權限。拒絕或稍後設定也能繼續使用Juple。",
+    "notifications": "通知",
+    "reason": "接收好友邀請及收藏集邀請等消息。",
+    "photos": "選擇照片",
+    "picker": "只使用您在系統選擇器中選取的照片。不要求整個相簿或相機權限，也支援有限照片選取。",
+    "allow": "允許通知",
+    "later": "稍後設定",
+    "continue": "繼續",
+    "settings": "開啟裝置設定",
+    "retry": "重試註冊",
+    "granted": "已允許",
+    "denied": "未允許",
+    "notDetermined": "尚未選擇",
+    "unavailable": "無法確認權限狀態",
+    "apnsNotReady": "iPhone推播功能尚未就緒。即使允許通知，目前仍無法接收推播。",
+    "sync": {
+      "idle": "尚未檢查註冊狀態。",
+      "permissionDenied": "未允許",
+      "permissionUnavailable": "無法確認權限狀態",
+      "tokenUnavailable": "裝置尚未取得推播權杖，請重試。",
+      "tokenFailed": "無法取得推播權杖。",
+      "registrationFailed": "無法向伺服器註冊通知，請重試。",
+      "registered": "此裝置已在伺服器註冊。",
+      "apnsNotReady": "iPhone推播功能尚未就緒。即使允許通知，目前仍無法接收推播。",
+      "cancelled": "尚未檢查註冊狀態。"
+    }
   }
 }

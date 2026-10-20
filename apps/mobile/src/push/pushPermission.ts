@@ -1,45 +1,60 @@
-import { PermissionsAndroid, Platform } from 'react-native';
+import { NativeModules, PermissionsAndroid, Platform } from 'react-native';
 
-export type PushPermissionStatus = 'granted' | 'denied' | 'unavailable';
+export type PushPermissionStatus =
+  | 'granted'
+  | 'denied'
+  | 'notDetermined'
+  | 'unavailable';
+interface NotificationPermissionsBridge {
+  getStatus(): Promise<string>;
+  request?(): Promise<string>;
+}
+const statusOf = (value: string): PushPermissionStatus =>
+  value === 'granted' || value === 'denied' || value === 'notDetermined'
+    ? value
+    : 'unavailable';
 
-/**
- * Shows the Android 13+ (API 33+) runtime prompt - this app's targetSdkVersion is 36, so Push is
- * never delivered without it; below API 33 the OS grants it at install time. iOS has no React Native
- * core API for this (APNs is not implemented yet) - resolves 'unavailable' rather than pretending.
- * Only ever called through ensurePushPermissionOnce (pushPermissionFlow.ts); declining never gates
- * anything - in-app badges and refreshes work the same without Push.
- */
-export async function requestPushPermission(): Promise<PushPermissionStatus> {
-  if (Platform.OS !== 'android') {
-    return 'unavailable';
-  }
-
-  if (Number(Platform.Version) < 33) {
-    return 'granted';
-  }
-
+/** Reads OS state, including Android's Settings switch and iOS provisional authorization. */
+export async function getPushPermissionStatus(): Promise<PushPermissionStatus> {
   try {
-    const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
-    return result === PermissionsAndroid.RESULTS.GRANTED ? 'granted' : 'denied';
+    const native = NativeModules.JupleNotificationPermissions as
+      | NotificationPermissionsBridge
+      | undefined;
+    if (native) return statusOf(await native.getStatus());
+    if (Platform.OS === 'android' && Number(Platform.Version) >= 33) {
+      return (await PermissionsAndroid.check(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+      ))
+        ? 'granted'
+        : 'denied';
+    }
   } catch {
-    return 'denied';
+    /* missing OS information is different from a denial */
   }
+  return 'unavailable';
 }
 
-/** Read-only check - never prompts. Same platform/API-level fallbacks as requestPushPermission. */
-export async function getPushPermissionStatus(): Promise<PushPermissionStatus> {
-  if (Platform.OS !== 'android') {
-    return 'unavailable';
-  }
-
-  if (Number(Platform.Version) < 33) {
-    return 'granted';
-  }
-
+/** Explicit consent only. An existing grant never triggers another system prompt. */
+export async function requestPushPermission(): Promise<PushPermissionStatus> {
+  const before = await getPushPermissionStatus();
+  if (before === 'granted') return before;
   try {
-    const granted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
-    return granted ? 'granted' : 'denied';
+    if (Platform.OS === 'android') {
+      if (Number(Platform.Version) < 33) return before;
+      const result = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+      );
+      return result === PermissionsAndroid.RESULTS.GRANTED
+        ? getPushPermissionStatus()
+        : 'denied';
+    }
+    const native = NativeModules.JupleNotificationPermissions as
+      | NotificationPermissionsBridge
+      | undefined;
+    if (Platform.OS === 'ios' && native?.request)
+      return statusOf(await native.request());
   } catch {
-    return 'denied';
+    /* fail open for app use, never claim a grant */
   }
+  return 'unavailable';
 }

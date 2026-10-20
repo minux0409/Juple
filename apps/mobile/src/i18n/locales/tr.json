@@ -1438,5 +1438,34 @@
     "reauthBody": "Your export can contain private memos and locked Collections, so confirm your identity first.",
     "reauthAction": "Sign in again",
     "create": "Prepare download links"
+  },
+  "permissions": {
+    "title": "Uygulama izinleri",
+    "intro": "Yalnızca istediğiniz izinleri seçin. Reddetseniz veya sonra karar verseniz de Juple kullanılabilir.",
+    "notifications": "Bildirimler",
+    "reason": "Arkadaşlık istekleri ve Koleksiyon davetlerinden haberdar olun.",
+    "photos": "Fotoğraf seç",
+    "picker": "Yalnızca sistem seçicisinde seçtiğiniz fotoğraflar kullanılır. Tüm arşive veya kameraya erişim istenmez; sınırlı fotoğraf seçimi de desteklenir.",
+    "allow": "Bildirimlere izin ver",
+    "later": "Daha sonra ayarla",
+    "continue": "Devam et",
+    "settings": "Cihaz ayarlarını aç",
+    "retry": "Kaydı yeniden dene",
+    "granted": "İzin verildi",
+    "denied": "İzin verilmedi",
+    "notDetermined": "Henüz karar verilmedi",
+    "unavailable": "İzin durumu alınamıyor",
+    "apnsNotReady": "iPhone push iletimi henüz hazır değil. Bildirim izni şu anda push alımını etkinleştirmez.",
+    "sync": {
+      "idle": "Kayıt henüz kontrol edilmedi.",
+      "permissionDenied": "İzin verilmedi",
+      "permissionUnavailable": "İzin durumu alınamıyor",
+      "tokenUnavailable": "Cihaz push belirteci üretmedi. Yeniden deneyin.",
+      "tokenFailed": "Push belirteci alınamadı.",
+      "registrationFailed": "Bildirimler sunucuya kaydedilemedi. Yeniden deneyin.",
+      "registered": "Bu cihaz sunucuya kayıtlı.",
+      "apnsNotReady": "iPhone push iletimi henüz hazır değil. Bildirim izni şu anda push alımını etkinleştirmez.",
+      "cancelled": "Kayıt henüz kontrol edilmedi."
+    }
   }
 }

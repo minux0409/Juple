@@ -1438,5 +1438,34 @@
     "reauthBody": "Your export can contain private memos and locked Collections, so confirm your identity first.",
     "reauthAction": "Sign in again",
     "create": "Prepare download links"
+  },
+  "permissions": {
+    "title": "App permissions",
+    "intro": "Choose only the permissions you want. You can keep using Juple if you decline or decide later.",
+    "notifications": "Notifications",
+    "reason": "Get updates about friend requests and Collection invitations.",
+    "photos": "Choose photos",
+    "picker": "The system picker shares only photos you select. No full-library or camera permission is requested; limited photo selection works too.",
+    "allow": "Allow notifications",
+    "later": "Set up later",
+    "continue": "Continue",
+    "settings": "Open device settings",
+    "retry": "Retry registration",
+    "granted": "Allowed",
+    "denied": "Not allowed",
+    "notDetermined": "Not decided",
+    "unavailable": "Permission status unavailable",
+    "apnsNotReady": "iPhone push delivery is not ready yet. Allowing notifications does not enable push delivery at this time.",
+    "sync": {
+      "idle": "Registration has not been checked.",
+      "permissionDenied": "Not allowed",
+      "permissionUnavailable": "Permission status unavailable",
+      "tokenUnavailable": "The device has not issued a push token. Please retry.",
+      "tokenFailed": "Could not obtain a push token.",
+      "registrationFailed": "Could not register notifications with the server. Please retry.",
+      "registered": "This device is registered with the server.",
+      "apnsNotReady": "iPhone push delivery is not ready yet. Allowing notifications does not enable push delivery at this time.",
+      "cancelled": "Registration has not been checked."
+    }
   }
 }

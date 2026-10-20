@@ -1,60 +1,72 @@
 import { useEffect } from 'react';
+import { AppState } from 'react-native';
 import { getMessaging, onTokenRefresh } from '@react-native-firebase/messaging';
 import { useAuth } from '../auth/AuthContext';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import i18n from '../i18n';
 import { isFcmPlatform } from './fcmPlatform';
-import { registerRefreshedPushToken, syncPushRegistrationIfPermitted } from './pushRegistrationSync';
+import { syncPushRegistration } from './pushRegistrationSync';
+import { reportPushSync } from './pushRegistrationStatus';
 
-/**
- * Keeps this installation's Push registration current for as long as the user stays signed in and
- * bootstrapped - see the three effects below. Mounted once, near the app root (see App.tsx); does
- * nothing (and subscribes to nothing) while signed out or not yet bootstrapped, matching this
- * feature's "authenticated AND userBootstrap ready AND permission granted" gate throughout.
- */
+/** Bootstrap, Settings return, language change and token rotation all reconcile actual OS state with server registration. */
 export function usePushRegistrationSync(): void {
   const { isAuthenticated, userBootstrapStatus } = useAuth();
-  const authenticatedRequest = useAuthenticatedApi();
+  const request = useAuthenticatedApi();
   const isReady = isAuthenticated && userBootstrapStatus === 'ready';
-
-  // Bootstrap: a user who already has notification permission granted (see pushPermission.ts -
-  // no active feature currently prompts for it) gets re-synced with no prompt of its own here.
   useEffect(() => {
     if (!isReady) {
+      reportPushSync('idle');
       return;
     }
-    syncPushRegistrationIfPermitted(authenticatedRequest);
-  }, [isReady, authenticatedRequest]);
-
-  // Language change: re-sync so PushDeviceRegistration.Locale always matches what the user
-  // actually sees (see LanguageSettingsScreen / i18n/languagePreference.ts). i18next only fires
-  // this when the resolved language actually changes, so re-selecting the same language is a
-  // no-op here. syncPushRegistrationIfPermitted itself no-ops when permission/token are unavailable.
-  useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    const handleLanguageChanged = () => {
-      syncPushRegistrationIfPermitted(authenticatedRequest);
+    let current = true;
+    let generation = 0;
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const run = async (reset = true) => {
+      if (reset) attempts = 0;
+      clearTimeout(timer);
+      const ownGeneration = ++generation;
+      const isCurrent = () => current && generation === ownGeneration;
+      const status = await syncPushRegistration(request, isCurrent);
+      if (!isCurrent()) return;
+      if (
+        ['tokenUnavailable', 'tokenFailed', 'registrationFailed'].includes(
+          status,
+        ) &&
+        attempts < 3 &&
+        AppState.currentState === 'active'
+      ) {
+        const delay = [15_000, 60_000, 180_000][attempts++];
+        timer = setTimeout(() => {
+          run(false).catch(() => reportPushSync('registrationFailed'));
+        }, delay);
+      }
     };
-    i18n.on('languageChanged', handleLanguageChanged);
+    run().catch(() => reportPushSync('registrationFailed'));
+    const languageChanged = () => {
+      run().catch(() => reportPushSync('registrationFailed'));
+    };
+    i18n.on('languageChanged', languageChanged);
+    const foreground = AppState.addEventListener('change', state => {
+      if (state === 'active')
+        run().catch(() => reportPushSync('registrationFailed'));
+    });
+    let unsubscribe: () => void = () => undefined;
+    try {
+      if (isFcmPlatform())
+        unsubscribe = onTokenRefresh(getMessaging(), () => {
+          run().catch(() => reportPushSync('registrationFailed'));
+        });
+    } catch {
+      reportPushSync('tokenFailed');
+    }
     return () => {
-      i18n.off('languageChanged', handleLanguageChanged);
+      current = false;
+      generation++;
+      clearTimeout(timer);
+      foreground.remove();
+      i18n.off('languageChanged', languageChanged);
+      unsubscribe();
     };
-  }, [isReady, authenticatedRequest]);
-
-  // Token refresh: FCM tokens can rotate at any time over the install's lifetime - re-register
-  // with the same InstallationId (see PushDeviceRegistration.Reregister on the Backend) whenever
-  // that happens.
-  useEffect(() => {
-    if (!isReady || !isFcmPlatform()) {
-      return;
-    }
-
-    const unsubscribe = onTokenRefresh(getMessaging(), (newToken: string) =>
-      registerRefreshedPushToken(authenticatedRequest, newToken),
-    );
-    return unsubscribe;
-  }, [isReady, authenticatedRequest]);
+  }, [isReady, request]);
 }

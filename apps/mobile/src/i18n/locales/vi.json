@@ -1438,5 +1438,34 @@
     "reauthBody": "Your export can contain private memos and locked Collections, so confirm your identity first.",
     "reauthAction": "Sign in again",
     "create": "Prepare download links"
+  },
+  "permissions": {
+    "title": "Quyền ứng dụng",
+    "intro": "Chỉ chọn quyền bạn muốn. Bạn vẫn dùng được Juple nếu từ chối hoặc quyết định sau.",
+    "notifications": "Thông báo",
+    "reason": "Nhận lời mời kết bạn và lời mời vào Bộ sưu tập.",
+    "photos": "Chọn ảnh",
+    "picker": "Chỉ sử dụng ảnh bạn chọn qua bộ chọn của hệ thống. Không yêu cầu quyền toàn bộ thư viện hoặc máy ảnh; hỗ trợ chọn ảnh giới hạn.",
+    "allow": "Cho phép thông báo",
+    "later": "Thiết lập sau",
+    "continue": "Tiếp tục",
+    "settings": "Mở cài đặt thiết bị",
+    "retry": "Thử đăng ký lại",
+    "granted": "Đã cho phép",
+    "denied": "Chưa cho phép",
+    "notDetermined": "Chưa quyết định",
+    "unavailable": "Không xác định được trạng thái quyền",
+    "apnsNotReady": "Tính năng gửi push trên iPhone chưa sẵn sàng. Cho phép thông báo chưa bật khả năng nhận push lúc này.",
+    "sync": {
+      "idle": "Chưa kiểm tra đăng ký.",
+      "permissionDenied": "Chưa cho phép",
+      "permissionUnavailable": "Không xác định được trạng thái quyền",
+      "tokenUnavailable": "Thiết bị chưa cấp mã push. Hãy thử lại.",
+      "tokenFailed": "Không lấy được mã push.",
+      "registrationFailed": "Không đăng ký được thông báo với máy chủ. Hãy thử lại.",
+      "registered": "Thiết bị đã đăng ký với máy chủ.",
+      "apnsNotReady": "Tính năng gửi push trên iPhone chưa sẵn sàng. Cho phép thông báo chưa bật khả năng nhận push lúc này.",
+      "cancelled": "Chưa kiểm tra đăng ký."
+    }
   }
 }

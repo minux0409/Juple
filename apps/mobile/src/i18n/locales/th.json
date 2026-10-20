@@ -1438,5 +1438,34 @@
     "reauthBody": "Your export can contain private memos and locked Collections, so confirm your identity first.",
     "reauthAction": "Sign in again",
     "create": "Prepare download links"
+  },
+  "permissions": {
+    "title": "สิทธิ์ของแอป",
+    "intro": "เลือกเฉพาะสิทธิ์ที่ต้องการ คุณยังใช้ Juple ได้หากปฏิเสธหรือตั้งค่าภายหลัง",
+    "notifications": "การแจ้งเตือน",
+    "reason": "รับคำขอเป็นเพื่อนและคำเชิญเข้าคอลเลกชัน",
+    "photos": "เลือกรูปภาพ",
+    "picker": "ใช้เฉพาะรูปที่คุณเลือกผ่านตัวเลือกของระบบ ไม่ขอเข้าถึงทั้งคลังหรือกล้อง และรองรับการเลือกรูปแบบจำกัด",
+    "allow": "อนุญาตการแจ้งเตือน",
+    "later": "ตั้งค่าภายหลัง",
+    "continue": "ดำเนินการต่อ",
+    "settings": "เปิดการตั้งค่าอุปกรณ์",
+    "retry": "ลองลงทะเบียนอีกครั้ง",
+    "granted": "อนุญาตแล้ว",
+    "denied": "ยังไม่อนุญาต",
+    "notDetermined": "ยังไม่ตัดสินใจ",
+    "unavailable": "ตรวจสอบสิทธิ์ไม่ได้",
+    "apnsNotReady": "การส่ง push บน iPhone ยังไม่พร้อม แม้อนุญาตการแจ้งเตือนก็ยังรับ push ไม่ได้ในขณะนี้",
+    "sync": {
+      "idle": "ยังไม่ได้ตรวจสอบการลงทะเบียน",
+      "permissionDenied": "ยังไม่อนุญาต",
+      "permissionUnavailable": "ตรวจสอบสิทธิ์ไม่ได้",
+      "tokenUnavailable": "อุปกรณ์ยังไม่ออกโทเค็น push โปรดลองอีกครั้ง",
+      "tokenFailed": "รับโทเค็น push ไม่สำเร็จ",
+      "registrationFailed": "ลงทะเบียนการแจ้งเตือนกับเซิร์ฟเวอร์ไม่สำเร็จ โปรดลองอีกครั้ง",
+      "registered": "อุปกรณ์นี้ลงทะเบียนกับเซิร์ฟเวอร์แล้ว",
+      "apnsNotReady": "การส่ง push บน iPhone ยังไม่พร้อม แม้อนุญาตการแจ้งเตือนก็ยังรับ push ไม่ได้ในขณะนี้",
+      "cancelled": "ยังไม่ได้ตรวจสอบการลงทะเบียน"
+    }
   }
 }

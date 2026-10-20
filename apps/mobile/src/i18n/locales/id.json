@@ -1438,5 +1438,34 @@
     "reauthBody": "Your export can contain private memos and locked Collections, so confirm your identity first.",
     "reauthAction": "Sign in again",
     "create": "Prepare download links"
+  },
+  "permissions": {
+    "title": "Izin aplikasi",
+    "intro": "Pilih izin yang Anda inginkan. Juple tetap dapat digunakan jika ditolak atau diputuskan nanti.",
+    "notifications": "Notifikasi",
+    "reason": "Terima permintaan pertemanan dan undangan Koleksi.",
+    "photos": "Pilih foto",
+    "picker": "Hanya foto yang Anda pilih melalui pemilih sistem yang digunakan. Tidak meminta akses seluruh galeri atau kamera; pilihan foto terbatas juga didukung.",
+    "allow": "Izinkan notifikasi",
+    "later": "Atur nanti",
+    "continue": "Lanjutkan",
+    "settings": "Buka pengaturan perangkat",
+    "retry": "Coba pendaftaran lagi",
+    "granted": "Diizinkan",
+    "denied": "Tidak diizinkan",
+    "notDetermined": "Belum diputuskan",
+    "unavailable": "Status izin tidak tersedia",
+    "apnsNotReady": "Pengiriman push di iPhone belum tersedia. Mengizinkan notifikasi belum mengaktifkan penerimaan push saat ini.",
+    "sync": {
+      "idle": "Pendaftaran belum diperiksa.",
+      "permissionDenied": "Tidak diizinkan",
+      "permissionUnavailable": "Status izin tidak tersedia",
+      "tokenUnavailable": "Perangkat belum menerbitkan token push. Coba lagi.",
+      "tokenFailed": "Tidak dapat mengambil token push.",
+      "registrationFailed": "Tidak dapat mendaftarkan notifikasi ke server. Coba lagi.",
+      "registered": "Perangkat ini terdaftar di server.",
+      "apnsNotReady": "Pengiriman push di iPhone belum tersedia. Mengizinkan notifikasi belum mengaktifkan penerimaan push saat ini.",
+      "cancelled": "Pendaftaran belum diperiksa."
+    }
   }
 }

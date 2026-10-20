@@ -1438,5 +1438,34 @@
     "reauthBody": "Your export can contain private memos and locked Collections, so confirm your identity first.",
     "reauthAction": "Sign in again",
     "create": "Prepare download links"
+  },
+  "permissions": {
+    "title": "アプリの権限",
+    "intro": "必要な権限だけ選べます。拒否したり後で設定してもJupleを使えます。",
+    "notifications": "通知",
+    "reason": "友だち申請やコレクションへの招待をお知らせします。",
+    "photos": "写真の選択",
+    "picker": "システムの選択画面で選んだ写真だけを使います。アルバム全体やカメラの権限は求めません。写真の限定選択にも対応します。",
+    "allow": "通知を許可",
+    "later": "後で設定",
+    "continue": "続ける",
+    "settings": "端末の設定を開く",
+    "retry": "登録を再試行",
+    "granted": "許可済み",
+    "denied": "未許可",
+    "notDetermined": "未選択",
+    "unavailable": "権限を確認できません",
+    "apnsNotReady": "iPhoneのプッシュ配信は準備中です。通知を許可しても現在は受信できません。",
+    "sync": {
+      "idle": "登録状況は未確認です。",
+      "permissionDenied": "未許可",
+      "permissionUnavailable": "権限を確認できません",
+      "tokenUnavailable": "プッシュトークンが発行されていません。再試行してください。",
+      "tokenFailed": "プッシュトークンを取得できませんでした。",
+      "registrationFailed": "サーバーへの通知登録に失敗しました。再試行してください。",
+      "registered": "端末がサーバーに登録されました。",
+      "apnsNotReady": "iPhoneのプッシュ配信は準備中です。通知を許可しても現在は受信できません。",
+      "cancelled": "登録状況は未確認です。"
+    }
   }
 }

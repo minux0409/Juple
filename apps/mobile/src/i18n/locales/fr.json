@@ -1438,5 +1438,34 @@
     "reauthBody": "Your export can contain private memos and locked Collections, so confirm your identity first.",
     "reauthAction": "Sign in again",
     "create": "Prepare download links"
+  },
+  "permissions": {
+    "title": "Autorisations",
+    "intro": "Choisissez les autorisations souhaitées. Vous pouvez utiliser Juple après un refus ou décider plus tard.",
+    "notifications": "Notifications",
+    "reason": "Recevez les demandes d’amis et les invitations aux Collections.",
+    "photos": "Choisir des photos",
+    "picker": "Seules les photos choisies dans le sélecteur système sont utilisées. Aucun accès global aux photos ou à la caméra n’est demandé. La sélection limitée fonctionne aussi.",
+    "allow": "Autoriser les notifications",
+    "later": "Configurer plus tard",
+    "continue": "Continuer",
+    "settings": "Ouvrir les réglages",
+    "retry": "Réessayer l’inscription",
+    "granted": "Autorisé",
+    "denied": "Non autorisé",
+    "notDetermined": "Pas encore décidé",
+    "unavailable": "État de l’autorisation indisponible",
+    "apnsNotReady": "Les notifications push sur iPhone ne sont pas encore disponibles. Les autoriser ne permet pas encore de les recevoir.",
+    "sync": {
+      "idle": "L’inscription n’a pas été vérifiée.",
+      "permissionDenied": "Non autorisé",
+      "permissionUnavailable": "État de l’autorisation indisponible",
+      "tokenUnavailable": "L’appareil n’a pas émis de jeton push. Réessayez.",
+      "tokenFailed": "Impossible d’obtenir un jeton push.",
+      "registrationFailed": "Impossible d’inscrire les notifications sur le serveur. Réessayez.",
+      "registered": "Cet appareil est inscrit sur le serveur.",
+      "apnsNotReady": "Les notifications push sur iPhone ne sont pas encore disponibles. Les autoriser ne permet pas encore de les recevoir.",
+      "cancelled": "L’inscription n’a pas été vérifiée."
+    }
   }
 }

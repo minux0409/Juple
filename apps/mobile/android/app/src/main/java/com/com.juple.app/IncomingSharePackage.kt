@@ -12,6 +12,7 @@ class IncomingSharePackage : BaseReactPackage() {
     when (name) {
       NativeIncomingShareModule.Name -> NativeIncomingShareModule(reactContext)
       JupleSystemBarsModule.NAME -> JupleSystemBarsModule(reactContext)
+      JupleNotificationPermissionsModule.NAME -> JupleNotificationPermissionsModule(reactContext)
       else -> null
     }
 
@@ -27,6 +28,7 @@ class IncomingSharePackage : BaseReactPackage() {
       true,
     )
     val bars = ReactModuleInfo(JupleSystemBarsModule.NAME, JupleSystemBarsModule::class.java.name, false, false, false, false)
-    return ReactModuleInfoProvider { mapOf(NativeIncomingShareModule.Name to info, JupleSystemBarsModule.NAME to bars) }
+    val notifications = ReactModuleInfo(JupleNotificationPermissionsModule.NAME, JupleNotificationPermissionsModule::class.java.name, false, false, false, false)
+    return ReactModuleInfoProvider { mapOf(NativeIncomingShareModule.Name to info, JupleSystemBarsModule.NAME to bars, JupleNotificationPermissionsModule.NAME to notifications) }
   }
 }

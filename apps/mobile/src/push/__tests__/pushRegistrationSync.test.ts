@@ -4,7 +4,7 @@ import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
 import { getOrCreatePushInstallationId } from '../pushInstallationId';
 import { getPushPermissionStatus } from '../pushPermission';
 import { registerPushDevice } from '../api/pushDevicesApi';
-import { registerRefreshedPushToken, syncPushRegistrationIfPermitted } from '../pushRegistrationSync';
+import { registerRefreshedPushToken, syncPushRegistration, syncPushRegistrationIfPermitted } from '../pushRegistrationSync';
 
 const mockGetToken = jest.fn();
 jest.mock('@react-native-firebase/messaging', () => ({
@@ -85,8 +85,17 @@ describe('syncPushRegistrationIfPermitted', () => {
 });
 
 describe('registerRefreshedPushToken', () => {
+  const originalOS = Platform.OS;
+  beforeEach(() => Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true }));
   afterEach(() => {
     jest.clearAllMocks();
+    Object.defineProperty(Platform, 'OS', { value: originalOS, configurable: true });
+  });
+
+  it('does not register an Android token on iOS', async () => {
+    Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
+    await registerRefreshedPushToken(authenticatedRequest, 'android-token');
+    expect(registerPushDevice).not.toHaveBeenCalled();
   });
 
   it('does nothing for an empty token', async () => {
@@ -120,5 +129,27 @@ describe('registerRefreshedPushToken', () => {
     jest.mocked(getPushPermissionStatus).mockRejectedValue(new Error('boom'));
 
     await expect(registerRefreshedPushToken(authenticatedRequest, 'new-token')).resolves.toBeUndefined();
+  });
+});
+
+describe('registration diagnosis and session races', () => {
+  const originalOS = Platform.OS;
+  beforeEach(() => { Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true }); jest.mocked(getPushPermissionStatus).mockResolvedValue('granted'); jest.mocked(getOrCreatePushInstallationId).mockResolvedValue('private-installation'); });
+  afterEach(() => { jest.clearAllMocks(); jest.restoreAllMocks(); Object.defineProperty(Platform, 'OS', { value: originalOS, configurable: true }); });
+  it('distinguishes missing token, token failure and server failure without logging their secrets', async () => {
+    const log = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+    mockGetToken.mockResolvedValueOnce(null); expect(await syncPushRegistration(authenticatedRequest)).toBe('tokenUnavailable');
+    mockGetToken.mockRejectedValueOnce(new Error('private-token-source')); expect(await syncPushRegistration(authenticatedRequest)).toBe('tokenFailed');
+    mockGetToken.mockResolvedValueOnce('private-fcm-token'); jest.mocked(registerPushDevice).mockRejectedValueOnce({ status: 503, body: 'private-backend-body' });
+    expect(await syncPushRegistration(authenticatedRequest)).toBe('registrationFailed');
+    const logs = JSON.stringify(log.mock.calls); expect(logs).toContain('503'); expect(logs).not.toMatch(/private-/);
+  });
+  it('does not register a token that finishes acquisition after logout invalidated the epoch', async () => {
+    const { invalidatePushRegistration } = require('../pushMutationQueue');
+    let finish!: (token: string) => void; mockGetToken.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const pending = syncPushRegistration(authenticatedRequest);
+    await Promise.resolve(); await Promise.resolve();
+    invalidatePushRegistration(); finish('old-session-token');
+    expect(await pending).toBe('cancelled'); expect(registerPushDevice).not.toHaveBeenCalled();
   });
 });
