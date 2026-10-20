@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ThemedTextInput } from '../components/ThemedTextInput';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
@@ -343,9 +343,8 @@ const styles = themedStyles(() => ({
   removeButton: { borderColor: colors.danger },
   sharedState: { marginTop: spacing.sm },
   sharedEmpty: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.sm },
-  // Title -> tiles: spacing.sm, like the loading / empty / failed states under the same title. Android's Text font padding already
-  // adds about that much below the title, so only iOS (no font padding) needs the larger top inset.
-  sharedTiles: { columnGap: spacing.sm, paddingVertical: spacing.xs, ...Platform.select({ ios: { paddingTop: spacing.sm } }) },
+  // One explicit title-to-list inset on both platforms; keep the row's bottom and tile spacing.
+  sharedTiles: { columnGap: spacing.sm, paddingTop: spacing.lg, paddingBottom: spacing.xs },
   sharedTile: { alignItems: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.xs, rowGap: spacing.xs, width: 84 },
   sharedLock: { backgroundColor: colors.surface, borderRadius: 8, bottom: -3, padding: 2, position: 'absolute', right: -3 },
   sharedMore: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget },

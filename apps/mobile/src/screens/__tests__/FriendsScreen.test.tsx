@@ -1,7 +1,7 @@
 import { BrokenLinkIcon } from '../../icons/BrokenLinkIcon';
 import { InfoIcon } from '../../icons/InfoIcon';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { AppState, FlatList, Image, ScrollView, StyleSheet, Text, TextInput } from 'react-native';
+import { AppState, FlatList, Image, Platform, ScrollView, StyleSheet, Text, TextInput } from 'react-native';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { FriendsScreen, OUTGOING_POLL_INTERVAL_MS, OUTGOING_POLL_MAX_MS } from '../FriendsScreen';
@@ -26,7 +26,7 @@ import { SearchIcon } from '../../icons/SearchIcon';
 import { CopyIcon } from '../../icons/CopyIcon';
 import { ActionMenuDialog } from '../../components/ActionMenuDialog';
 import { SwipeableItemRow } from '../../components/SwipeableItemRow';
-import { colors, radii, spacing } from '../../theme/tokens';
+import { colors, radii, spacing, getActiveColorScheme, setActiveColorScheme } from '../../theme/tokens';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { emitSocialPushEvent } from '../../push/pushEvents';
 import { listBlockedUsers } from '../../safety/safetyApi';
@@ -46,7 +46,6 @@ import {
 } from '../../friends/api/friendsApi';
 
 jest.mock('@react-native-clipboard/clipboard', () => ({ __esModule: true, default: { setString: jest.fn() } }));
-jest.mock('../../push/pushPermissionFlow', () => ({ ensurePushPermissionOnce: jest.fn() }));
 const mockPrefs = new Map<string, string>();
 jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,
@@ -1342,5 +1341,40 @@ describe('FriendsScreen - shared Collections as compact tiles', () => {
     expect(StyleSheet.flatten(tile.findByType(Text).props.style).textAlign).toBe('center');
     expect(tile.props.accessibilityLabel).toBe('아주 아주 긴 컬렉션 이름이 두 줄을 넘어가는 경우');
     expect(byId(renderer, 'friend-shared-22').findAllByType(LockIcon)).toHaveLength(1);
+  });
+});
+
+
+describe('friend shared collection title spacing on both platforms and themes', () => {
+  it.each([
+    ['android', 'light'], ['android', 'dark'], ['ios', 'light'], ['ios', 'dark'],
+  ] as const)('%s / %s keeps a 16dp title-to-list inset and the existing scroll and tile layout', async (os, scheme) => {
+    const previousOS = Platform.OS;
+    const previousScheme = getActiveColorScheme();
+    let renderer: Renderer | undefined;
+    try {
+      Object.defineProperty(Platform, 'OS', { configurable: true, value: os });
+      setActiveColorScheme(scheme);
+      jest.mocked(getFriendSharedCollections).mockResolvedValue({ items: [
+        { id: 21, name: 'Shared', icon: 'Folder', color: null, itemCount: 1, isFavorite: false, accessRole: 'owner' },
+      ] as never, nextCursor: null });
+      renderer = await renderScreen();
+      await press(renderer, 'friend-7');
+      const list = renderer.root.findAllByType(ScrollView).find(node => node.props.testID === 'friend-shared-list')!;
+      expect(list.props.horizontal).toBe(true);
+      expect(StyleSheet.flatten(list.props.contentContainerStyle)).toMatchObject({
+        paddingTop: 16, paddingBottom: spacing.xs, columnGap: spacing.sm,
+      });
+      expect(StyleSheet.flatten(byId(renderer, 'friend-shared-21').props.style)).toMatchObject({
+        width: 84, paddingHorizontal: spacing.xs, rowGap: spacing.xs,
+      });
+      expect(renderer.root.findAllByType(ScrollView).some(node =>
+        node.props.keyboardShouldPersistTaps === 'handled' && !node.props.horizontal,
+      )).toBe(true);
+    } finally {
+      if (renderer) act(() => renderer!.unmount());
+      Object.defineProperty(Platform, 'OS', { configurable: true, value: previousOS });
+      setActiveColorScheme(previousScheme);
+    }
   });
 });
