@@ -27,9 +27,40 @@ export interface StoreSubscription {
   readonly endedAtUtc: string | null;
 }
 
+export type DataRetentionPhase = 'billingHold' | 'readOnly' | 'deletionDue';
+
+export interface DataRetention {
+  readonly phase: DataRetentionPhase;
+  readonly basis: 'paidAccessEnded' | 'trialEnded' | null;
+  readonly accessEndedAtUtc: string | null;
+  readonly deletionScheduledAtUtc: string | null;
+  readonly nextNoticeAtUtc: string | null;
+  readonly readOnly: boolean;
+}
+
 const ENTITLEMENT_STATUSES: readonly EntitlementStatus[] = ['trial', 'active', 'gracePeriod', 'expired'];
 const ENTITLEMENT_REASONS: readonly EntitlementReason[] = ['none', 'cancelled', 'billingIssue', 'refunded', 'paused'];
 const timestampOrNull = (value: unknown): string | null => (typeof value === 'string' && value.length > 0 ? value : null);
+
+/** Additive bootstrap state; an absent/malformed/newer phase is ignored instead of guessed. */
+export function parseDataRetention(raw: unknown): DataRetention | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const value = raw as Record<string, unknown>;
+  const phase = (['billingHold', 'readOnly', 'deletionDue'] as const).find(candidate => candidate === value.phase);
+  if (!phase) return null;
+  return {
+    phase,
+    basis: value.basis === 'paidAccessEnded' || value.basis === 'trialEnded' ? value.basis : null,
+    accessEndedAtUtc: timestampOrNull(value.accessEndedAtUtc),
+    deletionScheduledAtUtc: timestampOrNull(value.deletionScheduledAtUtc),
+    nextNoticeAtUtc: timestampOrNull(value.nextNoticeAtUtc),
+    readOnly: value.readOnly === true,
+  };
+}
+
+export function parseDataExportEnabled(raw: unknown): boolean {
+  return typeof raw === 'object' && raw !== null && (raw as Record<string, unknown>).enabled === true;
+}
 
 /** Absent or malformed = null; a status / reason this build does not know (a newer server) is null rather than guessed. */
 export function parseEntitlement(raw: unknown): Entitlement | null {

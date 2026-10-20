@@ -27,7 +27,7 @@ import {
 import { getPerfRecorder } from '../../lib/perfDiagnostics';
 import { ACTIVE_CHECK_INTERVAL_MS, createSessionValidator, FOCUS_CHECK_INTERVAL_MS, type SessionValidator } from '../../lib/sessionValidation';
 import { settleReauthenticationFailure } from '../../lib/reauthFailure';
-import { parseEntitlement, parseStoreSubscription, type Entitlement, type StoreSubscription } from '../../lib/subscription';
+import { parseDataExportEnabled, parseDataRetention, parseEntitlement, parseStoreSubscription, type DataRetention, type Entitlement, type StoreSubscription } from '../../lib/subscription';
 import type { WebAppConfig } from '../../lib/webAppConfig';
 import { AppShell } from './AppShell';
 import { TourProvider } from './TourProvider';
@@ -57,6 +57,8 @@ interface SignedInApp {
   /** The bootstrap's subscription facts (null = not reported). */
   readonly entitlement: Entitlement | null;
   readonly storeSubscription: StoreSubscription | null;
+  readonly dataRetention: DataRetention | null;
+  readonly dataExportEnabled: boolean;
   /** The result of a same-account re-authentication this page load returned from (null = none), for the page that asked. */
   readonly reauthentication: ReauthenticationResult | null;
   readonly clearReauthentication: () => void;
@@ -66,6 +68,7 @@ interface SignedInApp {
   readonly signOut: () => void;
   /** The host of the canonical Collection share links (null = not configured: nothing pasted is taken for one). */
   readonly publicWebHost: string | null;
+  readonly apiBaseUrl: string;
   /** Where to get the app (Google Play; the App Store only when a listing is configured). */
   readonly appDownload: AppDownload;
 }
@@ -137,6 +140,8 @@ export function AppRoot({
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [entitlement, setEntitlement] = useState<Entitlement | null>(null);
   const [storeSubscription, setStoreSubscription] = useState<StoreSubscription | null>(null);
+  const [dataRetention, setDataRetention] = useState<DataRetention | null>(null);
+  const [dataExportEnabled, setDataExportEnabled] = useState(false);
   const [reauthentication, setReauthentication] = useState<ReauthenticationResult | null>(null);
   // The Terms the server asks for and whether they were accepted (from the bootstrap). Until they are accepted the Agreement is the only
   // thing shown (before the shell, and so before the tutorial); a refusal for a NEWER Terms version brings it back the same way.
@@ -192,6 +197,8 @@ export function AppRoot({
     setProfile(null);
     setEntitlement(null);
     setStoreSubscription(null);
+    setDataRetention(null);
+    setDataExportEnabled(false);
     setTerms(null);
     setNotice(message);
     setStatus('signedOut');
@@ -206,7 +213,7 @@ export function AppRoot({
       getPerfRecorder().mark('bootstrapStart');
     }
     try {
-      const result = await api<{ readonly entitlement?: unknown; readonly storeSubscription?: unknown; readonly terms?: unknown } | undefined>({
+      const result = await api<{ readonly entitlement?: unknown; readonly storeSubscription?: unknown; readonly terms?: unknown; readonly dataRetention?: unknown; readonly dataExport?: unknown } | undefined>({
         method: 'POST',
         path: '/api/v1/users/me/bootstrap',
         body: bootstrapRequestBody(navigator.language, Intl.DateTimeFormat().resolvedOptions().timeZone),
@@ -214,6 +221,8 @@ export function AppRoot({
       clearAccountCreationMarker();
       setEntitlement(parseEntitlement(result?.entitlement));
       setStoreSubscription(parseStoreSubscription(result?.storeSubscription));
+      setDataRetention(parseDataRetention(result?.dataRetention));
+      setDataExportEnabled(parseDataExportEnabled(result?.dataExport));
       setTerms(parseTermsStatus(result?.terms));
       setStatus('ready');
       // Best effort, after the account exists: who to show (the mobile 내 페이지's own source). A failure only leaves the fallback label.
@@ -417,16 +426,19 @@ export function AppRoot({
             updateProfile: setProfile,
             entitlement,
             storeSubscription,
+            dataRetention,
+            dataExportEnabled,
             reauthentication,
             clearReauthentication,
             reauthenticate,
             onSessionLost,
             signOut,
             publicWebHost: config?.publicWebHost ?? null,
+            apiBaseUrl: config!.apiBaseUrl,
             appDownload,
           }
         : null,
-    [account, api, appDownload, clearReauthentication, config, dictionary, entitlement, language, languagePreference, onSessionLost, profile, reauthenticate, reauthentication, setLanguagePreference, signOut, storeSubscription],
+    [account, api, appDownload, clearReauthentication, config, dataExportEnabled, dataRetention, dictionary, entitlement, language, languagePreference, onSessionLost, profile, reauthenticate, reauthentication, setLanguagePreference, signOut, storeSubscription],
   );
 
   const content = (() => {

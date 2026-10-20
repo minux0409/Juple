@@ -88,7 +88,7 @@ export async function resolveSignedInAccount(msal: PublicClientApplication): Pro
 // ---- re-authentication: "sign in again to confirm it's you" (mobile auth/reauthentication.ts) ------------------------------------
 
 /** What the fresh sign-in is for - the page that asked continues only with its own purpose. */
-export type ReauthenticationPurpose = 'collectionLockSetup' | 'collectionLockReset' | 'deleteAccount' | 'passwordReset';
+export type ReauthenticationPurpose = 'collectionLockSetup' | 'collectionLockReset' | 'deleteAccount' | 'passwordReset' | 'dataExport';
 
 export interface ReauthenticationResult {
   readonly purpose: ReauthenticationPurpose;
@@ -96,7 +96,7 @@ export interface ReauthenticationResult {
 }
 
 const PENDING_REAUTH_KEY = 'juple.web.pendingReauthentication';
-const PURPOSES: readonly ReauthenticationPurpose[] = ['collectionLockSetup', 'collectionLockReset', 'deleteAccount', 'passwordReset'];
+const PURPOSES: readonly ReauthenticationPurpose[] = ['collectionLockSetup', 'collectionLockReset', 'deleteAccount', 'passwordReset', 'dataExport'];
 
 /** The same person: tenant + object id (MSAL's localAccountId) - never the e-mail, which can change. */
 export function sameAccount(a: Pick<AccountInfo, 'tenantId' | 'localAccountId'>, b: Pick<AccountInfo, 'tenantId' | 'localAccountId'>): boolean {
