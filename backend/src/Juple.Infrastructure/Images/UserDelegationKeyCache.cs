@@ -42,11 +42,10 @@ public sealed class UserDelegationKeyCache : IDisposable
 
     private static readonly TimeSpan KeyValidity = TimeSpan.FromHours(1);
 
-    // Must stay comfortably above ItemImageStore.ReadUrlTtl (currently 15 minutes): Azure rejects
-    // a SAS whose ExpiresOn is later than the User Delegation Key that signed it, so a key must
-    // never be handed out with less remaining validity than the longest SAS it could be asked to
-    // sign - otherwise the very last read URLs signed before a refresh would be born already
-    // rejected by Storage.
+    // Azure rejects a SAS whose ExpiresOn is later than the User Delegation Key that signed it.
+    // ItemImageStore.ReadUrlValidity caps each read URL at the key's expiry, so this buffer is the
+    // SHORTEST life a read URL can have (a key is never handed out with less than 20 minutes left);
+    // read URLs otherwise end at their window end + grace (at most 45 minutes after issue).
     private static readonly TimeSpan RefreshBuffer = TimeSpan.FromMinutes(20);
 
     private readonly BlobServiceClient blobServiceClient;

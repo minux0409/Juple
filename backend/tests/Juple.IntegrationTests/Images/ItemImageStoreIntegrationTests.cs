@@ -106,6 +106,38 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ReadUrls_AreIdenticalWithinAWindow_AndActuallyDownloadTheImmutableBytes()
+    {
+        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
+        var image = await store.UploadAsync(_userId, _itemId, ImageVariants, DateTimeOffset.UtcNow);
+        var blobName = (await _dbContext.ItemImages.AsNoTracking().SingleAsync(row => row.Id == image.Id)).BlobName;
+
+        var before = DateTimeOffset.UtcNow;
+        var first = await store.CreateReadUrlAsync(_userId, blobName);
+        var second = await store.CreateReadUrlAsync(_userId, blobName);
+        var after = DateTimeOffset.UtcNow;
+
+        // Within one 30-minute window (the rare call straddling a boundary is allowed to differ - then the windows differ too).
+        if (ItemImageStore.ReadUrlValidity(before, null) == ItemImageStore.ReadUrlValidity(after, null))
+        {
+            Assert.Equal(first, second);
+        }
+
+        // The URL really works and carries the immutable caching the platform caches rely on.
+        using var http = new HttpClient();
+        using var response = await http.GetAsync(first);
+        Assert.True(response.IsSuccessStatusCode);
+        Assert.Equal(JpegBytes, await response.Content.ReadAsByteArrayAsync());
+        var cacheControl = response.Headers.CacheControl!;
+        Assert.True(cacheControl.Private);
+        Assert.Equal(TimeSpan.FromDays(365), cacheControl.MaxAge);
+        Assert.Contains(cacheControl.Extensions, extension => extension.Name == "immutable");
+
+        // Another user's prefix is still refused - the window changes nothing about who may get a URL.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => store.CreateReadUrlAsync(_userId + 1, blobName));
+    }
+
+    [Fact]
     public async Task UploadAsync_EndToEndThroughApplicationService_IgnoresClientContentTypeAndDetectsRealFormat()
     {
         // A PNG's real magic bytes, exercising the full Application -> Store -> Blob path - the

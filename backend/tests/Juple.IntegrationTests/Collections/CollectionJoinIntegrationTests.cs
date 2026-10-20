@@ -275,6 +275,9 @@ public sealed class CollectionJoinIntegrationTests : IAsyncLifetime
 
         Assert.Null(await _join.RequestAsync(_alice, _publicId, null));
         Assert.Null(await new PublicShareMembershipStore(_db).GetAsync(_publicId, _owner));
+        // The public read side answers nothing either, so no response after the revoke carries a signed Collection photo URL.
+        Assert.Null(await new PublicCollectionStore(_db).GetLinkStateAsync(_publicId));
+        Assert.Null(await new PublicCollectionStore(_db).GetStateAsync(_publicId));
     }
 
     // ---------- the request, and the requester's pending placeholder ----------

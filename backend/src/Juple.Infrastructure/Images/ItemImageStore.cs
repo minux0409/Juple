@@ -20,8 +20,38 @@ public sealed class ItemImageStore(
     UserDelegationKeyCache userDelegationKeyCache,
     ILogger<ItemImageStore> logger) : IItemImageStore, IItemImageStorage, ICollectionIconImageStorage, IUserProfileImageStorage
 {
-    private static readonly TimeSpan ReadUrlTtl = TimeSpan.FromMinutes(15);
+    /// <summary>
+    /// Read URLs are signed for a fixed UTC window instead of "now + TTL": every response for the same Blob inside one window gets
+    /// the IDENTICAL URL (same start, expiry, key and permissions = same signature). The platform image caches - Fresco on Android,
+    /// the URL cache on iOS, the browser HTTP cache - key on the exact URL, and the Blob is served "private, max-age=1y, immutable",
+    /// so a repeat view in a later session, a reload or another screen within the window is served from the device without a
+    /// download. Previously every response carried a new URL and the same immutable bytes were fetched again.
+    /// A URL is valid from issue until ReadUrlWindow end + ReadUrlGrace: at least 15 and at most 45 minutes (was 15). Nothing is
+    /// public, only Read is granted, and the URL is still only ever handed out after the API's own ownership / access checks.
+    /// </summary>
+    public static readonly TimeSpan ReadUrlWindow = TimeSpan.FromMinutes(30);
+
+    public static readonly TimeSpan ReadUrlGrace = TimeSpan.FromMinutes(15);
+
     private static readonly TimeSpan ClockSkewBuffer = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// The [start, expiry] a read URL issued at <paramref name="nowUtc"/> is signed for: start = window start - 5 min (clock skew),
+    /// expiry = window end + grace, never later than the signing User Delegation Key (Azure rejects a SAS outliving its key). Pure.
+    /// </summary>
+    public static (DateTimeOffset StartsOn, DateTimeOffset ExpiresOn) ReadUrlValidity(DateTimeOffset nowUtc, DateTimeOffset? signingKeyExpiresOn)
+    {
+        var now = nowUtc.ToUniversalTime();
+        var windowTicks = ReadUrlWindow.Ticks;
+        var windowStart = new DateTimeOffset(now.UtcTicks - (now.UtcTicks % windowTicks), TimeSpan.Zero);
+        var expiresOn = windowStart + ReadUrlWindow + ReadUrlGrace;
+        if (signingKeyExpiresOn is { } keyExpiry && keyExpiry.ToUniversalTime() < expiresOn)
+        {
+            expiresOn = keyExpiry.ToUniversalTime();
+        }
+
+        return (windowStart - ClockSkewBuffer, expiresOn);
+    }
     private const string ImmutablePrivateCacheControl = "private, max-age=31536000, immutable";
     private const string MainImageSuffix = ".main.webp";
     private const string ThumbnailImageSuffix = ".thumb.webp";
@@ -314,13 +344,15 @@ public sealed class ItemImageStore(
         try
         {
             var blobClient = blobContainerClient.GetBlobClient(blobName);
+            var nowUtc = DateTimeOffset.UtcNow;
+            var (startsOn, expiresOn) = ReadUrlValidity(nowUtc, signingKeyExpiresOn: null);
             var sasBuilder = new BlobSasBuilder
             {
                 BlobContainerName = blobContainerClient.Name,
                 BlobName = blobName,
                 Resource = "b",
-                StartsOn = DateTimeOffset.UtcNow.Subtract(ClockSkewBuffer),
-                ExpiresOn = DateTimeOffset.UtcNow.Add(ReadUrlTtl),
+                StartsOn = startsOn,
+                ExpiresOn = expiresOn,
             };
             sasBuilder.SetPermissions(BlobSasPermissions.Read);
 
@@ -340,6 +372,8 @@ public sealed class ItemImageStore(
             stage = ReadUrlStage.DelegationKey;
             var userDelegationKey = await userDelegationKeyCache.GetOrRefreshAsync(cancellationToken);
             stage = ReadUrlStage.Sign;
+            // Same window, capped by the signing key's own expiry (deterministic for as long as the same key is in use).
+            sasBuilder.ExpiresOn = ReadUrlValidity(nowUtc, userDelegationKey.SignedExpiresOn).ExpiresOn;
             var uriBuilder = new BlobUriBuilder(blobClient.Uri)
             {
                 Sas = sasBuilder.ToSasQueryParameters(userDelegationKey, blobServiceClient.AccountName),
