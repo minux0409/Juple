@@ -10,7 +10,7 @@ import { StarIcon } from '../../icons/StarIcon';
 import { PendingActionRow } from '../../components/PendingActionRow';
 import { radii, spacing } from '../../theme/tokens';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Dimensions, FlatList, Image, Linking, StyleSheet, Text, TextInput } from 'react-native';
+import { Dimensions, FlatList, Image, Linking, Platform, RefreshControl, StyleSheet, Text, TextInput } from 'react-native';
 import { colors } from '../../theme/tokens';
 import { collectionFilterColors } from '../../theme/tokens';
 import { resolveCollectionColorTile } from '../../collections/collectionColors';
@@ -145,6 +145,56 @@ async function renderScreen() {
 /** The create dialog's name field (the screen's own search field is a second TextInput). */
 const createNameInput = (renderer: ReactTestRenderer.ReactTestRenderer) =>
   renderer.root.findAllByType(TextInput).filter(input => input.props.testID !== 'collections-search')[0];
+
+describe('CollectionsScreen - refresh spinner (iOS stuck spinner after coming back from a Collection)', () => {
+  const originalOS = Platform.OS;
+  beforeEach(() => {
+    Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
+    setUpGetCollectionsMock();
+  });
+  afterEach(() => {
+    Object.defineProperty(Platform, 'OS', { value: originalOS, configurable: true });
+    jest.clearAllMocks();
+  });
+  const nativeSpinner = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findByType(RefreshControl).props.refreshing;
+  const deferred = <T,>() => {
+    let resolve!: (value: T) => void;
+    let reject!: (error: unknown) => void;
+    const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
+    return { promise, resolve, reject };
+  };
+
+  it('the focus reload (return from a Collection) never turns the native spinner on, while it runs or after it ends', async () => {
+    const pending = deferred<Awaited<ReturnType<typeof getCollections>>>();
+    jest.mocked(getCollections).mockReturnValueOnce(pending.promise);
+    const renderer = await renderScreen();
+    expect(nativeSpinner(renderer)).toBe(false); // the request is still running
+    await act(async () => { pending.resolve({ items: favoriteCollections, nextCursor: null }); });
+    expect(nativeSpinner(renderer)).toBe(false);
+    act(() => renderer.unmount());
+  });
+
+  it('a pull shows the spinner only while its request runs - it ends on success and on a network failure', async () => {
+    const renderer = await renderScreen();
+    const pull = () => act(() => renderer.root.findByType(RefreshControl).props.onRefresh());
+
+    const ok = deferred<Awaited<ReturnType<typeof getCollections>>>();
+    jest.mocked(getCollections).mockReturnValueOnce(ok.promise);
+    pull();
+    expect(nativeSpinner(renderer)).toBe(true);
+    await act(async () => { ok.resolve({ items: favoriteCollections, nextCursor: null }); });
+    expect(nativeSpinner(renderer)).toBe(false);
+
+    const failing = deferred<Awaited<ReturnType<typeof getCollections>>>();
+    jest.mocked(getCollections).mockReturnValueOnce(failing.promise);
+    pull();
+    expect(nativeSpinner(renderer)).toBe(true);
+    await act(async () => { failing.reject(new ApiError('unavailable', 503)); });
+    expect(nativeSpinner(renderer)).toBe(false);
+    expect(renderer.root.findAllByProps({ testID: 'collections-refresh-failure' }).length).toBeGreaterThan(0);
+    act(() => renderer.unmount());
+  });
+});
 
 describe('CollectionsScreen filters', () => {
   afterEach(() => {

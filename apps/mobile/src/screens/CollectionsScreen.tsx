@@ -13,11 +13,11 @@ import {
   Linking,
   Platform,
   Pressable,
-  RefreshControl,
   useWindowDimensions,
   Text,
   View,
 } from 'react-native';
+import { PullRefreshControl } from '../components/PullRefreshControl';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
@@ -838,7 +838,7 @@ export function CollectionsScreen() {
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         refreshControl={
-          <RefreshControl
+          <PullRefreshControl
             refreshing={isRefreshing}
             onRefresh={() => {
               load(filter, 'refresh');

@@ -2,7 +2,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Image, Pressable, RefreshControl, SectionList, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, SectionList, Text, View } from 'react-native';
+import { PullRefreshControl } from '../components/PullRefreshControl';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { ImportantState } from '../components/ImportantState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
@@ -158,7 +159,7 @@ export function NotificationsScreen({ navigation }: Props) {
         }}
         onEndReachedThreshold={0.5}
         onScrollBeginDrag={closeOpenRow}
-        refreshControl={<RefreshControl onRefresh={() => reload('refresh')} refreshing={state.isRefreshing} />}
+        refreshControl={<PullRefreshControl onRefresh={() => reload('refresh')} refreshing={state.isRefreshing} />}
         renderItem={({ item }) => <NotificationRow notification={item} onDelete={() => deleteRow(item)} onPress={() => openRow(item)} />}
         renderSectionHeader={({ section }) => (
           <Text accessibilityRole="header" style={styles.sectionHeader} testID={`notifications-group-${section.key}`}>{section.title}</Text>

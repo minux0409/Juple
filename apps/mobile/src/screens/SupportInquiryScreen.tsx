@@ -2,7 +2,8 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
+import { PullRefreshControl } from '../components/PullRefreshControl';
 import { ThemedTextInput } from '../components/ThemedTextInput';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
@@ -214,7 +215,7 @@ function InquiryHistory({ history, onOpen }: { readonly history: ReturnType<type
       }
       onEndReached={() => { history.loadMore().catch(() => undefined); }}
       onEndReachedThreshold={0.5}
-      refreshControl={<RefreshControl onRefresh={() => { history.refresh().catch(() => undefined); }} refreshing={history.isRefreshing} />}
+      refreshControl={<PullRefreshControl onRefresh={() => { history.refresh().catch(() => undefined); }} refreshing={history.isRefreshing} />}
       renderItem={({ item }) => <InquiryRow inquiry={item} onPress={() => onOpen(item)} />}
       testID="inquiry-history"
     />

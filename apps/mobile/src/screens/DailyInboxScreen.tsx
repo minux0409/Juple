@@ -9,10 +9,10 @@ import {
   FlatList,
   Platform,
   Pressable,
-  RefreshControl,
   Text,
   View,
 } from 'react-native';
+import { PullRefreshControl } from '../components/PullRefreshControl';
 import { ThemedTextInput } from '../components/ThemedTextInput';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
@@ -561,7 +561,7 @@ export function DailyInboxScreen() {
         onEndReachedThreshold={0.5}
         onScrollBeginDrag={closeOpenRow}
         refreshControl={
-          <RefreshControl
+          <PullRefreshControl
             refreshing={isRefreshing}
             onRefresh={() => {
               if (actionInFlightItemId !== null) {
