@@ -54,6 +54,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate, RNAppAuthAuthorizationFlo
 }
 
 class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
+  // From the launch screen to React Native's first frame without a flash: the root view takes the launch screen's background
+  // (not systemBackground) and shows the launch screen itself until the JS surface runs, then hides it.
+  override func customize(_ rootView: RCTRootView) {
+    super.customize(rootView)
+    rootView.backgroundColor = UIColor(named: "LaunchBackground")
+    if let launchScreen = UIStoryboard(name: "LaunchScreen", bundle: nil).instantiateInitialViewController()?.view {
+      rootView.loadingView = launchScreen
+    }
+  }
+
   override func sourceURL(for bridge: RCTBridge) -> URL? {
     self.bundleURL()
   }
