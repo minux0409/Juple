@@ -66,6 +66,10 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         builder.Services.AddSingleton<IAdminAnalyticsService, AdminAnalyticsService>();
         builder.Services.AddSingleton(new Juple.Application.Billing.BillingOptions()); // the program off, as in Production
         builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddSingleton(new Juple.Application.Expenses.ExpenseOptions());
+        builder.Services.AddSingleton(sp => new Juple.Application.Expenses.ExpenseService(null!, sp.GetRequiredService<IAdminAccessStore>(), sp.GetRequiredService<Juple.Application.Expenses.ExpenseOptions>(), TimeProvider.System));
+        builder.Services.AddSingleton(sp => new Juple.Application.Expenses.ExpenseSyncService(null!, null!, sp.GetRequiredService<Juple.Application.Expenses.ExpenseService>(), sp.GetRequiredService<Juple.Application.Expenses.ExpenseOptions>(), TimeProvider.System));
+        builder.Services.AddSingleton(sp => new Juple.Application.Expenses.ExpenseEvidenceService(sp.GetRequiredService<Juple.Application.Expenses.ExpenseService>(), null!, null!, null!, TimeProvider.System));
         // The Production shape: Android 31 / 24 with its Play URL, iOS without a policy.
         builder.Services.AddSingleton(Options.Create(new MobileVersionPolicyOptions
         {
@@ -139,6 +143,39 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
     public async Task AnEntraIdentityWithoutAJupleAccount_Is403()
     {
         Assert.Equal(HttpStatusCode.Forbidden, (await SendAsync("GET", "/api/v1/admin/me", NoAccountOid)).StatusCode);
+    }
+
+    [Theory]
+    [InlineData("GET", "")]
+    [InlineData("GET", "/configuration")]
+    [InlineData("GET", "/summary")]
+    [InlineData("GET", "/due?asOf=2026-10-20")]
+    [InlineData("GET", "/7")]
+    [InlineData("GET", "/export?format=xlsx")]
+    [InlineData("GET", "/7/attachments/1")]
+    [InlineData("GET", "/7/audit")]
+    [InlineData("POST", "")]
+    [InlineData("PUT", "/7")]
+    [InlineData("DELETE", "/7")]
+    [InlineData("POST", "/sync")]
+    [InlineData("POST", "/schedules/project")]
+    [InlineData("POST", "/7/attachments")]
+    [InlineData("DELETE", "/7/attachments/1")]
+    public async Task Expenses_never_reach_a_store_without_an_active_admin(string method, string suffix)
+    {
+        Assert.Equal(HttpStatusCode.Unauthorized, (await SendAsync(method, "/api/v1/admin/expenses" + suffix, null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await SendAsync(method, "/api/v1/admin/expenses" + suffix, MemberOid)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await SendAsync(method, "/api/v1/admin/expenses" + suffix, InactiveAdminOid)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Expense_configuration_is_admin_only_and_does_not_enable_billing_or_the_ledger()
+    {
+        var response = await SendAsync("GET", "/api/v1/admin/expenses/configuration", AdminOid);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("no-store", response.Headers.CacheControl!.ToString());
+        var json = await response.Content.ReadAsStringAsync();
+        Assert.Contains("\"enabled\":false", json); Assert.Contains("\"monthlyUsdReferencePrice\":1.99", json);
     }
 
     [Fact]
@@ -237,7 +274,7 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
             }
         }
 
-        Assert.Equal(["AdminController", "AdminSupportInquiriesController"], controllers.Where(type => type.Namespace == typeof(AdminController).Namespace).Select(type => type.Name).Order().ToArray());
+        Assert.Equal(["AdminController", "AdminExpensesController", "AdminSupportInquiriesController"], controllers.Where(type => type.Namespace == typeof(AdminController).Namespace).Select(type => type.Name).Order().ToArray());
     }
 
     private Task<HttpResponseMessage> SendAsync(string method, string path, Guid? identity, string scope = Scope)

@@ -114,6 +114,28 @@ public static class DependencyInjection
         services.AddScoped<Juple.Application.Admin.IAdminUserDirectoryStore, Juple.Infrastructure.Admin.AdminUserDirectoryStore>();
         services.AddScoped<Juple.Application.Admin.IAdminSupportInquiryStore, Juple.Infrastructure.Admin.AdminSupportInquiryStore>();
         services.AddScoped<Juple.Application.Admin.IAdminAnalyticsStore, Juple.Infrastructure.Analytics.AdminAnalyticsStore>();
+        // Company ledger: no collection/user-content access, no work or ARM calls until explicitly enabled.
+        var expenseOptions = configuration.GetSection("Expenses").Get<Juple.Application.Expenses.ExpenseOptions>() ?? new();
+        if (expenseOptions.AzureSyncEnabled && !expenseOptions.Enabled)
+            throw new InvalidOperationException("Expenses must be enabled before Azure expense synchronization.");
+        if (expenseOptions.Enabled)
+        {
+            foreach (var scope in expenseOptions.AzureScopes) Juple.Application.Expenses.ExpenseRules.ValidateScope(scope);
+            if (expenseOptions.AzureScopes.Select(s => s.Scope.ToLowerInvariant()).Distinct().Count() != expenseOptions.AzureScopes.Count
+                || expenseOptions.ClamAvPort is < 1 or > 65535 || expenseOptions.AzureScopes.Count > 20)
+                throw new InvalidOperationException("Invalid expense scopes or scanner port.");
+        }
+        services.AddSingleton(expenseOptions);
+        services.AddScoped<Juple.Application.Expenses.IExpenseStore, Juple.Infrastructure.Expenses.ExpenseStore>();
+        services.AddScoped<Juple.Application.Expenses.ExpenseService>();
+        services.AddScoped<Juple.Application.Expenses.ExpenseSyncService>();
+        services.AddScoped<Juple.Application.Expenses.ExpenseEvidenceService>();
+        services.AddScoped<Juple.Application.Expenses.IExpenseEvidenceScanner, Juple.Infrastructure.Expenses.ClamAvExpenseScanner>();
+        services.AddScoped<Juple.Application.Expenses.IExpenseEvidenceFiles, Juple.Infrastructure.Expenses.ExpenseEvidenceFiles>();
+        services.AddHttpClient("ExpenseAzure", client => client.Timeout = TimeSpan.FromSeconds(90))
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        services.AddScoped<Juple.Application.Expenses.IAzureExpenseSource>(sp => new Juple.Infrastructure.Expenses.AzureExpenseSource(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("ExpenseAzure"), new Azure.Identity.DefaultAzureCredential()));
         services.AddScoped<Juple.Application.Analytics.IUserActivityStore, Juple.Infrastructure.Analytics.UserActivityStore>();
         services.AddScoped<Juple.Application.Safety.ISafetyStore, Juple.Infrastructure.Safety.SafetyStore>();
         services.AddScoped<IItemLifecycleStore, ItemStore>();

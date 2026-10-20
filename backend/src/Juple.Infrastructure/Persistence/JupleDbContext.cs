@@ -98,6 +98,11 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
     public DbSet<Juple.Domain.Billing.GoogleAccountLink> GoogleAccountLinks => Set<Juple.Domain.Billing.GoogleAccountLink>();
 
     public DbSet<DataExportLink> DataExportLinks => Set<DataExportLink>();
+    public DbSet<Juple.Domain.Expenses.Expense> Expenses => Set<Juple.Domain.Expenses.Expense>();
+    public DbSet<Juple.Domain.Expenses.ExpenseAttachment> ExpenseAttachments => Set<Juple.Domain.Expenses.ExpenseAttachment>();
+    public DbSet<Juple.Domain.Expenses.ExpenseRecurringSchedule> ExpenseRecurringSchedules => Set<Juple.Domain.Expenses.ExpenseRecurringSchedule>();
+    public DbSet<Juple.Domain.Expenses.ExpenseAuditLog> ExpenseAuditLogs => Set<Juple.Domain.Expenses.ExpenseAuditLog>();
+    public DbSet<Juple.Domain.Expenses.ExpenseSyncRun> ExpenseSyncRuns => Set<Juple.Domain.Expenses.ExpenseSyncRun>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

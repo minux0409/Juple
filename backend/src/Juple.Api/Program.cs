@@ -90,7 +90,8 @@ var isBillingReconcileJob = args.Contains("--run-billing-reconcile", StringCompa
 var isBillingWorker = args.Contains("--run-billing-worker", StringComparer.Ordinal);
 // --run-retention-cleanup: one bounded pass of the data-retention cleanup (docs/data-retention.md). No request, no credential beyond SQL and Blob Storage.
 var isRetentionCleanupJob = args.Contains("--run-retention-cleanup", StringComparer.Ordinal);
-var isOneShotJob = isPushDispatchJob || isBlobCleanupRetryJob || isInstagramMetadataRetryJob || isBillingReconcileJob || isRetentionCleanupJob;
+var isExpenseSyncJob = args.Contains("--run-expense-sync", StringComparer.Ordinal);
+var isOneShotJob = isPushDispatchJob || isBlobCleanupRetryJob || isInstagramMetadataRetryJob || isBillingReconcileJob || isRetentionCleanupJob || isExpenseSyncJob;
 // --run-notification-worker: the long-running notification worker (Service Bus consumer - see
 // NotificationWorkerService). Like the Jobs it authenticates no request and runs no controllers; it
 // serves only /health. Only it and the push-dispatch Job hold the Firebase credential.
@@ -344,6 +345,10 @@ builder.Services.AddProblemDetails();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    // Applies before multipart model binding and remains held until FileStreamResult finishes/aborts.
+    options.AddPolicy(RateLimitPolicies.ExpenseFiles, _ =>
+        RateLimitPartition.GetConcurrencyLimiter("admin-expense-files",
+            _ => new ConcurrencyLimiterOptions { PermitLimit = 4, QueueLimit = 0 }));
     options.AddPolicy(RateLimitPolicies.DataExport, httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(RateLimitPolicies.IdentityPartitionKey(httpContext),
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
@@ -492,6 +497,15 @@ if (isBlobCleanupRetryJob)
 }
 
 // One-shot data-retention cleanup: removes what has outlived its retention period (see RetentionOptions) in bounded, repeatable batches.
+if (isExpenseSyncJob)
+{
+    using var scope = app.Services.CreateScope();
+    using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(20));
+    await scope.ServiceProvider.GetRequiredService<Juple.Application.Expenses.ExpenseSyncService>().RunJobAsync(deadline.Token);
+    if (scope.ServiceProvider.GetRequiredService<Juple.Application.Expenses.ExpenseOptions>().Enabled)
+        await scope.ServiceProvider.GetRequiredService<Juple.Application.Expenses.ExpenseEvidenceService>().CleanupAsync(null, deadline.Token);
+    return 0;
+}
 if (isRetentionCleanupJob)
 {
     return await RunRetentionCleanupOnceAsync(app.Services);

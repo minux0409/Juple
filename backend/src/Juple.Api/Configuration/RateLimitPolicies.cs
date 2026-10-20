@@ -15,6 +15,7 @@ public static class RateLimitPolicies
     public const string BlockChange = "block-change";
     public const string DataExport = "data-export";
     public const string DataExportDownload = "data-export-download";
+    public const string ExpenseFiles = "admin-expense-files";
 
     /// <summary>Google Play billing catalog / verify / restore: per signed-in identity (the public RTDN webhook has none, on purpose).</summary>
     public const string BillingGoogle = "billing-google";
