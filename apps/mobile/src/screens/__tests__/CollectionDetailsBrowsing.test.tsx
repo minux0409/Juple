@@ -667,21 +667,17 @@ describe('Collection Details - the search result list fills the viewport by itse
     expect(searchCalls().length).toBe(calls);
   });
 
-  it('List, Grid and Image converge to the same sequence', async () => {
-    const sequences: number[][] = [];
-    for (const view of ['list', 'grid', 'image'] as const) {
-      reported = new WeakMap();
-      jest.clearAllMocks();
-      mockStore.clear();
-      const renderer = await openSearch(view, many(40), 7);
-      await layout(renderer, 99999);
-      await measure(renderer, view, 24);
-      sequences.push(idsOf(rows(renderer)));
-      renderer.unmount();
-    }
-    expect(sequences[0]).toHaveLength(40);
-    expect(sequences[1]).toEqual(sequences[0]);
-    expect(sequences[2]).toEqual(sequences[0]);
+  // Each view is an independent lifecycle under the normal five-second budget. Comparing each
+  // complete result with the canonical order is stronger than comparing three possibly-partial lists.
+  // A timed-out three-view loop used to continue mounting/unmounting roots in the following test.
+  it.each(['list', 'grid', 'image'] as const)('%s converges to the complete canonical sequence', async view => {
+    reported = new WeakMap();
+    const source = many(40);
+    const renderer = await openSearch(view, source, 7);
+    await layout(renderer, 99999);
+    await measure(renderer, view, 24);
+    expect(idsOf(rows(renderer))).toEqual(newestFirst(source));
+    await act(async () => { renderer.unmount(); });
   });
 
   it('a failing next page keeps the results, shows the compact retry and does not retry by itself; retrying resumes', async () => {
