@@ -47,7 +47,7 @@ Copying external link thumbnails into Juple Blob is deferred. It would improve p
 ### Blob and network
 
 - Read SAS URLs start five minutes in the past and expire after 15 minutes (`backend/src/Juple.Infrastructure/Images/ItemImageStore.cs:292-364`). A new query string is minted when an API response is built, so browser cache keys can change even when the Blob is unchanged.
-- GUID Blob names are naturally immutable, but uploads do not set `Cache-Control`. ETag revalidation only helps when the exact SAS URL is reused.
+- GUID Blob names are immutable, and uploads set `Cache-Control: private, max-age=31536000, immutable` (PERF-02). But the platform caches (Fresco, the iOS URL cache, the browser) key on the exact URL, SAS query included, so a new SAS meant a new download. PERF-12 makes the URL identical within a 30-minute UTC window.
 - Mobile stabilizes collection/profile URLs in memory by asset version (`apps/mobile/src/collections/collectionIconImageCache.ts`, `apps/mobile/src/profile/profileImageCache.ts`). Item images and Web have no equivalent stable mapping.
 - Collection item reads sign representative and cover images while iterating rows (`backend/src/Juple.Application/Collections/GetCollectionItems/GetCollectionItemsService.cs:75-120`). The same Blob can be signed twice for one row. Delegation keys are cached, so this is mostly local CPU/payload/cache churn rather than one Azure request per signature.
 - Public sharing intentionally sends external preview images and excludes private uploaded images. This is a privacy boundary worth retaining.
@@ -236,6 +236,7 @@ The highest-confidence free reductions are to run the recovery push job every fi
 | PERF-09 | DONE | P1 | Archive name order is SQL-side keyset paging with projection/AsNoTracking and no speculative new index. | FREE | None | `c70e887` evidence and integration tests |
 | PERF-10 | DONE | P1 | **Stable image cache key (no new dependency, Blob stays private, SAS lifetime unchanged).** The first signed URL per immutable photo variant (`${imageId}:thumb` / `${imageId}:main`) is kept in memory for the session and reused; a load failure of the kept URL swaps in the response's fresh URL once, a failure of the fresh URL shows the fallback (no loop). Bounded to 500 entries (oldest first), memory only, never active on the Web server side, cleared on every session end (Web `clearLocalSession` + sign-out; Mobile `setSignedOut`, which now also clears the existing Collection-icon and profile-photo URL caches that were previously never cleared). Web: `lib/stableImageUri.ts` + `LinkImage cacheKey` (lists, Item Details). Mobile: `src/images/stableImageUri.ts`, `StableImage`, list rows/grid/tiles, Item Details and its photo field. **Measured on DEV 2026-10-16:** Web - 9 in-app steps downloaded the photo twice (thumb 17,920 B once, main 79,404 B once) instead of on every Home visit/detail open; after a forced cache eviction an expired kept URL was refused once and the fresh URL loaded (one retry). Android (SM-S936N, DEV build) - see CT-01. A fresh page load / new app process requests again (new session; allowed). | FREE | None | Done |
 | PERF-11 | OPEN | P2 | **Track: POST-LAUNCH.** Legacy photos uploaded before normalization have no thumbnail and are served at full size - measured on DEV: a 1.96 MB legacy PNG Collection icon shown in a small tile (Android: about 2.09 MB on the first Collections visit of each app process, then cached by PERF-10), and legacy item photos in 32 px list tiles. Consider a bounded, resumable, idempotent backfill that writes normalized variants for existing item/icon/profile Blobs (DEV first), without changing what a stored reference means. | FREE | Backfill design and rollback | Legacy assets show small variants; no row/blob loss; idempotent rerun |
+| PERF-12 | IN PROGRESS (code + tests done 2026-10-20, not committed / not deployed) | P1 | **Windowed read SAS so platform caches can reuse photo bytes across sessions** (no new dependency, Blob stays private, compression unchanged). Before: `CreateReadUrlAsync` signed `now - 5 min .. now + 15 min`, so every API response carried a new URL. Fresco, the iOS URL cache and browsers key on the exact URL, so a new session (or the PERF-10 kept-URI fallback) downloaded the same immutable bytes again; PROD showed 2,544 GetBlob for 12 blobs in about 9 days. Now the URL is signed for a fixed 30-minute UTC window (`ItemImageStore.ReadUrlValidity`: start = window start - 5 min, expiry = window end + 15 min, capped at the User Delegation Key's expiry). Every response for the same Blob in a window is byte-identical, so a reopen, reload or other screen in that window is served from the device's cache with no request. **Trade-off:** a URL lives 15-45 min after issue (was 15); still Read-only, HTTPS-only, issued only after the API's ownership/access checks. A replaced photo is a new GUID Blob, so it never shows stale. Account isolation is unchanged: a cached copy can only be addressed with the URL the API hands to an authorized caller; the session URI maps are still cleared on sign-out. **Not done (alternatives, need a decision):** a persistent on-device cache keyed by `imageId:variant` + account would also cover reopen after the window (Mobile needs a native file-system dependency, which was not added; Web needs a Service Worker + Cache Storage); a CDN only pays off above roughly 300 GB/month of egress. | NEGLIGIBLE (reduces egress/reads) | Production API deploy | Unit tests `ReadUrlWindowTests` (same window = identical URL, boundary, 15-45 min, key cap, read-only). After deploy: Storage `Transactions(ApiName=GetBlob)` and `Egress` per active user per day before vs after (Azure Monitor, hourly granularity); and a DEV check that two item-list calls within a window return identical `readUrl`s and that a second app start inside the window issues no Blob request (Android: logcat/Charles; Web: DevTools "(disk cache)"). |
 
 ## SECURITY
 
@@ -277,6 +278,121 @@ The highest-confidence free reductions are to run the recovery push job every fi
 | IOS-14 | OPEN | P2 | The iOS system switch (`ThemedSwitch` -> React Native `Switch`, iOS 26 style) looks heavier/thicker than Android's. Decide whether to keep the platform control or restyle; the only selection control that differs by platform (the circular `SelectionIndicator` / report radio are identical on both). | FREE | Design decision | Light/Dark screenshots of settings rows on iOS and Android |
 | IOS-15 | OPEN | P1 | App Store / TestFlight preparation: Apple Developer Program team and signing, App Store Connect record for `com.juple.app`, archive and upload, privacy nutrition labels (incl. the `PrivacyInfo.xcprivacy` reasons merged by CocoaPods), export compliance, screenshots, review notes (test account), and the iOS `MobileVersionPolicy` store URL. | VARIABLE | Apple Developer Program, IOS-04 | TestFlight build installs and passes the IOS-04 regression on a device |
 | IOS-16 | OPEN | P1 | **Android regression check of the iOS series (not run - no Android SDK on the Mac that made it).** On the Windows PC: `cd apps/mobile/android; ./gradlew :app:generateCodegenArtifactsFromSchema` -> `app/build/generated/source/codegen/java/com/juple/app/` contains only `NativeIncomingShareSpec.java` (no `NativeCollectionShortcutsIOSSpec.java`; codegen marks the `...IOS` module `excludedPlatforms: ['android']`, it appears only in the header-only `jni/react/renderer/components/JupleSpecs/JupleSpecsJSI.h`); then `./gradlew assembleDebug` -> BUILD SUCCESSFUL; then on a device: FCM token/foreground/background push, Collection Home icon + Direct Share, the stack back arrow, Collections search suggestions, Entra sign-in. | FREE | Windows PC with the Android SDK | Commands succeed as stated; device smoke test unchanged from before the iOS series |
+
+## DATA RETENTION (subscription expiry, 6 months)
+
+> Status 2026-10-20: **policy decided, design + pure policy code + tests only**. Nothing deletes data. There is no deletion Job, no
+> flag, no migration applied, and the Production billing program is off (`Billing:ProgramEnabled=false`), so `DataRetentionPolicy`
+> answers `NotApplicable / ProgramNotRunning` for every account. Even with the program on, no account is scheduled until a policy
+> effective instant is configured (`PolicyNotInEffect`, fail closed). **Existing user data is never deleted by this work; actual
+> deletion stays blocked until legal review and a separate approval.**
+
+### Policy (business decision, adopted)
+
+1. The clock starts at the **actual end of paid access**, not the day auto-renew was turned off. `Canceled` with a paid period still running is live.
+   - A paid end before the policy took effect counts from the effective instant (no retroactive shortening).
+   - **Trial-only accounts** (never paid): from the trial end, but **only for accounts created at or after the effective instant**. Accounts that existed before are never scheduled for their trial alone (`TrialBeforePolicy`); they are covered once they pay and that access ends.
+2. For 6 months after that, the data is **read-only**: no new links, Collections or photos, and no edits. Reading and **export** stay available.
+3. Re-subscribing within the 6 months restores full use of the same data. Nothing was moved or hidden.
+4. Notices go out at +3 months ("보관 기간 종료 안내"), at +5 months ("삭제 예정 안내", with the date) and 7 days before deletion (final notice).
+5. At +6 months the account's **own** data is deleted: saved links (including the trash), the Collections it owns, and its uploaded photos.
+   - The **account stays**, but the purpose and period of keeping the remaining personal data need a separate review.
+   - Other people's Collections and their content are never deleted.
+6. A user-requested account deletion follows the existing account-deletion flow (`AccountDeletionStore`), not this policy.
+
+### Status model (`Juple.Domain.Billing.DataRetentionPolicy`, pure, tested in `DataRetentionPolicyTests`)
+
+| Phase | When | Clock |
+|---|---|---|
+| `NotApplicable / ProgramNotRunning` | the billing program is off (Production today) | never runs. **Sign-up date or trial alone never schedules anything.** |
+| `NotApplicable / PolicyNotInEffect` | the program is on but no policy effective instant is configured | never runs (fail closed) |
+| `NotApplicable / TrialBeforePolicy` | trial only, account created before the effective instant | never runs (not retroactive) |
+| `NotApplicable / NoAccessHistory` | no paid access period and no settled trial (pending only, cancelled pending) | never runs |
+| `Active` | a live paid purchase (Active, Canceled until its end, GracePeriod) or a running trial | none |
+| `BillingHold` | a purchase is OnHold (the store retries payment) or Paused | read-only (R39), **clock paused** |
+| `ReadOnly` (basis `PaidAccessEnded`) | the latest paid access end has passed | from max(that end, effective instant); refund/revocation ends access at its revocation end |
+| `ReadOnly` (basis `TrialEnded`) | trial only, account created at/after the effective instant, trial ended | from the trial end; a later paid end replaces this basis |
+| `DeletionDue` | end + 6 calendar months (UTC instant) | **eligible only**: deletion needs RET-06..RET-08 |
+
+- The notices fall at end + 3 months, end + 5 months and deletion − 7 days, each due AT its instant (boundary tests included).
+- The same inputs always give the same answer, in any time zone. That makes it safe to re-evaluate idempotently.
+- A later re-subscription and expiry restarts the clock from the later end.
+- **Operator-granted entitlements do not exist yet.** If added, they must count as live access and as paid access history.
+
+### Read-only enforcement (already built, R39)
+
+`RequireWriteAccess` returns 403 `subscriptionRequired` on the content-mutating endpoints. `AllowWhenSubscriptionExpired` keeps open account, support, bootstrap/session, push devices and billing, and `CollectionOwnedWrite` covers shared Collections. All of it is a no-op while the program is off.
+
+For retention, the gaps are:
+- (a) there is no **export** endpoint yet (RET-03);
+- (b) uploads of photos and profile/icon images must stay behind the gate (verify with the meta-test when RET-02 lands);
+- (c) the Web/Mobile UI must show the read-only state and the dates (RET-04).
+
+### What is deleted at +6 months, and what is not
+
+- **Deleted (owner = the account):**
+  - Items (including trash) and their ItemImages, with Blobs through the existing Blob-cleanup outbox (`AccountDeletionBlobCleanup` pattern);
+  - Collections the account **owns**, with their shares, icon photo and memberships;
+  - the account's comments, reactions and proposals inside those Collections (cascade);
+  - the account's profile photo Blob (proposal: keep the profile itself).
+- **Not deleted:** other people's Collections and the links they added. Comments by others on the account's former links go with those links (cascade, as in account deletion today).
+- **Decisions needed before RET-06:**
+  - (1) **Links the account added to other people's shared Collections.** `CollectionItems` (with `AddedByUserId`) points at the account's own Item, so deleting the Item removes the link from the other Collection - the known "confirmed-content lifetime" gap in `docs/architecture.md`. Other members only ever see the link's URL, title and automatic preview, never its memo or uploaded photos (`Members_SeeEveryLink_ButNeverAnotherMembersMemoOrUploadedPhotos`).
+    - **Recommendation (safe default): exempt.** An Item with an active membership in a Collection the account does **not** own is not deleted; only its private parts are cleared at deletion time (memo, uploaded photos through the Blob outbox). The link stays exactly as the other members saw it. Re-evaluated in the same transaction as the delete, so a link added to someone else's Collection after the dry-run is still protected.
+    - Longer-term option (product decision, schema change): a Collection-owned snapshot entry (URL, title, preview) independent of the contributor's Item. It would also fix the same gap for account deletion. Not part of the first deletion release.
+  - (2) **Shared Collections the account owns that still have members.** Deleting them removes them for everyone.
+    - **Recommendation:** never auto-delete a Collection that has members. From the 3-month notice on, the owner is offered in the app **(a) transfer ownership** to a chosen current member (the member accepts; their subscription is checked like any owner write) or **(b) let the members keep a copy**. Without a choice by the deletion date, the Collection is **kept read-only** for its members and excluded from the batch (listed in the dry-run as "kept: has members"). Nothing is decided for the owner silently.
+    - Transfer is new work: `TransferOwnership` (Owner -> member, one transaction under the Collection row lock; the old owner leaves or becomes a Contributor; share link, password and lock rules re-checked; both notified). It does **not** move the old owner's Items: their links in the Collection are protected by rule (1).
+    - A copy for a member must create **new Items owned by that member** (URL, title, preview only). The existing copy-in only adds a membership to the same Item and would still disappear with it.
+  - (3) The account row, friends, push devices and notifications are kept (the policy keeps the account). The privacy-policy retention period must be reviewed (RET-09).
+
+### Notices and export
+
+- **Notices:** NotificationType additions plus push and in-app messages, sent by a daily Job that evaluates `DataRetentionPolicy`. Each notice is recorded once per retention period (see the table below), so a rerun never sends twice. E-mail is not available (Juple stores no address), so notices are in-app and push only. The privacy policy and terms must state the schedule.
+- **Export (design):** `POST /api/v1/users/me/exports` starts an export job; `GET /api/v1/users/me/exports/{id}` returns its state and a download link.
+  - Content: a ZIP with `items.json` + `items.csv` (URL, title, memo, saved/updated dates, trash flag, the names of the account's own Collections and of the shared Collections it belongs to), `collections.json` (own Collections: name, icon, color, link order) and the account's own uploaded photos (main variant) as files.
+  - Owner-only (server-side `UserId` from the token). Never another member's memo, photos, comments or member list; other members' links in the account's own shared Collections appear by URL/title only.
+  - Produced by a job into a private `exports` Blob container (not SQL), downloaded through a short read SAS; the export blob is deleted after 7 days (lifecycle rule). One running export per account, rate-limited (e.g. 1 per 24 h).
+  - Open in every phase including ReadOnly and BillingHold, and before an account deletion (`AllowWhenSubscriptionExpired`).
+
+### Migration draft (NOT created as an EF migration yet; DDL for review)
+
+```sql
+-- billing.DataRetentionSchedules: one row per account and retention period; the Job writes it, nothing else reads it to grant access.
+CREATE TABLE [billing].[DataRetentionSchedules] (
+    [Id] bigint IDENTITY PRIMARY KEY,
+    [UserId] bigint NOT NULL REFERENCES [users].[Users]([Id]) ON DELETE CASCADE,
+    [RetentionStartedAtUtc] datetimeoffset NOT NULL,           -- the instant the period counts from (paid end or trial end)
+    [Basis] tinyint NOT NULL,                                   -- DataRetentionBasis: 1 PaidAccessEnded, 2 TrialEnded
+    [DeletionDueAtUtc] datetimeoffset NOT NULL,
+    [RetentionEndingNoticeSentAtUtc] datetimeoffset NULL,
+    [DeletionScheduledNoticeSentAtUtc] datetimeoffset NULL,
+    [FinalNoticeSentAtUtc] datetimeoffset NULL,
+    [CancelledAtUtc] datetimeoffset NULL,                       -- re-subscribed: the period ended without deletion
+    [DryRunCountsJson] nvarchar(2000) NULL,                     -- last dry-run: counts only, never content
+    [ApprovedByAdminUserId] bigint NULL, [ApprovedAtUtc] datetimeoffset NULL,
+    [DeletedAtUtc] datetimeoffset NULL,
+    CONSTRAINT [UX_DataRetentionSchedules_User_Start] UNIQUE ([UserId], [RetentionStartedAtUtc])
+);
+CREATE INDEX [IX_DataRetentionSchedules_Due] ON [billing].[DataRetentionSchedules] ([DeletionDueAtUtc]) WHERE [DeletedAtUtc] IS NULL AND [CancelledAtUtc] IS NULL;
+```
+
+### Items
+
+| ID | Status | Priority | Work | Gate |
+|---|---|---:|---|---|
+| RET-01 | DONE (policy code) | P1 | Trial-only accounts: scheduled from the trial end only when created at/after the effective instant (`TrialBeforePolicy` otherwise); paid ends before the effective instant count from it; no effective instant = `PolicyNotInEffect`. Still needed: the effective instant as configuration (`DataRetention:PolicyEffectiveAtUtc`, unset by default) and its publication in the terms. | RET-08 |
+| RET-02 | OPEN | P1 | Confirm every content-creating endpoint, including photo/icon/profile uploads, is behind `RequireWriteAccess`; reads, export and account deletion stay open. | Meta-test + `ProgramEnabled` staging run |
+| RET-03 | OPEN | P1 | Export endpoint (JSON/CSV + photo links) and Web/Mobile entry points, open in every phase. | Tests: owner-only, rate limit, no other people's private content |
+| RET-04 | OPEN | P1 | Bootstrap/me gets an additive `dataRetention` block {phase, retentionStartedAtUtc, deletionDueAtUtc}. The Web/Mobile banner and read-only states come from it; old clients ignore it. | API contract tests; i18n |
+| RET-05 | OPEN | P1 | Notices (3 mo / 5 mo / final) via the retention Job + NotificationType + push; recorded in `DataRetentionSchedules` (once per period). | Idempotency tests; the program must be ON |
+| RET-06 | BLOCKED | P0 for deletion | Deletion Job with feature flag `DataRetention:DeletionEnabled` (default **false**), **dry-run first** (counts only), operator approval per batch (Admin Web), re-check of `DataRetentionPolicy` and ownership in the same transaction, idempotent reruns, Blob cleanup through the existing outbox. | Decisions (1)(2) above, RET-07, RET-08 |
+| RET-07 | BLOCKED | P0 for deletion | Integration tests: shared Collections owned by others untouched; contributed-links decision applied; re-subscribe between dry-run and delete cancels; a rerun deletes nothing more; the program-off guard. | RET-06 |
+| RET-08 | OPEN | P1 | Privacy policy + terms: schedule, notices, export, what is deleted, what remains. | Legal review |
+| RET-09 | OPEN | P2 | Review the retention purpose/period of what remains after deletion (account row, profile, friends). | Privacy review |
+| RET-10 | OPEN | P2 | Admin: retention dashboard (counts per phase, upcoming deletions, dry-run results) - counts only. | RET-06 |
+| RET-11 | OPEN | P1 | Ownership transfer for an owned shared Collection (Owner -> accepting member) and the "members keep a copy" path (new member-owned Items). A Collection with members is kept read-only when the owner chooses nothing. | Decision (2); integration tests |
+| RET-12 | OPEN | P1 | Contributed-link exemption: Items in another owner's Collection are kept with memo/photos cleared, re-checked in the delete transaction. | Decision (1); RET-07 |
 
 ## Ordered next actions
 
