@@ -26,6 +26,7 @@ import { TermsUnavailable } from '../safety/TermsUnavailable';
 import { useTermsOnboarding } from '../safety/useTermsOnboarding';
 import { FriendsScreen } from '../screens/FriendsScreen';
 import { CollectionSharedItemScreen } from '../screens/CollectionSharedItemScreen';
+import { DataExportScreen } from '../screens/DataExportScreen';
 import { DeleteAccountScreen } from '../screens/DeleteAccountScreen';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
 import type { ItemOpenContext } from '../items/itemOpenGrant';
@@ -154,6 +155,8 @@ export type RootStackParamList = {
   AccountManagement: undefined;
   /** 계정 관리 > 계정 삭제: warning, a fresh sign-in, then typing the Juple ID - never a single tap. */
   DeleteAccount: undefined;
+  /** 계정 관리 / 구독 > 데이터 내보내기: the person's own data as download links (shown only when the server enables export). */
+  DataExport: undefined;
   Trash: undefined;
   /** 내 페이지 > 고객센터: tutorial replay, FAQ, 문의하기 (system mail app), legal documents and the app version. */
   CustomerCenter: undefined;
@@ -319,6 +322,7 @@ export function RootStack() {
             <Stack.Screen component={themedScreen(ProfileEditScreen)} name="ProfileEdit" options={{ title: t('profile.edit'), ...headerTitleWithIcon(screenIcons.profileEdit, t('profile.edit')) }} />
             <Stack.Screen component={themedScreen(AccountManagementScreen)} name="AccountManagement" options={{ title: t('account.title'), ...headerTitleWithIcon(screenIcons.account, t('account.title')) }} />
             <Stack.Screen component={themedScreen(DeleteAccountScreen)} name="DeleteAccount" options={{ title: t('account.deleteTitle'), ...headerTitleWithIcon(screenIcons.deleteAccount, t('account.deleteTitle')) }} />
+            <Stack.Screen component={themedScreen(DataExportScreen)} name="DataExport" options={{ title: t('dataExport.title'), ...headerTitleWithIcon(screenIcons.dataExport, t('dataExport.title')) }} />
           </Stack.Group>
         ) : isTermsRequired ? (
           <Stack.Screen name="TermsAgreement" options={{ headerShown: false, gestureEnabled: false }}>

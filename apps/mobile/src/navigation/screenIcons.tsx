@@ -6,6 +6,7 @@ import { FolderIcon } from '../icons/FolderIcon';
 import { GlobeIcon } from '../icons/GlobeIcon';
 import { HomeIcon } from '../icons/HomeIcon';
 import { CreditCardIcon } from '../icons/CreditCardIcon';
+import { DownloadIcon } from '../icons/DownloadIcon';
 import { HelpIcon } from '../icons/HelpIcon';
 import { InfoIcon } from '../icons/InfoIcon';
 import { LinkIcon } from '../icons/LinkIcon';
@@ -42,6 +43,7 @@ export const screenIcons = {
   customerCenter: InfoIcon,
   help: HelpIcon,
   subscription: CreditCardIcon,
+  dataExport: DownloadIcon,
 } as const satisfies Record<string, ScreenTitleIcon>;
 
 /**

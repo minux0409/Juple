@@ -2,7 +2,7 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Modal, Text } from 'react-native';
 import i18n from '../../i18n';
 import { SubscriptionScreen } from '../SubscriptionScreen';
-import { useAuth } from '../../auth/AuthContext';
+import { useAuth, useOptionalAuth } from '../../auth/AuthContext';
 import type { SubscriptionStore } from '../../billing/subscriptionStore';
 import { useSubscriptionStore } from '../../billing/useSubscriptionStore';
 
@@ -14,7 +14,8 @@ jest.mock('../../billing/googleBilling', () => {
   throw new Error('The shared Subscription screen must not depend on the Google billing module.');
 });
 jest.mock('../../billing/useSubscriptionStore', () => ({ useSubscriptionStore: jest.fn() }));
-jest.mock('../../auth/AuthContext', () => ({ useAuth: jest.fn() }));
+jest.mock('../../auth/AuthContext', () => ({ useAuth: jest.fn(), useOptionalAuth: jest.fn() }));
+jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: jest.fn() }) }));
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
@@ -34,6 +35,7 @@ beforeAll(async () => {
 beforeEach(() => {
   store = { loadOffer: jest.fn().mockResolvedValue(readyOffer), purchase: jest.fn(), restore: jest.fn(), canManageSubscription: true, openSubscriptionManagement: jest.fn().mockResolvedValue(undefined) };
   jest.mocked(useSubscriptionStore).mockReturnValue(store);
+  jest.mocked(useOptionalAuth).mockReturnValue(undefined);
   mockAuth();
 });
 afterEach(() => jest.clearAllMocks());

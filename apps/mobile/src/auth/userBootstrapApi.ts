@@ -2,7 +2,7 @@ import { ApiError } from '../api/ApiError';
 import { requestApi } from '../api/apiClient';
 import { parseMobileVersionPolicy, type MobileVersionPolicy } from '../appUpdate/versionPolicy';
 import type { DeviceRegionalSettings } from '../device/regionalSettings';
-import type { Entitlement, EntitlementReason, EntitlementStatus, StoreSubscription, StoreSubscriptionState, UserBootstrapStatus, UserPlan } from './types';
+import type { DataRetention, DataRetentionPhase, Entitlement, EntitlementReason, EntitlementStatus, StoreSubscription, StoreSubscriptionState, UserBootstrapStatus, UserPlan } from './types';
 
 export interface UserBootstrapResult {
   readonly status: UserBootstrapStatus;
@@ -13,6 +13,10 @@ export interface UserBootstrapResult {
   readonly storeSubscription?: StoreSubscription | null;
   /** Null when the response carried none (an older backend) or it was not understood - never a guessed default. */
   readonly mobileVersionPolicy?: MobileVersionPolicy | null;
+  /** Null whenever nothing is scheduled, or the response carried none / nothing understood. */
+  readonly dataRetention?: DataRetention | null;
+  /** False when the response carried none (an older backend). */
+  readonly dataExportEnabled?: boolean;
 }
 
 interface BootstrapCurrentUserResponseBody {
@@ -20,6 +24,38 @@ interface BootstrapCurrentUserResponseBody {
   readonly entitlement?: unknown;
   readonly storeSubscription?: unknown;
   readonly mobileVersionPolicy?: unknown;
+  readonly dataRetention?: unknown;
+  readonly dataExport?: unknown;
+}
+
+const DATA_RETENTION_PHASES: readonly DataRetentionPhase[] = ['billingHold', 'readOnly', 'deletionDue'];
+
+/**
+ * Reads the bootstrap `dataRetention` defensively: absent, malformed or a phase this build does not know (a newer backend) is null -
+ * the app then shows no retention notice at all, never a guessed date.
+ */
+export function parseDataRetention(raw: unknown): DataRetention | null {
+  if (typeof raw !== 'object' || raw === null) {
+    return null;
+  }
+  const value = raw as Record<string, unknown>;
+  const phase = DATA_RETENTION_PHASES.find(candidate => candidate === value.phase);
+  if (!phase) {
+    return null;
+  }
+  return {
+    phase,
+    basis: value.basis === 'paidAccessEnded' || value.basis === 'trialEnded' ? value.basis : null,
+    accessEndedAtUtc: timestampOrNull(value.accessEndedAtUtc),
+    deletionScheduledAtUtc: timestampOrNull(value.deletionScheduledAtUtc),
+    nextNoticeAtUtc: timestampOrNull(value.nextNoticeAtUtc),
+    readOnly: value.readOnly === true,
+  };
+}
+
+/** `dataExport: { enabled }` - anything else (absent, an older backend) is "not offered". */
+export function parseDataExportEnabled(raw: unknown): boolean {
+  return typeof raw === 'object' && raw !== null && (raw as Record<string, unknown>).enabled === true;
 }
 
 const ENTITLEMENT_STATUSES: readonly EntitlementStatus[] = ['trial', 'active', 'gracePeriod', 'expired'];
@@ -97,6 +133,8 @@ export async function bootstrapCurrentUser(
       entitlement: parseEntitlement(response.body?.entitlement),
       storeSubscription: parseStoreSubscription(response.body?.storeSubscription),
       mobileVersionPolicy: parseMobileVersionPolicy(response.body?.mobileVersionPolicy),
+      dataRetention: parseDataRetention(response.body?.dataRetention),
+      dataExportEnabled: parseDataExportEnabled(response.body?.dataExport),
     };
   } catch (error) {
     // The identity has no Juple account and the sign-in is not recent: the server never creates an account from a stale session.

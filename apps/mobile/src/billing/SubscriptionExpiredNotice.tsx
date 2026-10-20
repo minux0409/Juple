@@ -3,6 +3,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 import { useOptionalAuth } from '../auth/AuthContext';
+import { describeDataRetention, formatRetentionDate } from './dataRetentionView';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
@@ -13,8 +14,11 @@ import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/t
  * backend refuses the writes.
  */
 export function SubscriptionExpiredNotice() {
-  const { t } = useTranslation();
-  const entitlement = useOptionalAuth()?.entitlement;
+  const { t, i18n } = useTranslation();
+  const auth = useOptionalAuth();
+  const entitlement = auth?.entitlement;
+  // Only a date the server sent (the retention policy in effect); otherwise the notice names none.
+  const keptUntilUtc = describeDataRetention(auth?.dataRetention)?.bodyDateUtc ?? null;
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   if (!entitlement?.programEnabled || entitlement.status !== 'expired') {
@@ -25,6 +29,9 @@ export function SubscriptionExpiredNotice() {
     <View style={styles.notice} testID="subscription-expired-notice">
       <Text accessibilityRole="header" style={styles.title}>{t('subscription.access.expired')}</Text>
       <Text style={styles.body}>{t('subscription.detail.expired')}</Text>
+      {keptUntilUtc ? (
+        <Text style={styles.body} testID="subscription-expired-notice-kept-until">{t('retention.keptUntil', { date: formatRetentionDate(keptUntilUtc, i18n.language) })}</Text>
+      ) : null}
       <Pressable accessibilityRole="button" onPress={() => navigation.navigate('Subscription')} style={styles.button} testID="subscription-expired-notice-cta">
         <Text numberOfLines={2} style={styles.buttonLabel}>{t('subscription.subscribe')}</Text>
       </Pressable>

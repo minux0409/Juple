@@ -1,6 +1,6 @@
 import { ApiError } from '../../api/ApiError';
 import { requestApi } from '../../api/apiClient';
-import { bootstrapCurrentUser, parseEntitlement, parseStoreSubscription } from '../userBootstrapApi';
+import { bootstrapCurrentUser, parseDataExportEnabled, parseDataRetention, parseEntitlement, parseStoreSubscription } from '../userBootstrapApi';
 
 jest.mock('../../api/apiClient', () => ({
   requestApi: jest.fn(),
@@ -22,7 +22,7 @@ describe('bootstrapCurrentUser', () => {
       accessToken: 'a-token',
       body: { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' },
     });
-    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null, storeSubscription: null, mobileVersionPolicy: null });
+    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null, storeSubscription: null, mobileVersionPolicy: null, dataRetention: null, dataExportEnabled: false });
   });
 
   it('reports signInRequired (never ready / unavailable) when the server refuses to create an account from a stale sign-in', async () => {
@@ -46,7 +46,7 @@ describe('bootstrapCurrentUser', () => {
 
     const result = await bootstrapCurrentUser('a-token', { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' });
 
-    expect(result).toEqual({ status: 'ready', plan: 'Plus', entitlement: null, storeSubscription: null, mobileVersionPolicy: null });
+    expect(result).toEqual({ status: 'ready', plan: 'Plus', entitlement: null, storeSubscription: null, mobileVersionPolicy: null, dataRetention: null, dataExportEnabled: false });
   });
 
   it('carries the app-version policy of the server from the same bootstrap response - no separate request - and reads it defensively', async () => {
@@ -203,7 +203,23 @@ describe('bootstrapCurrentUser - entitlement', () => {
 
     const result = await bootstrapCurrentUser('a-token', settings);
 
-    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null, storeSubscription: null, mobileVersionPolicy: null });
+    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null, storeSubscription: null, mobileVersionPolicy: null, dataRetention: null, dataExportEnabled: false });
+  });
+});
+
+describe('bootstrap data retention and export availability', () => {
+  it('reads only documented retention phases and server dates', () => {
+    expect(parseDataRetention({ phase: 'readOnly', basis: 'paidAccessEnded', accessEndedAtUtc: '2027-01-01Z', deletionScheduledAtUtc: '2027-07-01Z', nextNoticeAtUtc: '2027-04-01Z', readOnly: true })).toEqual({
+      phase: 'readOnly', basis: 'paidAccessEnded', accessEndedAtUtc: '2027-01-01Z', deletionScheduledAtUtc: '2027-07-01Z', nextNoticeAtUtc: '2027-04-01Z', readOnly: true,
+    });
+    expect(parseDataRetention({ phase: 'futurePhase', readOnly: true })).toBeNull();
+    expect(parseDataRetention(null)).toBeNull();
+  });
+
+  it('offers export only for the explicit enabled flag', () => {
+    expect(parseDataExportEnabled({ enabled: true })).toBe(true);
+    expect(parseDataExportEnabled({ enabled: false })).toBe(false);
+    expect(parseDataExportEnabled(undefined)).toBe(false);
   });
 });
 

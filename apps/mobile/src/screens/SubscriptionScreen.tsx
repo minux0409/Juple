@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
+import { DataRetentionCard } from '../billing/DataRetentionCard';
 import { useSubscriptionStore } from '../billing/useSubscriptionStore';
 import type { SubscriptionOffer } from '../billing/subscriptionStore';
 import { describeSubscription, isSubscribedView } from '../billing/subscriptionStatus';
@@ -236,6 +237,8 @@ export function SubscriptionScreen() {
           ))}
           {note ? <Text style={styles.accessDetail} testID="subscription-status-note">{note}</Text> : null}
         </View>
+
+        <DataRetentionCard />
 
         {isSubscribed ? null : (
           <Pressable

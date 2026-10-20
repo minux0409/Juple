@@ -1393,5 +1393,50 @@
         "body": "“홈 화면에 바로가기 추가” 항목을 고르고 런처에서 확인해요. 1×1 아이콘을 누르면 그 컬렉션이 바로 열려요."
       }
     }
+  },
+  "retention": {
+    "billingHoldTitle": "현재 계정이 읽기 전용이에요",
+    "billingHoldBody": "결제를 재시도 중이거나 구독이 일시 중지되었습니다. 데이터는 계속 볼 수 있으며 보관 기간 계산도 일시 중지됩니다.",
+    "readOnlyTitle": "데이터를 보관 중이에요",
+    "readOnlyBody": "구독이 종료되었습니다. {{date}}까지 데이터를 보거나 내보낼 수 있습니다.",
+    "readOnlyBodyNoDate": "구독이 종료되었습니다. 데이터를 보거나 내보낼 수 있습니다.",
+    "deletionDueTitle": "데이터 보관 기간이 끝났어요",
+    "deletionDueBody": "{{date}}에 예정된 데이터 보관 기간이 끝났습니다. 자동 삭제는 활성화되어 있지 않습니다.",
+    "rowAccessEnded": "이용 종료일",
+    "rowDeletionScheduled": "보관 종료 예정일",
+    "rowNextNotice": "다음 안내 예정일",
+    "exportAction": "내 데이터 내보내기"
+  },
+  "dataExport": {
+    "title": "데이터 내보내기",
+    "entryTitle": "내 데이터 내보내기",
+    "entryBody": "내 링크, 컬렉션, 댓글, 구매 기록과 업로드한 사진을 다운로드합니다.",
+    "entryAction": "내보내기 열기",
+    "loading": "내보낼 데이터를 확인하고 있습니다...",
+    "rateLimited": "오늘 내보내기 요청 횟수를 초과했습니다. 나중에 다시 시도해 주세요.",
+    "unavailable": "지금은 데이터를 내보낼 수 없습니다.",
+    "failed": "내보내기를 준비하지 못했습니다. 다시 시도해 주세요.",
+    "openFailed": "다운로드를 열지 못했습니다. 다시 시도해 주세요.",
+    "rowLinks": "링크",
+    "rowTrash": "삭제 이력의 링크",
+    "rowCollections": "내가 소유한 컬렉션",
+    "rowShared": "참여 중인 공유 컬렉션",
+    "rowComments": "내 댓글",
+    "rowPhotos": "업로드한 사진",
+    "rowPhotoSize": "사진 용량",
+    "megabytes": "{{size}}MB",
+    "intro": "내 Juple 데이터 사본을 받을 다운로드 링크를 준비합니다. 읽기 전용 상태에서도 데이터를 내보낼 수 있습니다.",
+    "summaryHeading": "포함되는 데이터",
+    "includedNote": "삭제 이력의 링크도 포함됩니다. 다른 사람의 비공개 메모, 업로드한 사진과 멤버 목록은 포함되지 않습니다.",
+    "filesHeading": "파일 다운로드",
+    "dataFile": "데이터 ZIP",
+    "photoFile": "사진 ZIP {{number}}",
+    "photoFileDetail": "사진 {{count}}개 · {{size}}MB",
+    "download": "다운로드",
+    "expiresNote": "각 링크는 {{time}}까지 한 번만 사용할 수 있습니다. 다운로드가 중단되면 다운로드 링크 준비를 다시 눌러 주세요.",
+    "reauthTitle": "다시 로그인해 주세요",
+    "reauthBody": "내보내기에 비공개 메모와 잠긴 컬렉션이 포함될 수 있어 본인 확인이 필요합니다.",
+    "reauthAction": "다시 로그인",
+    "create": "다운로드 링크 준비"
   }
 }

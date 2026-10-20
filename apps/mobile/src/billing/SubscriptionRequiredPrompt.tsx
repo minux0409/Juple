@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { useOptionalAuth } from '../auth/AuthContext';
 import { navigationRef } from '../navigation/navigationRef';
+import { describeDataRetention, formatRetentionDate } from './dataRetentionView';
 import { subscribeSubscriptionRequired, type SubscriptionRequiredKind } from './subscriptionRequired';
 
 /**
@@ -14,8 +16,13 @@ import { subscribeSubscriptionRequired, type SubscriptionRequiredKind } from './
  * Repeated refusals while it is open change nothing.
  */
 export function SubscriptionRequiredPrompt() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [kind, setKind] = useState<SubscriptionRequiredKind | null>(null);
+  // The server's retention date, when the policy is in effect: the refusal then also says until when the saved data is kept.
+  const keptUntilUtc = describeDataRetention(useOptionalAuth()?.dataRetention)?.bodyDateUtc ?? null;
+  const actorMessage = keptUntilUtc
+    ? `${t('subscription.required.message')}\n\n${t('retention.keptUntil', { date: formatRetentionDate(keptUntilUtc, i18n.language) })}`
+    : t('subscription.required.message');
 
   useEffect(() => subscribeSubscriptionRequired(refusal => setKind(previous => previous ?? refusal)), []);
 
@@ -27,7 +34,7 @@ export function SubscriptionRequiredPrompt() {
       cancelLabel={isOwner ? undefined : t('subscription.required.later')}
       confirmLabel={isOwner ? t('common.confirm') : t('subscription.subscribe')}
       destructive={false}
-      message={isOwner ? t('subscription.ownerRequired.message') : t('subscription.required.message')}
+      message={isOwner ? t('subscription.ownerRequired.message') : actorMessage}
       onCancel={isOwner ? undefined : close}
       onConfirm={() => {
         const wasActor = kind === 'actor';

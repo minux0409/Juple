@@ -1393,5 +1393,50 @@
         "body": "Choisissez « Ajouter un raccourci à l’écran d’accueil » et confirmez dans votre lanceur. Toucher l’icône 1×1 ouvre cette collection."
       }
     }
+  },
+  "retention": {
+    "billingHoldTitle": "Your account is read-only for now",
+    "billingHoldBody": "Your payment is being retried or your subscription is paused. Your data stays available to view, and the retention clock is paused.",
+    "readOnlyTitle": "Your data is being retained",
+    "readOnlyBody": "Your subscription has ended. You can view and export your data until {{date}}.",
+    "readOnlyBodyNoDate": "Your subscription has ended. You can still view and export your data.",
+    "deletionDueTitle": "Your retention period has ended",
+    "deletionDueBody": "Your data reached its scheduled retention end on {{date}}. No automatic deletion is active.",
+    "rowAccessEnded": "Access ended",
+    "rowDeletionScheduled": "Retention ends",
+    "rowNextNotice": "Next notice",
+    "exportAction": "Export my data"
+  },
+  "dataExport": {
+    "title": "Export data",
+    "entryTitle": "Export my data",
+    "entryBody": "Download your links, Collections, comments, purchase records, and uploaded photos.",
+    "entryAction": "Open export",
+    "loading": "Loading export details...",
+    "rateLimited": "You have requested too many exports today. Try again later.",
+    "unavailable": "Data export is not available right now.",
+    "failed": "We couldn't prepare your export. Please try again.",
+    "openFailed": "We couldn't open this download. Please try again.",
+    "rowLinks": "Links",
+    "rowTrash": "Links in Recently Deleted",
+    "rowCollections": "Collections you own",
+    "rowShared": "Shared Collections joined",
+    "rowComments": "Your comments",
+    "rowPhotos": "Uploaded photos",
+    "rowPhotoSize": "Photo size",
+    "megabytes": "{{size}} MB",
+    "intro": "Create short-lived download links for a copy of your Juple data. Export remains available while your account is read-only.",
+    "summaryHeading": "Included data",
+    "includedNote": "Recently Deleted links are included. Other people's private memos, uploaded photos, and member lists are excluded.",
+    "filesHeading": "Download files",
+    "dataFile": "Data ZIP",
+    "photoFile": "Photos ZIP {{number}}",
+    "photoFileDetail": "{{count}} photos · {{size}} MB",
+    "download": "Download",
+    "expiresNote": "Each link can be used once before {{time}}. If a download is interrupted, prepare new download links.",
+    "reauthTitle": "Sign in again",
+    "reauthBody": "Your export can contain private memos and locked Collections, so confirm your identity first.",
+    "reauthAction": "Sign in again",
+    "create": "Prepare download links"
   }
 }

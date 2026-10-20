@@ -89,6 +89,26 @@ export interface AuthState {
   readonly storeSubscription: StoreSubscription | null;
   /** The server's app-version policy from the last successful bootstrap (see appUpdate/versionPolicy.ts). Null: none received or not understood - which never prompts or blocks. */
   readonly mobileVersionPolicy?: MobileVersionPolicy | null;
+  /** The account's place in the data retention policy - null whenever nothing is scheduled (billing off, policy not in effect, live access). Presentation only. */
+  readonly dataRetention?: DataRetention | null;
+  /** Whether the server offers the data export (DataExport:Enabled). False until the bootstrap says otherwise. */
+  readonly dataExportEnabled?: boolean;
+}
+
+/**
+ * The post-subscription data retention state (see DataRetentionResponse in the backend's bootstrap). billingHold: a payment is being
+ * retried or the subscription is paused (read-only, no dates); readOnly: saved data is kept read-only until deletionScheduledAtUtc;
+ * deletionDue: that date has passed. Every date is the server's; the app computes none.
+ */
+export type DataRetentionPhase = 'billingHold' | 'readOnly' | 'deletionDue';
+
+export interface DataRetention {
+  readonly phase: DataRetentionPhase;
+  readonly basis: 'paidAccessEnded' | 'trialEnded' | null;
+  readonly accessEndedAtUtc: string | null;
+  readonly deletionScheduledAtUtc: string | null;
+  readonly nextNoticeAtUtc: string | null;
+  readonly readOnly: boolean;
 }
 
 export type { GetValidAccessTokenOptions };

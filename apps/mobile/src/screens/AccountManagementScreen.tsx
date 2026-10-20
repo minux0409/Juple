@@ -39,7 +39,7 @@ export function AccountManagementScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const authenticatedRequest = useAuthenticatedApi();
-  const { userEmail } = useAuth();
+  const { userEmail, dataExportEnabled } = useAuth();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loadError, setLoadError] = useState<{ readonly cause: unknown } | null>(null);
@@ -143,6 +143,21 @@ export function AccountManagementScreen() {
         ) : null}
         {notice ? <Text style={styles.notice} testID="account-notice">{notice}</Text> : null}
 
+        {dataExportEnabled ? (
+          <View style={styles.exportCard} testID="account-data-export-section">
+            <Text style={styles.rowTitle}>{t('dataExport.entryTitle')}</Text>
+            <Text style={styles.rowDescription}>{t('dataExport.entryBody')}</Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => navigation.navigate('DataExport')}
+              style={styles.exportButton}
+              testID="account-data-export"
+            >
+              <Text style={styles.exportButtonLabel}>{t('dataExport.entryAction')}</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         <View style={styles.dangerCard} testID="account-delete-section">
           <Text style={styles.dangerTitle}>{t('account.deleteTitle')}</Text>
           <Text style={styles.dangerDescription}>{t('account.deleteSummary')}</Text>
@@ -193,6 +208,20 @@ const styles = themedStyles(() => ({
   divider: { backgroundColor: colors.divider, height: StyleSheet.hairlineWidth },
   notice: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.md },
   error: { color: colors.danger, fontSize: 14 },
+  exportCard: { backgroundColor: colors.surface, borderRadius: radii.lg, marginTop: spacing.xl, padding: spacing.lg, ...cardShadow },
+  exportButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    borderColor: colors.brand,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    justifyContent: 'center',
+    marginTop: spacing.md,
+    maxWidth: '100%',
+    minHeight: minTouchTarget,
+    paddingHorizontal: spacing.lg,
+  },
+  exportButtonLabel: { color: colors.brand, fontSize: 15, fontWeight: '600', textAlign: 'center' },
   // Set apart and outlined in the danger color - only the button itself is emphasized, never the whole screen.
   dangerCard: {
     backgroundColor: colors.surface,
