@@ -1,6 +1,6 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Appearance, Switch } from 'react-native';
-import { ThemedSwitch } from '../ThemedSwitch';
+import { Appearance, Platform, StyleSheet, Switch } from 'react-native';
+import { MATERIAL_SWITCH_COLORS, ThemedSwitch } from '../ThemedSwitch';
 import { CloseButton } from '../CloseButton';
 import { ThemeProvider } from '../../theme/ThemeContext';
 import { darkColors, setActiveColorScheme } from '../../theme/tokens';
@@ -21,8 +21,13 @@ async function renderWith(preference: 'light' | 'dark', element: React.ReactElem
   return renderer;
 }
 
-describe('ThemedSwitch', () => {
-  afterEach(() => setActiveColorScheme('light'));
+describe('ThemedSwitch (Android: the platform switch)', () => {
+  const originalOS = Platform.OS;
+  beforeEach(() => Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true }));
+  afterEach(() => {
+    Object.defineProperty(Platform, 'OS', { value: originalOS, configurable: true });
+    setActiveColorScheme('light');
+  });
 
   it('Dark OFF: a clearly lighter track and a bright thumb from the theme roles', async () => {
     const renderer = await renderWith('dark', <ThemedSwitch value={false} />);
@@ -59,6 +64,54 @@ describe('ThemedSwitch', () => {
     }
   });
 });
+
+describe('ThemedSwitch (iOS: the same Material switch Android shows, not the large UISwitch)', () => {
+  const originalOS = Platform.OS;
+  beforeEach(() => Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true }));
+  afterEach(() => {
+    Object.defineProperty(Platform, 'OS', { value: originalOS, configurable: true });
+    setActiveColorScheme('light');
+  });
+  const control = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findByProps({ testID: 'sw', accessibilityRole: 'switch' });
+  const thumbColor = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    StyleSheet.flatten(renderer.root.findByProps({ testID: 'material-switch-thumb' }).props.style).backgroundColor;
+
+  it('never renders the native UISwitch; a 44pt switch with role, checked state and label', async () => {
+    const renderer = await renderWith('light', <ThemedSwitch accessibilityLabel="빠른 저장" onValueChange={jest.fn()} testID="sw" value />);
+    expect(renderer.root.findAllByType(Switch)).toHaveLength(0);
+    const sw = control(renderer);
+    expect(sw.props.accessibilityLabel).toBe('빠른 저장');
+    expect(sw.props.accessibilityState).toEqual({ checked: true, disabled: false });
+    const style = StyleSheet.flatten(sw.props.style);
+    expect(style.minHeight).toBeGreaterThanOrEqual(44);
+    expect(style.minWidth).toBeGreaterThanOrEqual(44);
+  });
+
+  it('a tap reports the flipped value; disabled is dimmed and does nothing', async () => {
+    const onValueChange = jest.fn();
+    const renderer = await renderWith('light', <ThemedSwitch onValueChange={onValueChange} testID="sw" value={false} />);
+    act(() => control(renderer).props.onPress());
+    expect(onValueChange).toHaveBeenCalledWith(true);
+
+    const disabled = await renderWith('light', <ThemedSwitch disabled onValueChange={onValueChange} testID="sw" value={false} />);
+    expect(control(disabled).props.disabled).toBe(true);
+    expect(control(disabled).props.accessibilityState).toEqual({ checked: false, disabled: true });
+    expect(JSON.stringify(control(disabled).props.style)).toContain('0.5');
+  });
+
+  it('colors follow Android: the AppCompat accent when ON, a light / theme thumb when OFF, in Light and Dark', async () => {
+    expect(thumbColor(await renderWith('light', <ThemedSwitch testID="sw" value />))).toBe(MATERIAL_SWITCH_COLORS.ACCENT.light);
+    expect(thumbColor(await renderWith('light', <ThemedSwitch testID="sw" value={false} />))).toBe(MATERIAL_SWITCH_COLORS.OFF_THUMB_LIGHT);
+    expect(thumbColor(await renderWith('dark', <ThemedSwitch testID="sw" value />))).toBe(MATERIAL_SWITCH_COLORS.ACCENT.dark);
+    expect(thumbColor(await renderWith('dark', <ThemedSwitch testID="sw" value={false} />))).toBe(darkColors.textPrimary);
+  });
+
+  it('a purely visual switch (no handler, inside an accessible row) takes no touch of its own', async () => {
+    const renderer = await renderWith('light', <ThemedSwitch testID="sw" value />);
+    expect(control(renderer).props.disabled).toBe(true);
+  });
+});
+
 
 describe('CloseButton (the X for a plain dismiss)', () => {
   it('is a 44dp button named 닫기 that closes, and can be disabled', async () => {

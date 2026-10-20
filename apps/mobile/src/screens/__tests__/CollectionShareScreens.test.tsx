@@ -1,5 +1,6 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Modal, StyleSheet, Switch, Text } from 'react-native';
+import { Modal, StyleSheet, Text } from 'react-native';
+import { ThemedSwitch } from '../../components/ThemedSwitch';
 import i18n from '../../i18n';
 import { FriendPickerModal } from '../../friends/FriendPickerModal';
 import { ApiError } from '../../api/ApiError';
@@ -130,7 +131,7 @@ const SHARE_PUBLIC = { publicId: 'p', shareUrl: 'https://juple.test/c/p', create
 const SHARE_PRIVATE = { publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read', isPublic: false };
 const isPublicOn = (renderer: Renderer) => publicToggle(renderer).props.accessibilityState.checked === true;
 /** What the visual Switch itself shows - never anything but the actual state. */
-const shownSwitchValue = (renderer: Renderer) => publicToggle(renderer).findByType(Switch).props.value;
+const shownSwitchValue = (renderer: Renderer) => publicToggle(renderer).findByType(ThemedSwitch).props.value;
 async function turnPublic(renderer: Renderer, value: boolean) {
   if (isPublicOn(renderer) !== value) {
     await act(async () => {
@@ -391,7 +392,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
         expect(makeCollectionSharePrivate).not.toHaveBeenCalled();
         expect(stopSharingButton(renderer)).toBeTruthy();
         // The visual switch is not a touch target of its own - only the Pressable around it takes the tap.
-        expect(publicToggle(renderer).findByType(Switch).parent!.parent!.props.pointerEvents).toBe('none');
+        expect(publicToggle(renderer).findByType(ThemedSwitch).parent!.props.pointerEvents).toBe('none');
       });
 
       it('cancel leaves it ON - it never moved', async () => {
