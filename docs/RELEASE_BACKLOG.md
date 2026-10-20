@@ -281,11 +281,16 @@ The highest-confidence free reductions are to run the recovery push job every fi
 
 ## DATA RETENTION (subscription expiry, 6 months)
 
-> Status 2026-10-20: **policy decided, design + pure policy code + tests only**. Nothing deletes data. There is no deletion Job, no
-> flag, no migration applied, and the Production billing program is off (`Billing:ProgramEnabled=false`), so `DataRetentionPolicy`
+> Status 2026-10-20: **Round 1 is undergoing final local validation**. The pure policy, read-only API enforcement audit, additive
+> bootstrap state, bounded owner-only export, and Web/Mobile presentation code exist with unit tests. Nothing deletes data. There is no deletion Job, no
+> deletion flag or retention-schedule migration applied, and the Production billing program is off (`Billing:ProgramEnabled=false`), so `DataRetentionPolicy`
 > answers `NotApplicable / ProgramNotRunning` for every account. Even with the program on, no account is scheduled until a policy
 > effective instant is configured (`PolicyNotInEffect`, fail closed). **Existing user data is never deleted by this work; actual
 > deletion stays blocked until legal review and a separate approval.**
+
+The pre-existing `--run-retention-cleanup` maintenance job (trash/soft-deletes and aged operational records,
+`docs/data-retention.md`) is separate from this subscription-expiry policy. This round does not modify or execute it and adds no
+subscription-expiry deletion job.
 
 ### Policy (business decision, adopted)
 
@@ -323,10 +328,9 @@ The highest-confidence free reductions are to run the recovery push job every fi
 
 `RequireWriteAccess` returns 403 `subscriptionRequired` on the content-mutating endpoints. `AllowWhenSubscriptionExpired` keeps open account, support, bootstrap/session, push devices and billing, and `CollectionOwnedWrite` covers shared Collections. All of it is a no-op while the program is off.
 
-For retention, the gaps are:
-- (a) there is no **export** endpoint yet (RET-03);
-- (b) uploads of photos and profile/icon images must stay behind the gate (verify with the meta-test when RET-02 lands);
-- (c) the Web/Mobile UI must show the read-only state and the dates (RET-04).
+For retention, the API gate audit now has a reflection meta-test: every mutating endpoint must opt into `RequireWriteAccess` or an
+explicit `AllowWhenSubscriptionExpired` exception. Export and account deletion remain open. A real ProgramEnabled staging run is still
+required before launch. Web and Mobile consume the server's additive retention dates; device/browser visual verification remains.
 
 ### What is deleted at +6 months, and what is not
 
@@ -348,12 +352,68 @@ For retention, the gaps are:
 
 ### Notices and export
 
-- **Notices:** NotificationType additions plus push and in-app messages, sent by a daily Job that evaluates `DataRetentionPolicy`. Each notice is recorded once per retention period (see the table below), so a rerun never sends twice. E-mail is not available (Juple stores no address), so notices are in-app and push only. The privacy policy and terms must state the schedule.
-- **Export (design):** `POST /api/v1/users/me/exports` starts an export job; `GET /api/v1/users/me/exports/{id}` returns its state and a download link.
-  - Content: a ZIP with `items.json` + `items.csv` (URL, title, memo, saved/updated dates, trash flag, the names of the account's own Collections and of the shared Collections it belongs to), `collections.json` (own Collections: name, icon, color, link order) and the account's own uploaded photos (main variant) as files.
-  - Owner-only (server-side `UserId` from the token). Never another member's memo, photos, comments or member list; other members' links in the account's own shared Collections appear by URL/title only.
-  - Produced by a job into a private `exports` Blob container (not SQL), downloaded through a short read SAS; the export blob is deleted after 7 days (lifecycle rule). One running export per account, rate-limited (e.g. 1 per 24 h).
-  - Open in every phase including ReadOnly and BillingHold, and before an account deletion (`AllowWhenSubscriptionExpired`).
+- **Notices:** the pure due-notice/idempotency-key/final-lead rules exist and are unit-tested. The daily Job, NotificationType/push copy,
+  and persisted per-period send history are not implemented. E-mail is not available (Juple stores no address). The privacy policy and
+  terms must state the schedule before activation.
+- **Export (local implementation):** `GET /api/v1/users/me/data-export` returns counts and bounded photo parts; recent authentication is
+  required by `POST .../links`, which returns hashed-token download links valid for at most 15 minutes and one authorization claim. The token is in a URL
+  fragment, removed with `history.replaceState` before a POST body submits it to the download route. The response streams ZIP entries
+  directly instead of building the archive in memory or storing an export Blob. The old token-in-path GET is no longer supported.
+  - The data ZIP contains account metadata, JSON/CSV links (including trash), owned Collections, shared-membership name/role, the
+    person's comments and purchase records, plus profile/Collection photos. Link photos are split into size/count-bounded ZIP files.
+  - The token identity determines `UserId`. Another member's private memo, uploaded photos, internal item id, member identity and comments
+    are excluded; their link in an owned shared Collection is only URL/title/automatic preview. Blob reads are constrained to
+    `items/{userId}/`.
+  - The endpoints are feature-off by default (`DataExport:Enabled=false`), rate-limited, open while expired, and allowed before current
+    Terms acceptance. `AddDataExportLinks` and `FreezeDataExportImagePlan` are applied only to `localhost,14333/JupleRetTests`;
+    no development or production database was migrated.
+
+### RET Round 1 stabilization evidence (2026-10-20, local only)
+
+- **Repeatable integration environment:** existing `infra/local/compose.yaml` SQL Server and Azurite containers were reused.
+  `infra/local/Test-Retention.ps1` uses the existing local SQL password without printing it, fixes the destination to
+  `localhost,14333/JupleRetTests` plus `UseDevelopmentStorage=true`, applies migrations, and restores the calling process's environment.
+  Both RET integration classes refuse remote hosts, `JupleDev`, other database names and non-emulator storage.
+- **Security changes:** link issuance is serialized per user with a SQL update lock and rechecks the daily quota in the same transaction.
+  Atomic token claims passed concurrent-request tests. Link JSON, handoff page and downloads use `no-store`; the page/download use
+  `no-referrer` and the handoff has a hash-pinned CSP, no external assets and a 1 KiB form limit. The browser test actually posts a
+  synthetic token under that CSP and verifies it is absent from HTTP URLs, Referer and the resulting DOM. Raw storage/SQL exceptions
+  are no longer attached to export error logs. Request/response body logging must remain disabled for the export endpoints.
+- **Resource ceilings:** default 120 seconds per summary/issuance/download, 512 MiB actual archive output per download, 100,000 records
+  including Collection entries/photos, 5,000 owned/joined Collections and 6,000 archive entries. Link-photo ZIPs remain limited to
+  1,000 files / 256 MiB actual photo bytes. Four concurrent downloads are permitted per API replica; metadata requests have an
+  identity-scoped 10/minute limiter. Limits abort a partial download instead of silently omitting records. Cancellation propagates
+  through Blob reads and archive closure; the Blob stream is disposed and the HTTP response is not owned/disposed by the writer.
+- **Photo consistency:** issued data links persist the companion photo ranges. Removing a photo no longer renumbers later files;
+  photos added after issuance require a new export. Links/memos are read at download time; this is not a transactionally frozen backup.
+- **CSV:** formula-like values, leading controls/whitespace and full-width formula starters are neutralized for spreadsheet viewing;
+  JSON retains exact source text. Spreadsheet save/re-import behavior varies, so CSV is not a universal safe interchange format.
+  See [OWASP CSV Injection](https://community.owasp.org/attacks/CSV_Injection).
+- **Capability/access policy:** a person must pass the API's authenticated user policy and have a verified `auth_time` within five minutes
+  to mint links (`iat`/refresh alone does not count). Billing expiry does not prevent export. Account deletion cascades grant deletion.
+  Ordinary logout currently does **not** revoke already issued capabilities. Tokens now expire within 15 minutes and permit one atomic
+  authorization claim, but a copied unused capability can still be used after logout or from a different session before expiry.
+  This is a release blocker, not an accepted activation policy (see RET-03-SESSION below). Downloaded files cannot be revoked.
+- **Mobile failures found:** Trash/Collections and other screen tests retained mounted renderers, event/i18n subscriptions, list/toast
+  timers and preferences across cases. `jest.setup.js` now tracks renderer roots at the test-driver boundary and unmounts/flushes them
+  within `act` after every test (including failed assertions); `restoreAllMocks` cannot disable this cleanup. Trash clears local
+  preference state and the App smoke test explicitly unmounts. The real incoming-share hook ignores late unmounted responses
+  and superseded queue snapshots. No skip or timeout increase was introduced.
+- **Fresh-database regression found during final verification:** the existing Admin directory pagination test created only one user,
+  then assumed another row already existed in the database. It now creates both pagination rows and verifies their exact IDs. This
+  changes the test fixture only; the Admin product code and existing data are untouched.
+- **Remaining release work:** real Android/iOS browser/download-manager QA for the new fragment/POST handoff, translation review of
+  the 15 English fallback locale sets, the existing notice job/history/legal backlog, and approval for any future production action.
+  Export remains disabled by default; this round performs no retention deletion or production operation.
+- **Initial stabilization results (before the final single-use policy round):** Backend solution build passes with zero errors/warnings; full Unit 2,049/2,049 (including separate timeout
+  and request-aborted Blob disposal cases); RET SQL/Azurite integration
+  11/11; Web tests 841/841 (including a real-browser transport check), typecheck/lint/build pass; Mobile Jest 199/199 suites and
+  2,997/2,997 tests, zero skipped, exit 0 in 290.7 seconds using the default 5-second test timeout. Mobile typecheck and lint pass
+  (71 existing warnings, no errors). The earlier concurrent native-build run's timeout/late-update failures are retained as diagnostic
+  evidence; the final Jest run was isolated from C++ compilation. No `--forceExit`, increased timeout or skipped case was used.
+  Final Jest output also has zero post-test logging errors and zero delayed-exit warnings. Android arm64 `:app:assembleDogfood`
+  passes offline with the documented `JUPLE_PUBLIC_WEB_HOST=dev.juple.co.kr` supplied only to the build process; the APK contains
+  its JS bundle. iOS native build and real-device download QA remain unperformed on this Windows host. No APK was installed.
 
 ### Migration draft (NOT created as an EF migration yet; DDL for review)
 
@@ -377,22 +437,76 @@ CREATE TABLE [billing].[DataRetentionSchedules] (
 CREATE INDEX [IX_DataRetentionSchedules_Due] ON [billing].[DataRetentionSchedules] ([DeletionDueAtUtc]) WHERE [DeletedAtUtc] IS NULL AND [CancelledAtUtc] IS NULL;
 ```
 
+### Export session revocation gate (RET-03-SESSION, 2026-10-20)
+
+- **BLOCKED FOR RELEASE; implementation deliberately deferred by the user.** `AuthSessionController` only validates the bearer token
+  with `GET /api/v1/auth/session`; there is no Juple server session registration, session credential, or logout/revocation endpoint.
+  API authentication uses Entra bearer JWTs and maps the account, not an application login session. `auth_time` proves recent
+  authentication; it does not supply a trusted per-application session lifecycle or report logout to Juple.
+- Web logout calls MSAL `logoutRedirect`; Mobile `clearSession` removes the local secure/cache state. Neither currently revokes
+  export grants at the API. **Clearing client state is not server-side token revocation.** An identity-wide revoke would affect other
+  devices and still needs reliable server notification; it is not a substitute for the requested session policy.
+- The browser/system-downloader route accepts the capability anonymously, with no current-session credential. It cannot prove that
+  the downloader is the original authenticated session or reject a later session holding the same unused capability. The existing
+  owner-scoped data queries protect other users' records but do not establish the downloader's session identity.
+- **Required before enabling Export:** explicitly design/register a server session, bind grants to it, authenticate session proof at
+  download authorization, atomically check session/account/ownership/permissions and consume the token, revoke unused grants on
+  acknowledged server logout, and specify network-failure/offline logout behavior. Revoke unused grants on account deletion; allow
+  already authorized transfers to finish within resource limits. Add cross-session, logout, concurrent logout/claim and account-delete
+  race tests. Current local account-deletion tests verify FK cascade for unexpired, unused tokens without revoking another user's links.
+- **Independent hardening in this round:** configuration and domain issuance reject lifetimes above 15 minutes; the conditional SQL
+  UPDATE independently checks maximum age and `UseCount == 0`. Configuration cannot raise the one-use ceiling. A disconnected download
+  consumes its authorization; Web/Mobile retain a prepare-links action and explain how to request fresh tokens. Automatic delivery
+  completion/retry detection and real download-manager behavior still require device QA.
+- **Source-management scope approved:** verify and commit/push the default-OFF implementation, with this blocker documented. This
+  approval does not enable Export, Billing, any production migration/deployment, or retention deletion. No new retention deletion Job
+  exists; the unrelated pre-existing trash/operational cleanup Job remains untouched.
+- **Other launch gates:** real-account reauthentication E2E; Web/Android/iOS download QA; iOS native build; review all new text in 15
+  fallback languages; notice scheduler and persistent delivery history; shared-Collection transfer/copy
+  policy; privacy-policy/terms legal review; separate approval and design for automatic deletion.
+
+### Final single-use policy verification (2026-10-20, source only)
+
+- Backend solution build: zero errors (11 existing test-code/compiler analyzer warnings on recompilation). Full Unit: **2,051/2,051**,
+  zero skipped. Configuration rejects lifetimes above 15 minutes and use limits other than one; domain issuance also rejects an
+  overlong grant. SQL consumption independently caps old grants at 15 minutes and accepts only `UseCount == 0`, including when an
+  unvalidated caller supplies a larger use setting.
+- Web: **841/841**, zero skipped; typecheck/lint/build pass. This includes an actual local Chrome fragment-to-POST transport check
+  under the broker CSP. Mobile: **200/200 suites, 2,999/2,999 tests**, zero skipped, exit 0 in **283.41 seconds**, default 5-second
+  timeout. No late test logging or delayed-exit warning. Typecheck/lint pass (71 existing lint warnings, zero errors).
+- The initial concurrent verification run had two first-test timeouts in CollectionDetails suites and then cascading overlapping
+  `act` failures (2,883 passed / 114 failed). Both suites, DateHistory, Trash/Collections and the new export-retry cases pass in the
+  complete isolated run. No timeout was increased, no case skipped and no `--forceExit` used. These failures are preserved as
+  diagnostic evidence rather than hidden by a longer timeout.
+- Android: offline arm64 `:app:assembleDogfood` passes in 4m46s, with the DEV public host supplied only to the process and restored
+  afterwards. APK contains the JS bundle and only arm64 native libraries. No installation was performed. iOS native build remains
+  unverified on this Windows host.
+- Full Backend Integration: **959/959**, zero skipped, including all **12 RET/export/planner cases**, in 10.55 minutes. The initial
+  full run was 958/959 because the Admin pagination fixture depended on an existing second user; after the fixture fix the entire
+  suite was rerun and passed. Eight competing claims yield exactly one authorization; unexpired unused grants disappear on account
+  deletion while another user's grant remains valid. Shared-data privacy and ZIP contents/relationships remain covered.
+- Only `localhost,14333/JupleRetTests`, isolated migration-test databases on that same local SQL instance, and Azurite are used.
+  Production/DEV databases and production Blob/configuration are
+  untouched. Export stays OFF by default; Billing/retention policy defaults are unchanged. Git source management is authorized;
+  activation, production migration/deployment and automatic deletion remain separate approvals.
+
 ### Items
 
 | ID | Status | Priority | Work | Gate |
 |---|---|---:|---|---|
-| RET-01 | DONE (policy code) | P1 | Trial-only accounts: scheduled from the trial end only when created at/after the effective instant (`TrialBeforePolicy` otherwise); paid ends before the effective instant count from it; no effective instant = `PolicyNotInEffect`. Still needed: the effective instant as configuration (`DataRetention:PolicyEffectiveAtUtc`, unset by default) and its publication in the terms. | RET-08 |
-| RET-02 | OPEN | P1 | Confirm every content-creating endpoint, including photo/icon/profile uploads, is behind `RequireWriteAccess`; reads, export and account deletion stay open. | Meta-test + `ProgramEnabled` staging run |
-| RET-03 | OPEN | P1 | Export endpoint (JSON/CSV + photo links) and Web/Mobile entry points, open in every phase. | Tests: owner-only, rate limit, no other people's private content |
-| RET-04 | OPEN | P1 | Bootstrap/me gets an additive `dataRetention` block {phase, retentionStartedAtUtc, deletionDueAtUtc}. The Web/Mobile banner and read-only states come from it; old clients ignore it. | API contract tests; i18n |
-| RET-05 | OPEN | P1 | Notices (3 mo / 5 mo / final) via the retention Job + NotificationType + push; recorded in `DataRetentionSchedules` (once per period). | Idempotency tests; the program must be ON |
-| RET-06 | BLOCKED | P0 for deletion | Deletion Job with feature flag `DataRetention:DeletionEnabled` (default **false**), **dry-run first** (counts only), operator approval per batch (Admin Web), re-check of `DataRetentionPolicy` and ownership in the same transaction, idempotent reruns, Blob cleanup through the existing outbox. | Decisions (1)(2) above, RET-07, RET-08 |
-| RET-07 | BLOCKED | P0 for deletion | Integration tests: shared Collections owned by others untouched; contributed-links decision applied; re-subscribe between dry-run and delete cancels; a rerun deletes nothing more; the program-off guard. | RET-06 |
+| RET-01 | IMPLEMENTED; PROD APPLY WAITING | P1 | Pure policy and `Billing:DataRetention:PolicyEffectiveAtUtc` binding are implemented; null remains fail-closed and PROD is unchanged. Terms publication/legal review remains. | RET-08 |
+| RET-02 | IMPLEMENTED; STAGING TEST PENDING | P1 | Reflection meta-test requires every mutating endpoint to be gated or explicitly exempt. Uploads remain gated; reads, export, billing restoration and account deletion are exempt. Unit suite passes; ProgramEnabled staging run not performed. | ProgramEnabled staging run |
+| RET-03 | IMPLEMENTED DEFAULT-OFF; RELEASE BLOCKED | P1 | Streamed JSON/CSV/photo ZIP export, fragment/POST hashed capabilities, recent auth, 15-minute maximum, atomic one-use/quota limits, ownership/privacy projection and resource ceilings implemented. Session revocation is not implemented. | RET-03-SESSION + real-account reauth + Web/Android/iOS download QA |
+| RET-03-SESSION | OPEN; RELEASE BLOCKER | P0 for Export activation | Server-session registration/revocation and authenticated session proof during download authorization are absent. Logout does not revoke unused grants; another session can use a copied unused grant until expiry. Deferred explicitly; client clearing is not server revocation. | Separate server-session design/implementation + security/race tests; keep Export OFF |
+| RET-04 | IMPLEMENTED; I18N/QA PENDING | P1 | Bootstrap adds `dataRetention` and `dataExport`; Web/Mobile show phase, dates, read-only explanation and export. Korean/English are localized and all 17 locale key sets pass; the other 15 new strings still need translation review. | Translation + Web/Android/iOS QA |
+| RET-05 | IMPLEMENTING (PURE RULES ONLY) | P1 | Due stages, stable dedup keys and the final-notice lead guard are tested. Job, NotificationType/push delivery and persistent per-period history are not implemented. | The program must be ON; RET-08 |
+| RET-06 | BLOCKED; DRY-RUN PLANNER ONLY | P0 for deletion | A read-only count planner identifies owned rows and protects shared Collections/contributed links. No deletion Job, flag, approval flow or delete mutation exists. | Decisions (1)(2) above, RET-07, RET-08 |
+| RET-07 | LOCAL PLANNER TEST PASS; DELETION BLOCKED | P0 for deletion | Planner integration test passes on dedicated local SQL and covers other owners, members and contributed links. Actual deletion/idempotency/re-subscribe deletion-race tests remain blocked on RET-06. | RET-06 |
 | RET-08 | OPEN | P1 | Privacy policy + terms: schedule, notices, export, what is deleted, what remains. | Legal review |
 | RET-09 | OPEN | P2 | Review the retention purpose/period of what remains after deletion (account row, profile, friends). | Privacy review |
 | RET-10 | OPEN | P2 | Admin: retention dashboard (counts per phase, upcoming deletions, dry-run results) - counts only. | RET-06 |
 | RET-11 | OPEN | P1 | Ownership transfer for an owned shared Collection (Owner -> accepting member) and the "members keep a copy" path (new member-owned Items). A Collection with members is kept read-only when the owner chooses nothing. | Decision (2); integration tests |
-| RET-12 | OPEN | P1 | Contributed-link exemption: Items in another owner's Collection are kept with memo/photos cleared, re-checked in the delete transaction. | Decision (1); RET-07 |
+| RET-12 | DESIGN + DRY-RUN PROTECTION ONLY | P1 | Planner excludes Items referenced by another owner's active Collection. Clearing private memo/photos and the same-transaction re-check remain unimplemented because deletion is blocked. | Decision (1); RET-06/RET-07 |
 
 ## Ordered next actions
 
