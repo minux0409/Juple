@@ -34,6 +34,20 @@ public sealed class BillingOptions
 
     /// <summary>The durable billing-event wake-up queue (shared by the API, the worker and the reconcile job).</summary>
     public BillingEventsOptions Events { get; set; } = new();
+
+    /// <summary>The post-subscription data retention policy (Billing:DataRetention:*). Not in effect by default.</summary>
+    public DataRetentionOptions DataRetention { get; set; } = new();
+}
+
+/// <summary>
+/// Billing:DataRetention. <see cref="PolicyEffectiveAtUtc"/> is the instant the 6-month read-only retention policy took effect, as
+/// published in the terms; until it is set (default: null) the policy is not in effect - no account is scheduled, no retention date is
+/// shown, nothing is noticed. It never deletes anything by itself: deletion does not exist in this build (RET-06, blocked on legal
+/// review and separate approval).
+/// </summary>
+public sealed class DataRetentionOptions
+{
+    public DateTimeOffset? PolicyEffectiveAtUtc { get; set; }
 }
 
 /// <summary>

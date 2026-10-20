@@ -160,6 +160,22 @@ public static class DataRetentionPolicy
             : NotApplicable(DataRetentionNotApplicableReason.TrialBeforePolicy);
     }
 
+    /// <summary>The next notice instant strictly after <paramref name="nowUtc"/> (3 months, 5 months, deletion - 7 days), or null when none is left.</summary>
+    public static DateTimeOffset? NextNoticeAtUtc(DataRetentionState state, DateTimeOffset nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        var now = nowUtc.ToUniversalTime();
+        foreach (var instant in new[] { state.RetentionEndingNoticeAtUtc, state.DeletionScheduledNoticeAtUtc, state.FinalNoticeAtUtc })
+        {
+            if (instant is { } at && at > now)
+            {
+                return at;
+            }
+        }
+
+        return null;
+    }
+
     private static DataRetentionState Scheduled(DataRetentionBasis basis, DateTimeOffset start, DateTimeOffset now)
     {
         var ending = start.AddMonths(RetentionEndingNoticeMonths);
