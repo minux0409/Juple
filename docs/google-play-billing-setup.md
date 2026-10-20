@@ -1,5 +1,9 @@
 # Google Play billing - external setup checklist (R39-B2)
 
+> 2026-10-20 source-policy update: the business target is USD 1.99/month. This checklist is not approval to change a live product,
+> activate selling or enable Billing. First report the authenticated catalog, regional prices and existing subscriber cohorts, then obtain
+> explicit approval. See [price audit and remaining access gates](permissions-pricing-business-expenses.md#b-가격-정책과-외부-확인).
+
 R39-B1 built the Android billing client, the server-side verification, the Real-time Developer Notification (RTDN) webhook, the billing
 worker / reconcile Job and the Azure definitions - and **configured nothing outside this repository**. Everything below is done by a person
 in Google Cloud, Google Play Console and Azure during R39-B2, in this order. No Google project id, account, service account, product id or
@@ -30,7 +34,7 @@ secret value is written anywhere in the repo: placeholders in `<angle brackets>`
    subscription notifications (and voided-purchase notifications), and use **Send test notification** - it must arrive at the webhook and
    appear as a `test` event in `billing.StoreEvents`.
 3. **Create the subscription product** (proposed id: `juple_monthly`) with **one monthly auto-renewing base plan** (proposed id: `monthly`).
-   Set the **US base price to the USD 0.99 target**; let Play convert the other countries and review the proposed local prices.
+   Set the **US base price to the USD 1.99 target (source policy only; store changes require separate approval)**; let Play convert the other countries and review the proposed local prices.
    The proposed ids are **proposals until Play Console confirms they are free and acceptable**. Do **not** add a free-trial or introductory offer:
    the 30-day trial is Juple-controlled, not a store offer.
 4. Activate the base plan, and add a **grace period** and **account hold** for payment failures (the backend maps both).
