@@ -10,12 +10,12 @@ import {
   Linking,
   Platform,
   Pressable,
-  RefreshControl,
   Text,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { PullRefreshControl } from '../components/PullRefreshControl';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
@@ -1972,7 +1972,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           data={searchRows}
           keyExtractor={row => row.key}
           keyboardShouldPersistTaps="handled"
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
+          refreshControl={<PullRefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={search.isLoading ? (
             <ActivityIndicator style={styles.searchStatus} testID="collection-search-loading" />
@@ -2006,7 +2006,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           removeClippedSubviews={Platform.OS === 'android'}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
+          refreshControl={<PullRefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={listEmpty}
           onScrollBeginDrag={closeOpenRow}
@@ -2024,7 +2024,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           maxToRenderPerBatch={10}
           windowSize={7}
           removeClippedSubviews={Platform.OS === 'android'}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
+          refreshControl={<PullRefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={listEmpty}
           onScrollBeginDrag={closeOpenRow}
@@ -2042,7 +2042,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           maxToRenderPerBatch={10}
           windowSize={7}
           removeClippedSubviews={Platform.OS === 'android'}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
+          refreshControl={<PullRefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={listEmpty}
           onScrollBeginDrag={closeOpenRow}

@@ -2,7 +2,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, RefreshControl, Text } from 'react-native';
+import { ActivityIndicator, FlatList, Text } from 'react-native';
+import { PullRefreshControl } from '../components/PullRefreshControl';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import type { MyCollectionLinkSubmission, MyCollectionLinkSubmissionPage } from '../collections/api/collectionsApi';
 import { cancelMyPublicSubmission, getMyPublicSubmissions } from '../collections/api/publicShareWriteApi';
@@ -141,7 +142,7 @@ export function MyCollectionSubmissionsScreen({ route }: Props) {
         onEndReached={() => {
           loadMore().catch(() => undefined);
         }}
-        refreshControl={<RefreshControl onRefresh={() => { load(true).catch(() => undefined); }} refreshing={isRefreshing} />}
+        refreshControl={<PullRefreshControl onRefresh={() => { load(true).catch(() => undefined); }} refreshing={isRefreshing} />}
         renderItem={renderItem}
         testID="my-submissions-list"
       />

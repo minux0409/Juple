@@ -8,11 +8,11 @@ import {
   ActivityIndicator,
   FlatList,
   Platform,
-  RefreshControl,
   Text,
   View,
   type ListViewToken,
 } from 'react-native';
+import { PullRefreshControl } from '../components/PullRefreshControl';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
@@ -518,7 +518,7 @@ export function DateHistoryScreen() {
         onEndReachedThreshold={END_REACHED_THRESHOLD}
         onLayout={viewportFill.onLayout}
         onViewableItemsChanged={onViewableItemsChanged}
-        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => (search.isFlat ? search.refresh() : refresh())} />}
+        refreshControl={<PullRefreshControl refreshing={isRefreshing} onRefresh={() => (search.isFlat ? search.refresh() : refresh())} />}
         // Android: rows scrolled far away drop their native views (and images) entirely.
         removeClippedSubviews={Platform.OS === 'android'}
         renderItem={renderRow}

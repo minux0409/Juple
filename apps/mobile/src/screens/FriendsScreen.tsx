@@ -4,7 +4,8 @@ import type { RootStackParamList } from '../navigation/RootStack';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Clipboard from '@react-native-clipboard/clipboard';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { PullRefreshControl } from '../components/PullRefreshControl';
 import { ThemedTextInput } from '../components/ThemedTextInput';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { ActionMenuDialog } from '../components/ActionMenuDialog';
@@ -306,7 +307,7 @@ export function FriendsScreen() {
   const incoming = requests.filter(request => request.direction === 'incoming');
   const outgoing = requests.filter(request => request.direction === 'outgoing');
 
-  const refreshControl = <RefreshControl onRefresh={refresh} refreshing={isRefreshing} />;
+  const refreshControl = <PullRefreshControl onRefresh={refresh} refreshing={isRefreshing} />;
   const retryBlock = (onRetry: () => void, testID: string, failure: unknown) => (
     <LoadFailureState error={failure} onRetry={onRetry} testID={testID} />
   );

@@ -1,5 +1,6 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Modal, Switch, Text } from 'react-native';
+import { Modal, Text } from 'react-native';
+import { ThemedSwitch } from '../../components/ThemedSwitch';
 import i18n from '../../i18n';
 import { MyPageScreen } from '../MyPageScreen';
 import { useAuth } from '../../auth/AuthContext';
@@ -165,7 +166,7 @@ describe('MyPageScreen settings entry points', () => {
     loadQuickSaveOnSharePreference.mockReturnValueOnce(new Promise<boolean>(resolve => { resolveLoad = resolve; }));
     mockUseAuth({ userEmail: null });
     const renderer = await renderScreen();
-    const quickSaveSwitch = () => renderer.root.findByType(Switch);
+    const quickSaveSwitch = () => renderer.root.findByType(ThemedSwitch);
 
     // Still loading: OFF and not touchable.
     expect(quickSaveSwitch().props.value).toBe(false);
@@ -183,7 +184,7 @@ describe('MyPageScreen settings entry points', () => {
     mockUseAuth({ userEmail: null });
     const renderer = await renderScreen();
 
-    expect(renderer.root.findByType(Switch).props.value).toBe(true);
+    expect(renderer.root.findByType(ThemedSwitch).props.value).toBe(true);
     expect(findTextValues(renderer)).toContain(i18n.t('settings.quickSaveOnShareOnDescription'));
   });
 
