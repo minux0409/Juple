@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import NativeIncomingShare, {
   type PendingShare,
@@ -16,13 +16,17 @@ export function useIncomingShare(): UseIncomingShareResult {
     [],
   );
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const mounted = useRef(false);
+  const refreshGeneration = useRef(0);
 
   const refreshPendingShares = useCallback(async () => {
     if (!NativeIncomingShare) {
       return;
     }
 
+    const generation = ++refreshGeneration.current;
     const shares = await NativeIncomingShare.getPendingShares();
+    if (!mounted.current || generation !== refreshGeneration.current) return;
     setNowMs(Date.now());
     setPendingShares(shares);
   }, []);
@@ -40,6 +44,7 @@ export function useIncomingShare(): UseIncomingShareResult {
   );
 
   useEffect(() => {
+    mounted.current = true;
     refreshPendingShares().catch(() => undefined);
     const subscription = AppState.addEventListener('change', state => {
       if (state === 'active') {
@@ -52,6 +57,7 @@ export function useIncomingShare(): UseIncomingShareResult {
     });
 
     return () => {
+      mounted.current = false;
       subscription.remove();
       unsubscribe();
     };

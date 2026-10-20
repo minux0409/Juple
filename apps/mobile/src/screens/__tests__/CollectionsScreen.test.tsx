@@ -281,7 +281,7 @@ describe('CollectionsScreen filters', () => {
         i18n.t('collections.sharedCategoriesTab'),
       ]);
     } finally {
-      await i18n.changeLanguage('en');
+      await act(async () => { await i18n.changeLanguage('en'); });
     }
   });
 

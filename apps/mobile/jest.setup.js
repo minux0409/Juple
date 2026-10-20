@@ -5,6 +5,30 @@ const { Dimensions } = require('react-native');
 
 Dimensions.set({ window: { ...Dimensions.get('window'), width: 411 } });
 
+// React Test Renderer has no automatic cleanup. Track roots at the test driver boundary so every suite releases
+// effects, subscriptions and native-list/toast timers, including when an assertion fails before its manual unmount.
+// This is deliberately not a Jest spy: restoreAllMocks in an individual case must not disable teardown.
+const testRenderer = require('react-test-renderer');
+const createRenderer = testRenderer.create;
+const renderedRoots = new Set();
+testRenderer.create = (...args) => {
+  const renderer = createRenderer(...args);
+  renderedRoots.add(renderer);
+  const unmount = renderer.unmount;
+  renderer.unmount = () => {
+    renderedRoots.delete(renderer);
+    unmount();
+  };
+  return renderer;
+};
+// eslint-disable-next-line no-undef -- Jest lifecycle in setupFilesAfterEnv
+afterEach(async () => {
+  await testRenderer.act(async () => {
+    for (const renderer of renderedRoots) renderer.unmount();
+    renderedRoots.clear();
+  });
+});
+
 // The kept signed photo URLs (src/images/stableImageUri.ts) are session-scoped module state: every test starts from an empty
 // session, exactly as the app does after a sign-out.
 // eslint-disable-next-line no-undef -- Jest's own global in a setupFilesAfterEnv file

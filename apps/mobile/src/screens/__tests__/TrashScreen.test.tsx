@@ -24,6 +24,9 @@ import {
 
 const mockSetOptions = jest.fn();
 const mockNavigation = { setOptions: mockSetOptions };
+afterEach(() => {
+  mockPrefs.clear();
+});
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => mockNavigation,
   useFocusEffect: (callback: () => void | (() => void)) => {

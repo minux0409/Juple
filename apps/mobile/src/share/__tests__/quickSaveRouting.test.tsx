@@ -1,4 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
+import '../../i18n';
 import { IncomingShareRouter } from '../IncomingShareRouter';
 import NativeIncomingShare, { type PendingShare } from '../specs/NativeIncomingShare';
 import { AUTO_SAVE_SETTLE_MS, notifyAutoSaveSettled } from '../autoSaveInFlight';
@@ -125,6 +126,31 @@ describe('Quick Save ON: a share being saved in the background is never opened f
 });
 
 describe('Quick Save OFF: every share goes straight to review, as before', () => {
+  it('ignores a native queue response that resolves after the router was unmounted', async () => {
+    let resolve!: (shares: PendingShare[]) => void;
+    jest.mocked(NativeIncomingShare!.getPendingShares).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+    const renderer = await openApp();
+    await act(async () => { renderer.unmount(); });
+    const reads = jest.mocked(NativeIncomingShare!.getPendingShares).mock.calls.length;
+    await act(async () => {
+      resolve([youTubeShare()]);
+      notifyAutoSaveSettled();
+    });
+    expect(navigationRef.navigate).not.toHaveBeenCalled();
+    expect(NativeIncomingShare!.getPendingShares).toHaveBeenCalledTimes(reads);
+  });
+
+  it('a late old queue snapshot never replaces the newer settled queue', async () => {
+    let resolve!: (shares: PendingShare[]) => void;
+    jest.mocked(NativeIncomingShare!.getPendingShares).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+    await openApp();
+    queue = [youTubeShare({ id: 'newer', text: 'https://example.com/new' })];
+    await act(async () => { notifyAutoSaveSettled(); });
+    await act(async () => { resolve([youTubeShare({ id: 'stale' })]); });
+    expect(navigationRef.navigate).toHaveBeenCalledTimes(1);
+    expect(navigationRef.navigate).toHaveBeenCalledWith('NewLinkReview', expect.objectContaining({ url: 'https://example.com/new' }));
+  });
+
   it('YouTube share → NewLinkReview opened with the URL and the video title', async () => {
     queue = [youTubeShare({ autoSave: false })];
     await openApp();

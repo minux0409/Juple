@@ -157,11 +157,13 @@ public sealed class AdminIntegrationTests : IAsyncLifetime
         var row = Assert.Single(page.Items);
         Assert.Equal((person.Id, person.PublicCode, "ko-KR", false, 1, 1), (row.UserId, row.JupleId, row.PreferredLocale, row.TermsAccepted, row.LinkCount, row.CollectionCount));
 
+        // Pagination must use this test's own rows, including on a freshly created test database.
+        var second = await NewUserAsync();
         var newest = await NewAdminService().ListUsersAsync(null, null, 1);
-        Assert.Single(newest.Items);
+        Assert.Equal(second.Id, Assert.Single(newest.Items).UserId);
         Assert.NotNull(newest.NextCursor);
         var next = await NewAdminService().ListUsersAsync(null, newest.NextCursor, 1);
-        Assert.True(next.Items[0].UserId < newest.Items[0].UserId);
+        Assert.Equal(person.Id, Assert.Single(next.Items).UserId);
     }
 
     // ---------- inquiries ----------
