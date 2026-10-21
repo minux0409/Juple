@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { unlockSharedCollection, type UnlockFormState } from './actions';
 
 interface LockedGateProps {
@@ -26,6 +26,13 @@ const initialState: UnlockFormState = { error: null };
  */
 export function LockedGate({ publicId, labels }: LockedGateProps) {
   const [state, formAction, pending] = useActionState(unlockSharedCollection.bind(null, publicId), initialState);
+  const [expiredRetryAt, setExpiredRetryAt] = useState(0);
+  const waiting = (state.retryAt ?? 0) > expiredRetryAt;
+  useEffect(() => {
+    if (!state.retryAt) return;
+    const timer = setTimeout(() => setExpiredRetryAt(state.retryAt!), Math.max(0, state.retryAt - Date.now()));
+    return () => clearTimeout(timer);
+  }, [state.retryAt]);
 
   const errorMessage =
     state.error === 'invalidPassword'
@@ -59,7 +66,7 @@ export function LockedGate({ publicId, labels }: LockedGateProps) {
           type="password"
         />
         {errorMessage ? <p className="lockedError" role="alert">{errorMessage}</p> : null}
-        <button className="lockedButton" disabled={pending} type="submit">
+        <button className="lockedButton" disabled={pending || waiting} type="submit">
           {pending ? labels.submitting : labels.submit}
         </button>
       </form>

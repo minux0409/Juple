@@ -483,6 +483,7 @@ public sealed class CollectionsController(
     [HttpPut("{id:long}/icon-image")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(6 * 1024 * 1024)]
+    [Microsoft.AspNetCore.Http.Timeouts.RequestTimeout(Juple.Api.Configuration.RequestProtection.ImageTimeoutPolicy)]
     [CollectionPermission(CollectionPermission.Edit, requireUnlock: true)]
     public async Task<IActionResult> SetIconImageAsync(
         long id,

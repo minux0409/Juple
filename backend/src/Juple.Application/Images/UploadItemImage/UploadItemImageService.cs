@@ -6,7 +6,7 @@ public sealed class UploadItemImageService(
 {
     private const long MaxByteLength = 10 * 1024 * 1024;
 
-    public Task<ItemImageDto> UploadAsync(
+    public async Task<ItemImageDto> UploadAsync(
         long userId,
         long itemId,
         byte[]? content,
@@ -30,10 +30,12 @@ public sealed class UploadItemImageService(
             throw new InvalidItemImageException("file", "Only JPEG, PNG, or WebP images are allowed.");
         }
 
+        await itemImageStore.EnsureOwnedAsync(userId, itemId, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         // A valid magic prefix is not enough: decode now to reject corrupt/excessive images, apply
         // EXIF orientation, remove all metadata, and create the two bounded WebP variants once.
         var normalized = ItemImageNormalizer.Normalize(content);
-        return itemImageStore.UploadAsync(
+        return await itemImageStore.UploadAsync(
             userId, itemId, normalized, timeProvider.GetUtcNow(), cancellationToken);
     }
 }

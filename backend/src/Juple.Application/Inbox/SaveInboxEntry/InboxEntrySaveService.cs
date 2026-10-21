@@ -22,6 +22,11 @@ public sealed class InboxEntrySaveService(
             throw new CollectionShareUrlNotSavableException(sharedPublicId);
         }
 
+        using var requestLease = await InboxRequestGate.EnterAsync(userId, command.ClientRequestId, cancellationToken);
+        if (command.ClientRequestId is { } requestId
+            && await inboxEntryStore.FindReplayAsync(userId, requestId, url, cancellationToken) is { } replay)
+            return replay;
+
         // Best-effort metadata fetch is guarded by the resolver's SSRF/DNS protections.
         await urlMetadataResolver.ResolveAsync(url, cancellationToken);
         return await inboxEntryStore.SaveAsync(

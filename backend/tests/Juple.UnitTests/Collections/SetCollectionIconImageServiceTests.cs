@@ -9,6 +9,16 @@ namespace Juple.UnitTests.Collections;
 
 public sealed class SetCollectionIconImageServiceTests
 {
+    [Fact]
+    public async Task OtherOwnersCollectionIsRejectedBeforeDecodeAndBlobUpload()
+    {
+        var store = new FakeCollectionStore { NotOwned = true };
+        var storage = new FakeIconStorage();
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() =>
+            new SetCollectionIconImageService(store, storage, TimeProvider.System).UploadAsync(17, 41, [0xff, 0xd8, 0xff, 0x00]));
+        Assert.Empty(storage.Uploaded);
+        Assert.False(store.WasCalled);
+    }
     private static readonly byte[] JpegBytes = TestImages.Create(SKEncodedImageFormat.Jpeg, 40, 30);
 
     [Fact]
@@ -139,6 +149,9 @@ public sealed class SetCollectionIconImageServiceTests
 
     private sealed class FakeCollectionStore : ICollectionStore
     {
+        public bool NotOwned { get; init; }
+        public Task EnsureOwnedAsync(long userId, long collectionId, CancellationToken cancellationToken = default) =>
+            NotOwned ? throw new CollectionNotFoundException() : Task.CompletedTask;
         public bool ThrowNotFound { get; init; }
 
         public string? ReplacedBlobName { get; init; }

@@ -27,6 +27,7 @@ public sealed class GoogleRtdnController(
     [Juple.Api.Billing.AnonymousMutationReviewed("Google Play's Pub/Sub push, authenticated by its OIDC token before the body is read: store plumbing, not a person's content.")]
 
     [HttpPost]
+    [RequestSizeLimit(MaxBodyBytes)]
     public async Task<IActionResult> ReceiveAsync(CancellationToken cancellationToken)
     {
         if (!options.Google.Enabled)
@@ -41,12 +42,21 @@ public sealed class GoogleRtdnController(
         }
 
         // 2. Only now read (a bounded) body.
+        if (Request.ContentLength > MaxBodyBytes) return StatusCode(StatusCodes.Status413PayloadTooLarge);
         PubSubPushEnvelope? envelope;
         try
         {
             using var limited = new MemoryStream();
-            await Request.Body.CopyToAsync(limited, cancellationToken);
-            if (limited.Length is 0 or > MaxBodyBytes)
+            var buffer = new byte[8192];
+            while (true)
+            {
+                // Read at most one byte beyond the limit, including a chunked request without Content-Length.
+                var read = await Request.Body.ReadAsync(buffer.AsMemory(0, (int)Math.Min(buffer.Length, MaxBodyBytes + 1 - limited.Length)), cancellationToken);
+                if (read == 0) break;
+                if (limited.Length + read > MaxBodyBytes) return StatusCode(StatusCodes.Status413PayloadTooLarge);
+                limited.Write(buffer, 0, read);
+            }
+            if (limited.Length == 0)
             {
                 return BadRequest();
             }

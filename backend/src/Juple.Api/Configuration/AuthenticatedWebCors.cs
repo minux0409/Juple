@@ -73,6 +73,7 @@ public static class AuthenticatedWebCors
                 .WithOrigins([.. origins])
                 .WithMethods([.. AllowedMethods])
                 .WithHeaders([.. AllowedHeaders])
+                .WithExposedHeaders("Retry-After")
                 .SetPreflightMaxAge(PreflightMaxAge);
         }
 

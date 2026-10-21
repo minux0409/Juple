@@ -30,6 +30,7 @@ public sealed class DeleteItemImageServiceTests
 
     private sealed class FakeItemImageStore : IItemImageStore
     {
+        public Task EnsureOwnedAsync(long userId, long itemId, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public int DeleteCallCount { get; private set; }
 
         public (long UserId, long ItemId, long ImageId)? LastDeleteCall { get; private set; }

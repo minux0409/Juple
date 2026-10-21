@@ -1,3 +1,14 @@
+import { retryAfterSeconds } from './retryAfter.ts';
+
+export class PublicRateLimitError extends Error {
+  readonly retryAfterSeconds: number;
+  constructor(response: Response) {
+    super('Public requests are temporarily limited.');
+    this.name = 'PublicRateLimitError';
+    this.retryAfterSeconds = retryAfterSeconds(response.headers?.get?.('Retry-After'));
+  }
+}
+
 /**
  * Mirrors the Backend's PublicCollectionDto. A locked share answers { name: null, isLocked: true }
  * until a valid unlock grant is presented - the page must not render anything about it then.
@@ -72,6 +83,7 @@ export async function getPublicCollection(
     { cache: 'no-store', headers: unlockHeaders(unlockToken) },
   );
 
+  if (response.status === 429) throw new PublicRateLimitError(response);
   if (response.status === 404) {
     return null;
   }
@@ -119,6 +131,7 @@ export async function getPublicCollectionItems(
   if (await isLockedResponse(response)) {
     return LOCKED;
   }
+  if (response.status === 429) throw new PublicRateLimitError(response);
   if (!response.ok) {
     throw new Error(`Juple Public API returned ${response.status} for collection ${publicId} items.`);
   }
@@ -128,7 +141,8 @@ export async function getPublicCollectionItems(
 
 export type UnlockResult =
   | { readonly kind: 'unlocked'; readonly unlockToken: string; readonly expiresAtUtc: string }
-  | { readonly kind: 'invalidPassword' | 'throttled' | 'notFound' | 'failed' };
+  | { readonly kind: 'throttled'; readonly retryAfterSeconds?: number }
+  | { readonly kind: 'invalidPassword' | 'notFound' | 'failed' };
 
 /**
  * Server-side only: verifies the password with the Backend. attemptId is this browser's opaque
@@ -160,7 +174,7 @@ export async function unlockPublicCollection(
     return { kind: 'invalidPassword' };
   }
   if (response.status === 429) {
-    return { kind: 'throttled' };
+    return { kind: 'throttled', retryAfterSeconds: retryAfterSeconds(response.headers?.get?.('Retry-After')) };
   }
   if (response.status === 404) {
     return { kind: 'notFound' };

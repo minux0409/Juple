@@ -25,6 +25,7 @@ public sealed class CollectionPasswordVerifier(
         DateTimeOffset nowUtc,
         CancellationToken cancellationToken)
     {
+        await using var attempt = await lockStore.BeginPasswordAttemptAsync(state.CollectionId, cancellationToken);
         DateTimeOffset? blockedUntil = null;
         foreach (var bucket in buckets)
         {
@@ -50,6 +51,7 @@ public sealed class CollectionPasswordVerifier(
                 await lockStore.RecordFailureAsync(state.CollectionId, bucket.Key, nowUtc, cancellationToken);
             }
 
+            await attempt.CommitAsync(cancellationToken);
             throw new InvalidCollectionPasswordException();
         }
 
@@ -57,5 +59,6 @@ public sealed class CollectionPasswordVerifier(
         {
             await lockStore.ResetFailuresAsync(state.CollectionId, bucket.Key, nowUtc, cancellationToken);
         }
+        await attempt.CommitAsync(cancellationToken);
     }
 }

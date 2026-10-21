@@ -3,6 +3,7 @@ import { AppState, Platform } from 'react-native';
 import { getMessaging, onTokenRefresh } from '@react-native-firebase/messaging';
 import { syncPushRegistration } from '../pushRegistrationSync';
 import { usePushRegistrationSync } from '../usePushRegistrationSync';
+import { reportPushSync } from '../pushRegistrationStatus';
 
 const mockUnsubscribe = jest.fn();
 const mockRequest = jest.fn();
@@ -44,9 +45,21 @@ afterEach(() => {
   jest.useRealTimers();
   jest.restoreAllMocks();
   jest.mocked(syncPushRegistration).mockResolvedValue('registered');
+  reportPushSync('idle');
 });
 
 describe('usePushRegistrationSync', () => {
+  it('waits for Retry-After when the server asks for longer than the normal retry delay', async () => {
+    jest.useFakeTimers();
+    jest.spyOn(console, 'info').mockImplementation(() => undefined);
+    Object.defineProperty(AppState, 'currentState', { value: 'active', configurable: true });
+    jest.mocked(syncPushRegistration).mockImplementation(async () => reportPushSync('registrationFailed', 429, 120));
+    await mount();
+    await act(async () => { jest.advanceTimersByTime(119_999); });
+    expect(syncPushRegistration).toHaveBeenCalledTimes(1);
+    await act(async () => { jest.advanceTimersByTime(1); });
+    expect(syncPushRegistration).toHaveBeenCalledTimes(2);
+  });
   it('retries transient failure at bounded intervals and releases timers on unmount', async () => {
     jest.useFakeTimers();
     Object.defineProperty(AppState, 'currentState', { value: 'active', configurable: true });

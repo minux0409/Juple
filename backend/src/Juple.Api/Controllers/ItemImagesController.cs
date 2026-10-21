@@ -76,6 +76,7 @@ public sealed class ItemImagesController(
     [HttpPost]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(11 * 1024 * 1024)]
+    [Microsoft.AspNetCore.Http.Timeouts.RequestTimeout(Juple.Api.Configuration.RequestProtection.ImageTimeoutPolicy)]
     public async Task<IActionResult> UploadAsync(
         long itemId,
         IFormFile? file,

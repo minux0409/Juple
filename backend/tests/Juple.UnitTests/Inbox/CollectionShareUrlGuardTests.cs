@@ -176,6 +176,10 @@ public sealed class CollectionShareUrlGuardTests
 
     private sealed class RecordingStore : IInboxEntryStore
     {
+        public Task<InboxEntrySaveResult?> FindReplayAsync(long userId, Guid clientRequestId, string url, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<InboxEntrySaveResult?>(null);
+        }
         public int Saves { get; private set; }
 
         public Task<InboxEntrySaveResult> SaveAsync(long userId, string url, Guid? clientRequestId, DateTimeOffset savedAtUtc, CancellationToken cancellationToken = default)

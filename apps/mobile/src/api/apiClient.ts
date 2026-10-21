@@ -2,6 +2,7 @@ import { notifySubscriptionRequired, subscriptionRequiredKindOf } from '../billi
 import { ApiError } from './ApiError';
 import { apiConfig } from './apiConfig';
 import { clientIdentityHeaders } from './clientIdentityHeaders';
+import { RequestCooldown, retryAfterSeconds } from './retryAfter';
 
 export const DEFAULT_API_TIMEOUT_MS = 15_000;
 
@@ -61,7 +62,7 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export async function requestApi<T>({
+async function requestApiWithCooldown<T>({
   method,
   path,
   accessToken,
@@ -69,11 +70,14 @@ export async function requestApi<T>({
   formData,
   timeoutMs,
   headers,
-}: ApiRequest): Promise<ApiResponse<T>> {
+}: ApiRequest, cooldown: RequestCooldown): Promise<ApiResponse<T>> {
   const baseUrl = apiConfig.baseUrl;
   if (!baseUrl) {
     throw new ApiError('unavailable');
   }
+
+  const remaining = cooldown.remaining(accessToken, method, path);
+  if (remaining) throw new ApiError('tooManyRequests', 429, 'rateLimited', remaining);
 
   const requestInit: RequestInit = {
     method,
@@ -179,8 +183,18 @@ export async function requestApi<T>({
   }
 
   if (response.status === 429) {
-    throw new ApiError('tooManyRequests', response.status, await readProblemCode(response));
+    const retry = retryAfterSeconds(response.headers?.get?.('Retry-After'));
+    cooldown.defer(accessToken, method, path, retry);
+    throw new ApiError('tooManyRequests', response.status, await readProblemCode(response), retry);
   }
 
   throw new ApiError('unavailable', response.status);
 }
+
+/** Each client owns bounded cooldown state. */
+export function createApiClient() {
+  const cooldown = new RequestCooldown();
+  return <T>(request: ApiRequest): Promise<ApiResponse<T>> => requestApiWithCooldown<T>(request, cooldown);
+}
+
+export const requestApi = createApiClient();

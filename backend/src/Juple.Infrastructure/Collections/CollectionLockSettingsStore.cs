@@ -9,6 +9,10 @@ namespace Juple.Infrastructure.Collections;
 /// <summary>The user's one Collection lock password (see UserCollectionLockSettings).</summary>
 public sealed class CollectionLockSettingsStore(JupleDbContext dbContext) : ICollectionLockSettingsStore
 {
+    public Task<ICollectionPasswordAttempt> BeginPasswordAttemptAsync(long userId, CancellationToken cancellationToken = default) =>
+        CollectionPasswordAttempt.BeginAsync(dbContext,
+            $"SELECT Id FROM users.Users WITH (UPDLOCK, ROWLOCK, NOWAIT) WHERE Id = {userId}", cancellationToken);
+
     public async Task<CollectionLockPasswordStatusDto> GetStatusAsync(long userId, CancellationToken cancellationToken = default)
     {
         var changedAtUtc = await dbContext.UserCollectionLockSettings
@@ -31,7 +35,8 @@ public sealed class CollectionLockSettingsStore(JupleDbContext dbContext) : ICol
     {
         // Read-modify-write under an update lock so concurrent wrong guesses (possibly on different
         // replicas) are all counted instead of overwriting each other.
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = dbContext.Database.CurrentTransaction is null
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken) : null;
         var settings = await LockRowAsync(userId, cancellationToken);
         if (settings is null)
         {
@@ -40,12 +45,13 @@ public sealed class CollectionLockSettingsStore(JupleDbContext dbContext) : ICol
 
         settings.RecordFailedChange(nowUtc);
         await dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task SetPasswordAsync(long userId, string passwordHash, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = dbContext.Database.CurrentTransaction is null
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken) : null;
         // UPDLOCK+HOLDLOCK also range-locks a missing key, so two concurrent first setups serialize
         // instead of racing to insert.
         var settings = await LockRowAsync(userId, cancellationToken);
@@ -82,7 +88,7 @@ public sealed class CollectionLockSettingsStore(JupleDbContext dbContext) : ICol
                 && dbContext.Collections.Any(collection => collection.Id == entry.CollectionId && collection.UserId == userId))
             .ExecuteDeleteAsync(cancellationToken);
 
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
     }
 
     private Task<UserCollectionLockSettings?> LockRowAsync(long userId, CancellationToken cancellationToken) =>

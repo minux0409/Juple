@@ -16,6 +16,7 @@ import {
 
 export interface UnlockFormState {
   readonly error: 'invalidPassword' | 'throttled' | 'failed' | null;
+  readonly retryAt?: number;
 }
 
 const MAX_PASSWORD_LENGTH = 64;
@@ -38,6 +39,8 @@ export async function unlockSharedCollection(
   if (!isValidPublicId(publicId)) {
     return { error: 'failed' };
   }
+  // UI state only; the API's persisted counters remain the security boundary.
+  if (_previousState.retryAt && _previousState.retryAt > Date.now()) return _previousState;
 
   const password = formData.get('password');
   if (typeof password !== 'string' || password.length === 0 || password.length > MAX_PASSWORD_LENGTH) {
@@ -61,7 +64,10 @@ export async function unlockSharedCollection(
   }
 
   const result = await unlockPublicCollection(resolveApiBaseUrl(), publicId, password, attemptId);
-  if (result.kind === 'invalidPassword' || result.kind === 'throttled') {
+  if (result.kind === 'throttled') {
+    return { error: result.kind, retryAt: Date.now() + (result.retryAfterSeconds ?? 2) * 1000 };
+  }
+  if (result.kind === 'invalidPassword') {
     return { error: result.kind };
   }
   if (result.kind !== 'unlocked') {

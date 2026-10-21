@@ -4,6 +4,13 @@ namespace Juple.Application.Collections;
 
 public interface ICollectionStore
 {
+    /// <summary>Cheap owner-only check before image decoding. The final mutation must recheck.</summary>
+    async Task EnsureOwnedAsync(long userId, long collectionId, CancellationToken cancellationToken = default)
+    {
+        var collection = await GetAsync(userId, collectionId, cancellationToken);
+        if (collection.AccessRole != CollectionDtoAccessRoles.Owner) throw new CollectionNotFoundException();
+    }
+
     /// <summary>
     /// Cursor-paginated (SavedAtUtc-style unbounded growth over time, same as History/Purchases) -
     /// never returns the whole list in one response. itemId/excludeItemId are mutually exclusive

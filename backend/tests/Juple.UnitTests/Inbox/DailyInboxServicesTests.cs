@@ -7,6 +7,55 @@ namespace Juple.UnitTests.Inbox;
 
 public sealed class DailyInboxServicesTests
 {
+    [Fact]
+    public async Task ReplaysAndConflictingReplaysAreCheckedBeforeMetadata()
+    {
+        var calls = 0;
+        var store = new FakeInboxEntryStore();
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new SaveMetadataResolver(beforeFetch: () => calls++), NoCollectionShareUrls.Instance);
+        var id = Guid.NewGuid();
+        var first = await service.SaveAsync(17, new("https://example.test/one", id));
+        var replay = await service.SaveAsync(17, new("https://example.test/one", id));
+        await Assert.ThrowsAsync<InboxEntryClientRequestConflictException>(() => service.SaveAsync(17, new("https://example.test/two", id)));
+        Assert.Equal(first.Entry, replay.Entry);
+        Assert.False(replay.Created);
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public async Task ConcurrentRequestIdDoesMetadataOnce_AndTenSequentialLinksRemainDistinct()
+    {
+        var metadata = new BlockingMetadata();
+        var store = new FakeInboxEntryStore();
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), metadata, NoCollectionShareUrls.Instance);
+        var command = new SaveInboxEntryCommand("https://example.test/one", Guid.NewGuid());
+        var first = service.SaveAsync(17, command);
+        await metadata.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var second = service.SaveAsync(17, command);
+        var third = service.SaveAsync(17, command);
+        metadata.Finish.SetResult();
+        var results = await Task.WhenAll(first, second, third).WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Single(results, r => r.Created);
+        Assert.Equal(1, metadata.Calls);
+        for (var index = 0; index < 10; index++)
+            Assert.True((await service.SaveAsync(17, new($"https://example.test/{index}", Guid.NewGuid()))).Created);
+        Assert.Equal(11, metadata.Calls);
+    }
+
+    private sealed class BlockingMetadata : IUrlMetadataResolver
+    {
+        public int Calls;
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Finish { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public async Task<UrlMetadataResult> ResolveAsync(string url, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref Calls);
+            Entered.TrySetResult();
+            await Finish.Task.WaitAsync(cancellationToken);
+            return new(null, null, null);
+        }
+    }
+
     [Theory]
     [InlineData("https://shop.example/item")]
     [InlineData("http://shop.example/item")]
@@ -177,6 +226,12 @@ public sealed class DailyInboxServicesTests
 
     private sealed class FakeInboxEntryStore(Action? beforeSave = null) : IInboxEntryStore
     {
+        public Task<InboxEntrySaveResult?> FindReplayAsync(long userId, Guid clientRequestId, string url, CancellationToken cancellationToken = default)
+        {
+            if (!_byClientRequestId.TryGetValue((userId, clientRequestId), out var existing)) return Task.FromResult<InboxEntrySaveResult?>(null);
+            if (existing.Url != url) throw new InboxEntryClientRequestConflictException();
+            return Task.FromResult<InboxEntrySaveResult?>(new(existing, Created: false));
+        }
         private readonly Dictionary<(long UserId, Guid ClientRequestId), InboxEntryDto> _byClientRequestId = [];
         private long _nextId = 1;
 

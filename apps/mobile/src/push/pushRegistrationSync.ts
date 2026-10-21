@@ -92,7 +92,9 @@ export async function syncPushRegistration(
         ? error.status
         : undefined;
     return isCurrent()
-      ? reportPushSync('registrationFailed', httpStatus)
+      ? reportPushSync('registrationFailed', httpStatus,
+        httpStatus === 429 && typeof error === 'object' && error !== null && 'retryAfterSeconds' in error
+          && typeof error.retryAfterSeconds === 'number' ? error.retryAfterSeconds : undefined)
       : 'cancelled';
   }
 }

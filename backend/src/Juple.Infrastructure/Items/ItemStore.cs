@@ -69,6 +69,12 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                     && dbContext.Items.Any(item => item.Id == itemId && item.UserId == userId),
                 cancellationToken);
 
+    public async Task<InboxEntrySaveResult?> FindReplayAsync(long userId, Guid clientRequestId, string url, CancellationToken cancellationToken = default)
+    {
+        var existing = await FindSaveRequestAsync(userId, clientRequestId, cancellationToken);
+        return existing is null ? null : BuildReplayResult(existing, url);
+    }
+
     public async Task<InboxEntrySaveResult> SaveAsync(
         long userId,
         string url,

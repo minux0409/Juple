@@ -77,9 +77,10 @@ describe('MainActivity intent filters (the app\'s own App Links)', () => {
 });
 
 describe('/open-app is launch only', () => {
-  it('the version is 31 (30 is already on Google Play) and the display version stays 1.0', () => {
+  it('the build is newer than the released 30 and the display version stays 1.0', () => {
     const gradle = readFileSync(`${android}/build.gradle`, 'utf8');
-    expect(gradle).toMatch(/versionCode 31\b/);
+    const build = Number(gradle.match(/versionCode (\d+)\b/)?.[1]);
+    expect(build).toBeGreaterThan(30);
     expect(gradle).toMatch(/versionName "1\.0"/);
   });
 

@@ -9,6 +9,10 @@ namespace Juple.Infrastructure.Collections;
 
 public sealed class CollectionLockStore(JupleDbContext dbContext) : ICollectionLockStore
 {
+    public Task<ICollectionPasswordAttempt> BeginPasswordAttemptAsync(long collectionId, CancellationToken cancellationToken = default) =>
+        CollectionPasswordAttempt.BeginAsync(dbContext,
+            $"SELECT Id FROM collections.Collections WITH (UPDLOCK, ROWLOCK, NOWAIT) WHERE Id = {collectionId}", cancellationToken);
+
     /// <summary>
     /// One query: the Collection's lock fields plus its Owner's lock password, if they have one;
     /// CollectionLockPasswordSource decides which one opens it.
@@ -75,7 +79,8 @@ public sealed class CollectionLockStore(JupleDbContext dbContext) : ICollectionL
     {
         // Read-modify-write under an update lock so concurrent wrong guesses (possibly on different
         // replicas) are all counted instead of overwriting each other.
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = dbContext.Database.CurrentTransaction is null
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken) : null;
         var throttle = await dbContext.CollectionUnlockThrottles
             .FromSqlInterpolated($"SELECT * FROM collections.CollectionUnlockThrottles WITH (UPDLOCK, HOLDLOCK) WHERE CollectionId = {collectionId} AND SubjectKey = {subjectKey}")
             .FirstOrDefaultAsync(cancellationToken);
@@ -89,12 +94,13 @@ public sealed class CollectionLockStore(JupleDbContext dbContext) : ICollectionL
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
+            if (transaction is not null) await transaction.CommitAsync(cancellationToken);
         }
         catch (DbUpdateException exception) when (
             SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception))
         {
             // A concurrent first failure created the row; count this one on it.
+            if (transaction is null) throw;
             await transaction.RollbackAsync(cancellationToken);
             dbContext.ChangeTracker.Clear();
             var existing = await dbContext.CollectionUnlockThrottles.FirstAsync(

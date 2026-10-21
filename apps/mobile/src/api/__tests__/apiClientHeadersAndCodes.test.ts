@@ -1,5 +1,8 @@
 import { ApiError } from '../ApiError';
-import { requestApi } from '../apiClient';
+import { createApiClient } from '../apiClient';
+
+let requestApi = createApiClient();
+beforeEach(() => { requestApi = createApiClient(); });
 import { subscribeSubscriptionRequired } from '../../billing/subscriptionRequired';
 
 jest.mock('../apiConfig', () => ({

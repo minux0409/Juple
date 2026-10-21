@@ -73,6 +73,7 @@ function getSaveErrorMessage(error: unknown, t: TFunction): string {
     return '';
   }
   if (error instanceof ApiError) {
+    if (error.kind === 'tooManyRequests') return t('collaboration.tooManyRequests');
     if (error.kind === 'badRequest') {
       return t('inbox.errorBadRequest');
     }

@@ -331,11 +331,16 @@ builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHand
 builder.Services.AddSingleton<Juple.Api.Safety.TermsAcceptanceCache>();
 builder.Services.AddControllers(options =>
 {
+    options.Filters.Add<RequestCapacityExceptionFilter>();
     options.Filters.Add<Juple.Api.Safety.UserBlockedExceptionFilter>();
     // Every authenticated endpoint needs the current Terms (Agreement screen after sign-in); the allowlist is AllowWithoutTermsAcceptance.
     options.Filters.Add<Juple.Api.Safety.RequireTermsAcceptanceFilter>();
 });
 builder.Services.AddProblemDetails();
+var requestProtectionOptions = builder.Configuration.GetSection(RequestProtectionOptions.SectionName).Get<RequestProtectionOptions>() ?? new();
+requestProtectionOptions.Validate();
+builder.Services.AddRequestTimeouts(options => options.AddPolicy(RequestProtection.ImageTimeoutPolicy,
+    TimeSpan.FromSeconds(requestProtectionOptions.ImageRequestTimeoutSeconds)));
 
 // First rate limiting in this API (built into ASP.NET Core - no package). These in-process
 // limiters are a per-replica first line only; the brute-force guarantee for lock passwords is the
@@ -345,69 +350,8 @@ builder.Services.AddProblemDetails();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    // Applies before multipart model binding and remains held until FileStreamResult finishes/aborts.
-    options.AddPolicy(RateLimitPolicies.ExpenseFiles, _ =>
-        RateLimitPartition.GetConcurrencyLimiter("admin-expense-files",
-            _ => new ConcurrencyLimiterOptions { PermitLimit = 4, QueueLimit = 0 }));
-    options.AddPolicy(RateLimitPolicies.DataExport, httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(RateLimitPolicies.IdentityPartitionKey(httpContext),
-            _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
-    // Bounded active streaming responses per API replica; no waiting requests retain resources.
-    options.AddPolicy(RateLimitPolicies.DataExportDownload, _ =>
-        RateLimitPartition.GetConcurrencyLimiter("export-downloads",
-            _ => new ConcurrencyLimiterOptions { PermitLimit = 4, QueueLimit = 0 }));
-    options.AddPolicy(RateLimitPolicies.JupleIdLookup, httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            RateLimitPolicies.IdentityPartitionKey(httpContext),
-            _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
-    options.AddPolicy(RateLimitPolicies.BillingGoogle, httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            RateLimitPolicies.IdentityPartitionKey(httpContext),
-            _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
-    options.AddPolicy(RateLimitPolicies.CollectionUnlock, httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            RateLimitPolicies.IdentityPartitionKey(httpContext),
-            _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
-    // Per link AND per browser attempt id - never per link alone, which would let one client
-    // exhaust the permits for everyone. The persisted link-wide ceiling lives in
-    // CollectionUnlockBuckets (DB, cross-replica), not here.
-    // Adding links through a writable public link: signed-in callers only, per identity - bounds
-    // how fast one account can fill someone else's public Collection.
-    options.AddPolicy(RateLimitPolicies.PublicCollectionWrite, httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            RateLimitPolicies.IdentityPartitionKey(httpContext),
-            _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
-    // Sending Collection invitations: its own bucket (not the Juple ID lookup one), so inviting a
-    // larger group - friends need no lookup - is not capped by lookups. Still bounded per identity:
-    // an invitation is visible to its recipient, so this also limits invitation spam.
-    options.AddPolicy(RateLimitPolicies.CollectionInvite, httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            RateLimitPolicies.IdentityPartitionKey(httpContext),
-            _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
-    // Changing/resetting the one Collection lock password: 5 per 15 minutes per identity, on top of
-    // the persisted wrong-current-password throttle and the recent sign-in a reset requires.
-    options.AddPolicy(RateLimitPolicies.CollectionLockPassword, httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            RateLimitPolicies.IdentityPartitionKey(httpContext),
-            _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(15), QueueLimit = 0 }));
-    // Sending a support inquiry: per identity, so one account cannot fill the support queue.
-    // Reporting and (un)blocking: per identity, so one account cannot flood the moderation queue or toggle blocks in a loop.
-    options.AddPolicy(RateLimitPolicies.ReportCreate, httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            RateLimitPolicies.IdentityPartitionKey(httpContext),
-            _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
-    options.AddPolicy(RateLimitPolicies.BlockChange, httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            RateLimitPolicies.IdentityPartitionKey(httpContext),
-            _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
-    options.AddPolicy(RateLimitPolicies.SupportInquiryCreate, httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            RateLimitPolicies.IdentityPartitionKey(httpContext),
-            _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
-    options.AddPolicy(RateLimitPolicies.PublicCollectionUnlock, httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            RateLimitPolicies.PublicUnlockPartitionKey(httpContext),
-            _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    RequestProtection.Configure(options, requestProtectionOptions);
+    RateLimitPolicies.ConfigureEndpointPolicies(options);
 });
 var healthChecks = builder.Services.AddHealthChecks();
 if (!isOutsideHttpApi)
@@ -436,7 +380,7 @@ builder.Services.AddCors(options =>
     {
         if (!string.IsNullOrWhiteSpace(publicWebBaseUrl))
         {
-            policy.WithOrigins(publicWebBaseUrl).WithMethods("GET").AllowAnyHeader();
+            policy.WithOrigins(publicWebBaseUrl).WithMethods("GET").AllowAnyHeader().WithExposedHeaders("Retry-After");
         }
     });
 });
@@ -568,10 +512,14 @@ if (requestTimingEnabled)
     app.Use(RequestTimingMarks.AfterAuthentication);
 }
 
-// After authentication (the token's tid/oid are known), around everything else: it looks at the finished request only.
+// Admission happens after validated JWT authentication but BEFORE active-admin SQL authorization,
+// activity tracking and MVC filters/model binding. Rejected requests do not enter those services.
+// Only upload endpoints opt into a timeout; streaming exports retain their existing own budget.
+// This also cancels a queued upload or slow multipart body, releasing its admission lease.
+app.UseRequestTimeouts();
+app.UseRateLimiter();
 app.UseMiddleware<Juple.Api.Analytics.UserActivityMiddleware>();
 app.UseAuthorization();
-app.UseRateLimiter();
 app.MapControllers();
 // /health: liveness - the process answers (unchanged meaning; the warm-up check is excluded). /health/ready: the warm-up is done.
 app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = check => !check.Tags.Contains("ready") });

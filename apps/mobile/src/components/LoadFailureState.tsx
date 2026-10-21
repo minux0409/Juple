@@ -1,6 +1,7 @@
 import { ApiError } from '../api/ApiError';
 import { ImportantState } from './ImportantState';
 import type { ImportantStateVariant } from './ImportantState';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Whether a failed load never reached the server (no connection, DNS, timeout - an ApiError 'unavailable' / 'timeout' with
@@ -44,6 +45,10 @@ interface LoadFailureStateProps {
  * operation's result is a message dialog - this is only for "the thing this surface shows could not be loaded".
  */
 export function LoadFailureState({ error, notice, onRetry, compact, testID }: LoadFailureStateProps) {
+  const { t } = useTranslation();
+  if (error instanceof ApiError && error.kind === 'tooManyRequests') {
+    return <ImportantState compact={compact} message={t('collaboration.tooManyRequests')} onRetry={onRetry} testID={testID} variant="notice" />;
+  }
   if (notice) {
     return <ImportantState compact={compact} message={notice} onRetry={onRetry} testID={testID} variant="notice" />;
   }

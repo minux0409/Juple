@@ -2,6 +2,8 @@ namespace Juple.Application.Collections.Locking;
 
 public interface ICollectionLockStore
 {
+    Task<ICollectionPasswordAttempt> BeginPasswordAttemptAsync(long collectionId, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Lock state of an active Collection (access must already have been checked), or null. The
     /// hash is its Owner's lock password - or, for an Owner without one, the Collection's legacy

@@ -49,6 +49,12 @@ describe('isDefinitiveLoadError', () => {
 });
 
 describe('LoadFailureState', () => {
+  it('shows the existing localized wait message for 429 without claiming the session ended', () => {
+    const renderer = render(<LoadFailureState error={new ApiError('tooManyRequests', 429, 'rateLimited', 60)} />);
+    expect(textsOf(renderer)).toContain(i18n.t('collaboration.tooManyRequests'));
+    expect(textsOf(renderer)).not.toContain(i18n.t('errors.unauthorized'));
+    act(() => renderer.unmount());
+  });
   it('offline: the broken chain link, with the SAME words as any load failure, and 다시 시도', () => {
     const onRetry = jest.fn();
     const renderer = render(<LoadFailureState error={new ApiError('unavailable')} onRetry={onRetry} testID="x" />);

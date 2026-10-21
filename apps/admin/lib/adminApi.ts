@@ -1,3 +1,5 @@
+import { RequestCooldown, retryAfterSeconds } from './retryAfter.ts';
+
 /**
  * The Admin Web's calls to the Juple API (/api/v1/admin/*): a bearer token from MSAL, JSON in/out. Pure (fetch and the token source
  * are injected) so the rules are unit-tested without a browser - the same rules as the user Web's client (apps/web/lib/appApi.ts):
@@ -29,13 +31,15 @@ export class ApiNetworkError extends Error {
 }
 
 export class ApiHttpError extends Error {
+  readonly retryAfterSeconds?: number;
   readonly status: number;
   readonly validationMessage: string | null;
 
-  constructor(status: number, validationMessage: string | null) {
+  constructor(status: number, validationMessage: string | null, retryAfterSeconds?: number) {
     super(`The Juple API answered ${status}.`);
     this.name = 'ApiHttpError';
     this.status = status;
+    this.retryAfterSeconds = retryAfterSeconds;
     this.validationMessage = validationMessage;
   }
 }
@@ -57,6 +61,7 @@ export function createAdminApi(options: {
   readonly getAccessToken: AccessTokenSource;
   readonly fetchImpl?: typeof fetch;
 }): AdminApi {
+  const cooldown = new RequestCooldown();
   const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
 
   const send = async (request: AdminApiRequest, token: string): Promise<Response> => {
@@ -92,6 +97,8 @@ export function createAdminApi(options: {
     if (!token) {
       throw new AuthExpiredError();
     }
+    const remaining = cooldown.remaining(token, request.method ?? 'GET', request.path);
+    if (remaining) throw new ApiHttpError(429, null, remaining);
     let response = await send(request, token);
     if (response.status === 401) {
       const fresh = await tokenFor(true);
@@ -105,6 +112,11 @@ export function createAdminApi(options: {
     }
     if (response.status === 403) {
       throw new AdminForbiddenError();
+    }
+    if (response.status === 429) {
+      const retry = retryAfterSeconds(response.headers?.get?.('Retry-After'));
+      cooldown.defer(token, request.method ?? 'GET', request.path, retry);
+      throw new ApiHttpError(429, null, retry);
     }
     if (!response.ok) {
       throw new ApiHttpError(response.status, response.status === 400 ? await readValidationMessage(response) : null);

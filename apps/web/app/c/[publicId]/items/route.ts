@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { getPublicCollectionItems, LOCKED } from '../../../../lib/publicApi';
+import { getPublicCollectionItems, LOCKED, PublicRateLimitError } from '../../../../lib/publicApi';
 import { isValidPublicId, unlockCookieName } from '../../../../lib/unlockCookie';
 
 const ITEMS_PAGE_LIMIT = 50;
@@ -23,11 +23,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ publ
   const cursor = new URL(request.url).searchParams.get('cursor') ?? undefined;
   const unlockToken = (await cookies()).get(unlockCookieName(publicId))?.value;
 
-  const page = await getPublicCollectionItems(resolveApiBaseUrl(), publicId, {
+  let page;
+  try {
+    page = await getPublicCollectionItems(resolveApiBaseUrl(), publicId, {
     cursor,
     limit: ITEMS_PAGE_LIMIT,
     unlockToken,
   });
+  } catch (error) {
+    if (error instanceof PublicRateLimitError) {
+      return new Response(null, { status: 429, headers: { 'Retry-After': String(error.retryAfterSeconds), 'Cache-Control': 'no-store' } });
+    }
+    throw error;
+  }
 
   if (page === null) {
     return new Response(null, { status: 404 });

@@ -559,6 +559,9 @@ public sealed class ItemImageStore(
             ? mainBlobName[..^MainImageSuffix.Length] + ThumbnailImageSuffix
             : null;
 
+    public Task EnsureOwnedAsync(long userId, long itemId, CancellationToken cancellationToken = default) =>
+        RequireOwnedItemAsync(userId, itemId, cancellationToken);
+
     private async Task RequireOwnedItemAsync(long userId, long itemId, CancellationToken cancellationToken)
     {
         var itemIsOwnedByUser = await dbContext.Items

@@ -881,6 +881,13 @@ public sealed class CollectionStore(
         return await GetAsync(userId, collectionId, cancellationToken);
     }
 
+    public async Task EnsureOwnedAsync(long userId, long collectionId, CancellationToken cancellationToken = default)
+    {
+        if (!await dbContext.Collections.AsNoTracking().AnyAsync(
+            entry => entry.Id == collectionId && entry.UserId == userId && entry.DeletedAtUtc == null, cancellationToken))
+            throw new CollectionNotFoundException();
+    }
+
     public async Task<(CollectionDto Collection, string? ReplacedBlobName)> SetIconImageAsync(
         long userId,
         long collectionId,

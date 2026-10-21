@@ -44,6 +44,7 @@ public sealed class UserProfileController(
     [HttpPut("image")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(6 * 1024 * 1024)]
+    [Microsoft.AspNetCore.Http.Timeouts.RequestTimeout(Juple.Api.Configuration.RequestProtection.ImageTimeoutPolicy)]
     public async Task<IActionResult> SetImageAsync(IFormFile? file, CancellationToken cancellationToken)
     {
         // Only the file's own bytes are used - never its client-supplied name or Content-Type.

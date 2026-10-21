@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   getPublicCollectionItems,
   LOCKED,
+  PublicRateLimitError,
   type PublicCollectionItem,
   type PublicCollectionItemsPage,
 } from '../../../lib/publicApi';
@@ -46,6 +47,7 @@ async function fetchNextPage(
     window.location.reload();
     return null;
   }
+  if (response.status === 429) throw new PublicRateLimitError(response);
   return response.ok ? ((await response.json()) as PublicCollectionItemsPage) : null;
 }
 
@@ -74,12 +76,18 @@ export function ItemList({
   const [items, setItems] = useState(initialItems);
   const [nextCursor, setNextCursor] = useState(initialNextCursor);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const busy = useRef(false);
+  const retryAt = useRef(0);
+  const [waiting, setWaiting] = useState(false);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(retryTimer.current), []);
 
   const loadMore = async () => {
-    if (isLoadingMore || !nextCursor) {
+    if (busy.current || Date.now() < retryAt.current || !nextCursor) {
       return;
     }
 
+    busy.current = true;
     setIsLoadingMore(true);
     try {
       const page = await fetchNextPage(apiBaseUrl, publicId, nextCursor, isLocked);
@@ -87,7 +95,16 @@ export function ItemList({
       // treat it the same as "no more pages" rather than showing a broken state mid-scroll.
       setItems(previous => [...previous, ...(page?.items ?? [])]);
       setNextCursor(page?.nextCursor ?? null);
+    } catch (error) {
+      // Keep the cursor and already loaded items; no automatic retry and no false end-of-list.
+      if (error instanceof PublicRateLimitError) {
+        retryAt.current = Date.now() + error.retryAfterSeconds * 1000;
+        setWaiting(true);
+        clearTimeout(retryTimer.current);
+        retryTimer.current = setTimeout(() => setWaiting(false), error.retryAfterSeconds * 1000);
+      }
     } finally {
+      busy.current = false;
       setIsLoadingMore(false);
     }
   };
@@ -106,7 +123,7 @@ export function ItemList({
       {nextCursor ? (
         <button
           className="loadMoreButton"
-          disabled={isLoadingMore}
+          disabled={isLoadingMore || waiting}
           onClick={loadMore}
           type="button"
         >

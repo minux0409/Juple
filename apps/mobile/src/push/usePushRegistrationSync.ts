@@ -6,7 +6,7 @@ import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import i18n from '../i18n';
 import { isFcmPlatform } from './fcmPlatform';
 import { syncPushRegistration } from './pushRegistrationSync';
-import { reportPushSync } from './pushRegistrationStatus';
+import { getPushSyncReport, reportPushSync } from './pushRegistrationStatus';
 
 /** Bootstrap, Settings return, language change and token rotation all reconcile actual OS state with server registration. */
 export function usePushRegistrationSync(): void {
@@ -36,7 +36,7 @@ export function usePushRegistrationSync(): void {
         attempts < 3 &&
         AppState.currentState === 'active'
       ) {
-        const delay = [15_000, 60_000, 180_000][attempts++];
+        const delay = Math.max([15_000, 60_000, 180_000][attempts++], (getPushSyncReport().retryAfterSeconds ?? 0) * 1000);
         timer = setTimeout(() => {
           run(false).catch(() => reportPushSync('registrationFailed'));
         }, delay);

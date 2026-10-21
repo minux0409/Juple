@@ -25,8 +25,10 @@ public sealed class UrlMetadataResolver(
     HttpClient httpClient,
     IMemoryCache memoryCache,
     TimeProvider timeProvider,
-    ILogger<UrlMetadataResolver> logger) : IUrlMetadataResolver
+    ILogger<UrlMetadataResolver> logger,
+    MetadataWorkGate? workGate = null) : IUrlMetadataResolver
 {
+    private static readonly MetadataWorkGate DefaultWorkGate = new();
     private const int MaxRedirects = 5;
     private const long MaxResponseBytes = 1024 * 1024; // 1 MB - enough for metadata typically near the top of <head>.
     private static readonly TimeSpan TotalRequestBudget = TimeSpan.FromSeconds(8);
@@ -54,6 +56,9 @@ public sealed class UrlMetadataResolver(
             return cached;
         }
 
+        // A cache hit does no outbound work. Refusal is deliberately outside the best-effort
+        // network catch: HTTP callers receive 429, never silently launch more work.
+        using var workLease = (workGate ?? DefaultWorkGate).Enter();
         var startTimestamp = timeProvider.GetTimestamp();
         var result = none;
         string? failureCategory = null;

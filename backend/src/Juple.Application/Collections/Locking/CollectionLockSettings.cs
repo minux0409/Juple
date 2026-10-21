@@ -9,6 +9,8 @@ public sealed record CollectionLockPasswordRecord(string PasswordHash, DateTimeO
 /// <summary>The user's one Collection lock password (UserCollectionLockSettings).</summary>
 public interface ICollectionLockSettingsStore
 {
+    Task<ICollectionPasswordAttempt> BeginPasswordAttemptAsync(long userId, CancellationToken cancellationToken = default);
+
     Task<CollectionLockPasswordStatusDto> GetStatusAsync(long userId, CancellationToken cancellationToken = default);
 
     Task<CollectionLockPasswordRecord?> GetAsync(long userId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
@@ -72,6 +74,7 @@ public sealed class CollectionLockPasswordService(
     {
         var validPassword = ValidateNewPassword(newPassword, confirmPassword);
         var nowUtc = timeProvider.GetUtcNow();
+        await using var attempt = await settingsStore.BeginPasswordAttemptAsync(userId, cancellationToken);
         var record = await settingsStore.GetAsync(userId, nowUtc, cancellationToken)
             ?? throw new CollectionLockPasswordNotConfiguredException();
         if (record.ChangeBlockedUntilUtc is { } blockedUntil)
@@ -84,10 +87,12 @@ public sealed class CollectionLockPasswordService(
             || !passwordHasher.Verify(record.PasswordHash, currentPassword))
         {
             await settingsStore.RecordFailedChangeAsync(userId, nowUtc, cancellationToken);
+            await attempt.CommitAsync(cancellationToken);
             throw new InvalidCollectionPasswordException();
         }
 
         await settingsStore.SetPasswordAsync(userId, passwordHasher.Hash(validPassword), nowUtc, cancellationToken);
+        await attempt.CommitAsync(cancellationToken);
     }
 
     public async Task ResetAsync(
@@ -101,7 +106,11 @@ public sealed class CollectionLockPasswordService(
         // First, before looking at anything else: no recent sign-in, no reset.
         RecentAuthentication.Require(authenticatedAtUtc, nowUtc);
         var validPassword = ValidateNewPassword(newPassword, confirmPassword);
+        // Use the same user-row reservation as ChangeAsync: a recent-auth reset cannot race
+        // a change that verified the previous password and overwrite each other's new state.
+        await using var attempt = await settingsStore.BeginPasswordAttemptAsync(userId, cancellationToken);
         await settingsStore.SetPasswordAsync(userId, passwordHasher.Hash(validPassword), nowUtc, cancellationToken);
+        await attempt.CommitAsync(cancellationToken);
     }
 
     private static string ValidateNewPassword(string? newPassword, string? confirmPassword)

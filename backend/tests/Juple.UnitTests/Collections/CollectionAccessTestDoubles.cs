@@ -71,6 +71,12 @@ internal sealed class FakeUnlockTokenProtector : ICollectionUnlockTokenProtector
 /// </summary>
 internal sealed class InMemoryCollectionLockStore : ICollectionLockStore
 {
+    private readonly SemaphoreSlim attemptGate = new(1, 1);
+    public async Task<ICollectionPasswordAttempt> BeginPasswordAttemptAsync(long collectionId, CancellationToken cancellationToken = default)
+    {
+        await attemptGate.WaitAsync(cancellationToken);
+        return new MemoryPasswordAttempt(attemptGate);
+    }
     public Dictionary<long, CollectionLockState> States { get; } = [];
 
     public Dictionary<long, long> Owners { get; } = [];
@@ -172,6 +178,7 @@ internal sealed class InMemoryCollectionLockStore : ICollectionLockStore
 /// </summary>
 internal sealed class InMemoryCollectionLockSettingsStore(InMemoryCollectionLockStore locks) : ICollectionLockSettingsStore
 {
+    public Task<ICollectionPasswordAttempt> BeginPasswordAttemptAsync(long userId, CancellationToken cancellationToken = default) => locks.BeginPasswordAttemptAsync(userId, cancellationToken);
     public Dictionary<long, Juple.Domain.Collections.UserCollectionLockSettings> Rows { get; } = [];
 
     public Task<CollectionLockPasswordStatusDto> GetStatusAsync(long userId, CancellationToken cancellationToken = default) =>
@@ -249,4 +256,10 @@ internal static class CollectionAccessTestDoubles
 
         return new CollectionAccessService(store, new FakeUnlockTokenProtector(), TimeProvider.System);
     }
+}
+
+internal sealed class MemoryPasswordAttempt(SemaphoreSlim gate) : ICollectionPasswordAttempt
+{
+    public Task CommitAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public ValueTask DisposeAsync() { gate.Release(); return ValueTask.CompletedTask; }
 }

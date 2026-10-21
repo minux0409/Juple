@@ -2,6 +2,8 @@ namespace Juple.Application.Images;
 
 public interface IItemImageStore
 {
+    Task EnsureOwnedAsync(long userId, long itemId, CancellationToken cancellationToken = default);
+
     /// <summary>Throws ItemNotFoundException if the Item does not exist or is not owned by userId.</summary>
     Task<IReadOnlyList<ItemImageDto>> ListAsync(
         long userId,

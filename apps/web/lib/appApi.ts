@@ -1,3 +1,5 @@
+import { RequestCooldown, retryAfterSeconds } from './retryAfter.ts';
+
 /**
  * The signed-in Web app's calls to the Juple API: a bearer token from the auth layer, JSON in/out. Pure (fetch and the token
  * source are injected), so the rules below are unit-tested without a browser:
@@ -23,13 +25,15 @@ export class ApiNetworkError extends Error {
 }
 
 export class ApiHttpError extends Error {
+  readonly retryAfterSeconds?: number;
   readonly status: number;
   readonly code: string | null;
 
-  constructor(status: number, code: string | null) {
+  constructor(status: number, code: string | null, retryAfterSeconds?: number) {
     super(`The Juple API answered ${status}.`);
     this.name = 'ApiHttpError';
     this.status = status;
+    this.retryAfterSeconds = retryAfterSeconds;
     this.code = code;
   }
 }
@@ -78,6 +82,7 @@ export function createAppApi(options: {
   readonly now?: () => number;
 }): AppApi {
   const now = options.now ?? (() => performance.now());
+  const cooldown = new RequestCooldown();
   const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
 
   const send = async (request: AppApiRequest, token: string): Promise<Response> => {
@@ -132,6 +137,8 @@ export function createAppApi(options: {
       });
     };
 
+    const remaining = cooldown.remaining(token, request.method ?? 'GET', request.path);
+    if (remaining) throw new ApiHttpError(429, 'rateLimited', remaining);
     let response = await send(request, token);
     headersAt = now();
     if (response.status === 401) {
@@ -146,6 +153,11 @@ export function createAppApi(options: {
       }
     }
 
+    if (response.status === 429) {
+      const retry = retryAfterSeconds(response.headers?.get?.('Retry-After'));
+      cooldown.defer(token, request.method ?? 'GET', request.path, retry);
+      throw new ApiHttpError(429, await readProblemCode(response), retry);
+    }
     if (!response.ok) {
       const code = await readProblemCode(response);
       report(response.status, now());

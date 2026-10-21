@@ -210,7 +210,7 @@ public static class DependencyInjection
         // re-fetched from Azure AD/Storage on every request.
         services.AddSingleton<UserDelegationKeyCache>();
 
-        AddUrlMetadataResolver(services);
+        AddUrlMetadataResolver(services, configuration);
 
         return services;
     }
@@ -226,9 +226,12 @@ public static class DependencyInjection
     /// different users' URLs. See UrlMetadataResolver's own remarks for the request-level policy
     /// (byte/time budget, content-type gate) this handler does not itself express.
     /// </summary>
-    private static void AddUrlMetadataResolver(IServiceCollection services)
+    private static void AddUrlMetadataResolver(IServiceCollection services, IConfiguration configuration)
     {
         services.AddSingleton<IDnsResolver, SystemDnsResolver>();
+        var outboundConcurrency = configuration.GetValue<int?>("RequestProtection:MetadataOutboundConcurrency") ?? 4;
+        if (outboundConcurrency is < 1 or > 16) throw new InvalidOperationException("RequestProtection:MetadataOutboundConcurrency must be between 1 and 16.");
+        services.AddSingleton(new MetadataWorkGate(outboundConcurrency));
         services.AddMemoryCache(options => options.SizeLimit = 500);
 
         services.AddHttpClient<IUrlMetadataResolver, UrlMetadataResolver>(client =>

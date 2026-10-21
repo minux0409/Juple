@@ -99,6 +99,7 @@ export { COLLECTION_SHARE_URL_NOT_SAVABLE_CODE } from './collectionShareUrl.ts';
 /** Mobile NewLinkReview getSaveErrorMessage. */
 export function saveErrorMessage(error: unknown, dictionary: AppDictionary): string {
   if (error instanceof ApiHttpError) {
+    if (error.status === 429) return dictionary.tooManyRequests;
     if (error.status === 400) {
       return dictionary.inboxErrorBadRequest;
     }

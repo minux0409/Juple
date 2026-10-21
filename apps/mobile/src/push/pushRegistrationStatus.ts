@@ -12,6 +12,7 @@ export interface PushSyncReport {
   readonly status: PushSyncStatus;
   readonly checkedAtUtc: string;
   readonly httpStatus?: number;
+  readonly retryAfterSeconds?: number;
 }
 let latest: PushSyncReport = {
   status: 'idle',
@@ -22,11 +23,13 @@ export const getPushSyncReport = () => latest;
 export function reportPushSync(
   status: PushSyncStatus,
   httpStatus?: number,
+  retryAfterSeconds?: number,
 ): PushSyncStatus {
   latest = {
     status,
     checkedAtUtc: new Date().toISOString(),
     ...(httpStatus ? { httpStatus } : {}),
+    ...(retryAfterSeconds ? { retryAfterSeconds } : {}),
   };
   for (const listener of listeners) listener(latest);
   // Only bounded outcome/status fields. Never log tokens, identities, raw exceptions or response bodies.

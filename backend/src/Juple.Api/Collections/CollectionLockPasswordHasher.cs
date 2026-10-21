@@ -16,6 +16,8 @@ public sealed class CollectionLockPasswordHasher : ICollectionLockPasswordHasher
     private const int IterationCount = 210_000;
 
     private static readonly object HashUser = new();
+    // Covers every hasher caller, including owner settings and anonymous share unlocks.
+    private static readonly SemaphoreSlim HashWork = new(2, 2);
 
     private readonly PasswordHasher<object> _hasher = new(Options.Create(new PasswordHasherOptions
     {
@@ -23,10 +25,16 @@ public sealed class CollectionLockPasswordHasher : ICollectionLockPasswordHasher
         IterationCount = IterationCount,
     }));
 
-    public string Hash(string password) => _hasher.HashPassword(HashUser, password);
+    public string Hash(string password)
+    {
+        if (!HashWork.Wait(0)) throw new Juple.Application.RequestCapacityExceededException();
+        try { return _hasher.HashPassword(HashUser, password); }
+        finally { HashWork.Release(); }
+    }
 
     public bool Verify(string passwordHash, string password)
     {
+        if (!HashWork.Wait(0)) throw new Juple.Application.RequestCapacityExceededException();
         try
         {
             return _hasher.VerifyHashedPassword(HashUser, passwordHash, password) is
@@ -36,5 +44,6 @@ public sealed class CollectionLockPasswordHasher : ICollectionLockPasswordHasher
         {
             return false;
         }
+        finally { HashWork.Release(); }
     }
 }

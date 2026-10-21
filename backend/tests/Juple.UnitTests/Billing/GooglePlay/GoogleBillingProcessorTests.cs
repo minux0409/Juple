@@ -514,9 +514,23 @@ public sealed class GoogleRtdnTests
     [Fact]
     public async Task AnOversizedBody_IsRejected()
     {
-        var result = await Controller(GoogleTestData.Options(), new FakeAuthenticator(true), new RecordingProcessor(), Body(new string('x', 70 * 1024))).ReceiveAsync(CancellationToken.None);
+        using var body = Body(new string('x', 70 * 1024));
+        var processor = new RecordingProcessor();
+        var result = await Controller(GoogleTestData.Options(), new FakeAuthenticator(true), processor, body).ReceiveAsync(CancellationToken.None);
+        Assert.Equal(413, Assert.IsType<StatusCodeResult>(result).StatusCode);
+        Assert.Equal(64 * 1024 + 1, body.Position);
+        Assert.Empty(processor.Ingested);
+    }
 
-        Assert.IsType<BadRequestResult>(result);
+    [Fact]
+    public async Task DeclaredOversizedBody_IsRejectedWithoutReading()
+    {
+        var body = new UnreadableBody();
+        var controller = Controller(GoogleTestData.Options(), new FakeAuthenticator(true), new RecordingProcessor(), body);
+        controller.Request.ContentLength = 64 * 1024 + 1;
+        var result = await controller.ReceiveAsync(CancellationToken.None);
+        Assert.Equal(413, Assert.IsType<StatusCodeResult>(result).StatusCode);
+        Assert.False(body.WasRead);
     }
 
     [Fact]

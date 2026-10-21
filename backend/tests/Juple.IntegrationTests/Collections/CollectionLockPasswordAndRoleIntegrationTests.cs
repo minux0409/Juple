@@ -103,6 +103,47 @@ public sealed class CollectionLockPasswordAndRoleIntegrationTests : IAsyncLifeti
     // ---------- A. no lock password yet: legacy per-Collection passwords keep working ----------
 
     [Fact]
+    public async Task PasswordAttemptReservationIsCrossConnectionAtomic_RefusesBeforeHash_AndKeepsFailedBudget()
+    {
+        var id = await NewLegacyLockedAsync("Concurrent guesses", "correct-password");
+        var options = new DbContextOptionsBuilder<JupleDbContext>().UseSqlServer(_db.Database.GetConnectionString()).Options;
+        await using var replica = new JupleDbContext(options);
+        var firstStore = new CollectionLockStore(_db);
+        var otherStore = new CollectionLockStore(replica);
+        var state = (await firstStore.GetStateAsync(id))!;
+        var hasher = new CountingHasher();
+        var verifier = new CollectionPasswordVerifier(otherStore, hasher);
+        await using (var reserved = await firstStore.BeginPasswordAttemptAsync(id))
+        {
+            await Assert.ThrowsAsync<Juple.Application.RequestCapacityExceededException>(() =>
+                verifier.VerifyAsync(state, CollectionUnlockSubject.ForUser(_owner), "guess", DateTimeOffset.UtcNow, CancellationToken.None));
+            Assert.Equal(0, hasher.Calls);
+            await reserved.CommitAsync(CancellationToken.None);
+        }
+        for (var index = 0; index < 5; index++)
+            await Assert.ThrowsAsync<InvalidCollectionPasswordException>(() =>
+                verifier.VerifyAsync(state, CollectionUnlockSubject.ForUser(_owner), "guess", DateTimeOffset.UtcNow, CancellationToken.None));
+        await Assert.ThrowsAsync<CollectionUnlockThrottledException>(() =>
+            new CollectionPasswordVerifier(firstStore, hasher).VerifyAsync(state, CollectionUnlockSubject.ForUser(_owner), "guess", DateTimeOffset.UtcNow, CancellationToken.None));
+        Assert.Equal(5, hasher.Calls);
+        var ownerSettings = new CollectionLockSettingsStore(_db);
+        await using var ownerReservation = await ownerSettings.BeginPasswordAttemptAsync(_owner);
+        await Assert.ThrowsAsync<Juple.Application.RequestCapacityExceededException>(() =>
+            new CollectionLockSettingsStore(replica).BeginPasswordAttemptAsync(_owner));
+        await Assert.ThrowsAsync<Juple.Application.RequestCapacityExceededException>(() =>
+            new CollectionLockPasswordService(new CollectionLockSettingsStore(replica), hasher, TimeProvider.System)
+                .ResetAsync(_owner, "Reset-pwd-123", "Reset-pwd-123", DateTimeOffset.UtcNow));
+        await ownerReservation.CommitAsync(CancellationToken.None);
+    }
+
+    private sealed class CountingHasher : ICollectionLockPasswordHasher
+    {
+        public int Calls;
+        public string Hash(string password) => throw new NotSupportedException();
+        public bool Verify(string passwordHash, string password) { Calls++; return false; }
+    }
+
+    [Fact]
     public async Task A_WithoutALockPassword_LegacyPerCollectionPasswordsKeepWorking_AndNewLocksWaitForOne()
     {
         var a = await NewLegacyLockedAsync("A", "aaa-legacy");

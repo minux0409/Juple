@@ -7,6 +7,14 @@ namespace Juple.UnitTests.Images;
 public sealed class UploadItemImageServiceTests
 {
     [Fact]
+    public async Task OtherOwnersItemIsRejectedBeforeCorruptImageDecodeOrStorage()
+    {
+        var store = new FakeItemImageStore { NotOwned = true };
+        await Assert.ThrowsAsync<Juple.Application.Items.ItemNotFoundException>(() =>
+            new UploadItemImageService(store, TimeProvider.System).UploadAsync(17, 41, [0xff, 0xd8, 0xff, 0x00]));
+        Assert.False(store.WasUploadCalled);
+    }
+    [Fact]
     public async Task UploadAsync_WhenContentIsNullOrEmpty_ThrowsWithoutStoreCall()
     {
         foreach (var content in new byte[]?[] { null, [] })
@@ -160,6 +168,9 @@ public sealed class UploadItemImageServiceTests
 
     private sealed class FakeItemImageStore : IItemImageStore
     {
+        public bool NotOwned { get; init; }
+        public Task EnsureOwnedAsync(long userId, long itemId, CancellationToken cancellationToken = default) =>
+            NotOwned ? throw new Juple.Application.Items.ItemNotFoundException() : Task.CompletedTask;
         public bool WasUploadCalled { get; private set; }
         public long? LastUserId { get; private set; }
         public long? LastItemId { get; private set; }

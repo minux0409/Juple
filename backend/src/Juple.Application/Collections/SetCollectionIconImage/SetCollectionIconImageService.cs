@@ -33,6 +33,8 @@ public sealed class SetCollectionIconImageService(
         _ = ImageFormatDetector.Detect(content)
             ?? throw new InvalidItemImageException("file", "Only JPEG, PNG, or WebP images are allowed.");
 
+        await collectionStore.EnsureOwnedAsync(userId, collectionId, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         // The server owns the final form whatever the client did (the Mobile picker already resizes; the Web sends the source):
         // decoded-size limits, EXIF orientation applied, every metadata block (EXIF/GPS/XMP) dropped, one 512 px WebP stored.
         var normalized = ItemImageNormalizer.NormalizeSingle(content, ItemImageNormalizer.SmallImageMaxEdge, ItemImageNormalizer.SmallImageQuality);
