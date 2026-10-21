@@ -356,8 +356,6 @@
     "homeShortcutAdd": "添加到主屏幕",
     "homeShortcutUnsupported": "此设备的启动器不支持添加主屏幕快捷方式。",
     "homeShortcutLocked": "已锁定的合集从主屏幕打开时仍需输入密码，且不会添加为共享目标。",
-    "iosShortcutHowTo": "请在“快捷指令”App 中将“{{name}}”添加到主屏幕。\n\n1. 打开快捷指令并轻点 +。\n2. 搜索“Juple”，选择“Open Collection”，然后选择“{{name}}”。\n3. 轻点共享按钮，再轻点“添加到主屏幕”。\n\n在 iPhone 上，App 无法自行添加主屏幕图标。",
-    "iosShortcutLocked": "已锁定的合集无法添加到快捷指令，因为合集名称会在 Juple 之外的快捷指令 App 中显示。",
     "joinPending": "等待批准",
     "joinRequestsA11y": "加入申请 {{count}}",
     "joinRequests": "加入申请 {{count}}"

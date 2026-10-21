@@ -356,8 +356,6 @@
     "homeShortcutAdd": "ホーム画面にショートカットを追加",
     "homeShortcutUnsupported": "この端末のランチャーはホーム画面へのショートカット追加に対応していません。",
     "homeShortcutLocked": "ロックされたコレクションは、ホーム画面から開く際もパスワードが必要です。共有先（Direct Share）には追加されません。",
-    "iosShortcutHowTo": "ショートカットアプリで「{{name}}」をホーム画面に追加してください。\n\n1. ショートカットを開いて + をタップします。\n2. 「Juple」を検索して“Open Collection”を選び、「{{name}}」を選択します。\n3. 共有ボタンから「ホーム画面に追加」をタップします。\n\niPhoneではアプリが自分でホーム画面にアイコンを追加することはできません。",
-    "iosShortcutLocked": "ロックされたコレクションはショートカットに追加できません。ショートカットアプリではコレクション名がJupleの外に表示されるためです。",
     "joinPending": "承認待ち",
     "joinRequestsA11y": "参加リクエスト {{count}}",
     "joinRequests": "参加リクエスト {{count}}"

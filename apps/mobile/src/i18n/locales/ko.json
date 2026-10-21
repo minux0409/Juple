@@ -356,8 +356,6 @@
     "homeShortcutAdd": "홈 화면에 바로가기 추가",
     "homeShortcutUnsupported": "이 기기의 런처는 홈 화면 바로가기 추가를 지원하지 않아요.",
     "homeShortcutLocked": "잠긴 컬렉션은 홈 화면 바로가기를 눌러도 비밀번호를 먼저 입력해야 열려요. 공유 대상(Direct Share)에는 추가되지 않아요.",
-    "iosShortcutHowTo": "단축어 앱에서 '{{name}}' 바로가기를 홈 화면에 추가해 주세요.\n\n1. 단축어 앱을 열고 + 를 눌러요.\n2. 'Juple'을 검색해 '컬렉션 열기'를 고르고, 컬렉션으로 '{{name}}'을(를) 선택해요.\n3. 공유 버튼에서 '홈 화면에 추가'를 눌러요.\n\niPhone에서는 앱이 홈 화면 아이콘을 직접 만들 수 없어요.",
-    "iosShortcutLocked": "잠긴 컬렉션은 단축어에 추가할 수 없어요. 단축어 앱에는 컬렉션 이름이 Juple 밖에서 보이기 때문이에요.",
     "joinPending": "승인 대기 중",
     "joinRequestsA11y": "참여 요청 {{count}}건 확인",
     "joinRequests": "참여 요청 {{count}}"

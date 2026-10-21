@@ -1,6 +1,6 @@
 #import <Foundation/Foundation.h>
 #import <JupleSpecs/JupleSpecs.h>
-// See JupleCollectionShortcutsModule.mm: the generated Swift header needs the RCTAppDelegate superclass in Objective-C++.
+// The generated Swift header (JupleMobile-Swift.h) needs the RCTAppDelegate superclass declared first in Objective-C++.
 #import <React_RCTAppDelegate/RCTDefaultReactNativeFactoryDelegate.h>
 
 // The generated Swift header declares ApnsBridge as a UNUserNotificationCenterDelegate.

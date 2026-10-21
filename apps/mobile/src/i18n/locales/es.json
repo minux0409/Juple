@@ -356,8 +356,6 @@
     "homeShortcutAdd": "Añadir acceso directo a la pantalla de inicio",
     "homeShortcutUnsupported": "El launcher de este dispositivo no admite añadir accesos directos a la pantalla de inicio.",
     "homeShortcutLocked": "Una colección bloqueada sigue pidiendo su contraseña al abrirla desde la pantalla de inicio. No se añade como destino para compartir.",
-    "iosShortcutHowTo": "Añade un atajo de «{{name}}» a la pantalla de inicio desde la app Atajos.\n\n1. Abre Atajos y toca +.\n2. Busca «Juple», elige “Open Collection” y selecciona «{{name}}».\n3. Toca el botón Compartir y luego «Añadir a pantalla de inicio».\n\nEn el iPhone, una app no puede añadir un icono a la pantalla de inicio por sí misma.",
-    "iosShortcutLocked": "Una colección bloqueada no se puede añadir a Atajos, porque su nombre se vería fuera de Juple en la app Atajos.",
     "joinPending": "Pendiente de aprobación",
     "joinRequestsA11y": "Solicitudes {{count}}",
     "joinRequests": "Solicitudes {{count}}"

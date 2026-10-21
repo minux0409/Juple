@@ -356,8 +356,6 @@
     "homeShortcutAdd": "Aggiungi scorciatoia alla schermata Home",
     "homeShortcutUnsupported": "Il launcher di questo dispositivo non supporta l’aggiunta di scorciatoie alla schermata Home.",
     "homeShortcutLocked": "Una raccolta bloccata chiede comunque la password se aperta dalla schermata Home. Non viene aggiunta come destinazione di condivisione.",
-    "iosShortcutHowTo": "Aggiungi una scorciatoia per “{{name}}” alla schermata Home dall’app Comandi Rapidi.\n\n1. Apri Comandi Rapidi e tocca +.\n2. Cerca “Juple”, scegli “Open Collection” e seleziona “{{name}}”.\n3. Tocca il pulsante Condividi, poi “Aggiungi a schermata Home”.\n\nSu iPhone un’app non può aggiungere da sola un’icona alla schermata Home.",
-    "iosShortcutLocked": "Una raccolta bloccata non può essere aggiunta a Comandi Rapidi, perché il suo nome sarebbe visibile fuori da Juple nell’app Comandi Rapidi.",
     "joinPending": "In attesa di approvazione",
     "joinRequestsA11y": "Richieste {{count}}",
     "joinRequests": "Richieste {{count}}"

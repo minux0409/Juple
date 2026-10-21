@@ -356,8 +356,6 @@
     "homeShortcutAdd": "Ana ekrana kısayol ekle",
     "homeShortcutUnsupported": "Bu cihazın başlatıcısı ana ekrana kısayol eklemeyi desteklemiyor.",
     "homeShortcutLocked": "Kilitli bir koleksiyon ana ekrandan açıldığında da parola ister. Paylaşım hedefi olarak eklenmez.",
-    "iosShortcutHowTo": "Kestirmeler uygulamasından “{{name}}” için bir kestirmeyi Ana Ekran’a ekleyin.\n\n1. Kestirmeler’i açın ve + simgesine dokunun.\n2. “Juple” arayın, “Open Collection”ı seçin ve “{{name}}” seçin.\n3. Paylaş düğmesine, ardından “Ana Ekrana Ekle”ye dokunun.\n\niPhone’da bir uygulama Ana Ekran simgesini kendi başına ekleyemez.",
-    "iosShortcutLocked": "Kilitli bir koleksiyon Kestirmeler’e eklenemez, çünkü adı Kestirmeler uygulamasında Juple dışında görünür.",
     "joinPending": "Onay bekliyor",
     "joinRequestsA11y": "İstekler {{count}}",
     "joinRequests": "İstekler {{count}}"

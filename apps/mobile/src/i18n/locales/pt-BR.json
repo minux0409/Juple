@@ -356,8 +356,6 @@
     "homeShortcutAdd": "Adicionar atalho à tela inicial",
     "homeShortcutUnsupported": "O launcher deste dispositivo não permite adicionar atalhos à tela inicial.",
     "homeShortcutLocked": "Uma coleção bloqueada continua pedindo a senha ao ser aberta pela tela inicial. Ela não é adicionada como destino de compartilhamento.",
-    "iosShortcutHowTo": "Adicione um atalho para “{{name}}” à Tela de Início pelo app Atalhos.\n\n1. Abra Atalhos e toque em +.\n2. Busque “Juple”, escolha “Open Collection” e selecione “{{name}}”.\n3. Toque no botão Compartilhar e depois em “Adicionar à Tela de Início”.\n\nNo iPhone, um app não pode adicionar um ícone à Tela de Início sozinho.",
-    "iosShortcutLocked": "Uma coleção bloqueada não pode ser adicionada aos Atalhos, porque o nome dela ficaria visível fora do Juple no app Atalhos.",
     "joinPending": "Aguardando aprovação",
     "joinRequestsA11y": "Pedidos {{count}}",
     "joinRequests": "Pedidos {{count}}"

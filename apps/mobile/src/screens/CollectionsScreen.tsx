@@ -39,7 +39,6 @@ import { SubscriptionExpiredNotice } from '../billing/SubscriptionExpiredNotice'
 import { HintBanner } from '../hints/HintBanner';
 import { useOneTimeHint } from '../hints/useOneTimeHint';
 import { collectionShortcutService } from '../shortcuts/CollectionShortcutService';
-import { iosCollectionShortcuts } from '../shortcuts/iosCollectionShortcuts';
 import { ApprovalSubmissionSheet } from '../collections/ApprovalSubmissionSheet';
 import { ReceivedInvitationsSheet } from '../collections/ReceivedInvitationsSheet';
 import { useLiveRefresh } from '../push/useLiveRefresh';
@@ -754,7 +753,6 @@ export function CollectionsScreen() {
   // one that is now locked or read-only is removed from the shortcuts - no request, nothing pinned means nothing to do.
   useEffect(() => {
     collectionShortcutService.applyKnownCollections(activeList.items).catch(() => undefined);
-    iosCollectionShortcuts.applyKnownCollections(activeList.items).catch(() => undefined);
   }, [activeList.items]);
   const isActiveInitialLoading = !activeList.isLoaded && isLoading && !error;
   // Where cards are about to appear - only while that request is actually on its way.

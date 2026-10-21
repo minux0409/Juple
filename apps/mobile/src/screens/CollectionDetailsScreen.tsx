@@ -20,7 +20,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { collectionShortcutService } from '../shortcuts/CollectionShortcutService';
-import { iosCollectionShortcuts } from '../shortcuts/iosCollectionShortcuts';
 import { getCollectionCapabilities } from '../collections/collectionCapabilities';
 import {
   deleteCollection,
@@ -693,7 +692,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   useEffect(() => {
     if (collection) {
       collectionShortcutService.applyKnownCollections([collection]).catch(() => undefined);
-      iosCollectionShortcuts.applyKnownCollections([collection]).catch(() => undefined);
     }
   }, [collection]);
 

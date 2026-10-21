@@ -356,8 +356,6 @@
     "homeShortcutAdd": "Verknüpfung zum Startbildschirm hinzufügen",
     "homeShortcutUnsupported": "Der Launcher dieses Geräts unterstützt keine Startbildschirm-Verknüpfungen.",
     "homeShortcutLocked": "Eine gesperrte Sammlung verlangt auch vom Startbildschirm aus ihr Passwort. Sie wird nicht als Teilen-Ziel hinzugefügt.",
-    "iosShortcutHowTo": "Füge in der Kurzbefehle-App einen Kurzbefehl für „{{name}}“ zum Home-Bildschirm hinzu.\n\n1. Öffne Kurzbefehle und tippe auf +.\n2. Suche nach „Juple“, wähle “Open Collection” und dann „{{name}}“.\n3. Tippe auf „Teilen“ und dann auf „Zum Home-Bildschirm“.\n\nAuf dem iPhone kann eine App selbst kein Symbol zum Home-Bildschirm hinzufügen.",
-    "iosShortcutLocked": "Eine gesperrte Sammlung kann nicht zu Kurzbefehlen hinzugefügt werden, da ihr Name in der Kurzbefehle-App außerhalb von Juple sichtbar wäre.",
     "joinPending": "Wartet auf Genehmigung",
     "joinRequestsA11y": "Anfragen {{count}}",
     "joinRequests": "Anfragen {{count}}"

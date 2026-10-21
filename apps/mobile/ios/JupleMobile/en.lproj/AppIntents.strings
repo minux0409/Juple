@@ -1,4 +1,0 @@
-/* iOS Shortcuts: the "Open Collection" action (see CollectionShortcuts.swift). */
-"collectionShortcut.entityName" = "Collection";
-"collectionShortcut.openTitle" = "Open Collection";
-"collectionShortcut.openDescription" = "Opens a collection in Juple.";
