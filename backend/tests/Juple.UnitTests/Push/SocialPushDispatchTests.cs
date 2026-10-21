@@ -663,6 +663,26 @@ public sealed class SocialPushDispatchTests
     private sealed class FakeDeliveryStore : INotificationDeliveryStore
     {
         public HashSet<(long, long)> Claimed { get; } = [];
+        private HashSet<(long, long)> Sent { get; } = [];
+
+        public Task<PushDeliveryClaims> TryClaimTokenGroupsAsync(IReadOnlyCollection<PushDeliveryTarget> targets, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+        {
+            var claims = new List<ClaimedPushDelivery>();
+            var pending = new HashSet<long>();
+            foreach (var group in targets.GroupBy(target => (target.Notification.Id, target.Notification.UserId, target.Device.Platform, target.Device.PushToken)))
+            {
+                var keys = group.Select(target => new DeliveryKey(target.Notification.Id, target.Device.Id)).Distinct().ToList();
+                if (keys.Any(key => Sent.Contains((key.NotificationId, key.PushDeviceRegistrationId)))) continue;
+                if (keys.Any(key => Claimed.Contains((key.NotificationId, key.PushDeviceRegistrationId))))
+                {
+                    pending.Add(group.Key.Id);
+                    continue;
+                }
+                foreach (var key in keys) Claimed.Add((key.NotificationId, key.PushDeviceRegistrationId));
+                claims.Add(new(group.OrderBy(target => target.Device.Id).First(), keys));
+            }
+            return Task.FromResult(new PushDeliveryClaims(claims, pending));
+        }
 
         public Task<bool> TryClaimAsync(long notificationId, long pushDeviceRegistrationId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) =>
             Task.FromResult(Claimed.Add((notificationId, pushDeviceRegistrationId)));
@@ -682,6 +702,7 @@ public sealed class SocialPushDispatchTests
         public Task RecordAttemptAsync(long notificationId, long pushDeviceRegistrationId, NotificationDeliveryStatus status, DateTimeOffset attemptedAtUtc,
             string? providerMessageId, string? failureCode, CancellationToken cancellationToken = default)
         {
+            if (status == NotificationDeliveryStatus.Sent) Sent.Add((notificationId, pushDeviceRegistrationId));
             if (status == NotificationDeliveryStatus.Failed)
             {
                 Claimed.Remove((notificationId, pushDeviceRegistrationId)); // a Failed row is claimable again
@@ -697,9 +718,9 @@ public sealed class SocialPushDispatchTests
 
         public List<long> Disabled { get; } = [];
 
-        public void Add(long userId, long id, string locale)
+        public void Add(long userId, long id, string locale, string? token = null)
         {
-            var device = new PushDeviceRegistration(userId, PushPlatform.Android, Guid.NewGuid().ToString("N"), "token", locale, Now, Now);
+            var device = new PushDeviceRegistration(userId, PushPlatform.Android, Guid.NewGuid().ToString("N"), token ?? "token-" + id, locale, Now, Now);
             typeof(PushDeviceRegistration).GetProperty(nameof(PushDeviceRegistration.Id))!.SetValue(device, id);
             _devices.Add(device);
         }
@@ -715,9 +736,9 @@ public sealed class SocialPushDispatchTests
             return Task.FromResult<IReadOnlyList<PushDeviceRegistration>>(_devices.Where(device => userIds.Contains(device.UserId) && !Disabled.Contains(device.Id)).ToList());
         }
 
-        public Task DisableByIdAsync(long id, DateTimeOffset updatedAtUtc, CancellationToken cancellationToken = default)
+        public Task DisableByIdAsync(long id, DateTimeOffset updatedAtUtc, CancellationToken cancellationToken = default, string? expectedPushToken = null)
         {
-            Disabled.Add(id);
+            if (expectedPushToken is null || _devices.Any(device => device.Id == id && device.PushToken == expectedPushToken)) Disabled.Add(id);
             return Task.CompletedTask;
         }
 

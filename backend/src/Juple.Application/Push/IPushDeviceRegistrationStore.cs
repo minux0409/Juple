@@ -39,8 +39,10 @@ public interface IPushDeviceRegistrationStore
     /// row that just failed to send, not the (userId, installationId) pair DisableAsync requires.
     /// Idempotent and never throws for a missing/already-disabled row - a dispatch pass must never
     /// fail just because this best-effort cleanup found nothing to do.
+    /// When expectedPushToken is supplied, disable only if the registration still holds that
+    /// exact token; a late failure for a rotated token must not disable its replacement.
     /// </summary>
-    Task DisableByIdAsync(long id, DateTimeOffset updatedAtUtc, CancellationToken cancellationToken = default);
+    Task DisableByIdAsync(long id, DateTimeOffset updatedAtUtc, CancellationToken cancellationToken = default, string? expectedPushToken = null);
 
     /// <summary>All currently-enabled registrations for userId - the dispatch worker's device fan-out list.</summary>
     Task<IReadOnlyList<PushDeviceRegistration>> ListEnabledAsync(

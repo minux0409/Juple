@@ -59,7 +59,13 @@ public sealed class FirebaseCloudMessagingSender : IPushSender
                     Priority = Priority.High,
                     // Launchers that show numeric badges use this; many only show a dot. The in-app
                     // badges stay the source of truth.
-                    Notification = new AndroidNotification { NotificationCount = payload.BadgeCount },
+                    Notification = new AndroidNotification
+                    {
+                        NotificationCount = payload.BadgeCount,
+                        // Same logical notification replaces its own tray entry on a provider
+                        // replay; different persisted notifications always have different tags.
+                        Tag = "juple.notification." + payload.NotificationId.ToString(CultureInfo.InvariantCulture),
+                    },
                 },
         };
 

@@ -70,20 +70,9 @@ public sealed class PushDeviceRegistrationStore(JupleDbContext dbContext) : IPus
     /// </summary>
     private async Task LockAsync(PushPlatform platform, string installationId, string pushToken, CancellationToken cancellationToken)
     {
-        await LockResourceAsync($"push-installation:{(byte)platform}:{Convert.ToHexStringLower(PushTokenHash.Of(installationId))}", cancellationToken);
-        await LockResourceAsync($"push-token:{(byte)platform}:{Convert.ToHexStringLower(PushTokenHash.Of(pushToken))}", cancellationToken);
-    }
-
-    private async Task LockResourceAsync(string resource, CancellationToken cancellationToken)
-    {
-        // Not composed (no LINQ operator on the query): a DECLARE/EXEC batch cannot be wrapped in a sub-select.
-        var result = (await dbContext.Database
-            .SqlQuery<int>($"DECLARE @result int; EXEC @result = sp_getapplock @Resource = {resource}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 15000; SELECT @result AS [Value]")
-            .ToListAsync(cancellationToken)).Single();
-        if (result < 0)
-        {
-            throw new TimeoutException("Timed out waiting for another registration of the same device or push token.");
-        }
+        await PushRegistrationSql.LockAsync(dbContext,
+            [$"push-installation:{(byte)platform}:{PushRegistrationSql.Hash(installationId)}", PushRegistrationSql.TokenLock(platform, pushToken)],
+            cancellationToken);
     }
 
     private async Task<PushDeviceRegistrationDto> RegisterLockedAsync(
@@ -143,18 +132,16 @@ public sealed class PushDeviceRegistrationStore(JupleDbContext dbContext) : IPus
     /// <summary>
     /// A token addresses one phone (one app install): if any OTHER enabled registration of the same platform holds it - the app's
     /// installation id was regenerated, or a previous account's row on this phone was never disabled - that row is disabled, so the phone
-    /// is never sent another account's Push. One indexed UPDATE (the hash column); idempotent; the row just registered is untouched.
+    /// is never sent another account's Push. One exact-token UPDATE; no computed hash column is required. Idempotent; the row just registered is untouched.
     /// </summary>
     private async Task DisableOtherHoldersOfTokenAsync(PushDeviceRegistration current, DateTimeOffset nowUtc, CancellationToken cancellationToken)
     {
-        var hash = PushTokenHash.Of(current.PushToken);
         var token = current.PushToken;
         await dbContext.PushDeviceRegistrations
+            .WithExactToken(token)
             .Where(registration => registration.Platform == current.Platform
                 && registration.IsEnabled
-                && registration.Id != current.Id
-                && registration.PushTokenHash == hash
-                && registration.PushToken == token)
+                && registration.Id != current.Id)
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(registration => registration.IsEnabled, false)
@@ -196,8 +183,21 @@ public sealed class PushDeviceRegistrationStore(JupleDbContext dbContext) : IPus
     }
 
     public async Task DisableByIdAsync(
-        long id, DateTimeOffset updatedAtUtc, CancellationToken cancellationToken = default)
+        long id, DateTimeOffset updatedAtUtc, CancellationToken cancellationToken = default, string? expectedPushToken = null)
     {
+        if (expectedPushToken is not null)
+        {
+            // A send may finish after the installation has rotated its token. Never disable
+            // the replacement token because the old token's provider call failed.
+            await dbContext.PushDeviceRegistrations.WithExactToken(expectedPushToken)
+                .Where(row => row.Id == id)
+                .ExecuteUpdateAsync(set => set.SetProperty(row => row.IsEnabled, false)
+                    .SetProperty(row => row.UpdatedAtUtc, updatedAtUtc), cancellationToken);
+            foreach (var entry in dbContext.ChangeTracker.Entries<PushDeviceRegistration>().Where(entry => entry.Entity.Id == id).ToList())
+                entry.State = EntityState.Detached;
+            return;
+        }
+
         var registration = await dbContext.PushDeviceRegistrations
             .FirstOrDefaultAsync(registration => registration.Id == id, cancellationToken);
         if (registration is null)

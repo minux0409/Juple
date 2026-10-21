@@ -9,6 +9,9 @@ import { v4 as uuidv4 } from 'uuid';
 const STORAGE_KEY = 'juple.pushInstallationId';
 
 let cachedInstallationId: string | null = null;
+let pendingInstallationId: Promise<string> | null = null;
+// A failed write must not generate a second identity on retry in this process.
+let unpersistedInstallationId: string | null = null;
 
 /**
  * A stable per-install identifier - generated once, persisted, and reused for the lifetime of
@@ -17,19 +20,32 @@ let cachedInstallationId: string | null = null;
  * arriving again), and is never derived from any hardware/advertising identifier. A fresh
  * uninstall+reinstall legitimately gets a new one, since AsyncStorage does not survive that.
  */
-export async function getOrCreatePushInstallationId(): Promise<string> {
+export function getOrCreatePushInstallationId(): Promise<string> {
   if (cachedInstallationId) {
-    return cachedInstallationId;
+    return Promise.resolve(cachedInstallationId);
   }
+  if (pendingInstallationId) return pendingInstallationId;
 
+  pendingInstallationId = loadOrCreateInstallationId().finally(() => {
+    pendingInstallationId = null;
+  });
+  return pendingInstallationId;
+}
+
+async function loadOrCreateInstallationId(): Promise<string> {
+  // Do not replace an existing installation when storage cannot be read. The caller's
+  // best-effort registration can retry once storage recovers, without touching auth.
   const stored = await AsyncStorage.getItem(STORAGE_KEY);
   if (stored) {
     cachedInstallationId = stored;
+    unpersistedInstallationId = null;
     return stored;
   }
 
-  const generated = uuidv4();
+  const generated = unpersistedInstallationId ?? uuidv4();
+  unpersistedInstallationId = generated;
   await AsyncStorage.setItem(STORAGE_KEY, generated);
   cachedInstallationId = generated;
+  unpersistedInstallationId = null;
   return generated;
 }

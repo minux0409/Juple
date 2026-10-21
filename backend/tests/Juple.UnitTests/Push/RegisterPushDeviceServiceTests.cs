@@ -172,7 +172,7 @@ public sealed class RegisterPushDeviceServiceTests
             Task.CompletedTask;
 
         public Task DisableByIdAsync(
-            long id, DateTimeOffset updatedAtUtc, CancellationToken cancellationToken = default) =>
+            long id, DateTimeOffset updatedAtUtc, CancellationToken cancellationToken = default, string? expectedPushToken = null) =>
             Task.CompletedTask;
 
         public Task<IReadOnlyList<PushDeviceRegistration>> ListEnabledAsync(

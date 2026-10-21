@@ -166,6 +166,10 @@ public interface IPushDispatchStore
 
 public interface INotificationDeliveryStore
 {
+    /// <summary>Claims token targets across processes; live claims keep their notifications pending.</summary>
+    Task<PushDeliveryClaims> TryClaimTokenGroupsAsync(
+        IReadOnlyCollection<PushDeliveryTarget> targets, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Atomically claims this (notification, device) pair into Sending and returns true - only if no
     /// delivery row exists yet, the existing one is Failed, or it is Sending with a stale lease (its
@@ -190,12 +194,22 @@ public interface INotificationDeliveryStore
         string? failureCode,
         CancellationToken cancellationToken = default);
 
-    /// <summary>The outcomes of a batch of claimed deliveries, written together.</summary>
+    /// <summary>
+    /// Outcomes written together. Token aliases share one provider message id; they are delivery
+    /// history for one logical send, not evidence of separate provider calls.
+    /// </summary>
     Task RecordAttemptsAsync(IReadOnlyCollection<DeliveryAttempt> attempts, CancellationToken cancellationToken = default);
 }
 
 /// <summary>One (notification, device) delivery.</summary>
 public readonly record struct DeliveryKey(long NotificationId, long PushDeviceRegistrationId);
+
+public sealed record PushDeliveryTarget(Notification Notification, PushDeviceRegistration Device);
+
+/// <summary>One provider call and the existing delivery rows sharing its token outcome.</summary>
+public sealed record ClaimedPushDelivery(PushDeliveryTarget Target, IReadOnlyList<DeliveryKey> Aliases);
+
+public sealed record PushDeliveryClaims(IReadOnlyList<ClaimedPushDelivery> Claimed, IReadOnlySet<long> PendingNotificationIds);
 
 public sealed record DeliveryAttempt(
     DeliveryKey Key, NotificationDeliveryStatus Status, DateTimeOffset AttemptedAtUtc, string? ProviderMessageId, string? FailureCode);

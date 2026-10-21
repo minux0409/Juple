@@ -246,7 +246,7 @@ public sealed class PushDeliveryProcessor(
     public async Task<PushDeliveryResult> DeliverLoadedAsync(IReadOnlyList<Notification> notifications, CancellationToken cancellationToken = default)
     {
         var total = PushDeliveryResult.Empty;
-        foreach (var batch in notifications.Chunk(Math.Max(1, options.DeliveryBatchSize)))
+        foreach (var batch in notifications.DistinctBy(notification => notification.Id).Chunk(Math.Max(1, options.DeliveryBatchSize)))
         {
             total = total.Add(await DeliverBatchAsync(batch, cancellationToken));
         }
@@ -285,7 +285,7 @@ public sealed class PushDeliveryProcessor(
                 .ToDictionary(group => group.Key, group => group.ToList());
 
         var skipped = 0;
-        var pairs = new List<(Notification Notification, PushDeviceRegistration Device)>();
+        var pairs = new List<PushDeliveryTarget>();
         foreach (var notification in live)
         {
             if (!relevantIds.Contains(notification.Id) || !devicesByUser.TryGetValue(notification.UserId, out var devices))
@@ -296,45 +296,55 @@ public sealed class PushDeliveryProcessor(
                 continue;
             }
 
-            pairs.AddRange(devices.Select(device => (notification, device)));
+            pairs.AddRange(devices.Select(device => new PushDeliveryTarget(notification, device)));
         }
 
-        var claimed = pairs.Count == 0
-            ? new HashSet<DeliveryKey>()
-            : await deliveryStore.TryClaimManyAsync(
-                pairs.Select(pair => new DeliveryKey(pair.Notification.Id, pair.Device.Id)).ToList(), timeProvider.GetUtcNow(), cancellationToken);
-        var toSend = pairs.Where(pair => claimed.Contains(new DeliveryKey(pair.Notification.Id, pair.Device.Id))).ToList();
-
-        var attempts = new ConcurrentBag<DeliveryAttempt>();
-        await Parallel.ForEachAsync(
-            toSend,
-            new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, options.MaxConcurrentSends), CancellationToken = cancellationToken },
-            async (pair, token) =>
+        var claims = await deliveryStore.TryClaimTokenGroupsAsync(pairs, timeProvider.GetUtcNow(), cancellationToken);
+        var attempts = new ConcurrentBag<(ClaimedPushDelivery Claim, PushSendResult Result, DateTimeOffset At)>();
+        try
+        {
+            await Parallel.ForEachAsync(
+                claims.Claimed,
+                new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, options.MaxConcurrentSends), CancellationToken = cancellationToken },
+                async (claim, token) =>
+                {
+                    var target = claim.Target;
+                    var payload = DispatchPendingPushNotificationsService.BuildPayload(target.Notification, contexts[target.Notification.Id], target.Device.Locale);
+                    PushSendResult result;
+                    try { result = await pushSender.SendAsync(target.Device, payload, token); }
+                    catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+                    catch (Exception) { result = PushSendResult.Failed(PushSendFailureCodes.UnknownError); }
+                    attempts.Add((claim, result, timeProvider.GetUtcNow()));
+                });
+        }
+        finally
+        {
+            if (!attempts.IsEmpty)
             {
-                var payload = DispatchPendingPushNotificationsService.BuildPayload(pair.Notification, contexts[pair.Notification.Id], pair.Device.Locale);
-                var result = await pushSender.SendAsync(pair.Device, payload, token);
-                attempts.Add(new DeliveryAttempt(
-                    new DeliveryKey(pair.Notification.Id, pair.Device.Id), result.Status, timeProvider.GetUtcNow(), result.ProviderMessageId, result.FailureCode));
-            });
-
-        if (!attempts.IsEmpty)
-        {
-            await deliveryStore.RecordAttemptsAsync(attempts.ToList(), cancellationToken);
+                // Preserve completed outcomes during graceful shutdown too. Unknown in-flight
+                // calls keep their Sending lease; a real process crash remains at-least-once.
+                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await deliveryStore.RecordAttemptsAsync(attempts.SelectMany(attempt => attempt.Claim.Aliases.Select(key =>
+                    new DeliveryAttempt(key, attempt.Result.Status, attempt.At, attempt.Result.ProviderMessageId, attempt.Result.FailureCode))).ToList(),
+                    cancellationToken.IsCancellationRequested ? cleanup.Token : cancellationToken);
+            }
         }
 
-        var failedAttempts = attempts.Where(attempt => attempt.Status != NotificationDeliveryStatus.Sent).ToList();
-        var deadTokens = failedAttempts.Where(attempt => PushSendFailureCodes.IsPermanent(attempt.FailureCode)).ToList();
-        foreach (var deviceId in deadTokens.Select(attempt => attempt.Key.PushDeviceRegistrationId).Distinct())
+        var failedAttempts = attempts.Where(attempt => attempt.Result.Status != NotificationDeliveryStatus.Sent).ToList();
+        var deadTokens = failedAttempts.Where(attempt => PushSendFailureCodes.IsPermanent(attempt.Result.FailureCode)).ToList();
+        foreach (var dead in deadTokens)
         {
-            // A permanently invalid token is disabled, never retried.
-            await deviceStore.DisableByIdAsync(deviceId, timeProvider.GetUtcNow(), cancellationToken);
+            foreach (var key in dead.Claim.Aliases)
+                await deviceStore.DisableByIdAsync(key.PushDeviceRegistrationId, timeProvider.GetUtcNow(), cancellationToken,
+                    expectedPushToken: dead.Claim.Target.Device.PushToken);
         }
 
         // A transient failure keeps its notification pending for a later attempt (until it expires);
-        // every other notification of the batch is done - including one whose device another live
-        // claim holds (that claimer records the outcome).
-        var retryLater = failedAttempts.Where(attempt => !PushSendFailureCodes.IsPermanent(attempt.FailureCode))
-            .Select(attempt => attempt.Key.NotificationId)
+        // A competing live claim is not success: that processor may still fail or restart.
+        // Keep it pending so a later recovery pass can retry only the unfinished targets.
+        var retryLater = failedAttempts.Where(attempt => !PushSendFailureCodes.IsPermanent(attempt.Result.FailureCode))
+            .Select(attempt => attempt.Claim.Target.Notification.Id)
+            .Concat(claims.PendingNotificationIds)
             .ToHashSet();
         done.AddRange(pairs.Select(pair => pair.Notification.Id).Distinct().Where(id => !retryLater.Contains(id)));
         if (done.Count > 0)
@@ -344,7 +354,7 @@ public sealed class PushDeliveryProcessor(
 
         return new PushDeliveryResult(
             batch.Count,
-            attempts.Count(attempt => attempt.Status == NotificationDeliveryStatus.Sent),
+            attempts.Count(attempt => attempt.Result.Status == NotificationDeliveryStatus.Sent),
             failedAttempts.Count,
             skipped,
             expired,

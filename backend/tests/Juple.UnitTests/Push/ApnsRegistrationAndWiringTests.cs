@@ -157,7 +157,7 @@ public sealed class ApnsRegistrationAndWiringTests
 
         public Task DisableAsync(long userId, string installationId, DateTimeOffset updatedAtUtc, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
-        public Task DisableByIdAsync(long id, DateTimeOffset updatedAtUtc, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task DisableByIdAsync(long id, DateTimeOffset updatedAtUtc, CancellationToken cancellationToken = default, string? expectedPushToken = null) => Task.CompletedTask;
 
         public Task<IReadOnlyList<PushDeviceRegistration>> ListEnabledAsync(long userId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<PushDeviceRegistration>>([]);

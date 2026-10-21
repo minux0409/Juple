@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Notifications;
 
-public sealed class NotificationDeliveryStore(JupleDbContext dbContext) : INotificationDeliveryStore
+public sealed partial class NotificationDeliveryStore(JupleDbContext dbContext) : INotificationDeliveryStore
 {
     /// <summary>
     /// How long a Sending row can go without a final Sent/Failed outcome before it is presumed
