@@ -55,6 +55,15 @@ param firebaseCredentialFromKeyVault bool = false
 @description('Key Vault secret NAME (never a value) of the Firebase service-account JSON - used only when firebaseCredentialFromKeyVault. The Container Apps secret keeps its own name, firebase-credential, so the env secretRef is unchanged.')
 param firebaseCredentialSecretName string = 'firebase-service-account-key-json'
 
+@description('APNs (iOS Push) Key ID - the 10-character id of the .p8 auth key (Apple Developer > Keys). Not a secret. Empty (default) = APNs off: iOS deliveries wait as push_transport_not_configured and Android is unaffected. All or nothing with apnsTeamId and apnsPrivateKeySecretName (../app/apns-config-guard.bicep).')
+param apnsKeyId string = ''
+
+@description('Apple Developer Team ID (10 characters) - the APNs provider-token issuer. Not a secret. Empty = APNs off.')
+param apnsTeamId string = ''
+
+@description('Key Vault secret NAME (never a value) holding the PEM content of the .p8 APNs auth key (Apns__PrivateKeyPem), resolved at runtime through this workload\'s own managed identity. There is no parameter that could carry the key itself. Requires the Key Vault URI; the identity of this Job (the API identity) must be able to read that secret before this template is deployed - otherwise every execution fails, Android dispatch included. Empty = APNs off.')
+param apnsPrivateKeySecretName string = ''
+
 @description('UTC cron expression - Container Apps Job schedules are always UTC, never local/server time (matches this project\'s own DateTimeOffset/UTC-storage convention). Default: every minute - friend request and Collection invitation Push should arrive within about a minute. Overlapping executions are safe: NotificationDeliveryStore.TryClaimAsync sends each (notification, device) pair at most once.')
 param cronExpression string = '* * * * *'
 
@@ -150,6 +159,54 @@ module firebaseCredentialSourceParameterGuard '../app/firebase-credential-source
   }
 }
 
+var apnsEnabled = !empty(apnsPrivateKeySecretName)
+
+// Fail-closed APNs settings (see ../app/apns-config-guard.bicep): all three or none, 10-character ids and the vault URI
+// when on - checked during template validation, because half an Apns section stops this process (and with it Android
+// Push) at startup. Only counts and lengths reach the guard.
+module apnsConfigGuard '../app/apns-config-guard.bicep' = {
+  name: 'juple-${environmentName}-push-dispatch-apns-config-guard'
+  params: {
+    #disable-next-line BCP330
+    apnsSettingsPartiallySupplied: apnsEnabled != !empty(apnsKeyId) || apnsEnabled != !empty(apnsTeamId) ? 1 : 0
+    #disable-next-line BCP330
+    apnsKeyIdNotTenCharacters: apnsEnabled && length(apnsKeyId) != 10 ? 1 : 0
+    #disable-next-line BCP330
+    apnsTeamIdNotTenCharacters: apnsEnabled && length(apnsTeamId) != 10 ? 1 : 0
+    #disable-next-line BCP329
+    keyVaultUriProvided: apnsEnabled && empty(keyVaultUri) ? 0 : 1
+  }
+}
+
+// The .p8 private key is only ever a Key Vault reference; Key ID and Team ID are plain settings. Off = nothing added,
+// so a template without APNs values deploys exactly what it did before.
+var apnsSecrets = apnsEnabled
+  ? [
+      {
+        name: 'apns-private-key'
+        keyVaultUrl: '${keyVaultUri}secrets/${apnsPrivateKeySecretName}'
+        identity: managedIdentityResourceId
+      }
+    ]
+  : []
+
+var apnsEnv = apnsEnabled
+  ? [
+      {
+        name: 'Apns__KeyId'
+        value: apnsKeyId
+      }
+      {
+        name: 'Apns__TeamId'
+        value: apnsTeamId
+      }
+      {
+        name: 'Apns__PrivateKeyPem'
+        secretRef: 'apns-private-key'
+      }
+    ]
+  : []
+
 resource pushDispatchJob 'Microsoft.App/jobs@2024-03-01' = {
   name: jobName
   location: location
@@ -184,10 +241,10 @@ resource pushDispatchJob 'Microsoft.App/jobs@2024-03-01' = {
           identity: managedIdentityResourceId
         }
       ]
-      secrets: [
+      secrets: concat([
         sqlConnectionStringSecret
         firebaseCredentialSecret
-      ]
+      ], apnsSecrets)
     }
     template: {
       containers: [
@@ -205,7 +262,7 @@ resource pushDispatchJob 'Microsoft.App/jobs@2024-03-01' = {
             cpu: json(containerCpu)
             memory: containerMemory
           }
-          env: [
+          env: concat([
             {
               name: 'ConnectionStrings__JupleDatabase'
               secretRef: 'sql-connection-string'
@@ -214,7 +271,7 @@ resource pushDispatchJob 'Microsoft.App/jobs@2024-03-01' = {
               name: 'Firebase__ServiceAccountKeyJson'
               secretRef: 'firebase-credential'
             }
-          ]
+          ], apnsEnv)
         }
       ]
     }

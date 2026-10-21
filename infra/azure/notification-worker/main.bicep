@@ -69,6 +69,15 @@ param firebaseCredentialFromKeyVault bool = false
 @description('Key Vault secret NAME (never a value) of the Firebase service-account JSON - used only when firebaseCredentialFromKeyVault. The Container Apps secret keeps its own name, firebase-credential, so the env secretRef is unchanged.')
 param firebaseCredentialSecretName string = 'firebase-service-account-key-json'
 
+@description('APNs (iOS Push) Key ID - the 10-character id of the .p8 auth key (Apple Developer > Keys). Not a secret. Empty (default) = APNs off: iOS deliveries wait as push_transport_not_configured and Android is unaffected. All or nothing with apnsTeamId and apnsPrivateKeySecretName (../app/apns-config-guard.bicep).')
+param apnsKeyId string = ''
+
+@description('Apple Developer Team ID (10 characters) - the APNs provider-token issuer. Not a secret. Empty = APNs off.')
+param apnsTeamId string = ''
+
+@description('Key Vault secret NAME (never a value) holding the PEM content of the .p8 APNs auth key (Apns__PrivateKeyPem), resolved at runtime through this workload\'s own managed identity. There is no parameter that could carry the key itself. Requires the Key Vault URI and a reader role for the worker identity scoped to that one secret (../foundation/key-vault-secret-reader.bicep), deployed BEFORE this template - without it the new revision cannot start. Empty = APNs off.')
+param apnsPrivateKeySecretName string = ''
+
 @description('Replicas kept running while idle - the latency/cost dial (see the header). Dev defaults to 0 (cost); Production should normally run 1.')
 @minValue(0)
 param minReplicas int = 0
@@ -193,6 +202,54 @@ module firebaseCredentialSourceParameterGuard '../app/firebase-credential-source
   }
 }
 
+var apnsEnabled = !empty(apnsPrivateKeySecretName)
+
+// Fail-closed APNs settings (see ../app/apns-config-guard.bicep): all three or none, 10-character ids and the vault URI
+// when on - checked during template validation, because half an Apns section stops this process (and with it Android
+// Push) at startup. Only counts and lengths reach the guard.
+module apnsConfigGuard '../app/apns-config-guard.bicep' = {
+  name: 'juple-${environmentName}-notification-worker-apns-config-guard'
+  params: {
+    #disable-next-line BCP330
+    apnsSettingsPartiallySupplied: apnsEnabled != !empty(apnsKeyId) || apnsEnabled != !empty(apnsTeamId) ? 1 : 0
+    #disable-next-line BCP330
+    apnsKeyIdNotTenCharacters: apnsEnabled && length(apnsKeyId) != 10 ? 1 : 0
+    #disable-next-line BCP330
+    apnsTeamIdNotTenCharacters: apnsEnabled && length(apnsTeamId) != 10 ? 1 : 0
+    #disable-next-line BCP329
+    keyVaultUriProvided: apnsEnabled && empty(keyVaultUri) ? 0 : 1
+  }
+}
+
+// The .p8 private key is only ever a Key Vault reference; Key ID and Team ID are plain settings. Off = nothing added,
+// so a template without APNs values deploys exactly what it did before.
+var apnsSecrets = apnsEnabled
+  ? [
+      {
+        name: 'apns-private-key'
+        keyVaultUrl: '${keyVaultUri}secrets/${apnsPrivateKeySecretName}'
+        identity: notificationWorkerIdentityResourceId
+      }
+    ]
+  : []
+
+var apnsEnv = apnsEnabled
+  ? [
+      {
+        name: 'Apns__KeyId'
+        value: apnsKeyId
+      }
+      {
+        name: 'Apns__TeamId'
+        value: apnsTeamId
+      }
+      {
+        name: 'Apns__PrivateKeyPem'
+        secretRef: 'apns-private-key'
+      }
+    ]
+  : []
+
 resource notificationWorker 'Microsoft.App/containerApps@2025-01-01' = {
   name: containerAppName
   location: location
@@ -214,10 +271,10 @@ resource notificationWorker 'Microsoft.App/containerApps@2025-01-01' = {
           identity: notificationWorkerIdentityResourceId
         }
       ]
-      secrets: [
+      secrets: concat([
         sqlConnectionStringSecret
         firebaseCredentialSecret
-      ]
+      ], apnsSecrets)
     }
     template: {
       containers: [
@@ -262,7 +319,7 @@ resource notificationWorker 'Microsoft.App/containerApps@2025-01-01' = {
               name: 'NotificationPipeline__MaxConcurrentSends'
               value: string(maxConcurrentSends)
             }
-          ], observabilityEnv)
+          ], apnsEnv, observabilityEnv)
           probes: [
             {
               type: 'Liveness'

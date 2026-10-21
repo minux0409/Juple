@@ -132,6 +132,9 @@ Juple 이벤트 -> notifications.NotificationEvents (outbox, 같은 SQL 트랜�
 | `Apns__BundleId` | 기본값 `com.juple.app` | 바꿀 때만 |
 
 - 이 설정은 푸시를 실제로 보내는 **notification worker**와 **push-dispatch Job**에 필요하다(API 인라인 처리 경로를 쓰는 경우 API에도). Firebase 서비스 계정과 같은 곳에 둔다.
+- **Bicep**: `notification-worker/main.bicep`, `job/main.bicep`의 `apnsKeyId` / `apnsTeamId` / `apnsPrivateKeySecretName`(Key Vault secret **이름**, 값이 아니다). 셋 다 비어 있으면 APNs off이고 템플릿은 이전과 같은 것을 배포한다. 일부만 있거나 id가 10자가 아니거나 vault URI가 없으면 `app/apns-config-guard.bicep`가 template validation 단계에서 배포를 거절한다(시작 실패로 Android 발송까지 멈추는 일을 막기 위해). `.p8` 내용을 받는 parameter는 없다. Production 값은 각 `prod.bicepparam`(Key ID `FJKA3F5KV3`, Team ID `3N2K257SW3`, secret `apns-private-key-pem`), Dev는 비워 둔다(APNs off).
+- **배포 순서(Production, 각 단계 승인 후)**: ① `AddApnsDeviceSupport`만 담은 script 적용(아래) - 새 image는 두 컬럼을 읽으므로 migration 없이 배포하면 Android 등록·발송까지 실패한다. ② Key Vault secret `apns-private-key-pem` 등록(`.p8` 파일에서 직접, 출력에 값 없음). ③ worker identity에 그 secret 하나만 읽는 role(`foundation/key-vault-secret-reader.bicep`, `readerIdentityName=id-juple-notify-worker-prod`) - push-dispatch Job은 API identity라 vault 단위 role이 이미 있다. ④ APNs backend가 들어간 image로 API -> worker -> Job 배포. 이 템플릿을 APNs 값과 함께 배포하는 시점에는 ②③이 끝나 있어야 한다.
+- **image 범위**: Production에서 돌고 있는 image에는 export/retention/expense ledger 등 master의 다른 기능과 그 migration이 없다. APNs 배포 image는 master 전체가 아니라 Production image의 source 기준(`131984a` + 보안 `3b48a33` + 중복 방지 `72d1a51`)에 APNs backend(`e9f7e10`)만 더한 것이어야 한다.
 - 세 값(KeyId/TeamId/PrivateKeyPem) 중 일부만 있으면 프로세스가 시작 시 실패한다(설정 이름만 출력, 키 값은 출력하지 않음). 셋 다 없으면 APNs는 꺼진 상태: iOS 발송은 `push_transport_not_configured`로 기록되고 알림 만료 전까지 재시도되며, Android는 영향이 없다.
 - endpoint: production `https://api.push.apple.com`, development `https://api.sandbox.push.apple.com`. 기기마다 등록된 `apnsEnvironment`로 고른다.
 - 인증: ES256 JWT(kid=Key ID, iss=Team ID), 40분 재사용(Apple 제한: 20분-60분).

@@ -25,3 +25,13 @@ param keyVaultUri = readEnvironmentVariable('JUPLE_APP_PROD_KEY_VAULT_URI')
 // deployer never reads or passes it: there is no environment variable for it, and a value supplied anyway is
 // refused during validation (../app/firebase-credential-source-guard.bicep).
 param firebaseCredentialFromKeyVault = true
+
+// APNs (iOS Push, docs/ios-apns-push.md): one .p8 token key serves the sandbox AND production gateways (each device row
+// carries its own apnsEnvironment). Key ID and Team ID are not secrets; the key itself is only a Key Vault reference
+// (secret apns-private-key-pem in the Production vault) - there is no parameter or environment variable for it. All three
+// or none (../app/apns-config-guard.bicep). Before deploying with these values: the secret must exist and this workload's
+// identity must be able to read it (the worker: ../foundation/key-vault-secret-reader.bicep scoped to that secret), and the
+// image must contain the APNs backend AND its migration AddApnsDeviceSupport must already be applied.
+param apnsKeyId = 'FJKA3F5KV3'
+param apnsTeamId = '3N2K257SW3'
+param apnsPrivateKeySecretName = 'apns-private-key-pem'
