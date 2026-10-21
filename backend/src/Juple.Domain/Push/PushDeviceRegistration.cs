@@ -37,13 +37,15 @@ public sealed class PushDeviceRegistration
         string pushToken,
         string locale,
         DateTimeOffset createdAtUtc,
-        DateTimeOffset updatedAtUtc)
+        DateTimeOffset updatedAtUtc,
+        ApnsEnvironment? apnsEnvironment = null)
     {
         UserId = userId;
         Platform = platform;
         InstallationId = installationId;
         PushToken = pushToken;
         Locale = locale;
+        ApnsEnvironment = ResolveApnsEnvironment(platform, apnsEnvironment);
         IsEnabled = true;
         CreatedAtUtc = createdAtUtc;
         UpdatedAtUtc = updatedAtUtc;
@@ -69,6 +71,15 @@ public sealed class PushDeviceRegistration
     /// </summary>
     public string Locale { get; private set; } = null!;
 
+    /// <summary>iOS only: the APNs gateway the token belongs to (see <see cref="Push.ApnsEnvironment"/>). Always null for Android.</summary>
+    public ApnsEnvironment? ApnsEnvironment { get; private set; }
+
+    /// <summary>
+    /// SHA-256 of <see cref="PushToken"/>, computed and persisted by the database (see <see cref="PushTokenHash"/>); read-only here. Lets
+    /// a registration find - and disable - any OTHER enabled row holding the same token, so one phone is never addressed as two accounts.
+    /// </summary>
+    public byte[] PushTokenHash { get; private set; } = [];
+
     public bool IsEnabled { get; private set; }
 
     public DateTimeOffset CreatedAtUtc { get; private set; }
@@ -83,10 +94,11 @@ public sealed class PushDeviceRegistration
     /// fresh app launch after the user re-enabled OS notification permission is not a new device, it
     /// is this same install checking back in.
     /// </summary>
-    public void Reregister(string pushToken, string locale, DateTimeOffset nowUtc)
+    public void Reregister(string pushToken, string locale, DateTimeOffset nowUtc, ApnsEnvironment? apnsEnvironment = null)
     {
         PushToken = pushToken;
         Locale = locale;
+        ApnsEnvironment = ResolveApnsEnvironment(Platform, apnsEnvironment);
         IsEnabled = true;
         UpdatedAtUtc = nowUtc;
         LastSeenAtUtc = nowUtc;
@@ -100,11 +112,12 @@ public sealed class PushDeviceRegistration
     /// registered is the one who should receive Push next, regardless of whether the previous owner
     /// had already disabled it.
     /// </summary>
-    public void ReassignOwner(long userId, string pushToken, string locale, DateTimeOffset nowUtc)
+    public void ReassignOwner(long userId, string pushToken, string locale, DateTimeOffset nowUtc, ApnsEnvironment? apnsEnvironment = null)
     {
         UserId = userId;
         PushToken = pushToken;
         Locale = locale;
+        ApnsEnvironment = ResolveApnsEnvironment(Platform, apnsEnvironment);
         IsEnabled = true;
         UpdatedAtUtc = nowUtc;
         LastSeenAtUtc = nowUtc;
@@ -120,5 +133,18 @@ public sealed class PushDeviceRegistration
 
         IsEnabled = false;
         UpdatedAtUtc = updatedAtUtc;
+    }
+
+    /// <summary>iOS defaults to the production gateway (TestFlight / App Store builds); Android never has an APNs environment.</summary>
+    private static ApnsEnvironment? ResolveApnsEnvironment(PushPlatform platform, ApnsEnvironment? requested)
+    {
+        if (platform != PushPlatform.Ios)
+        {
+            return requested is null
+                ? null
+                : throw new ArgumentException("Only an iOS registration has an APNs environment.", nameof(requested));
+        }
+
+        return requested ?? Push.ApnsEnvironment.Production;
     }
 }

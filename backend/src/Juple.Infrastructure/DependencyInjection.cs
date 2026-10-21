@@ -328,20 +328,54 @@ public static class DependencyInjection
     /// </summary>
     private static void AddPushSender(IServiceCollection services, IConfiguration configuration)
     {
+        // Android: FCM v1 through the Firebase Admin SDK - unchanged.
         var serviceAccountKeyJson = configuration["Firebase:ServiceAccountKeyJson"];
-        if (string.IsNullOrWhiteSpace(serviceAccountKeyJson))
+        var fcmConfigured = !string.IsNullOrWhiteSpace(serviceAccountKeyJson);
+        if (fcmConfigured)
         {
-            services.AddScoped<IPushSender, NotConfiguredPushSender>();
-            return;
+            const string FirebaseAppName = "juple-push-sender";
+            var firebaseApp = FirebaseApp.GetInstance(FirebaseAppName) ?? FirebaseApp.Create(
+                // Only a service-account key is accepted (the deprecated GoogleCredential.FromJson took any credential type, which
+                // Google flags as a risk for JSON that is not fully trusted) - the same factory GooglePlayClient uses.
+                new AppOptions { Credential = CredentialFactory.FromJson<ServiceAccountCredential>(serviceAccountKeyJson).ToGoogleCredential() },
+                FirebaseAppName);
+            services.AddSingleton(firebaseApp);
+            services.AddScoped<FirebaseCloudMessagingSender>();
         }
 
-        const string FirebaseAppName = "juple-push-sender";
-        var firebaseApp = FirebaseApp.GetInstance(FirebaseAppName) ?? FirebaseApp.Create(
-            // Only a service-account key is accepted (the deprecated GoogleCredential.FromJson took any credential type, which
-            // Google flags as a risk for JSON that is not fully trusted) - the same factory GooglePlayClient uses.
-            new AppOptions { Credential = CredentialFactory.FromJson<ServiceAccountCredential>(serviceAccountKeyJson).ToGoogleCredential() },
-            FirebaseAppName);
-        services.AddSingleton(firebaseApp);
-        services.AddScoped<IPushSender, FirebaseCloudMessagingSender>();
+        // iOS: APNs HTTP/2 with a provider JWT (see ApnsOptions). Half a configuration stops the process here, naming the setting.
+        var apnsOptions = configuration.GetSection(ApnsOptions.SectionName).Get<ApnsOptions>() ?? new ApnsOptions();
+        if (apnsOptions.Validate() is { } apnsError)
+        {
+            throw new InvalidOperationException(apnsError);
+        }
+
+        if (apnsOptions.IsConfigured)
+        {
+            services.AddSingleton(apnsOptions);
+            services.AddSingleton<ApnsProviderTokenSource>();
+            services.AddHttpClient(ApnsPushSender.HttpClientName, client =>
+                {
+                    client.DefaultRequestVersion = System.Net.HttpVersion.Version20;
+                    client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+                    // ApnsPushSender enforces its own per-send timeout; this is only a backstop.
+                    client.Timeout = TimeSpan.FromSeconds(60);
+                })
+                // Apple asks providers to keep their HTTP/2 connections open and reuse them: the pooled connection ages out on its own
+                // schedule instead of IHttpClientFactory's default 2-minute handler recycling.
+                .SetHandlerLifetime(Timeout.InfiniteTimeSpan)
+                .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+                {
+                    PooledConnectionLifetime = TimeSpan.FromHours(1),
+                    PooledConnectionIdleTimeout = TimeSpan.FromMinutes(30),
+                    EnableMultipleHttp2Connections = true,
+                });
+            services.AddScoped<ApnsPushSender>();
+        }
+
+        services.AddScoped<IPushSender>(serviceProvider => new PlatformPushSender(
+            fcmConfigured ? serviceProvider.GetRequiredService<FirebaseCloudMessagingSender>() : new NotConfiguredPushSender(),
+            apnsOptions.IsConfigured ? serviceProvider.GetRequiredService<ApnsPushSender>() : new NotConfiguredPushSender(),
+            serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PlatformPushSender>>()));
     }
 }

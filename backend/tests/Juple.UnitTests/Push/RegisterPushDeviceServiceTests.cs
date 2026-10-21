@@ -108,7 +108,7 @@ public sealed class RegisterPushDeviceServiceTests
         var store = new FakePushDeviceRegistrationStore();
         var service = new RegisterPushDeviceService(store, new FakeTimeProvider(FixedNow));
 
-        await service.RegisterAsync(42, Command(platform: PushPlatform.Ios));
+        await service.RegisterAsync(42, Command(platform: PushPlatform.Ios, pushToken: new string('a', 64)));
 
         Assert.Equal(42, store.LastUserId);
         Assert.Equal(PushPlatform.Ios, store.LastPlatform);
@@ -143,6 +143,8 @@ public sealed class RegisterPushDeviceServiceTests
 
         public DateTimeOffset? LastNowUtc { get; private set; }
 
+        public ApnsEnvironment? LastApnsEnvironment { get; private set; }
+
         public Task<PushDeviceRegistrationDto> RegisterAsync(
             long userId,
             PushPlatform platform,
@@ -150,9 +152,11 @@ public sealed class RegisterPushDeviceServiceTests
             string pushToken,
             string locale,
             DateTimeOffset nowUtc,
+            ApnsEnvironment? apnsEnvironment = null,
             CancellationToken cancellationToken = default)
         {
             WasRegisterCalled = true;
+            LastApnsEnvironment = apnsEnvironment;
             LastUserId = userId;
             LastPlatform = platform;
             LastInstallationId = installationId;

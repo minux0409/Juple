@@ -13,6 +13,10 @@ public interface IPushDeviceRegistrationStore
     /// receiving Push for a user who no longer controls it. Safe under concurrent registration calls
     /// for the exact same installation: the DB's unique constraint, not an application-level check,
     /// is what guarantees at most one row (and therefore one owner) ever exists for it.
+    ///
+    /// The same token can only ever address ONE registration: any other enabled registration of the same platform holding this token -
+    /// another installation id on the same phone, or another account's stale row - is disabled, so a phone never receives Push meant
+    /// for an account that is no longer signed in on it. <paramref name="apnsEnvironment"/> is iOS only (null for Android).
     /// </summary>
     Task<PushDeviceRegistrationDto> RegisterAsync(
         long userId,
@@ -21,6 +25,7 @@ public interface IPushDeviceRegistrationStore
         string pushToken,
         string locale,
         DateTimeOffset nowUtc,
+        ApnsEnvironment? apnsEnvironment = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Throws PushDeviceRegistrationNotFoundException for a missing/other-user installationId. Idempotent - disabling an already-disabled registration succeeds without changing it.</summary>

@@ -8,7 +8,7 @@ namespace Juple.Application.Push;
 /// transport-agnostic means the dispatch worker's disable policy never depends on FCM/APNs-specific
 /// enum names, and stays correct if the transport is ever swapped.
 ///
-/// Only Unregistered/SenderIdMismatch are treated as permanent (see
+/// Only Unregistered/SenderIdMismatch (FCM) and BadDeviceToken/TokenNotForTopic (APNs) are treated as permanent (see
 /// DispatchDuePushNotificationsService.IsPermanentFailure) - deliberately conservative. FCM's own
 /// INVALID_ARGUMENT, for example, can also mean "our own payload was malformed" rather than "this
 /// token is dead" (confirmed against Google's own FCM v1 error-code documentation), so disabling a
@@ -22,6 +22,16 @@ public static class PushSendFailureCodes
 
     /// <summary>The token belongs to a different Firebase project/sender than this Backend is configured for - also permanently unusable for us.</summary>
     public const string SenderIdMismatch = "sender_id_mismatch";
+
+    /// <summary>
+    /// APNs 400 BadDeviceToken: the token is not valid for the gateway it was sent to. Each iOS registration records its own gateway
+    /// (ApnsEnvironment), so the token itself is unusable as registered - permanent. Self-healing: the app re-registers its current
+    /// token on the next launch, which re-enables the row.
+    /// </summary>
+    public const string BadDeviceToken = "bad_device_token";
+
+    /// <summary>APNs 400 DeviceTokenNotForTopic: the token belongs to a different app (bundle id) - permanently unusable for us.</summary>
+    public const string TokenNotForTopic = "token_not_for_topic";
 
     /// <summary>Request-shape error (FCM INVALID_ARGUMENT) - may or may not be the token; never auto-disables (see this type's own remarks).</summary>
     public const string InvalidArgument = "invalid_argument";
@@ -48,7 +58,7 @@ public static class PushSendFailureCodes
     public const string UnknownError = "unknown_error";
 
     private static readonly HashSet<string> PermanentCodes = new(
-        [Unregistered, SenderIdMismatch], StringComparer.Ordinal);
+        [Unregistered, SenderIdMismatch, BadDeviceToken, TokenNotForTopic], StringComparer.Ordinal);
 
     /// <summary>Whether this FailureCode means the PushDeviceRegistration itself should be disabled, not just this one delivery recorded as Failed.</summary>
     public static bool IsPermanent(string? failureCode) =>

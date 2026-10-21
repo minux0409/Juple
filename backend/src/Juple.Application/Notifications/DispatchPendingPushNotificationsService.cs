@@ -89,12 +89,12 @@ public sealed class DispatchPendingPushNotificationsService(
         var type = SocialNotificationPolicy.WireType(notification.Type);
         if (SocialNotificationPolicy.IsDataOnly(notification.Type))
         {
-            return new PushNotificationPayload(null, null, type, notification.Id, data, BadgeCount: null);
+            return new PushNotificationPayload(null, null, type, notification.Id, data, BadgeCount: null, ExpiresAtUtc: notification.CreatedAtUtc + SocialNotificationPolicy.MaxAge(notification.Type));
         }
 
         var (title, body) = SocialPushText.For(
             notification.Type, locale, context.ActorName ?? string.Empty, context.CollectionName ?? string.Empty,
             notification.ItemCount ?? 1, viaPublicLink: notification.ActorUserId is null);
-        return new PushNotificationPayload(title, body, type, notification.Id, data, context.BadgeCount);
+        return new PushNotificationPayload(title, body, type, notification.Id, data, context.BadgeCount, notification.CreatedAtUtc + SocialNotificationPolicy.MaxAge(notification.Type));
     }
 }

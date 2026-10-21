@@ -3,8 +3,8 @@ using Juple.Domain.Push;
 namespace Juple.Application.Push;
 
 /// <summary>
-/// Abstracts the actual Push transport (FCM v1 direct for Android today; APNs direct planned for
-/// iOS - Azure Notification Hubs is deliberately not used, see docs/architecture.md) behind the one
+/// Abstracts the actual Push transport (FCM v1 direct for Android, APNs direct for iOS - routed per device by Infrastructure.Push.PlatformPushSender;
+/// Azure Notification Hubs is deliberately not used, see docs/architecture.md) behind the one
 /// operation the dispatch worker needs. Never throws for an ordinary send failure (a dead token, a
 /// transport outage) - those come back as a Failed PushSendResult so the worker can record the
 /// attempt and move on; a thrown exception is reserved for a truly unexpected/programmer error.

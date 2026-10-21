@@ -34,13 +34,21 @@ public sealed class PushDevicesController(
             }));
         }
 
+        if (!ApnsEnvironmentWireFormat.TryParse(request.ApnsEnvironment, out var apnsEnvironment))
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["apnsEnvironment"] = ["apnsEnvironment must be 'development' or 'production'."],
+            }));
+        }
+
         try
         {
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
             var registered = await registerPushDeviceService.RegisterAsync(
                 currentUser.UserId,
-                new RegisterPushDeviceCommand(platform, request.InstallationId, request.PushToken, request.Locale),
+                new RegisterPushDeviceCommand(platform, request.InstallationId, request.PushToken, request.Locale, apnsEnvironment),
                 cancellationToken);
 
             return Ok(ToResponse(registered));
@@ -96,5 +104,5 @@ public sealed class PushDevicesController(
         long Id, string Platform, string InstallationId, bool IsEnabled, DateTimeOffset UpdatedAtUtc);
 
     public sealed record RegisterPushDeviceRequest(
-        string? Platform, string? InstallationId, string? PushToken, string? Locale);
+        string? Platform, string? InstallationId, string? PushToken, string? Locale, string? ApnsEnvironment = null);
 }

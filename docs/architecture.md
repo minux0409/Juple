@@ -54,7 +54,7 @@ Firebase는 Backend, Auth, Database, Storage로 사용하지 않는다. Android 
 Backend는 Azure Notification Hubs를 사용하지 않기로 결정했다(Notification Hubs data-plane SDK가 SAS Access Policy만 지원해 Managed Identity 기반 인증과 맞지 않고, FCM/APNs 대비 이중 계층이 되는 운영 복잡도가 이 프로젝트 규모에 비해 크다는 판단). 대신:
 
 - Android: FCM v1에 Firebase Admin SDK로 직접 전송한다(legacy server key 아님).
-- iOS: APNs에 직접 전송할 계획이다(아직 구현되지 않음).
+- iOS: APNs HTTP/2 Provider API에 직접 전송한다(토큰 기반 .p8 JWT, `Apns:*` 설정, 기기별 `ApnsEnvironment`로 sandbox/production 선택). Backend는 구현되어 있고, 앱의 네이티브 토큰 등록과 APNs 키 설정은 남아 있다 - `docs/ios-apns-push.md` 참고. 디스패처는 `PlatformPushSender` 하나를 보고, Android는 기존 FCM sender, iOS는 `ApnsPushSender`로 간다.
 
 Push 전송 서버 credential(Firebase 서비스 계정 JSON)은 Mobile의 `google-services.json`(client-side 설정, 비밀 아님)과 완전히 별개이며, Backend 설정(`Firebase:ServiceAccountKeyJson`)을 통해 local user-secrets 또는 Azure Container Apps secret으로만 주입한다 - 소스/appsettings에 두지 않는다.
 

@@ -1,3 +1,5 @@
+using Juple.Domain.Push;
+
 namespace Juple.Application.Push.RegisterPushDevice;
 
 public sealed class RegisterPushDeviceService(IPushDeviceRegistrationStore pushDeviceRegistrationStore, TimeProvider timeProvider)
@@ -7,6 +9,8 @@ public sealed class RegisterPushDeviceService(IPushDeviceRegistrationStore pushD
     private const int PushTokenMaxLength = 1024;
     private const int LocaleMaxLength = 35;
     private const string DefaultLocale = "en";
+    private const int ApnsTokenMinLength = 64;
+    private const int ApnsTokenMaxLength = 200;
 
     public Task<PushDeviceRegistrationDto> RegisterAsync(
         long userId, RegisterPushDeviceCommand command, CancellationToken cancellationToken = default)
@@ -35,6 +39,23 @@ public sealed class RegisterPushDeviceService(IPushDeviceRegistrationStore pushD
                 "pushToken", $"pushToken must be at most {PushTokenMaxLength} characters.");
         }
 
+        if (command.Platform == PushPlatform.Ios)
+        {
+            // An APNs device token is the hex form of the bytes iOS hands the app (32 bytes today; Apple allows up to 100). Anything else
+            // is not an APNs token (an FCM token sent by mistake, for instance) and could never be delivered.
+            if (pushToken.Length is < ApnsTokenMinLength or > ApnsTokenMaxLength || pushToken.Length % 2 != 0 || !pushToken.All(char.IsAsciiHexDigit))
+            {
+                throw new InvalidPushDeviceRegistrationException(
+                    "pushToken", "An iOS pushToken must be the APNs device token as hexadecimal text.");
+            }
+
+            pushToken = pushToken.ToLowerInvariant();
+        }
+        else if (command.ApnsEnvironment is not null)
+        {
+            throw new InvalidPushDeviceRegistrationException("apnsEnvironment", "apnsEnvironment applies to iOS registrations only.");
+        }
+
         // A malformed/oversized locale must never fail registration (Push would simply stop working
         // for this device) - it silently falls back to English, the same safe default used when
         // Mobile has not resolved a language yet (see i18n/index.ts's own "system" fallback).
@@ -45,6 +66,13 @@ public sealed class RegisterPushDeviceService(IPushDeviceRegistrationStore pushD
         }
 
         return pushDeviceRegistrationStore.RegisterAsync(
-            userId, command.Platform, installationId, pushToken, locale, timeProvider.GetUtcNow(), cancellationToken);
+            userId,
+            command.Platform,
+            installationId,
+            pushToken,
+            locale,
+            timeProvider.GetUtcNow(),
+            command.Platform == PushPlatform.Ios ? command.ApnsEnvironment ?? ApnsEnvironment.Production : null,
+            cancellationToken);
     }
 }

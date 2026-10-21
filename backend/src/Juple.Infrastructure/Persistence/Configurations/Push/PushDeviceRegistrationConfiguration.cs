@@ -14,6 +14,10 @@ public sealed class PushDeviceRegistrationConfiguration : IEntityTypeConfigurati
             // Same DB-level guard as NotificationConfiguration's CK_Notifications_Type_Valid for its
             // own byte enum - blocks any value outside the currently-defined Platform range.
             table.HasCheckConstraint("CK_PushDeviceRegistrations_Platform_Valid", "[Platform] IN (0, 1)");
+            // Only iOS (1) has an APNs environment; every existing (Android) row keeps NULL.
+            table.HasCheckConstraint(
+                "CK_PushDeviceRegistrations_ApnsEnvironment",
+                "([Platform] = 1 AND [ApnsEnvironment] IN (0, 1)) OR ([Platform] <> 1 AND [ApnsEnvironment] IS NULL)");
         });
 
         builder.HasKey(registration => registration.Id);
@@ -54,6 +58,19 @@ public sealed class PushDeviceRegistrationConfiguration : IEntityTypeConfigurati
 
         builder.Property(registration => registration.IsEnabled)
             .IsRequired();
+
+        builder.Property(registration => registration.ApnsEnvironment)
+            .HasColumnType("tinyint");
+
+        // Persisted, so it can be indexed; computed by SQL Server from PushToken on every write (see Juple.Domain.Push.PushTokenHash).
+        builder.Property(registration => registration.PushTokenHash)
+            .HasColumnType("binary(32)")
+            .HasComputedColumnSql("CONVERT(binary(32), HASHBYTES('SHA2_256', [PushToken]))", stored: true);
+
+        // Registration's "is this token enabled on another installation / account" check - enabled rows only.
+        builder.HasIndex(registration => new { registration.Platform, registration.PushTokenHash })
+            .HasFilter("[IsEnabled] = 1")
+            .HasDatabaseName("IX_PushDeviceRegistrations_Platform_PushTokenHash_Enabled");
 
         builder.Property(registration => registration.CreatedAtUtc)
             .HasColumnType("datetimeoffset")

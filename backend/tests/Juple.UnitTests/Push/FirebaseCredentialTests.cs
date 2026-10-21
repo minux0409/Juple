@@ -29,7 +29,8 @@ public sealed class FirebaseCredentialTests : IDisposable
     {
         using var provider = Build(ServiceAccountJson()).BuildServiceProvider();
 
-        Assert.IsType<FirebaseCloudMessagingSender>(provider.GetRequiredService<IPushSender>());
+        // Android goes through FCM exactly as before; the router only adds the iOS transport next to it.
+        Assert.IsType<FirebaseCloudMessagingSender>(Assert.IsType<PlatformPushSender>(provider.GetRequiredService<IPushSender>()).AndroidSender);
         var credential = provider.GetRequiredService<FirebaseApp>().Options.Credential.UnderlyingCredential;
         var serviceAccount = Assert.IsType<ServiceAccountCredential>(credential);
         Assert.Equal("push-test@juple-test.iam.gserviceaccount.com", serviceAccount.Id);
@@ -56,7 +57,9 @@ public sealed class FirebaseCredentialTests : IDisposable
     {
         using var provider = Build(null).BuildServiceProvider();
 
-        Assert.IsType<NotConfiguredPushSender>(provider.GetRequiredService<IPushSender>());
+        var router = Assert.IsType<PlatformPushSender>(provider.GetRequiredService<IPushSender>());
+        Assert.IsType<NotConfiguredPushSender>(router.AndroidSender);
+        Assert.IsType<NotConfiguredPushSender>(router.IosSender);
     }
 
     private static ServiceCollection Build(string? serviceAccountKeyJson)

@@ -2253,6 +2253,9 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<byte?>("ApnsEnvironment")
+                        .HasColumnType("tinyint");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
@@ -2280,6 +2283,12 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(1024)");
 
+                    b.Property<byte[]>("PushTokenHash")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("binary(32)")
+                        .HasComputedColumnSql("CONVERT(binary(32), HASHBYTES('SHA2_256', [PushToken]))", true);
+
                     b.Property<DateTimeOffset>("UpdatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
@@ -2292,11 +2301,17 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("UX_PushDeviceRegistrations_Platform_InstallationId");
 
+                    b.HasIndex("Platform", "PushTokenHash")
+                        .HasDatabaseName("IX_PushDeviceRegistrations_Platform_PushTokenHash_Enabled")
+                        .HasFilter("[IsEnabled] = 1");
+
                     b.HasIndex("UserId", "IsEnabled")
                         .HasDatabaseName("IX_PushDeviceRegistrations_UserId_IsEnabled");
 
                     b.ToTable("PushDeviceRegistrations", "push", t =>
                         {
+                            t.HasCheckConstraint("CK_PushDeviceRegistrations_ApnsEnvironment", "([Platform] = 1 AND [ApnsEnvironment] IN (0, 1)) OR ([Platform] <> 1 AND [ApnsEnvironment] IS NULL)");
+
                             t.HasCheckConstraint("CK_PushDeviceRegistrations_Platform_Valid", "[Platform] IN (0, 1)");
                         });
                 });

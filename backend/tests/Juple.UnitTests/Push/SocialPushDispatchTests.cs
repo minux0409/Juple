@@ -722,7 +722,7 @@ public sealed class SocialPushDispatchTests
         }
 
         public Task<PushDeviceRegistrationDto> RegisterAsync(long userId, PushPlatform platform, string installationId, string pushToken, string locale,
-            DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+            DateTimeOffset nowUtc, ApnsEnvironment? apnsEnvironment = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public Task DisableAsync(long userId, string installationId, DateTimeOffset updatedAtUtc, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
