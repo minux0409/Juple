@@ -4,6 +4,7 @@ import { getMessaging, onTokenRefresh } from '@react-native-firebase/messaging';
 import { syncPushRegistration } from '../pushRegistrationSync';
 import { usePushRegistrationSync } from '../usePushRegistrationSync';
 import { reportPushSync } from '../pushRegistrationStatus';
+import { subscribeApnsTokenChanged } from '../apnsPush';
 
 const mockUnsubscribe = jest.fn();
 const mockRequest = jest.fn();
@@ -12,6 +13,8 @@ jest.mock('@react-native-firebase/messaging', () => ({
   getMessaging: jest.fn(() => ({})),
   onTokenRefresh: jest.fn(() => mockUnsubscribe),
 }));
+const mockApnsUnsubscribe = jest.fn();
+jest.mock('../apnsPush', () => ({ subscribeApnsTokenChanged: jest.fn(() => mockApnsUnsubscribe) }));
 jest.mock('../pushRegistrationSync', () => ({
   syncPushRegistration: jest.fn(() => Promise.resolve('registered')),
 }));
@@ -114,5 +117,19 @@ describe('usePushRegistrationSync', () => {
 
     expect(getMessaging).not.toHaveBeenCalled();
     expect(onTokenRefresh).not.toHaveBeenCalled();
+  });
+
+  it('on iOS re-syncs when the APNs token changes and stops listening on unmount', async () => {
+    Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
+
+    await mount();
+    expect(syncPushRegistration).toHaveBeenCalledTimes(1);
+    const changed = jest.mocked(subscribeApnsTokenChanged).mock.calls[0][0];
+    await act(async () => { changed(); });
+    expect(syncPushRegistration).toHaveBeenCalledTimes(2);
+
+    act(() => renderer?.unmount());
+    renderer = null;
+    expect(mockApnsUnsubscribe).toHaveBeenCalledTimes(1);
   });
 });

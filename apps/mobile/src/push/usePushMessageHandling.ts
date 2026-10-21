@@ -10,6 +10,13 @@ import { dropRetractedSubmissionBanners } from '../notifications/retractedBanner
 import { refreshUnreadCount, resetNotificationState } from '../notifications/notificationState';
 import { notificationIdOf } from '../notifications/notificationTarget';
 import { openNotification } from '../notifications/openNotification';
+import {
+  consumeInitialApnsMessage,
+  isApnsPlatform,
+  subscribeApnsForegroundMessages,
+  subscribeApnsOpenedMessages,
+  type PushMessage,
+} from './apnsPush';
 import { isFcmPlatform } from './fcmPlatform';
 import { emitSocialPushEvent, parseSocialPushEvent } from './pushEvents';
 import { consumePendingPushTarget, setPendingPushTarget } from './pendingPushTarget';
@@ -108,12 +115,9 @@ export function usePushMessageHandling(): void {
     return () => subscription.remove();
   }, [request]);
 
-  // FCM listeners: Android only (see fcmPlatform.ts).
-  useEffect(() => {
-    if (!isFcmPlatform()) {
-      return;
-    }
-    return onMessage(getMessaging(), remoteMessage => {
+  // A message while the app is in front - the same handling for Android (FCM) and iOS (APNs, which shows no system banner then).
+  const handleForegroundMessage = useCallback(
+    (remoteMessage: PushMessage | null | undefined) => {
       const event = parseSocialPushEvent(remoteMessage?.data);
       if (event) {
         emitSocialPushEvent(event);
@@ -132,8 +136,17 @@ export function usePushMessageHandling(): void {
         notificationBannerQueue.enqueue(banner);
         refreshUnreadCount(request).catch(() => undefined);
       }
-    });
-  }, [request]);
+    },
+    [request],
+  );
+
+  // FCM listeners: Android only (see fcmPlatform.ts).
+  useEffect(() => {
+    if (!isFcmPlatform()) {
+      return;
+    }
+    return onMessage(getMessaging(), handleForegroundMessage);
+  }, [handleForegroundMessage]);
 
   useEffect(() => {
     if (!isFcmPlatform()) {
@@ -142,14 +155,21 @@ export function usePushMessageHandling(): void {
     return onNotificationOpenedApp(getMessaging(), handleTap);
   }, [handleTap]);
 
+  // APNs listeners: iOS only (see apnsPush.ts) - the same handling as FCM's.
+  useEffect(() => subscribeApnsForegroundMessages(handleForegroundMessage), [handleForegroundMessage]);
+  useEffect(() => subscribeApnsOpenedMessages(handleTap), [handleTap]);
+
   // Cold start from a tap - one-shot by design.
   useEffect(() => {
-    if (!isFcmPlatform()) {
-      return;
+    if (isFcmPlatform()) {
+      getInitialNotification(getMessaging())
+        .then(handleTap)
+        .catch(() => undefined);
+    } else if (isApnsPlatform()) {
+      consumeInitialApnsMessage()
+        .then(handleTap)
+        .catch(() => undefined);
     }
-    getInitialNotification(getMessaging())
-      .then(handleTap)
-      .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }

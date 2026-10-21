@@ -30,7 +30,7 @@ describe('syncPushRegistrationIfPermitted', () => {
     Object.defineProperty(Platform, 'OS', { value: originalOS, configurable: true });
   });
 
-  it('never touches Firebase or the Backend on iOS (no FCM there - APNs is not implemented yet)', async () => {
+  it('never touches Firebase or the Backend on iOS without the native APNs module', async () => {
     Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
     jest.mocked(getPushPermissionStatus).mockResolvedValue('granted');
     mockGetToken.mockResolvedValue('token-1');

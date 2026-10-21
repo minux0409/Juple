@@ -4,6 +4,8 @@
 // React_RCTAppDelegate is skipped in Objective-C++ (no Clang modules), so the superclass is imported here explicitly.
 #import <React_RCTAppDelegate/RCTDefaultReactNativeFactoryDelegate.h>
 
+// The generated Swift header declares ApnsBridge as a UNUserNotificationCenterDelegate.
+#import <UserNotifications/UserNotifications.h>
 #import "JupleMobile-Swift.h"
 
 /// The JS side of the iOS "컬렉션 열기" shortcut (see CollectionShortcuts.swift and NativeCollectionShortcutsIOS.ios.ts).

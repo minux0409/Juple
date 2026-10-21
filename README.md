@@ -118,14 +118,15 @@ npm run android
 
 ### iOS Universal Links (아직 비활성 상태)
 
-`apps/mobile/ios/JupleMobile/JupleMobile.entitlements` 파일은 Public Collection Sharing 공유 링크(`https://<domain>/c/{publicId}`)를 위한 Associated Domains 항목을 담고 있지만, **아직 `JupleMobile.xcodeproj`에 연결되지 않았다** - `CODE_SIGN_ENTITLEMENTS` build setting도, 프로젝트의 PBXFileReference/PBXGroup 항목도 없다. 즉 이 파일이 repo에 존재한다고 해서 Universal Links가 실제로 동작하는 것은 아니다. Mac/Xcode가 없는 환경에서 `project.pbxproj`를 직접 손으로 수정하면 검증 불가능한 상태로 Xcode 프로젝트를 손상시킬 위험이 있어, 의도적으로 pbxproj는 건드리지 않았다.
+`apps/mobile/ios/JupleMobile/JupleMobile.entitlements`는 Xcode에서 Push Notifications Capability를 추가하면서 프로젝트에 연결되었다(Debug/Release 모두 `CODE_SIGN_ENTITLEMENTS`, Team `3N2K257SW3`, 자동 서명). 이 파일에는 `aps-environment`(APNs, `docs/ios-apns-push.md`)와 Public Collection Sharing 공유 링크(`https://<domain>/c/{publicId}`)용 Associated Domains 항목이 함께 들어 있다.
 
-실제로 활성화하려면 Mac에서:
+**Universal Links는 여전히 동작하지 않는다.** Associated Domains 값은 `applinks:app-links-host-not-configured.invalid` - RFC 2606 예약 도메인 placeholder이고 실제 도메인이 아니다. Web의 AASA도 `IOS_APP_ID`가 설정되기 전까지 404다(`docs/architecture.md` R40-D). entitlement가 서명에 포함된다는 것 외에는 아무것도 검증하지 않는다.
 
-1. `JupleMobile.xcodeproj`를 Xcode로 연다.
-2. Signing & Capabilities 탭 → **+ Capability** → **Associated Domains** 추가.
-3. Xcode가 자동 생성하는 `.entitlements`가 이 파일을 대체하거나, 이 파일을 그대로 가리키도록 연결한다 - 어느 쪽이든 최종적으로 `applinks:<실제 production domain>` 항목이 들어 있는지 확인한다 (현재 파일의 `app-links-host-not-configured.invalid`는 RFC 2606 예약 도메인 placeholder일 뿐, 실제 도메인이 아니다).
-4. Apple Developer Team ID/실제 domain은 이 문서 작성 시점에 확인되지 않았으므로 추측하지 않는다 - 실제 값이 정해지면 Android의 `JUPLE_PUBLIC_WEB_HOST`(`android/app/build.gradle`, `src/config/publicWebConfig.ts`) 및 Backend의 `PublicWeb:BaseUrl`과 동일한 도메인으로 맞춘다.
+실제로 활성화하려면:
+
+1. Associated Domains 값을 `applinks:<실제 domain>`으로 바꾼다 - Android의 `JUPLE_PUBLIC_WEB_HOST`(`android/app/build.gradle`, `src/config/publicWebConfig.ts`) 및 Backend의 `PublicWeb:BaseUrl`과 같은 도메인. 추측하지 않는다.
+2. Web에 `IOS_APP_ID`(`3N2K257SW3.com.juple.app`)를 설정해 AASA(`/c/*`)를 제공한다.
+3. 실기기에서 Universal Link가 앱으로 열리는지 확인한다(Simulator로는 검증한 것으로 보지 않는다).
 
 ### Dogfood signing
 

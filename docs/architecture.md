@@ -54,7 +54,7 @@ Firebase는 Backend, Auth, Database, Storage로 사용하지 않는다. Android 
 Backend는 Azure Notification Hubs를 사용하지 않기로 결정했다(Notification Hubs data-plane SDK가 SAS Access Policy만 지원해 Managed Identity 기반 인증과 맞지 않고, FCM/APNs 대비 이중 계층이 되는 운영 복잡도가 이 프로젝트 규모에 비해 크다는 판단). 대신:
 
 - Android: FCM v1에 Firebase Admin SDK로 직접 전송한다(legacy server key 아님).
-- iOS: APNs HTTP/2 Provider API에 직접 전송한다(토큰 기반 .p8 JWT, `Apns:*` 설정, 기기별 `ApnsEnvironment`로 sandbox/production 선택). Backend는 구현되어 있고, 앱의 네이티브 토큰 등록과 APNs 키 설정은 남아 있다 - `docs/ios-apns-push.md` 참고. 디스패처는 `PlatformPushSender` 하나를 보고, Android는 기존 FCM sender, iOS는 `ApnsPushSender`로 간다.
+- iOS: APNs HTTP/2 Provider API에 직접 전송한다(토큰 기반 .p8 JWT, `Apns:*` 설정, 기기별 `ApnsEnvironment`로 sandbox/production 선택). Backend와 앱의 네이티브 토큰 등록·알림 처리는 구현되어 있고, APNs 키 설정과 PROD 반영은 남아 있다 - `docs/ios-apns-push.md` 참고. 디스패처는 `PlatformPushSender` 하나를 보고, Android는 기존 FCM sender, iOS는 `ApnsPushSender`로 간다.
 
 Push 전송 서버 credential(Firebase 서비스 계정 JSON)은 Mobile의 `google-services.json`(client-side 설정, 비밀 아님)과 완전히 별개이며, Backend 설정(`Firebase:ServiceAccountKeyJson`)을 통해 local user-secrets 또는 Azure Container Apps secret으로만 주입한다 - 소스/appsettings에 두지 않는다.
 
@@ -101,7 +101,7 @@ One canonical HTTPS share URL, `https://<public web host>/c/{publicId}` (`public
   - **App**: 공용 컬렉션 설정 is `[switch][share icon]`; ON shows the 읽기 전용 / 승인 후 추가 / 링크 추가 selector, OFF shows "링크를 받은 사용자는 컬렉션 참여를 요청할 수 있어요." and no selector; the share icon works for a public or private link. There is no "컬렉션 참여" setting and no "내 컬렉션에 추가".
   - **Web fallback** mirrors this: public ON = the existing preview; private = name + app hand-off only (no items fetched, plain "Juple" link-preview metadata); requesting/approving is app-only.
 - **Out of scope by decision**: deferred deep linking (install -> first launch restores the Collection). After installing, the visitor opens the original link again.
-- **iOS follow-up on a Mac**: add the Associated Domains capability (`applinks:<host>`) in Xcode (the entitlements file exists but is not wired into the project), set `IOS_APP_ID`, `APP_STORE_URL`, `APP_STORE_APP_ID`, and verify a Universal Link on a device.
+- **iOS follow-up on a Mac**: replace the Associated Domains placeholder with `applinks:<host>` (the entitlements file is wired into the project since the Push capability was added, but still holds the `app-links-host-not-configured.invalid` placeholder), set `IOS_APP_ID`, `APP_STORE_URL`, `APP_STORE_APP_ID`, and verify a Universal Link on a device.
 
 ## Collection app shortcuts and Direct Share (R40-B)
 

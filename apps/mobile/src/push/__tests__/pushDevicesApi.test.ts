@@ -28,6 +28,19 @@ describe('registerPushDevice', () => {
     });
   });
 
+  it('sends apnsEnvironment for iOS only', async () => {
+    const registration = { id: 2, platform: 'ios' as const, installationId: 'i', isEnabled: true, updatedAtUtc: '2026-10-21T00:00:00Z' };
+    const request = jest.fn(async () => ({ status: 200, body: registration })) as unknown as AuthenticatedApiRequest;
+
+    await registerPushDevice(request, { platform: 'ios', installationId: 'i', pushToken: 'ab', locale: 'en', apnsEnvironment: 'development' });
+    await registerPushDevice(request, { platform: 'android', installationId: 'i', pushToken: 't', locale: 'en', apnsEnvironment: 'production' });
+
+    expect(jest.mocked(request).mock.calls.map(call => (call as unknown as [{ body: unknown }])[0].body)).toEqual([
+      { platform: 'ios', installationId: 'i', pushToken: 'ab', locale: 'en', apnsEnvironment: 'development' },
+      { platform: 'android', installationId: 'i', pushToken: 't', locale: 'en' },
+    ]);
+  });
+
   it('throws when the Backend returns no body', async () => {
     const request = jest.fn(async () => ({ status: 200, body: undefined })) as unknown as AuthenticatedApiRequest;
 

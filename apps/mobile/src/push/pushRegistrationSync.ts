@@ -2,6 +2,7 @@ import { getMessaging, getToken } from '@react-native-firebase/messaging';
 import { Platform } from 'react-native';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import i18n from '../i18n';
+import { getApnsToken, isApnsPlatform, type ApnsEnvironment } from './apnsPush';
 import { isFcmPlatform } from './fcmPlatform';
 import { getOrCreatePushInstallationId } from './pushInstallationId';
 import { getPushPermissionStatus } from './pushPermission';
@@ -16,6 +17,7 @@ async function registerCurrentToken(
   authenticatedRequest: AuthenticatedApiRequest,
   pushToken: string,
   isCurrent: () => boolean = () => true,
+  apnsEnvironment?: ApnsEnvironment,
 ): Promise<void> {
   const installationId = await getOrCreatePushInstallationId();
   if (!isCurrent()) return;
@@ -32,12 +34,13 @@ async function registerCurrentToken(
       // Backend's PushNotificationTextGenerator and RegisterPushDeviceService's own remarks on this
       // same field).
       locale: i18n.language,
+      apnsEnvironment,
     });
   });
 }
 
 /**
- * Fetches the current FCM token and (re-)registers this installation with the Backend - a
+ * Fetches the current push token (Android FCM, iOS APNs) and (re-)registers this installation with the Backend - a
  * no-op if notification permission is not currently granted (read-only check, never prompts; see
  * pushPermission.ts). Consent is requested explicitly in PermissionsScreen. Best-effort throughout:
  * called from app bootstrap, a language change, and a token
@@ -57,7 +60,8 @@ export async function syncPushRegistration(
   const epoch = pushRegistrationEpoch();
   const callerCurrent = isCurrent;
   isCurrent = () => callerCurrent() && epoch === pushRegistrationEpoch();
-  if (!isFcmPlatform())
+  // Android: FCM. iOS: APNs through the native module (docs/ios-apns-push.md); without it there is nothing to register.
+  if (!isFcmPlatform() && !isApnsPlatform())
     return isCurrent() ? reportPushSync('apnsNotReady') : 'cancelled';
   let permission;
   try {
@@ -73,15 +77,23 @@ export async function syncPushRegistration(
         : 'permissionDenied',
     );
   let token;
+  let apnsEnvironment: ApnsEnvironment | undefined;
   try {
-    token = await getToken(getMessaging());
+    if (isFcmPlatform()) {
+      token = await getToken(getMessaging());
+    } else {
+      const apns = await getApnsToken();
+      if (apns?.failed) return isCurrent() ? reportPushSync('tokenFailed') : 'cancelled';
+      token = apns?.token ?? null;
+      apnsEnvironment = apns?.environment;
+    }
   } catch {
     return isCurrent() ? reportPushSync('tokenFailed') : 'cancelled';
   }
   if (!isCurrent()) return 'cancelled';
   if (!token) return reportPushSync('tokenUnavailable');
   try {
-    await registerCurrentToken(authenticatedRequest, token, isCurrent);
+    await registerCurrentToken(authenticatedRequest, token, isCurrent, apnsEnvironment);
     return isCurrent() ? reportPushSync('registered') : 'cancelled';
   } catch (error) {
     const httpStatus =

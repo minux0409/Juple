@@ -1,4 +1,5 @@
 import UIKit
+import UserNotifications
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
@@ -30,7 +31,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate, RNAppAuthAuthorizationFlo
     reactNativeDelegate = delegate
     reactNativeFactory = factory
 
+    // Before launch finishes, so a notification tap that launches the app is delivered (docs/ios-apns-push.md).
+    UNUserNotificationCenter.current().delegate = ApnsBridge.shared
+
     return true
+  }
+
+  // APNs device token (asked for by ApnsBridge.register): handed to JS, never logged.
+  func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+    ApnsBridge.shared.didRegister(deviceToken: deviceToken)
+  }
+
+  func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+    ApnsBridge.shared.didFailToRegister(error: error)
   }
 
   func application(

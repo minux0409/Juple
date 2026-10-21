@@ -18,6 +18,8 @@ export interface RegisterPushDeviceOptions {
   readonly pushToken: string;
   /** The app's currently-resolved UI language (e.g. "ko"/"en") - never the device's raw OS locale; see i18n/languagePreference.ts. Drives server-generated Push text (see Backend's PushNotificationTextGenerator). */
   readonly locale: string;
+  /** iOS only: the aps-environment the app is signed for (APNs sandbox vs production gateway). Never sent for Android. */
+  readonly apnsEnvironment?: 'development' | 'production';
 }
 
 /** Idempotent register/re-register for one device install - safe to call again after a token refresh or an in-app language change. */
@@ -33,6 +35,7 @@ export async function registerPushDevice(
       installationId: options.installationId,
       pushToken: options.pushToken,
       locale: options.locale,
+      ...(options.platform === 'ios' && options.apnsEnvironment ? { apnsEnvironment: options.apnsEnvironment } : {}),
     },
   });
 

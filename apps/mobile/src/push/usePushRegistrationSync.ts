@@ -4,6 +4,7 @@ import { getMessaging, onTokenRefresh } from '@react-native-firebase/messaging';
 import { useAuth } from '../auth/AuthContext';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import i18n from '../i18n';
+import { subscribeApnsTokenChanged } from './apnsPush';
 import { isFcmPlatform } from './fcmPlatform';
 import { syncPushRegistration } from './pushRegistrationSync';
 import { getPushSyncReport, reportPushSync } from './pushRegistrationStatus';
@@ -60,6 +61,10 @@ export function usePushRegistrationSync(): void {
     } catch {
       reportPushSync('tokenFailed');
     }
+    // iOS has no token-refresh callback in JS: the native side reports a changed APNs token and the whole sync runs again.
+    const unsubscribeApns = subscribeApnsTokenChanged(() => {
+      run().catch(() => reportPushSync('registrationFailed'));
+    });
     return () => {
       current = false;
       generation++;
@@ -67,6 +72,7 @@ export function usePushRegistrationSync(): void {
       foreground.remove();
       i18n.off('languageChanged', languageChanged);
       unsubscribe();
+      unsubscribeApns();
     };
   }, [isReady, request]);
 }

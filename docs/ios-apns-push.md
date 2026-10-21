@@ -3,6 +3,7 @@
 Backend는 iOS 기기에 **Apple APNs로 직접** 푸시를 보낸다(Firebase/Notification Hubs 없음). Android는 기존 FCM 그대로다.
 MacBook에서 할 일은 **APNs 기기 토큰을 받아 기존 등록 API로 보내는 네이티브 연결**과 **알림 수신/탭 처리**뿐이다.
 이 문서 시점에 Backend 코드와 로컬 테스트는 완료됐고, PROD 배포·PROD DB migration·APNs 키 설정은 아직 하지 않았다.
+앱 쪽(5장)은 구현되었다: `ios/JupleMobile/ApnsBridge.swift`, `JupleApnsModule.mm`, `src/share/specs/NativeApnsIOS.ts`, `src/push/apnsPush.ts`. Simulator에서 sandbox 토큰 발급과 `simctl push` 수신·탭 라우팅을 확인했고, APNs 서버를 거친 실제 발송과 실기기 동작은 아직 확인하지 않았다.
 
 ## 1. 전체 흐름
 
@@ -80,10 +81,10 @@ Juple 이벤트 -> notifications.NotificationEvents (outbox, 같은 SQL 트랜�
 
 ## 5. MacBook에서 할 일 (iOS Native + RN)
 
-`isFcmPlatform()`이 iOS에서 false라서 지금은 iOS가 `apnsNotReady`로 등록하지 않는다. iOS에는 Firebase 앱이 없으므로 **`@react-native-firebase/messaging`을 iOS에서 쓰지 않는다.**
+아래는 구현 시의 작업 목록이다(구현 완료 - 위 상태 참고). `isFcmPlatform()`은 iOS에서 false이고, iOS는 `apnsPush.ts`로 등록한다. iOS에는 Firebase 앱이 없으므로 **`@react-native-firebase/messaging`을 iOS에서 쓰지 않는다.**
 
 1. Xcode -> Signing & Capabilities -> **+ Capability -> Push Notifications** (entitlements에 `aps-environment` 추가됨: Debug `development`, Release는 배포 시 `production`).
-   - 현재 `JupleMobile.entitlements`는 Associated Domains용 파일로 아직 프로젝트에 연결되지 않았다(README 참고). Xcode가 entitlements를 만들거나 이 파일에 연결하도록 하고, 결과에 `aps-environment`가 있는지 확인한다.
+   - 완료: Xcode가 기존 `JupleMobile.entitlements`에 연결했고 `aps-environment`가 들어 있다(Associated Domains 상태는 README 참고).
    - **Background Modes -> Remote notifications**: data-only 갱신 신호를 백그라운드에서도 받고 싶을 때만 켠다(선택).
 2. 작은 네이티브 모듈(예: `JupleApnsModule`, 기존 `JupleNotificationPermissions.mm`과 같은 방식):
    - 권한이 허용된 상태에서 `UIApplication.shared.registerForRemoteNotifications()` 호출.

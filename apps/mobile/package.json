@@ -72,7 +72,8 @@
     },
     "ios": {
       "modulesProvider": {
-        "NativeCollectionShortcutsIOS": "JupleCollectionShortcutsModule"
+        "NativeCollectionShortcutsIOS": "JupleCollectionShortcutsModule",
+        "NativeApnsIOS": "JupleApnsModule"
       }
     }
   }
