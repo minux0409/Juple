@@ -27,8 +27,8 @@ param entraClientId = readEnvironmentVariable('JUPLE_ADMIN_ENTRA_CLIENT_ID')
 param bindCustomDomain = true
 param managedCertificateName = 'mc-cae-juple-prod-admin-juple-co-k-2603'
 
-// Operator-only traffic: scale to zero, one replica at most (docs/admin.md "Cost").
-param minReplicas = 0
+// Keep one admin replica warm to avoid cold starts (docs/admin.md "Cost").
+param minReplicas = 1
 param maxReplicas = 1
 
 // Live Foundation / build values - the same resources the user Web uses (rg-juple-prod).
