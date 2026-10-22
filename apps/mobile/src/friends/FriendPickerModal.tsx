@@ -43,6 +43,9 @@ export function FriendPickerModal({ visible, authenticatedRequest, unavailable, 
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [friends, setFriends] = useState<readonly Friend[]>([]);
+  // The query the shown friends were loaded for (null = nothing loaded yet): an empty list only means
+  // "no results" / "no friends" for THAT query, never for text typed or cleared since.
+  const [loadedQuery, setLoadedQuery] = useState<string | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<{ readonly cause: unknown } | null>(null);
@@ -72,6 +75,7 @@ export function FriendPickerModal({ visible, authenticatedRequest, unavailable, 
         .then(page => {
           if (loadId === loadIdRef.current) {
             setFriends(page.items);
+            setLoadedQuery(search.trim());
             setNextCursor(page.nextCursor);
           }
         })
@@ -119,7 +123,7 @@ export function FriendPickerModal({ visible, authenticatedRequest, unavailable, 
     reason === 'member' ? t('shareSheet.alreadyMember') : reason === 'pending' ? t('shareSheet.pendingLabel') : t('shareSheet.alreadyAdded');
 
   // The same rule as My Page > Friends. Without a query the list shown is every friend I have.
-  const emptyState = getFriendSearchEmptyState({ query: search, totalCount: friends.length, filteredCount: friends.length });
+  const emptyState = getFriendSearchEmptyState({ query: loadedQuery ?? '', totalCount: friends.length, filteredCount: friends.length });
 
   return (
     <AppModal
@@ -166,7 +170,7 @@ export function FriendPickerModal({ visible, authenticatedRequest, unavailable, 
         initialNumToRender={20}
         keyboardShouldPersistTaps="handled"
         keyExtractor={friend => friend.friendshipId.toString()}
-        ListEmptyComponent={isLoading ? <ActivityIndicator style={styles.loading} /> : error ? (
+        ListEmptyComponent={isLoading || (loadedQuery !== search.trim() && !error) ? <ActivityIndicator style={styles.loading} /> : error ? (
           <LoadFailureState compact error={error.cause} onRetry={() => setReloadToken(previous => previous + 1)} testID="friend-picker-error" />
         ) : emptyState === 'none' ? undefined : (
           <Text style={styles.empty} testID="friend-picker-empty">{t(emptyState === 'noResults' ? 'friends.searchEmpty' : 'friends.empty')}</Text>

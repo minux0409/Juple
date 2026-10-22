@@ -1378,3 +1378,92 @@ describe('friend shared collection title spacing on both platforms and themes', 
     }
   });
 });
+
+describe('FriendsScreen - the empty state follows the loaded data, not the text field', () => {
+  const searchText = '검색 결과가 없어요.';
+  const emptyTitle = () => i18n.t('friends.empty');
+  const type = async (renderer: Renderer, value: string) => {
+    await act(async () => {
+      byId(renderer, 'friends-search').props.onChangeText(value);
+    });
+  };
+  const settle = async () => {
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+  };
+  const deferred = <T,>() => {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>(done => {
+      resolve = done;
+    });
+    return { promise, resolve };
+  };
+
+  it('no results -> text cleared: never says "no friends" while the full list is coming back', async () => {
+    const all = deferred<{ items: Friend[]; nextCursor: null }>();
+    jest.mocked(getFriends).mockImplementation(async (_request, params) => {
+      if (params?.query === '없는사람') {
+        return { items: [], nextCursor: null };
+      }
+      return params?.query === undefined && jest.mocked(getFriends).mock.calls.length >= 3 ? all.promise : { items: [pikachu, noNickname], nextCursor: null };
+    });
+    const renderer = await renderScreen();
+    await type(renderer, '없는사람');
+    await settle();
+    expect(texts(renderer)).toContain(searchText);
+
+    await type(renderer, '');
+    // Before the reload even starts, and while it is in flight: neither empty message.
+    expect(texts(renderer)).not.toContain(emptyTitle());
+    expect(texts(renderer)).not.toContain(searchText);
+    await settle();
+    expect(texts(renderer)).not.toContain(emptyTitle());
+    expect(exists(renderer, 'friends-loading')).toBe(true);
+
+    await act(async () => {
+      all.resolve({ items: [pikachu, noNickname], nextCursor: null });
+    });
+    expect(exists(renderer, 'friends-empty')).toBe(false);
+    expect(texts(renderer)).toContain('피카츄');
+  });
+
+  it('keeps showing the friends while a new search is loading', async () => {
+    const pending = deferred<{ items: Friend[]; nextCursor: null }>();
+    const renderer = await renderScreen();
+    jest.mocked(getFriends).mockReturnValueOnce(pending.promise);
+    await type(renderer, '피');
+    await settle();
+    expect(texts(renderer)).toContain('피카츄');
+    expect(exists(renderer, 'friends-empty')).toBe(false);
+  });
+
+  it('a real friendless account still gets the empty state (and a search with no match says no results)', async () => {
+    jest.mocked(getFriends).mockResolvedValue({ items: [], nextCursor: null });
+    const renderer = await renderScreen();
+    expect(exists(renderer, 'friends-empty')).toBe(true);
+
+    await type(renderer, 'x');
+    await settle();
+    expect(texts(renderer)).toContain(searchText);
+    expect(exists(renderer, 'friends-empty')).toBe(false);
+
+    await type(renderer, '');
+    await settle();
+    expect(exists(renderer, 'friends-empty')).toBe(true);
+  });
+
+  it('an older response arriving after a newer one does not overwrite it', async () => {
+    const slow = deferred<{ items: Friend[]; nextCursor: null }>();
+    const renderer = await renderScreen();
+    jest.mocked(getFriends).mockReturnValueOnce(slow.promise).mockResolvedValueOnce({ items: [noNickname], nextCursor: null });
+    await type(renderer, 'a');
+    await settle();
+    await type(renderer, 'ab');
+    await settle();
+    await act(async () => {
+      slow.resolve({ items: [pikachu], nextCursor: null });
+    });
+    expect(texts(renderer)).not.toContain('피카츄');
+  });
+});

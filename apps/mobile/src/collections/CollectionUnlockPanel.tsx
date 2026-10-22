@@ -58,6 +58,10 @@ interface CollectionUnlockPanelProps {
    * member only). The two are never mixed up in wording or in what the server checks.
    */
   readonly kind?: 'lock' | 'sharePassword';
+  /** Inside an AppModal: no card of its own (the modal is the card), so the prompt is not a card within a card. */
+  readonly embedded?: boolean;
+  /** The surrounding header already says it (e.g. the modal title); the panel then keeps icon, message and input. */
+  readonly hideTitle?: boolean;
 }
 
 /**
@@ -65,7 +69,7 @@ interface CollectionUnlockPanelProps {
  * requested again after the Owner's lock password is verified server-side and a short-lived grant is
  * stored in memory (see collectionUnlockGrants). The password is never stored or logged anywhere.
  */
-export function CollectionUnlockPanel({ collectionId, onUnlocked, onGranted, onStateChanged, isOwner = true, kind = 'lock' }: CollectionUnlockPanelProps) {
+export function CollectionUnlockPanel({ collectionId, onUnlocked, onGranted, onStateChanged, isOwner = true, kind = 'lock', embedded = false, hideTitle = false }: CollectionUnlockPanelProps) {
   const isSharePassword = kind === 'sharePassword';
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
@@ -112,11 +116,11 @@ export function CollectionUnlockPanel({ collectionId, onUnlocked, onGranted, onS
   const isSubmitDisabled = isSubmitting || password.length === 0;
 
   return (
-    <View style={styles.card} testID={isSharePassword ? 'collection-share-password-panel' : 'collection-unlock-panel'}>
+    <View style={[styles.card, embedded && styles.cardEmbedded]} testID={isSharePassword ? 'collection-share-password-panel' : 'collection-unlock-panel'}>
       <View style={styles.iconCircle}>
         {isSharePassword ? <KeyIcon color={colors.textPrimary} size={22} /> : <LockIcon color={colors.textPrimary} size={22} />}
       </View>
-      <Text style={styles.title}>{t(isSharePassword ? 'collections.sharePasswordLockedTitle' : 'collections.lockedTitle')}</Text>
+      {hideTitle ? null : <Text style={styles.title}>{t(isSharePassword ? 'collections.sharePasswordLockedTitle' : 'collections.lockedTitle')}</Text>}
       <Text style={styles.message}>{t(isSharePassword ? 'collections.sharePasswordLockedMessage' : 'collections.lockedMessage')}</Text>
       <ThemedTextInput
         accessibilityLabel={t(isSharePassword ? 'collections.sharePasswordLabel' : 'collections.lockPasswordLabel')}
@@ -168,6 +172,7 @@ const styles = themedStyles(() => ({
     padding: spacing.xl,
     width: '100%',
   },
+  cardEmbedded: { backgroundColor: 'transparent', borderRadius: 0, marginTop: 0, maxWidth: undefined, padding: 0 },
   iconCircle: {
     alignItems: 'center',
     alignSelf: 'center',

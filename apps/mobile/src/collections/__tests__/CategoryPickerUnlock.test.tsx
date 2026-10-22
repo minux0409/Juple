@@ -7,6 +7,9 @@ import { useCategoryPickerModal, type UseCategoryPickerModalResult } from '../us
 import { getCollections, unlockCollection, type Collection } from '../api/collectionsApi';
 import { clearCollectionUnlockGrants, rememberCollectionUnlock } from '../collectionUnlockGrants';
 
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
 jest.mock('../../api/useAuthenticatedApi', () => {
   const request = jest.fn();
   return { useAuthenticatedApi: () => request };

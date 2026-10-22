@@ -94,6 +94,9 @@ export function FriendsScreen() {
   // What the last failed load threw - only to tell "no connection" from "the server failed" in the state shown.
   const [friendsFailure, setFriendsFailure] = useState<unknown>(null);
   const [search, setSearch] = useState('');
+  // The (trimmed) query the shown `friends` were loaded for. The empty state is decided from THIS, never from the
+  // live text field: right after the text is cleared the list still holds the previous query's result.
+  const [loadedQuery, setLoadedQuery] = useState('');
   const loadIdRef = useRef(0);
 
   const [requests, setRequests] = useState<readonly FriendRequest[]>([]);
@@ -133,6 +136,7 @@ export function FriendsScreen() {
         const page = await getFriends(authenticatedRequest, { query: query.trim() || undefined, limit: PAGE_LIMIT });
         if (loadId === loadIdRef.current) {
           setFriends(page.items);
+          setLoadedQuery(query.trim());
           setNextCursor(page.nextCursor);
           setHasLoadedFriends(true);
           setFriendsError(false);
@@ -323,7 +327,10 @@ export function FriendsScreen() {
       ListEmptyComponent={
         !hasLoadedFriends ? (
           friendsError ? retryBlock(() => loadFriends(searchRef.current), 'friends-error', friendsFailure) : <ActivityIndicator style={styles.loading} testID="friends-loading" />
-        ) : getFriendSearchEmptyState({ query: search, totalCount: friends.length, filteredCount: friends.length }) === 'noResults' ? (
+        ) : loadedQuery !== search.trim() && !friendsError ? (
+          // The text changed and its result has not arrived yet: neither "no results" nor "no friends" is true.
+          <ActivityIndicator style={styles.loading} testID="friends-loading" />
+        ) : getFriendSearchEmptyState({ query: loadedQuery, totalCount: friends.length, filteredCount: friends.length }) === 'noResults' ? (
           <Text style={styles.stateText}>{t('friends.searchEmpty')}</Text>
         ) : (
           <View style={styles.stateBlock} testID="friends-empty">

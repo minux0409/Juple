@@ -6,7 +6,6 @@ import type { TFunction } from 'i18next';
 import {
   ActivityIndicator,
   FlatList,
-  Modal,
   Linking,
   Platform,
   Pressable,
@@ -63,6 +62,7 @@ import { getCollectionParticipants, leaveCollection, type CollectionParticipants
 import { ApprovalSubmissionSheet } from '../collections/ApprovalSubmissionSheet';
 import { JoinRequestsSheet } from '../collections/JoinRequestsSheet';
 import { CollectionParticipantsSheet } from '../collections/CollectionParticipantsSheet';
+import { CollectionUnlockModal } from '../collections/CollectionUnlockModal';
 import { CollectionUnlockPanel } from '../collections/CollectionUnlockPanel';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
 import { applyCollectionIconImageChange, getIconImageSaveErrorMessage, type CollectionIconImageChange } from '../collections/collectionIconImage';
@@ -2217,28 +2217,22 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         }}
         visible={lockDialogMode !== null}
       />
-      <Modal
-        animationType="fade"
-        onRequestClose={() => setPendingUnlockAction(null)}
-        transparent
-        visible={pendingUnlockAction !== null}
-      >
-        <KeyboardSafeView style={styles.unlockOverlay} testID="collection-details-unlock-gate">
-          <CollectionUnlockPanel
-            collectionId={collectionId}
-            isOwner={isOwner}
-            onUnlocked={() => {
-              const action = pendingUnlockAction;
-              setPendingUnlockAction(null);
-              refresh();
-              action?.();
-            }}
-          />
-          <Pressable accessibilityRole="button" onPress={() => setPendingUnlockAction(null)} style={styles.unlockCancel}>
-            <Text style={styles.unlockCancelLabel}>{t('common.cancel')}</Text>
-          </Pressable>
-        </KeyboardSafeView>
-      </Modal>
+      {pendingUnlockAction !== null ? (
+        <CollectionUnlockModal
+          collectionId={collectionId}
+          collectionName={collection.name}
+          isOwner={isOwner}
+          onCancel={() => setPendingUnlockAction(null)}
+          onUnlocked={() => {
+            const action = pendingUnlockAction;
+            setPendingUnlockAction(null);
+            refresh();
+            action?.();
+          }}
+          testID="collection-details-unlock-gate"
+          visible
+        />
+      ) : null}
       <ReactionPickerDialog
         myReaction={reactionPickerItem ? itemReactions.reactionsOf(reactionPickerItem.itemId, reactionPickerItem).myReaction : null}
         onClose={() => setReactionPickerItem(null)}
@@ -2364,25 +2358,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 }
 
 const styles = themedStyles(() => ({
-  unlockOverlay: {
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    flex: 1,
-    justifyContent: 'center',
-    padding: spacing.xl,
-  },
-  unlockCancel: {
-    alignItems: 'center',
-    alignSelf: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.md,
-    minHeight: minTouchTarget,
-    paddingHorizontal: spacing.lg,
-  },
-  unlockCancelLabel: {
-    color: colors.surface,
-    fontSize: 16,
-    fontWeight: '600',
-  },
   sharedByRow: {
     alignItems: 'center',
     flexDirection: 'row',

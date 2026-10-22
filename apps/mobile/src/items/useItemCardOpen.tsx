@@ -1,16 +1,14 @@
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Keyboard, Modal, Pressable, Text, View } from 'react-native';
+import { Keyboard } from 'react-native';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getCollection } from '../collections/api/collectionsApi';
 import { contentGateOf, isSharedWithMe, type CollectionContentGate } from '../collections/collectionAccess';
-import { CollectionUnlockPanel } from '../collections/CollectionUnlockPanel';
+import { CollectionUnlockModal } from '../collections/CollectionUnlockModal';
 import { contentGateOfError } from '../collections/useCollectionItems';
 import { getItemDetails, type ItemHistoryEntry } from './api/itemsApi';
 import { handOffItemOpenGrant, type ItemOpenContext } from './itemOpenGrant';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { KeyboardSafeView } from '../components/KeyboardSafeView';
-import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 
 interface PendingOpen {
   readonly itemId: number;
@@ -110,39 +108,27 @@ export function useItemCardOpen(onNavigate: (itemId: number, openContext?: ItemO
   };
 
   const dialog = <>
-    {pending ? <Modal animationType="fade" onRequestClose={cancel} transparent visible>
-      <KeyboardSafeView style={styles.overlay}>
-        <View style={styles.panel}>
-          <CollectionUnlockPanel
-            collectionId={pending.collectionId}
-            isOwner={pending.isOwner}
-            kind={pending.gate}
-            // Single-use: the grant is kept only for this opening (the panel stores nothing when given onGranted).
-            onGranted={unlockToken => {
-              openingGrantRef.current = unlockToken;
-            }}
-            onStateChanged={onStateChanged}
-            onUnlocked={() => {
-              const { itemId, collectionId } = pending;
-              const unlockToken = openingGrantRef.current;
-              setPending(null);
-              finishOpen(itemId, collectionId, unlockToken).catch(() => undefined);
-            }}
-          />
-          <Pressable accessibilityRole="button" onPress={cancel} style={styles.cancel}>
-            <Text style={styles.cancelLabel}>{t('common.cancel')}</Text>
-          </Pressable>
-        </View>
-      </KeyboardSafeView>
-    </Modal> : null}
+    {pending ? (
+      <CollectionUnlockModal
+        collectionId={pending.collectionId}
+        isOwner={pending.isOwner}
+        kind={pending.gate}
+        onCancel={cancel}
+        // Single-use: the grant is kept only for this opening (the panel stores nothing when given onGranted).
+        onGranted={unlockToken => {
+          openingGrantRef.current = unlockToken;
+        }}
+        onStateChanged={onStateChanged}
+        onUnlocked={() => {
+          const { itemId, collectionId } = pending;
+          const unlockToken = openingGrantRef.current;
+          setPending(null);
+          finishOpen(itemId, collectionId, unlockToken).catch(() => undefined);
+        }}
+        visible
+      />
+    ) : null}
     {error ? <ConfirmDialog confirmLabel={t('common.confirm')} message={error} onConfirm={() => setError(null)} title={t('common.notice')} visible /> : null}
   </>;
   return { open, dialog };
 }
-
-const styles = themedStyles(() => ({
-  overlay: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.45)', flex: 1, justifyContent: 'center', padding: spacing.lg },
-  panel: { backgroundColor: colors.surface, borderRadius: 16, maxWidth: 440, overflow: 'hidden', width: '100%' },
-  cancel: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, padding: spacing.sm },
-  cancelLabel: { color: colors.textSecondary, fontSize: 15 },
-}));

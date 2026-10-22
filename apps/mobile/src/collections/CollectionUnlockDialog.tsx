@@ -1,10 +1,6 @@
-import { useTranslation } from 'react-i18next';
-import { Modal, Pressable, Text, View } from 'react-native';
-import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 import type { Collection } from './api/collectionsApi';
 import { contentGateOf, isSharedWithMe } from './collectionAccess';
-import { CollectionUnlockPanel } from './CollectionUnlockPanel';
-import { KeyboardSafeView } from '../components/KeyboardSafeView';
+import { CollectionUnlockModal } from './CollectionUnlockModal';
 
 interface CollectionUnlockDialogProps {
   /** The locked Collection to ask the password for; null = closed. */
@@ -23,37 +19,23 @@ interface CollectionUnlockDialogProps {
  * the reason, and cancelling changes nothing.
  */
 export function CollectionUnlockDialog({ collection, onGranted, onCancel, onStateChanged }: CollectionUnlockDialogProps) {
-  const { t } = useTranslation();
+  if (!collection) {
+    return null;
+  }
   return (
-    <Modal animationType="fade" onRequestClose={onCancel} transparent visible={collection !== null}>
-      <KeyboardSafeView style={styles.overlay}>
-        {collection ? (
-          <View style={styles.container} testID="collection-unlock-dialog">
-            <Text numberOfLines={2} style={styles.name}>{collection.name}</Text>
-            <CollectionUnlockPanel
-              // A new prompt when the KIND of password changes under it (lock <-> share password): no leftover text.
-              key={`${collection.id}-${contentGateOf(collection) ?? 'lock'}`}
-              collectionId={collection.id}
-              onStateChanged={onStateChanged}
-              isOwner={!isSharedWithMe(collection)}
-              kind={contentGateOf(collection) ?? 'lock'}
-              onGranted={onGranted}
-              onUnlocked={() => undefined}
-            />
-            <Pressable accessibilityRole="button" onPress={onCancel} style={styles.cancel} testID="collection-unlock-dialog-cancel">
-              <Text style={styles.cancelLabel}>{t('common.cancel')}</Text>
-            </Pressable>
-          </View>
-        ) : null}
-      </KeyboardSafeView>
-    </Modal>
+    <CollectionUnlockModal
+      // A new prompt when the KIND of password changes under it (lock <-> share password): no leftover text.
+      key={`${collection.id}-${contentGateOf(collection) ?? 'lock'}`}
+      collectionId={collection.id}
+      collectionName={collection.name}
+      isOwner={!isSharedWithMe(collection)}
+      kind={contentGateOf(collection) ?? 'lock'}
+      onCancel={onCancel}
+      onGranted={onGranted}
+      onStateChanged={onStateChanged}
+      onUnlocked={() => undefined}
+      testID="collection-unlock-dialog"
+      visible
+    />
   );
 }
-
-const styles = themedStyles(() => ({
-  overlay: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)', flex: 1, justifyContent: 'center', padding: spacing.xl },
-  container: { maxWidth: 420, width: '100%' },
-  name: { color: colors.surface, fontSize: 16, fontWeight: '700', textAlign: 'center' },
-  cancel: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, minHeight: minTouchTarget },
-  cancelLabel: { color: colors.surface, fontSize: 16, fontWeight: '600' },
-}));

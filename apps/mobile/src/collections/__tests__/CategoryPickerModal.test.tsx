@@ -9,6 +9,10 @@ import { dragSheet, settleSheet } from '../../testing/sheetGestureDriver';
 import { Dimensions, FlatList, StyleSheet } from 'react-native';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
 
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
+
 function makeCollection(overrides: Partial<Collection> = {}): Collection {
   return {
     id: 1,
