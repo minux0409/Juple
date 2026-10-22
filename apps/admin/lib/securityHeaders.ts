@@ -4,7 +4,7 @@ type Header = { readonly key: string; readonly value: string };
 
 /**
  * Headers for every Admin Web response (next.config.ts). An operator tool: never framed, never indexed, no Referer, no browser
- * features, HTTPS only, never cached. The Content-Security-Policy is added per request by proxy.ts (contentSecurityPolicy below)
+ * features, HTTPS only. HTML and authenticated responses are never cached. The Content-Security-Policy is added per request by proxy.ts (contentSecurityPolicy below)
  * because its connect-src depends on the runtime API / sign-in hosts.
  */
 export const securityHeaders: readonly Header[] = [
@@ -25,6 +25,10 @@ export const authCallbackPath = 'auth/callback';
 export const authCallbackSecurityHeaders: readonly Header[] = securityHeaders.map(header =>
   header.key === 'X-Frame-Options' ? { key: header.key, value: 'SAMEORIGIN' } : header,
 );
+
+// Only Next's versioned build assets: leave Cache-Control to Next so immutable JS/CSS can be reused across visits.
+// No admin data or authentication responses are served from /_next/static/. Keep the other security headers.
+export const staticAssetSecurityHeaders: readonly Header[] = securityHeaders.filter(header => header.key !== 'Cache-Control');
 
 function origin(url: string): string | null {
   try {
