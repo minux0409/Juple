@@ -143,7 +143,15 @@ Juple 이벤트 -> notifications.NotificationEvents (outbox, 같은 SQL 트랜�
   - 그 밖의 403(`InvalidProviderToken`, `MissingProviderToken`, `UnrelatedKeyIdInToken`, `BadEnvironmentKeyInToken`, `Forbidden` 등) 또는 재서명 후에도 Expired: 그 gateway(production/development 각각)를 **10분 동안 차단**한다. 차단 중에는 Apple을 호출하지도, JWT를 새로 만들지도 않고 즉시 `third_party_auth_error`로 실패한다(Apple은 잦은 토큰 갱신을 429로 막는다). 10분 뒤 한 번 다시 시도한다. 로그 EventId 7304에 원인 확인 안내가 남는다.
   - 파이프라인 재시도: 실패한 iPhone 전달은 기존 정책대로 알림이 만료될 때까지(일반 6시간, data-only 10분) 복구 Job(1분 주기)이 다시 시도하고, 만료되면 종료된다. 무한 재시도는 없다. 차단 덕분에 키가 계속 잘못돼 있어도 Apple 호출은 gateway·프로세스당 10분에 한 번 수준이다.
   - 같은 알림의 Android 전달은 처음에 한 번 Sent로 기록되고 iPhone 재시도 때 다시 보내지지 않는다(전달은 알림 x 기기 단위).
-- 로그: 등록 id, HTTP 상태, APNs reason, apns-id만 남긴다. 기기 토큰, JWT, 키는 남기지 않는다.
+- 로그: 등록 id, HTTP 상태, 허용 목록의 APNs reason, UUID 형식으로 검증된 apns-id만 남긴다. 알 수 없는 reason/id는 `-`로 표시하며 상태 분류·재시도·발송 결과는 그대로 유지한다. 기기 토큰, JWT, 키는 남기지 않는다.
+
+### APNs HTTP 로그 보호 (2026-10-22)
+
+- named client는 `apns`다. 기본 `System.Net.Http.HttpClient.apns.LogicalHandler` / `.ClientHandler`는 Information 수준에서 `/3/device/{token}` URI를 기록한다. 헤더·query redaction은 이 **경로의 토큰**을 가리지 않는다.
+- 공통 `AddInfrastructure` 등록에서 APNs client에만 `RemoveAllLoggers()`를 적용한다. API, Notification Worker, push-dispatch Job은 같은 등록을 사용한다. Warning 필터만 추가하는 것보다 강하게 HTTP 로그와 scope의 URI·Trace 헤더 노출을 막으며, 다른 HttpClient/Android FCM 로깅에는 영향을 주지 않는다.
+- 애플리케이션의 안전한 진단은 유지한다: EventId 7301(거부 상태·허용된 reason·UUID apns-id·분류), 7302(전송 예외의 타입), 7303(예상하지 못한 iOS 예외의 타입), 7304(인증 차단·환경). 원본 예외 메시지/응답 본문은 로그에 전달하지 않는다.
+- 회귀 테스트 `ApnsHttpClientLoggingTests`는 실제 DI/HttpClientFactory와 수집 logger를 사용한다. 네트워크 handler만 Mock으로 바꿔 두 gateway의 성공, 실패·예외, 응답 필드에 민감정보가 섞인 경우를 Trace 수준까지 확인한다. 실제 APNs 호출은 하지 않는다.
+- **별도 PROD 적용 필요**: 현재 운영 이미지 `sha256:d152e873c7a4584a365ce34946d3397d6937b9176afdc0a722c2884acc2b203e`는 APNs 백포트 소스 기반이다. master Commit/Push만으로 운영 로그는 바뀌지 않는다. 이 등록 변경과 로그 검증을 백포트 소스에 반영하고 별도 이미지 빌드·승인·API/Worker/Job 배포가 필요하다. DB Migration과 Key Vault 변경은 이 수정에 필요하지 않다. 이미 저장된 Log Analytics 로그도 소스 변경만으로 제거되지 않는다.
 
 ### DB migration
 

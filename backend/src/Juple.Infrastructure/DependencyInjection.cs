@@ -364,6 +364,10 @@ public static class DependencyInjection
                     // ApnsPushSender enforces its own per-send timeout; this is only a backstop.
                     client.Timeout = TimeSpan.FromSeconds(60);
                 })
+                // The device token is part of the URL path, which HttpClient's header/query redaction does not protect.
+                // Remove only this client's HTTP loggers (including scopes/Trace headers) instead of relying on
+                // configurable level filters for secrecy. ApnsPushSender keeps safe Warning/Error diagnostics.
+                .RemoveAllLoggers()
                 // Apple asks providers to keep their HTTP/2 connections open and reuse them: the pooled connection ages out on its own
                 // schedule instead of IHttpClientFactory's default 2-minute handler recycling.
                 .SetHandlerLifetime(Timeout.InfiniteTimeSpan)

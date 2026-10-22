@@ -23,7 +23,7 @@ namespace Juple.Infrastructure.Push;
 /// Every failure is classified into PushSendFailureCodes and returned, never thrown. Only an EXPIRED provider token is retried
 /// here (once, with a freshly signed JWT); any other credential refusal blocks that gateway for a cooldown (no calls to Apple, see
 /// ApnsProviderTokenSource.AuthenticationCooldown). Every other transient failure is the dispatch pipeline's retry. Neither the device token nor
-/// the JWT nor the response body is ever logged - only the registration id, the HTTP status, APNs' reason code and the apns-id.
+/// the JWT nor the response body is ever logged - only the registration id, HTTP status, allowlisted reason code and validated apns-id.
 /// </summary>
 public sealed partial class ApnsPushSender(
     IHttpClientFactory httpClientFactory,
@@ -95,7 +95,10 @@ public sealed partial class ApnsPushSender(
 
         var reason = await ReadReasonAsync(response, cancellationToken);
         var code = Classify(response.StatusCode, reason);
-        Log.Rejected(logger, device.Id, (int)response.StatusCode, reason ?? "-", apnsId ?? "-", code);
+        // Response fields are untrusted too: do not let an echoed token/URI/credential become a Warning log.
+        // Keep the original values for classification and delivery results; validation here affects diagnostics only.
+        Log.Rejected(logger, device.Id, (int)response.StatusCode, ReasonForLog(reason),
+            Guid.TryParseExact(apnsId, "D", out var safeId) ? safeId.ToString("D") : "-", code);
         if (response.StatusCode == HttpStatusCode.Forbidden && reason == "ExpiredProviderToken")
         {
             tokenSource.Invalidate(jwt);
@@ -215,9 +218,21 @@ public sealed partial class ApnsPushSender(
         }
     }
 
-    /// <summary>Reasons are short ASCII identifiers; anything else is not logged verbatim.</summary>
+    /// <summary>Only short ASCII identifiers are considered for classification; logging uses a separate allowlist.</summary>
     private static string? SafeReason(string? reason) =>
         reason is { Length: > 0 and <= 64 } && reason.All(char.IsAsciiLetterOrDigit) ? reason : null;
+
+    private static string ReasonForLog(string? reason) => reason switch
+    {
+        "BadCollapseId" or "BadDeviceToken" or "BadExpirationDate" or "BadMessageId" or "BadPriority" or "BadTopic"
+        or "DeviceTokenNotForTopic" or "DuplicateHeaders" or "IdleTimeout" or "InvalidPushType" or "MissingDeviceToken"
+        or "MissingPushType" or "MissingTopic" or "PayloadEmpty" or "TopicDisallowed" or "BadCertificate"
+        or "BadCertificateEnvironment" or "ExpiredProviderToken" or "Forbidden" or "InvalidProviderToken"
+        or "MissingProviderToken" or "BadPath" or "MethodNotAllowed" or "Unregistered" or "ExpiredToken"
+        or "PayloadTooLarge" or "TooManyProviderTokenUpdates" or "TooManyRequests" or "InternalServerError"
+        or "ServiceUnavailable" or "Shutdown" or "UnrelatedKeyIdInToken" or "BadEnvironmentKeyInToken" => reason,
+        _ => "-",
+    };
 
     private static partial class Log
     {
