@@ -1,3 +1,4 @@
+import { daysEnding } from './workspace.ts';
 export const expenseBase = '/api/v1/admin/expenses';
 export const categories = {
   Cloud: '클라우드',
@@ -8,11 +9,16 @@ export const categories = {
   Advertising: '광고',
   Fees: '수수료',
   Other: '기타',
+  AppleDeveloper: 'Apple Developer Program',
+  GooglePlayConsole: 'Google Play Console',
+  EmailSmsApi: '이메일 · SMS · 외부 API',
+  Accounting: '회계 · 세무 · 사업자',
 } as const;
 export const statuses = {
   Paid: '결제 완료',
   Estimated: '추정 / 예정',
   Cancelled: '취소',
+  Provisional: '잠정 / 미확정 청구',
 } as const;
 export type Category = keyof typeof categories;
 export type Status = keyof typeof statuses;
@@ -35,6 +41,11 @@ export interface ExpenseValues {
   exchangeRate: string | null;
   exchangeRateOn: string | null;
   originalExpenseId: number | null;
+  customCategory?: string | null;
+  periodFrom?: string | null;
+  periodThrough?: string | null;
+  exchangeRateSource?: string | null;
+  serviceName?: string | null;
 }
 export interface Expense extends ExpenseValues {
   id: number;
@@ -67,8 +78,9 @@ export interface ExpensePage {
 export interface ExpenseConfig {
   enabled: boolean;
   azureSyncEnabled: boolean;
+  azureInsightsEnabled?: boolean;
   evidenceScanningConfigured: boolean;
-  azureScopes: { scope: string; environment: string }[];
+  azureScopes: { scope: string; environment: string; allowWholeSubscription?: boolean }[];
   pricing: {
     monthlyUsdReferencePrice: number;
     currency: string;
@@ -96,6 +108,8 @@ export interface Summary {
   months: Breakdown[];
   categories: Breakdown[];
   services: Breakdown[];
+  days?: Breakdown[];
+  sources?: Breakdown[];
 }
 export interface Schedule {
   schedule: {
@@ -131,6 +145,8 @@ export interface Audit {
   createdAtUtc: string;
 }
 export interface Filters {
+  search: string;
+  sort: string;
   from: string;
   through: string;
   category: string;
@@ -143,8 +159,9 @@ export interface Filters {
 }
 export function initialFilters(today: string): Filters {
   return {
-    from: `${today.slice(0, 4)}-01-01`,
-    through: `${today.slice(0, 4)}-12-31`,
+    ...daysEnding(today, 7),
+    search: '',
+    sort: 'newest',
     category: '',
     currency: '',
     provider: '',
@@ -196,6 +213,9 @@ export function validateExpense(value: ExpenseValues): string | null {
     return '합계 금액을 입력하세요. 소수점은 최대 12자리입니다.';
   if (value.status === 'Paid' && !value.paidOn)
     return '실제 결제일을 입력하세요.';
+  if (!!value.periodFrom !== !!value.periodThrough || (value.periodFrom && value.periodThrough && value.periodFrom > value.periodThrough))
+    return '비용 귀속 기간의 시작일과 종료일을 순서대로 입력하세요.';
+  if (value.customCategory && value.category !== 'Other') return '사용자 정의 분류는 기타 항목에서 입력하세요.';
   if ((value.netAmount === null) !== (value.taxAmount === null))
     return '공급가액과 세액을 함께 입력하거나 둘 다 비워 두세요.';
   if (

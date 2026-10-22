@@ -1,6 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PeriodPicker, useWorkspaceDates } from '../workspace/WorkspaceDates';
+import { seoulToday } from '../../../lib/workspace';
+import { BarChart } from '../analytics/AnalyticsParts';
+import { AzureCostReport } from './AzureCostReport';
 import { failureMessage } from '../../../lib/adminModel';
 import { ApiHttpError } from '../../../lib/adminApi';
 import {
@@ -26,10 +30,12 @@ import { PageState, useAdmin } from '../AdminRoot';
 
 export default function ExpensesPage() {
   const { api, reportFailure } = useAdmin();
-  const [today] = useState(() => new Date().toLocaleDateString('sv-SE'));
+  const [today] = useState(() => seoulToday());
+  const { period, select } = useWorkspaceDates();
   const [config, setConfig] = useState<ExpenseConfig | null>(null);
   const [filters, setFilters] = useState(() => initialFilters(today));
-  const [applied, setApplied] = useState(filters);
+  const [appliedFilters, setApplied] = useState(filters);
+  const applied = useMemo(() => ({ ...appliedFilters, ...period }), [appliedFilters, period]);
   const [page, setPage] = useState<ExpensePage | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -138,6 +144,7 @@ export default function ExpensesPage() {
           새로고침
         </button>
       </header>
+      <PeriodPicker />
       <PageState error={error} loading={loading && !page} onRetry={reload} />
       {config && !config.enabled ? (
         <p className="state">
@@ -149,7 +156,7 @@ export default function ExpensesPage() {
         <>
           <p className="muted">
             통화와 결제 상태를 분리하여 집계합니다. Azure 사용량은 세금·크레딧이
-            확정된 청구서가 아니며, 청구서 대사 전에는 추정액입니다. 집계는 세무
+            확정된 청구서가 아니며, 청구서 대사 전에는 잠정 사용량입니다. 집계는 세무
             정리 보조 자료이며 비용 인정·매입세액 공제를 확정하지 않습니다.
           </p>
           <form
@@ -160,26 +167,8 @@ export default function ExpensesPage() {
               setApplied({ ...filters });
             }}
           >
-            <label>
-              시작일
-              <input
-                type="date"
-                required
-                value={filters.from}
-                onChange={e => setFilters({ ...filters, from: e.target.value })}
-              />
-            </label>
-            <label>
-              종료일
-              <input
-                type="date"
-                required
-                value={filters.through}
-                onChange={e =>
-                  setFilters({ ...filters, through: e.target.value })
-                }
-              />
-            </label>
+            <label>비용·업체·서비스·분류 검색<input maxLength={100} value={filters.search} onChange={e=>setFilters({...filters,search:e.target.value})} /></label>
+            <label>등록 순서<select value={filters.sort} onChange={e=>setFilters({...filters,sort:e.target.value})}><option value="newest">최근 등록</option><option value="oldest">오래된 등록</option></select></label>
             <label>
               카테고리
               <select
@@ -252,9 +241,10 @@ export default function ExpensesPage() {
             <button
               type="button"
               onClick={() => {
-                const year = initialFilters(today);
+                const year = { ...initialFilters(today), from: `${today.slice(0, 4)}-01-01`, through: today };
                 setFilters(year);
                 setApplied(year);
+                select({ from: year.from, through: year.through });
               }}
             >
               올해
@@ -263,14 +253,11 @@ export default function ExpensesPage() {
               type="button"
               onClick={() => {
                 const first = `${today.slice(0, 7)}-01`;
-                const last = new Date(
-                  Number(today.slice(0, 4)),
-                  Number(today.slice(5, 7)),
-                  0,
-                ).toLocaleDateString('sv-SE');
+                const last = today;
                 const next = { ...filters, from: first, through: last };
                 setFilters(next);
                 setApplied(next);
+                select({ from: first, through: last });
               }}
             >
               이번 달
@@ -299,6 +286,12 @@ export default function ExpensesPage() {
               </article>
             ))}
           </section>
+          {summary?.days ? <div className="workspace-grid">{summary.totals.map(total => {
+            const rows = summary.days!.filter(x => x.currency === total.currency && x.status === total.status);
+            const dates: string[] = [];
+            for (let d = Date.parse(`${period.from}T00:00:00Z`); d <= Date.parse(`${period.through}T00:00:00Z`); d += 86400_000) dates.push(new Date(d).toISOString().slice(0, 10));
+            return <BarChart key={`${total.currency}-${total.status}`} title={`일별 지출 · ${statuses[total.status]} (${total.currency})`} unit={total.currency} days={dates} values={dates.map(d => Number(rows.find(x => x.label === d)?.gross ?? 0))} />;
+          })}</div> : null}
           {summary?.totals.length === 0 ? (
             <p>조회 기간의 비용이 없습니다.</p>
           ) : null}
@@ -349,6 +342,7 @@ export default function ExpensesPage() {
                       <span className="muted">
                         {row.expense.provider} ·{' '}
                         {categories[row.expense.category]}
+                        {row.expense.customCategory ? ` · ${row.expense.customCategory}` : ''}
                       </span>
                     </td>
                     <td>
@@ -450,6 +444,8 @@ export default function ExpensesPage() {
               <dl>
                 <dt>결제일</dt>
                 <dd>{selected.expense.paidOn ?? '미결제'}</dd>
+                <dt>서비스 / 사용자 정의 분류</dt><dd>{selected.expense.serviceName ?? '미지정'} / {selected.expense.customCategory ?? '없음'}</dd>
+                <dt>비용 귀속 기간</dt><dd>{selected.expense.periodFrom && selected.expense.periodThrough ? `${selected.expense.periodFrom} ~ ${selected.expense.periodThrough}` : '미지정'}</dd>
                 <dt>공급가 / 세액 / 합계 (원금)</dt>
                 <dd>
                   {selected.expense.netAmount ?? '미확인'} /{' '}
@@ -462,6 +458,7 @@ export default function ExpensesPage() {
                     ? `${selected.expense.convertedCurrency} · 환율 ${selected.expense.exchangeRate} · 기준일 ${selected.expense.exchangeRateOn}`
                     : '미적용'}
                 </dd>
+                <dt>환율 출처</dt><dd>{selected.expense.exchangeRateSource ?? '미확인'}</dd>
                 <dt>청구서 번호 / 결제 수단</dt>
                 <dd>
                   {selected.expense.invoiceReference ?? '없음'} /{' '}
@@ -811,6 +808,7 @@ export default function ExpensesPage() {
                 </li>
               ))}
             </ul>
+            <AzureCostReport key={`${scope}:${month}:${revision}`} scope={scope} month={month} insightsEnabled={config.azureInsightsEnabled === true} />
           </section>
         </>
       ) : null}
@@ -988,7 +986,7 @@ function ExpenseEditor({
             <select
               value={values.category}
               onChange={e =>
-                field('category', e.target.value as ExpenseValues['category'])
+                setValues({ ...values, category: e.target.value as ExpenseValues['category'], customCategory: e.target.value === 'Other' ? values.customCategory : null })
               }
             >
               {Object.entries(categories).map(([key, label]) => (
@@ -1128,6 +1126,11 @@ function ExpenseEditor({
               onChange={e => field('memo', e.target.value || null)}
             />
           </label>
+          <label>서비스명<input maxLength={200} value={values.serviceName ?? ''} onChange={e => field('serviceName', e.target.value || null)} /></label>
+          {values.category === 'Other' ? <label>사용자 정의 분류<input maxLength={80} value={values.customCategory ?? ''} onChange={e => field('customCategory', e.target.value || null)} /></label> : null}
+          <label>귀속 시작일<input type="date" value={values.periodFrom ?? ''} onChange={e => field('periodFrom', e.target.value || null)} /></label>
+          <label>귀속 종료일<input type="date" value={values.periodThrough ?? ''} onChange={e => field('periodThrough', e.target.value || null)} /></label>
+          <label>환율 출처<input maxLength={200} value={values.exchangeRateSource ?? ''} onChange={e => field('exchangeRateSource', e.target.value || null)} /><small>은행/고시 기관·문서명 등. 기존 자료에 출처가 없으면 미확인으로 유지합니다.</small></label>
           <label className="expense-wide">
             <span>
               <input

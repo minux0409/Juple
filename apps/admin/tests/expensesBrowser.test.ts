@@ -36,13 +36,15 @@ test(
     const shim = path.join(dir, 'AdminRoot.tsx');
     writeFileSync(
       shim,
-      `import React from 'react'; export function useAdmin(){return {api:window.expenseApi,reportFailure:()=>undefined}} export function PageState({error,loading}) {return <p role="status">{error || (loading?'Loading':'')}</p>}`,
+      `import React from 'react'; export function useAdmin(){return {api:window.expenseApi,reportFailure:()=>undefined}} export function useAdminQuery(path){window.workspaceRequests.push(path);return {data:window.workspaceMode==='ready'?window.workspaceData:null,error:window.workspaceMode==='error'?'Fixture unavailable':null,loading:window.workspaceMode==='loading',reload:()=>{}}} export function PageState({error,loading}) {return <p role="status">{error || (loading?'Loading':'')}</p>}`,
     );
     const entry = path.join(dir, 'entry.tsx');
     writeFileSync(
       entry,
       `
     import React from 'react'; import {createRoot} from 'react-dom/client';
+    import {WorkspaceDates} from ${JSON.stringify(path.join(root, 'app/(admin)/workspace/WorkspaceDates.tsx'))};
+    import {WorkspacePage} from ${JSON.stringify(path.join(root, 'app/(admin)/workspace/WorkspacePage.tsx'))};
     import ExpensesPage from ${JSON.stringify(
       path.join(root, 'app/(admin)/expenses/page.tsx'),
     )};
@@ -62,7 +64,12 @@ test(
       if(request.method==='DELETE'){rows=rows.filter(r=>r.expense.id!==2);return;}
       return {items:rows,nextCursor:null};
     };
-    createRoot(document.getElementById('root')).render(<ExpensesPage/>);
+    const root=createRoot(document.getElementById('root')); root.render(<WorkspaceDates><ExpensesPage/></WorkspaceDates>);
+    window.workspaceRequests=[];window.workspaceMode='ready';
+    window.workspaceData={totalUsers:4,newUsers:2,liveLinks:10,savedLinks:3,uniqueSavers:2,activeUsers:2,dau:1,wau:2,mau:2,currentCollections:3,sharedCollections:1,openInquiries:0,activityTrackingSince:'2026-10-20',generatedAtUtc:'2026-10-22T01:00:00Z',
+      series:Array.from({length:7},(_,i)=>({date:'2026-10-'+(16+i),signups:i===6?2:0,survivingAccountsToDate:i===6?4:2,linksSaved:i===6?3:0,linkSavers:i===6?2:0,survivingSavedLinksToDate:10,collectionsCreated:0,activeUsers:i<4?null:2})),
+      platforms:[{platform:'Android',activeUsers:2},{platform:'Ios',activeUsers:0},{platform:'Web',activeUsers:1},{platform:'Unknown',activeUsers:0}],recentUsers:[],domains:[{domain:'example.test',links:3}],coverage:[{metric:'history',available:false,explanation:'현재 남아있는 기록 기준'}]};
+    window.showWorkspace=mode=>{window.workspaceMode=mode;root.render(<WorkspaceDates><WorkspacePage/></WorkspaceDates>)};
   `,
     );
     const webpack = require('next/dist/compiled/webpack/webpack').webpack;
@@ -70,6 +77,7 @@ test(
       webpack(
         {
           mode: 'development',
+          plugins: [new (require('next/dist/compiled/webpack/webpack').webpack.DefinePlugin)({ 'process.env': JSON.stringify({ NODE_ENV: 'development' }) })],
           devtool: false,
           entry,
           output: { path: dir, filename: 'bundle.js' },
@@ -95,7 +103,7 @@ test(
       `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${readFileSync(
         path.join(root, 'app/globals.css'),
         'utf8',
-      )}</style></head><body><main id="root" style="padding:16px;min-width:0"></main><script src="bundle.js"></script></body></html>`,
+      )}</style></head><body><main id="root" style="padding:16px;min-width:0"></main><script>window.fixtureErrors=[];window.addEventListener('error',e=>window.fixtureErrors.push(e.message));</script><script src="bundle.js"></script></body></html>`,
     );
     const profile = path.join(dir, 'profile');
     const child = spawn(
@@ -169,6 +177,7 @@ test(
       assert.equal(
         await evaluate('document.querySelectorAll("tbody tr").length'),
         1,
+        JSON.stringify(await evaluate('({errors:window.fixtureErrors,text:document.getElementById("root").textContent,requests:window.expenseRequests})')),
       );
       for (const width of [390, 1440]) {
         await send('Emulation.setDeviceMetricsOverride', {
@@ -256,6 +265,24 @@ test(
       await click('열기');
       await click('다운로드');
       assert.equal(await evaluate('downloads.at(-1).name'), 'receipt.pdf');
+      await evaluate("window.showWorkspace('ready')"); await settle();
+      assert.match(String(await evaluate('document.getElementById("root").textContent')), /Overview[\s\S]*서비스 현황/);
+      assert.equal(await evaluate('document.querySelectorAll("svg[role=img]").length'), 7);
+      for (const width of [390, 768, 1440]) {
+        await send('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:false}); await settle();
+        assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth'), `workspace viewport ${width}`);
+        if (width===1440) { const shot=await send('Page.captureScreenshot',{format:'png'}); writeFileSync(path.join(dir,'workspace-desktop.png'),Buffer.from((shot as unknown as {data:string}).data,'base64')); }
+      }
+      await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-color-scheme',value:'dark'}]}); await settle();
+      assert.equal(await evaluate('getComputedStyle(document.body).backgroundColor'), 'rgb(20, 22, 26)');
+      const shot=await send('Page.captureScreenshot',{format:'png'}); writeFileSync(path.join(dir,'workspace-dark.png'),Buffer.from((shot as unknown as {data:string}).data,'base64'));
+      await click('오늘');
+      assert.ok(await evaluate('(()=>{const p=new URL(workspaceRequests.at(-1),"https://fixture.invalid").searchParams;return p.get("from")===p.get("through")})()'));
+      await evaluate("window.showWorkspace('loading')"); await settle();
+      assert.equal(await evaluate('document.querySelectorAll(".skeleton").length'),4);
+      await evaluate("window.showWorkspace('error')"); await settle();
+      assert.match(String(await evaluate('document.querySelector("[role=alert]").textContent')),/Fixture unavailable/);
+      assert.deepEqual(await evaluate('window.fixtureErrors'),[]);
     } finally {
       socket?.close();
       child.kill();

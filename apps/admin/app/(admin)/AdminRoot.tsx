@@ -11,6 +11,7 @@ import { statusAfterAccessCheck, statusAfterInitialize, statusAfterPageFailure, 
 import { acquireApiToken, getMsal, resolveSignedInAccount, signIn, signOut } from '../../lib/msalClient';
 import { activeHref, NAVIGATION, type NavEntry } from '../../lib/navigation';
 import { strings } from '../../lib/strings';
+import { WorkspaceDates, useWorkspaceDates, workspaceHref } from './workspace/WorkspaceDates';
 
 interface AdminContextValue {
   readonly api: AdminApi;
@@ -178,9 +179,9 @@ export function AdminRoot({ config, children }: { config: AdminConfig | null; ch
     case 'ready':
       return contextValue ? (
         <AdminContext.Provider value={contextValue}>
-          <Shell me={contextValue.me} onSignOut={startSignOut}>
+          <WorkspaceDates><Shell me={contextValue.me} onSignOut={startSignOut}>
             {children}
-          </Shell>
+          </Shell></WorkspaceDates>
         </AdminContext.Provider>
       ) : (
         <Notice message={strings.loading} />
@@ -224,10 +225,11 @@ function Shell({ me, onSignOut, children }: { me: AdminMe; onSignOut: () => void
 }
 
 function NavItem({ entry, pathname }: { entry: NavEntry; pathname: string }) {
+  const { period } = useWorkspaceDates();
   return (
     <li>
       {entry.href ? (
-        <Link aria-current={activeHref(pathname) === entry.href ? 'page' : undefined} className="nav-link" href={entry.href}>
+        <Link aria-current={activeHref(pathname) === entry.href ? 'page' : undefined} className="nav-link" href={workspaceHref(entry.href, period)}>
           {entry.label}
         </Link>
       ) : (

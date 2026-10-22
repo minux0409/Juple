@@ -618,3 +618,16 @@ td.preview {
 .expense-bars meter { grid-column: 1 / -1; width: 100%; height: 12px; }
 .expense-form input[type='checkbox'] { width: auto; }
 @media (max-width: 600px) { .expense-table table { min-width: 680px; } .expense-bars > div { grid-template-columns: 1fr; } }
+
+/* Shared operator workspace; existing system dark theme and reduced-motion behavior retained. */
+.workspace-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-block: 20px; }
+.workspace-grid > * { min-width: 0; margin: 0; }.workspace-grid .card { padding: 22px; }.workspace-grid h2 { margin-top: 0; }
+.period-picker { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; padding: 16px; border: 1px solid var(--border); background: var(--surface); border-radius: 12px; margin-bottom: 24px; }
+.period-picker form, .period-presets { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }.period-picker label { display: grid; gap: 4px; color: var(--muted); }.period-picker small { width: 100%; color: var(--muted); }
+.period-presets button[aria-pressed='true'] { background: var(--accent); color: var(--accent-text); }
+.eyebrow { color: var(--muted); letter-spacing: .12em; font-size: 11px; margin: 0 0 5px; }
+.metric-list { margin: 0; }.metric-list > div { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--border); }.metric-list dt { overflow-wrap: anywhere; }.metric-list dd { margin: 0; font-weight: 650; white-space: nowrap; }
+.skeleton { min-height: 100px; background: linear-gradient(120deg, var(--surface), var(--bg)); color: var(--muted); }.table-scroll { overflow-x: auto; }
+.sidebar { position: sticky; top: 0; height: 100dvh; overflow-y: auto; width: 248px; }.content { max-width: 1560px; width: 100%; }.card, .chart { border-radius: 12px; }
+@media (max-width: 980px) { .workspace-grid { grid-template-columns: 1fr; }.sidebar { width: 200px; } }
+@media (max-width: 760px) { .sidebar { position: static; width: 100%; height: auto; max-height: 280px; }.shell { flex-direction: column; }.content { padding: 16px; }.period-picker form { width: 100%; }.period-picker label { flex: 1; min-width: 120px; }.workspace-grid { gap: 14px; } }

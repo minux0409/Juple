@@ -23,12 +23,12 @@ describe('expense operator workflows', () => {
       serviceName: 'SQL Database',
     };
     const query = new URLSearchParams(expenseQuery(filters, 120));
-    assert.equal(query.get('from'), '2026-01-01');
-    assert.equal(query.get('through'), '2026-12-31');
+    assert.equal(query.get('from'), '2026-10-14');
+    assert.equal(query.get('through'), '2026-10-20');
     assert.equal(query.get('provider'), 'A&B=company');
     assert.equal(query.get('cursor'), '120');
     assert.equal(query.get('status'), 'Paid');
-    assert.equal(Object.keys(categories).length, 8);
+    assert.deepEqual(Object.keys(categories), ['Cloud', 'DeveloperProgram', 'Domain', 'Software', 'Design', 'Advertising', 'Fees', 'Other', 'AppleDeveloper', 'GooglePlayConsole', 'EmailSmsApi', 'Accounting']);
   });
   it('forms require payment and currency details, keep decimals as text, distinguish unknown tax and support refunds', () => {
     const values = {

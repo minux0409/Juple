@@ -12,8 +12,9 @@ export interface NavEntry {
  * analytics overview (docs/analytics.md).
  */
 export const NAVIGATION: readonly NavEntry[] = [
-  { label: strings.navDashboard, href: '/' },
-  { label: strings.navUsers, href: '/users' },
+  { label: 'Overview', href: '/' },
+  { label: 'Users', href: null, children: [{ label: '가입·활동 현황', href: '/workspace/users' }, { label: strings.navUsers, href: '/users' }] },
+  { label: 'Links', href: '/links' },
   {
     label: strings.navContent,
     href: null,
@@ -23,9 +24,11 @@ export const NAVIGATION: readonly NavEntry[] = [
     ],
   },
   { label: strings.navInquiries, href: '/inquiries' },
-  { label: strings.navExpenses, href: '/expenses' },
+  { label: 'Business Expenses', href: '/expenses' },
+  { label: 'Revenue & Profit', href: '/revenue' },
+  { label: 'Settings', href: '/settings' },
   {
-    label: strings.navAnalytics,
+    label: '기존 UTC 분석',
     href: null,
     children: [
       { label: strings.navAnalyticsOverview, href: '/analytics' },
@@ -36,8 +39,8 @@ export const NAVIGATION: readonly NavEntry[] = [
     ],
   },
   {
-    label: strings.navOperations,
-    href: null,
+    label: 'Operations',
+    href: '/operations',
     children: [
       { label: strings.navAppVersion, href: '/operations/app-version' },
       { label: strings.navSystem, href: '/operations/system' },

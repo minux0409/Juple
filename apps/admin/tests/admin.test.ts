@@ -334,14 +334,18 @@ describe('admin pages and model', () => {
   });
 
   it('the sidebar has every section; 콘텐츠 (no decided scope) stays disabled, every enabled entry is a real page', () => {
-    assert.deepEqual(NAVIGATION.map(entry => entry.label), ['대시보드', '사용자', '콘텐츠', '문의', '사업비용', '분석', '운영']);
+    assert.deepEqual(NAVIGATION.map(entry => entry.label), ['Overview', 'Users', 'Links', '콘텐츠', '문의', 'Business Expenses', 'Revenue & Profit', 'Settings', '기존 UTC 분석', 'Operations']);
     const leaves = (entries: readonly NavEntry[]): NavEntry[] => entries.flatMap(entry => (entry.children ? leaves(entry.children) : [entry]));
     const enabled = leaves(NAVIGATION).filter(entry => entry.href).map(entry => entry.href);
     assert.deepEqual(enabled, [
       '/',
+      '/workspace/users',
       '/users',
+      '/links',
       '/inquiries',
       '/expenses',
+      '/revenue',
+      '/settings',
       '/analytics',
       '/analytics/users',
       '/analytics/saves',
@@ -463,7 +467,7 @@ describe('analytics', () => {
     for (const file of files) {
       const source = readFileSync(file, 'utf8');
       const uses = source.split('<BarChart').length + source.split('<ShareList').length - 2;
-      const units = (source.match(/unit="(명|개)"/g) ?? []).length;
+      const units = (source.match(/unit=(?:"(?:명|개)"|\{total.currency\}|\{currency\})/g) ?? []).length;
       assert.equal(units, uses, `${file}: ${uses} chart / share list uses, ${units} units`);
     }
     assert.ok(files.length > 5);

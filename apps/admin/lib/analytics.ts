@@ -251,15 +251,18 @@ export function niceMax(value: number): number {
 /** Bars in a width x height plot area. A null value (no data) gets no bar; 0 gets a 0-height bar. */
 export function layoutBars(values: readonly (number | null)[], labels: readonly string[], width: number, height: number): ChartLayout {
   const max = niceMax(Math.max(0, ...values.map(value => value ?? 0)));
+  const min = values.some(value => value !== null && value < 0) ? -niceMax(Math.max(0, ...values.map(value => -(value ?? 0)))) : 0;
+  const span = max - min;
+  const zero = (max / span) * height;
   const slot = values.length > 0 ? width / values.length : width;
   const gap = Math.min(4, slot * 0.2);
   const bars = values.map((value, index) => {
-    const barHeight = value === null ? 0 : (value / max) * height;
-    return { x: index * slot + gap / 2, y: height - barHeight, width: Math.max(1, slot - gap), height: barHeight, value, label: labels[index] ?? '' };
+    const barHeight = value === null ? 0 : (Math.abs(value) / span) * height;
+    return { x: index * slot + gap / 2, y: value !== null && value < 0 ? zero : zero - barHeight, width: Math.max(1, slot - gap), height: barHeight, value, label: labels[index] ?? '' };
   });
   // Counts: the middle grid line only when it is a whole number (no "2.5 users").
-  const tickValues = Number.isInteger(max / 2) && max > 1 ? [0, max / 2, max] : [0, max];
-  const ticks = tickValues.map(value => ({ value, y: height - (value / max) * height }));
+  const tickValues = min < 0 ? [min, 0, max] : Number.isInteger(max / 2) && max > 1 ? [0, max / 2, max] : [0, max];
+  const ticks = tickValues.map(value => ({ value, y: (max - value) / span * height }));
   return { bars, max, ticks };
 }
 
@@ -290,7 +293,7 @@ export function shortDay(date: string): string {
 // ---- exact values on charts (no tooltip needed) ----------------------------------------------------------------------------------
 
 /** The unit written next to every count: people ("명") or links / collections ("개"). */
-export type ChartUnit = '명' | '개';
+export type ChartUnit = string;
 
 export const NO_DATA_TEXT = '데이터 없음';
 
