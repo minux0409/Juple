@@ -41,7 +41,12 @@ export function PasswordDialog({
       }}
       ref={ref}
     >
-      <div className={styles.dialogBody}>{open ? children : null}</div>
+      {/* The panel inside is its own <form>, and this dialog is rendered inside the link's <form> (CollectionPicker in ItemForm on
+          새 링크 검토 / 링크 수정). React's submit event bubbles through the component tree, so without this the password's 잠금 해제
+          also ran the link's 저장 - with the selection from before the unlock - and left the page before the choice was made. */}
+      <div className={styles.dialogBody} onSubmit={event => event.stopPropagation()}>
+        {open ? children : null}
+      </div>
       <div className={`${styles.formActions} ${styles.dialogFoot}`}>
         <button className={styles.settingsAction} onClick={onCancel} type="button">
           {cancelLabel}
