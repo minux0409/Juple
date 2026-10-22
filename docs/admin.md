@@ -1,5 +1,9 @@
 # Juple Admin Web
 
+The 2026-10-22 local workspace/ledger expansion, new feature flags, metric definitions and safe
+deployment dependencies are documented in [admin-workspace.md](admin-workspace.md). Existing UTC
+analytics contracts and operator authorization remain unchanged.
+
 The operator tool at `https://admin.juple.co.kr` is a **separate Next.js app** (`apps/admin`, its own image and Container App). It calls only `https://api.juple.co.kr/api/v1/admin/*`. It is not a hidden path of the user Web (`juple.co.kr`), and the user Web contains no admin code.
 
 ## Security model
