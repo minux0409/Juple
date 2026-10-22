@@ -84,6 +84,7 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
     public DbSet<Juple.Domain.Admin.AdminAuditLog> AdminAuditLogs => Set<Juple.Domain.Admin.AdminAuditLog>();
 
     public DbSet<Juple.Domain.Analytics.UserDailyActivity> UserDailyActivities => Set<Juple.Domain.Analytics.UserDailyActivity>();
+    public DbSet<Juple.Domain.Analytics.UserDailyActivityKst> UserDailyActivitiesKst => Set<Juple.Domain.Analytics.UserDailyActivityKst>();
 
     public DbSet<Juple.Domain.Safety.ContentReport> ContentReports => Set<Juple.Domain.Safety.ContentReport>();
 

@@ -24,6 +24,10 @@ public sealed class ExpenseStore(JupleDbContext db, TimeProvider time) : IExpens
         if (!string.IsNullOrWhiteSpace(f.PaymentMethod)) q = q.Where(e => e.PaymentMethod == f.PaymentMethod);
         if (!string.IsNullOrWhiteSpace(f.Environment)) q = q.Where(e => e.Environment == f.Environment);
         if (!string.IsNullOrWhiteSpace(f.ServiceName)) q = q.Where(e => e.ServiceName == f.ServiceName);
+        if (!string.IsNullOrWhiteSpace(f.Search)) {
+            var search=f.Search.Trim(); q=q.Where(e=>e.Name.Contains(search) || e.Provider.Contains(search)
+                || e.ServiceName != null && e.ServiceName.Contains(search) || e.CustomCategory != null && e.CustomCategory.Contains(search));
+        }
         return q;
     }
     private async Task<IReadOnlyList<ExpenseRow>> RowsAsync(List<Expense> rows, CancellationToken ct)
@@ -51,8 +55,9 @@ public sealed class ExpenseStore(JupleDbContext db, TimeProvider time) : IExpens
     }
     public async Task<ExpensePage> ListAsync(ExpenseFilter f, CancellationToken ct)
     {
-        var q = Query(f); if (f.Cursor is { } cursor) q = q.Where(e => e.Id < cursor);
-        var rows = await q.OrderByDescending(e => e.Id).Take(f.Limit + 1).ToListAsync(ct);
+        var q = Query(f); if (f.Cursor is { } cursor) q = f.Sort == "oldest" ? q.Where(e => e.Id > cursor) : q.Where(e => e.Id < cursor);
+        var sorted=f.Sort == "oldest" ? q.OrderBy(e=>e.Id) : q.OrderByDescending(e=>e.Id);
+        var rows = await sorted.Take(f.Limit + 1).ToListAsync(ct);
         var more = rows.Count > f.Limit; if (more) rows.RemoveAt(rows.Count - 1);
         return new ExpensePage(await RowsAsync(rows, ct), more ? rows[^1].Id : null);
     }
@@ -73,15 +78,21 @@ public sealed class ExpenseStore(JupleDbContext db, TimeProvider time) : IExpens
             .GroupBy(e => new { e.Currency, e.Status }).Select(g => new { g.Key.Currency, g.Key.Status, Count = g.Count() }).ToListAsync(ct);
         var months = await q.GroupBy(e => new { e.Currency, e.Status, e.OccurredOn.Year, e.OccurredOn.Month })
             .Select(g => new { g.Key.Currency, g.Key.Status, g.Key.Year, g.Key.Month, Gross = g.Sum(e => e.GrossAmount) }).ToListAsync(ct);
-        var categories = await q.GroupBy(e => new { e.Currency, e.Status, e.Category })
-            .Select(g => new { g.Key.Currency, g.Key.Status, g.Key.Category, Gross = g.Sum(e => e.GrossAmount) }).ToListAsync(ct);
+        var categories = await q.GroupBy(e => new { e.Currency, e.Status, e.Category, e.CustomCategory })
+            .Select(g => new { g.Key.Currency, g.Key.Status, g.Key.Category, g.Key.CustomCategory, Gross = g.Sum(e => e.GrossAmount) }).ToListAsync(ct);
         var services = await q.GroupBy(e => new { e.Currency, e.Status, e.ServiceName })
             .Select(g => new { g.Key.Currency, g.Key.Status, g.Key.ServiceName, Gross = g.Sum(e => e.GrossAmount) }).ToListAsync(ct);
+        var days = await q.GroupBy(e => new { e.Currency, e.Status, e.OccurredOn }).Select(g => new { g.Key.Currency, g.Key.Status, g.Key.OccurredOn, Gross = g.Sum(e => e.GrossAmount) }).ToListAsync(ct);
+        var sources = await q.GroupBy(e => new { e.Currency, e.Status, e.Source }).Select(g => new { g.Key.Currency, g.Key.Status, g.Key.Source, Gross = g.Sum(e => e.GrossAmount) }).ToListAsync(ct);
         return new ExpenseSummary(totals.Select(g => new ExpenseTotal(g.Currency, g.Status, g.Gross, g.UnknownTax == g.Rows ? null : g.Net,
             g.UnknownTax == g.Rows ? null : g.Tax, g.Rows, missing.FirstOrDefault(m => m.Currency == g.Currency && m.Status == g.Status)?.Count ?? 0, g.UnknownTax)).ToArray(),
             months.Select(g => new ExpenseBreakdown(g.Currency, $"{g.Year:D4}-{g.Month:D2}", g.Status, g.Gross)).ToArray(),
-            categories.Select(g => new ExpenseBreakdown(g.Currency, g.Category.ToString(), g.Status, g.Gross)).ToArray(),
-            services.Select(g => new ExpenseBreakdown(g.Currency, g.ServiceName ?? "Manual", g.Status, g.Gross)).ToArray());
+            categories.Select(g => new ExpenseBreakdown(g.Currency, g.CustomCategory is null ? g.Category.ToString() : $"Other · {g.CustomCategory}", g.Status, g.Gross)).ToArray(),
+            services.Select(g => new ExpenseBreakdown(g.Currency, g.ServiceName ?? "Manual", g.Status, g.Gross)).ToArray())
+        {
+            Days = days.Select(g => new ExpenseBreakdown(g.Currency, g.OccurredOn.ToString("yyyy-MM-dd"), g.Status, g.Gross)).ToArray(),
+            Sources = sources.Select(g => new ExpenseBreakdown(g.Currency, g.Source.ToString(), g.Status, g.Gross)).ToArray(),
+        };
     }
     private async Task LockExpenseAsync(long id, CancellationToken ct) =>
         _ = await db.Database.SqlQuery<long>($"SELECT [Id] AS [Value] FROM [admin].[Expenses] WITH (UPDLOCK,HOLDLOCK) WHERE [Id]={id}").ToListAsync(ct);
@@ -195,7 +206,8 @@ public sealed class ExpenseStore(JupleDbContext db, TimeProvider time) : IExpens
                 if (!await db.Expenses.AnyAsync(e => e.DeduplicationKey == key, ct))
                 {
                     var values = template.Values() with { OccurredOn = due, PaidOn = null, Status = ExpenseStatus.Estimated, InvoiceReference = null,
-                        ConvertedCurrency = null, ExchangeRate = null, ExchangeRateOn = null };
+                        ConvertedCurrency = null, ExchangeRate = null, ExchangeRateOn = null, ExchangeRateSource = null,
+                        PeriodFrom = null, PeriodThrough = null };
                     var expense = new Expense(Guid.NewGuid(), ExpenseSource.Recurring, key, values, actor, time.GetUtcNow());
                     db.Expenses.Add(expense); await db.SaveChangesAsync(ct);
                     Audit(actor, "expense.projected", expense.Id, null, Snapshot(expense)); count++;
@@ -224,7 +236,19 @@ public sealed class ExpenseStore(JupleDbContext db, TimeProvider time) : IExpens
         _ = await db.Database.SqlQuery<long>($"SELECT [Id] AS [Value] FROM [admin].[ExpenseSyncRuns] WITH (UPDLOCK,HOLDLOCK) WHERE [Id]={lease.RunId}").ToListAsync(ct);
         var run = await db.ExpenseSyncRuns.SingleAsync(s => s.Id == lease.RunId, ct); await db.Entry(run).ReloadAsync(ct);
         if (run.LeaseId != lease.LeaseId || run.LeaseUntilUtc <= now) throw new ExpenseRequestException("expenseSyncBusy", "The synchronization lease expired.");
-        var parts = lease.Scope.Split('/'); var subscriptionId = parts[2]; var resourceGroup = parts[4];
+        var parts = lease.Scope.Split('/'); var subscriptionId = parts[2]; var resourceGroup = parts.Length > 4 ? parts[4] : "*";
+        // Lock the subscription/month range, including the empty gap. A later scope change or
+        // concurrent server with different configuration cannot add subscription + RG totals twice.
+        var monthEnd = lease.Month.AddMonths(1);
+        var existingGroups = await db.Database.SqlQuery<string>($"""
+            SELECT [ResourceGroup] AS [Value] FROM [admin].[Expenses] WITH (UPDLOCK,HOLDLOCK)
+            WHERE [Source]='Azure' AND [SubscriptionId]={subscriptionId}
+              AND [OccurredOn]>={lease.Month} AND [OccurredOn]<{monthEnd}
+              AND [DeletedAtUtc] IS NULL AND [NoLongerReported]=0
+            """).ToListAsync(ct);
+        if (existingGroups.Any(group => !group.Equals(resourceGroup, StringComparison.OrdinalIgnoreCase)
+            && (group == "*" || resourceGroup == "*")))
+            throw new ExpenseRequestException("azureScopeOverlap", "An overlapping subscription/resource-group snapshot already exists for this month. Reconcile the project scope before importing.");
         var rows = await db.Expenses.Where(e => e.Source == ExpenseSource.Azure && e.SubscriptionId == subscriptionId && e.ResourceGroup == resourceGroup
             && e.OccurredOn >= lease.Month && e.OccurredOn < lease.Month.AddMonths(1)).ToListAsync(ct);
         var keys = new HashSet<string>(StringComparer.Ordinal);
@@ -236,7 +260,7 @@ public sealed class ExpenseStore(JupleDbContext db, TimeProvider time) : IExpens
             byKey.TryGetValue(key, out var row);
             var before = row is null ? null : Snapshot(row);
             var values = ExpenseRules.Validate(new ExpenseValues(cost.ServiceName, "Microsoft Azure", ExpenseCategory.Cloud, cost.Date,
-                null, cost.Currency, null, null, decimal.Round(cost.Amount, 12), "Azure billing", ExpenseStatus.Estimated,
+                null, cost.Currency, null, null, decimal.Round(cost.Amount, 12), "Azure billing", ExpenseStatus.Provisional,
                 cost.Amount < 0 ? ExpenseKind.Adjustment : ExpenseKind.Charge, null, "Cost Management usage; not an invoice. Tax/credits require invoice reconciliation."));
             if (row is null) { row = new Expense(Guid.NewGuid(), ExpenseSource.Azure, key, values, null, now); db.Expenses.Add(row); }
             else row.Apply(values, now);

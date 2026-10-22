@@ -96,6 +96,7 @@ public sealed class CollectionConfiguration : IEntityTypeConfiguration<Collectio
         builder.Property(collection => collection.LockPasswordChangedAtUtc)
             .HasColumnType("datetimeoffset");
 
+        builder.HasIndex(collection => collection.CreatedAtUtc).HasDatabaseName("IX_Collections_CreatedAtUtc");
         builder.HasIndex(collection => new { collection.UserId, collection.CreatedAtUtc, collection.Id })
             .HasDatabaseName("IX_Collections_UserId_CreatedAtUtc_Id");
 

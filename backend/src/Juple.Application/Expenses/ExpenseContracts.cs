@@ -6,24 +6,30 @@ public sealed class ExpenseOptions
 {
     public bool Enabled { get; set; }
     public bool AzureSyncEnabled { get; set; }
+    public bool AzureInsightsEnabled { get; set; }
     public List<ExpenseAzureScope> AzureScopes { get; set; } = [];
     public string? ClamAvHost { get; set; }
     public int ClamAvPort { get; set; } = 3310;
     public const long MaxAttachmentBytes = 10 * 1024 * 1024;
 }
-public sealed record ExpenseAzureScope(string Scope, string Environment);
+public sealed record ExpenseAzureScope(string Scope, string Environment, bool AllowWholeSubscription = false);
 public sealed record ExpenseWrite(Guid RequestId, ExpenseValues Values, long? ExpectedRevision = null,
     ExpenseFrequency? Frequency = null, DateOnly? NextDueOn = null, IReadOnlyList<long>? ReconcilesExpenseIds = null);
 public sealed record ExpenseFilter(DateOnly From, DateOnly Through, ExpenseCategory? Category = null,
     string? Provider = null, string? PaymentMethod = null, string? Currency = null, ExpenseStatus? Status = null,
-    string? Environment = null, string? ServiceName = null, long? Cursor = null, int Limit = 50);
+    string? Environment = null, string? ServiceName = null, long? Cursor = null, int Limit = 50,
+    string? Search = null, string Sort = "newest");
 public sealed record ExpenseRow(Expense Expense, IReadOnlyList<ExpenseAttachmentInfo> Attachments);
 public sealed record ExpenseAttachmentInfo(long Id, string FileName, string ContentType, long Bytes, DateTimeOffset CreatedAtUtc);
 public sealed record ExpensePage(IReadOnlyList<ExpenseRow> Items, long? NextCursor);
 public sealed record ExpenseTotal(string Currency, ExpenseStatus Status, decimal Gross, decimal? Net, decimal? Tax, int Rows, int MissingEvidence, int UnknownTax);
 public sealed record ExpenseBreakdown(string Currency, string Label, ExpenseStatus Status, decimal Gross);
 public sealed record ExpenseSummary(IReadOnlyList<ExpenseTotal> Totals, IReadOnlyList<ExpenseBreakdown> Months,
-    IReadOnlyList<ExpenseBreakdown> Categories, IReadOnlyList<ExpenseBreakdown> Services);
+    IReadOnlyList<ExpenseBreakdown> Categories, IReadOnlyList<ExpenseBreakdown> Services)
+{
+    public IReadOnlyList<ExpenseBreakdown> Days { get; init; } = [];
+    public IReadOnlyList<ExpenseBreakdown> Sources { get; init; } = [];
+}
 public sealed record ExpenseScheduleInfo(ExpenseRecurringSchedule Schedule, string Name, string Provider, string Currency, decimal GrossAmount);
 public sealed record AzureExpenseCost(DateOnly Date, string ServiceName, string Currency, decimal Amount, string RawAmount);
 public sealed record ExpenseLease(long RunId, Guid LeaseId, string Scope, string Environment, DateOnly Month);
@@ -56,6 +62,21 @@ public interface IExpenseStore
     Task MarkAttachmentDeletedAsync(long id, CancellationToken ct);
 }
 public interface IAzureExpenseSource { Task<IReadOnlyList<AzureExpenseCost>> QueryAsync(ExpenseAzureScope scope, DateOnly month, CancellationToken ct); }
+public sealed record AzureCostPoint(DateOnly Date, string Label, string Currency, decimal Amount);
+public sealed record AzureCostDetail(string Status, IReadOnlyList<AzureCostPoint> Points);
+public interface IAzureCostDetailsSource
+{
+    Task<AzureCostDetail> ResourcesAsync(ExpenseAzureScope scope, DateOnly month, CancellationToken ct);
+    Task<AzureCostDetail> ForecastAsync(ExpenseAzureScope scope, DateOnly month, CancellationToken ct);
+}
+public sealed record AzureMonthCost(string Currency, decimal? Current, decimal? PreviousSameDays, decimal? PreviousFullMonth, decimal? ChangePercent);
+public sealed record AzureCostReport(string Scope, DateOnly Month, DateOnly Through, DateTimeOffset? LastSyncAtUtc,
+    string SyncStatus, string? FailureCode, IReadOnlyList<AzureMonthCost> Totals,
+    IReadOnlyList<AzureCostPoint> Services, AzureCostDetail Resources, AzureCostDetail Forecast);
+public interface IAzureCostReportStore
+{
+    Task<AzureCostReport> ReadAsync(ExpenseAzureScope scope, DateOnly month, DateOnly todayUtc, CancellationToken ct);
+}
 public interface IExpenseEvidenceScanner { Task ScanAsync(ReadOnlyMemory<byte> bytes, CancellationToken ct); }
 public interface IExpenseEvidenceFiles
 {

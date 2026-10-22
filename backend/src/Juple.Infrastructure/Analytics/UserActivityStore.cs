@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Analytics;
 
-public sealed class UserActivityStore(JupleDbContext dbContext) : IUserActivityStore
+public sealed class UserActivityStore(JupleDbContext dbContext, Juple.Application.Admin.AdminWorkspaceOptions? workspace = null) : IUserActivityStore
 {
     /// <summary>
     /// One statement. MERGE ... WITH (HOLDLOCK) takes a key-range lock on (UserId, ActivityDateUtc, Platform), so two concurrent
@@ -32,5 +32,16 @@ public sealed class UserActivityStore(JupleDbContext dbContext) : IUserActivityS
                 VALUES ([source].[UserId], [source].[ActivityDateUtc], [source].[Platform], {appBuild}, {seen}, {seen});
             """,
             cancellationToken);
+        if (workspace?.Enabled == true)
+        {
+            var seoulDate = Juple.Application.Admin.AdminDateRange.SeoulDate(seen).ToDateTime(TimeOnly.MinValue);
+            await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+                MERGE [analytics].[UserDailyActivitiesKst] WITH (HOLDLOCK) AS t
+                USING (SELECT {userId} AS UserId, CAST({seoulDate} AS date) AS [Date], {platformName} AS Platform) AS s
+                ON t.UserId=s.UserId AND t.[Date]=s.[Date] AND t.Platform=s.Platform
+                WHEN MATCHED THEN UPDATE SET LastSeenAtUtc=CASE WHEN {seen}>t.LastSeenAtUtc THEN {seen} ELSE t.LastSeenAtUtc END
+                WHEN NOT MATCHED THEN INSERT(UserId,[Date],Platform,LastSeenAtUtc) VALUES(s.UserId,s.[Date],s.Platform,{seen});
+                """, cancellationToken);
+        }
     }
 }

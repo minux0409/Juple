@@ -24,6 +24,10 @@ public static partial class ExpenseRules
         if (value.Kind != ExpenseKind.Refund && value.OriginalExpenseId is not null) Fail("Only refunds may reference an original expense.");
         if (value.Status == ExpenseStatus.Paid && value.PaidOn is null) Fail("A paid expense needs its actual payment date.");
         if (value.Memo?.Length > 2000 || value.InvoiceReference?.Length > 200) Fail("Memo or invoice reference is too long.");
+        if (value.CustomCategory?.Length > 80 || value.ExchangeRateSource?.Length > 200 || value.ServiceName?.Length > 200) Fail("Expense classification or rate source is too long.");
+        if (value.CustomCategory is not null && value.Category != ExpenseCategory.Other) Fail("Custom classifications use the Other category.");
+        if (value.PeriodFrom.HasValue != value.PeriodThrough.HasValue || value.PeriodFrom > value.PeriodThrough
+            || value.PeriodFrom?.Year is < 2000 or > 2100 || value.PeriodThrough?.Year is < 2000 or > 2100) Fail("Supply a valid accounting period.");
         if (value.ConvertedCurrency is not null || value.ExchangeRate is not null || value.ExchangeRateOn is not null)
         {
             if (value.ConvertedCurrency is null || value.ExchangeRate is null or <= 0 or > 1_000_000_000 || value.ExchangeRateOn is null) Fail("Currency conversion needs currency, positive rate and rate date.");
@@ -32,12 +36,16 @@ public static partial class ExpenseRules
         }
         return value with { Name = Text(value.Name, 200, "name"), Provider = Text(value.Provider, 200, "provider"), Currency = currency,
             PaymentMethod = Text(value.PaymentMethod, 80, "paymentMethod"), InvoiceReference = string.IsNullOrWhiteSpace(value.InvoiceReference) ? null : value.InvoiceReference.Trim(),
-            ConvertedCurrency = value.ConvertedCurrency is null ? null : Currency(value.ConvertedCurrency) };
+            ConvertedCurrency = value.ConvertedCurrency is null ? null : Currency(value.ConvertedCurrency),
+            CustomCategory = string.IsNullOrWhiteSpace(value.CustomCategory) ? null : value.CustomCategory.Trim(),
+            ExchangeRateSource = string.IsNullOrWhiteSpace(value.ExchangeRateSource) ? null : value.ExchangeRateSource.Trim(),
+            ServiceName = string.IsNullOrWhiteSpace(value.ServiceName) ? null : value.ServiceName.Trim() };
     }
     public static void Validate(ExpenseFilter filter)
     {
         if (filter.From > filter.Through || filter.From.AddYears(1) < filter.Through || filter.From.Year < 2000 || filter.Through.Year > 2100) Fail("Choose a period of at most one year.");
         if (filter.Limit is < 1 or > 100 || filter.Cursor < 0) Fail("Invalid page.");
+        if (filter.Search?.Length > 100 || filter.Sort is not ("newest" or "oldest")) Fail("Invalid search or sort order.");
         if (filter.Currency is not null) Currency(filter.Currency);
         if (filter.Provider?.Length > 200 || filter.PaymentMethod?.Length > 80 || filter.Environment?.Length > 32 || filter.ServiceName?.Length > 200) Fail("Filter is too long.");
         if (filter.Category is { } category && !Enum.IsDefined(category) || filter.Status is { } status && !Enum.IsDefined(status)) Fail("Invalid filter.");
@@ -50,8 +58,10 @@ public static partial class ExpenseRules
     public static string AzureKey(string scope, AzureExpenseCost row) => Hash($"azure:{scope.ToLowerInvariant()}:{row.Date:yyyy-MM-dd}:{row.ServiceName}:{row.Currency}");
     public static void ValidateScope(ExpenseAzureScope scope)
     {
-        if (!ScopePattern().IsMatch(scope.Scope) || !Guid.TryParse(scope.Scope.Split('/')[2], out _)
-            || string.IsNullOrWhiteSpace(scope.Environment) || scope.Environment.Length > 32) Fail("Configure explicit resource-group scopes and environment labels.");
+        var resourceGroup = ScopePattern().IsMatch(scope.Scope);
+        var subscription = scope.AllowWholeSubscription && Regex.IsMatch(scope.Scope, "^/subscriptions/[0-9a-fA-F-]{36}\\z");
+        if ((!resourceGroup && !subscription) || !Guid.TryParse(scope.Scope.Split('/')[2], out _)
+            || string.IsNullOrWhiteSpace(scope.Environment) || scope.Environment.Length > 32) Fail("Configure explicit resource-group scopes (or explicitly opt in to a whole subscription) and environment labels.");
     }
     [System.Diagnostics.CodeAnalysis.DoesNotReturn]
     public static void Fail(string message) => throw new ExpenseRequestException("invalidExpense", message);

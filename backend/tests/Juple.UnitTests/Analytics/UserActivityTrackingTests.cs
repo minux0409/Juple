@@ -183,6 +183,18 @@ public sealed class UserActivityTrackingTests
         Assert.Equal("range", exception.Field);
     }
 
+    [Fact] public void Pump_does_not_suppress_the_first_request_after_Seoul_midnight_inside_one_UTC_day()
+    {
+        using var services = new ServiceCollection().BuildServiceProvider();
+        var clock = new Clock(new DateTimeOffset(2026,10,20,14,59,0,TimeSpan.Zero));
+        var pump = new UserActivityPump(services.GetRequiredService<IServiceScopeFactory>(),clock,NullLogger<UserActivityPump>.Instance);
+        var identity = new ExternalIdentityPrincipal(Tenant,Oid);
+        Assert.True(pump.Observe(identity,ClientPlatform.Android,null));
+        Assert.False(pump.Observe(identity,ClientPlatform.Android,null));
+        clock.Now = new DateTimeOffset(2026,10,20,15,0,0,TimeSpan.Zero);
+        Assert.True(pump.Observe(identity,ClientPlatform.Android,null));
+    }
+
     private static DefaultHttpContext SignedIn(string path)
     {
         var claims = new ClaimsIdentity(

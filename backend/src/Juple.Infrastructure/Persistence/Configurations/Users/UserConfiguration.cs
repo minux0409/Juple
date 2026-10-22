@@ -77,6 +77,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasMaxLength(400);
 
         // Exact Juple ID lookup (invitations) and the uniqueness invariant itself.
+        builder.HasIndex(user => user.CreatedAtUtc).HasDatabaseName("IX_Users_CreatedAtUtc");
         builder.HasIndex(user => user.PublicCode)
             .IsUnique()
             .HasDatabaseName("UX_Users_PublicCode");

@@ -9,7 +9,7 @@ namespace Juple.Application.Expenses;
 /// <summary>No new library. Untrusted Excel cells are inline strings, never formulas; currencies are never summed together.</summary>
 public static class ExpenseSpreadsheetWriter
 {
-    private static readonly string[] Headers = ["Id", "Name", "Provider", "Category", "OccurredOn", "PaidOn", "Status", "Kind", "Source", "Currency", "Net", "Tax", "Gross", "ConvertedCurrency", "ExchangeRate", "ExchangeRateOn", "ConvertedGross", "PaymentMethod", "InvoiceReference", "Memo", "EvidenceFiles", "ReconciledByExpenseId", "NoLongerReported", "Environment", "SubscriptionId", "ResourceGroup", "ServiceName", "RawImportedAmount"];
+    private static readonly string[] Headers = ["Id", "Name", "Provider", "Category", "OccurredOn", "PaidOn", "Status", "Kind", "Source", "Currency", "Net", "Tax", "Gross", "ConvertedCurrency", "ExchangeRate", "ExchangeRateOn", "ConvertedGross", "PaymentMethod", "InvoiceReference", "Memo", "EvidenceFiles", "ReconciledByExpenseId", "NoLongerReported", "Environment", "SubscriptionId", "ResourceGroup", "ServiceName", "RawImportedAmount", "CustomCategory", "PeriodFrom", "PeriodThrough", "ExchangeRateSource"];
     private static string[] Cells(ExpenseRow row)
     {
         var e = row.Expense;
@@ -18,7 +18,8 @@ public static class ExpenseSpreadsheetWriter
             e.Status.ToString(), e.Kind.ToString(), e.Source.ToString(), e.Currency, Number(e.NetAmount), Number(e.TaxAmount), Number(e.GrossAmount),
             e.ConvertedCurrency ?? "", Number(e.ExchangeRate), e.ExchangeRateOn?.ToString("yyyy-MM-dd") ?? "", Number(e.ExchangeRate is { } rate ? e.GrossAmount * rate : null),
             e.PaymentMethod, e.InvoiceReference ?? "", e.Memo ?? "", string.Join("; ", row.Attachments.Select(a => $"{a.Id}:{a.FileName}")),
-            e.ReconciledByExpenseId?.ToString(CultureInfo.InvariantCulture) ?? "", e.NoLongerReported.ToString(), e.Environment ?? "", e.SubscriptionId ?? "", e.ResourceGroup ?? "", e.ServiceName ?? "", e.RawImportedAmount ?? ""];
+            e.ReconciledByExpenseId?.ToString(CultureInfo.InvariantCulture) ?? "", e.NoLongerReported.ToString(), e.Environment ?? "", e.SubscriptionId ?? "", e.ResourceGroup ?? "", e.ServiceName ?? "", e.RawImportedAmount ?? "",
+            e.CustomCategory ?? "", e.PeriodFrom?.ToString("yyyy-MM-dd") ?? "", e.PeriodThrough?.ToString("yyyy-MM-dd") ?? "", e.ExchangeRateSource ?? ""];
     }
     public static byte[] Csv(IReadOnlyList<ExpenseRow> rows)
     {

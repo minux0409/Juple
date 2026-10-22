@@ -43,7 +43,7 @@ public sealed class AdminExpensesController(ExpenseService service, ExpenseSyncS
     public Task<IActionResult> Configuration(CancellationToken ct) => Run(async () => {
         // The existing policy has already checked the active grant. No SQL ledger access while the feature is disabled.
         await Task.CompletedTask;
-        return Ok(new { options.Enabled, options.AzureSyncEnabled, options.AzureScopes, EvidenceScanningConfigured = !string.IsNullOrWhiteSpace(options.ClamAvHost),
+        return Ok(new { options.Enabled, options.AzureSyncEnabled, options.AzureInsightsEnabled, options.AzureScopes, EvidenceScanningConfigured = !string.IsNullOrWhiteSpace(options.ClamAvHost),
             Pricing = new { MonthlyUsdReferencePrice = SubscriptionPricingPolicy.MonthlyUsdReferencePrice, Currency = SubscriptionPricingPolicy.ReferenceCurrency,
                 Period = SubscriptionPricingPolicy.BillingPeriod, TrialDays = SubscriptionPricingPolicy.TrialDays, CheckoutPriceSource = "storeMetadata" } });
     });

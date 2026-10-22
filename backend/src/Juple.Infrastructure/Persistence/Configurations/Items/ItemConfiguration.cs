@@ -63,6 +63,7 @@ public sealed class ItemConfiguration : IEntityTypeConfiguration<Item>
         builder.Property(item => item.DeletedAtUtc)
             .HasColumnType("datetimeoffset");
 
+        builder.HasIndex(item => item.SavedAtUtc).IncludeProperties(item => item.UserId).HasDatabaseName("IX_Items_SavedAtUtc");
         builder.HasIndex(item => new { item.UserId, item.SavedAtUtc, item.Id })
             .HasDatabaseName("IX_Items_UserId_SavedAtUtc_Id");
 

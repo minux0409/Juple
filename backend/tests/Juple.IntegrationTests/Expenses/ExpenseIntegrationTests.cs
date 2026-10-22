@@ -19,6 +19,7 @@ public sealed class ExpenseIntegrationTests : IAsyncLifetime
     private static readonly CancellationToken Ct = CancellationToken.None;
     private readonly List<long> _ids = [];
     private readonly List<string> _blobs = [];
+    private readonly List<string> _scopes = [];
     private string Scope => "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/" + _marker;
     private ExpenseValues Values(string currency = "KRW") => new(_marker, _marker, ExpenseCategory.Software, Day, Day, currency, 100m, 10m, 110m, "test card", ExpenseStatus.Paid, ExpenseKind.Charge, null, "Integration fixture");
     private JupleDbContext Db() => new(new DbContextOptionsBuilder<JupleDbContext>().UseSqlServer(_connection).Options);
@@ -34,7 +35,7 @@ public sealed class ExpenseIntegrationTests : IAsyncLifetime
         await db.ExpenseAuditLogs.Where(a => a.ExpenseId != null && ids.Contains(a.ExpenseId.Value)).ExecuteDeleteAsync();
         await db.Expenses.Where(e => ids.Contains(e.Id)).ExecuteUpdateAsync(s => s.SetProperty(e => e.OriginalExpenseId, (long?)null).SetProperty(e => e.ReconciledByExpenseId, (long?)null));
         await db.Expenses.Where(e => ids.Contains(e.Id)).ExecuteDeleteAsync();
-        await db.ExpenseSyncRuns.Where(r => r.Scope == Scope).ExecuteDeleteAsync();
+        await db.ExpenseSyncRuns.Where(r => r.Scope == Scope || _scopes.Contains(r.Scope)).ExecuteDeleteAsync();
         var container = new BlobServiceClient("UseDevelopmentStorage=true").GetBlobContainerClient("expense-evidence");
         foreach (var blob in _blobs) await container.DeleteBlobIfExistsAsync(blob);
     }
@@ -155,6 +156,52 @@ public sealed class ExpenseIntegrationTests : IAsyncLifetime
         access.Active = false; await Assert.ThrowsAsync<ExpenseForbiddenException>(() => evidence.DownloadAsync(9001, first.Id, info.Id, Ct)); access.Active = true;
         await store.DeleteAsync(9001, first.Id, first.Revision, Ct);
         await Assert.ThrowsAsync<ExpenseNotFoundException>(() => evidence.DownloadAsync(9001, first.Id, info.Id, Ct));
+    }
+    [Fact] public async Task New_accounting_fields_are_persisted_audited_and_not_carried_to_future_forecasts()
+    {
+        var values = Values() with { Category = ExpenseCategory.Other, CustomCategory = "Legal", PeriodFrom = new(2026,1,1), PeriodThrough = new(2026,12,31),
+            ServiceName = "Retainer", ConvertedCurrency = "USD", ExchangeRate = 0.001m, ExchangeRateOn = Day, ExchangeRateSource = "Card issuer" };
+        var original = (await Save(values, ExpenseFrequency.Yearly, new(2027,10,20))).Expense;
+        await using var db=Db(); var store=Store(db); var stored=(await store.GetAsync(original.Id,Ct)).Expense;
+        Assert.Equal(values,stored.Values());
+        Assert.Contains("Card issuer",Assert.Single(await store.AuditAsync(original.Id,null,Ct)).AfterJson!);
+        await store.MaterializeAsync(9001,new(2027,10,20),Ct);
+        var forecast=await db.Expenses.SingleAsync(x=>x.Name==_marker && x.Source==ExpenseSource.Recurring);
+        Assert.Equal(ExpenseStatus.Estimated,forecast.Status);Assert.Null(forecast.ExchangeRateSource);Assert.Null(forecast.PeriodFrom);Assert.Null(forecast.PeriodThrough);
+        var summary=await store.SummaryAsync(new(Day,Day,Provider:_marker),Ct);
+        Assert.Equal(110m,Assert.Single(summary.Days).Gross);Assert.Equal("Manual",Assert.Single(summary.Sources).Label);
+    }
+    [Fact] public async Task Azure_reports_keep_missing_previous_unknown_and_overlap_cannot_double_count_subscription_and_RG()
+    {
+        var subscription="/subscriptions/"+Guid.NewGuid().ToString(); var rg=subscription+"/resourceGroups/"+_marker;
+        _scopes.AddRange([subscription,rg]);
+        await using var db=Db(); var store=Store(db); var time=DateTimeOffset.UtcNow;
+        var scope=new ExpenseAzureScope(rg,"TEST");
+        var lease=(await store.AcquireSyncAsync(scope,new(2026,10,1),time,Ct))!;
+        await store.ApplySyncAsync(lease,[new(Day,"SQL Database","KRW",100m,"100")],time,Ct);
+        var row=await db.Expenses.SingleAsync(x=>x.ResourceGroup==_marker);_ids.Add(row.Id);Assert.Equal(ExpenseStatus.Provisional,row.Status);
+        var report=await new AzureCostReportStore(db).ReadAsync(scope,new(2026,10,1),Day,Ct);
+        var total=Assert.Single(report.Totals);Assert.Equal(100m,total.Current);Assert.Null(total.PreviousSameDays);Assert.Null(total.ChangePercent);
+        var prior=(await store.AcquireSyncAsync(scope,new(2026,9,1),time,Ct))!;
+        await store.ApplySyncAsync(prior,[new(new(2026,9,20),"SQL Database","KRW",50m,"50"),new(new(2026,9,30),"SQL Database","KRW",25m,"25")],time,Ct);
+        report=await new AzureCostReportStore(db).ReadAsync(scope,new(2026,10,1),Day,Ct);
+        total=Assert.Single(report.Totals);Assert.Equal(50m,total.PreviousSameDays);Assert.Equal(75m,total.PreviousFullMonth);Assert.Equal(100m,total.ChangePercent);
+        var overlapping=(await store.AcquireSyncAsync(new(subscription,"TEST",true),new(2026,10,1),time,Ct))!;
+        var error=await Assert.ThrowsAsync<ExpenseRequestException>(()=>store.ApplySyncAsync(overlapping,[new(Day,"SQL Database","KRW",100m,"100")],time,Ct));
+        Assert.Equal("azureScopeOverlap",error.Code);
+        Assert.Equal(1,await db.Expenses.CountAsync(x=>x.SubscriptionId==subscription.Split('/')[2] && x.OccurredOn==Day));
+    }
+    [Fact] public async Task Literal_search_custom_category_and_both_cursor_orders_are_consistent()
+    {
+        var a=await Save(Values() with {Name="%_"+_marker,Category=ExpenseCategory.Other,CustomCategory="Legal"});
+        var b=await Save(Values() with {Name="second "+_marker,ServiceName="Consulting"});
+        await using var db=Db();var store=Store(db);var filter=new ExpenseFilter(Day,Day,Provider:_marker,Limit:1,Sort:"oldest");
+        var first=await store.ListAsync(filter,Ct);Assert.Equal(a.Expense.Id,Assert.Single(first.Items).Expense.Id);
+        var second=await store.ListAsync(filter with {Cursor=first.NextCursor},Ct);Assert.Equal(b.Expense.Id,Assert.Single(second.Items).Expense.Id);Assert.Null(second.NextCursor);
+        Assert.Equal(b.Expense.Id,Assert.Single((await store.ListAsync(filter with {Sort="newest"},Ct)).Items).Expense.Id);
+        Assert.Equal(a.Expense.Id,Assert.Single((await store.ListAsync(filter with {Search="%_"},Ct)).Items).Expense.Id);
+        Assert.Equal(b.Expense.Id,Assert.Single((await store.ListAsync(filter with {Search="Consulting"},Ct)).Items).Expense.Id);
+        var summary=await store.SummaryAsync(filter with {Search="Legal"},Ct);Assert.Equal("Other · Legal",Assert.Single(summary.Categories).Label);
     }
     private sealed class Lookup : IAdminAccessStore { public bool Active = true; public Task<AdminAccess?> FindActiveAsync(long userId, CancellationToken cancellationToken = default) => Task.FromResult<AdminAccess?>(Active ? new(userId, AdminRole.Owner) : null); }
     // Explicit fixture, not the production scanner. Real scanner is separately fail-closed tested.

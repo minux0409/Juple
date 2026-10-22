@@ -114,6 +114,22 @@ public static class DependencyInjection
         services.AddScoped<Juple.Application.Admin.IAdminUserDirectoryStore, Juple.Infrastructure.Admin.AdminUserDirectoryStore>();
         services.AddScoped<Juple.Application.Admin.IAdminSupportInquiryStore, Juple.Infrastructure.Admin.AdminSupportInquiryStore>();
         services.AddScoped<Juple.Application.Admin.IAdminAnalyticsStore, Juple.Infrastructure.Analytics.AdminAnalyticsStore>();
+        services.AddSingleton(configuration.GetSection("AdminWorkspace").Get<Juple.Application.Admin.AdminWorkspaceOptions>() ?? new());
+        services.AddScoped<Juple.Application.Admin.IAdminWorkspaceStore, Juple.Infrastructure.Analytics.AdminWorkspaceStore>();
+        services.AddMemoryCache();
+        // Prefer the host's Managed Identity; the standard developer chain is only a fallback
+        // when no managed-identity endpoint is available locally. Reuse its token cache.
+        var adminManagedIdentityClientId = configuration["AZURE_CLIENT_ID"] ?? Environment.GetEnvironmentVariable("AZURE_CLIENT_ID");
+        var adminAzureCredential = new Azure.Identity.ChainedTokenCredential(
+            new Azure.Identity.ManagedIdentityCredential(string.IsNullOrWhiteSpace(adminManagedIdentityClientId)
+                ? Azure.Identity.ManagedIdentityId.SystemAssigned
+                : Azure.Identity.ManagedIdentityId.FromUserAssignedClientId(adminManagedIdentityClientId)),
+            new Azure.Identity.DefaultAzureCredential());
+        services.AddHttpClient("AdminTelemetry", c => c.Timeout = TimeSpan.FromSeconds(15))
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        services.AddScoped<Juple.Application.Admin.IAdminTelemetrySource>(sp => new Juple.Infrastructure.Analytics.AzureAdminTelemetrySource(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("AdminTelemetry"), adminAzureCredential,
+            sp.GetRequiredService<Juple.Application.Admin.AdminWorkspaceOptions>()));
         // Company ledger: no collection/user-content access, no work or ARM calls until explicitly enabled.
         var expenseOptions = configuration.GetSection("Expenses").Get<Juple.Application.Expenses.ExpenseOptions>() ?? new();
         if (expenseOptions.AzureSyncEnabled && !expenseOptions.Enabled)
@@ -121,6 +137,9 @@ public static class DependencyInjection
         if (expenseOptions.Enabled)
         {
             foreach (var scope in expenseOptions.AzureScopes) Juple.Application.Expenses.ExpenseRules.ValidateScope(scope);
+            if (expenseOptions.AzureScopes.Any(a => expenseOptions.AzureScopes.Any(b => !ReferenceEquals(a, b)
+                && b.Scope.StartsWith(a.Scope + "/", StringComparison.OrdinalIgnoreCase))))
+                throw new InvalidOperationException("Overlapping expense scopes would double-count Azure costs.");
             if (expenseOptions.AzureScopes.Select(s => s.Scope.ToLowerInvariant()).Distinct().Count() != expenseOptions.AzureScopes.Count
                 || expenseOptions.ClamAvPort is < 1 or > 65535 || expenseOptions.AzureScopes.Count > 20)
                 throw new InvalidOperationException("Invalid expense scopes or scanner port.");
@@ -135,7 +154,10 @@ public static class DependencyInjection
         services.AddHttpClient("ExpenseAzure", client => client.Timeout = TimeSpan.FromSeconds(90))
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddScoped<Juple.Application.Expenses.IAzureExpenseSource>(sp => new Juple.Infrastructure.Expenses.AzureExpenseSource(
-            sp.GetRequiredService<IHttpClientFactory>().CreateClient("ExpenseAzure"), new Azure.Identity.DefaultAzureCredential()));
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("ExpenseAzure"), adminAzureCredential));
+        services.AddScoped<Juple.Application.Expenses.IAzureCostDetailsSource>(sp => new Juple.Infrastructure.Expenses.AzureExpenseSource(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("ExpenseAzure"), adminAzureCredential));
+        services.AddScoped<Juple.Application.Expenses.IAzureCostReportStore, Juple.Infrastructure.Expenses.AzureCostReportStore>();
         services.AddScoped<Juple.Application.Analytics.IUserActivityStore, Juple.Infrastructure.Analytics.UserActivityStore>();
         services.AddScoped<Juple.Application.Safety.ISafetyStore, Juple.Infrastructure.Safety.SafetyStore>();
         services.AddScoped<IItemLifecycleStore, ItemStore>();

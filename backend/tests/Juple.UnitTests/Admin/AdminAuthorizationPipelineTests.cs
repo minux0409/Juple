@@ -66,6 +66,12 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         builder.Services.AddSingleton<IAdminAnalyticsService, AdminAnalyticsService>();
         builder.Services.AddSingleton(new Juple.Application.Billing.BillingOptions()); // the program off, as in Production
         builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddSingleton(new AdminWorkspaceOptions());
+        builder.Services.AddSingleton<IAdminWorkspaceStore>(new DisabledWorkspaceStore());
+        builder.Services.AddSingleton<IAdminTelemetrySource>(new DisabledTelemetry());
+        builder.Services.AddMemoryCache();
+        builder.Services.AddSingleton<Juple.Application.Expenses.IAzureCostReportStore>(new Juple.Infrastructure.Expenses.AzureCostReportStore(null!));
+        builder.Services.AddSingleton<Juple.Application.Expenses.IAzureCostDetailsSource>(new Juple.Infrastructure.Expenses.AzureExpenseSource(null!,null!));
         builder.Services.AddSingleton(new Juple.Application.Expenses.ExpenseOptions());
         builder.Services.AddSingleton(sp => new Juple.Application.Expenses.ExpenseService(null!, sp.GetRequiredService<IAdminAccessStore>(), sp.GetRequiredService<Juple.Application.Expenses.ExpenseOptions>(), TimeProvider.System));
         builder.Services.AddSingleton(sp => new Juple.Application.Expenses.ExpenseSyncService(null!, null!, sp.GetRequiredService<Juple.Application.Expenses.ExpenseService>(), sp.GetRequiredService<Juple.Application.Expenses.ExpenseOptions>(), TimeProvider.System));
@@ -103,6 +109,11 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         { "GET", "/api/v1/admin/users" },
         { "GET", "/api/v1/admin/operations/app-version" },
         { "GET", "/api/v1/admin/analytics/overview?range=30d" },
+        { "GET", "/api/v1/admin/workspace/configuration" },
+        { "GET", "/api/v1/admin/workspace/overview" },
+        { "GET", "/api/v1/admin/workspace/operations" },
+        { "GET", "/api/v1/admin/workspace/revenue" },
+        { "POST", "/api/v1/admin/expenses/azure-report" },
         { "GET", "/api/v1/admin/users/5/link-stats?range=30d" },
         { "GET", "/api/v1/admin/operations/system" },
         { "GET", "/api/v1/admin/support/inquiries" },
@@ -110,6 +121,23 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         { "PUT", "/api/v1/admin/support/inquiries/7/status" },
         { "PUT", "/api/v1/admin/support/inquiries/7/answer" },
     };
+
+    private sealed class DisabledTelemetry : IAdminTelemetrySource
+    { public Task<WorkspaceTelemetry> ReadAsync(AdminDateRange p,CancellationToken ct) => throw new InvalidOperationException("Disabled feature must not query telemetry"); }
+    private sealed class DisabledWorkspaceStore : IAdminWorkspaceStore
+    {
+        public Task<WorkspaceOverview> OverviewAsync(AdminDateRange p,DateTimeOffset now,CancellationToken ct) => throw new InvalidOperationException("Disabled feature must not query new schema");
+        public Task<WorkspaceOperations> OperationsAsync(AdminDateRange p,CancellationToken ct) => throw new InvalidOperationException("Disabled feature must not query new schema");
+        public Task<WorkspaceRevenue> RevenueAsync(bool billing,CancellationToken ct) => throw new InvalidOperationException("Disabled feature must not query new schema");
+    }
+
+    [Fact] public async Task Workspace_feature_off_keeps_configuration_available_but_blocks_schema_queries()
+    {
+        Assert.Equal(HttpStatusCode.OK,(await SendAsync("GET","/api/v1/admin/workspace/configuration",AdminOid)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await SendAsync("GET","/api/v1/admin/workspace/overview",AdminOid)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await SendAsync("GET","/api/v1/admin/workspace/operations",AdminOid)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,(await SendAsync("GET","/api/v1/admin/workspace/revenue",AdminOid)).StatusCode);
+    }
 
     [Theory]
     [MemberData(nameof(AdminRoutes))]
@@ -189,8 +217,9 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
     public async Task AnActiveAdmin_Is200(string method, string path)
     {
         var response = await SendAsync(method, path, AdminOid);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var disabled = path.StartsWith("/api/v1/admin/workspace/",StringComparison.Ordinal) && !path.EndsWith("/configuration",StringComparison.Ordinal)
+            || path == "/api/v1/admin/expenses/azure-report";
+        Assert.Equal(disabled ? HttpStatusCode.NotFound : HttpStatusCode.OK, response.StatusCode);
     }
 
     /// <summary>The exact JSON the Admin Web reads: the configured MobileVersionPolicy, the same values as GET /api/v1/app-update/{platform}.</summary>
@@ -274,12 +303,14 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
             }
         }
 
-        Assert.Equal(["AdminController", "AdminExpensesController", "AdminSupportInquiriesController"], controllers.Where(type => type.Namespace == typeof(AdminController).Namespace).Select(type => type.Name).Order().ToArray());
+        Assert.Equal(["AdminAzureCostsController", "AdminController", "AdminExpensesController", "AdminSupportInquiriesController", "AdminWorkspaceController"], controllers.Where(type => type.Namespace == typeof(AdminController).Namespace).Select(type => type.Name).Order().ToArray());
     }
 
     private Task<HttpResponseMessage> SendAsync(string method, string path, Guid? identity, string scope = Scope)
     {
         var request = new HttpRequestMessage(new HttpMethod(method), path);
+        if (method == "POST" && path.EndsWith("/azure-report",StringComparison.Ordinal))
+            request.Content = JsonContent.Create(new { scope = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/test", month = "2026-10-01" });
         if (method == "PUT")
         {
             request.Content = JsonContent.Create(path.EndsWith("/status", StringComparison.Ordinal) ? new { status = "InProgress" } : (object)new { answer = "Thanks" });

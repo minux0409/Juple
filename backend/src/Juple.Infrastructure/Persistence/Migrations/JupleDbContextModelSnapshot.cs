@@ -151,6 +151,40 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Juple.Domain.Analytics.UserDailyActivityKst", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("LastSeenAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("Date"), new[] { "UserId", "Platform" });
+
+                    b.HasIndex("UserId", "Date", "Platform")
+                        .IsUnique();
+
+                    b.ToTable("UserDailyActivitiesKst", "analytics");
+                });
+
             modelBuilder.Entity("Juple.Domain.Billing.GoogleAccountLink", b =>
                 {
                     b.Property<long>("Id")
@@ -445,6 +479,9 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc")
+                        .HasDatabaseName("IX_Collections_CreatedAtUtc");
 
                     b.HasIndex("DeletedAtUtc", "Id")
                         .HasDatabaseName("IX_Collections_DeletedAtUtc_Id")
@@ -1153,6 +1190,10 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("char(3)");
 
+                    b.Property<string>("CustomCategory")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
                     b.Property<string>("DeduplicationKey")
                         .IsRequired()
                         .HasColumnType("char(64)");
@@ -1170,6 +1211,10 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.Property<DateOnly?>("ExchangeRateOn")
                         .HasColumnType("date");
+
+                    b.Property<string>("ExchangeRateSource")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<decimal>("GrossAmount")
                         .HasPrecision(28, 12)
@@ -1213,6 +1258,12 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(80)
                         .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateOnly?>("PeriodFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("PeriodThrough")
+                        .HasColumnType("date");
 
                     b.Property<string>("Provider")
                         .IsRequired()
@@ -1276,6 +1327,10 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OccurredOn", "Currency", "Status");
 
+                    b.HasIndex("Source", "SubscriptionId", "OccurredOn");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("Source", "SubscriptionId", "OccurredOn"), new[] { "ResourceGroup", "NoLongerReported", "DeletedAtUtc" });
+
                     b.ToTable("Expenses", "admin", t =>
                         {
                             t.HasCheckConstraint("CK_Expenses_Amounts", "([NetAmount] IS NULL AND [TaxAmount] IS NULL) OR ([NetAmount] IS NOT NULL AND [TaxAmount] IS NOT NULL AND [NetAmount]+[TaxAmount]=[GrossAmount])");
@@ -1286,7 +1341,7 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_Expenses_Source", "[Source] IN ('Manual','Recurring','Azure')");
 
-                            t.HasCheckConstraint("CK_Expenses_Status", "[Status] IN ('Estimated','Paid','Cancelled')");
+                            t.HasCheckConstraint("CK_Expenses_Status", "[Status] IN ('Estimated','Paid','Cancelled','Provisional')");
                         });
                 });
 
@@ -1773,6 +1828,11 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SavedAtUtc")
+                        .HasDatabaseName("IX_Items_SavedAtUtc");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("SavedAtUtc"), new[] { "UserId" });
 
                     b.HasIndex("DeletedAtUtc", "Id")
                         .HasDatabaseName("IX_Items_DeletedAtUtc_Id")
@@ -2675,6 +2735,9 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CreatedAtUtc")
+                        .HasDatabaseName("IX_Users_CreatedAtUtc");
+
                     b.HasIndex("PublicCode")
                         .IsUnique()
                         .HasDatabaseName("UX_Users_PublicCode");
@@ -2692,6 +2755,15 @@ namespace Juple.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Juple.Domain.Analytics.UserDailyActivity", b =>
+                {
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Analytics.UserDailyActivityKst", b =>
                 {
                     b.HasOne("Juple.Domain.Users.User", null)
                         .WithMany()

@@ -40,7 +40,9 @@ public sealed class UserActivityPump(IServiceScopeFactory scopeFactory, TimeProv
         var now = timeProvider.GetUtcNow();
         var day = DateOnly.FromDateTime(now.UtcDateTime);
         var key = (identity.TenantId, identity.ObjectId, platform);
-        if (_recorded.TryGetValue(key, out var last) && last.Day == day && now - last.RecordedAt < RefreshInterval)
+        if (_recorded.TryGetValue(key, out var last) && last.Day == day
+            && Juple.Application.Admin.AdminDateRange.SeoulDate(last.RecordedAt) == Juple.Application.Admin.AdminDateRange.SeoulDate(now)
+            && now - last.RecordedAt < RefreshInterval)
         {
             return false;
         }

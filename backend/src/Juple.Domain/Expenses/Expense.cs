@@ -2,9 +2,9 @@ using System.Text.Json.Serialization;
 namespace Juple.Domain.Expenses;
 
 [JsonConverter(typeof(JsonStringEnumConverter<ExpenseCategory>))]
-public enum ExpenseCategory { Cloud, DeveloperProgram, Domain, Software, Design, Advertising, Fees, Other }
+public enum ExpenseCategory { Cloud, DeveloperProgram, Domain, Software, Design, Advertising, Fees, Other, AppleDeveloper, GooglePlayConsole, EmailSmsApi, Accounting }
 [JsonConverter(typeof(JsonStringEnumConverter<ExpenseStatus>))]
-public enum ExpenseStatus { Estimated, Paid, Cancelled }
+public enum ExpenseStatus { Estimated, Paid, Cancelled, Provisional }
 [JsonConverter(typeof(JsonStringEnumConverter<ExpenseKind>))]
 public enum ExpenseKind { Charge, Refund, Adjustment }
 [JsonConverter(typeof(JsonStringEnumConverter<ExpenseSource>))]
@@ -21,7 +21,8 @@ public sealed record ExpenseValues(
     ExpenseStatus Status, ExpenseKind Kind, string? InvoiceReference, string? Memo,
     string? ConvertedCurrency = null,
     [property: JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)] decimal? ExchangeRate = null, DateOnly? ExchangeRateOn = null,
-    long? OriginalExpenseId = null);
+    long? OriginalExpenseId = null, string? CustomCategory = null, DateOnly? PeriodFrom = null,
+    DateOnly? PeriodThrough = null, string? ExchangeRateSource = null, string? ServiceName = null);
 
 /// <summary>Company ledger, not customer-owned content. Operator identities are retained without account-deletion cascades.</summary>
 public sealed class Expense
@@ -60,6 +61,10 @@ public sealed class Expense
     public string? ServiceName { get; private set; }
     public string? Environment { get; private set; }
     public string? RawImportedAmount { get; private set; }
+    public string? CustomCategory { get; private set; }
+    public DateOnly? PeriodFrom { get; private set; }
+    public DateOnly? PeriodThrough { get; private set; }
+    public string? ExchangeRateSource { get; private set; }
     public bool NoLongerReported { get; private set; }
     public long? CreatedByAdminUserId { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
@@ -73,6 +78,9 @@ public sealed class Expense
         PaymentMethod = value.PaymentMethod; Status = value.Status; Kind = value.Kind; InvoiceReference = value.InvoiceReference; Memo = value.Memo;
         ConvertedCurrency = value.ConvertedCurrency; ExchangeRate = value.ExchangeRate; ExchangeRateOn = value.ExchangeRateOn;
         OriginalExpenseId = value.OriginalExpenseId; UpdatedAtUtc = now; Revision++;
+        CustomCategory = value.CustomCategory; PeriodFrom = value.PeriodFrom; PeriodThrough = value.PeriodThrough;
+        ExchangeRateSource = value.ExchangeRateSource;
+        if (Source != ExpenseSource.Azure) ServiceName = value.ServiceName;
     }
     public void SetDeduplicationKey(string key) => DeduplicationKey = key;
     public void SetAzureDetails(string subscriptionId, string resourceGroup, string serviceName, string environment, string rawAmount)
@@ -84,7 +92,8 @@ public sealed class Expense
     public void MarkNoLongerReported(DateTimeOffset now) { NoLongerReported = true; UpdatedAtUtc = now; Revision++; }
     public void Delete(DateTimeOffset now) { DeletedAtUtc = now; UpdatedAtUtc = now; Revision++; }
     public ExpenseValues Values() => new(Name, Provider, Category, OccurredOn, PaidOn, Currency, NetAmount, TaxAmount, GrossAmount,
-        PaymentMethod, Status, Kind, InvoiceReference, Memo, ConvertedCurrency, ExchangeRate, ExchangeRateOn, OriginalExpenseId);
+        PaymentMethod, Status, Kind, InvoiceReference, Memo, ConvertedCurrency, ExchangeRate, ExchangeRateOn, OriginalExpenseId,
+        CustomCategory, PeriodFrom, PeriodThrough, ExchangeRateSource, Source == ExpenseSource.Azure ? null : ServiceName);
 }
 
 public sealed class ExpenseRecurringSchedule
