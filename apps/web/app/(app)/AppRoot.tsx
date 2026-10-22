@@ -73,7 +73,8 @@ interface SignedInApp {
   readonly appDownload: AppDownload;
 }
 
-const SignedInAppContext = createContext<SignedInApp | null>(null);
+/** Exported only so the real-browser test (tests/browser) can mount the real pages with a stubbed API; app code uses useSignedInApp(). */
+export const SignedInAppContext = createContext<SignedInApp | null>(null);
 
 /** Development only: the failure's name / code / sub-error / correlation id - never its message or any token. */
 function reportSignInError(step: string, error: unknown): void {

@@ -17,6 +17,13 @@ describe('choosing a locked Collection in the link form', () => {
     assert.match(dialog, /className=\{styles\.dialogBody\} onSubmit=\{event => event\.stopPropagation\(\)\}>\s*\{open \? children : null\}/);
   });
 
+  it('the dialog is portalled out of the link form: a <form> inside a <form> never reached its React handler in Chrome', () => {
+    const dialog = source('app/(app)/PasswordDialog.tsx');
+    assert.match(dialog, /createPortal\(dialog, host\)/);
+    assert.match(dialog, /anchor\.closest\('main'\) \?\? document\.body/);
+    // The real-browser test (tests/browser/lockedCollection.browser.mjs, `npm run test:browser`) proves it in Chrome.
+  });
+
   it('both screens use the one picker inside the link form, so the one guard covers both', () => {
     for (const screen of ['app/(app)/items/new/NewLinkReviewView.tsx', 'app/(app)/items/[itemId]/edit/ItemEditView.tsx']) {
       const view = source(screen);

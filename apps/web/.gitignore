@@ -19,3 +19,6 @@ npm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# real-browser test harness (tests/browser writes it for one run and deletes it afterwards)
+app/browser-test-harness/
