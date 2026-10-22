@@ -91,7 +91,8 @@ var isBillingWorker = args.Contains("--run-billing-worker", StringComparer.Ordin
 // --run-retention-cleanup: one bounded pass of the data-retention cleanup (docs/data-retention.md). No request, no credential beyond SQL and Blob Storage.
 var isRetentionCleanupJob = args.Contains("--run-retention-cleanup", StringComparer.Ordinal);
 var isExpenseSyncJob = args.Contains("--run-expense-sync", StringComparer.Ordinal);
-var isOneShotJob = isPushDispatchJob || isBlobCleanupRetryJob || isInstagramMetadataRetryJob || isBillingReconcileJob || isRetentionCleanupJob || isExpenseSyncJob;
+var isAzureCostSyncJob = args.Contains("--run-azure-cost-sync", StringComparer.Ordinal);
+var isOneShotJob = isPushDispatchJob || isBlobCleanupRetryJob || isInstagramMetadataRetryJob || isBillingReconcileJob || isRetentionCleanupJob || isExpenseSyncJob || isAzureCostSyncJob;
 // --run-notification-worker: the long-running notification worker (Service Bus consumer - see
 // NotificationWorkerService). Like the Jobs it authenticates no request and runs no controllers; it
 // serves only /health. Only it and the push-dispatch Job hold the Firebase credential.
@@ -449,6 +450,46 @@ if (isExpenseSyncJob)
     if (scope.ServiceProvider.GetRequiredService<Juple.Application.Expenses.ExpenseOptions>().Enabled)
         await scope.ServiceProvider.GetRequiredService<Juple.Application.Expenses.ExpenseEvidenceService>().CleanupAsync(null, deadline.Token);
     return 0;
+}
+// Dedicated RG-scoped cost job. Never invokes recurring projection or evidence cleanup.
+if (isAzureCostSyncJob)
+{
+    using var scope = app.Services.CreateScope();
+    using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(20));
+    using var termination = System.Runtime.InteropServices.PosixSignalRegistration.Create(
+        System.Runtime.InteropServices.PosixSignal.SIGTERM, context => { context.Cancel = true; deadline.Cancel(); });
+    var options = scope.ServiceProvider.GetRequiredService<Juple.Application.Expenses.ExpenseOptions>();
+    if (!options.Enabled || !options.AzureSyncEnabled)
+    {
+        Console.WriteLine("AzureCostSync disabled; no queries or writes executed.");
+        return 0;
+    }
+    const string allowedScope = "/subscriptions/37402353-9fc3-4fd7-bc9a-d5d2197b6b6b/resourceGroups/rg-juple-prod";
+    if (options.AzureScopes.Count != 1 || options.AzureScopes[0].AllowWholeSubscription
+        || !options.AzureScopes[0].Scope.Equals(allowedScope, StringComparison.OrdinalIgnoreCase))
+    {
+        Console.Error.WriteLine("AzureCostSync invalid approved scope; no queries or writes executed.");
+        return 2;
+    }
+    var sync = scope.ServiceProvider.GetRequiredService<Juple.Application.Expenses.ExpenseSyncService>();
+    var today = DateOnly.FromDateTime(TimeProvider.System.GetUtcNow().UtcDateTime);
+    var current = new DateOnly(today.Year, today.Month, 1);
+    try
+    {
+        foreach (var month in new[] { current.AddMonths(-1), current })
+        {
+            await sync.SyncAsync(null, allowedScope, month, deadline.Token);
+            Console.WriteLine($"AzureCostSync succeeded month={month:yyyy-MM} scope=rg-juple-prod");
+        }
+        return 0;
+    }
+    catch (Exception error)
+    {
+        var code = error is Juple.Application.Expenses.ExpenseRequestException known ? known.Code
+            : error is OperationCanceledException ? "cancelled" : "azureSyncFailed";
+        Console.Error.WriteLine($"AzureCostSync failed code={code}; no exception details logged.");
+        return 1;
+    }
 }
 if (isRetentionCleanupJob)
 {

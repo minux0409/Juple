@@ -1208,6 +1208,7 @@ mojibake가 몇 시간 노출됐다. live 값을 `az` 출력에서 읽어 환경
 | Container App | `ca-juple-web-{environmentName}` | Public Collection Sharing Web Viewer(`apps/web`) 전용, API와 별개 리소스/이미지, secret 없음 |
 | Container Apps Job | `caj-juple-push-dispatch-{environmentName}` | Push dispatch 전용, API와 별개 secret 네임스페이스 |
 | Container Apps Job | `caj-juple-blob-cleanup-{environmentName}` | Account deletion Blob cleanup 전용, Firebase 불필요, Push Job과 별개 secret 네임스페이스 |
+| Container Apps Job | `caj-juple-azure-cost-sync-prod` | [Azure 비용 일일 수집](azure-cost-sync-job/README.md), 운영 RG 한정, 별도 immutable 이미지/실행 모드 |
 
 `environmentName`은 모든 템플릿에서 parameter다. `foundation/main.bicep`의 `@allowed`는
 `dev`/`prod` 둘 다 허용한다(Production Foundation은 아직 실제로 배포되지 않았을 뿐, 템플릿 자체는

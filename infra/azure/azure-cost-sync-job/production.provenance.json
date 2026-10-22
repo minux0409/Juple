@@ -1,0 +1,19 @@
+{
+  "verifiedOn": "2026-10-22",
+  "subscriptionId": "37402353-9fc3-4fd7-bc9a-d5d2197b6b6b",
+  "resourceGroup": "rg-juple-prod",
+  "jobName": "caj-juple-azure-cost-sync-prod",
+  "imageDigest": "sha256:0f42c0d3fe353a9ad73f0522ee7e491e74b1327057ffb0e4bd48b3f2d596897c",
+  "entrypoint": ["dotnet", "Juple.Api.dll"],
+  "args": ["--run-azure-cost-sync"],
+  "entryPointBlockSha256": "205e246dc84c64d799c036841eacd03be3b3d6a5a9f0e7e485698753197603b4",
+  "sourceArchiveSha256": "d3ddb947a8e53dc635d9a9dbb1cb674415027d15812f4eb8d4853498de605c34",
+  "sourceBaseArchiveSha256": "fc406544a64dde378fa867b98ac200bcd071faa236d71036d91dd29c792b89e3",
+  "sourceArchive": "C:/Users/IT/Juple/DeploymentCandidates/azure-cost-sync-prod-20261022-155544/azure-cost-job-source.zip",
+  "buildSdk": "mcr.microsoft.com/dotnet/sdk:10.0.302@sha256:72dd743782f2ae7e5476fd64f6a460045e3998dc862218b80e6944cba79a01b0",
+  "buildRuntime": "mcr.microsoft.com/dotnet/aspnet:10.0@sha256:d5633778c754e89a386882eddf8dbee6942447a8a4b8267c19cf1e1158d0b0ac",
+  "apiImageIsDifferent": true,
+  "identityPrincipalId": "5beb68bf-0683-44bb-ad49-9329ca286af3",
+  "costReaderRoleDefinitionId": "72fafb9e-0641-4937-9268-a91bfd8191a3",
+  "existingCostReaderAssignmentName": "71ad58f1-1be1-4a48-adda-192b8186a201"
+}
