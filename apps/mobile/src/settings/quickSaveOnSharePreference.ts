@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import nativeIncomingShare from '../share/specs/NativeIncomingShare';
+import nativeIncomingShareIOS from '../share/specs/NativeIncomingShareIOS';
 
 /**
  * "공유 즉시 저장": when ON, sharing a URL into Juple from another app saves it silently without opening
@@ -8,19 +9,22 @@ import nativeIncomingShare from '../share/specs/NativeIncomingShare';
  * for the user to review the shared URL before saving (see ShareReceiverActivity.kt's native branch on
  * Android). Only an explicit stored 'true' turns it ON; a stored value is never overwritten by an update.
  *
- * Kept platform-agnostic here (plain AsyncStorage, same pattern as languagePreference.ts) even
- * though only Android currently implements the OFF-mode native branch - iOS doesn't have a Share
- * Extension yet at all (see README) - so this domain can be reused unchanged once it does.
+ * Kept platform-agnostic here (plain AsyncStorage, same pattern as languagePreference.ts). The value is
+ * mirrored to native code on every change and launch: Android's share receiver, and on iOS the App
+ * Group the Juple Share extension reads (ON: it saves the one shared link at once; OFF: it shows its
+ * own review with Collections and memo).
  */
 
 const STORAGE_KEY = 'juple.quickSaveOnShare';
 
 async function syncQuickSaveOnShareToNative(enabled: boolean): Promise<void> {
-  if (Platform.OS !== 'android' || !nativeIncomingShare) {
+  // iOS: the Juple Share extension reads the same switch from the App Group (see NativeIncomingShareIOS).
+  const native = Platform.OS === 'android' ? nativeIncomingShare : Platform.OS === 'ios' ? nativeIncomingShareIOS : null;
+  if (!native) {
     return;
   }
   try {
-    await nativeIncomingShare.setQuickSaveOnShare(enabled);
+    await native.setQuickSaveOnShare(enabled);
   } catch {
     // Best-effort mirror - a failed native sync just means ShareReceiverActivity falls back to
     // its own default (false, review first) until the next successful sync, never a crash here.

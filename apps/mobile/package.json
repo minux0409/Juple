@@ -72,7 +72,8 @@
     },
     "ios": {
       "modulesProvider": {
-        "NativeApnsIOS": "JupleApnsModule"
+        "NativeApnsIOS": "JupleApnsModule",
+        "NativeIncomingShareIOS": "JupleIncomingShareModule"
       }
     }
   }

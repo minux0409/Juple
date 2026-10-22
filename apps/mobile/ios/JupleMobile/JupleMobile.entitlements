@@ -8,5 +8,9 @@
 	<array>
 		<string>applinks:app-links-host-not-configured.invalid</string>
 	</array>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.juple.app</string>
+	</array>
 </dict>
 </plist>

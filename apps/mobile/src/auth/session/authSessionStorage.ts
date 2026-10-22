@@ -1,4 +1,5 @@
 import * as Keychain from 'react-native-keychain';
+import { clearShareExtensionSession, mirrorShareExtensionSession } from '../../share/shareExtensionSession';
 import type { AuthSession } from './authSessionTypes';
 
 /** Dedicated Keychain/Keystore service for the Juple auth session; never shared with other data. */
@@ -11,6 +12,8 @@ export async function saveAuthSession(session: AuthSession): Promise<void> {
   await Keychain.setGenericPassword(SESSION_USERNAME, JSON.stringify(session), {
     service: SESSION_SERVICE,
   });
+  // iOS: the Share extension's own copy follows every stored session (see shareExtensionSession.ts).
+  await mirrorShareExtensionSession(session.refreshToken);
 }
 
 export async function loadAuthSession(): Promise<AuthSession | null> {
@@ -27,6 +30,8 @@ export async function loadAuthSession(): Promise<AuthSession | null> {
     if (!parsed.refreshToken) {
       return null;
     }
+    // A session restored after an update that predates the Share extension gets its copy too (no-op when unchanged).
+    await mirrorShareExtensionSession(parsed.refreshToken);
     return { refreshToken: parsed.refreshToken, idToken: parsed.idToken };
   } catch {
     return null;
@@ -35,4 +40,5 @@ export async function loadAuthSession(): Promise<AuthSession | null> {
 
 export async function clearAuthSession(): Promise<void> {
   await Keychain.resetGenericPassword({ service: SESSION_SERVICE });
+  await clearShareExtensionSession();
 }

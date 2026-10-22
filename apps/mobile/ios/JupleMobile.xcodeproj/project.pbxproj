@@ -7,35 +7,87 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		11EB103BC5386401484FD5EB /* CollectionAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07D16CE22BEB242BB98B1089 /* CollectionAppearance.swift */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		1630B0D83813CB92BF69F89A /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEEB78325FE0D8A07EADC070 /* ShareViewController.swift */; };
 		56455DA21730A7F01071C3F6 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
+		7A25896B185B32B273ED2650 /* ShareStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B97B0B92F559701C2D5F7307 /* ShareStyle.swift */; };
+		7A2FBE006AAB678274953FB9 /* ShareSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EA99C8B8AE073764D5B3D0A /* ShareSession.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		87BB2765A92AB1EF342C09EF /* JupleApnsModule.mm in Sources */ = {isa = PBXBuildFile; fileRef = 6AFDF3BEC71BB7DEB995BEEF /* JupleApnsModule.mm */; };
+		919D290C6C08CCEE214CC5E2 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 586E3EFCC9B268C46EF74B8F /* Localizable.strings */; };
 		9A1470514F204C6A91E53701 /* JupleNotificationPermissions.mm in Sources */ = {isa = PBXBuildFile; fileRef = 9A1470514F204C6A91E53702 /* JupleNotificationPermissions.mm */; };
 		9A1470514F204C6A91E53703 /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9A1470514F204C6A91E53704 /* UserNotifications.framework */; };
+		A758DD97FB331688DA1A826D /* ShareLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDBB4BDD51BCE327C57DE484 /* ShareLink.swift */; };
+		BA5D7AF571ADA645CC6D1915 /* PendingShareStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49DB4E040608B44E0F0A379 /* PendingShareStore.swift */; };
+		BEEB37D196BFD82BBCA73DFC /* JupleShareAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = E76B39536180CE4CC4C2EA6E /* JupleShareAPI.swift */; };
+		BF78CB4804F2510B4D4FA5D2 /* CollectionPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F6A5BE4127A09CEA6616B1B /* CollectionPickerView.swift */; };
 		C5D9EAFA4AEF830E41BB208E /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EBF9A0B28D516C65619E315 /* SceneDelegate.swift */; };
+		CAB88E9EBC1BD01DD7689383 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BB6D5F19D2A4A235B10DDCE5 /* Foundation.framework */; };
+		D5C81F120A20539E9A76DE4E /* PendingShareStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49DB4E040608B44E0F0A379 /* PendingShareStore.swift */; };
+		DE59BCB492C7FC5710B6852E /* JupleShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 26AD4DEBF2B9644429C7FCF4 /* JupleShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		DE8300551FEE48CC9558FE77 /* JupleIncomingShareModule.mm in Sources */ = {isa = PBXBuildFile; fileRef = 16685049CE6949FBFB253D15 /* JupleIncomingShareModule.mm */; };
 		E8EA27665444706D076A25A1 /* ApnsBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5467ACAA806A3161118F682A /* ApnsBridge.swift */; };
 		EF5B8BD3E3CE1F94B5264965 /* Pods_JupleMobile.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3E0B8847DE16C0A45F400CB9 /* Pods_JupleMobile.framework */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		9D6C20426915AECD93979780 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 719A7F2188D9169A77C166A1;
+			remoteInfo = JupleShareExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		321C6719AB54450A06D312B0 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				DE59BCB492C7FC5710B6852E /* JupleShareExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		07D16CE22BEB242BB98B1089 /* CollectionAppearance.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CollectionAppearance.swift; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* JupleMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JupleMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = JupleMobile/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = JupleMobile/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = JupleMobile/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		16685049CE6949FBFB253D15 /* JupleIncomingShareModule.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = JupleIncomingShareModule.mm; path = JupleMobile/JupleIncomingShareModule.mm; sourceTree = "<group>"; };
+		16ADFA07D2EEE8460368657D /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		1DF04C811C8CFADD04D5D92B /* JupleShareExtension.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = JupleShareExtension.entitlements; sourceTree = "<group>"; };
 		1EBF9A0B28D516C65619E315 /* SceneDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SceneDelegate.swift; path = JupleMobile/SceneDelegate.swift; sourceTree = "<group>"; };
+		26AD4DEBF2B9644429C7FCF4 /* JupleShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = JupleShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B4392A12AC88292D35C810B /* Pods-JupleMobile.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-JupleMobile.debug.xcconfig"; path = "Target Support Files/Pods-JupleMobile/Pods-JupleMobile.debug.xcconfig"; sourceTree = "<group>"; };
 		3E0B8847DE16C0A45F400CB9 /* Pods_JupleMobile.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_JupleMobile.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		3F6A5BE4127A09CEA6616B1B /* CollectionPickerView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CollectionPickerView.swift; sourceTree = "<group>"; };
 		5467ACAA806A3161118F682A /* ApnsBridge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApnsBridge.swift; path = JupleMobile/ApnsBridge.swift; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-JupleMobile.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-JupleMobile.release.xcconfig"; path = "Target Support Files/Pods-JupleMobile/Pods-JupleMobile.release.xcconfig"; sourceTree = "<group>"; };
 		5AA68C113088FB820087EC42 /* JupleMobile.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = JupleMobile.entitlements; path = JupleMobile/JupleMobile.entitlements; sourceTree = "<group>"; };
+		5EA99C8B8AE073764D5B3D0A /* ShareSession.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareSession.swift; sourceTree = "<group>"; };
 		6AFDF3BEC71BB7DEB995BEEF /* JupleApnsModule.mm */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.objcpp; name = JupleApnsModule.mm; path = JupleMobile/JupleApnsModule.mm; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = JupleMobile/AppDelegate.swift; sourceTree = "<group>"; };
+		7B153E6BCB691DDD62ACFE40 /* ko */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = ko; path = ko.lproj/Localizable.strings; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = JupleMobile/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		9A1470514F204C6A91E53702 /* JupleNotificationPermissions.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = JupleNotificationPermissions.mm; path = JupleMobile/JupleNotificationPermissions.mm; sourceTree = "<group>"; };
 		9A1470514F204C6A91E53704 /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
+		B97B0B92F559701C2D5F7307 /* ShareStyle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareStyle.swift; sourceTree = "<group>"; };
+		BB6D5F19D2A4A235B10DDCE5 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS14.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		BEEB78325FE0D8A07EADC070 /* ShareViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		E3A0A99AD10974FB556C4F33 /* en */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		E76B39536180CE4CC4C2EA6E /* JupleShareAPI.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = JupleShareAPI.swift; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		EDBB4BDD51BCE327C57DE484 /* ShareLink.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareLink.swift; sourceTree = "<group>"; };
+		F49DB4E040608B44E0F0A379 /* PendingShareStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PendingShareStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -45,6 +97,14 @@
 			files = (
 				EF5B8BD3E3CE1F94B5264965 /* Pods_JupleMobile.framework in Frameworks */,
 				9A1470514F204C6A91E53703 /* UserNotifications.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC85F4D0E1585DA1B87734A7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CAB88E9EBC1BD01DD7689383 /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -64,6 +124,7 @@
 				9A1470514F204C6A91E53702 /* JupleNotificationPermissions.mm */,
 				5467ACAA806A3161118F682A /* ApnsBridge.swift */,
 				6AFDF3BEC71BB7DEB995BEEF /* JupleApnsModule.mm */,
+				16685049CE6949FBFB253D15 /* JupleIncomingShareModule.mm */,
 			);
 			name = JupleMobile;
 			sourceTree = "<group>";
@@ -74,6 +135,7 @@
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
 				3E0B8847DE16C0A45F400CB9 /* Pods_JupleMobile.framework */,
 				9A1470514F204C6A91E53704 /* UserNotifications.framework */,
+				E3979E19C101491270AC4988 /* iOS */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -93,6 +155,8 @@
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
+				B9BF4A6A535DB11319842F25 /* Shared */,
+				8809FF0EA3D459EF04CE7703 /* JupleShareExtension */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -103,8 +167,36 @@
 			isa = PBXGroup;
 			children = (
 				13B07F961A680F5B00A75B9A /* JupleMobile.app */,
+				26AD4DEBF2B9644429C7FCF4 /* JupleShareExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		8809FF0EA3D459EF04CE7703 /* JupleShareExtension */ = {
+			isa = PBXGroup;
+			children = (
+				BEEB78325FE0D8A07EADC070 /* ShareViewController.swift */,
+				16ADFA07D2EEE8460368657D /* Info.plist */,
+				1DF04C811C8CFADD04D5D92B /* JupleShareExtension.entitlements */,
+				586E3EFCC9B268C46EF74B8F /* Localizable.strings */,
+				EDBB4BDD51BCE327C57DE484 /* ShareLink.swift */,
+				5EA99C8B8AE073764D5B3D0A /* ShareSession.swift */,
+				E76B39536180CE4CC4C2EA6E /* JupleShareAPI.swift */,
+				07D16CE22BEB242BB98B1089 /* CollectionAppearance.swift */,
+				3F6A5BE4127A09CEA6616B1B /* CollectionPickerView.swift */,
+				B97B0B92F559701C2D5F7307 /* ShareStyle.swift */,
+			);
+			name = JupleShareExtension;
+			path = JupleShareExtension;
+			sourceTree = "<group>";
+		};
+		B9BF4A6A535DB11319842F25 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				F49DB4E040608B44E0F0A379 /* PendingShareStore.swift */,
+			);
+			name = Shared;
+			path = Shared;
 			sourceTree = "<group>";
 		};
 		BBD78D7AC51CEA395F1C20DB /* Pods */ = {
@@ -114,6 +206,14 @@
 				5709B34CF0A7D63546082F79 /* Pods-JupleMobile.release.xcconfig */,
 			);
 			path = Pods;
+			sourceTree = "<group>";
+		};
+		E3979E19C101491270AC4988 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				BB6D5F19D2A4A235B10DDCE5 /* Foundation.framework */,
+			);
+			name = iOS;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -127,6 +227,7 @@
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
+				321C6719AB54450A06D312B0 /* Embed Foundation Extensions */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */,
 				E235C05ADACE081382539298 /* [CP] Copy Pods Resources */,
@@ -135,11 +236,29 @@
 			buildRules = (
 			);
 			dependencies = (
+				759945BFD2356E9677D17DE0 /* PBXTargetDependency */,
 			);
 			name = JupleMobile;
 			productName = JupleMobile;
 			productReference = 13B07F961A680F5B00A75B9A /* JupleMobile.app */;
 			productType = "com.apple.product-type.application";
+		};
+		719A7F2188D9169A77C166A1 /* JupleShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0A2D9D3C1CA008FE96C1685C /* Build configuration list for PBXNativeTarget "JupleShareExtension" */;
+			buildPhases = (
+				2C3CD235045DFAEDF591A310 /* Sources */,
+				CC85F4D0E1585DA1B87734A7 /* Frameworks */,
+				A8355208EC46DF34283B1C3C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = JupleShareExtension;
+			productName = JupleShareExtension;
+			productReference = 26AD4DEBF2B9644429C7FCF4 /* JupleShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -169,6 +288,7 @@
 			projectRoot = "";
 			targets = (
 				13B07F861A680F5B00A75B9A /* JupleMobile */,
+				719A7F2188D9169A77C166A1 /* JupleShareExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -181,6 +301,14 @@
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				56455DA21730A7F01071C3F6 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A8355208EC46DF34283B1C3C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				919D290C6C08CCEE214CC5E2 /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -284,10 +412,48 @@
 				9A1470514F204C6A91E53701 /* JupleNotificationPermissions.mm in Sources */,
 				E8EA27665444706D076A25A1 /* ApnsBridge.swift in Sources */,
 				87BB2765A92AB1EF342C09EF /* JupleApnsModule.mm in Sources */,
+				BA5D7AF571ADA645CC6D1915 /* PendingShareStore.swift in Sources */,
+				DE8300551FEE48CC9558FE77 /* JupleIncomingShareModule.mm in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2C3CD235045DFAEDF591A310 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1630B0D83813CB92BF69F89A /* ShareViewController.swift in Sources */,
+				D5C81F120A20539E9A76DE4E /* PendingShareStore.swift in Sources */,
+				A758DD97FB331688DA1A826D /* ShareLink.swift in Sources */,
+				7A2FBE006AAB678274953FB9 /* ShareSession.swift in Sources */,
+				BEEB37D196BFD82BBCA73DFC /* JupleShareAPI.swift in Sources */,
+				11EB103BC5386401484FD5EB /* CollectionAppearance.swift in Sources */,
+				BF78CB4804F2510B4D4FA5D2 /* CollectionPickerView.swift in Sources */,
+				7A25896B185B32B273ED2650 /* ShareStyle.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		759945BFD2356E9677D17DE0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = JupleShareExtension;
+			target = 719A7F2188D9169A77C166A1 /* JupleShareExtension */;
+			targetProxy = 9D6C20426915AECD93979780 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		586E3EFCC9B268C46EF74B8F /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				E3A0A99AD10974FB556C4F33 /* en */,
+				7B153E6BCB691DDD62ACFE40 /* ko */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
@@ -548,9 +714,73 @@
 			};
 			name = Release;
 		};
+		8A6A7E4502DA392BB156C072 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = JupleShareExtension/JupleShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3N2K257SW3;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = JupleShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.juple.app.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		B288A4B944B60C48C78003E2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = JupleShareExtension/JupleShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3N2K257SW3;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = JupleShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.juple.app.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		0A2D9D3C1CA008FE96C1685C /* Build configuration list for PBXNativeTarget "JupleShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B288A4B944B60C48C78003E2 /* Release */,
+				8A6A7E4502DA392BB156C072 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "JupleMobile" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

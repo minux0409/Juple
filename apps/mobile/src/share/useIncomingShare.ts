@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import NativeIncomingShare, {
-  type PendingShare,
-} from './specs/NativeIncomingShare';
+import type { PendingShare } from './specs/NativeIncomingShare';
+import { pendingShareSource } from './pendingShareSource';
 import { AUTO_SAVE_SETTLE_MS, isAutoSaveInFlight, onAutoSaveSettled } from './autoSaveInFlight';
 
 export interface UseIncomingShareResult {
@@ -20,12 +19,12 @@ export function useIncomingShare(): UseIncomingShareResult {
   const refreshGeneration = useRef(0);
 
   const refreshPendingShares = useCallback(async () => {
-    if (!NativeIncomingShare) {
+    if (!pendingShareSource) {
       return;
     }
 
     const generation = ++refreshGeneration.current;
-    const shares = await NativeIncomingShare.getPendingShares();
+    const shares = await pendingShareSource.getPendingShares();
     if (!mounted.current || generation !== refreshGeneration.current) return;
     setNowMs(Date.now());
     setPendingShares(shares);
@@ -33,11 +32,11 @@ export function useIncomingShare(): UseIncomingShareResult {
 
   const acknowledgePendingShare = useCallback(
     async (id: string) => {
-      if (!NativeIncomingShare) {
+      if (!pendingShareSource) {
         return;
       }
 
-      await NativeIncomingShare.acknowledgePendingShare(id);
+      await pendingShareSource.acknowledgePendingShare(id);
       await refreshPendingShares();
     },
     [refreshPendingShares],
