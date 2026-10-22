@@ -40,7 +40,7 @@ public sealed class AdminAzureCostsController(ExpenseService expenses, ExpenseOp
                 var resources = await source.ResourcesAsync(configured, request.Month, deadline.Token);
                 var currentMonth = new DateOnly(today.Year, today.Month, 1);
                 var forecast = request.Month == currentMonth ? await source.ForecastAsync(configured, request.Month, deadline.Token) : new AzureCostDetail("historicalMonth", []);
-                cache.Set(key, (resources, forecast), TimeSpan.FromMinutes(10));
+                cache.Set(key, (resources, forecast), new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10), Size = 1 });
                 return Ok(report with { Resources = resources, Forecast = forecast });
             }
             finally { Slots.Release(); }

@@ -50,7 +50,7 @@ public sealed class AdminWorkspaceController(IAdminWorkspaceStore store, AdminWo
         {
             if (cache.TryGetValue<T>(key, out saved)) return Ok(saved);
             var data = await load(period);
-            cache.Set(key, data, TimeSpan.FromMinutes(1));
+            cache.Set(key, data, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1), Size = 1 });
             return Ok(data);
         }
         finally { AggregateSlots.Release(); }

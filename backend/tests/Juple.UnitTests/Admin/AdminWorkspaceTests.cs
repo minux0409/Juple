@@ -16,6 +16,15 @@ namespace Juple.UnitTests.Admin;
 
 public sealed class AdminWorkspaceTests
 {
+    [Fact] public async Task Workspace_cache_accepts_the_operating_shared_cache_size_limit_and_serves_cached_result()
+    {
+        using var cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 500 });
+        var controller = Controller(new RevenueStore(), cache);
+        var first = Assert.IsType<OkObjectResult>(await controller.Revenue(default));
+        var second = Assert.IsType<OkObjectResult>(await controller.Revenue(default));
+        Assert.Same(first.Value, second.Value);
+        Assert.Equal(1, cache.Count);
+    }
     private static readonly DateTimeOffset Now = new(2026, 10, 20, 15, 0, 0, TimeSpan.Zero);
     [Fact] public void Seoul_midnight_and_default_seven_days_have_exact_UTC_boundaries()
     {
