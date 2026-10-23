@@ -51,6 +51,7 @@ import {
   type LinkViewMode,
 } from '../../../../lib/savedLinks';
 import { useSignedInApp } from '../../AppRoot';
+import { useAttention } from '../../useAttention';
 import { DateSections } from '../../DateSections';
 import { Glyph } from '../../Glyph';
 import { BackButton, LoadFailed, Notice } from '../../PageStates';
@@ -76,6 +77,7 @@ type HeaderState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | 
  */
 export function CollectionDetailsView({ collectionIdParam }: { readonly collectionIdParam: string }) {
   const { api, dictionary, locale, onSessionLost } = useSignedInApp();
+  const { store: attentionStore } = useAttention();
   const collectionId = parseRouteId(collectionIdParam);
   const [header, setHeader] = useState<HeaderState>(collectionId === null ? { kind: 'notFound' } : { kind: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
@@ -196,10 +198,10 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
     }
     openedRef.current = visit;
     api<NotificationReadResult>({ method: 'POST', path: collectionNewLinksReadPath(collectionId) }).then(
-      result => setUnreadCount(result.unreadCount),
+      result => { setUnreadCount(result.unreadCount); attentionStore.newLinksRead(collectionId); },
       () => undefined,
     );
-  }, [api, collectionId, contentToken]);
+  }, [api, attentionStore, collectionId, contentToken]);
 
   useEffect(() => {
     if (collectionId === null) {

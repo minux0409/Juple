@@ -27,6 +27,7 @@ export interface CollectionSummary {
    * never reactions or comments. Its own meaning, never mixed with the bell's unread total.
    */
   readonly attentionCount?: number;
+  readonly unreadNewLinkCount?: number;
 }
 
 export interface CollectionsPage {

@@ -85,6 +85,8 @@
     "errorDeleteFallback": "无法删除该项目。"
   },
   "history": {
+    "errorNetwork": "请检查网络连接后重试。",
+    "errorServer": "服务器无法加载您的记录，请稍后重试。",
     "title": "存档",
     "searchPlaceholder": "搜索链接",
     "searchClear": "清除搜索",

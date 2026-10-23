@@ -85,6 +85,8 @@
     "errorDeleteFallback": "項目を削除できませんでした。"
   },
   "history": {
+    "errorNetwork": "インターネット接続を確認して、もう一度お試しください。",
+    "errorServer": "サーバーで履歴を読み込めませんでした。しばらくしてからもう一度お試しください。",
     "title": "保管庫",
     "searchPlaceholder": "リンクを検索",
     "searchClear": "検索をクリア",

@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback } from 'react';
+import { useAttention } from '../useAttention';
 import { isSessionLost } from '../../../lib/authSession';
 import { contentGateOf, isNotFound } from '../../../lib/collectionDetails';
 import { unlockHeaders } from '../../../lib/collectionUnlock';
@@ -38,6 +39,7 @@ export type OpenOutcome = 'navigated' | 'appOnly' | 'unavailable';
  */
 export function useNotificationActions() {
   const { api, onSessionLost } = useSignedInApp();
+  const { store: attentionStore } = useAttention();
   const router = useRouter();
 
   const fetchUnread = useCallback(() => api<{ readonly totalUnread: number }>({ path: UNREAD_COUNT_PATH }).then(result => result.totalUnread), [api]);
@@ -96,6 +98,7 @@ export function useNotificationActions() {
       try {
         const result = await api<NotificationReadResult>({ method: 'POST', path: READ_ALL_PATH });
         setUnreadCount(result.unreadCount);
+        attentionStore.newLinksRead();
         return true;
       } catch (error) {
         if (isSessionLost(error)) {
@@ -113,7 +116,7 @@ export function useNotificationActions() {
         return false;
       }
     },
-    [api, fetchUnread, onSessionLost],
+    [api, attentionStore, fetchUnread, onSessionLost],
   );
 
   return { open, readAll, fetchUnread };

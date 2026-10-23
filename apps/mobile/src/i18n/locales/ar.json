@@ -85,6 +85,8 @@
     "errorDeleteFallback": "تعذّر حذف العنصر."
   },
   "history": {
+    "errorNetwork": "تحقق من اتصالك بالإنترنت وحاول مرة أخرى.",
+    "errorServer": "تعذر على الخادم تحميل سجلك. يُرجى المحاولة مجددًا بعد قليل.",
     "title": "الأرشيف",
     "searchPlaceholder": "البحث في الروابط",
     "searchClear": "مسح البحث",

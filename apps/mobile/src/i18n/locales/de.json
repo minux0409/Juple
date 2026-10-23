@@ -85,6 +85,8 @@
     "errorDeleteFallback": "Der Eintrag konnte nicht gelöscht werden."
   },
   "history": {
+    "errorNetwork": "Prüfe deine Internetverbindung und versuche es erneut.",
+    "errorServer": "Der Server konnte deine Einträge nicht laden. Versuche es in Kürze erneut.",
     "title": "Archiv",
     "searchPlaceholder": "Links suchen",
     "searchClear": "Suche löschen",

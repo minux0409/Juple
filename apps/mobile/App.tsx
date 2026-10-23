@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, StatusBar, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
+import { AttentionProvider } from './src/attention/AttentionProvider';
 import { AppToastProvider } from './src/components/AppToast';
 import { AppUpdateGate } from './src/appUpdate/AppUpdateGate';
 import { useCollectionShortcutBootstrapSync } from './src/categories/useCollectionShortcutBootstrapSync';
@@ -69,14 +70,16 @@ function App() {
       <LayoutDirectionRoot>
         {isLanguageReady && themePreference !== null ? (
           <AuthProvider>
-            <PushRegistrationSync />
-            <CollectionShortcutSync />
-            <AppUpdateGate />
-            <AppToastProvider>
-              <AppNavigation />
-              {/* Above the navigator: the in-app banner for a Push received in the foreground. */}
-              <NotificationBannerHost />
-            </AppToastProvider>
+            <AttentionProvider>
+              <PushRegistrationSync />
+              <CollectionShortcutSync />
+              <AppUpdateGate />
+              <AppToastProvider>
+                <AppNavigation />
+                {/* Above the navigator: the in-app banner for a Push received in the foreground. */}
+                <NotificationBannerHost />
+              </AppToastProvider>
+            </AttentionProvider>
           </AuthProvider>
         ) : (
           <View style={styles.container}>

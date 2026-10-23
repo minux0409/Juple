@@ -1,0 +1,3 @@
+/* One owner of vertical spacing: no extra margin on the invitation card, no empty wrapper at zero. */
+.sections { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.sections [data-collection-filter] { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }

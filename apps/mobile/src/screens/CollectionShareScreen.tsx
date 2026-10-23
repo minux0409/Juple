@@ -545,7 +545,7 @@ export function CollectionShareScreen({ route }: Props) {
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [authenticatedRequest, load]),
+    }, [load]),
   );
 
   // An invitee accepting/declining moves them between 초대 대기 and 공유 중 without leaving the screen.

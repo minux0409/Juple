@@ -11,6 +11,8 @@ import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 import { TOUR_TARGETS } from '../tour/tourGuides';
 import { useTourTarget } from '../tour/tourTargets';
 import { screenIcons } from './screenIcons';
+import { useAttentionSnapshot } from '../attention/attentionContext';
+import { formatBadgeCount } from '../components/badgeCount';
 
 export type MainTabParamList = {
   Home: undefined;
@@ -61,6 +63,8 @@ function renderMyPageIcon({ focused }: { focused: boolean }) {
 
 export function MainTabs() {
   const { t } = useTranslation();
+  const { counts } = useAttentionSnapshot();
+  const badge = (count: number) => count > 0 ? formatBadgeCount(count) : undefined;
   useTheme();
 
   return (
@@ -70,6 +74,7 @@ export function MainTabs() {
         tabBarActiveTintColor: colors.brand,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarLabelPosition: 'below-icon',
+        tabBarBadgeStyle: { backgroundColor: colors.danger, color: colors.surface, fontSize: 11, fontWeight: '700' },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
@@ -97,22 +102,22 @@ export function MainTabs() {
       <Tab.Screen
         component={themedScreen(DailyInboxScreen)}
         name="Home"
-        options={{ tabBarLabel: t('tabs.home'), tabBarIcon: renderHomeIcon }}
+        options={{ tabBarLabel: t('tabs.home'), tabBarIcon: renderHomeIcon, tabBarBadge: badge(counts.home) }}
       />
       <Tab.Screen
         component={themedScreen(DateHistoryScreen)}
         name="History"
-        options={{ tabBarLabel: t('tabs.history'), tabBarIcon: renderHistoryIcon }}
+        options={{ tabBarLabel: t('tabs.history'), tabBarIcon: renderHistoryIcon, tabBarBadge: badge(counts.archive) }}
       />
       <Tab.Screen
         component={themedScreen(CollectionsScreen)}
         name="Collections"
-        options={{ tabBarLabel: t('tabs.collections'), tabBarIcon: renderCollectionsIcon }}
+        options={{ tabBarLabel: t('tabs.collections'), tabBarIcon: renderCollectionsIcon, tabBarBadge: badge(counts.collections) }}
       />
       <Tab.Screen
         component={themedScreen(MyPageScreen)}
         name="MyPage"
-        options={{ tabBarLabel: t('tabs.myPage'), tabBarIcon: renderMyPageIcon }}
+        options={{ tabBarLabel: t('tabs.myPage'), tabBarIcon: renderMyPageIcon, tabBarBadge: badge(counts.myPage) }}
       />
     </Tab.Navigator>
   );

@@ -58,7 +58,7 @@ it('single card → all invitations modal → accept once → shared list → de
   try {
     await tab.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
     await tab.until(`document.body?.textContent.includes('Invitation notification')`);
-    await tab.evaluate(`document.querySelector('a').click()`);
+    await tab.evaluate(`document.querySelector('[data-fixture-notification]').click()`);
     await tab.until(`location.search.includes('tab=shared') && !!${row(1)}`);
     assert.equal(await tab.evaluate(`${entry}.textContent.trim()`), '받은 초대 요청3');
     assert.equal(await tab.evaluate(`document.querySelector('dialog[open]').textContent.includes('PDA')`), true);
@@ -156,4 +156,82 @@ it('session expiry still invokes the existing sign-in handling', async () => {
     await tab.until(`sessionStorage.getItem('sessionLost') === 'true'`);
     assert.equal(await tab.evaluate(`!!${row(1)}`), true);
   } finally { await tab.close(); }
+});
+
+const navCount = href => `document.querySelector('nav a[href="${href}"] [data-attention-badge]')?.textContent ?? '0'`;
+const typeCount = filter => `document.querySelector('[data-collection-filter="${filter}"] [data-attention-badge]')?.textContent ?? '0'`;
+const geometry = `(() => {
+  const group = document.querySelector('[data-collection-sections]');
+  const rects = [...group.children].map(el => el.getBoundingClientRect());
+  return {
+    gaps: rects.slice(1).map((rect, i) => rect.top - rects[i].bottom),
+    badgesFit: [...document.querySelectorAll('[data-collection-filter] [data-attention-badge],nav [data-attention-badge]')].every(el => {
+      const badge = el.getBoundingClientRect(), button = el.parentElement.getBoundingClientRect();
+      return badge.left >= button.left && badge.right <= button.right && badge.top >= button.top && badge.bottom <= button.bottom && Math.abs((badge.top + badge.bottom - button.top - button.bottom) / 2) < 1;
+    }),
+    noHorizontalOverflow: document.documentElement.scrollWidth <= innerWidth,
+    sidebarRightAligned: innerWidth < 900 || [...document.querySelectorAll('nav [data-attention-badge]')].every(el => {
+      const badge = el.getBoundingClientRect(), label = el.previousElementSibling.getBoundingClientRect(), link = el.parentElement.getBoundingClientRect();
+      return badge.left > label.right && link.right - badge.right < 20;
+    }),
+  };
+})()`;
+
+it('real sidebar and type badges deduplicate events, fit at desktop/393/320, and use single 12px section gaps', async () => {
+  const tab = await openFixture(`${origin}/invitation-test-harness?tab=shared&fixtureCount=2&fixtureFriends=3&fixtureAttention=1&fixtureNewLinks=1&fixtureUnread=99`);
+  const errors = [];
+  tab.onEvent(event => {
+    if (event.method === 'Runtime.exceptionThrown') errors.push(event.params.exceptionDetails.text);
+    if (event.method === 'Runtime.consoleAPICalled' && event.params.type === 'error') errors.push(event.params.args.map(arg => arg.value ?? arg.description).join(' '));
+  });
+  try {
+    await tab.send('Runtime.enable');
+    await tab.until(`(${navCount('/collections')}) === '4'`);
+    for (const [href, count] of [['/', '0'], ['/archive', '0'], ['/collections', '4'], ['/me/friends', '3'], ['/me', '3']]) assert.equal(await tab.evaluate(navCount(href)), count);
+    for (const filter of ['all', 'owned', 'favorites']) assert.equal(await tab.evaluate(typeCount(filter)), '2');
+    assert.equal(await tab.evaluate(typeCount('shared')), '4');
+    assert.equal(await tab.evaluate(`${entry}.textContent.trim()`), '받은 초대 요청2');
+    const badgeCalls = async () => JSON.parse(await tab.evaluate(`sessionStorage.getItem('invitationCalls')`)).filter(call =>
+      call === 'GET /api/v1/users/me/collection-invitations' || call === 'GET /api/v1/friends/requests' || call === 'GET /api/v1/collections?scope=all&limit=100');
+    assert.equal((await badgeCalls()).length, 3, 'shell, collection tabs and entry share three startup reads');
+    await tab.evaluate(`window.dispatchEvent(new Event('focus')); document.dispatchEvent(new Event('visibilitychange'))`);
+    await tab.wait(300);
+    assert.equal((await badgeCalls()).length, 3, 'tab return within 60 seconds reuses badge data');
+    for (const width of [1280, 393, 320]) {
+      await tab.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
+      await tab.evaluate(`document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(resolve)))`);
+      const result = await tab.evaluate(geometry);
+      assert.deepEqual(result.gaps, [12, 12], `section spacing ${width}`);
+      assert.equal(result.badgesFit, true, `badge center/containment ${width}`);
+      assert.equal(result.sidebarRightAligned, true, `sidebar end alignment ${width}`);
+      assert.equal(result.noHorizontalOverflow, true, `page overflow ${width}`);
+      await capture(tab, `attention-${width}`);
+    }
+    await tab.evaluate(`document.querySelector('button[aria-controls],button[aria-label^="알림"]').click()`);
+    await tab.until(`!![...document.querySelectorAll('button')].find(el => el.textContent === '모두 읽음' && !el.disabled)`);
+    await tab.evaluate(`[...document.querySelectorAll('button')].find(el => el.textContent === '모두 읽음').click()`);
+    await tab.until(`(${navCount('/collections')}) === '3'`);
+    assert.equal(await tab.evaluate(navCount('/me/friends')), '3');
+    assert.equal(await tab.evaluate(typeCount('shared')), '3', 'only unread new links decrease; invitations and pending tasks stay');
+    assert.equal(await tab.evaluate(`${entry}.textContent.trim()`), '받은 초대 요청2');
+    await tab.evaluate(`document.querySelector('[data-fixture-switch-account]').click()`);
+    await tab.until(`(${navCount('/collections')}) === '0' && (${navCount('/me/friends')}) === '0' && !${entry}`);
+    assert.deepEqual(errors, []);
+  } finally { await tab.close(); }
+});
+
+it('99+ badges remain inside buttons; zero invitations leaves exactly one 12px gap and no empty wrapper', async () => {
+  for (const count of [101, 0]) {
+    const tab = await openFixture(`${origin}/invitation-test-harness?tab=shared&fixtureCount=${count}&fixtureFriends=${count}`);
+    try {
+      await tab.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+      await tab.until(`document.querySelector('section[aria-busy="false"]') && (${navCount('/collections')}) === '${count ? '99+' : '0'}'`);
+      await tab.until(`!document.querySelector('section[aria-label="받은 초대 요청"][aria-busy="true"]')`);
+      const result = await tab.evaluate(geometry);
+      assert.equal(result.badgesFit, true);
+      assert.deepEqual(result.gaps, count ? [12, 12] : [12]);
+      assert.equal(await tab.evaluate(`!!${entry}`), count > 0);
+      await capture(tab, `attention-count-${count}`);
+    } finally { await tab.close(); }
+  }
 });

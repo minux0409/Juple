@@ -85,6 +85,8 @@
     "errorDeleteFallback": "No se pudo eliminar el elemento."
   },
   "history": {
+    "errorNetwork": "Comprueba tu conexión a Internet e inténtalo de nuevo.",
+    "errorServer": "El servidor no pudo cargar tus registros. Vuelve a intentarlo en unos momentos.",
     "title": "Archivo",
     "searchPlaceholder": "Buscar enlaces",
     "searchClear": "Borrar búsqueda",

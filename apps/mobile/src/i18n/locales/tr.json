@@ -85,6 +85,8 @@
     "errorDeleteFallback": "Öğe silinemedi."
   },
   "history": {
+    "errorNetwork": "İnternet bağlantını kontrol edip tekrar dene.",
+    "errorServer": "Sunucu geçmişini yükleyemedi. Lütfen kısa bir süre sonra tekrar dene.",
     "title": "Arşiv",
     "searchPlaceholder": "Bağlantı ara",
     "searchClear": "Aramayı temizle",

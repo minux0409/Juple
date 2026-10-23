@@ -3,6 +3,7 @@ import { useBottomTabBarHeight, type BottomTabNavigationProp } from '@react-navi
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
+import { useMobileAttention, useAttentionSnapshot } from '../attention/attentionContext';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -261,6 +262,10 @@ export function CollectionsScreen() {
   const [favoriteToggleError, setFavoriteToggleError] = useState<string | null>(null);
   // Collaboration invitations addressed to this user (never ones they sent, never friend requests).
   const [receivedInvitations, setReceivedInvitations] = useState<readonly ReceivedCollectionInvitation[]>([]);
+  const attentionStore = useMobileAttention();
+  const attentionSnapshot = useAttentionSnapshot();
+  const invitations = attentionStore ? attentionSnapshot.invitations ?? [] : receivedInvitations;
+  const filterAttention = (option: CategoryFilter) => attentionStore ? attentionSnapshot.counts.types[option] : option === 'shared' ? receivedInvitations.length : 0;
   const [isShareRequestsVisible, setIsShareRequestsVisible] = useState(false);
   // My own proposals waiting for approval across my whole shared list (one number from the server - the
   // list is paged and only the active filter is loaded, so a sum of loaded cards would be wrong).
@@ -329,8 +334,8 @@ export function CollectionsScreen() {
     [authenticatedRequest, searchOption, t],
   );
 
-  const loadReceivedInvitations = useCallback(() => {
-    getReceivedCollectionInvitations(authenticatedRequest)
+  const loadReceivedInvitations = useCallback((force = false) => {
+    getReceivedCollectionInvitations(authenticatedRequest, force)
       .then(setReceivedInvitations)
       // Best-effort: without the list, the 공유 요청 entry simply stays hidden.
       .catch(() => undefined);
@@ -391,10 +396,10 @@ export function CollectionsScreen() {
     invalidateOtherFilters(filterRef.current);
     load(filterRef.current, 'refresh');
     if (openShareRequests) {
-      getReceivedCollectionInvitations(authenticatedRequest)
-        .then(invitations => {
-          setReceivedInvitations(invitations);
-          setIsShareRequestsVisible(invitations.length > 0);
+      getReceivedCollectionInvitations(authenticatedRequest, true)
+        .then(received => {
+          setReceivedInvitations(received);
+          setIsShareRequestsVisible(received.length > 0);
         })
         .catch(() => undefined);
     }
@@ -403,10 +408,10 @@ export function CollectionsScreen() {
   // Without polling: link counts (another member or a public-link writer added/removed links) and
   // the 공유 요청 badge follow Push while the app is open, and refresh on returning to the app.
   useLiveRefresh(
-    () => {
+    event => {
       invalidateOtherFilters(filterRef.current);
       load(filterRef.current, 'refresh');
-      loadReceivedInvitations();
+      loadReceivedInvitations(event !== null);
       loadMyPendingTotal();
     },
     // 새 링크 and 승인 요청 also change a card's attention badge, and a proposal's result (approved /
@@ -737,7 +742,7 @@ export function CollectionsScreen() {
    * Category now belongs there) and marks the other filters stale, so it shows without leaving.
    */
   const handleInvitationResponded = (invitationId: number, accepted: boolean) => {
-    const remaining = receivedInvitations.filter(invitation => invitation.invitationId !== invitationId);
+    const remaining = invitations.filter(invitation => invitation.invitationId !== invitationId);
     setReceivedInvitations(remaining);
     if (remaining.length === 0) {
       setIsShareRequestsVisible(false);
@@ -840,8 +845,8 @@ export function CollectionsScreen() {
             refreshing={isRefreshing}
             onRefresh={() => {
               load(filter, 'refresh');
-              loadReceivedInvitations();
-      loadMyPendingTotal();
+              loadReceivedInvitations(true);
+              loadMyPendingTotal();
             }}
           />
         }
@@ -903,23 +908,21 @@ export function CollectionsScreen() {
                       style={[
                         styles.filterCell,
                         filter === option && styles.filterCellActive,
-                        option === 'shared' && receivedInvitations.length > 0 && styles.filterCellWithBadge,
                       ]}
                       testID={`collections-filter-${option}`}
                     >
                       <Text numberOfLines={2} style={[styles.filterLabel, filter === option && styles.filterLabelActive]}>
                         {t(FILTER_LABEL_KEYS[option])}
                       </Text>
-                      {/* 공유 요청 waiting - the same list as the 공유 요청 row. Inside the cell's
-                          top-end corner (mirrored under RTL), so it is never clipped and never sits
-                          on the selected border. */}
-                      {option === 'shared' && receivedInvitations.length > 0 ? (
+                      {/* The same account-scoped source as the entry card and bottom tab. Inline at
+                          the label's end, vertically centered; never over the selected border. */}
+                      {filterAttention(option) > 0 ? (
                         <View
-                          accessibilityLabel={t('collections.shareRequestCount', { count: receivedInvitations.length })}
+                          accessibilityLabel={String(filterAttention(option))}
                           style={styles.filterBadge}
-                          testID="collections-filter-shared-badge"
+                          testID={`collections-filter-${option}-badge`}
                         >
-                          <Text style={styles.filterBadgeText}>{formatBadgeCount(receivedInvitations.length)}</Text>
+                          <Text allowFontScaling={false} numberOfLines={1} style={styles.filterBadgeText}>{formatBadgeCount(filterAttention(option))}</Text>
                         </View>
                       ) : null}
                     </Pressable>
@@ -944,9 +947,9 @@ export function CollectionsScreen() {
 
             {/* 공유 요청: only on 공유 카테고리 and only while there is something to answer - it
                 never takes space otherwise. */}
-            {filter === 'shared' && receivedInvitations.length > 0 ? (
+            {filter === 'shared' && invitations.length > 0 ? (
               <Pressable
-                accessibilityLabel={t('collections.shareRequestCount', { count: receivedInvitations.length })}
+                accessibilityLabel={t('collections.shareRequestCount', { count: invitations.length })}
                 accessibilityRole="button"
                 onPress={() => setIsShareRequestsVisible(true)}
                 style={styles.shareRequestsRow}
@@ -956,7 +959,7 @@ export function CollectionsScreen() {
                 <Text numberOfLines={2} style={styles.shareRequestsLabel}>{t('collections.shareRequests')}</Text>
                 <View style={styles.shareRequestsBadge}>
                   <Text style={styles.shareRequestsBadgeText} testID="collections-share-requests-count">
-                    {receivedInvitations.length}
+                    {formatBadgeCount(invitations.length)}
                   </Text>
                 </View>
                 {/* Points toward the reading direction's end (mirrored under RTL). */}
@@ -1022,10 +1025,10 @@ export function CollectionsScreen() {
 
       <ReceivedInvitationsSheet
         authenticatedRequest={authenticatedRequest}
-        invitations={receivedInvitations}
+        invitations={invitations}
         onClose={() => setIsShareRequestsVisible(false)}
         onResponded={handleInvitationResponded}
-        onStale={loadReceivedInvitations}
+        onStale={() => loadReceivedInvitations(true)}
         visible={isShareRequestsVisible}
       />
 
@@ -1263,26 +1266,24 @@ const styles = themedStyles(() => ({
     borderRadius: radii.md + 2,
     borderWidth: 1,
     flex: 1,
+    flexDirection: 'row',
+    gap: spacing.xs,
     justifyContent: 'center',
     minHeight: minTouchTarget - 4,
     minWidth: 0,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
-  filterCellWithBadge: { paddingEnd: spacing.sm + 26 },
   // The shared 승인 대기 row, connected to the group above (the filter grid's own 12dp bottom margin) and 12dp above the content.
   myPendingRow: { marginBottom: spacing.md },
   filterBadge: {
     alignItems: 'center',
     backgroundColor: colors.danger,
     borderRadius: 10,
-    end: 4,
     height: 20,
     justifyContent: 'center',
     minWidth: 20,
     paddingHorizontal: 5,
-    position: 'absolute',
-    top: 4,
   },
   filterBadgeText: { color: colors.surface, fontSize: 11, fontWeight: '800' },
   filterCellActive: {
@@ -1290,6 +1291,8 @@ const styles = themedStyles(() => ({
     borderColor: collectionFilterColors.selectedBorder,
   },
   filterLabel: {
+    flex: 1,
+    flexShrink: 1,
     color: collectionFilterColors.unselectedText,
     fontSize: 13,
     fontWeight: '600',

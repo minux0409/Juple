@@ -85,6 +85,8 @@
     "errorDeleteFallback": "Không thể xóa mục này."
   },
   "history": {
+    "errorNetwork": "Kiểm tra kết nối Internet rồi thử lại.",
+    "errorServer": "Máy chủ không thể tải lịch sử của bạn. Vui lòng thử lại sau ít phút.",
     "title": "Kho lưu trữ",
     "searchPlaceholder": "Tìm liên kết",
     "searchClear": "Xóa tìm kiếm",

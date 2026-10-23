@@ -408,7 +408,8 @@ describe('design consistency: page header, form spacing, tokens', () => {
   });
 
   it('the unread count is cleared with the shell, not with whichever page header mounted the bell', () => {
-    assert.match(source('app/(app)/AppShell.tsx'), /useEffect\(\(\) => \(\) => resetUnreadCount\(\), \[\]\);/);
+    // Account replacement also clears the count while the shell remains mounted.
+    assert.match(source('app/(app)/AppShell.tsx'), /useEffect\(\(\) => \(\) => resetUnreadCount\(\), \[store\]\);/);
     assert.doesNotMatch(source('app/(app)/notifications/NotificationBell.tsx'), /resetUnreadCount/);
   });
 

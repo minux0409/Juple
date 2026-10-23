@@ -85,6 +85,8 @@
     "errorDeleteFallback": "無法刪除該項目。"
   },
   "history": {
+    "errorNetwork": "請檢查網路連線後再試一次。",
+    "errorServer": "伺服器無法載入您的紀錄，請稍後再試。",
     "title": "典藏庫",
     "searchPlaceholder": "搜尋連結",
     "searchClear": "清除搜尋",

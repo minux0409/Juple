@@ -1,4 +1,5 @@
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
+import { mobileAttentionFor } from '../../attention/mobileAttention';
 import { storedUnlockHeaders } from '../collectionUnlockGrants';
 import type { CollectionParticipant } from './collectionsApi';
 
@@ -218,7 +219,10 @@ export async function leaveCollection(request: AuthenticatedApiRequest, collecti
 
 export async function getReceivedCollectionInvitations(
   request: AuthenticatedApiRequest,
+  force = false,
 ): Promise<readonly ReceivedCollectionInvitation[]> {
+  const cached = mobileAttentionFor(request);
+  if (cached) return cached.read('invitations', force);
   const response = await request<{ items: readonly ReceivedCollectionInvitation[] }>({
     method: 'GET',
     path: '/api/v1/users/me/collection-invitations',
@@ -228,8 +232,12 @@ export async function getReceivedCollectionInvitations(
 
 export async function acceptCollectionInvitation(request: AuthenticatedApiRequest, invitationId: number): Promise<void> {
   await request<void>({ method: 'POST', path: `/api/v1/collection-invitations/${invitationId}/accept` });
+  const store = mobileAttentionFor(request);
+  store?.removeInvitation(invitationId);
+  void store?.read('collections', true).catch(() => undefined);
 }
 
 export async function declineCollectionInvitation(request: AuthenticatedApiRequest, invitationId: number): Promise<void> {
   await request<void>({ method: 'POST', path: `/api/v1/collection-invitations/${invitationId}/decline` });
+  mobileAttentionFor(request)?.removeInvitation(invitationId);
 }

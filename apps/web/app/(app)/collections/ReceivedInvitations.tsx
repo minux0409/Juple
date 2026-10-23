@@ -4,21 +4,24 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ApiHttpError } from '../../../lib/appApi';
 import { isSessionLost } from '../../../lib/authSession';
-import { receivedInvitations, respondToInvitation, type ReceivedCollectionInvitation } from '../../../lib/collectionInvitations';
+import { respondToInvitation, type ReceivedCollectionInvitation } from '../../../lib/collectionInvitations';
 import { participantName, roleLabel } from '../../../lib/collectionSharing';
 import { collectionTile } from '../../../lib/collectionsView';
+import { formatBadgeCount } from '../../../lib/notifications';
 import { Avatar } from '../Avatar';
 import { CollectionGlyph, Glyph } from '../Glyph';
 import { useSignedInApp } from '../AppRoot';
 import { LoadFailed } from '../PageStates';
 import { Modal } from '../Modal';
 import styles from './ReceivedInvitations.module.css';
+import { useAttention } from '../useAttention';
 
 /** Kept outside the collection search: searching collections must not hide pending invitations. */
 export function ReceivedInvitations({ onAccepted }: { readonly onAccepted: () => void }) {
   const { api, dictionary, onSessionLost } = useSignedInApp();
   const notificationEntry = useSearchParams().get('invitations');
-  const [items, setItems] = useState<readonly ReceivedCollectionInvitation[]>([]);
+  const { store, snapshot } = useAttention();
+  const items = snapshot.invitations ?? [];
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
@@ -26,13 +29,12 @@ export function ReceivedInvitations({ onAccepted }: { readonly onAccepted: () =>
   const [notice, setNotice] = useState<string | null>(null);
   const inFlight = useRef(false);
   const generation = useRef(0);
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
     const current = ++generation.current;
     setLoading(true);
     setFailed(false);
     try {
-      const result = await receivedInvitations(api);
-      if (current === generation.current) setItems(result);
+      await store.read('invitations', force);
     } catch (error) {
       if (current !== generation.current) return;
       if (isSessionLost(error)) onSessionLost();
@@ -40,7 +42,7 @@ export function ReceivedInvitations({ onAccepted }: { readonly onAccepted: () =>
     } finally {
       if (current === generation.current) setLoading(false);
     }
-  }, [api, onSessionLost]);
+  }, [store, onSessionLost]);
   useEffect(() => {
     let active = true;
     Promise.resolve().then(() => {
@@ -61,15 +63,16 @@ export function ReceivedInvitations({ onAccepted }: { readonly onAccepted: () =>
     setNotice(null);
     try {
       const result = await respondToInvitation(api, invitation.invitationId, accept);
-      setItems(previous => previous.filter(item => item.invitationId !== invitation.invitationId));
+      store.removeInvitation(invitation.invitationId);
       if (items.length === 1) setOpen(false);
       if (result === 'stale') setNotice(dictionary.invitationNoLongerValid);
       else if (accept) {
         setNotice(dictionary.invitationAccepted);
         onAccepted();
+        void store.read('collections', true).catch(() => undefined);
       }
       // Reload catches invitations handled by another device; a failure does not undo a successful response.
-      void load();
+      void load(true);
     } catch (error) {
       if (isSessionLost(error)) onSessionLost();
       else setNotice(error instanceof ApiHttpError && error.status === 429 ? dictionary.tooManyRequests : dictionary.collaborationActionFallback);
@@ -78,12 +81,13 @@ export function ReceivedInvitations({ onAccepted }: { readonly onAccepted: () =>
       setBusyId(null);
     }
   };
+  if (items.length === 0 && !loading && !failed && !open && !notice) return null;
   return (
     <section aria-busy={loading || busyId !== null} aria-label={dictionary.shareRequests} className={styles.root}>
       {items.length > 0 ? <button aria-haspopup="dialog" aria-expanded={open} className={styles.entry} onClick={() => { setNotice(null); setOpen(true); }} type="button">
         <Glyph className={styles.people} name="People" size={20} />
         <span className={styles.entryLabel}>{dictionary.shareRequests}</span>
-        <span className={styles.badge}>{items.length}</span>
+        <span className={styles.badge}>{formatBadgeCount(items.length)}</span>
         <Glyph className={styles.chevron} name="Chevron" size={16} />
       </button> : null}
       {!open && notice ? <p role="status">{notice}</p> : null}

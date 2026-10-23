@@ -85,6 +85,8 @@
     "errorDeleteFallback": "Impossible de supprimer l'élément."
   },
   "history": {
+    "errorNetwork": "Vérifiez votre connexion Internet et réessayez.",
+    "errorServer": "Le serveur n’a pas pu charger votre historique. Réessayez dans un instant.",
     "title": "Archives",
     "searchPlaceholder": "Rechercher des liens",
     "searchClear": "Effacer la recherche",

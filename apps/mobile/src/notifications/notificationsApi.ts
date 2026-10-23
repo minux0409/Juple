@@ -1,4 +1,5 @@
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
+import { mobileAttentionFor } from '../attention/mobileAttention';
 
 /**
  * The signed-in user's Notification Inbox (알림) - the Backend's /api/v1/notifications. Rows carry the
@@ -111,7 +112,9 @@ export async function deleteNotification(request: AuthenticatedApiRequest, notif
 }
 
 export async function markAllNotificationsRead(request: AuthenticatedApiRequest): Promise<NotificationReadResult> {
-  return readResult(await request<NotificationReadResult>({ method: 'POST', path: '/api/v1/notifications/read-all' }));
+  const result = readResult(await request<NotificationReadResult>({ method: 'POST', path: '/api/v1/notifications/read-all' }));
+  mobileAttentionFor(request)?.newLinksRead();
+  return result;
 }
 
 /** Opening a Collection: its unread 새 링크 notifications become read (its 승인 대기 count does not change). */

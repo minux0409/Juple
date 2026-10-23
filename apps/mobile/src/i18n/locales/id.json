@@ -85,6 +85,8 @@
     "errorDeleteFallback": "Tidak dapat menghapus item."
   },
   "history": {
+    "errorNetwork": "Periksa koneksi internet Anda lalu coba lagi.",
+    "errorServer": "Server tidak dapat memuat riwayat Anda. Silakan coba lagi sebentar lagi.",
     "title": "Arsip",
     "searchPlaceholder": "Cari tautan",
     "searchClear": "Hapus pencarian",

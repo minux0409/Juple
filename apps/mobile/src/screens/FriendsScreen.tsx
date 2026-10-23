@@ -3,6 +3,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useMobileAttention, useAttentionSnapshot } from '../attention/attentionContext';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { PullRefreshControl } from '../components/PullRefreshControl';
@@ -99,7 +100,10 @@ export function FriendsScreen() {
   const [loadedQuery, setLoadedQuery] = useState('');
   const loadIdRef = useRef(0);
 
-  const [requests, setRequests] = useState<readonly FriendRequest[]>([]);
+  const [localRequests, setRequests] = useState<readonly FriendRequest[]>([]);
+  const attentionStore = useMobileAttention();
+  const attention = useAttentionSnapshot();
+  const requests = attentionStore ? attention.friends ?? [] : localRequests;
   const [hasLoadedRequests, setHasLoadedRequests] = useState(false);
   const [requestsError, setRequestsError] = useState(false);
   const [requestsFailure, setRequestsFailure] = useState<unknown>(null);
@@ -161,9 +165,9 @@ export function FriendsScreen() {
   // cancelled - the friend list is reloaded so an accepted one appears there at once.
   const outgoingIdsRef = useRef<ReadonlySet<number>>(new Set());
 
-  const loadRequests = useCallback(async () => {
+  const loadRequests = useCallback(async (force = false) => {
     try {
-      const loaded = await getFriendRequests(authenticatedRequest);
+      const loaded = await getFriendRequests(authenticatedRequest, force);
       setRequests(loaded);
       setHasLoadedRequests(true);
       setRequestsError(false);
@@ -183,14 +187,14 @@ export function FriendsScreen() {
     useCallback(() => {
       loadFriends(searchRef.current);
       loadRequests();
-    }, [authenticatedRequest, loadFriends, loadRequests]),
+    }, [loadFriends, loadRequests]),
   );
 
   // A friend request arriving - or one I sent being accepted/declined - shows up at once while this
   // screen is open (and on returning to the app): an answered request leaves 보낸 요청, and an
   // accepted one appears in the friend list (loadRequests notices the answered one and reloads it).
   useLiveRefresh(event => {
-    loadRequests();
+    loadRequests(event !== null);
     if (event === null) {
       loadFriends(searchRef.current);
     }
@@ -201,7 +205,8 @@ export function FriendsScreen() {
   // the small request list every OUTGOING_POLL_INTERVAL_MS - only in the foreground, never two at
   // once, and for at most OUTGOING_POLL_MAX_MS per visit. No sent request pending: no polling.
   const hasOutgoing = requests.some(request => request.direction === 'outgoing');
-  useFocusedPolling(loadRequests, {
+  const pollRequests = useCallback(() => loadRequests(true), [loadRequests]);
+  useFocusedPolling(pollRequests, {
     enabled: hasOutgoing,
     intervalMs: OUTGOING_POLL_INTERVAL_MS,
     maxDurationMs: OUTGOING_POLL_MAX_MS,
@@ -243,7 +248,7 @@ export function FriendsScreen() {
   const refresh = async () => {
     setIsRefreshing(true);
     try {
-      await Promise.all([loadFriends(searchRef.current), loadRequests()]);
+      await Promise.all([loadFriends(searchRef.current), loadRequests(true)]);
     } finally {
       setIsRefreshing(false);
     }
@@ -262,7 +267,7 @@ export function FriendsScreen() {
       showMessage(getFriendRequestErrorMessage(caughtError, t, intent), { title: t('friends.requestDialogTitle') });
       // Whatever the server now knows (e.g. they cancelled it meanwhile) replaces the stale row at once.
       dropRequest(requestId);
-      loadRequests();
+      loadRequests(true);
     } finally {
       busyRequestIdsRef.current.delete(requestId);
       setBusyRequestIds(new Set(busyRequestIdsRef.current));
@@ -551,7 +556,7 @@ export function FriendsScreen() {
           setTab('incoming');
         }}
         onStale={() => {
-          loadRequests();
+          loadRequests(true);
           loadFriends(searchRef.current);
         }}
         requests={requests}

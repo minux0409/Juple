@@ -85,6 +85,8 @@
     "errorDeleteFallback": "Impossibile eliminare l'elemento."
   },
   "history": {
+    "errorNetwork": "Controlla la connessione Internet e riprova.",
+    "errorServer": "Il server non è riuscito a caricare la cronologia. Riprova tra poco.",
     "title": "Archivio",
     "searchPlaceholder": "Cerca link",
     "searchClear": "Cancella ricerca",

@@ -1,4 +1,5 @@
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
+import { mobileAttentionFor } from '../../attention/mobileAttention';
 import type { Collection } from '../../collections/api/collectionsApi';
 
 /**
@@ -68,7 +69,9 @@ export async function getFriends(
   return response.body ?? { items: [], nextCursor: null };
 }
 
-export async function getFriendRequests(request: AuthenticatedApiRequest): Promise<readonly FriendRequest[]> {
+export async function getFriendRequests(request: AuthenticatedApiRequest, force = false): Promise<readonly FriendRequest[]> {
+  const cached = mobileAttentionFor(request);
+  if (cached) return cached.read('friends', force);
   const response = await request<{ items: readonly FriendRequest[] }>({ method: 'GET', path: '/api/v1/friends/requests' });
   return response.body?.items ?? [];
 }
@@ -83,6 +86,10 @@ export async function sendFriendRequest(request: AuthenticatedApiRequest, jupleI
   if (!response.body) {
     throw new Error('Juple API returned no friend request.');
   }
+  const store = mobileAttentionFor(request);
+  const known = store?.getSnapshot().friends;
+  if (store && known) store.replace('friends', [response.body, ...known.filter(row => row.requestId !== response.body!.requestId)]);
+  else if (store) void store.read('friends', true).catch(() => undefined);
   return response.body;
 }
 
@@ -91,15 +98,18 @@ export async function acceptFriendRequest(request: AuthenticatedApiRequest, requ
   if (!response.body) {
     throw new Error('Juple API returned no friend.');
   }
+  mobileAttentionFor(request)?.removeFriendRequest(requestId);
   return response.body;
 }
 
 export async function declineFriendRequest(request: AuthenticatedApiRequest, requestId: number): Promise<void> {
   await request<void>({ method: 'POST', path: `/api/v1/friends/requests/${requestId}/decline` });
+  mobileAttentionFor(request)?.removeFriendRequest(requestId);
 }
 
 export async function cancelFriendRequest(request: AuthenticatedApiRequest, requestId: number): Promise<void> {
   await request<void>({ method: 'DELETE', path: `/api/v1/friends/requests/${requestId}` });
+  mobileAttentionFor(request)?.removeFriendRequest(requestId);
 }
 
 /** Removes the friendship and both private notes; shared Collections are not affected. */

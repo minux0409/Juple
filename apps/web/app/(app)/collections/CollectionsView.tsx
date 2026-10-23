@@ -48,6 +48,9 @@ import { TOUR_TARGETS, tourTarget } from '../../../lib/tour';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { PageHeader } from '../PageHeader';
 import styles from '../app.module.css';
+import sectionStyles from './CollectionSections.module.css';
+import { AttentionBadge } from '../AttentionBadge';
+import { useAttention } from '../useAttention';
 
 type ListState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | ({ readonly kind: 'loaded' } & PagedState<CollectionSummary>);
 
@@ -67,6 +70,8 @@ function emptyLabel(dictionary: AppDictionary, filter: CollectionFilter): string
  */
 export function CollectionsView() {
   const { api, dictionary, onSessionLost } = useSignedInApp();
+  const { store: attentionStore, snapshot: attention } = useAttention();
+  useEffect(() => { void attentionStore.refresh(); }, [attentionStore]);
   // The tab is the address's (?tab=): Back from a Collection returns to the tab that was open; no / an unknown value = 즐겨찾기.
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -186,6 +191,7 @@ export function CollectionsView() {
       updated => {
         setTogglingId(null);
         apply({ ...collection, ...updated });
+        attentionStore.collectionChanged({ ...collection, ...updated });
       },
       error => {
         setTogglingId(null);
@@ -225,19 +231,21 @@ export function CollectionsView() {
   return (
     <section aria-busy={state.kind === 'loading' || searching} className={styles.page}>
       <PageHeader icon="Folder" title={dictionary.navCollections} />
-
+      <div className={sectionStyles.sections} data-collection-sections>
       {/* One toolbar: the mobile filters, then how they are shown and 새 컬렉션 (always in reach). It wraps on a narrow window. */}
       <div className={styles.toolbar}>
         <div aria-label={dictionary.collectionsFilterLabel} className={styles.filterTabs} role="group">
           {COLLECTION_FILTERS.map(option => (
             <button
               aria-pressed={filter === option}
+              data-collection-filter={option}
               className={filter === option ? styles.filterTabSelected : styles.filterTab}
               key={option}
               onClick={() => selectFilter(option)}
               type="button"
             >
               {filterLabel(dictionary, option)}
+              <AttentionBadge count={attention.counts.types[option]} />
             </button>
           ))}
         </div>
@@ -267,6 +275,7 @@ export function CollectionsView() {
           renderCollectionTile={(collection, size) => <CollectionTileView collection={collection} size={size} />}
           text={text}
         />
+      </div>
       </div>
       <p aria-live="polite" className={styles.visuallyHidden} role="status">
         {searching ? dictionary.processing : ''}

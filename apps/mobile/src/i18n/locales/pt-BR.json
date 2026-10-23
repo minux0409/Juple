@@ -85,6 +85,8 @@
     "errorDeleteFallback": "Não foi possível excluir o item."
   },
   "history": {
+    "errorNetwork": "Verifique sua conexão com a Internet e tente novamente.",
+    "errorServer": "O servidor não conseguiu carregar seu histórico. Tente novamente em instantes.",
     "title": "Arquivo",
     "searchPlaceholder": "Pesquisar links",
     "searchClear": "Limpar pesquisa",

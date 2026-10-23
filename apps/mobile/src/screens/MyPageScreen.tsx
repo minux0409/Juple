@@ -2,6 +2,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useMobileAttention, useAttentionSnapshot } from '../attention/attentionContext';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { ThemedSwitch } from '../components/ThemedSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -55,7 +56,10 @@ export function MyPageScreen() {
   // The public Juple ID (never the internal id, never an email), the optional nickname people see
   // and the profile photo - refreshed whenever the page regains focus (e.g. back from 프로필 편집).
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [incomingFriendRequestCount, setIncomingFriendRequestCount] = useState(0);
+  const [localIncomingFriendRequestCount, setIncomingFriendRequestCount] = useState(0);
+  const attentionStore = useMobileAttention();
+  const attention = useAttentionSnapshot();
+  const incomingFriendRequestCount = attentionStore ? attention.counts.friends : localIncomingFriendRequestCount;
 
   useFocusEffect(
     useCallback(() => {

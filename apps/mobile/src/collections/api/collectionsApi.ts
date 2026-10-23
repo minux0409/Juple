@@ -1,5 +1,6 @@
 import { normalizeCollectionSearch } from '../collectionSearch';
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
+import { mobileAttentionFor } from '../../attention/mobileAttention';
 import type { RepresentativeImage } from '../../images/api/imagesApi';
 import type { ReactionCount } from '../../reactions/reactionCatalog';
 import { COLLECTION_UNLOCK_HEADER_NAME, getCollectionUnlockToken, storedUnlockHeaders } from '../collectionUnlockGrants';
@@ -300,7 +301,7 @@ export async function setCollectionFavorite(
   if (!response.body) {
     throw new Error('Juple API returned no Collection body.');
   }
-
+  mobileAttentionFor(request)?.collectionChanged(response.body);
   return response.body;
 }
 
@@ -838,6 +839,7 @@ export async function approveCollectionSubmission(request: AuthenticatedApiReque
     path: `/api/v1/collections/${collectionId}/submissions/${submissionId}/approve`,
     headers: storedUnlockHeaders(collectionId),
   });
+  void mobileAttentionFor(request)?.read('collections', true).catch(() => undefined);
 }
 
 /** Rejects (deletes) the proposal - nothing is added. Idempotent. */
@@ -847,6 +849,7 @@ export async function rejectCollectionSubmission(request: AuthenticatedApiReques
     path: `/api/v1/collections/${collectionId}/submissions/${submissionId}`,
     headers: storedUnlockHeaders(collectionId),
   });
+  void mobileAttentionFor(request)?.read('collections', true).catch(() => undefined);
 }
 
 /** DELETEs the Item from the Collection; resolves on 204 (idempotent - not-a-member succeeds too). Never deletes the Item itself. */
@@ -1186,6 +1189,7 @@ export async function approveCollectionJoinRequest(request: AuthenticatedApiRequ
     path: `/api/v1/collections/${collectionId}/join-requests/${requestId}/approve`,
     headers: storedUnlockHeaders(collectionId),
   });
+  void mobileAttentionFor(request)?.read('collections', true).catch(() => undefined);
 }
 
 /** Owner only: declines it - no membership. Idempotent. */
@@ -1195,6 +1199,7 @@ export async function rejectCollectionJoinRequest(request: AuthenticatedApiReque
     path: `/api/v1/collections/${collectionId}/join-requests/${requestId}/reject`,
     headers: storedUnlockHeaders(collectionId),
   });
+  void mobileAttentionFor(request)?.read('collections', true).catch(() => undefined);
 }
 
 /**

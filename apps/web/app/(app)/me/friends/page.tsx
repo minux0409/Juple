@@ -30,6 +30,7 @@ import { TOUR_TARGETS, tourTarget } from '../../../../lib/tour';
 import { SearchField } from '../../SearchField';
 import { SettingsPage } from '../SettingsPage';
 import styles from '../../app.module.css';
+import { useAttention } from '../../useAttention';
 
 type Tab = 'friends' | 'incoming' | 'outgoing';
 type FriendsState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | ({ readonly kind: 'loaded' } & PagedState<Friend>);
@@ -57,11 +58,17 @@ function friendsPath(query: string, cursor: string | null): string {
  */
 export default function FriendsPage() {
   const { api, dictionary, onSessionLost } = useSignedInApp();
+  const { store: attentionStore, snapshot: attention } = useAttention();
   const [tab, setTab] = useState<Tab>('friends');
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [friends, setFriends] = useState<FriendsState>({ kind: 'loading' });
-  const [requests, setRequests] = useState<readonly FriendRequest[] | null>(null);
+  const requests = attention.friends;
+  const setRequests = (update: (previous: readonly FriendRequest[] | null) => readonly FriendRequest[]) => {
+    const known = attentionStore.getSnapshot().friends;
+    if (known) attentionStore.replace('friends', update(known));
+    else void attentionStore.read('friends', true).catch(() => undefined);
+  };
   const [requestsFailed, setRequestsFailed] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
   const [message, setMessage] = useState<{ readonly text: string; readonly error: boolean } | null>(null);
@@ -104,10 +111,10 @@ export default function FriendsPage() {
 
   useEffect(() => {
     let ignore = false;
-    api<{ readonly items: readonly FriendRequest[] }>({ path: '/api/v1/friends/requests' }).then(
-      result => {
+    attentionStore.read('friends', reloadToken > 0).then(
+      () => {
         if (!ignore) {
-          setRequests(result.items);
+          setRequestsFailed(false);
         }
       },
       caught => {
@@ -120,7 +127,7 @@ export default function FriendsPage() {
       ignore = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, reloadToken]);
+  }, [api, attentionStore, reloadToken]);
 
   const loadMore = () => {
     if (friends.kind !== 'loaded' || !canLoadMore(friends)) {

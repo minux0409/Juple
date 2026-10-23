@@ -17,6 +17,8 @@ import { resolveCollectionColorTile } from '../../collections/collectionColors';
 import i18n from '../../i18n';
 import { CategoryIconTile } from '../../collections/CategoryIconTile';
 import { CollectionsScreen } from '../CollectionsScreen';
+import { AttentionContext } from '../../attention/attentionContext';
+import { createMobileAttentionStore, type MobileAttentionStore } from '../../attention/mobileAttention';
 import { ThemedTextInput } from '../../components/ThemedTextInput';
 import {
   createCollection,
@@ -134,10 +136,10 @@ async function selectFilter(renderer: ReactTestRenderer.ReactTestRenderer, filte
   });
 }
 
-async function renderScreen() {
+async function renderScreen(attention?: MobileAttentionStore) {
   let renderer!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
-    renderer = ReactTestRenderer.create(<CollectionsScreen />);
+    renderer = ReactTestRenderer.create(attention ? <AttentionContext.Provider value={attention}><CollectionsScreen /></AttentionContext.Provider> : <CollectionsScreen />);
   });
   return renderer;
 }
@@ -774,6 +776,30 @@ describe('CollectionsScreen 공유 요청 (received collaboration invitations)',
     expect(badge(renderer)[0].findByType(Text).props.children).toBe('99+');
   });
 
+  it('all four type badges use the shared account source and remain in the centered row inside the border on Android/iOS', async () => {
+    const originalOS = Platform.OS;
+    try {
+      for (const os of ['android', 'ios']) {
+        Object.defineProperty(Platform, 'OS', { value: os, configurable: true });
+        const store = createMobileAttentionStore(jest.fn());
+        store.replace('invitations', [invitation(3), invitation(4)]);
+        store.replace('collections', [makeCollection({ id: 1, isFavorite: true, accessRole: 'owner', hasCollaborators: true, attentionCount: 3, unreadNewLinkCount: 1 })]);
+        const renderer = await renderScreen(store);
+        for (const [filter, count] of [['favorites', '3'], ['all', '3'], ['owned', '3'], ['shared', '5']]) {
+          const button = renderer.root.findByProps({ testID: `collections-filter-${filter}` });
+          const badge = button.findAll(node => node.props.testID === `collections-filter-${filter}-badge` && typeof node.type === 'string')[0];
+          expect(badge.findByType(Text).props.children).toBe(count);
+          expect(StyleSheet.flatten(button.props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'center' });
+          expect(StyleSheet.flatten(badge.props.style).position).not.toBe('absolute');
+          expect(StyleSheet.flatten(button.findAllByType(Text)[0].props.style).flex).toBe(1);
+        }
+        await act(async () => { store.reset(); });
+        expect(renderer.root.findAll(node => /collections-filter-.*-badge/.test(node.props.testID ?? ''))).toHaveLength(0);
+        await act(async () => renderer.unmount());
+      }
+    } finally { Object.defineProperty(Platform, 'OS', { value: originalOS, configurable: true }); }
+  });
+
   it('a Push while the screen is open refreshes link counts and the request badge - without opening a Collection', async () => {
     const renderer = await renderScreen();
     const collectionsCalls = jest.mocked(getCollections).mock.calls.length;
@@ -818,7 +844,7 @@ describe('CollectionsScreen 공유 요청 (received collaboration invitations)',
     await selectFilter(renderer, 'shared');
 
     expect(shareRequestsRow(renderer)).toHaveLength(1);
-    expect(renderer.root.findByProps({ testID: 'collections-share-requests-count' }).props.children).toBe(2);
+    expect(String(renderer.root.findByProps({ testID: 'collections-share-requests-count' }).props.children)).toBe('2');
     expect(shareRequestsRow(renderer)[0].props.accessibilityLabel).toBe(i18n.t('collections.shareRequestCount', { count: 2 }));
   });
 
@@ -894,7 +920,7 @@ describe('CollectionsScreen 공유 요청 (received collaboration invitations)',
 
     expect(acceptCollectionInvitation).toHaveBeenCalledWith(expect.anything(), 3);
     expect(renderer.root.findAll(node => node.props.testID === 'share-request-3')).toHaveLength(0);
-    expect(renderer.root.findByProps({ testID: 'collections-share-requests-count' }).props.children).toBe(1);
+    expect(String(renderer.root.findByProps({ testID: 'collections-share-requests-count' }).props.children)).toBe('1');
     expect(jest.mocked(getCollections).mock.calls.filter(call => call[1]?.scope === 'shared').length).toBe(sharedCallsBefore + 1);
     expect(renderer.root.findByType(FlatList).props.data).toEqual([sharedCollection, joined]);
     expect(sheet(renderer).props.visible).toBe(true); // one more to answer
