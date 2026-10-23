@@ -12,7 +12,8 @@ import { useSignedInApp } from './AppRoot';
 import { BrandIcon } from './BrandIcon';
 import { SidebarAppCard } from './SidebarAppCard';
 import { Glyph } from './Glyph';
-import { getUnreadCount, nextUnreadPollDelayMs, refreshUnreadCount, resetUnreadCount, subscribeUnreadCount } from '../../lib/notificationState';
+import { getUnreadCount, lastUnreadRetryAfterSeconds, nextUnreadPollDelayMs, refreshUnreadCount, resetUnreadCount, subscribeUnreadCount } from '../../lib/notificationState';
+import { clearReactionStore } from '../../lib/reactionStore';
 import { useNotificationActions } from './notifications/useNotificationActions';
 import { useAttention } from './useAttention';
 import { AttentionBadge } from './AttentionBadge';
@@ -36,14 +37,22 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let failures = 0;
     let stopped = false;
-    const schedule = () => { if (!stopped) timer = setTimeout(tick, nextUnreadPollDelayMs(failures)); };
+    let ticks = 0;
+    // Never sooner than the API's own Retry-After (a 429), never sooner than the back-off.
+    const schedule = () => { if (!stopped) timer = setTimeout(tick, Math.max(nextUnreadPollDelayMs(failures), failures > 0 ? lastUnreadRetryAfterSeconds() * 1000 : 0)); };
     const tick = async () => {
-      if (document.visibilityState === 'visible') failures = (await refreshUnreadCount(fetchUnread)) ? 0 : failures + 1;
+      if (document.visibilityState === 'visible') {
+        failures = (await refreshUnreadCount(fetchUnread)) ? 0 : failures + 1;
+        // Every fifth successful tick (about 5 minutes) the badge sources are re-read as a whole too: a request withdrawn or answered on
+        // another device changes no unread number, and would otherwise stay on the menu until the next focus.
+        ticks += 1;
+        if (failures === 0 && ticks % 5 === 0) void store.refresh(undefined, true);
+      }
       schedule();
     };
     schedule();
     return () => { stopped = true; if (timer !== undefined) clearTimeout(timer); };
-  }, [fetchUnread]);
+  }, [fetchUnread, store]);
   useEffect(() => {
     const refresh = () => { if (document.visibilityState !== 'hidden') void store.refresh(); };
     let lastUnread = getUnreadCount();
@@ -71,7 +80,7 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
     forgetItemOpenGrantsOutside(pathname);
   }, [pathname]);
   // Signed out (the shell goes away): nobody's unread count stays. The bell itself lives in each page's header.
-  useEffect(() => () => resetUnreadCount(), [store]);
+  useEffect(() => () => { resetUnreadCount(); clearReactionStore(); }, [store]);
   const active = activeMainNav(pathname);
 
   return (

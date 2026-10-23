@@ -12,6 +12,7 @@ import { Glyph } from '../Glyph';
 import { LinkImage } from '../LinkImage';
 import { LoadFailed } from '../PageStates';
 import { Modal } from '../Modal';
+import { OpenOriginalLink } from './OpenOriginalLink';
 import { RequestRow } from './RequestRow';
 import styles from './ReceivedRequests.module.css';
 
@@ -101,25 +102,35 @@ export function SentRequestsEntry() {
             <ul className={styles.list}>
               {rows.map(row => {
                 const title = row.title?.trim() || siteOf(row.url) || row.url;
+                const cancelLabel = formatMessage(dictionary.submissionsCancelRequestA11y, { title });
                 return (
-                  <li className={styles.card} data-my-submission-id={row.submissionId} key={row.submissionId}>
-                    <div className={styles.top}>
-                      <span aria-hidden className={styles.thumb}>
-                        <LinkImage fallback={<Glyph name="Link" size={22} />} src={isSafeHttpUrl(row.previewImageUrl) ? row.previewImageUrl : null} />
-                      </span>
-                      <div className={styles.text}>
-                        <p className={styles.title} dir="auto">{title}</p>
-                        <p className={styles.url}>{row.url}</p>
-                        <div className={styles.meta}>
-                          <span>{row.collectionName ?? dictionary.submissionsSharedCollectionShort}</span>
-                          <time dateTime={row.submittedAtUtc}>{formatLinkTimestamp(row.submittedAtUtc, locale, true)}</time>
-                          <span>{dictionary.submissionsMyStatus}</span>
-                        </div>
+                  <li className={styles.rowCard} data-my-submission-id={row.submissionId} key={row.submissionId}>
+                    <span aria-hidden className={styles.thumb}>
+                      <LinkImage fallback={<Glyph name="Link" size={22} />} src={isSafeHttpUrl(row.previewImageUrl) ? row.previewImageUrl : null} />
+                    </span>
+                    <div className={styles.text}>
+                      <p className={styles.title} dir="auto">{title}</p>
+                      <p className={styles.url}>{row.url}</p>
+                      <div className={styles.meta}>
+                        <span>{row.collectionName ?? dictionary.submissionsSharedCollectionShort}</span>
+                        <time dateTime={row.submittedAtUtc}>{formatLinkTimestamp(row.submittedAtUtc, locale, true)}</time>
+                        <span>{dictionary.submissionsMyStatus}</span>
                       </div>
                     </div>
-                    <div className={styles.actions}>
-                      <button aria-busy={busyId === row.submissionId} aria-label={formatMessage(dictionary.submissionsCancelRequestA11y, { title })} className={styles.reject} disabled={busyId !== null} onClick={() => setConfirm(row)} type="button">
-                        {busyId === row.submissionId ? dictionary.processing : dictionary.submissionsCancelRequest}
+                    {/* Right end of the row: 바로가기 (the saved page, new tab) and 요청 취소 - each only this request's, never a full-width button below. */}
+                    <div className={styles.rowActions}>
+                      <OpenOriginalLink title={title} url={row.url} />
+                      <button
+                        aria-busy={busyId === row.submissionId}
+                        aria-label={cancelLabel}
+                        className={styles.iconDanger}
+                        data-cancel-request={row.submissionId}
+                        disabled={busyId !== null}
+                        onClick={() => setConfirm(row)}
+                        title={dictionary.submissionsCancelRequest}
+                        type="button"
+                      >
+                        <Glyph name="Trash" size={18} />
                       </button>
                     </div>
                   </li>

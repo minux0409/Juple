@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { AppDictionary } from '../../lib/appI18n';
 import { formatMessage } from '../../lib/appI18n';
 import { isSessionLost } from '../../lib/authSession';
@@ -33,6 +33,7 @@ import {
   type ReplyTarget,
 } from '../../lib/itemCollaboration';
 import { sharedItemPath } from '../../lib/itemDetails';
+import { publishReactions, reactionKey, readReactions, subscribeReactions } from '../../lib/reactionStore';
 import { useSignedInApp } from './AppRoot';
 import { useSafety } from './SafetyProvider';
 import { Avatar } from './Avatar';
@@ -228,9 +229,19 @@ function CollaborationSection({
  * back (DELETE), any other sets or changes it (PUT) - the counts move immediately, the server's answer settles them, a failure puts the
  * previous state back. One request at a time: a tap while the previous one is on its way is ignored, so counts are never applied twice.
  */
-function useItemReactions(collectionId: number, itemId: number, row: CollaborationRow, onFailure: () => void) {
+export function useItemReactions(collectionId: number, itemId: number, row: CollaborationRow, onFailure: () => void) {
   const { api, onSessionLost } = useSignedInApp();
-  const [state, setState] = useState<ItemReactions>(() => toItemReactions(row.reactions, row.myReaction));
+  // One shared value per link IN this Collection (lib/reactionStore.ts): the link card and the detail sheet over it always agree, and a
+  // freshly read row (list reload, link opened) seeds the newer server truth.
+  const key = reactionKey(collectionId, itemId);
+  const seed = toItemReactions(row.reactions, row.myReaction);
+  const seedKey = JSON.stringify(seed);
+  useEffect(() => {
+    publishReactions(key, JSON.parse(seedKey) as ItemReactions);
+  }, [key, seedKey]);
+  const shared = useSyncExternalStore(subscribeReactions, () => readReactions(key), () => undefined);
+  const state = shared ?? seed;
+  const setState = (next: ItemReactions) => publishReactions(key, next);
   const inFlight = useRef(false);
   const failureRef = useRef(onFailure);
   useEffect(() => {
@@ -270,7 +281,7 @@ function useItemReactions(collectionId: number, itemId: number, row: Collaborati
 }
 
 /** This browser's recently used reactions (mobile useRecentReactions, in this browser's storage): failures are silent - no 최근 사용 then. */
-function useRecentReactions() {
+export function useRecentReactions() {
   // Read once when the section first appears (it only ever renders in the browser, after the Collection was read).
   const [recent, setRecent] = useState<readonly string[]>(() => {
     try {
@@ -299,7 +310,7 @@ function useRecentReactions() {
  * Mobile ReactionChips (alwaysShowAdd, the detail screen): "[❤️ 3] [👍 1] [😂 2] [+1] [☺+]" - the most used kinds first (ties in
  * catalog order), at most three, "+N" for the kinds beyond, then the add button. The caller's own is the chip with a ring.
  */
-function ReactionChips({
+export function ReactionChips({
   reactions,
   dictionary,
   onToggle,
@@ -346,7 +357,7 @@ function ReactionChips({
 }
 
 /** Mobile ReactionPickerDialog: "리액션 추가" - this browser's 최근 사용, then the whole catalog, six per row. Choosing one closes it. */
-function ReactionPicker({
+export function ReactionPicker({
   open,
   myReaction,
   recent,

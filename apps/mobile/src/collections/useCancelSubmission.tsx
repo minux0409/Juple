@@ -1,3 +1,4 @@
+import { isHttpUrl } from '../share/resolveIncomingShare';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Linking, Pressable, StyleSheet } from 'react-native';
@@ -64,6 +65,11 @@ export function useCancelSubmission({ cancel, onGone }: UseCancelSubmissionOptio
   // No canOpenURL pre-check (Android package visibility); a real failure surfaces through the catch. The URL is the
   // requester's own submitted link, so nothing else is revealed by opening it.
   const openLink = useCallback(async (row: CancellableRow) => {
+    // Only a plain http(s) address is ever opened; anything else is refused with the usual "could not open" message.
+    if (!isHttpUrl(row.url)) {
+      setMessage(t('item.urlOpenFailed'));
+      return;
+    }
     try {
       await Linking.openURL(row.url);
     } catch {

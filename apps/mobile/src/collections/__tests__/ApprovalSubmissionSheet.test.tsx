@@ -462,6 +462,25 @@ describe('ApprovalSubmissionSheet - compact card, open action and header close',
     openURL.mockRestore();
   });
 
+  it('an address that is not a plain http(s) link is never opened: the common "could not open" dialog, nothing else changes', async () => {
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined as never);
+    jest.mocked(getMyPendingSubmissionsAcrossCollections).mockResolvedValue({
+      items: [{ ...mine(13, 'A'), url: 'javascript:alert(1)' }],
+      nextCursor: null,
+      totalCount: 1,
+    });
+    const { renderer } = await renderSheet({ variant: 'mine', collectionId: null });
+
+    await press2(renderer, 'submission-open-13');
+
+    expect(openURL).not.toHaveBeenCalled();
+    const notice = renderer.root.findAllByType(ConfirmDialog).find(dialog => dialog.props.title === i18n.t('common.notice'))!;
+    expect(notice.props.message).toBe(i18n.t('item.urlOpenFailed'));
+    expect(cancelMySubmission).not.toHaveBeenCalled();
+    expect(exists(renderer, 'my-submission-13')).toBe(true);
+    openURL.mockRestore();
+  });
+
   it('the list closes an open swipe row when it starts scrolling, and the shared row only claims horizontal-dominant drags', async () => {
     jest.mocked(getMyPendingSubmissionsAcrossCollections).mockResolvedValue({ items: [mine(13, 'A')], nextCursor: null, totalCount: 1 });
     const { renderer } = await renderSheet({ variant: 'mine', collectionId: null });

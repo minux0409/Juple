@@ -65,11 +65,20 @@ export async function refreshUnreadCount(fetchCount: () => Promise<number>, nowM
       unreadCount = Math.max(0, Math.floor(count));
       emit();
     }
+    lastRetryAfterSeconds = 0;
     return true;
-  } catch {
-    // Best effort: the bell keeps what it showed; the next refresh corrects it.
+  } catch (error) {
+    // Best effort: the bell keeps what it showed; the next refresh corrects it. A 429's Retry-After is kept for the poll's next wait.
+    const retry = (error as { retryAfterSeconds?: unknown } | null)?.retryAfterSeconds;
+    lastRetryAfterSeconds = typeof retry === 'number' && Number.isFinite(retry) && retry > 0 ? retry : 0;
     return false;
   }
+}
+
+let lastRetryAfterSeconds = 0;
+/** The Retry-After (seconds) the API sent with the last failed count read, or 0 - the poll never asks again sooner than this. */
+export function lastUnreadRetryAfterSeconds(): number {
+  return lastRetryAfterSeconds;
 }
 
 /** While the app is open and visible, the bell total is re-read this often - the one signal that also moves the 친구 / 컬렉션 badges. */

@@ -14,6 +14,7 @@ import { Glyph } from '../Glyph';
 import { LinkImage } from '../LinkImage';
 import { LoadFailed } from '../PageStates';
 import { Modal } from '../Modal';
+import { OpenOriginalLink } from './OpenOriginalLink';
 import { useSignedInApp } from '../AppRoot';
 import { useAttention } from '../useAttention';
 import styles from './ReceivedRequests.module.css';
@@ -163,6 +164,7 @@ function RequestsBody({ collectionId, onBusyChange, onChanged }: { readonly coll
                           <time dateTime={link.submittedAtUtc}>{formatLinkTimestamp(link.submittedAtUtc, locale, true)}</time>
                         </div>
                       </div>
+                      <OpenOriginalLink title={title} url={link.url} />
                     </div>
                     <div className={styles.actions}>
                       <button aria-label={formatMessage(dictionary.submissionsRejectA11y, { title })} className={styles.reject} disabled={busy !== null} onClick={() => setConfirmReject({ kind: 'link', id: link.submissionId })} type="button">

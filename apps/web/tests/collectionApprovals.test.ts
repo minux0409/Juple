@@ -70,3 +70,14 @@ describe('Web badge refresh without a push channel', () => {
     assert.equal(nextUnreadPollDelayMs(-3), UNREAD_POLL_INTERVAL_MS);
   });
 });
+
+describe('friend request photo (the API sends it with every request)', () => {
+  it('the Web type carries the requester photo that the friend-request card binds', async () => {
+    const { readFileSync } = await import('node:fs');
+    const types = readFileSync(new URL('../lib/settings.ts', import.meta.url), 'utf8');
+    const page = readFileSync(new URL('../app/(app)/me/friends/page.tsx', import.meta.url), 'utf8');
+    assert.match(types, /interface FriendRequest \{[\s\S]*?profileImageUrl\?: string \| null;/);
+    assert.match(page, /isSafeHttpUrl\(request\.profileImageUrl\)/);
+    assert.doesNotMatch(page, /displayName: request\.displayName, profileImageUrl: null/);
+  });
+});

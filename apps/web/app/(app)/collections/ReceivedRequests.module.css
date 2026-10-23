@@ -21,3 +21,15 @@
 .pick:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
 .pickName { flex: 1; min-width: 0; font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
 .tile { display: grid; flex: 0 0 44px; place-items: center; width: 44px; height: 44px; border-radius: 14px; }
+/* One request = one row: [thumbnail] [title / collection / date / status] [바로가기] [취소]. 44px targets. */
+.rowCard { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; column-gap: 12px; min-width: 0; padding: 10px 8px 10px 12px; border-radius: 20px; background: var(--app-background); }
+.rowActions { display: flex; align-items: center; gap: 0; }
+.iconButton, .iconDanger { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; color: var(--app-text-secondary); cursor: pointer; text-decoration: none; }
+.iconButton:hover { background: var(--app-surface-muted); color: var(--brand); }
+.iconDanger { color: var(--danger); }
+.iconDanger:hover:not(:disabled) { background: var(--app-surface-muted); }
+.iconDanger:disabled { cursor: wait; opacity: .65; }
+.iconButton:focus-visible, .iconDanger:focus-visible { outline: 2px solid var(--brand); outline-offset: 0; }
+.cardTop { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.cardTop .text { flex: 1; }
+@media (max-width: 360px) { .rowCard { grid-template-columns: 44px minmax(0, 1fr) auto; column-gap: 8px; padding-inline-start: 8px; } .rowCard .thumb { flex-basis: 44px; width: 44px; height: 44px; } }

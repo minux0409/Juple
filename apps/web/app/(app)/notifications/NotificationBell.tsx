@@ -22,6 +22,20 @@ export function useUnreadCount(): number | null {
 }
 
 /**
+ * Re-runs `refresh` when the bell's total RISES while `active` (the panel / the 알림 page is open): a new notification then appears in the
+ * list that is already on screen, not only in the number.
+ */
+export function useRefreshOnUnreadRise(active: boolean, refresh: () => void): void {
+  const unread = useUnreadCount();
+  const last = useRef<number | null>(unread);
+  useEffect(() => {
+    const previous = last.current;
+    last.current = unread;
+    if (active && previous !== null && unread !== null && unread > previous) refresh();
+  }, [active, refresh, unread]);
+}
+
+/**
  * The global 알림 bell (mobile NotificationBellButton) at the shell's top end, on every page: the unread total as a number (1-99, then
  * "99+"; the button's name says the full count). It opens a small panel with the newest notifications, 모두 읽음 and 모두 보기 (the
  * whole history, /notifications). The count is re-read when the app starts, when the window comes back and after a page change (at
@@ -38,6 +52,8 @@ export function NotificationBell() {
   const [panel, setPanel] = useState<PanelState>({ kind: 'loading' });
   const [notice, setNotice] = useState<string | null>(null);
   const [loadToken, setLoadToken] = useState(0);
+  const reloadPanel = useCallback(() => setLoadToken(token => token + 1), []);
+  useRefreshOnUnreadRise(isOpen, reloadPanel);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);

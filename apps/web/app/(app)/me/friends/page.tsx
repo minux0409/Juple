@@ -264,7 +264,7 @@ export default function FriendsPage() {
               {(tab === 'incoming' ? incoming : outgoing).map(request => (
                 <li className={styles.friendCard} key={request.requestId}>
                   <div className={styles.friendCardMain}>
-                  <Avatar person={{ displayName: request.displayName, profileImageUrl: null }} size={48} />
+                  <Avatar person={{ displayName: request.displayName, profileImageUrl: isSafeHttpUrl(request.profileImageUrl) ? request.profileImageUrl : null }} size={48} />
                   <span className={styles.friendIdentity}>
                     <span className={styles.friendName} dir="auto">
                       {personName(request)}

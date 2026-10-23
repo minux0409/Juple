@@ -255,7 +255,7 @@ it('friend notification opens received requests directly, including the already 
 
 const requestRow = id => `document.querySelector('[data-request-row="${id}"]')`;
 
-it('받은 승인 요청: a shared-tab row with the red count at its end opens the real list; approve / reject update the row and the menu number', async () => {
+it('받은 승인 요청: the shared-tab row lists MY Collections with waiting requests (name, count) and choosing one goes to that Collection page with its requests (the mobile flow)', async () => {
   const tab = await openFixture(`${origin}/invitation-test-harness?tab=shared&fixtureCount=0&fixtureAttention=2`);
   try {
     await tab.until(`!!${requestRow('received-approvals')}`);
@@ -273,21 +273,37 @@ it('받은 승인 요청: a shared-tab row with the red count at its end opens t
       const fit = await tab.evaluate(`(() => {
         const row = ${requestRow('received-approvals')}, badge = row.querySelector('[data-attention-badge]'), chevron = row.querySelector('svg:last-of-type');
         const r = row.getBoundingClientRect(), b = badge.getBoundingClientRect(), c = chevron.getBoundingClientRect();
-        return { inside: b.left >= r.left && b.right <= r.right && b.top >= r.top && b.bottom <= r.bottom, apart: Math.abs(b.right - c.left) >= 0 && (b.right <= c.left + 0.5 || c.right <= b.left + 0.5), noOverflow: document.documentElement.scrollWidth <= innerWidth };
+        return { inside: b.left >= r.left && b.right <= r.right && b.top >= r.top && b.bottom <= r.bottom, apart: b.right <= c.left + 0.5 || c.right <= b.left + 0.5, noOverflow: document.documentElement.scrollWidth <= innerWidth };
       })()`);
       assert.deepEqual(fit, { inside: true, apart: true, noOverflow: true }, `request row ${width}`);
       await capture(tab, `requests-${width}`);
     }
     await tab.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+    // Step 1 of the mobile flow: ALWAYS the list of Collections first (even with one), never the requests directly.
     await tab.evaluate(`${requestRow('received-approvals')}.click()`);
+    await tab.until(`document.querySelectorAll('[data-request-collection]').length === 1`);
+    assert.equal(await tab.evaluate(`document.querySelector('[data-submission-id]')`), null, 'no request list opens before a Collection is chosen');
+    const pick = await tab.evaluate(`(() => { const b = document.querySelector('[data-request-collection="10"]'); return { text: b.textContent.trim(), badge: b.querySelector('[data-attention-badge]').textContent }; })()`);
+    assert.deepEqual(pick, { text: '잡동사니2', badge: '2' });
+    await capture(tab, 'requests-collection-list');
+    // Step 2-3: the Collection's own page, with its requests (the notification's address).
+    await tab.evaluate(`document.querySelector('[data-request-collection="10"]').click()`);
+    await tab.until(`location.pathname === '/collections/10' && location.search === '?requests=1'`);
+  } finally { await tab.close(); }
+});
+
+it('받은 승인 요청: the Collection requests list approves / rejects one at a time, with the original link one click away - and the numbers follow', async () => {
+  const tab = await openFixture(`${origin}/invitation-test-harness?fixturePage=requests&fixtureCount=0&fixtureAttention=2`);
+  try {
     await tab.until(`document.querySelectorAll('[data-submission-id]').length === 2`);
     assert.equal(await tab.evaluate(`document.querySelector('dialog[open]').textContent.includes('Proposer')`), true, 'who proposed');
+    // 바로가기: a plain new-tab anchor to exactly the submitted address; it never answers anything.
+    const link = await tab.evaluate(`(() => { const a = document.querySelector('[data-submission-id="1"] a[data-open-original]'); return { href: a.href, target: a.target, rel: a.rel }; })()`);
+    assert.deepEqual(link, { href: 'https://example.com/p/1', target: '_blank', rel: 'noopener noreferrer' });
     await capture(tab, 'requests-dialog');
-    // Approve the first: one call, the row leaves, the numbers follow.
     await tab.evaluate(`document.querySelector('[data-submission-id="1"] button:last-of-type').click()`);
     await tab.until(`document.querySelectorAll('[data-submission-id]').length === 1`);
     await tab.until(`(${navCount('/collections')}) === '1'`);
-    // Reject the second after the confirmation.
     await tab.evaluate(`document.querySelector('[data-submission-id="2"] button:first-of-type').click()`);
     await tab.until(`!![...document.querySelectorAll('dialog[open] button')].find(el => el.textContent === '거절' && el.closest('dialog').querySelector('h2')?.textContent.includes('거절할까요'))`);
     await tab.evaluate(`[...document.querySelectorAll('dialog[open] button')].find(el => el.textContent === '거절' && el.closest('dialog').querySelector('h2')?.textContent.includes('거절할까요')).click()`);
@@ -295,28 +311,146 @@ it('받은 승인 요청: a shared-tab row with the red count at its end opens t
     const calls = JSON.parse(await tab.evaluate(`sessionStorage.getItem('invitationCalls')`));
     assert.equal(calls.filter(call => call === 'POST /api/v1/collections/10/submissions/1/approve').length, 1);
     assert.equal(calls.filter(call => call === 'DELETE /api/v1/collections/10/submissions/2').length, 1);
-    await tab.evaluate(`document.querySelector('dialog[open] button[aria-label="닫기"]').click()`);
-    await tab.until(`!${requestRow('received-approvals')}`);
-    assert.equal(await tab.evaluate(typeCount('shared')), '0');
   } finally { await tab.close(); }
 });
 
-it('보낸 승인 요청: the sent row lists only my own waiting links and 요청 취소 lowers its number', async () => {
-  const tab = await openFixture(`${origin}/invitation-test-harness?tab=shared&fixtureCount=0&fixtureMine=2&fixtureAttention=1`);
+it('보낸 승인 요청: one row per request - thumbnail, text, then 바로가기 and 요청 취소 icons at the end - and cancel acts only on its own request', async () => {
+  const tab = await openFixture(`${origin}/invitation-test-harness?tab=shared&fixtureCount=0&fixtureMine=3&fixtureAttention=1`);
   await tab.send('Emulation.setDeviceMetricsOverride', { width: 393, height: 900, deviceScaleFactor: 1, mobile: true });
   try {
     await tab.until(`!!${requestRow('sent-approvals')}`);
-    assert.equal(await tab.evaluate(`${requestRow('sent-approvals')}.textContent.trim()`), '보낸 승인 요청대기 2건');
+    assert.equal(await tab.evaluate(`${requestRow('sent-approvals')}.textContent.trim()`), '보낸 승인 요청대기 3건');
     assert.equal(await tab.evaluate(`${requestRow('sent-approvals')}.querySelector('[data-attention-badge]')`), null, 'a status row has no badge');
     assert.equal(await tab.evaluate(`${requestRow('sent-approvals')}.dataset.requestVariant`), 'status');
     await capture(tab, 'sent-and-received-393');
     await tab.evaluate(`${requestRow('sent-approvals')}.click()`);
-    await tab.until(`document.querySelectorAll('[data-my-submission-id]').length === 2`);
-    await tab.evaluate(`document.querySelector('[data-my-submission-id="900"] button').click()`);
+    await tab.until(`document.querySelectorAll('[data-my-submission-id]').length === 3`);
+    for (const width of [1280, 393, 320]) {
+      await tab.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
+      await tab.evaluate(`document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(resolve)))`);
+      const layout = await tab.evaluate(`(() => [...document.querySelectorAll('[data-my-submission-id]')].map(li => {
+        const r = li.getBoundingClientRect(), open = li.querySelector('a[data-open-original]').getBoundingClientRect(), cancel = li.querySelector('[data-cancel-request]').getBoundingClientRect();
+        const text = li.querySelector('p').getBoundingClientRect();
+        return { oneRowEnd: open.right <= cancel.left + 0.5 && cancel.right <= r.right + 0.5, sameLine: Math.abs((open.top + open.bottom) / 2 - (cancel.top + cancel.bottom) / 2) < 1, noBigButtonBelow: cancel.height <= 48 && cancel.width <= 48, textBeforeIcons: text.right <= open.left + 0.5, touch: open.width >= 44 && cancel.width >= 44, fit: r.right <= innerWidth };
+      }))()`);
+      for (const row of layout) assert.deepEqual(row, { oneRowEnd: true, sameLine: true, noBigButtonBelow: true, textBeforeIcons: true, touch: true, fit: true }, `sent row ${width}`);
+      assert.equal(await tab.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, `no horizontal scroll ${width}`);
+      await capture(tab, `sent-list-${width}`);
+    }
+    // Labels / tooltips for the icon buttons; the open icon is a safe new-tab anchor that cancels nothing.
+    const labels = await tab.evaluate(`(() => { const li = document.querySelector('[data-my-submission-id="901"]'); const a = li.querySelector('a[data-open-original]'), b = li.querySelector('[data-cancel-request]'); return { open: [a.getAttribute('aria-label'), a.title, a.target, a.rel, a.href], cancel: [b.getAttribute('aria-label'), b.title] }; })()`);
+    assert.equal(labels.open[2], '_blank');
+    assert.equal(labels.open[3], 'noopener noreferrer');
+    assert.equal(labels.open[4], 'https://example.com/m/1');
+    assert.ok(labels.open[0] && labels.open[1] && labels.cancel[0] && labels.cancel[1]);
+    // Cancel on the SECOND request asks first, then acts on that one only.
+    await tab.evaluate(`document.querySelector('[data-cancel-request="901"]').click()`);
     await tab.until(`!![...document.querySelectorAll('dialog[open] button')].find(el => el.textContent === '요청 취소' && el.closest('dialog').querySelector('h2')?.textContent.includes('취소할까요'))`);
+    assert.equal(JSON.parse(await tab.evaluate(`sessionStorage.getItem('invitationCalls')`)).filter(call => call.startsWith('DELETE')).length, 0, 'nothing is cancelled before the confirmation');
     await tab.evaluate(`[...document.querySelectorAll('dialog[open] button')].find(el => el.textContent === '요청 취소' && el.closest('dialog').querySelector('h2')?.textContent.includes('취소할까요')).click()`);
-    await tab.until(`document.querySelectorAll('[data-my-submission-id]').length === 1`);
+    await tab.until(`document.querySelectorAll('[data-my-submission-id]').length === 2`);
+    assert.equal(await tab.evaluate(`!!document.querySelector('[data-my-submission-id="901"]')`), false);
+    assert.equal(await tab.evaluate(`!!document.querySelector('[data-my-submission-id="900"]') && !!document.querySelector('[data-my-submission-id="902"]')`), true, 'the other requests stay');
+    const deletes = JSON.parse(await tab.evaluate(`sessionStorage.getItem('invitationCalls')`)).filter(call => call.startsWith('DELETE'));
+    assert.deepEqual(deletes, ['DELETE /api/v1/collections/submissions/mine/901']);
     await tab.evaluate(`document.querySelector('dialog[open] button[aria-label="닫기"]').click()`);
-    await tab.until(`${requestRow('sent-approvals')}?.textContent.trim() === '보낸 승인 요청대기 1건'`);
+    await tab.until(`${requestRow('sent-approvals')}?.textContent.trim() === '보낸 승인 요청대기 2건'`);
+  } finally { await tab.close(); }
+});
+
+it('친구 요청: the requester real photo is shown in 받은 / 보낸 요청, the first-letter avatar only where there is none', async () => {
+  const tab = await openFixture(`${origin}/invitation-test-harness?fixturePage=friends&fixtureCount=0&fixtureFriends=2`);
+  try {
+    await tab.until(`[...document.querySelectorAll('[role="tab"]')].some(el => el.textContent.includes('받은') && Object.keys(el).some(key => key.startsWith('__reactProps')))`);
+    await tab.evaluate(`[...document.querySelectorAll('[role="tab"]')].find(el => el.textContent.includes('받은')).click()`);
+    await tab.until(`document.querySelectorAll('ul li img').length >= 1`);
+    await tab.wait(600);
+    const incoming = await tab.evaluate(`[...document.querySelectorAll('ul li')].map(li => ({ img: li.querySelector('img') ? { src: li.querySelector('img').src, loaded: li.querySelector('img').naturalWidth > 0 } : null }))`);
+    assert.deepEqual(incoming[0].img, { src: 'http://localhost:3198/icon.png', loaded: true }, 'a request with a photo shows it');
+    assert.equal(incoming[1].img, null, 'a request without one keeps the fallback');
+    await tab.evaluate(`[...document.querySelectorAll('[role="tab"]')].find(el => el.textContent.includes('보낸')).click()`);
+    await tab.until(`document.querySelectorAll('ul li img').length >= 1`);
+    assert.equal(await tab.evaluate(`document.querySelector('ul li img').src`), 'http://localhost:3198/icon.png');
+    await capture(tab, 'friend-request-photo');
+  } finally { await tab.close(); }
+});
+
+const cardGeometry = id => `(() => {
+  const card = [...document.querySelectorAll('ul > li')].find(li => li.textContent.includes('${id}'));
+  const r = card.getBoundingClientRect(), meta = card.querySelector('[data-site-meta]').getBoundingClientRect(), open = card.querySelector('[data-link-open]').getBoundingClientRect();
+  const chips = card.querySelector('[data-card-reactions]');
+  const adder = card.querySelector('[data-link-adder]').getBoundingClientRect();
+  const out = { openOnLineOne: open.top < meta.bottom + 24 && open.right <= r.right + 0.5 && open.left >= r.left, adderBesideIcon: adder.left >= meta.left && Math.abs((adder.top + adder.bottom) / 2 - (meta.top + meta.bottom) / 2) < 12, hasChips: !!chips };
+  if (chips) {
+    const c = chips.getBoundingClientRect();
+    out.chipsBelow = c.top >= meta.bottom - 1 && c.top >= adder.bottom - 1;
+    out.chipsInside = c.left >= r.left && c.right <= r.right + 0.5 && c.bottom <= r.bottom + 0.5;
+    out.noClip = [...chips.querySelectorAll('button, [role=img]')].every(el => { const b = el.getBoundingClientRect(); return b.width === 0 || (b.left >= r.left && b.right <= r.right + 0.5 && b.bottom <= r.bottom + 0.5); });
+    out.rects = [r.left, r.right, r.bottom, ...[...chips.querySelectorAll('button, [role=img]')].map(el => { const b = el.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.right), Math.round(b.bottom)].join(':'); })];
+    out.openClear = open.bottom <= c.top + 1;
+  }
+  return out;
+})()`;
+
+for (const mode of ['grid', 'list']) {
+  it(`공유 컬렉션 링크 카드 (${mode}): line 1 = icon + author + 바로가기, line 2 = reactions only while there are any - no clipping at 1280 / 393 / 320`, async () => {
+    const tab = await openFixture(`${origin}/invitation-test-harness?fixturePage=links&mode=${mode}&fixtureCount=0`);
+    try {
+      await tab.until(`document.querySelectorAll('[data-link-adder]').length === 3`);
+      for (const width of [1280, 393, 320]) {
+        await tab.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 600 });
+        await tab.evaluate(`document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(resolve)))`);
+        for (const id of ['아주 긴 링크 제목', '반응 하나']) {
+          const g = await tab.evaluate(cardGeometry(id));
+          assert.equal(g.openOnLineOne && g.adderBesideIcon && g.hasChips && g.chipsBelow && g.chipsInside && g.noClip && g.openClear, true, `${mode} ${width} ${id}: ${JSON.stringify(g)}`);
+        }
+        const none = await tab.evaluate(cardGeometry('반응 없음'));
+        assert.equal(none.hasChips, false, 'no reactions: no second line');
+        assert.equal(none.openOnLineOne && none.adderBesideIcon, true);
+        assert.equal(await tab.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, `no horizontal scroll ${mode} ${width}`);
+        await capture(tab, `links-${mode}-${width}`);
+      }
+    } finally { await tab.close(); }
+  });
+}
+
+it('링크 카드 반응: tapping a chip changes counts at once through the existing reaction API (one request), and takes the own one back', async () => {
+  const tab = await openFixture(`${origin}/invitation-test-harness?fixturePage=links&mode=grid&fixtureCount=0`);
+  try {
+    await tab.until(`document.querySelectorAll('[data-card-reactions]').length === 2`);
+    // Clicks only count after hydration (the server HTML is already there before React listens).
+    await tab.until(`Object.keys(document.querySelector('[data-reaction]')).some(key => key.startsWith('__reactProps'))`);
+    const chip = (card, key) => `([...document.querySelectorAll('ul > li')].find(li => li.textContent.includes('${card}')).querySelector('[data-reaction="${key}"]'))`;
+    const count = (card, key) => `(${chip(card, key)}?.textContent.replace(/\\s/g, '') ?? '')`;
+    assert.match(await tab.evaluate(count('반응 하나', 'heart')), /1$/);
+    // Someone else's reaction -> mine: the chip counts up at once and the request is the existing PUT.
+    await tab.evaluate(`${chip('반응 하나', 'heart')}.click()`);
+    await tab.until(`${count('반응 하나', 'heart')}.endsWith('2')`);
+    await tab.until(`JSON.parse(sessionStorage.getItem('invitationCalls')).includes('PUT /api/v1/collections/10/items/2/reaction')`);
+    // The server's answer settles first (a tap while one is on its way is ignored - one request at a time); then my own again: taken back (DELETE).
+    await tab.wait(600);
+    await tab.evaluate(`${chip('반응 하나', 'heart')}.click()`);
+    await tab.until(`${count('반응 하나', 'heart')}.endsWith('1')`);
+    await tab.until(`JSON.parse(sessionStorage.getItem('invitationCalls')).includes('DELETE /api/v1/collections/10/items/2/reaction')`);
+    const calls = JSON.parse(await tab.evaluate(`sessionStorage.getItem('invitationCalls')`)).filter(call => call.includes('/reaction'));
+    assert.deepEqual(calls, ['PUT /api/v1/collections/10/items/2/reaction', 'DELETE /api/v1/collections/10/items/2/reaction']);
+    // No per-card read of the links: the list row already carries the reactions (no N+1).
+    assert.equal(JSON.parse(await tab.evaluate(`sessionStorage.getItem('invitationCalls')`)).some(call => /\/items\/\d+$/.test(call)), false);
+  } finally { await tab.close(); }
+});
+
+it('자동 갱신: a friend request and a notification that arrive while the page stays open reach the bell, the 친구 menu and the open list on their own - measured', async () => {
+  const tab = await openFixture(`${origin}/invitation-test-harness?fixturePage=friends&fixtureCount=0&fixtureFriends=1&fixtureLiveAfterMs=4000`);
+  try {
+    await tab.until(`(${navCount('/me/friends')}) === '1'`);
+    const bell = `(document.querySelector('button[aria-label^="알림"]')?.textContent.trim() ?? '')`;
+    const liveAt = Number(await tab.evaluate(`sessionStorage.getItem('liveAt')`));
+    await tab.until(`(${navCount('/me/friends')}) === '2'`, 120_000);
+    const elapsedMs = Date.now() - liveAt;
+    await tab.until(`${bell} !== ''`, 10_000);
+    // The already open 친구 list shows the new request too (its tab count), not only the menu.
+    await tab.until(`[...document.querySelectorAll('[role="tab"]')].some(el => el.textContent.includes('받은') && el.textContent.includes('2'))`, 10_000);
+    console.log(`# automatic refresh: the arrival reached the screen ${(elapsedMs / 1000).toFixed(1)} s after it happened (poll every 60 s)`);
+    assert.ok(elapsedMs <= 75_000, `the arrival reached the screen within one poll interval (took ${elapsedMs} ms)`);
   } finally { await tab.close(); }
 });

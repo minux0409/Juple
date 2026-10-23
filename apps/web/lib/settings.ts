@@ -101,6 +101,9 @@ export interface FriendRequest {
   readonly displayName: string | null;
   readonly direction: 'incoming' | 'outgoing';
   readonly createdAtUtc: string;
+  /** The other person's photo as the API returns it (a signed read URL); absent when they have none. */
+  readonly profileImageUrl?: string | null;
+  readonly profileImageVersion?: string | null;
 }
 
 export interface JupleIdLookup {

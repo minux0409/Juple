@@ -59,6 +59,9 @@ export interface CollectionItemEntry {
   /** False: another member's link - memo / own photos are never sent and it opens as the read-only shared view. Absent = mine. */
   readonly isMine?: boolean;
   readonly addedBy?: CollectionItemAdder | null;
+  /** Emoji reactions to this link IN this Collection (counts per kind) and the caller's own - on the list row itself, so no per-card request. */
+  readonly reactions?: readonly { readonly key: string; readonly count: number }[] | null;
+  readonly myReaction?: string | null;
 }
 
 export interface CollectionItemsPage {
@@ -99,6 +102,8 @@ export interface LinkView {
   readonly externalUrl: string | null;
   /** Who added it, in a shared Collection only (see adderViewOf) - never on Home / 보관함 or in a personal Collection. */
   readonly adder?: LinkAdderView | null;
+  /** A shared Collection's link: its reactions (the card's second line, only while there are any). Never on Home / 보관함. */
+  readonly reactions?: { readonly collectionId: number; readonly row: { readonly reactions?: readonly { readonly key: string; readonly count: number }[] | null; readonly myReaction?: string | null } } | null;
 }
 
 /** Who added a link, as the card draws it: an avatar (a crown on its corner for the Collection's Owner), or the anonymous public link. */
@@ -312,6 +317,8 @@ export function collectionLinkView(entry: CollectionItemEntry, collectionId: num
     href: mine ? itemHref(entry.itemId) : sharedItemHref(collectionId, entry.itemId),
     externalUrl: isSafeHttpUrl(entry.url) ? entry.url : null,
     adder: options?.showAdder ? adderViewOf(entry.addedBy) : null,
+    // Reactions exist only where other people are in the Collection (the same rule as the adders).
+    reactions: options?.showAdder ? { collectionId, row: { reactions: entry.reactions, myReaction: entry.myReaction } } : null,
   };
 }
 

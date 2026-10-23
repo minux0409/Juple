@@ -269,7 +269,7 @@ export function CollectionsView() {
 
       {/* Requests are shared-Collection work: only 공유 컬렉션 carries them - 받은 승인 요청 (links / join requests I answer as Owner), then 받은 초대 요청. */}
       {filter === 'shared' ? <SentRequestsEntry /> : null}
-      {filter === 'shared' ? <ReceivedRequestsEntry onChanged={() => setReloadToken(token => token + 1)} /> : null}
+      {filter === 'shared' ? <ReceivedRequestsEntry /> : null}
       {filter === 'shared' ? <ReceivedInvitations onAccepted={() => setReloadToken(token => token + 1)} /> : null}
 
       {/* Between the tabs and the cards (mobile: the same place, under the header and above the tabs' cards). */}

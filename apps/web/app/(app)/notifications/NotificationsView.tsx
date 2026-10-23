@@ -9,7 +9,7 @@ import { useSignedInApp } from '../AppRoot';
 import { Glyph } from '../Glyph';
 import { LoadMore } from '../InfiniteScroll';
 import { LoadFailed } from '../PageStates';
-import { useUnreadCount } from './NotificationBell';
+import { useRefreshOnUnreadRise, useUnreadCount } from './NotificationBell';
 import { NotificationRow, NotificationSkeleton } from './NotificationRow';
 import { useNotificationActions, type OpenOutcome } from './useNotificationActions';
 import { PageHeader } from '../PageHeader';
@@ -29,6 +29,8 @@ export function NotificationsView() {
   const unread = useUnreadCount();
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
+  const reloadList = useCallback(() => setReloadToken(token => token + 1), []);
+  useRefreshOnUnreadRise(true, reloadList);
   const [notice, setNotice] = useState<{ readonly text: string; readonly error: boolean } | null>(null);
 
   useEffect(() => {

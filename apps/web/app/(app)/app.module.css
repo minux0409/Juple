@@ -8755,3 +8755,9 @@ button.reactionChipMine:hover {
 .tileWithBadge { position: relative; display: inline-flex; }
 .collectionCover .attentionOnTile, .tileWithBadge .attentionOnTile { position: absolute; inset-block-end: 4px; inset-inline-end: 4px; box-shadow: 0 0 0 2px var(--app-surface); }
 .tileWithBadge .attentionOnTile { inset-block-end: -4px; inset-inline-end: -4px; }
+
+/* ---- Shared Collection link cards: the reactions are line 2, under the card's main block (icon / author / 바로가기 stay on line 1) ---- */
+.linkCardColumn { display: flex; flex-direction: column; }
+.linkMain { position: relative; display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; }
+.linkMain > .cardBody, .linkMain > .linkRowBody { flex: 1 1 auto; }
+.cardReactions { padding: 0 var(--space-3) var(--space-3); min-width: 0; }

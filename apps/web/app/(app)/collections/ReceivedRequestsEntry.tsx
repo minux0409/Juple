@@ -1,45 +1,43 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { formatMessage } from '../../../lib/appI18n';
-import { ownerRequestCollections } from '../../../lib/collectionApprovals';
+import { ownerRequestCollections, REQUESTS_PARAM } from '../../../lib/collectionApprovals';
+import { collectionHref } from '../../../lib/savedLinks';
 import { collectionTile } from '../../../lib/collectionsView';
 import { useSignedInApp } from '../AppRoot';
 import { CollectionGlyph } from '../Glyph';
 import { Modal } from '../Modal';
 import { useAttention } from '../useAttention';
 import { AttentionBadge } from '../AttentionBadge';
-import { ReceivedRequestsDialog } from './ReceivedRequestsDialog';
 import { RequestRow } from './RequestRow';
 import styles from './ReceivedRequests.module.css';
 
 /**
- * 받은 승인 요청 on 공유 컬렉션: the Collections where I am the Owner and something waits for my answer (proposed links, people asking to
- * join), from the same account store as every badge - so this row, the type badge and the menu number always agree. One Collection
- * answers directly; several are listed first. Shown only while something waits.
+ * 받은 승인 요청 on 공유 컬렉션 - the mobile flow, step for step: the row opens the list of MY Collections that hold waiting requests (name,
+ * picture, how many), and choosing one goes to that Collection's own page, where its requests open (`?requests=1`, the same address a
+ * notification uses - one history entry, so Back returns to this list). Every number comes from the account store the badges use. The row
+ * exists only while something waits.
  */
-export function ReceivedRequestsEntry({ onChanged }: { readonly onChanged: () => void }) {
+export function ReceivedRequestsEntry() {
+  const router = useRouter();
   const { snapshot } = useAttention();
   const { dictionary } = useSignedInApp();
   const [picking, setPicking] = useState(false);
-  // The Collection being answered: kept as picked, so its name stays in the title after its last request is answered.
-  const [selected, setSelected] = useState<{ readonly id: number; readonly name: string } | null>(null);
   const owned = ownerRequestCollections(snapshot.collections);
   const total = snapshot.counts.requests.approvals;
-  if (total === 0 && selected === null) return null;
-  // One wrapper: the page's section gap applies to it once, however many dialogs (closed, out of flow) it holds.
+  if (total === 0) return null;
   return (
     <div data-request-entry>
-      {total > 0 ? (
-        <RequestRow
-          accessibleLabel={formatMessage(dictionary.requestsPendingSubmissionsA11y, { count: total })}
-          count={total}
-          expanded={picking}
-          label={dictionary.requestsPendingSubmissions}
-          onClick={() => (owned.length === 1 ? setSelected({ id: owned[0].id, name: owned[0].name }) : setPicking(true))}
-          testId="received-approvals"
-        />
-      ) : null}
+      <RequestRow
+        accessibleLabel={formatMessage(dictionary.requestsPendingSubmissionsA11y, { count: total })}
+        count={total}
+        expanded={picking}
+        label={dictionary.requestsPendingSubmissions}
+        onClick={() => setPicking(true)}
+        testId="received-approvals"
+      />
       <Modal closeLabel={dictionary.close} onClose={() => setPicking(false)} open={picking} title={dictionary.requestsPendingSubmissions}>
         <ul className={styles.list}>
           {owned.map(collection => {
@@ -50,7 +48,10 @@ export function ReceivedRequestsEntry({ onChanged }: { readonly onChanged: () =>
                   aria-label={`${collection.name}, ${formatMessage(dictionary.requestsPendingSubmissionsA11y, { count: collection.requestCount })}`}
                   className={styles.pick}
                   data-request-collection={collection.id}
-                  onClick={() => { setPicking(false); setSelected({ id: collection.id, name: collection.name }); }}
+                  onClick={() => {
+                    setPicking(false);
+                    router.push(`${collectionHref(collection.id)}?${REQUESTS_PARAM}=1`);
+                  }}
                   type="button"
                 >
                   <span aria-hidden className={styles.tile} style={{ background: tile.background, color: tile.icon }}><CollectionGlyph icon={collection.icon} size={20} /></span>
@@ -62,14 +63,6 @@ export function ReceivedRequestsEntry({ onChanged }: { readonly onChanged: () =>
           })}
         </ul>
       </Modal>
-      {selected !== null ? (
-        <ReceivedRequestsDialog
-          collection={selected}
-          onChanged={onChanged}
-          onClose={() => setSelected(null)}
-          open
-        />
-      ) : null}
     </div>
   );
 }

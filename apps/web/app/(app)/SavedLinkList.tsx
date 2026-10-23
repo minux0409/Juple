@@ -7,6 +7,7 @@ import { Avatar } from './Avatar';
 import { Glyph } from './Glyph';
 import { LinkImage } from './LinkImage';
 import { SiteIcon } from './SiteIcon';
+import { CardReactions } from './CardReactions';
 import styles from './app.module.css';
 
 export function linkTitleText(title: LinkDisplayTitle, dictionary: AppDictionary): string {
@@ -41,7 +42,7 @@ export function SavedLinkList({
   return (
     <ul className={mode === 'list' ? styles.linkList : mode === 'grid' ? styles.linkGrid : styles.imageGrid}>
       {links.map(link => (
-        <li className={mode === 'image' ? styles.imageCell : styles.linkCard} key={link.id}>
+        <li className={mode === 'image' ? styles.imageCell : link.reactions ? `${styles.linkCard} ${styles.linkCardColumn}` : styles.linkCard} key={link.id}>
           <LinkEntry dictionary={dictionary} link={link} mode={mode} />
         </li>
       ))}
@@ -159,7 +160,7 @@ function LinkEntry({ link, mode, dictionary }: { readonly link: LinkView; readon
       </a>
     ) : null;
 
-  return (
+  const main = (
     <>
       {link.href ? (
         <Link className={className} href={link.href} title={mode === 'image' ? title : undefined}>
@@ -171,6 +172,17 @@ function LinkEntry({ link, mode, dictionary }: { readonly link: LinkView; readon
         </div>
       )}
       {open}
+    </>
+  );
+  if (!link.reactions || mode === 'image') {
+    return main;
+  }
+  // A shared Collection's card: line 1 (icon, author, 바로가기) lives in the card's main block; line 2 - the reactions, only while there are
+  // any - is its own row under it, so nothing on line 1 can clip the chips and the open button keeps its place on line 1.
+  return (
+    <>
+      <div className={styles.linkMain}>{main}</div>
+      <CardReactions collectionId={link.reactions.collectionId} initial={link.reactions.row} itemId={link.id} />
     </>
   );
 }
