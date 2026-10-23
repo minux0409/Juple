@@ -15,7 +15,7 @@ const item: ItemHistoryEntry = {
 const adder: ItemAdderDisplay = {
   kind: 'person', jupleId: 'K7MP4Q8N', displayName: '피카츄', imageUrl: null, imageVersion: null, isCollectionOwner: false, isMe: false, accessibilityLabel: '피카츄님이 추가한 링크',
 };
-const chips = <ReactionChips inline onAdd={jest.fn()} onToggle={jest.fn()} reactions={{ reactions: [{ key: 'heart', count: 2 }], myReaction: null }} testID="chips" />;
+const chips = <ReactionChips onAdd={jest.fn()} onToggle={jest.fn()} reactions={{ reactions: [{ key: 'heart', count: 2 }], myReaction: null }} testID="chips" />;
 
 const create = (element: React.ReactElement) => {
   let renderer!: ReactTestRenderer.ReactTestRenderer;
@@ -25,24 +25,37 @@ const create = (element: React.ReactElement) => {
   return renderer;
 };
 
-describe('reactions sit on the author row', () => {
+describe('reactions get a line of their own under the icon / author line', () => {
   it.each([
     ['List row', <SavedLinkRow addedBy={adder} isActionInFlight={false} item={item} reactions={chips} />],
-    ['Grid tile', <SavedLinkGridCard addedBy={adder} isActionInFlight={false} item={item} reactions={chips} />],
-  ])('%s: the chips and the adder avatar share one horizontal row - no row of their own', (_name, element) => {
+    ['Grid tile', <SavedLinkGridCard addedBy={adder} isActionInFlight={false} item={item} onOpenOriginal={jest.fn()} reactions={chips} />],
+  ])('%s: line 1 is [service icon][author], line 2 is the chips - never on the same row', (_name, element) => {
     const renderer = create(element);
 
     const badge = renderer.root.findByType(ItemAdderBadge);
-    const line = badge.parent!;
-    expect(StyleSheet.flatten(line.props.style)).toMatchObject({ flexDirection: 'row' });
-    expect(line.findAll(node => node.props.testID === 'chips' && typeof node.type === 'string')).toHaveLength(1);
-    // The trailing slot takes the remaining width (and can shrink) rather than overflowing a 320dp card.
-    const trailing = line.findAll(node => node.props.style != null && node.props.testID === undefined && StyleSheet.flatten(node.props.style)?.flex === 1)[0];
-    expect(StyleSheet.flatten(trailing.props.style)).toMatchObject({ flex: 1, minWidth: 0 });
-    expect(trailing.findAll(node => node.props.testID === 'chips').length).toBeGreaterThan(0);
-    // The chips never wrap and add no top margin (inline).
+    const line1 = badge.parent!;
+    expect(StyleSheet.flatten(line1.props.style)).toMatchObject({ flexDirection: 'row' });
+    // The chips are not on the author's row ...
+    expect(line1.findAll(node => node.props.testID === 'chips' && typeof node.type === 'string')).toHaveLength(0);
+    // ... but in their own block right under it, start-aligned and free to wrap.
     const chipRow = renderer.root.findAll(node => node.props.testID === 'chips' && typeof node.type === 'string')[0];
-    expect(StyleSheet.flatten(chipRow.props.style)).toMatchObject({ flexWrap: 'nowrap', marginTop: 0, justifyContent: 'flex-end', alignSelf: 'stretch' });
+    expect(chipRow).toBeDefined();
+    expect(StyleSheet.flatten(chipRow.props.style)).toMatchObject({ flexWrap: 'wrap' });
+  });
+
+  it('the Grid tile 바로가기 button ends line 1 (the same row as the icon and the author), not the reactions line', () => {
+    const renderer = create(<SavedLinkGridCard addedBy={adder} isActionInFlight={false} item={item} onOpenOriginal={jest.fn()} reactions={chips} />);
+    const line1 = renderer.root.findByType(ItemAdderBadge).parent!;
+
+    expect(line1.findAll(node => node.props.testID === 'saved-link-open-original' && typeof node.type === 'string')).toHaveLength(1);
+    expect(renderer.root.findAll(node => node.props.testID === 'chips' && typeof node.type === 'string')).toHaveLength(1);
+  });
+
+  it('no reactions: no second line at all', () => {
+    const renderer = create(<SavedLinkGridCard addedBy={adder} isActionInFlight={false} item={item} onOpenOriginal={jest.fn()} />);
+    const line1 = renderer.root.findByType(ItemAdderBadge).parent!;
+
+    expect(line1.parent!.findAll(node => node.props.testID === 'chips')).toHaveLength(0);
   });
 
   it('without an adder there is no row to share: the chips go under the time line, as before', () => {

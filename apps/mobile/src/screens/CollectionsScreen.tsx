@@ -41,6 +41,7 @@ import { HintBanner } from '../hints/HintBanner';
 import { useOneTimeHint } from '../hints/useOneTimeHint';
 import { collectionShortcutService } from '../shortcuts/CollectionShortcutService';
 import { ApprovalSubmissionSheet } from '../collections/ApprovalSubmissionSheet';
+import { ReceivedApprovalsSheet, approvalCollections } from '../collections/ReceivedApprovalsSheet';
 import { ReceivedInvitationsSheet } from '../collections/ReceivedInvitationsSheet';
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import { formatBadgeCount } from '../components/badgeCount';
@@ -60,13 +61,10 @@ import { DEFAULT_COLLECTION_COLOR, type CollectionColorValue } from '../collecti
 import { DEFAULT_COLLECTION_ICON, type CollectionIconKey } from '../collections/collectionIcons';
 import { CollectionNameLabel } from '../collections/CollectionNameLabel';
 import { PendingActionRow } from '../components/PendingActionRow';
-import { ChevronIcon } from '../icons/ChevronIcon';
-import { PeopleIcon } from '../icons/PeopleIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 import { StarIcon } from '../icons/StarIcon';
 import type { MainTabParamList } from '../navigation/MainTabs';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { useLayoutDirection } from '../i18n/layoutDirection';
 import { cardShadow, collectionFilterColors, colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { TOUR_TARGETS } from '../tour/tourGuides';
 import { useTourTarget } from '../tour/tourTargets';
@@ -219,7 +217,6 @@ export function CollectionsScreen() {
   useToastBottomAnchor(tabBarHeight);
   const { viewMode, changeViewMode } = useViewModePreference('categoryViewMode', 'grid');
   const gridColumns = useCollectionTileColumns();
-  const layoutDirection = useLayoutDirection();
 
   const [filter, setFilter] = useState<CategoryFilter>(DEFAULT_FILTER);
   const filterRef = useRef<CategoryFilter>(DEFAULT_FILTER);
@@ -265,6 +262,9 @@ export function CollectionsScreen() {
   const attentionStore = useMobileAttention();
   const attentionSnapshot = useAttentionSnapshot();
   const invitations = attentionStore ? attentionSnapshot.invitations ?? [] : receivedInvitations;
+  // 받은 승인 요청: my own Collections with proposed links / join requests waiting (the same account-scoped source as the badges).
+  const approvalOwnerCollections = approvalCollections(attentionStore ? attentionSnapshot.collections : null);
+  const approvalTotal = attentionSnapshot.counts.requests.approvals;
   const filterAttention = (option: CategoryFilter) => attentionStore ? attentionSnapshot.counts.types[option] : option === 'shared' ? receivedInvitations.length : 0;
   const [isShareRequestsVisible, setIsShareRequestsVisible] = useState(false);
   // My own proposals waiting for approval across my whole shared list (one number from the server - the
@@ -274,6 +274,7 @@ export function CollectionsScreen() {
   const [isMyPendingSheetVisible, setIsMyPendingSheetVisible] = useState(false);
   // My own join requests waiting for an Owner (server state): drawn as dimmed "승인 대기 중" placeholders among my shared Collections.
   // Not memberships - they open no Collection and offer no member action.
+  const [isApprovalsVisible, setIsApprovalsVisible] = useState(false);
   const [pendingJoins, setPendingJoins] = useState<readonly MyJoinRequest[]>([]);
 
   const loadRequestIdRef = useRef(0);
@@ -872,26 +873,6 @@ export function CollectionsScreen() {
               </View>
             </View>
 
-            {/* The search: right under the header, above the four filters. The shared Juple search field (themed input, clear button). */}
-            <View style={styles.searchRow}>
-              <View collapsable={false} onLayout={measureOverlay} onTouchStart={markTouchInSearch} ref={searchAnchorRef}>
-                <SearchField
-                  clearLabel={t('history.searchClear')}
-                  onBlur={() => setSearchFocused(false)}
-                  onChangeText={changeSearchText}
-                  onFocus={() => {
-                    setSearchFocused(true);
-                    setSuggestionsDismissed(false);
-                  }}
-                  placeholder={t('collections.listSearchPlaceholder')}
-                  testID="collections-search"
-                  value={searchText}
-                />
-              </View>
-              {/* A changed term is being read: the cards stay, a small spinner says so. */}
-              {isSearching ? <ActivityIndicator size="small" style={styles.searchSpinner} testID="collections-search-loading" /> : null}
-            </View>
-
             {/* Four same-level filters as a 2x2 grid: every option is always visible, each cell takes
                 half the width and a long translation wraps to a second line (the grid simply grows
                 taller) - never clipped, never shrunk. Rows follow the layout direction, so RTL
@@ -935,41 +916,61 @@ export function CollectionsScreen() {
                 wait in all (one number from the server); tapping it opens a popup listing exactly those
                 links - what, in which Collection, since when - without selecting a filter or entering
                 a Collection first. Neutral, never the red attention color. Hidden at 0. */}
-            {myPendingTotal > 0 ? (
+            {filter === 'shared' && myPendingTotal > 0 ? (
               <PendingActionRow
                 accessibilityLabel={t('collections.myPendingA11y', { count: myPendingTotal })}
-                label={t('collections.myPendingSubmissions', { count: formatBadgeCount(myPendingTotal) })}
+                statusText={t('collections.myPendingStatus', { count: myPendingTotal })}
+                variant="status"
+                label={t('collections.myPendingSubmissions')}
                 onPress={() => setIsMyPendingSheetVisible(true)}
                 style={styles.myPendingRow}
                 testID="collections-filter-my-pending"
               />
             ) : null}
 
-            {/* 공유 요청: only on 공유 카테고리 and only while there is something to answer - it
-                never takes space otherwise. */}
-            {filter === 'shared' && invitations.length > 0 ? (
-              <Pressable
-                accessibilityLabel={t('collections.shareRequestCount', { count: invitations.length })}
-                accessibilityRole="button"
-                onPress={() => setIsShareRequestsVisible(true)}
-                style={styles.shareRequestsRow}
-                testID="collections-share-requests"
-              >
-                <PeopleIcon color={colors.brand} size={20} />
-                <Text numberOfLines={2} style={styles.shareRequestsLabel}>{t('collections.shareRequests')}</Text>
-                <View style={styles.shareRequestsBadge}>
-                  <Text style={styles.shareRequestsBadgeText} testID="collections-share-requests-count">
-                    {formatBadgeCount(invitations.length)}
-                  </Text>
-                </View>
-                {/* Points toward the reading direction's end (mirrored under RTL). */}
-                <ChevronIcon
-                  color={colors.textSecondary}
-                  direction={layoutDirection === 'rtl' ? 'left' : 'right'}
-                  size={16}
-                />
-              </Pressable>
+            {/* Requests are shared-Collection work: only on 공유 컬렉션, only while something waits, and always the same
+                row (bell, label, red count badge, chevron). 받은 승인 요청 = links/join requests I answer as Owner;
+                받은 초대 요청 = invitations I received; 보낸 승인 요청 (above) = my own waiting proposals. */}
+            {filter === 'shared' && approvalOwnerCollections.length > 0 ? (
+              <PendingActionRow
+                accessibilityLabel={t('collections.pendingSubmissionsA11y', { count: approvalTotal })}
+                count={approvalTotal}
+                label={t('collections.pendingSubmissions')}
+                onPress={() => setIsApprovalsVisible(true)}
+                style={styles.myPendingRow}
+                testID="collections-received-approvals"
+              />
             ) : null}
+            {filter === 'shared' && invitations.length > 0 ? (
+              <PendingActionRow
+                accessibilityLabel={t('collections.shareRequestCount', { count: invitations.length })}
+                count={invitations.length}
+                label={t('collections.shareRequests')}
+                onPress={() => setIsShareRequestsVisible(true)}
+                style={styles.myPendingRow}
+                testID="collections-share-requests"
+              />
+            ) : null}
+
+            {/* The search: below the filters and request rows (the Web order), above the list. The shared Juple search field (themed input, clear button). */}
+            <View style={styles.searchRow}>
+              <View collapsable={false} onLayout={measureOverlay} onTouchStart={markTouchInSearch} ref={searchAnchorRef}>
+                <SearchField
+                  clearLabel={t('history.searchClear')}
+                  onBlur={() => setSearchFocused(false)}
+                  onChangeText={changeSearchText}
+                  onFocus={() => {
+                    setSearchFocused(true);
+                    setSuggestionsDismissed(false);
+                  }}
+                  placeholder={t('collections.listSearchPlaceholder')}
+                  testID="collections-search"
+                  value={searchText}
+                />
+              </View>
+              {/* A changed term is being read: the cards stay, a small spinner says so. */}
+              {isSearching ? <ActivityIndicator size="small" style={styles.searchSpinner} testID="collections-search-loading" /> : null}
+            </View>
 
             {longPressHint.isVisible ? <HintBanner message={t('hints.collectionLongPress')} onDismiss={longPressHint.dismiss} testID="collections-long-press-hint" /> : null}
             {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
@@ -1022,6 +1023,19 @@ export function CollectionsScreen() {
       ) : null}
 
       {collectionMenu.element}
+
+      <ReceivedApprovalsSheet
+        collections={approvalOwnerCollections}
+        onClose={() => setIsApprovalsVisible(false)}
+        onOpen={collection => {
+          setIsApprovalsVisible(false);
+          // Links first (the Owner's queue); only join requests waiting -> that list. Either way the Collection's own lock gate applies.
+          navigation.navigate('CollectionDetails', (collection.pendingSubmissionCount ?? 0) > 0
+            ? { collectionId: collection.id, openApprovals: true }
+            : { collectionId: collection.id, openJoinRequests: true });
+        }}
+        visible={isApprovalsVisible}
+      />
 
       <ReceivedInvitationsSheet
         authenticatedRequest={authenticatedRequest}

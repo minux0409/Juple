@@ -338,7 +338,7 @@ describe('CollectionDetailsScreen - Viewer (보기 전용)', () => {
     act(() => {
       pressable.props.onPress();
     });
-    expect(mockNavigate).toHaveBeenLastCalledWith('CollectionSharedItem', { collectionId: COLLECTION_ID, itemId: 2, isCollectionOwner: false });
+    expect(mockNavigate).toHaveBeenLastCalledWith('ItemDetails', { itemId: 2, collectionContext: { collectionId: COLLECTION_ID, canRemove: false, isCollectionOwner: false, isCollaborative: true, readOnly: true } });
   });
 });
 
@@ -1214,7 +1214,7 @@ describe('CollectionDetailsScreen - Contributor', () => {
     };
 
     pressRow(theirs);
-    expect(mockNavigate).toHaveBeenLastCalledWith('CollectionSharedItem', { collectionId: COLLECTION_ID, itemId: 2, isCollectionOwner: false });
+    expect(mockNavigate).toHaveBeenLastCalledWith('ItemDetails', { itemId: 2, collectionContext: { collectionId: COLLECTION_ID, canRemove: false, isCollectionOwner: false, isCollaborative: true, readOnly: true } });
 
     pressRow(mine);
     // Opened from the Collection, but a Contributor may not take links out of it.
@@ -1246,7 +1246,7 @@ describe('CollectionDetailsScreen - opening a link for its comments', () => {
     const swipe = row(renderer, theirs).root.findByType(SwipeableItemRow);
     act(() => swipe.props.onPress());
 
-    expect(mockNavigate).toHaveBeenLastCalledWith('CollectionSharedItem', { collectionId: COLLECTION_ID, itemId: 2, isCollectionOwner: true });
+    expect(mockNavigate).toHaveBeenLastCalledWith('ItemDetails', { itemId: 2, collectionContext: { collectionId: COLLECTION_ID, canRemove: true, isCollectionOwner: true, isCollaborative: true, readOnly: true } });
   });
 });
 
@@ -1656,7 +1656,7 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     const renderer = await renderScreen();
 
     const entry = pendingEntry(renderer);
-    expect(entry.findByType(Text).props.children).toBe('받은 승인 요청 3');
+    expect(entry.findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '3']);
     expect(entry.props.accessibilityLabel).toBe('받은 승인 요청 3개 보기');
     // The link count is the links only - proposals are never counted in it.
     expect(header(renderer).root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.detailItemCount', { count: 18 }))).toBe(true);
@@ -1675,7 +1675,7 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     const renderer = await renderScreen();
 
     const entry = pendingEntry(renderer);
-    expect(entry.findByType(Text).props.children).toBe('받은 승인 요청 1');
+    expect(entry.findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '1']);
     expect(StyleSheet.flatten(rowStyle(entry))).toEqual(expect.objectContaining({ minHeight: 44, flexDirection: 'row', backgroundColor: colors.brandSoft, borderColor: colors.brand }));
     expect(entry.type).toBe(PendingActionRow);
     // Order inside the list header: title, header actions, this row, then the sort chips.
@@ -1695,9 +1695,9 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
       jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
       const renderer = await renderScreen();
 
-      expect(pendingEntry(renderer).findByType(Text).props.children).toBe('받은 승인 요청 4');
+      expect(pendingEntry(renderer).findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '4']);
       const entry = joinEntry(renderer);
-      expect(entry.findByType(Text).props.children).toBe('참여 요청 1');
+      expect(entry.findAllByType(Text).map(text => text.props.children)).toEqual(['참여 요청', '1']);
       expect(entry.type).toBe(PendingActionRow);
       expect(StyleSheet.flatten(rowStyle(entry))).toEqual(expect.objectContaining({ minHeight: 44, flexDirection: 'row' }));
       // Order in the header: the link approvals, then the applicants, then the sort chips.
@@ -1786,7 +1786,7 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     const renderer = await renderScreen();
 
     const entry = myPendingEntry(renderer);
-    expect(entry.findByType(Text).props.children).toBe('보낸 승인 요청 2');
+    expect(entry.findAllByType(Text).map(text => text.props.children)).toEqual(['보낸 승인 요청', '대기 2건']);
     expect(entry.props.accessibilityLabel).toBe('보낸 승인 요청 2개 보기');
     expect(pendingEntry(renderer)).toBeUndefined();
     expect(approvalSheet(renderer, 'mine').props.visible).toBe(false);
@@ -1818,8 +1818,8 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     expect(headerChildren).toHaveLength(1);
     // Same family as the Owner row: one-line, a full touch target tall, same corner radius.
     const entry = myPendingEntry(renderer);
-    expect(StyleSheet.flatten(rowStyle(entry))).toEqual(expect.objectContaining({ minHeight: 44, flexDirection: 'row', borderRadius: radii.md, backgroundColor: colors.brandSoft, borderColor: colors.brand }));
-    expect(entry.findByType(Text).props.children).toBe('보낸 승인 요청 2');
+    expect(StyleSheet.flatten(rowStyle(entry))).toEqual(expect.objectContaining({ minHeight: 44, flexDirection: 'row', borderRadius: radii.md, backgroundColor: colors.surface, borderColor: colors.inputBorder }));
+    expect(entry.findAllByType(Text).map(text => text.props.children)).toEqual(['보낸 승인 요청', '대기 2건']);
     // The very same shared row as the Owner's - only the text and the handler differ.
     expect(entry.type).toBe(PendingActionRow);
   });
@@ -1830,8 +1830,8 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
     const renderer = await renderScreen();
 
-    expect(pendingEntry(renderer).findByType(Text).props.children).toBe('받은 승인 요청 3');
-    expect(myPendingEntry(renderer).findByType(Text).props.children).toBe('보낸 승인 요청 4');
+    expect(pendingEntry(renderer).findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '3']);
+    expect(myPendingEntry(renderer).findAllByType(Text).map(text => text.props.children)).toEqual(['보낸 승인 요청', '대기 4건']);
     expect(pendingEntry(renderer).props.accessibilityLabel).toBe('받은 승인 요청 3개 보기');
     expect(myPendingEntry(renderer).props.accessibilityLabel).toBe('보낸 승인 요청 4개 보기');
   });
@@ -1840,14 +1840,14 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'submitter', ownerJupleId: 'K7MP4Q8N', myPendingSubmissionCount: 1 }));
     jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
     const renderer = await renderScreen();
-    expect(myPendingEntry(renderer).findByType(Text).props.children).toBe('보낸 승인 요청 1');
+    expect(myPendingEntry(renderer).findAllByType(Text).map(text => text.props.children)).toEqual(['보낸 승인 요청', '대기 1건']);
     const pull = async () => act(async () => {
       renderer.root.findAllByType(FlatList)[0].props.refreshControl.props.onRefresh();
     });
 
     jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'submitter', ownerJupleId: 'K7MP4Q8N', myPendingSubmissionCount: 3 }));
     await pull();
-    expect(myPendingEntry(renderer).findByType(Text).props.children).toBe('보낸 승인 요청 3');
+    expect(myPendingEntry(renderer).findAllByType(Text).map(text => text.props.children)).toEqual(['보낸 승인 요청', '대기 3건']);
 
     jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'submitter', ownerJupleId: 'K7MP4Q8N', myPendingSubmissionCount: 0 }));
     await pull();
@@ -1884,7 +1884,7 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     });
 
     expect(jest.mocked(getCollection).mock.calls.length).toBe(callsBefore + 1);
-    expect(pendingEntry(renderer).findByType(Text).props.children).toBe('받은 승인 요청 2');
+    expect(pendingEntry(renderer).findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '2']);
   });
 
   it('nothing waiting: no entry at all', async () => {

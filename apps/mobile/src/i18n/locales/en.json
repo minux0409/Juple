@@ -147,7 +147,8 @@
     "copyClearAllA11y": "Deselect all",
     "copySelectUpTo": "Select up to {{max}}",
     "detailItemCount": "Total {{count}}",
-    "myPendingSubmissions": "Sent approval requests {{count}}",
+    "myPendingSubmissions": "Sent approval requests",
+    "myPendingStatus": "{{count}} waiting",
     "myPendingSubmissionsA11y": "View {{count}}: Sent approval requests",
     "myPendingA11y": "Sent approval requests: {{count}}",
     "favoritesTitle": "Favorites",
@@ -288,7 +289,7 @@
     "saveOutcomeAlreadyPending": "The collection you chose already has this link waiting for approval.",
     "saveOutcomeAlreadyInCollection": "The collection you chose already has this link.",
     "roleSubmitter": "Needs approval",
-    "pendingSubmissions": "Received approval requests {{count}}",
+    "pendingSubmissions": "Received approval requests",
     "pendingSubmissionsA11y": "View {{count}}: Received approval requests",
     "removeFromSharedOwnerOnly": "Only the owner can remove links from a collection shared with you.",
     "removeFromCollection": "Remove from collection",
@@ -360,7 +361,7 @@
     "homeShortcutLocked": "A locked collection still asks for its password when opened from the Home screen. It is not added as a share destination.",
     "joinPending": "Waiting for approval",
     "joinRequestsA11y": "Join requests {{count}}",
-    "joinRequests": "Join requests {{count}}"
+    "joinRequests": "Join requests"
   },
   "toast": {
     "moveSuccess": "Moved.",

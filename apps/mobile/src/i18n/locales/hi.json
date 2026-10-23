@@ -147,7 +147,8 @@
     "copyClearAllA11y": "पूरा चयन हटाएँ",
     "copySelectUpTo": "{{max}} तक चुनें",
     "detailItemCount": "कुल {{count}}",
-    "myPendingSubmissions": "भेजे गए अनुमोदन अनुरोध {{count}}",
+    "myPendingSubmissions": "भेजे गए अनुमोदन अनुरोध",
+    "myPendingStatus": "{{count}} प्रतीक्षा में",
     "myPendingSubmissionsA11y": "भेजे गए अनुमोदन अनुरोध देखें: {{count}}",
     "myPendingA11y": "भेजे गए अनुमोदन अनुरोध: {{count}}",
     "favoritesTitle": "पसंदीदा",
@@ -288,7 +289,7 @@
     "saveOutcomeAlreadyPending": "आपके चुने हुए संग्रह में यह लिंक पहले से मंज़ूरी की प्रतीक्षा में है।",
     "saveOutcomeAlreadyInCollection": "आपके चुने हुए संग्रह में यह लिंक पहले से है।",
     "roleSubmitter": "मंज़ूरी के बाद जुड़ेगा",
-    "pendingSubmissions": "प्राप्त अनुमोदन अनुरोध {{count}}",
+    "pendingSubmissions": "प्राप्त अनुमोदन अनुरोध",
     "pendingSubmissionsA11y": "प्राप्त अनुमोदन अनुरोध देखें: {{count}}",
     "removeFromSharedOwnerOnly": "आपके साथ साझा किए गए संग्रह से लिंक केवल स्वामी हटा सकते हैं।",
     "removeFromCollection": "संग्रह से हटाएँ",
@@ -360,7 +361,7 @@
     "homeShortcutLocked": "लॉक किया हुआ कलेक्शन होम स्क्रीन से खोलने पर भी पासवर्ड माँगता है। उसे शेयर गंतव्य के रूप में नहीं जोड़ा जाता।",
     "joinPending": "स्वीकृति की प्रतीक्षा में",
     "joinRequestsA11y": "अनुरोध {{count}}",
-    "joinRequests": "अनुरोध {{count}}"
+    "joinRequests": "अनुरोध"
   },
   "toast": {
     "moveSuccess": "स्थानांतरित किया गया।",

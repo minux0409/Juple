@@ -7,14 +7,14 @@ import { isSessionLost } from '../../../lib/authSession';
 import { respondToInvitation, type ReceivedCollectionInvitation } from '../../../lib/collectionInvitations';
 import { participantName, roleLabel } from '../../../lib/collectionSharing';
 import { collectionTile } from '../../../lib/collectionsView';
-import { formatBadgeCount } from '../../../lib/notifications';
 import { Avatar } from '../Avatar';
-import { CollectionGlyph, Glyph } from '../Glyph';
+import { CollectionGlyph } from '../Glyph';
 import { useSignedInApp } from '../AppRoot';
 import { LoadFailed } from '../PageStates';
 import { Modal } from '../Modal';
 import styles from './ReceivedInvitations.module.css';
 import { useAttention } from '../useAttention';
+import { RequestRow } from './RequestRow';
 
 /** Kept outside the collection search: searching collections must not hide pending invitations. */
 export function ReceivedInvitations({ onAccepted }: { readonly onAccepted: () => void }) {
@@ -84,12 +84,7 @@ export function ReceivedInvitations({ onAccepted }: { readonly onAccepted: () =>
   if (items.length === 0 && !loading && !failed && !open && !notice) return null;
   return (
     <section aria-busy={loading || busyId !== null} aria-label={dictionary.shareRequests} className={styles.root}>
-      {items.length > 0 ? <button aria-haspopup="dialog" aria-expanded={open} className={styles.entry} onClick={() => { setNotice(null); setOpen(true); }} type="button">
-        <Glyph className={styles.people} name="People" size={20} />
-        <span className={styles.entryLabel}>{dictionary.shareRequests}</span>
-        <span className={styles.badge}>{formatBadgeCount(items.length)}</span>
-        <Glyph className={styles.chevron} name="Chevron" size={16} />
-      </button> : null}
+      {items.length > 0 ? <RequestRow accessibleLabel={`${dictionary.shareRequests} ${items.length}`} count={items.length} expanded={open} label={dictionary.shareRequests} onClick={() => { setNotice(null); setOpen(true); }} testId="received-invitations" /> : null}
       {!open && notice ? <p role="status">{notice}</p> : null}
       {!open && failed ? <LoadFailed dictionary={dictionary} onRetry={() => void load()} /> : null}
       {!open && loading && items.length === 0 ? <p role="status">{dictionary.processing}</p> : null}

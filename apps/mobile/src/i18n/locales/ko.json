@@ -147,7 +147,8 @@
     "copyClearAllA11y": "전체 선택 해제",
     "copySelectUpTo": "{{max}}개까지 선택",
     "detailItemCount": "총 {{count}}개",
-    "myPendingSubmissions": "보낸 승인 요청 {{count}}",
+    "myPendingSubmissions": "보낸 승인 요청",
+    "myPendingStatus": "대기 {{count}}건",
     "myPendingSubmissionsA11y": "보낸 승인 요청 {{count}}개 보기",
     "myPendingA11y": "보낸 승인 요청 {{count}}개",
     "favoritesTitle": "즐겨찾기",
@@ -288,7 +289,7 @@
     "saveOutcomeAlreadyPending": "선택한 컬렉션에는 이미 승인 대기 중인 링크가 있어요.",
     "saveOutcomeAlreadyInCollection": "선택한 컬렉션에는 이미 같은 링크가 있어요.",
     "roleSubmitter": "승인 후 추가",
-    "pendingSubmissions": "받은 승인 요청 {{count}}",
+    "pendingSubmissions": "받은 승인 요청",
     "pendingSubmissionsA11y": "받은 승인 요청 {{count}}개 보기",
     "removeFromSharedOwnerOnly": "공유받은 컬렉션에서는 소유자만 링크를 뺄 수 있어요.",
     "removeFromCollection": "컬렉션에서 삭제",
@@ -360,7 +361,7 @@
     "homeShortcutLocked": "잠긴 컬렉션은 홈 화면 바로가기를 눌러도 비밀번호를 먼저 입력해야 열려요. 공유 대상(Direct Share)에는 추가되지 않아요.",
     "joinPending": "승인 대기 중",
     "joinRequestsA11y": "참여 요청 {{count}}건 확인",
-    "joinRequests": "참여 요청 {{count}}"
+    "joinRequests": "참여 요청"
   },
   "toast": {
     "moveSuccess": "이동했습니다.",

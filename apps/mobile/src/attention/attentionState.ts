@@ -7,6 +7,8 @@ export interface AttentionCollection {
   readonly isPublicShareActive?: boolean;
   readonly attentionCount?: number;
   readonly unreadNewLinkCount?: number;
+  readonly pendingSubmissionCount?: number;
+  readonly pendingJoinRequestCount?: number;
 }
 export interface AttentionInvitation { readonly invitationId: number }
 export interface AttentionFriendRequest { readonly requestId: number; readonly direction: string }
@@ -14,23 +16,27 @@ export type AttentionResource = 'invitations' | 'friends' | 'collections';
 export interface AttentionCounts {
   readonly home: number; readonly archive: number; readonly collections: number; readonly friends: number; readonly myPage: number;
   readonly types: Readonly<Record<'favorites' | 'all' | 'owned' | 'shared', number>>;
+  /** Pending work for the signed-in user, by kind: invitations they received and approvals they must answer as an Owner. */
+  readonly requests: { readonly invitations: number; readonly approvals: number };
 }
 const countOf = (value: number | undefined) => Number.isFinite(value) ? Math.max(0, Math.floor(value!)) : 0;
 const unique = <T,>(rows: readonly T[], id: (row: T) => number): readonly T[] => [...new Map(rows.map(row => [id(row), row])).values()];
 
 /** Never sum tabs or add notification unread totals. Their event/task overlap is already resolved by the server. */
 export function attentionCounts(invitations: readonly AttentionInvitation[], friends: readonly AttentionFriendRequest[], collections: readonly AttentionCollection[]): AttentionCounts {
-  const types = { favorites: 0, all: 0, owned: 0, shared: unique(invitations, row => row.invitationId).length };
+  const received = unique(invitations, row => row.invitationId).length;
+  let all = 0;
+  let approvals = 0;
   for (const row of unique(collections, item => item.id)) {
-    const attention = countOf(row.attentionCount);
-    const owner = (row.accessRole ?? 'owner').toLowerCase() === 'owner';
-    types.all += attention;
-    if (row.isFavorite) types.favorites += attention;
-    if (owner) types.owned += attention;
-    if (!owner || row.hasCollaborators || row.isPublicShareActive) types.shared += attention;
+    all += countOf(row.attentionCount);
+    // Only the Owner's own queue (proposed links + join requests) is an "approval request"; it exists only in a shared Collection.
+    if ((row.accessRole ?? 'owner').toLowerCase() === 'owner') approvals += countOf(row.pendingSubmissionCount) + countOf(row.pendingJoinRequestCount);
   }
+  // Requests are shared-Collection work: only the 공유 type carries them. The other types never repeat them, and a card
+  // keeps its own number (new links / its pending approvals) on the Collection it belongs to.
+  const types = { favorites: 0, all: 0, owned: 0, shared: received + approvals };
   const incoming = unique(friends, row => row.requestId).filter(row => row.direction.toLowerCase() === 'incoming').length;
-  return { home: 0, archive: 0, collections: types.all + unique(invitations, row => row.invitationId).length, friends: incoming, myPage: incoming, types };
+  return { home: 0, archive: 0, collections: all + received, friends: incoming, myPage: incoming, types, requests: { invitations: received, approvals } };
 }
 
 export const ATTENTION_CACHE_MS = 60_000;

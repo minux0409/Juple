@@ -81,8 +81,7 @@ export function SavedLinkGridCard({ item, isActionInFlight, preferEffectiveThumb
     <Text numberOfLines={SAVED_LINK_GRID_TITLE_MAX_LINES} style={[styles.title, { minHeight: TITLE_LINE_HEIGHT * SAVED_LINK_GRID_TITLE_MAX_LINES * fontScale }, displayTitle.isTechnicalIdentifier && ltrTextStyle]}>{displayTitle.text}</Text>
     {/* The meta line (site icon / adder) and, at its end, the 바로가기 button - its own cell, so it never overlaps the picture or the title. */}
     <View style={styles.metaLine}>
-      <SavedLinkMetaRow adderTrailing={reactions} addedBy={addedBy} dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} showTime={showTime} style={[styles.meta, styles.metaFill, { minHeight: META_LINE_HEIGHT * (addedBy ? 2 : 1) * fontScale }]} url={item.url} />
-      {onOpenOriginal ? <OpenOriginalLinkButton onPress={onOpenOriginal} variant="card" /> : null}
+      <SavedLinkMetaRow adderTrailing={reactions} addedBy={addedBy} dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} showTime={showTime} style={[styles.meta, styles.metaFill, { minHeight: META_LINE_HEIGHT * fontScale }]} trailingAction={onOpenOriginal ? <OpenOriginalLinkButton onPress={onOpenOriginal} variant="card" /> : undefined} url={item.url} />
     </View>
     {addedBy ? null : reactions}
   </View>;
@@ -134,6 +133,6 @@ const styles = themedStyles(() => ({
   overlay: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.35)', bottom: 0, justifyContent: 'center', left: 0, position: 'absolute', right: 0, top: 0 },
   title: { color: colors.textPrimary, fontSize: 14, fontWeight: '600', lineHeight: TITLE_LINE_HEIGHT, marginTop: spacing.xs },
   meta: { marginTop: 2 },
-  metaLine: { alignItems: 'flex-end', flexDirection: 'row' },
+  metaLine: { alignItems: 'center', flexDirection: 'row' },
   metaFill: { flex: 1, minWidth: 0 },
 }));

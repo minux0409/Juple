@@ -24,11 +24,25 @@ function createFixture(account: string) {
     let failurePending = failure !== null;
     let pending = Array.from({ length: count }, (_, index) => index + 1);
     let accepted = false;
+    // Owner's received requests (fixtureAttention = proposed links waiting in collection 10) and my own sent ones (fixtureMine).
+    let proposals = Array.from({ length: taskCount }, (_, index) => index + 1);
+    let mine = account === 'B' ? 0 : Number(query.get('fixtureMine') ?? 0);
     const api = async ({ path, method = 'GET' }: { path: string; method?: string }) => {
       const calls = JSON.parse(sessionStorage.getItem('invitationCalls') ?? '[]');
       calls.push(`${method} ${path}`);
       sessionStorage.setItem('invitationCalls', JSON.stringify(calls));
       await new Promise(resolve => setTimeout(resolve, 100));
+      if (path === '/api/v1/collections/10/submissions') return { items: proposals.map(id => ({ submissionId: id, url: `https://example.com/p/${id}`, title: id === 1 ? '승인을 기다리는 아주 긴 링크 제목도 두 줄까지만 보이고 버튼을 가리지 않습니다' : `Proposal ${id}`, previewImageUrl: null, submittedAtUtc: '2026-10-23T00:00:00Z', viaPublicShare: false, proposer: { kind: 'member', jupleId: 'TEST-PROPOSER', displayName: 'Proposer', profileImageUrl: null } })), nextCursor: null };
+      if (path === '/api/v1/collections/10/join-requests') return { items: [], nextCursor: null };
+      if (path.startsWith('/api/v1/collections/10/submissions/')) {
+        const id = Number(path.split('/')[6]);
+        if (!proposals.includes(id)) throw new ApiHttpError(404, 'notFound');
+        proposals = proposals.filter(value => value !== id);
+        return undefined;
+      }
+      if (path === '/api/v1/collections/my-pending-submissions/count') return { myPendingSubmissionCount: mine };
+      if (path === '/api/v1/collections/submissions/mine') return { items: Array.from({ length: mine }, (_, index) => ({ submissionId: 900 + index, url: `https://example.com/m/${index}`, title: `Mine ${index + 1}`, previewImageUrl: null, submittedAtUtc: '2026-10-23T00:00:00Z', collectionId: 11, collectionName: '웹툰' })), nextCursor: null, totalCount: mine };
+      if (path.startsWith('/api/v1/collections/submissions/mine/') && method === 'DELETE') { mine = Math.max(0, mine - 1); return undefined; }
       if (path === '/api/v1/friends/requests') return { items: [
         ...Array.from({ length: friendCount }, (_, index) => ({ requestId: index + 1, direction: 'incoming', jupleId: 'FIXTURE', displayName: 'Fixture', createdAtUtc: '2026-10-23T00:00:00Z' })),
         { requestId: 500, direction: 'outgoing', jupleId: 'SENT', displayName: 'Sent', createdAtUtc: '2026-10-23T00:00:00Z' },
@@ -51,7 +65,7 @@ function createFixture(account: string) {
       }
       if (path.startsWith('/api/v1/collections?')) return { items: [
         ...(accepted ? [{ id: 1, name: 'Accepted collection', icon: 'Folder', color: null, itemCount: 0, isFavorite: false, accessRole: 'viewer' }] : []),
-        { id: 10, name: '잡동사니', icon: 'Folder', color: 'Blue', itemCount: 8, isFavorite: true, accessRole: 'owner', hasCollaborators: true, attentionCount: taskCount + newLinks, unreadNewLinkCount: newLinks },
+        { id: 10, name: '잡동사니', icon: 'Folder', color: 'Blue', itemCount: 8, isFavorite: true, accessRole: 'owner', hasCollaborators: true, attentionCount: proposals.length + newLinks, unreadNewLinkCount: newLinks, pendingSubmissionCount: proposals.length, pendingJoinRequestCount: 0 },
         { id: 11, name: '웹툰', icon: 'Folder', color: 'Blue', itemCount: 5, isFavorite: true, accessRole: 'viewer', attentionCount: 0 },
       ], nextCursor: null };
       return { items: [], nextCursor: null };

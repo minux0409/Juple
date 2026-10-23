@@ -8747,3 +8747,11 @@ button.reactionChipMine:hover {
   opacity: 0.6;
   transition: opacity 120ms ease;
 }
+
+/* ---- Collection cards: `name · N` on one line; the attention number on the tile's bottom end corner ---- */
+.collectionNameLine { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.collectionNameText { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; font-size: 15px; line-height: 1.35; }
+.collectionCountInline { flex: 0 0 auto; color: var(--app-text-tertiary); font-size: 12.5px; white-space: nowrap; }
+.tileWithBadge { position: relative; display: inline-flex; }
+.collectionCover .attentionOnTile, .tileWithBadge .attentionOnTile { position: absolute; inset-block-end: 4px; inset-inline-end: 4px; box-shadow: 0 0 0 2px var(--app-surface); }
+.tileWithBadge .attentionOnTile { inset-block-end: -4px; inset-inline-end: -4px; }

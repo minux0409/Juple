@@ -9,7 +9,9 @@ describe('Mobile attention state (same policy as Web)', () => {
   it('deduplicates invitations, tasks and overlapping filters; sent requests do not count', () => {
     const result = attentionCounts([...pending, ...pending], requests, [...collections, ...collections]);
     expect(result.collections).toBe(5);
-    expect(result.types).toEqual({ favorites: 3, all: 3, owned: 3, shared: 5 });
+    // Requests live only under 공유; the other types never repeat them.
+    expect(result.types).toEqual({ favorites: 0, all: 0, owned: 0, shared: 2 });
+    expect(result.requests).toEqual({ invitations: 2, approvals: 0 });
     expect(result.myPage).toBe(1);
     expect(result.home + result.archive).toBe(0);
   });

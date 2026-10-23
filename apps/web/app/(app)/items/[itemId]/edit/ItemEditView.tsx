@@ -38,6 +38,7 @@ import { ItemDetailSkeleton } from '../../../Skeletons';
 import { GatedLink } from '../GatedLink';
 import { useItemRecord } from '../useItemRecord';
 import { PageHeader } from '../../../PageHeader';
+import { SaveOutcomeDialog } from '../../../SaveOutcomeDialog';
 import styles from '../../../app.module.css';
 
 const EMPTY_COLLECTIONS: readonly CollectionSummary[] = [];
@@ -428,18 +429,7 @@ export function ItemEditView({
               ))}
             </div>
           ) : null}
-          {outcome ? (
-            <div className={styles.inlineState} role="status">
-              {outcome.split('\n').map(line => (
-                <p className={styles.stateMessage} key={line}>
-                  {line}
-                </p>
-              ))}
-              <button className={styles.secondaryButton} onClick={goToDetails} type="button">
-                {dictionary.confirm}
-              </button>
-            </div>
-          ) : (
+          {outcome ? null : (
             <ItemFormFooter>
               <button className={styles.settingsAction} disabled={saving} onClick={requestLeave} type="button">
                 {dictionary.cancel}
@@ -451,6 +441,7 @@ export function ItemEditView({
           )}
         </ItemFormSections>
       </ItemFormLayout>
+      <SaveOutcomeDialog confirmLabel={dictionary.confirm} message={outcome} onConfirm={goToDetails} />
 
       <ConfirmDialog
         busy={photoBusy}

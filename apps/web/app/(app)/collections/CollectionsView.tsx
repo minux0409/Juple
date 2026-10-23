@@ -41,6 +41,8 @@ import { LinkImage } from '../LinkImage';
 import { LoadFailed } from '../PageStates';
 import { CollectionSearchBox } from './CollectionSearchBox';
 import { ReceivedInvitations } from './ReceivedInvitations';
+import { ReceivedRequestsEntry } from './ReceivedRequestsEntry';
+import { SentRequestsEntry } from './SentRequestsEntry';
 import { CollectionSkeleton } from '../Skeletons';
 import { useToast } from '../Toaster';
 import { useStoredChoice } from '../useStoredChoice';
@@ -265,6 +267,9 @@ export function CollectionsView() {
         </div>
       </div>
 
+      {/* Requests are shared-Collection work: only 공유 컬렉션 carries them - 받은 승인 요청 (links / join requests I answer as Owner), then 받은 초대 요청. */}
+      {filter === 'shared' ? <SentRequestsEntry /> : null}
+      {filter === 'shared' ? <ReceivedRequestsEntry onChanged={() => setReloadToken(token => token + 1)} /> : null}
       {filter === 'shared' ? <ReceivedInvitations onAccepted={() => setReloadToken(token => token + 1)} /> : null}
 
       {/* Between the tabs and the cards (mobile: the same place, under the header and above the tabs' cards). */}
@@ -432,6 +437,12 @@ function CollectionCardBody({
       >
         <div className={styles.collectionCover}>
           <CollectionTileView collection={collection} fill size={96} />
+          {/* The attention number sits on the picture's bottom end corner (mobile: on the tile), clear of the status row's avatars. */}
+          {attention > 0 ? (
+            <span aria-hidden className={`${styles.attentionBadge} ${styles.attentionOnTile}`} data-attention-on-tile>
+              {formatBadgeCount(attention)}
+            </span>
+          ) : null}
           {collection.isFavorite && !hasActions ? (
             <span aria-label={dictionary.favorite} className={styles.coverStar} role="img" title={dictionary.favorite}>
               <Glyph name="StarFilled" size={18} />
@@ -439,19 +450,11 @@ function CollectionCardBody({
           ) : null}
         </div>
         <div className={styles.collectionText}>
-          <span className={styles.collectionName} dir="auto">
-            {collection.name}
-          </span>
-          <span className={styles.linkMeta}>{formatMessage(dictionary.itemCount, { count: collection.itemCount })}</span>
+          <NameWithCount collection={collection} dictionary={dictionary} />
         </div>
         {/* A card with nothing to report has no status row at all: the body is as tall as its name and count. */}
         {hasGridStatus(collection) ? (
           <div className={styles.collectionGridStatus}>
-            {attention > 0 ? (
-              <span aria-hidden className={styles.attentionBadge}>
-                {formatBadgeCount(attention)}
-              </span>
-            ) : null}
             <CollectionBadges collection={collection} dictionary={dictionary} hideFavorite />
             <ParticipantPreview collection={collection} />
           </div>
@@ -466,23 +469,37 @@ function CollectionCardBody({
       className={styles.collectionBody}
       href={collectionHref(collection.id)}
     >
-      <CollectionTileView collection={collection} size={72} />
-      <div className={styles.collectionText}>
-        <span className={styles.collectionName} dir="auto">
-          {collection.name}
-        </span>
-        <span className={styles.linkMeta}>{formatMessage(dictionary.itemCount, { count: collection.itemCount })}</span>
-      </div>
-      <div className={styles.cardStatus}>
+      <span className={styles.tileWithBadge}>
+        <CollectionTileView collection={collection} size={72} />
         {attention > 0 ? (
-          <span aria-hidden className={styles.attentionBadge}>
+          <span aria-hidden className={`${styles.attentionBadge} ${styles.attentionOnTile}`} data-attention-on-tile>
             {formatBadgeCount(attention)}
           </span>
         ) : null}
+      </span>
+      <div className={styles.collectionText}>
+        <NameWithCount collection={collection} dictionary={dictionary} />
+      </div>
+      <div className={styles.cardStatus}>
         <CollectionBadges collection={collection} dictionary={dictionary} hideFavorite={hasActions} />
         <ParticipantPreview collection={collection} />
       </div>
     </Link>
+  );
+}
+
+/** `카제나 · 2개`: the link count on the name's line (the name ellipsizes first; the count stays). */
+function NameWithCount({ collection, dictionary }: { readonly collection: CollectionSummary; readonly dictionary: AppDictionary }) {
+  return (
+    <span className={styles.collectionNameLine}>
+      <span className={styles.collectionNameText} dir="auto">
+        {collection.name}
+      </span>
+      <span className={styles.collectionCountInline}>
+        <span aria-hidden>· </span>
+        {formatMessage(dictionary.itemCount, { count: collection.itemCount })}
+      </span>
+    </span>
   );
 }
 

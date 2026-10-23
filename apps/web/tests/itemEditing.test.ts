@@ -700,7 +700,7 @@ describe('Web V4: a content workspace', () => {
     // The memo is rendered inside the text block, directly after the title.
     assert.match(list, /styles\.linkTitle[\s\S]*?link\.memo \? \([\s\S]*?styles\.linkMemo/);
     // Grid cards show the memo too (one line) and both modes draw the site with its badge.
-    assert.match(list, /<SiteMeta link=\{link\} \/>/);
+    assert.match(list, /<SiteMeta iconOnly=\{Boolean\(link\.adder\)\} link=\{link\} \/>/);
     assert.match(css, /\.linkGrid \.linkTitle \{[^}]*-webkit-line-clamp: 2;/);
     assert.match(css, /\.linkGrid \.linkMemo \{[^}]*white-space: nowrap;/);
     assert.match(css, /\.linkList > \.linkCard \{\s*border: 0;\s*border-bottom: 1px solid var\(--border-subtle\);\s*border-radius: 0;\s*background: transparent;/);

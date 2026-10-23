@@ -147,7 +147,8 @@
     "copyClearAllA11y": "取消全部選擇",
     "copySelectUpTo": "最多選擇 {{max}} 個",
     "detailItemCount": "共 {{count}} 個",
-    "myPendingSubmissions": "已傳送的審核請求 {{count}}",
+    "myPendingSubmissions": "已傳送的審核請求",
+    "myPendingStatus": "等待 {{count}} 筆",
     "myPendingSubmissionsA11y": "查看已傳送的審核請求 {{count}} 則",
     "myPendingA11y": "已傳送的審核請求: {{count}}",
     "favoritesTitle": "我的最愛",
@@ -288,7 +289,7 @@
     "saveOutcomeAlreadyPending": "你選擇的合集中，此連結已在等待審核。",
     "saveOutcomeAlreadyInCollection": "你選擇的合集中已有此連結。",
     "roleSubmitter": "審核後新增",
-    "pendingSubmissions": "收到的審核請求 {{count}}",
+    "pendingSubmissions": "收到的審核請求",
     "pendingSubmissionsA11y": "查看收到的審核請求 {{count}} 則",
     "removeFromSharedOwnerOnly": "只有擁有者才能從共享給你的合集中移除連結。",
     "removeFromCollection": "從合集中移除",
@@ -360,7 +361,7 @@
     "homeShortcutLocked": "已鎖定的合集從主畫面開啟時仍需輸入密碼，且不會加入為分享目標。",
     "joinPending": "等待核准",
     "joinRequestsA11y": "加入申請 {{count}}",
-    "joinRequests": "加入申請 {{count}}"
+    "joinRequests": "加入申請"
   },
   "toast": {
     "moveSuccess": "已移動。",

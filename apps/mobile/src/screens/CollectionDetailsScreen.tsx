@@ -965,11 +965,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     const ownsCollection = !isSharedWithMe(collection);
     if (openItem.shared) {
       // Somebody else's link (a reply / heart on my comment there): its read-only view, with that thread opened.
-      navigation.navigate('CollectionSharedItem', {
-        collectionId,
+      navigation.navigate('ItemDetails', {
         itemId: openItem.itemId,
-        isCollectionOwner: ownsCollection,
-        focusThreadRootId: openItem.commentRootId ?? null,
+        collectionContext: { collectionId, canRemove: ownsCollection, isCollectionOwner: ownsCollection, isCollaborative: true, readOnly: true },
+        initialFocusThreadRootId: openItem.commentRootId ?? null,
+        ...(openItem.focus === 'comments' ? { initialFocus: 'comments' as const } : {}),
       });
       return;
     }
@@ -1537,7 +1537,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       // Opened from this Collection: its delete action removes the link from here only.
       navigation.navigate('ItemDetails', { itemId: item.itemId, collectionContext: { collectionId, canRemove: true, isCollectionOwner: isOwner, isCollaborative: reactionsEnabled } });
     } else {
-      navigation.navigate('CollectionSharedItem', { collectionId, itemId: item.itemId, isCollectionOwner: isOwner });
+      navigation.navigate('ItemDetails', {
+        itemId: item.itemId,
+        // Another member's link: the same sheet, read-only; only the Owner may take it out of this Collection (the server checks too).
+        collectionContext: { collectionId, canRemove: isOwner, isCollectionOwner: isOwner, isCollaborative: true, readOnly: true },
+      });
     }
   };
   openCollectionItemRef.current = openCollectionItem;
@@ -1565,7 +1569,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     const reactionState = reactionsEnabled ? itemReactions.reactionsOf(item.itemId, item) : null;
     const reactionFooter = reactionState ? (
       <ReactionChips
-        inline={addedBy !== null}
         onAdd={() => setReactionPickerItem(item)}
         onToggle={key => reactToItem(item, key)}
         reactions={reactionState}
@@ -1807,7 +1810,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       {isOwner && (collection.pendingSubmissionCount ?? 0) > 0 ? (
         <PendingActionRow
           accessibilityLabel={t('collections.pendingSubmissionsA11y', { count: collection.pendingSubmissionCount })}
-          label={t('collections.pendingSubmissions', { count: collection.pendingSubmissionCount })}
+          count={collection.pendingSubmissionCount}
+          label={t('collections.pendingSubmissions')}
           onPress={() => runUnlocked(() => setIsOwnerApprovalSheetVisible(true))}
           style={styles.pendingRowSpacing}
           testID="collection-details-pending"
@@ -1818,7 +1822,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       {isOwner && (collection.pendingJoinRequestCount ?? 0) > 0 ? (
         <PendingActionRow
           accessibilityLabel={t('collections.joinRequestsA11y', { count: collection.pendingJoinRequestCount })}
-          label={t('collections.joinRequests', { count: collection.pendingJoinRequestCount })}
+          count={collection.pendingJoinRequestCount}
+          label={t('collections.joinRequests')}
           onPress={() => runUnlocked(() => setIsJoinRequestsSheetVisible(true))}
           style={styles.pendingRowSpacing}
           testID="collection-details-join-requests"
@@ -1864,7 +1869,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       {(collection.myPendingSubmissionCount ?? 0) > 0 ? (
         <PendingActionRow
           accessibilityLabel={t('collections.myPendingSubmissionsA11y', { count: collection.myPendingSubmissionCount })}
-          label={t('collections.myPendingSubmissions', { count: collection.myPendingSubmissionCount })}
+          statusText={t('collections.myPendingStatus', { count: collection.myPendingSubmissionCount })}
+          variant="status"
+          label={t('collections.myPendingSubmissions')}
           onPress={() => setIsMyApprovalSheetVisible(true)}
           style={styles.myPendingRowSpacing}
           testID="collection-details-my-pending"

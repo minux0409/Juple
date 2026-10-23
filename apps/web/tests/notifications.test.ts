@@ -249,8 +249,8 @@ describe('where a notification leads (the server\'s target -> a Web page)', () =
     assert.deepEqual(go({ kind: 'friendRequests' }), { kind: 'href', href: '/me/friends?requests=incoming' });
     assert.deepEqual(go({ kind: 'friends' }), { kind: 'href', href: '/me/friends' });
     assert.deepEqual(go({ kind: 'collection', collectionId: 5 }), { kind: 'href', href: '/collections/5' });
-    assert.deepEqual(go({ kind: 'collectionSubmissions', collectionId: 5 }), { kind: 'href', href: '/collections/5' }, '승인 대기 list is app-only: its Collection');
-    assert.deepEqual(go({ kind: 'collectionJoinRequests', collectionId: 5 }), { kind: 'href', href: '/collections/5' }, '참여 요청 list is app-only: its Collection');
+    assert.deepEqual(go({ kind: 'collectionSubmissions', collectionId: 5 }), { kind: 'href', href: '/collections/5?requests=1' }, '승인 요청 opens its Collection with the answering dialog');
+    assert.deepEqual(go({ kind: 'collectionJoinRequests', collectionId: 5 }), { kind: 'href', href: '/collections/5?requests=1' }, '참여 요청 opens its Collection with the answering dialog');
     assert.deepEqual(go({ kind: 'collectionItem', collectionId: 5, itemId: 9, focus: 'comments' }), { kind: 'collectionLink', collectionId: 5, itemId: 9, mine: true });
     assert.deepEqual(go({ kind: 'collectionSharedItem', collectionId: 5, itemId: 9, rootCommentId: 3 }), { kind: 'collectionLink', collectionId: 5, itemId: 9, mine: false });
     assert.deepEqual(go({ kind: 'collectionItem', collectionId: 5 }), { kind: 'href', href: '/collections/5' }, 'no link id: its Collection');

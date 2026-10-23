@@ -28,6 +28,9 @@ export interface CollectionSummary {
    */
   readonly attentionCount?: number;
   readonly unreadNewLinkCount?: number;
+  /** Owner only: proposed links (승인 후 추가) and people waiting to join - the Owner's received requests. */
+  readonly pendingSubmissionCount?: number;
+  readonly pendingJoinRequestCount?: number;
 }
 
 export interface CollectionsPage {

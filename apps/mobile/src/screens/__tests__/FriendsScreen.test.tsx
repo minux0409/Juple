@@ -1473,28 +1473,39 @@ describe('FriendsScreen - the empty state follows the loaded data, not the text 
 
 
 describe('received friend request notification entry', () => {
-  it('opens the incoming requests modal once, consumes the intent and can be opened again', async () => {
+  const noRequestsPopup = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    renderer.root.findAllByType(AppModal).some(node => node.props.testID === 'received-friend-requests-modal');
+
+  it('selects the 받은 요청 tab (no popup), consumes the intent and can be used again', async () => {
     mockRoute.params = { openRequests: true, refreshToken: 1 };
     const renderer = await renderScreen();
-    let modal = renderer.root.findAllByType(AppModal).find(node => node.props.testID === 'received-friend-requests-modal')!;
-    expect(modal.props.visible).toBe(true);
-    expect(modal.findAllByType(Text).some(node => node.props.children === '파이리')).toBe(true);
+    expect(noRequestsPopup(renderer)).toBe(false);
+    expect(renderer.root.findByProps({ testID: 'friends-tab-incoming' }).props.accessibilityState).toMatchObject({ selected: true });
+    expect(renderer.root.findAll(node => node.props.testID === 'friends-incoming-list').length).toBeGreaterThan(0);
     expect(mockNavigation.setParams).toHaveBeenCalledWith({ openRequests: undefined, refreshToken: undefined });
-    await act(async () => modal.props.onClose());
-    expect(renderer.root.findAllByType(AppModal).find(node => node.props.testID === 'received-friend-requests-modal')?.props.visible).toBe(false);
+    await act(async () => renderer.root.findByProps({ testID: 'friends-tab-friends' }).props.onPress());
     mockRoute.params = { openRequests: true, refreshToken: 2 };
     await act(async () => renderer.update(<FriendsScreen />));
-    modal = renderer.root.findAllByType(AppModal).find(node => node.props.testID === 'received-friend-requests-modal')!;
-    expect(modal.props.visible).toBe(true);
+    expect(renderer.root.findByProps({ testID: 'friends-tab-incoming' }).props.accessibilityState).toMatchObject({ selected: true });
+    expect(noRequestsPopup(renderer)).toBe(false);
   });
 
-  it('keeps an already answered request entry as an empty incoming modal rather than the friends tab', async () => {
+  it('an already answered request entry shows the empty 받은 요청 tab and answers nothing', async () => {
     jest.mocked(getFriendRequests).mockResolvedValue([]);
     mockRoute.params = { openRequests: true, refreshToken: 1 };
     const renderer = await renderScreen();
-    const modal = renderer.root.findAllByType(AppModal).find(node => node.props.testID === 'received-friend-requests-modal')!;
-    expect(modal.props.visible).toBe(true);
+    expect(noRequestsPopup(renderer)).toBe(false);
+    expect(renderer.root.findAll(node => node.props.testID === 'friends-incoming-empty').length).toBeGreaterThan(0);
     expect(acceptFriendRequest).not.toHaveBeenCalled();
     expect(declineFriendRequest).not.toHaveBeenCalled();
+  });
+
+  it('a received request offers only 수락 / 거절: its person is not a button (no 신고 / 차단 sheet)', async () => {
+    mockRoute.params = { openRequests: true, refreshToken: 1 };
+    const renderer = await renderScreen();
+    const person = renderer.root.findAll(node => typeof node.props.testID === 'string' && node.props.testID.startsWith('friends-incoming-person-') && typeof node.type !== 'string')[0];
+    expect(person.props.disabled).toBe(true);
+    expect(renderer.root.findAll(node => typeof node.props.testID === 'string' && node.props.testID.startsWith('friends-accept-')).length).toBeGreaterThan(0);
+    expect(renderer.root.findAll(node => typeof node.props.testID === 'string' && node.props.testID.startsWith('friends-decline-')).length).toBeGreaterThan(0);
   });
 });

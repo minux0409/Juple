@@ -147,7 +147,8 @@
     "copyClearAllA11y": "Gesamte Auswahl aufheben",
     "copySelectUpTo": "Bis zu {{max}} auswählen",
     "detailItemCount": "Gesamt: {{count}}",
-    "myPendingSubmissions": "Gesendete Freigabeanfragen {{count}}",
+    "myPendingSubmissions": "Gesendete Freigabeanfragen",
+    "myPendingStatus": "{{count}} ausstehend",
     "myPendingSubmissionsA11y": "Gesendete Freigabeanfragen: {{count}} ansehen",
     "myPendingA11y": "Gesendete Freigabeanfragen: {{count}}",
     "favoritesTitle": "Favoriten",
@@ -288,7 +289,7 @@
     "saveOutcomeAlreadyPending": "In der gewählten Sammlung wartet dieser Link schon auf Freigabe.",
     "saveOutcomeAlreadyInCollection": "Die gewählte Sammlung enthält diesen Link schon.",
     "roleSubmitter": "Mit Freigabe",
-    "pendingSubmissions": "Erhaltene Freigabeanfragen {{count}}",
+    "pendingSubmissions": "Erhaltene Freigabeanfragen",
     "pendingSubmissionsA11y": "Erhaltene Freigabeanfragen: {{count}} ansehen",
     "removeFromSharedOwnerOnly": "Nur der Eigentümer kann Links aus einer mit dir geteilten Sammlung entfernen.",
     "removeFromCollection": "Aus Sammlung entfernen",
@@ -360,7 +361,7 @@
     "homeShortcutLocked": "Eine gesperrte Sammlung verlangt auch vom Startbildschirm aus ihr Passwort. Sie wird nicht als Teilen-Ziel hinzugefügt.",
     "joinPending": "Wartet auf Genehmigung",
     "joinRequestsA11y": "Anfragen {{count}}",
-    "joinRequests": "Anfragen {{count}}"
+    "joinRequests": "Anfragen"
   },
   "toast": {
     "moveSuccess": "Verschoben.",

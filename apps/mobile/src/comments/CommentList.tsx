@@ -207,7 +207,8 @@ const styles = themedStyles(() => ({
   section: { borderTopColor: colors.divider, borderTopWidth: 1, marginTop: spacing.lg, paddingTop: spacing.md },
   title: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
   state: { alignItems: 'center', paddingVertical: spacing.md },
-  stateText: { color: colors.textSecondary, fontSize: 13, marginTop: spacing.sm },
+  // The empty sentence gets room below it, so it never crowds the divider that separates it from the composer.
+  stateText: { color: colors.textSecondary, fontSize: 13, marginBottom: spacing.lg, marginTop: spacing.sm },
   textAction: { alignItems: 'center', alignSelf: 'flex-start', justifyContent: 'center', minHeight: minTouchTarget },
   // The thread controls line up with the replies' own single indent.
   threadAction: { marginStart: REPLY_INDENT },

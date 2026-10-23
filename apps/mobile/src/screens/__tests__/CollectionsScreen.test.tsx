@@ -37,6 +37,7 @@ import {
   type ReceivedCollectionInvitation,
 } from '../../collections/api/collaborationApi';
 import { ApiError } from '../../api/ApiError';
+import { ReceivedApprovalsSheet } from '../../collections/ReceivedApprovalsSheet';
 import { ReceivedInvitationsSheet } from '../../collections/ReceivedInvitationsSheet';
 import { emitSocialPushEvent } from '../../push/pushEvents';
 import { emitCollectionNewLinksRead } from '../../notifications/notificationState';
@@ -741,7 +742,7 @@ describe('CollectionsScreen 공유 요청 (received collaboration invitations)',
   });
 
   const shareRequestsRow = (renderer: ReactTestRenderer.ReactTestRenderer) =>
-    renderer.root.findAll(node => node.props.testID === 'collections-share-requests' && typeof node.props.onPress === 'function');
+    renderer.root.findAll(node => node.props.testID === 'collections-share-requests' && typeof node.props.onPress === 'function' && node.parent?.props.testID !== 'collections-share-requests');
 
   const sheet = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findByType(ReceivedInvitationsSheet);
 
@@ -776,6 +777,37 @@ describe('CollectionsScreen 공유 요청 (received collaboration invitations)',
     expect(badge(renderer)[0].findByType(Text).props.children).toBe('99+');
   });
 
+  it('받은 승인 요청 (links / join requests I answer as Owner) is a 공유 컬렉션 row with a red count badge, listing the Collections that hold them', async () => {
+    const store = createMobileAttentionStore(jest.fn());
+    store.replace('invitations', []);
+    store.replace('collections', [
+      makeCollection({ id: 11, name: 'Mine A', accessRole: 'owner', hasCollaborators: true, pendingSubmissionCount: 2, pendingJoinRequestCount: 1, attentionCount: 3 }),
+      makeCollection({ id: 12, name: 'Mine B', accessRole: 'owner', hasCollaborators: true, pendingSubmissionCount: 0, pendingJoinRequestCount: 1, attentionCount: 1 }),
+      makeCollection({ id: 13, name: 'Theirs', accessRole: 'contributor', pendingSubmissionCount: 5 }),
+    ]);
+    const renderer = await renderScreen(store);
+    const row = () => renderer.root.findAll(node => node.props.testID === 'collections-received-approvals' && typeof node.props.onPress === 'function' && node.parent?.props.testID !== 'collections-received-approvals');
+    // Not on 즐겨찾기 (and no type but 공유 carries a request badge).
+    expect(row()).toHaveLength(0);
+    expect(renderer.root.findAll(node => /collections-filter-(favorites|all|owned)-badge/.test(node.props.testID ?? ''))).toHaveLength(0);
+    await act(async () => {
+      renderer.root.findAll(node => node.props.testID === 'collections-filter-shared' && typeof node.props.onPress === 'function')[0].props.onPress();
+    });
+    expect(row()).toHaveLength(1);
+    // Only MY Collections count (3 + 1); a Collection I do not own never adds its numbers.
+    expect(row()[0].findAllByType(Text).map(text => String(text.props.children))).toContain('4');
+    expect(renderer.root.findByProps({ testID: 'collections-filter-shared-badge' }).findByType(Text).props.children).toBe('4');
+    await act(async () => row()[0].props.onPress());
+    const sheet = renderer.root.findByType(ReceivedApprovalsSheet);
+    expect(sheet.props.visible).toBe(true);
+    expect(sheet.props.collections.map((collection: Collection) => collection.id)).toEqual([11, 12]);
+    // Answering lowers the number at once (the same store): the row leaves at 0.
+    await act(async () => { store.collectionChanged(makeCollection({ id: 11, name: 'Mine A', accessRole: 'owner', hasCollaborators: true, pendingSubmissionCount: 0, pendingJoinRequestCount: 0, attentionCount: 0 })); });
+    await act(async () => { store.collectionChanged(makeCollection({ id: 12, name: 'Mine B', accessRole: 'owner', hasCollaborators: true, pendingSubmissionCount: 0, pendingJoinRequestCount: 0, attentionCount: 0 })); });
+    expect(row()).toHaveLength(0);
+    await act(async () => renderer.unmount());
+  });
+
   it('all four type badges use the shared account source and remain in the centered row inside the border on Android/iOS', async () => {
     const originalOS = Platform.OS;
     try {
@@ -785,7 +817,8 @@ describe('CollectionsScreen 공유 요청 (received collaboration invitations)',
         store.replace('invitations', [invitation(3), invitation(4)]);
         store.replace('collections', [makeCollection({ id: 1, isFavorite: true, accessRole: 'owner', hasCollaborators: true, attentionCount: 3, unreadNewLinkCount: 1 })]);
         const renderer = await renderScreen(store);
-        for (const [filter, count] of [['favorites', '3'], ['all', '3'], ['owned', '3'], ['shared', '5']]) {
+        // Requests (invitations here) belong to 공유 only; no other type repeats them.
+        for (const [filter, count] of [['shared', '2']]) {
           const button = renderer.root.findByProps({ testID: `collections-filter-${filter}` });
           const badge = button.findAll(node => node.props.testID === `collections-filter-${filter}-badge` && typeof node.type === 'string')[0];
           expect(badge.findByType(Text).props.children).toBe(count);
@@ -844,7 +877,7 @@ describe('CollectionsScreen 공유 요청 (received collaboration invitations)',
     await selectFilter(renderer, 'shared');
 
     expect(shareRequestsRow(renderer)).toHaveLength(1);
-    expect(String(renderer.root.findByProps({ testID: 'collections-share-requests-count' }).props.children)).toBe('2');
+    expect(String(renderer.root.findByProps({ testID: 'collections-share-requests-badge' }).findByType(Text).props.children)).toBe('2');
     expect(shareRequestsRow(renderer)[0].props.accessibilityLabel).toBe(i18n.t('collections.shareRequestCount', { count: 2 }));
   });
 
@@ -920,7 +953,7 @@ describe('CollectionsScreen 공유 요청 (received collaboration invitations)',
 
     expect(acceptCollectionInvitation).toHaveBeenCalledWith(expect.anything(), 3);
     expect(renderer.root.findAll(node => node.props.testID === 'share-request-3')).toHaveLength(0);
-    expect(String(renderer.root.findByProps({ testID: 'collections-share-requests-count' }).props.children)).toBe('1');
+    expect(String(renderer.root.findByProps({ testID: 'collections-share-requests-badge' }).findByType(Text).props.children)).toBe('1');
     expect(jest.mocked(getCollections).mock.calls.filter(call => call[1]?.scope === 'shared').length).toBe(sharedCallsBefore + 1);
     expect(renderer.root.findByType(FlatList).props.data).toEqual([sharedCollection, joined]);
     expect(sheet(renderer).props.visible).toBe(true); // one more to answer
@@ -1273,6 +1306,10 @@ describe('CollectionsScreen - 내 승인 대기 (a popup of my waiting links, no
         listToggle.props.onPress();
       });
     }
+    // Requests are shared-Collection work: the row lives on 공유 컬렉션 only.
+    await act(async () => {
+      renderer.root.findAll(node => node.props.testID === 'collections-filter-shared' && typeof node.props.onPress === 'function')[0].props.onPress();
+    });
     return renderer;
   }
   const button = (renderer: ReactTestRenderer.ReactTestRenderer) =>
@@ -1297,18 +1334,19 @@ describe('CollectionsScreen - 내 승인 대기 (a popup of my waiting links, no
     expect(button(await renderIn('grid', 0))).toBeUndefined();
 
     const renderer = await renderIn('grid', 3);
-    expect(buttonText(renderer)).toEqual([i18n.t('collections.myPendingSubmissions', { count: '3' })]);
+    expect(buttonText(renderer)).toEqual([i18n.t('collections.myPendingSubmissions'), i18n.t('collections.myPendingStatus', { count: 3 })]); // label + the quiet 대기 n건 status
     expect(button(renderer).props.accessibilityLabel).toBe(i18n.t('collections.myPendingA11y', { count: 3 }));
     const shared = button(renderer);
     const entry = shared.findAll(node => node.props.accessibilityRole === 'button' && node.props.testID === 'collections-filter-my-pending')[0];
     const style = StyleSheet.flatten(typeof entry.props.style === 'function' ? entry.props.style({ pressed: false }) : entry.props.style);
     // The very same shared row as CollectionDetails' 승인 대기 (light-blue background, blue border, compact one line) ...
     expect(shared.type).toBe(PendingActionRow);
-    expect(style).toMatchObject({ backgroundColor: colors.brandSoft, borderColor: colors.brand, borderWidth: 1, borderRadius: radii.md, minHeight: 44, flexDirection: 'row' });
+    expect(shared.props.variant).toBe('status'); // my own sent requests: a quiet status row, never a red alert
+    expect(style).toMatchObject({ backgroundColor: colors.surface, borderColor: colors.inputBorder, borderWidth: 1, borderRadius: radii.md, minHeight: 44, flexDirection: 'row' });
     expect(entry.props.accessibilityRole).toBe('button');
     expect(entry.props.accessibilityState).toBeUndefined();
-    expect(entry.findAllByType(Text)).toHaveLength(1);
-    expect(StyleSheet.flatten(entry.findAllByType(Text)[0].props.style)).toMatchObject({ color: colors.brand, fontWeight: '700' });
+    expect(entry.findAllByType(Text)).toHaveLength(2); // label + the quiet status text at the end
+    expect(StyleSheet.flatten(entry.findAllByType(Text)[0].props.style)).toMatchObject({ color: colors.textPrimary, fontWeight: '600' }); // quiet status label
     // ... with its chevron, and no tight or stray spacing: 12dp below it (the filter group's own 12dp is above it, no extra top margin).
     expect(entry.findAllByType(ChevronIcon)).toHaveLength(1);
     expect(style.marginBottom).toBe(spacing.md);
@@ -1323,7 +1361,7 @@ describe('CollectionsScreen - 내 승인 대기 (a popup of my waiting links, no
   it('caps the number at 99+ in the label, and says the real count to assistive technology', async () => {
     const renderer = await renderIn('grid', 130);
 
-    expect(buttonText(renderer)).toEqual([i18n.t('collections.myPendingSubmissions', { count: '99+' })]);
+    expect(buttonText(renderer)).toEqual([i18n.t('collections.myPendingSubmissions'), i18n.t('collections.myPendingStatus', { count: 130 })]); // label + the quiet 대기 n건 status
     expect(button(renderer).props.accessibilityLabel).toBe(i18n.t('collections.myPendingA11y', { count: 130 }));
   });
 
@@ -1345,7 +1383,7 @@ describe('CollectionsScreen - 내 승인 대기 (a popup of my waiting links, no
     expect(shownIds(renderer)).toEqual([1, 2]);
     expect(jest.mocked(getCollections).mock.calls.length).toBe(callsBefore);
     expect(jest.mocked(getCollections).mock.calls.some(([, options]) => (options as { scope?: string } | undefined)?.scope === 'myPending')).toBe(false);
-    expect(filterCell(renderer, 'favorites').props.accessibilityState).toEqual({ selected: true });
+    expect(filterCell(renderer, 'shared').props.accessibilityState).toEqual({ selected: true });
 
     await act(async () => {
       sheet(renderer).props.onClose();
@@ -1362,7 +1400,7 @@ describe('CollectionsScreen - 내 승인 대기 (a popup of my waiting links, no
     await act(async () => {
       sheet(renderer).props.onTotalLoaded(1);
     });
-    expect(buttonText(renderer)).toEqual([i18n.t('collections.myPendingSubmissions', { count: '1' })]);
+    expect(buttonText(renderer)).toEqual([i18n.t('collections.myPendingSubmissions'), i18n.t('collections.myPendingStatus', { count: 1 })]); // label + the quiet 대기 n건 status
 
     await act(async () => {
       sheet(renderer).props.onTotalLoaded(0);
@@ -1379,7 +1417,7 @@ describe('CollectionsScreen - 내 승인 대기 (a popup of my waiting links, no
     await act(async () => {
       renderer.root.findByType(FlatList).props.refreshControl.props.onRefresh();
     });
-    expect(buttonText(renderer)).toEqual([i18n.t('collections.myPendingSubmissions', { count: '5' })]);
+    expect(buttonText(renderer)).toEqual([i18n.t('collections.myPendingSubmissions'), i18n.t('collections.myPendingStatus', { count: 5 })]); // label + the quiet 대기 n건 status
     const afterRefresh = jest.mocked(getMyPendingSubmissionTotal).mock.calls.length;
     await act(async () => emitSocialPushEvent({ type: 'collectionItemReaction', collectionId: 1 }));
     expect(jest.mocked(getMyPendingSubmissionTotal).mock.calls.length).toBe(afterRefresh);
@@ -1387,7 +1425,7 @@ describe('CollectionsScreen - 내 승인 대기 (a popup of my waiting links, no
     // A result Push refreshes the number.
     jest.mocked(getMyPendingSubmissionTotal).mockResolvedValue(4);
     await act(async () => emitSocialPushEvent({ type: 'collectionLinkSubmissionApproved', collectionId: 2 }));
-    expect(buttonText(renderer)).toEqual([i18n.t('collections.myPendingSubmissions', { count: '4' })]);
+    expect(buttonText(renderer)).toEqual([i18n.t('collections.myPendingSubmissions'), i18n.t('collections.myPendingStatus', { count: 4 })]); // label + the quiet 대기 n건 status
   });
 });
 
@@ -1677,7 +1715,7 @@ describe('CollectionsScreen - 컬렉션 또는 링크 검색', () => {
     mockRouteParams = undefined;
   });
 
-  it('sits right under the header and above the four filters, as the themed search field with its label and clear button', async () => {
+  it('sits below the four filters and the request rows (the Web order), above the list, as the themed search field with its label and clear button', async () => {
     const renderer = await renderScreen();
     const field = searchField(renderer);
     expect(field.props.accessibilityLabel).toBe(i18n.t('collections.listSearchPlaceholder'));
@@ -1687,7 +1725,7 @@ describe('CollectionsScreen - 컬렉션 또는 링크 검색', () => {
     const hostOrder = renderer.root.findAll(node => typeof node.type === 'string').map(node => String(node.props.testID ?? node.props.accessibilityRole ?? ''));
     const searchIndex = hostOrder.indexOf('collections-search');
     expect(searchIndex).toBeGreaterThan(-1);
-    expect(searchIndex).toBeLessThan(hostOrder.indexOf('tablist'));
+    expect(searchIndex).toBeGreaterThan(hostOrder.indexOf('tablist'));
     act(() => renderer.unmount());
   });
 

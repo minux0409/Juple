@@ -2015,3 +2015,94 @@ describe('ItemDetailsScreen - the shared drag header (icon, 상세, empty space 
     expect((navigation as { goBack: jest.Mock }).goBack).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('another member\'s link: the SAME sheet, read-only (collectionContext.readOnly)', () => {
+  const theirRow = (overrides = {}) => ({
+    itemId: 1, url: 'https://youtu.be/abc', title: 'Their link', previewImageUrl: 'https://img.example/p.jpg', addedAtUtc: '2026-01-01T00:00:00Z', isMine: false,
+    addedBy: { kind: 'member', jupleId: 'ABCD2345', displayName: '민욱', isCollectionOwner: false }, ...overrides,
+  });
+  const has = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) => renderer.root.findAll(node => node.props.testID === testID).length > 0;
+
+  async function renderShared(isOwner: boolean) {
+    const sharedRoute = {
+      key: 'ItemDetails',
+      name: 'ItemDetails',
+      params: { itemId: 1, collectionContext: { collectionId: 9, canRemove: isOwner, isCollectionOwner: isOwner, isCollaborative: true, readOnly: true } },
+    } as never;
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = track(ReactTestRenderer.create(
+        <AppToastProvider>
+          <ItemDetailsScreen navigation={navigation} route={sharedRoute} />
+        </AppToastProvider>,
+      ));
+    });
+    return renderer;
+  }
+
+  beforeEach(() => {
+    jest.mocked(getSharedCollectionItem).mockResolvedValue(theirRow() as never);
+    jest.mocked(getItemComments).mockResolvedValue({ items: [], previousCursor: null, totalCount: 0 });
+  });
+
+  it('shows title, URL, picture, saved date, who added it and the comments in the normal sheet - reading only the Collection\'s shared view, never an owner-only endpoint', async () => {
+    const renderer = await renderShared(false);
+
+    expect(renderer.root.findByProps({ testID: 'item-details-sheet' })).toBeTruthy();
+    expect(renderer.root.findByProps({ testID: 'item-details-title' }).props.value).toBe('Their link');
+    expect(renderer.root.findByProps({ testID: 'item-details-title' }).props.editable).toBe(false);
+    expect(has(renderer, 'item-details-open-url')).toBe(true); // the link's source row with its open button
+    expect(has(renderer, 'item-details-saved-at')).toBe(true);
+    expect(has(renderer, 'shared-item-adder')).toBe(true);
+    expect(has(renderer, 'comment-composer')).toBe(true);
+    expect(getSharedCollectionItem).toHaveBeenCalledTimes(1);
+    expect(getItemDetails).not.toHaveBeenCalled();
+    expect(getItemImages).not.toHaveBeenCalled();
+    expect(getCollections).not.toHaveBeenCalled();
+    expect(updateItemDetails).not.toHaveBeenCalled();
+  });
+
+  it('has no editing controls: no memo, no Collection picker, no photo change, no Save', async () => {
+    const renderer = await renderShared(false);
+
+    expect(has(renderer, 'item-details-memo')).toBe(false);
+    expect(has(renderer, 'item-details-row-collections')).toBe(false);
+    expect(has(renderer, 'item-details-row-photo')).toBe(false);
+    expect(has(renderer, 'item-details-save')).toBe(false);
+  });
+
+  it('a plain participant gets no action row at all (the server refuses removing another member\'s link as well)', async () => {
+    const renderer = await renderShared(false);
+
+    expect(has(renderer, 'item-details-footer')).toBe(false);
+    expect(has(renderer, 'item-details-delete')).toBe(false);
+  });
+
+  it('the Collection\'s Owner gets ONLY 컬렉션에서 제거: it asks first, then removes just this membership - the link itself is never deleted', async () => {
+    jest.mocked(removeItemFromCollection).mockResolvedValue(undefined);
+    const renderer = await renderShared(true);
+
+    expect(has(renderer, 'item-details-save')).toBe(false);
+    const button = renderer.root.findByProps({ testID: 'item-details-delete' });
+    expect(button.findByType(Text).props.children).toBe(i18n.t('collections.removeFromCollection'));
+    await act(async () => { button.props.onPress(); });
+    const confirm = renderer.root.findAll(node => node.type === ConfirmDialog && node.props.visible === true)[0];
+    expect(confirm.props.message).toBe(i18n.t('collections.unlinkConfirmMessage'));
+    expect(removeItemFromCollection).not.toHaveBeenCalled();
+    await act(async () => { await confirm.props.onConfirm(); });
+
+    expect(removeItemFromCollection).toHaveBeenCalledTimes(1);
+    expect(removeItemFromCollection).toHaveBeenCalledWith(expect.anything(), 9, 1);
+    expect(deleteItem).not.toHaveBeenCalled();
+    expect((navigation as unknown as { goBack: jest.Mock }).goBack).toHaveBeenCalled();
+  });
+
+  it('a link that is no longer there ends in a safe message, never a crash or an edit form', async () => {
+    jest.mocked(getSharedCollectionItem).mockRejectedValue(new ApiError('notFound', 404, 'gone'));
+    const renderer = await renderShared(true);
+
+    expect(has(renderer, 'item-details-load-error')).toBe(true);
+    expect(has(renderer, 'item-details-title')).toBe(false);
+    expect(has(renderer, 'item-details-delete')).toBe(false);
+  });
+});

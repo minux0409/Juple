@@ -46,6 +46,10 @@ import { notifyItemListChanged } from '../items/itemListChanges';
 import { useMessageDialog } from '../components/useMessageDialog';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SourceRow } from '../components/SourceRow';
+import { ItemAdderBadge } from '../components/ItemAdderBadge';
+import { describeItemAdder } from '../collections/itemAdder';
+import { usePersonProfile } from '../friends/PersonProfileModal';
+import { ReportModal } from '../safety/ReportModal';
 import { formatSavedLinkTimestamp } from '../components/SavedLinkMetaRow';
 import { ClockIcon } from '../icons/ClockIcon';
 import { CloseIcon } from '../icons/CloseIcon';
@@ -182,10 +186,17 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   // (its counts and my reaction) is read once; the collaboration is its own state from then on, so reacting
   // or commenting never reloads this screen or touches a draft.
   const collaborationCollectionId = collectionContext?.collectionId ?? null;
+  // Another member's link in a shared Collection: the SAME sheet, read-only. Its data comes from the Collection's shared reading
+  // (title, URL, automatic preview, who added it, when) - never from the owner-only Item endpoints, which would answer 404 - and
+  // nothing in it can be edited. The Collection's Owner may only take it out of this Collection (the footer's one button).
+  const isSharedView = collectionContext?.readOnly === true && collaborationCollectionId !== null;
+  const { openProfile, profileModal } = usePersonProfile();
+  const [isReporting, setIsReporting] = useState(false);
   const isCollaborative = collectionContext?.isCollaborative === true && collaborationCollectionId !== null;
   const [collaborationRow, setCollaborationRow] = useState<SharedCollectionItem | null>(null);
   useEffect(() => {
-    if (!isCollaborative || collaborationCollectionId === null) {
+    // The shared view reads the link once (loadDetails) and shares that row with the collaboration below.
+    if (!isCollaborative || collaborationCollectionId === null || isSharedView) {
       return undefined;
     }
     let isActive = true;
@@ -200,7 +211,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     return () => {
       isActive = false;
     };
-  }, [authenticatedRequest, collaborationCollectionId, isCollaborative, itemId]);
+  }, [authenticatedRequest, collaborationCollectionId, isCollaborative, isSharedView, itemId]);
   const collaboration = useItemCollaboration({
     collectionId: collaborationCollectionId ?? 0,
     itemId,
@@ -373,7 +384,14 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     setIsLoading(true);
     setError(null);
     try {
-      const details = await getItemDetails(authenticatedRequest, itemId, readContext);
+      let details: ItemDetails;
+      if (isSharedView && collaborationCollectionId !== null) {
+        const row = await getSharedCollectionItem(authenticatedRequest, collaborationCollectionId, itemId, getCollectionUnlockToken(collaborationCollectionId));
+        setCollaborationRow(row);
+        details = { id: row.itemId, url: row.url, title: row.title, memo: null, savedAtUtc: row.addedAtUtc, previewImageUrl: row.previewImageUrl, coverImage: null } as ItemDetails;
+      } else {
+        details = await getItemDetails(authenticatedRequest, itemId, readContext);
+      }
       setItem(details);
       setTitle(details.title ?? '');
       setMemo(details.memo ?? '');
@@ -386,13 +404,18 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     } finally {
       setIsLoading(false);
     }
-  }, [authenticatedRequest, itemId, readContext, t]);
+  }, [authenticatedRequest, collaborationCollectionId, isSharedView, itemId, readContext, t]);
 
   useEffect(() => {
     loadDetails();
   }, [loadDetails]);
 
   const loadImages = useCallback(async () => {
+    if (isSharedView) {
+      // Someone else's photos are never listed here (owner-only endpoint): the automatic preview is the picture.
+      setIsLoadingImages(false);
+      return;
+    }
     setIsLoadingImages(true);
     setImagesError(null);
     try {
@@ -403,7 +426,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     } finally {
       setIsLoadingImages(false);
     }
-  }, [authenticatedRequest, itemId, readContext, t]);
+  }, [authenticatedRequest, isSharedView, itemId, readContext, t]);
 
   useEffect(() => {
     loadImages();
@@ -415,6 +438,10 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   // show a correct "+N" count and can't leave the Detail screen's own height depend on how many
   // pages loaded, which is exactly what this redesign moved away from.
   const loadItemCollections = useCallback(async () => {
+    if (isSharedView) {
+      setIsLoadingItemCollections(false);
+      return;
+    }
     const requestId = ++itemCollectionsRequestIdRef.current;
     setIsLoadingItemCollections(true);
     setItemCollectionsError(null);
@@ -435,7 +462,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         setIsLoadingItemCollections(false);
       }
     }
-  }, [authenticatedRequest, itemId, t]);
+  }, [authenticatedRequest, isSharedView, itemId, t]);
 
   // Refetches on every focus (not just mount), so a Collection add/remove made elsewhere (e.g. from
   // CollectionDetailsScreen) is reflected here too. Nothing about Collections is staged on this screen any more
@@ -810,6 +837,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   // The user's own photo is the full (main) variant here; an automatic preview's URL is already stable.
   const thumbnailCacheKey = representativePhoto?.kind === 'uploaded' ? imageCacheKey(representativePhoto.image.id, 'main') : null;
   const site = resolveSiteInfo(item.url);
+  const sharedAdder = isSharedView ? describeItemAdder(collaborationRow?.addedBy, t) : null;
 
   return (
     <>
@@ -841,6 +869,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
             <View style={styles.linkText}>
               <ThemedTextInput
                 accessibilityLabel={t('item.titleLabel')}
+                editable={!isSharedView}
                 multiline
                 onChangeText={setTitle}
                 onFocus={onEditorFocus}
@@ -862,7 +891,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
             </View>
           </View>
 
-          {/* B. The memo, as its own block. */}
+          {/* B. The memo, as its own block (never shared: another member's link has none). */}
+          {isSharedView ? null : (
           <View
             onLayout={() => {
               // The memo grew to its editing height (or its text wrapped): keep it above the keyboard.
@@ -894,9 +924,12 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
               value={memo}
             />
           </View>
+          )}
 
           {/* C. What the link is filed under and when - one consistent row each: [icon] label ...... value. */}
           <View style={styles.infoRows}>
+            {isSharedView ? null : (
+              <>
             <View style={styles.infoRow} testID="item-details-row-collections">
               <View style={styles.infoLabelColumn}>
                 <FolderIcon color={colors.textSecondary} size={16} />
@@ -934,19 +967,43 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
                 )}
               </View>
             </View>
-            <View style={[styles.infoRow, styles.infoRowDivided]} testID="item-details-row-saved-at">
+              </>
+            )}
+            <View style={[styles.infoRow, !isSharedView && styles.infoRowDivided]} testID="item-details-row-saved-at">
               <View style={styles.infoLabelColumn}>
                 <ClockIcon color={colors.textSecondary} size={16} />
                 <Text numberOfLines={1} style={styles.infoLabel}>{t('item.savedAtLabel')}</Text>
               </View>
               <Text numberOfLines={1} style={styles.infoValueText} testID="item-details-saved-at">{formatSavedLinkTimestamp(item.savedAtUtc, 'dateTime')}</Text>
             </View>
+            {isSharedView && sharedAdder ? (
+              // Who put the link here - the same avatar (crown for the Owner) the cards draw; words only for assistive technology.
+              <View style={[styles.infoRow, styles.infoRowDivided]} testID="item-details-row-added-by">
+                <View style={styles.infoLabelColumn}>
+                  <Text numberOfLines={1} style={styles.infoLabel}>{t('collections.addedByLabel')}</Text>
+                </View>
+                <ItemAdderBadge
+                  adder={sharedAdder}
+                  avatarSize={24}
+                  onPress={sharedAdder.kind === 'person' && sharedAdder.jupleId
+                    ? () => openProfile({ jupleId: sharedAdder.jupleId as string, displayName: sharedAdder.displayName, profileImageUrl: sharedAdder.imageUrl, profileImageVersion: sharedAdder.imageVersion, isSelf: sharedAdder.isMe })
+                    : undefined}
+                  testID="shared-item-adder"
+                />
+              </View>
+            ) : null}
           </View>
 
           {imagesError ? <Text style={styles.error}>{imagesError}</Text> : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {/* The Collection's reactions and comments on this link (only when opened from a shared Collection). */}
           {collaboration.reactions}
+          {/* Somebody else's link: it can be reported, as a quiet secondary action. */}
+          {isSharedView && !(sharedAdder?.kind === 'person' && sharedAdder.isMe) ? (
+            <Pressable accessibilityRole="button" hitSlop={8} onPress={() => setIsReporting(true)} style={styles.reportButton} testID="shared-item-report">
+              <Text style={styles.reportLabel}>{t('safety.report')}</Text>
+            </Pressable>
+          ) : null}
           {collaboration.comments ? (
             <View
               onLayout={event => {
@@ -960,8 +1017,9 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           ) : null}
           {collaboration.composer}
         </ScrollView>,
-        // D. The actions, always at the sheet's bottom.
-        <View onLayout={event => setFooterHeight(Math.round(event.nativeEvent.layout.height))} style={styles.footer} testID="item-details-footer">
+        // D. The actions, always at the sheet's bottom. Another member's link: only the Owner's 컬렉션에서 제거 (no Save, no Delete of the
+        // link itself); anyone else gets no action row at all - the server refuses a member removing someone else's link as well.
+        isSharedView && collectionContext?.canRemove !== true ? undefined : <View onLayout={event => setFooterHeight(Math.round(event.nativeEvent.layout.height))} style={styles.footer} testID="item-details-footer">
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ disabled: isItemActionInFlight, busy: isDeletingItem }}
@@ -974,6 +1032,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
               {isDeletingItem ? t('common.deleting') : collectionContext ? t('collections.removeFromCollection') : t('common.delete')}
             </Text>
           </Pressable>
+          {isSharedView ? null : (
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ disabled: !isDirty || isSaving || isDeleted, busy: isSaving }}
@@ -986,10 +1045,22 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
               {isSaving ? t('common.saving') : t('common.save')}
             </Text>
           </Pressable>
+          )}
         </View>,
       )}
 
       {messageDialog}
+      {isSharedView ? profileModal : null}
+      {isSharedView ? (
+        <ReportModal
+          onClose={() => setIsReporting(false)}
+          onReported={alreadyReported => {
+            setIsReporting(false);
+            showNotificationToast(t(alreadyReported ? 'safety.reportAlready' : 'safety.reportReceived'));
+          }}
+          target={isReporting && collaborationCollectionId !== null ? { type: 'Item', itemId, collectionId: collaborationCollectionId } : null}
+        />
+      ) : null}
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('common.delete')}
@@ -1170,4 +1241,6 @@ const styles = themedStyles(() => ({
   },
   saveActionLabel: { color: colors.surface, fontSize: 15, fontWeight: '700' },
   imagesLoading: { marginVertical: spacing.sm },
+  reportButton: { alignItems: 'center', alignSelf: 'center', justifyContent: 'center', marginTop: spacing.md, minHeight: minTouchTarget, paddingHorizontal: spacing.lg },
+  reportLabel: { color: colors.textSecondary, fontSize: 13, textDecorationLine: 'underline' },
 }));

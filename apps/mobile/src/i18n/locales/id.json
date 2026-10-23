@@ -147,7 +147,8 @@
     "copyClearAllA11y": "Batalkan semua pilihan",
     "copySelectUpTo": "Pilih hingga {{max}}",
     "detailItemCount": "Total {{count}}",
-    "myPendingSubmissions": "Permintaan persetujuan terkirim {{count}}",
+    "myPendingSubmissions": "Permintaan persetujuan terkirim",
+    "myPendingStatus": "{{count}} menunggu",
     "myPendingSubmissionsA11y": "Lihat {{count}}: Permintaan persetujuan terkirim",
     "myPendingA11y": "Permintaan persetujuan terkirim: {{count}}",
     "favoritesTitle": "Favorit",
@@ -288,7 +289,7 @@
     "saveOutcomeAlreadyPending": "Di koleksi yang kamu pilih, tautan ini sudah menunggu persetujuan.",
     "saveOutcomeAlreadyInCollection": "Koleksi yang kamu pilih sudah berisi tautan ini.",
     "roleSubmitter": "Perlu persetujuan",
-    "pendingSubmissions": "Permintaan persetujuan diterima {{count}}",
+    "pendingSubmissions": "Permintaan persetujuan diterima",
     "pendingSubmissionsA11y": "Lihat {{count}}: Permintaan persetujuan diterima",
     "removeFromSharedOwnerOnly": "Hanya pemilik yang dapat menghapus tautan dari koleksi yang dibagikan dengan Anda.",
     "removeFromCollection": "Hapus dari koleksi",
@@ -360,7 +361,7 @@
     "homeShortcutLocked": "Koleksi yang dikunci tetap meminta kata sandi saat dibuka dari layar Utama. Koleksi ini tidak ditambahkan sebagai tujuan berbagi.",
     "joinPending": "Menunggu persetujuan",
     "joinRequestsA11y": "Permintaan {{count}}",
-    "joinRequests": "Permintaan {{count}}"
+    "joinRequests": "Permintaan"
   },
   "toast": {
     "moveSuccess": "Dipindahkan.",

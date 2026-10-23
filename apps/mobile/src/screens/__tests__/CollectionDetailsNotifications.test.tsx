@@ -133,14 +133,13 @@ describe('CollectionDetailsScreen - notifications', () => {
     const navigation = await renderScreen({ openItem: { itemId: 9, focus: 'comments', commentRootId: 41, shared: true } });
 
     expect(navigation.setParams).toHaveBeenCalledWith({ openItem: undefined });
-    expect(navigation.navigate).toHaveBeenCalledWith('CollectionSharedItem', {
-      collectionId: 1,
+    expect(navigation.navigate).toHaveBeenCalledWith('ItemDetails', {
       itemId: 9,
-      isCollectionOwner: false,
-      focusThreadRootId: 41,
+      collectionContext: { collectionId: 1, canRemove: false, isCollectionOwner: false, isCollaborative: true, readOnly: true },
+      initialFocusThreadRootId: 41,
+      initialFocus: 'comments',
     });
-    expect(navigation.navigate).not.toHaveBeenCalledWith('ItemDetails', expect.anything());
-    expect(jest.mocked(navigation.navigate).mock.calls.filter(([name]) => name === 'CollectionSharedItem')).toHaveLength(1);
+    expect(jest.mocked(navigation.navigate).mock.calls.filter(([name]) => name === 'ItemDetails')).toHaveLength(1);
   });
 
   it('a comment notification opens my link IN this Collection, scrolled to its comments - once', async () => {

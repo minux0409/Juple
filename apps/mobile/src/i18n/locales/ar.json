@@ -147,7 +147,8 @@
     "copyClearAllA11y": "إلغاء كل التحديد",
     "copySelectUpTo": "تحديد حتى {{max}}",
     "detailItemCount": "الإجمالي: {{count}}",
-    "myPendingSubmissions": "طلبات الموافقة المرسلة {{count}}",
+    "myPendingSubmissions": "طلبات الموافقة المرسلة",
+    "myPendingStatus": "{{count}} قيد الانتظار",
     "myPendingSubmissionsA11y": "عرض {{count}}: طلبات الموافقة المرسلة",
     "myPendingA11y": "طلبات الموافقة المرسلة: {{count}}",
     "favoritesTitle": "المفضّلة",
@@ -288,7 +289,7 @@
     "saveOutcomeAlreadyPending": "المجموعة التي اخترتها فيها هذا الرابط بانتظار الموافقة بالفعل.",
     "saveOutcomeAlreadyInCollection": "المجموعة التي اخترتها فيها هذا الرابط بالفعل.",
     "roleSubmitter": "يُضاف بعد الموافقة",
-    "pendingSubmissions": "طلبات الموافقة الواردة {{count}}",
+    "pendingSubmissions": "طلبات الموافقة الواردة",
     "pendingSubmissionsA11y": "عرض {{count}}: طلبات الموافقة الواردة",
     "removeFromSharedOwnerOnly": "يمكن للمالك فقط إزالة الروابط من مجموعة تمت مشاركتها معك.",
     "removeFromCollection": "إزالة من المجموعة",
@@ -360,7 +361,7 @@
     "homeShortcutLocked": "ستظل المجموعة المقفلة تطلب كلمة المرور عند فتحها من الشاشة الرئيسية، ولا تُضاف كوجهة مشاركة.",
     "joinPending": "بانتظار الموافقة",
     "joinRequestsA11y": "الطلبات {{count}}",
-    "joinRequests": "الطلبات {{count}}"
+    "joinRequests": "الطلبات"
   },
   "toast": {
     "moveSuccess": "تم النقل.",

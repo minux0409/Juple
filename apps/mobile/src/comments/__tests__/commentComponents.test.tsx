@@ -279,10 +279,11 @@ describe('CommentList', () => {
 });
 
 describe('the keyboard', () => {
-  it('the shared KeyboardSafeView is what keeps the composer above the keyboard (in the screen that owns it)', () => {
-    const source: string = require('fs').readFileSync(require('path').resolve(__dirname, '../../screens/CollectionSharedItemScreen.tsx'), 'utf8');
+  it('the link sheet (own and another member link alike) keeps the focused composer above the keyboard itself', () => {
+    const source: string = require('fs').readFileSync(require('path').resolve(__dirname, '../../screens/ItemDetailsScreen.tsx'), 'utf8');
 
-    expect(source).toMatch(/<KeyboardSafeView/);
+    expect(source).toMatch(/keepFocusedFieldAboveKeyboard/);
+    expect(source).toMatch(/the comment composer/);
     expect(KeyboardAvoidingView).toBeDefined();
   });
 });

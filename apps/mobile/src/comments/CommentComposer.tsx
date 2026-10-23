@@ -122,7 +122,7 @@ export function CommentComposer({ isSending, onSubmit, replyTarget = null, onCan
         ref={inputRef}
         style={styles.input}
         testID="comment-input"
-        textAlignVertical="top"
+        textAlignVertical="center"
         value={text}
       />
       <Pressable
@@ -155,12 +155,13 @@ const styles = themedStyles(() => ({
   },
   replyText: { color: colors.textSecondary, flex: 1, fontSize: 13, fontWeight: '600' },
   replyCancel: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
+  // The field and 보내기 share one vertical center (a grown multi-line field keeps the button centered beside it).
   bar: {
-    alignItems: 'flex-end',
+    alignItems: 'center',
     columnGap: spacing.sm,
     flexDirection: 'row',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
   },
   input: {
     backgroundColor: colors.surfaceMuted,

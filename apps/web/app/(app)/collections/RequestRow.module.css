@@ -1,0 +1,12 @@
+/* The one pending-request row (mobile PendingActionRow): light-blue card, bell, label, red count badge, chevron - badge then chevron, never overlapping. */
+.row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; margin: 0; padding: 8px 12px; border: 1px solid var(--brand); border-radius: 8px; background: var(--brand-soft); color: var(--brand); box-shadow: 0 1px 3px rgb(0 0 0 / 6%); cursor: pointer; font: inherit; text-align: start; }
+.row:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+.label { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+.icon { flex-shrink: 0; }
+.chevron { flex-shrink: 0; transform: rotate(-90deg); }
+.chevron:dir(rtl) { transform: rotate(90deg); }
+/* A status row (what I only wait for): same height / rounding / spacing, but neutral and quiet next to the blue action rows. */
+.rowStatus { border-color: var(--app-border); background: var(--app-surface); color: var(--app-text); }
+.rowStatus .label { font-weight: 600; }
+.rowStatus .icon, .rowStatus .chevron { color: var(--app-text-secondary); }
+.statusText { flex-shrink: 0; color: var(--app-text-secondary); font-size: 13px; font-weight: 600; white-space: nowrap; }

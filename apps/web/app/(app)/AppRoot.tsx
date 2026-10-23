@@ -111,7 +111,7 @@ function writeLanguageCookie(preference: LanguagePreference): void {
 }
 
 export function AppRoot({
-  config,
+  config: configProp,
   dictionary,
   language,
   languagePreference,
@@ -134,6 +134,13 @@ export function AppRoot({
   readonly children: React.ReactNode;
 }) {
   const router = useRouter();
+  // The server layout builds `config` per render, so an RSC payload that re-sends the layout (a navigation that opens the Quick Detail
+  // sheet, for one) hands over an EQUAL object with a new identity. Everything below that depends on `config` - above all the one-time
+  // sign-in initialisation, which shows the full-screen "checking login" state - follows its VALUE, so an equal config can never
+  // restart sign-in and flash that screen over a page that is already open. A real change of value still re-initialises.
+  const configKey = configProp ? JSON.stringify(configProp) : '';
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const config = useMemo(() => configProp, [configKey]);
   const [continueOnWeb, chooseContinueOnWeb] = useContinueOnWeb();
   const [status, setStatus] = useState<AuthStatus>(config ? 'initializing' : 'configMissing');
   const [account, setAccount] = useState<AccountInfo | null>(null);

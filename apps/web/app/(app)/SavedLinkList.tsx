@@ -63,11 +63,13 @@ function Thumbnail({ link, className, fallbackSize }: { readonly link: LinkView;
 }
 
 /** Where a link is from: the site's own badge (YouTube / Instagram / ...) when known, with its host name (always left-to-right). */
-function SiteMeta({ link }: { readonly link: LinkView }) {
+function SiteMeta({ link, iconOnly = false }: { readonly link: LinkView; readonly iconOnly?: boolean }) {
+  // With the adder beside it (a shared Collection) the host name would push the avatar away from the icon: icon only, as on mobile.
+  const showHost = !(iconOnly && link.siteId);
   return (
-    <span className={styles.siteMeta} data-site-meta>
+    <span aria-label={iconOnly && link.siteId ? (link.site ?? undefined) : undefined} className={styles.siteMeta} data-site-meta role={iconOnly && link.siteId ? 'img' : undefined}>
       {link.siteId ? <SiteIcon siteId={link.siteId} size={14} /> : null}
-      <span dir="ltr">{link.site}</span>
+      {showHost ? <span dir="ltr">{link.site}</span> : null}
     </span>
   );
 }
@@ -98,8 +100,9 @@ function hasMeta(link: LinkView): boolean {
 function MetaContent({ link, dictionary }: { readonly link: LinkView; readonly dictionary: AppDictionary }) {
   return (
     <>
+      {/* One line: the service icon, then - right beside it - who added the link; the card's 바로가기 button ends the same line. */}
+      {link.site ? <SiteMeta iconOnly={Boolean(link.adder)} link={link} /> : null}
       {link.adder ? <AdderMeta adder={link.adder} dictionary={dictionary} /> : null}
-      {link.site ? <SiteMeta link={link} /> : null}
     </>
   );
 }

@@ -23,6 +23,7 @@ import { createPickerUnlockSession, unlockTokensFor } from '../../../../lib/pick
 import { ItemCollectionsSection, ItemFormFooter, ItemFormLayout, ItemFormSections, ItemFormTop, ItemMemoSection } from '../../ItemForm';
 import { ItemPhoto, SourceRow } from '../../ItemParts';
 import { BackButton, Notice } from '../../PageStates';
+import { SaveOutcomeDialog } from '../../SaveOutcomeDialog';
 import { PageHeader } from '../../PageHeader';
 import styles from '../../app.module.css';
 
@@ -249,16 +250,7 @@ export function NewLinkReviewView({ url }: { readonly url: string }) {
           <ItemMemoSection onChange={setMemo} value={memo} />
 
           {error ? <p className={styles.fieldError} role="alert">{error}</p> : null}
-          {outcome ? (
-            <div className={styles.inlineState} role="status">
-              {outcome.split('\n').map(line => (
-                <p className={styles.stateMessage} key={line}>{line}</p>
-              ))}
-              <button className={styles.secondaryButton} onClick={() => router.replace('/')} type="button">
-                {dictionary.confirm}
-              </button>
-            </div>
-          ) : (
+          {outcome ? null : (
             <ItemFormFooter>
               <button className={styles.primaryAction} disabled={isSaving} type="submit">
                 {isSaving ? dictionary.saving : dictionary.save}
@@ -267,6 +259,7 @@ export function NewLinkReviewView({ url }: { readonly url: string }) {
           )}
         </ItemFormSections>
       </ItemFormLayout>
+      <SaveOutcomeDialog confirmLabel={dictionary.confirm} message={outcome} onConfirm={() => router.replace('/')} />
     </section>
   );
 }

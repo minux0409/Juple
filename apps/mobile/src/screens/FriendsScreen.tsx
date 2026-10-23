@@ -3,7 +3,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AppModal } from '../components/AppModal';
 import { useMobileAttention, useAttentionSnapshot } from '../attention/attentionContext';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -78,7 +77,6 @@ export type FriendsTab = 'friends' | 'incoming' | 'outgoing';
  */
 export function FriendsScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'Friends'>>();
-  const [requestsOpen, setRequestsOpen] = useState(false);
   const { t } = useTranslation();
   const tabsTarget = useTourTarget(TOUR_TARGETS.friendsTabs, { radius: radii.md + 2 });
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -190,7 +188,6 @@ export function FriendsScreen() {
     if (!route.params?.openRequests) return;
     navigation.setParams({ openRequests: undefined, refreshToken: undefined });
     setTab('incoming');
-    setRequestsOpen(true);
     loadRequests(true).catch(() => undefined);
   }, [loadRequests, navigation, route.params?.openRequests, route.params?.refreshToken]);
 
@@ -479,9 +476,6 @@ export function FriendsScreen() {
       </View>
 
       {tab === 'friends' ? friendsList : tab === 'incoming' ? requestList('incoming', incoming) : requestList('outgoing', outgoing)}
-      <AppModal visible={requestsOpen} onClose={() => setRequestsOpen(false)} title={t('friends.tabIncoming')} size="large" testID="received-friend-requests-modal">
-        {requestsOpen ? requestList('incoming', incoming) : null}
-      </AppModal>
 
       <FriendDetailModal
         friend={selected}
@@ -697,7 +691,9 @@ function RequestRow({ request, isBusy, onAccept, onDecline, onCancel, onOpenPers
   const isIncoming = request.direction === 'incoming';
   return (
     <View style={styles.requestCard} testID={`friends-${request.direction}-${request.requestId}`}>
-      <Pressable accessibilityLabel={`${name}, ${t('friends.personTitle')}`} accessibilityRole="button" onPress={onOpenPerson} style={styles.requestIdentity} testID={`friends-${request.direction}-person-${request.requestId}`}>
+      {/* A received request is answered with 수락 / 거절 only: its person is not a button (the person sheet there offers just 신고 / 차단,
+          which is not what this row is for). A sent request keeps its person sheet. */}
+      <Pressable accessibilityLabel={`${name}, ${t('friends.personTitle')}`} accessibilityRole={isIncoming ? undefined : 'button'} disabled={isIncoming} onPress={onOpenPerson} style={styles.requestIdentity} testID={`friends-${request.direction}-person-${request.requestId}`}>
         <UserAvatar displayName={request.displayName} imageUrl={request.profileImageUrl} imageVersion={request.profileImageVersion} jupleId={request.jupleId} size={44} />
         <View style={styles.rowText}>
           <Text numberOfLines={1} style={[styles.name, !hasNickname && ltrTextStyle]}>{name}</Text>

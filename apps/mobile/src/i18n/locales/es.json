@@ -147,7 +147,8 @@
     "copyClearAllA11y": "Quitar toda la selección",
     "copySelectUpTo": "Seleccionar hasta {{max}}",
     "detailItemCount": "Total: {{count}}",
-    "myPendingSubmissions": "Solicitudes de aprobación enviadas {{count}}",
+    "myPendingSubmissions": "Solicitudes de aprobación enviadas",
+    "myPendingStatus": "{{count}} en espera",
     "myPendingSubmissionsA11y": "Ver {{count}}: Solicitudes de aprobación enviadas",
     "myPendingA11y": "Solicitudes de aprobación enviadas: {{count}}",
     "favoritesTitle": "Favoritos",
@@ -288,7 +289,7 @@
     "saveOutcomeAlreadyPending": "En la colección que elegiste, este enlace ya está pendiente de aprobación.",
     "saveOutcomeAlreadyInCollection": "La colección que elegiste ya tiene este enlace.",
     "roleSubmitter": "Con aprobación",
-    "pendingSubmissions": "Solicitudes de aprobación recibidas {{count}}",
+    "pendingSubmissions": "Solicitudes de aprobación recibidas",
     "pendingSubmissionsA11y": "Ver {{count}}: Solicitudes de aprobación recibidas",
     "removeFromSharedOwnerOnly": "Solo el propietario puede quitar enlaces de una colección compartida contigo.",
     "removeFromCollection": "Quitar de la colección",
@@ -360,7 +361,7 @@
     "homeShortcutLocked": "Una colección bloqueada sigue pidiendo su contraseña al abrirla desde la pantalla de inicio. No se añade como destino para compartir.",
     "joinPending": "Pendiente de aprobación",
     "joinRequestsA11y": "Solicitudes {{count}}",
-    "joinRequests": "Solicitudes {{count}}"
+    "joinRequests": "Solicitudes"
   },
   "toast": {
     "moveSuccess": "Movido.",

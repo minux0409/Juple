@@ -187,9 +187,10 @@ it('real sidebar and type badges deduplicate events, fit at desktop/393/320, and
   try {
     await tab.send('Runtime.enable');
     await tab.until(`(${navCount('/collections')}) === '4'`);
-    for (const [href, count] of [['/', '0'], ['/archive', '0'], ['/collections', '4'], ['/me/friends', '3'], ['/me', '3']]) assert.equal(await tab.evaluate(navCount(href)), count);
-    for (const filter of ['all', 'owned', 'favorites']) assert.equal(await tab.evaluate(typeCount(filter)), '2');
-    assert.equal(await tab.evaluate(typeCount('shared')), '4');
+    for (const [href, count] of [['/', '0'], ['/archive', '0'], ['/collections', '4'], ['/me/friends', '3'], ['/me', '0']]) assert.equal(await tab.evaluate(navCount(href)), count);
+    // Requests belong to 공유 only (2 invitations + 1 owner approval); 설정 never carries the friend number (it is on 친구 only).
+    for (const filter of ['all', 'owned', 'favorites']) assert.equal(await tab.evaluate(typeCount(filter)), '0');
+    assert.equal(await tab.evaluate(typeCount('shared')), '3');
     assert.equal(await tab.evaluate(`${entry}.textContent.trim()`), '받은 초대 요청2');
     const badgeCalls = async () => JSON.parse(await tab.evaluate(`sessionStorage.getItem('invitationCalls')`)).filter(call =>
       call === 'GET /api/v1/users/me/collection-invitations' || call === 'GET /api/v1/friends/requests' || call === 'GET /api/v1/collections?scope=all&limit=100');
@@ -201,7 +202,7 @@ it('real sidebar and type badges deduplicate events, fit at desktop/393/320, and
       await tab.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
       await tab.evaluate(`document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(resolve)))`);
       const result = await tab.evaluate(geometry);
-      assert.deepEqual(result.gaps, [12, 12], `section spacing ${width}`);
+      assert.deepEqual(result.gaps, [12, 12, 12], `section spacing ${width}: toolbar, 받은 승인 요청, 받은 초대 요청, search`);
       assert.equal(result.badgesFit, true, `badge center/containment ${width}`);
       assert.equal(result.sidebarRightAligned, true, `sidebar end alignment ${width}`);
       assert.equal(result.noHorizontalOverflow, true, `page overflow ${width}`);
@@ -212,7 +213,7 @@ it('real sidebar and type badges deduplicate events, fit at desktop/393/320, and
     await tab.evaluate(`[...document.querySelectorAll('button')].find(el => el.textContent === '모두 읽음').click()`);
     await tab.until(`(${navCount('/collections')}) === '3'`);
     assert.equal(await tab.evaluate(navCount('/me/friends')), '3');
-    assert.equal(await tab.evaluate(typeCount('shared')), '3', 'only unread new links decrease; invitations and pending tasks stay');
+    assert.equal(await tab.evaluate(typeCount('shared')), '3', 'invitations and pending tasks stay after reading notifications');
     assert.equal(await tab.evaluate(`${entry}.textContent.trim()`), '받은 초대 요청2');
     await tab.evaluate(`document.querySelector('[data-fixture-switch-account]').click()`);
     await tab.until(`(${navCount('/collections')}) === '0' && (${navCount('/me/friends')}) === '0' && !${entry}`);
@@ -250,4 +251,72 @@ it('friend notification opens received requests directly, including the already 
       await capture(tab, `friend-requests-${count}`);
     } finally { await tab.close(); }
   }
+});
+
+const requestRow = id => `document.querySelector('[data-request-row="${id}"]')`;
+
+it('받은 승인 요청: a shared-tab row with the red count at its end opens the real list; approve / reject update the row and the menu number', async () => {
+  const tab = await openFixture(`${origin}/invitation-test-harness?tab=shared&fixtureCount=0&fixtureAttention=2`);
+  try {
+    await tab.until(`!!${requestRow('received-approvals')}`);
+    assert.equal(await tab.evaluate(`${requestRow('received-approvals')}.textContent.trim()`), '받은 승인 요청2');
+    assert.equal(await tab.evaluate(`${requestRow('received-approvals')}.dataset.requestVariant`), 'action', 'what I must answer keeps the blue row with the red badge');
+    // Not on the other types.
+    await tab.evaluate(`document.querySelector('[data-collection-filter="all"]').click()`);
+    await tab.until(`location.search.includes('tab=all')`);
+    assert.equal(await tab.evaluate(`!!${requestRow('received-approvals')}`), false);
+    await tab.evaluate(`document.querySelector('[data-collection-filter="shared"]').click()`);
+    await tab.until(`!!${requestRow('received-approvals')}`);
+    for (const width of [1280, 393, 320]) {
+      await tab.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
+      await tab.evaluate(`document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(resolve)))`);
+      const fit = await tab.evaluate(`(() => {
+        const row = ${requestRow('received-approvals')}, badge = row.querySelector('[data-attention-badge]'), chevron = row.querySelector('svg:last-of-type');
+        const r = row.getBoundingClientRect(), b = badge.getBoundingClientRect(), c = chevron.getBoundingClientRect();
+        return { inside: b.left >= r.left && b.right <= r.right && b.top >= r.top && b.bottom <= r.bottom, apart: Math.abs(b.right - c.left) >= 0 && (b.right <= c.left + 0.5 || c.right <= b.left + 0.5), noOverflow: document.documentElement.scrollWidth <= innerWidth };
+      })()`);
+      assert.deepEqual(fit, { inside: true, apart: true, noOverflow: true }, `request row ${width}`);
+      await capture(tab, `requests-${width}`);
+    }
+    await tab.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+    await tab.evaluate(`${requestRow('received-approvals')}.click()`);
+    await tab.until(`document.querySelectorAll('[data-submission-id]').length === 2`);
+    assert.equal(await tab.evaluate(`document.querySelector('dialog[open]').textContent.includes('Proposer')`), true, 'who proposed');
+    await capture(tab, 'requests-dialog');
+    // Approve the first: one call, the row leaves, the numbers follow.
+    await tab.evaluate(`document.querySelector('[data-submission-id="1"] button:last-of-type').click()`);
+    await tab.until(`document.querySelectorAll('[data-submission-id]').length === 1`);
+    await tab.until(`(${navCount('/collections')}) === '1'`);
+    // Reject the second after the confirmation.
+    await tab.evaluate(`document.querySelector('[data-submission-id="2"] button:first-of-type').click()`);
+    await tab.until(`!![...document.querySelectorAll('dialog[open] button')].find(el => el.textContent === '거절' && el.closest('dialog').querySelector('h2')?.textContent.includes('거절할까요'))`);
+    await tab.evaluate(`[...document.querySelectorAll('dialog[open] button')].find(el => el.textContent === '거절' && el.closest('dialog').querySelector('h2')?.textContent.includes('거절할까요')).click()`);
+    await tab.until(`document.querySelectorAll('[data-submission-id]').length === 0`);
+    const calls = JSON.parse(await tab.evaluate(`sessionStorage.getItem('invitationCalls')`));
+    assert.equal(calls.filter(call => call === 'POST /api/v1/collections/10/submissions/1/approve').length, 1);
+    assert.equal(calls.filter(call => call === 'DELETE /api/v1/collections/10/submissions/2').length, 1);
+    await tab.evaluate(`document.querySelector('dialog[open] button[aria-label="닫기"]').click()`);
+    await tab.until(`!${requestRow('received-approvals')}`);
+    assert.equal(await tab.evaluate(typeCount('shared')), '0');
+  } finally { await tab.close(); }
+});
+
+it('보낸 승인 요청: the sent row lists only my own waiting links and 요청 취소 lowers its number', async () => {
+  const tab = await openFixture(`${origin}/invitation-test-harness?tab=shared&fixtureCount=0&fixtureMine=2&fixtureAttention=1`);
+  await tab.send('Emulation.setDeviceMetricsOverride', { width: 393, height: 900, deviceScaleFactor: 1, mobile: true });
+  try {
+    await tab.until(`!!${requestRow('sent-approvals')}`);
+    assert.equal(await tab.evaluate(`${requestRow('sent-approvals')}.textContent.trim()`), '보낸 승인 요청대기 2건');
+    assert.equal(await tab.evaluate(`${requestRow('sent-approvals')}.querySelector('[data-attention-badge]')`), null, 'a status row has no badge');
+    assert.equal(await tab.evaluate(`${requestRow('sent-approvals')}.dataset.requestVariant`), 'status');
+    await capture(tab, 'sent-and-received-393');
+    await tab.evaluate(`${requestRow('sent-approvals')}.click()`);
+    await tab.until(`document.querySelectorAll('[data-my-submission-id]').length === 2`);
+    await tab.evaluate(`document.querySelector('[data-my-submission-id="900"] button').click()`);
+    await tab.until(`!![...document.querySelectorAll('dialog[open] button')].find(el => el.textContent === '요청 취소' && el.closest('dialog').querySelector('h2')?.textContent.includes('취소할까요'))`);
+    await tab.evaluate(`[...document.querySelectorAll('dialog[open] button')].find(el => el.textContent === '요청 취소' && el.closest('dialog').querySelector('h2')?.textContent.includes('취소할까요')).click()`);
+    await tab.until(`document.querySelectorAll('[data-my-submission-id]').length === 1`);
+    await tab.evaluate(`document.querySelector('dialog[open] button[aria-label="닫기"]').click()`);
+    await tab.until(`${requestRow('sent-approvals')}?.textContent.trim() === '보낸 승인 요청대기 1건'`);
+  } finally { await tab.close(); }
 });

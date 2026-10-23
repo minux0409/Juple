@@ -12,7 +12,8 @@ import { useSignedInApp } from './AppRoot';
 import { BrandIcon } from './BrandIcon';
 import { SidebarAppCard } from './SidebarAppCard';
 import { Glyph } from './Glyph';
-import { getUnreadCount, resetUnreadCount, subscribeUnreadCount } from '../../lib/notificationState';
+import { getUnreadCount, nextUnreadPollDelayMs, refreshUnreadCount, resetUnreadCount, subscribeUnreadCount } from '../../lib/notificationState';
+import { useNotificationActions } from './notifications/useNotificationActions';
 import { useAttention } from './useAttention';
 import { AttentionBadge } from './AttentionBadge';
 import styles from './app.module.css';
@@ -27,6 +28,22 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
   const { dictionary, appDownload } = useSignedInApp();
   const pathname = usePathname();
   const { store, snapshot } = useAttention();
+  const { fetchUnread } = useNotificationActions();
+  // The Web has no push channel: ONE slow poll of the bell total while the tab is visible. A rise of that number is what refreshes the
+  // 친구 / 컬렉션 badges (the subscription below), so a new friend request shows within about a minute with no reload. Hidden tabs
+  // do not poll; failures (a 429 included) back off instead of repeating.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let failures = 0;
+    let stopped = false;
+    const schedule = () => { if (!stopped) timer = setTimeout(tick, nextUnreadPollDelayMs(failures)); };
+    const tick = async () => {
+      if (document.visibilityState === 'visible') failures = (await refreshUnreadCount(fetchUnread)) ? 0 : failures + 1;
+      schedule();
+    };
+    schedule();
+    return () => { stopped = true; if (timer !== undefined) clearTimeout(timer); };
+  }, [fetchUnread]);
   useEffect(() => {
     const refresh = () => { if (document.visibilityState !== 'hidden') void store.refresh(); };
     let lastUnread = getUnreadCount();
@@ -41,7 +58,7 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
     return () => { unsubscribe(); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); store.reset(); };
   }, [store]);
   useEffect(() => { void store.refresh(); }, [pathname, store]);
-  const counts: Readonly<Record<string, number>> = { '/': snapshot.counts.home, '/archive': snapshot.counts.archive, '/collections': snapshot.counts.collections, '/me/friends': snapshot.counts.friends, '/me': snapshot.counts.myPage };
+  const counts: Readonly<Record<string, number>> = { '/': snapshot.counts.home, '/archive': snapshot.counts.archive, '/collections': snapshot.counts.collections, '/me/friends': snapshot.counts.friends };
   // Leaving a Collection's pages ends its visit: its unlock grant is forgotten (it asks for the password again next time).
   useEffect(() => {
     // The Quick Detail sheet names a link in the address while the person's own page (a Collection) is still underneath: that page's

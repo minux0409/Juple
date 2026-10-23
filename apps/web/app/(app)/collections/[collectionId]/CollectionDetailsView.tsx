@@ -63,6 +63,9 @@ import { affectsList, removesFromList } from '../../../../lib/itemChanges';
 import { useStoredChoice } from '../../useStoredChoice';
 import { ViewModeToggle } from '../../ViewModeToggle';
 import { BackRow } from '../../PageHeader';
+import { REQUESTS_PARAM } from '../../../../lib/collectionApprovals';
+import { ReceivedRequestsDialog } from '../ReceivedRequestsDialog';
+import { RequestRow } from '../RequestRow';
 import styles from '../../app.module.css';
 import { LoadMore } from '../../InfiniteScroll';
 import { appendPage, canLoadMore, failLoadingMore, firstPage, startLoadingMore, type PagedState } from '../../../../lib/paging';
@@ -118,6 +121,9 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
   // and the address is cleaned so a reload or Back does not reopen it.
   const wantsSharePanel = useSearchParams().get('panel') === 'share';
   const [panel, setPanel] = useState<'share' | 'participants' | 'merge' | null>(wantsSharePanel ? 'share' : null);
+  // 받은 승인 요청: the Owner's notification arrives as `?requests=1` (opens the answering dialog once the Collection and its gate are open).
+  const wantsRequests = useSearchParams().get(REQUESTS_PARAM) === '1';
+  const [requestsOpen, setRequestsOpen] = useState(wantsRequests);
   const [managementMode, setManagementMode] = useState<CollectionManagementMode>(null);
   // Arrived here from 다른 컬렉션과 병합: 되돌리기 is offered for a moment (in memory only; see MergeUndoBanner).
   const [mergeUndo, setMergeUndo] = useState(() => (collectionId === null ? null : peekMergeUndo(collectionId)));
@@ -125,10 +131,10 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
   const [cloneResult, setCloneResult] = useState(() => (collectionId === null ? null : peekCloneResult(collectionId)));
   const router = useRouter();
   useEffect(() => {
-    if (wantsSharePanel && collectionId !== null) {
+    if ((wantsSharePanel || wantsRequests) && collectionId !== null) {
       router.replace(collectionHref(collectionId), { scroll: false });
     }
-  }, [collectionId, router, wantsSharePanel]);
+  }, [collectionId, router, wantsRequests, wantsSharePanel]);
   const [mergeFailure, setMergeFailure] = useState<string | null>(null);
   // 새 링크 알림 (mobile's header bell / long-press item): the caller's own On / Off for this Collection, offered wherever someone else
   // can add links - a Collection shared with me, or mine with members or a public link. Null until the server has answered (nothing is
@@ -415,6 +421,28 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
         participants={participants}
         participantsFailed={participantsFailed}
       />
+      {/* The Owner's received requests (links proposed for approval, people asking to join): one row, the red count at its end. */}
+      {!isSharedWithMe(collection) && !gate && (collection.pendingSubmissionCount ?? 0) + (collection.pendingJoinRequestCount ?? 0) > 0 ? (
+        <RequestRow
+          accessibleLabel={formatMessage(dictionary.requestsPendingSubmissionsA11y, { count: (collection.pendingSubmissionCount ?? 0) + (collection.pendingJoinRequestCount ?? 0) })}
+          count={(collection.pendingSubmissionCount ?? 0) + (collection.pendingJoinRequestCount ?? 0)}
+          expanded={requestsOpen}
+          label={dictionary.requestsPendingSubmissions}
+          onClick={() => setRequestsOpen(true)}
+          testId="collection-received-requests"
+        />
+      ) : null}
+      {!isSharedWithMe(collection) && !gate ? (
+        <ReceivedRequestsDialog
+          collection={{ id: collection.id, name: collection.name }}
+          onChanged={() => {
+            setReloadToken(token => token + 1);
+            setContentToken(token => token + 1);
+          }}
+          onClose={() => setRequestsOpen(false)}
+          open={requestsOpen}
+        />
+      ) : null}
       <CollectionManagementDialogs
         collectionId={collection.id}
         key={managementMode ?? 'closed'}

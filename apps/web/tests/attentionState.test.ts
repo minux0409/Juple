@@ -7,7 +7,7 @@ import { resetUnreadCount, setUnreadCount } from '../lib/notificationState.ts';
 
 const invitations = [{ invitationId: 1 }, { invitationId: 2 }];
 const friends = [{ requestId: 1, direction: 'incoming' }, { requestId: 2, direction: 'incoming' }, { requestId: 3, direction: 'incoming' }, { requestId: 4, direction: 'outgoing' }];
-const collections: readonly AttentionCollection[] = [{ id: 1, isFavorite: true, accessRole: 'owner', hasCollaborators: true, attentionCount: 3, unreadNewLinkCount: 1 }];
+const collections: readonly AttentionCollection[] = [{ id: 1, isFavorite: true, accessRole: 'owner', hasCollaborators: true, attentionCount: 3, unreadNewLinkCount: 1, pendingSubmissionCount: 1, pendingJoinRequestCount: 1 }];
 const make = (loaders = { invitations: async () => invitations, friends: async () => friends, collections: async () => collections }, now?: () => number) => createAttentionStore<AttentionInvitation, AttentionFriendRequest, AttentionCollection>(loaders, now);
 
 describe('cross-platform attention policy', () => {
@@ -27,7 +27,9 @@ describe('cross-platform attention policy', () => {
   it('deduplicates records and never sums overlapping type tabs or notification unread totals', () => {
     const result = attentionCounts([...invitations, ...invitations], [...friends, ...friends], [...collections, ...collections]);
     assert.equal(result.collections, 5);
-    assert.deepEqual(result.types, { favorites: 3, all: 3, owned: 3, shared: 5 });
+    // Requests (2 invitations + the Owner's 2 approvals) live under 공유 only; the other types never repeat them.
+    assert.deepEqual(result.types, { favorites: 0, all: 0, owned: 0, shared: 4 });
+    assert.deepEqual(result.requests, { invitations: 2, approvals: 2 });
     assert.equal(result.friends, 3);
   });
   it('keeps pending requests after reading notifications; only unread new links are removed', async () => {
@@ -51,9 +53,10 @@ describe('cross-platform attention policy', () => {
     assert.equal(store.getSnapshot().counts.collections, 4);
     assert.equal(store.getSnapshot().counts.friends, 2);
     store.removeInvitation(2);
-    assert.equal(store.getSnapshot().counts.types.shared, 3);
+    assert.equal(store.getSnapshot().counts.types.shared, 2, 'only the Owner approvals remain');
     store.collectionChanged({ ...collections[0], isFavorite: false });
     assert.equal(store.getSnapshot().counts.types.favorites, 0);
+    assert.equal(store.getSnapshot().counts.requests.approvals, 2);
   });
 });
 

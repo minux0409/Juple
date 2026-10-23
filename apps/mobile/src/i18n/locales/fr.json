@@ -147,7 +147,8 @@
     "copyClearAllA11y": "Désélectionner tout",
     "copySelectUpTo": "Sélectionner jusqu’à {{max}}",
     "detailItemCount": "Total : {{count}}",
-    "myPendingSubmissions": "Demandes d’approbation envoyées {{count}}",
+    "myPendingSubmissions": "Demandes d’approbation envoyées",
+    "myPendingStatus": "{{count}} en attente",
     "myPendingSubmissionsA11y": "Voir {{count}} : Demandes d’approbation envoyées",
     "myPendingA11y": "Demandes d’approbation envoyées: {{count}}",
     "favoritesTitle": "Favoris",
@@ -288,7 +289,7 @@
     "saveOutcomeAlreadyPending": "Dans la collection choisie, ce lien est déjà en attente d’approbation.",
     "saveOutcomeAlreadyInCollection": "La collection choisie contient déjà ce lien.",
     "roleSubmitter": "Avec approbation",
-    "pendingSubmissions": "Demandes d’approbation reçues {{count}}",
+    "pendingSubmissions": "Demandes d’approbation reçues",
     "pendingSubmissionsA11y": "Voir {{count}} : Demandes d’approbation reçues",
     "removeFromSharedOwnerOnly": "Seul le propriétaire peut retirer des liens d’une collection partagée avec vous.",
     "removeFromCollection": "Retirer de la collection",
@@ -360,7 +361,7 @@
     "homeShortcutLocked": "Une collection verrouillée demande toujours son mot de passe depuis l’écran d’accueil. Elle n’est pas ajoutée comme destination de partage.",
     "joinPending": "En attente d'approbation",
     "joinRequestsA11y": "Demandes {{count}}",
-    "joinRequests": "Demandes {{count}}"
+    "joinRequests": "Demandes"
   },
   "toast": {
     "moveSuccess": "Déplacé.",

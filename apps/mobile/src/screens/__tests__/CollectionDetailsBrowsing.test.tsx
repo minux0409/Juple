@@ -392,7 +392,7 @@ describe('Collection Details - Image tiles', () => {
     await act(async () => {
       tileFor('Link 002').props.onPress();
     });
-    expect(navigate).toHaveBeenLastCalledWith('CollectionSharedItem', expect.objectContaining({ collectionId: 1, itemId: 2 }));
+    expect(navigate).toHaveBeenLastCalledWith('ItemDetails', expect.objectContaining({ itemId: 2, collectionContext: expect.objectContaining({ collectionId: 1, readOnly: true }) }));
   });
 });
 

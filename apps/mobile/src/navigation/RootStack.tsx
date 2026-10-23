@@ -27,7 +27,6 @@ import { TermsAgreementScreen } from '../safety/TermsAgreementScreen';
 import { TermsUnavailable } from '../safety/TermsUnavailable';
 import { useTermsOnboarding } from '../safety/useTermsOnboarding';
 import { FriendsScreen } from '../screens/FriendsScreen';
-import { CollectionSharedItemScreen } from '../screens/CollectionSharedItemScreen';
 import { DataExportScreen } from '../screens/DataExportScreen';
 import { DeleteAccountScreen } from '../screens/DeleteAccountScreen';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
@@ -69,7 +68,7 @@ export type RootStackParamList = {
    */
   ItemDetails: {
     itemId: number;
-    collectionContext?: { readonly collectionId: number; readonly canRemove: boolean; readonly isCollectionOwner: boolean; readonly isCollaborative?: boolean };
+    collectionContext?: { readonly collectionId: number; readonly canRemove: boolean; readonly isCollectionOwner: boolean; readonly isCollaborative?: boolean; /** Another member's link: the same sheet, read-only (see ItemDetailsScreen isSharedView). */ readonly readOnly?: boolean };
     /** A comment notification: bring the comments into view once they are laid out (consumed once). */
     initialFocus?: 'comments';
     /** With initialFocus: the top-level comment whose thread is opened (a reply / heart notification). */
@@ -128,12 +127,6 @@ export type RootStackParamList = {
   Friends: { readonly openRequests?: true; readonly refreshToken?: number } | undefined;
   /** 알림: the signed-in user's Notification Inbox, newest first. */
   Notifications: undefined;
-  /**
-   * Read-only view of another member's link inside a Collection (never the owner-only
-   * ItemDetails) - fetched through that Collection, so it carries no memo or uploaded photos.
-   */
-  /** isCollectionOwner: the caller owns the Collection (may delete any comment) - the server decides the same. */
-  CollectionSharedItem: { collectionId: number; itemId: number; isCollectionOwner?: boolean; focusThreadRootId?: number | null };
   /**
    * Reached only via IncomingShareRouter's explicit navigate call, never a prefilled tab - see that
    * file. preselectedCollectionId/initialTitle are just the starting values for editable fields, not
@@ -285,11 +278,6 @@ export function RootStack() {
               component={themedScreen(NotificationsScreen)}
               name="Notifications"
               options={{ title: t('notifications.title'), ...headerTitleWithIcon(screenIcons.notifications, t('notifications.title')) }}
-            />
-            <Stack.Screen
-              component={themedScreen(CollectionSharedItemScreen)}
-              name="CollectionSharedItem"
-              options={{ title: t('nav.collectionSharedItem'), ...headerTitleWithIcon(screenIcons.link, t('nav.collectionSharedItem')) }}
             />
             <Stack.Screen
               component={themedScreen(NewLinkReviewScreen)}

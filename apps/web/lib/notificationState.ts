@@ -56,7 +56,7 @@ export function resetUnreadCount(): void {
 }
 
 /** Re-reads the total (one indexed count on the server, never the list). A failure keeps what is shown. */
-export async function refreshUnreadCount(fetchCount: () => Promise<number>, nowMs: number = Date.now()): Promise<void> {
+export async function refreshUnreadCount(fetchCount: () => Promise<number>, nowMs: number = Date.now()): Promise<boolean> {
   const mine = ++generation;
   lastRefreshAtMs = nowMs;
   try {
@@ -65,14 +65,28 @@ export async function refreshUnreadCount(fetchCount: () => Promise<number>, nowM
       unreadCount = Math.max(0, Math.floor(count));
       emit();
     }
+    return true;
   } catch {
     // Best effort: the bell keeps what it showed; the next refresh corrects it.
+    return false;
   }
+}
+
+/** While the app is open and visible, the bell total is re-read this often - the one signal that also moves the 친구 / 컬렉션 badges. */
+export const UNREAD_POLL_INTERVAL_MS = 60_000;
+export const UNREAD_POLL_MAX_INTERVAL_MS = 300_000;
+
+/** The wait before the next poll: the base interval, doubling per consecutive failure (a 429 or an outage), capped. Never below the base. */
+export function nextUnreadPollDelayMs(consecutiveFailures: number): number {
+  const failures = Math.max(0, Math.floor(consecutiveFailures));
+  return Math.min(UNREAD_POLL_MAX_INTERVAL_MS, UNREAD_POLL_INTERVAL_MS * 2 ** Math.min(failures, 8));
 }
 
 /**
  * The Web has no live channel (no Push to the browser): the bell is re-read when the app starts, when the window comes back
- * (focus / visible) and after moving to another page - but at most once per this interval for the automatic ones, so nothing polls.
+ * (focus / visible) and after moving to another page - but at most once per this interval for the automatic ones. On top of that
+ * the signed-in shell runs ONE slow visible-tab poll (UNREAD_POLL_INTERVAL_MS, backing off on failures) so a new friend request
+ * or invitation reaches the menu badges without a reload.
  */
 export const UNREAD_REFRESH_MIN_INTERVAL_MS = 15_000;
 

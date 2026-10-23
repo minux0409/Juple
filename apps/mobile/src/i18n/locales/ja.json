@@ -147,7 +147,8 @@
     "copyClearAllA11y": "すべての選択を解除",
     "copySelectUpTo": "{{max}}件まで選択",
     "detailItemCount": "合計{{count}}件",
-    "myPendingSubmissions": "送信した承認リクエスト {{count}}",
+    "myPendingSubmissions": "送信した承認リクエスト",
+    "myPendingStatus": "待機 {{count}}件",
     "myPendingSubmissionsA11y": "送信した承認リクエスト{{count}}件を見る",
     "myPendingA11y": "送信した承認リクエスト：{{count}}件",
     "favoritesTitle": "お気に入り",
@@ -288,7 +289,7 @@
     "saveOutcomeAlreadyPending": "選んだコレクションでは、このリンクはすでに承認待ちです。",
     "saveOutcomeAlreadyInCollection": "選んだコレクションにはすでにこのリンクがあります。",
     "roleSubmitter": "承認後に追加",
-    "pendingSubmissions": "受信した承認リクエスト {{count}}",
+    "pendingSubmissions": "受信した承認リクエスト",
     "pendingSubmissionsA11y": "受信した承認リクエスト{{count}}件を見る",
     "removeFromSharedOwnerOnly": "共有されたコレクションからリンクを外せるのはオーナーだけです。",
     "removeFromCollection": "コレクションから削除",
@@ -360,7 +361,7 @@
     "homeShortcutLocked": "ロックされたコレクションは、ホーム画面から開く際もパスワードが必要です。共有先（Direct Share）には追加されません。",
     "joinPending": "承認待ち",
     "joinRequestsA11y": "参加リクエスト {{count}}",
-    "joinRequests": "参加リクエスト {{count}}"
+    "joinRequests": "参加リクエスト"
   },
   "toast": {
     "moveSuccess": "移動しました。",

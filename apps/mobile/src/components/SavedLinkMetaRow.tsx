@@ -59,6 +59,8 @@ interface SavedLinkMetaRowProps {
    * group by day. Only a list whose time means something else (Trash: when it was deleted) turns it on.
    */
   readonly showTime?: boolean;
+  /** The card's 바로가기 button: the END of the first line (never beside the reactions). */
+  readonly trailingAction?: ReactNode;
 }
 
 /**
@@ -70,9 +72,12 @@ interface SavedLinkMetaRowProps {
 /** The adder avatar's diameter - the height of the 12pt text line it replaces, so cards keep their height. */
 const ADDER_AVATAR_SIZE = 16;
 
-export function SavedLinkMetaRow({ savedAtUtc, url, dateDisplayMode, style, addedBy, adderTrailing, showSiteIcon = true, showTime = false }: SavedLinkMetaRowProps) {
-  const timeRow = showTime || showSiteIcon ? (
-    <View style={[styles.metaRow, addedBy ? null : style]}>
+export function SavedLinkMetaRow({ savedAtUtc, url, dateDisplayMode, style, addedBy, adderTrailing, trailingAction, showSiteIcon = true, showTime = false }: SavedLinkMetaRowProps) {
+  const hasReactions = Boolean(addedBy && adderTrailing);
+  // LINE 1: [service icon] [adder avatar] ............ [바로가기]. The avatar sits right beside the platform icon and the card's open button
+  // ends the same line; a long anonymous-link text shrinks instead of wrapping.
+  const metaRow = showTime || showSiteIcon || addedBy || trailingAction ? (
+    <View style={[styles.metaRow, hasReactions ? null : style]}>
       {showTime ? (
         <Text numberOfLines={1} style={styles.time}>
           {formatSavedLinkTimestamp(savedAtUtc, dateDisplayMode)}
@@ -83,18 +88,18 @@ export function SavedLinkMetaRow({ savedAtUtc, url, dateDisplayMode, style, adde
           <SiteIcon siteId={resolveSiteInfo(url).id} size={15} />
         </View>
       ) : null}
+      {addedBy ? <ItemAdderBadge adder={addedBy} avatarSize={ADDER_AVATAR_SIZE} style={styles.adderBadge} /> : null}
+      {trailingAction ? <View style={styles.trailingAction}>{trailingAction}</View> : null}
     </View>
   ) : null;
-  if (!addedBy) {
-    return timeRow;
+  if (!hasReactions) {
+    return metaRow;
   }
+  // LINE 2 (only while there are reactions): the chips, on a row of their own so nothing on line 1 can clip them; several kinds wrap.
   return (
     <View style={style}>
-      {timeRow}
-      <View style={styles.adderLine}>
-        <ItemAdderBadge adder={addedBy} avatarSize={ADDER_AVATAR_SIZE} style={styles.adderBadge} />
-        {adderTrailing ? <View style={styles.adderTrailing}>{adderTrailing}</View> : null}
-      </View>
+      {metaRow}
+      <View style={styles.reactionsLine}>{adderTrailing}</View>
     </View>
   );
 }
@@ -114,24 +119,12 @@ const styles = themedStyles(() => ({
   icon: {
     flexShrink: 0,
   },
-  // [adder avatar] .......... [trailing]: one row, never two; the trailing part takes what is left and
-  // is itself non-wrapping (see ReactionChips' inline mode), so it never adds height.
-  adderLine: {
-    alignItems: 'flex-start',
-    columnGap: spacing.sm,
-    flexDirection: 'row',
-    marginTop: 2,
-  },
   adderBadge: {
     // The avatar keeps its size; a long anonymous-link text shrinks and ellipsizes instead.
     flexShrink: 1,
     minWidth: 0,
-    // Keeps the avatar centered on the first line of chips (chip height 24 vs the 16 avatar).
-    marginTop: 4,
   },
-  adderTrailing: {
-    alignItems: 'flex-end',
-    flex: 1,
-    minWidth: 0,
-  },
+  trailingAction: { flexShrink: 0, marginStart: 'auto' },
+  // The reaction chips' own line: start-aligned, full width, wrapping (see ReactionChips, not inline).
+  reactionsLine: { alignItems: 'flex-start', minWidth: 0 },
 }));

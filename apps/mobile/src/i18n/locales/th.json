@@ -147,7 +147,8 @@
     "copyClearAllA11y": "ยกเลิกการเลือกทั้งหมด",
     "copySelectUpTo": "เลือกได้สูงสุด {{max}}",
     "detailItemCount": "ทั้งหมด {{count}}",
-    "myPendingSubmissions": "คำขออนุมัติที่ส่ง {{count}}",
+    "myPendingSubmissions": "คำขออนุมัติที่ส่ง",
+    "myPendingStatus": "รอ {{count}} รายการ",
     "myPendingSubmissionsA11y": "ดูคำขออนุมัติที่ส่ง {{count}} รายการ",
     "myPendingA11y": "คำขออนุมัติที่ส่ง: {{count}}",
     "favoritesTitle": "รายการโปรด",
@@ -288,7 +289,7 @@
     "saveOutcomeAlreadyPending": "ลิงก์นี้กำลังรออนุมัติอยู่แล้วในคอลเลกชันที่คุณเลือก",
     "saveOutcomeAlreadyInCollection": "คอลเลกชันที่คุณเลือกมีลิงก์นี้อยู่แล้ว",
     "roleSubmitter": "เพิ่มหลังอนุมัติ",
-    "pendingSubmissions": "คำขออนุมัติที่ได้รับ {{count}}",
+    "pendingSubmissions": "คำขออนุมัติที่ได้รับ",
     "pendingSubmissionsA11y": "ดูคำขออนุมัติที่ได้รับ {{count}} รายการ",
     "removeFromSharedOwnerOnly": "มีเพียงเจ้าของที่นำลิงก์ออกจากคอลเลกชันที่แชร์กับคุณได้",
     "removeFromCollection": "นำออกจากคอลเลกชัน",
@@ -360,7 +361,7 @@
     "homeShortcutLocked": "คอลเลกชันที่ล็อกไว้ยังต้องใส่รหัสผ่านเมื่อเปิดจากหน้าจอหลัก และจะไม่ถูกเพิ่มเป็นปลายทางการแชร์",
     "joinPending": "รออนุมัติ",
     "joinRequestsA11y": "คำขอ {{count}}",
-    "joinRequests": "คำขอ {{count}}"
+    "joinRequests": "คำขอ"
   },
   "toast": {
     "moveSuccess": "ย้ายแล้ว",

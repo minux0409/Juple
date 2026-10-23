@@ -147,7 +147,8 @@
     "copyClearAllA11y": "Снять весь выбор",
     "copySelectUpTo": "Выбрать до {{max}}",
     "detailItemCount": "Всего: {{count}}",
-    "myPendingSubmissions": "Отправленные запросы на одобрение {{count}}",
+    "myPendingSubmissions": "Отправленные запросы на одобрение",
+    "myPendingStatus": "Ожидает: {{count}}",
     "myPendingSubmissionsA11y": "Показать ({{count}}): Отправленные запросы на одобрение",
     "myPendingA11y": "Отправленные запросы на одобрение: {{count}}",
     "favoritesTitle": "Избранное",
@@ -288,7 +289,7 @@
     "saveOutcomeAlreadyPending": "В выбранной коллекции эта ссылка уже ждёт одобрения.",
     "saveOutcomeAlreadyInCollection": "В выбранной коллекции эта ссылка уже есть.",
     "roleSubmitter": "С одобрением",
-    "pendingSubmissions": "Полученные запросы на одобрение {{count}}",
+    "pendingSubmissions": "Полученные запросы на одобрение",
     "pendingSubmissionsA11y": "Показать ({{count}}): Полученные запросы на одобрение",
     "removeFromSharedOwnerOnly": "Удалять ссылки из коллекции, которой с вами поделились, может только владелец.",
     "removeFromCollection": "Убрать из коллекции",
@@ -360,7 +361,7 @@
     "homeShortcutLocked": "Заблокированная коллекция по-прежнему запросит пароль при открытии с главного экрана. Как пункт «Поделиться» она не добавляется.",
     "joinPending": "Ожидает одобрения",
     "joinRequestsA11y": "Запросы {{count}}",
-    "joinRequests": "Запросы {{count}}"
+    "joinRequests": "Запросы"
   },
   "toast": {
     "moveSuccess": "Перемещено.",

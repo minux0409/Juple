@@ -147,7 +147,8 @@
     "copyClearAllA11y": "Tüm seçimi kaldır",
     "copySelectUpTo": "En fazla {{max}} seç",
     "detailItemCount": "Toplam {{count}}",
-    "myPendingSubmissions": "Gönderilen onay istekleri {{count}}",
+    "myPendingSubmissions": "Gönderilen onay istekleri",
+    "myPendingStatus": "{{count}} bekliyor",
     "myPendingSubmissionsA11y": "Gönderilen onay istekleri: {{count}} adet gör",
     "myPendingA11y": "Gönderilen onay istekleri: {{count}}",
     "favoritesTitle": "Favoriler",
@@ -288,7 +289,7 @@
     "saveOutcomeAlreadyPending": "Seçtiğin koleksiyonda bu bağlantı zaten onay bekliyor.",
     "saveOutcomeAlreadyInCollection": "Seçtiğin koleksiyonda bu bağlantı zaten var.",
     "roleSubmitter": "Onayla eklenir",
-    "pendingSubmissions": "Alınan onay istekleri {{count}}",
+    "pendingSubmissions": "Alınan onay istekleri",
     "pendingSubmissionsA11y": "Alınan onay istekleri: {{count}} adet gör",
     "removeFromSharedOwnerOnly": "Sizinle paylaşılan bir koleksiyondan bağlantıları yalnızca sahibi kaldırabilir.",
     "removeFromCollection": "Koleksiyondan kaldır",
@@ -360,7 +361,7 @@
     "homeShortcutLocked": "Kilitli bir koleksiyon ana ekrandan açıldığında da parola ister. Paylaşım hedefi olarak eklenmez.",
     "joinPending": "Onay bekliyor",
     "joinRequestsA11y": "İstekler {{count}}",
-    "joinRequests": "İstekler {{count}}"
+    "joinRequests": "İstekler"
   },
   "toast": {
     "moveSuccess": "Taşındı.",

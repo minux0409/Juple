@@ -10,17 +10,18 @@ Browser fixtures are local isolated mocks, not the Azure DEV environment; their 
 
 | Source | Collections parent | Collection types | Friends / account | Bell |
 | --- | --- | --- | --- | --- |
-| Pending received collection invitation | Once per invitation ID | Shared only, until accepted | No | Existing unread policy, independent |
-| Owner's pending link submission / join request | Existing `attentionCount` | Types containing that collection | No | Never added again |
-| Unread new links in a collection | Existing `attentionCount` | Types containing that collection | No | Never added again |
-| Pending incoming friend request | No | No | Once per request ID; Web Friends and Settings mirror it, Mobile My Page mirrors it | Never added again |
+| Pending received collection invitation | Once per invitation ID | **공유 only**, until accepted | No | Existing unread policy, independent |
+| Owner's pending link submission / join request (받은 승인 요청) | Existing `attentionCount` | **공유 only** (one number per owner Collection: submissions + join requests) | No | Never added again |
+| Unread new links in a collection | Existing `attentionCount` | None - the card of that Collection only | No | Never added again |
+| Pending incoming friend request | No | No | Once per request ID; **Web 친구 only** (Settings never shows it), Mobile My Page mirrors it | Never added again |
 | Sent invitation / outgoing friend request / my own waiting proposal or join request | No | No | No | Existing notification history only |
 | Comment, reaction, reply, like, informational share or accepted/rejected result | No | No | No | Existing unread policy only |
 
 - Home and Archive currently have no actionable source in these APIs, so their badges are hidden. They do not receive the global unread total.
 - `CollectionDto.AttentionCount` already combines the caller's unread new-link events with owner-only submission/join tasks. Clients never recompute it from notification history.
 - Collection IDs, invitation IDs and request IDs are deduplicated independently. Type filters overlap, so their numbers are **not** summed into the parent number.
-- All = attention of existing collections; Owned = owner collections; Favorites = favorite collections; Shared = received invitations plus attention of non-owner collections or owner collections with collaborators / public sharing.
+- Requests are shared-Collection work: only the 공유 type carries a number (received invitations + the Owner's own pending approvals); 즐겨찾기 / 전체 / 내 컬렉션 never repeat them, and a card keeps its own number on its own Collection. The parent Collections number (menu / bottom tab) is the unique sum of the cards' `attentionCount` plus received invitations.
+- Request rows (same component on both platforms - bell, name, red count badge at the end before the chevron; the number is never part of the label; the sent row is the exception: neutral, with "대기 n건" instead of a badge): **보낸 승인 요청** (my own waiting proposals, `my-pending-submissions/count`; a quiet neutral *status* row - white card, thin border, "대기 n건" text, no badge, never counted anywhere), **받은 승인 요청** (Owner: lists the Collections with waiting links / join requests, then the Collection's own answering UI - the same endpoints Mobile's sheets use) and **받은 초대 요청**. All three show only on 공유 컬렉션, only while something waits.
 - Unaccepted invitations are not existing members of All / Owned / Favorites. Accepting moves the collection into its actual memberships.
 - The invitation entry card shows only received invitations. Shared and parent badges can be larger when other collection tasks/new links also exist.
 - Reading an invitation/friend-request notification does not answer the request. Successful read-all or opening a collection clears only its unread-new-link portion; pending tasks remain until actually answered.
@@ -36,6 +37,7 @@ Browser fixtures are local isolated mocks, not the Azure DEV environment; their 
 
 ## Refresh, requests and account isolation
 
+- Web has no push channel: the shell polls the bell total once a minute while the tab is visible (`UNREAD_POLL_INTERVAL_MS`, doubling per consecutive failure up to 5 minutes); a rise re-reads the badge sources through the same coalescing store, so a new friend request shows within about a minute (immediately on window focus after the 60 s cache). Hidden tabs do not poll. Expected cost: 1 GET/min per open visible tab.
 - Separate in-memory store per signed-in account. Web shell/pages and Mobile provider/screens/API helpers share it. Nothing is persisted across logout.
 - Startup: invitations + friend requests + all collection metadata pages. For up to 100 collections this is three GETs; each additional metadata page adds one. Existing screen-specific lists remain independent.
 - Successful values are cached for 60 seconds. Concurrent readers share the same pending request; screen focus, Web focus/visibility/navigation and Mobile foreground reuse this cache. There is no new idle polling.
@@ -68,7 +70,7 @@ The Mobile cache-expiry/API-helper regression checks three startup GETs, zero ex
 
 ## Layout
 
-- Web sidebar: inline end-aligned badge; unchanged icons/labels/routes and existing active styles. Settings mirrors incoming friends because this is Web's existing account destination.
+- Web sidebar: inline end-aligned badge; unchanged icons/labels/routes and existing active styles. Incoming friends show on 친구 only; 설정 carries no badge (Mobile mirrors the friend number on its 내 페이지 tab because that is its account destination).
 - Web collection types: inline centered badge within the existing buttons; desktop and wrapping narrow toolbar retain their normal click targets.
 - Mobile bottom tabs: React Navigation's built-in badge positioning, existing icon/touch/Safe Area behavior. Both Android/iOS use the same code.
 - Mobile collection filters: label flexes within the row, badge sits at its inner end and vertical center. No absolute top/end positioning or border overlap.

@@ -33,7 +33,7 @@ describe('navigation identity: one icon per navigation item', () => {
       expect(stack).toMatch(new RegExp(`screenIcons\\.${key}`));
     }
     // Every titled stack screen shows [icon] Title - the ones that used to be plain text included.
-    for (const name of ['CollectionShare', 'MyCollectionSubmissions', 'CollectionSharedItem', 'NewLinkReview', 'HelpGuideSection', 'DeleteAccount']) {
+    for (const name of ['CollectionShare', 'MyCollectionSubmissions', 'NewLinkReview', 'HelpGuideSection', 'DeleteAccount']) {
       const declaration = stack.slice(stack.indexOf(`name="${name}"`), stack.indexOf('/>', stack.indexOf(`name="${name}"`)));
       expect(declaration).toMatch(/headerTitleWithIcon\(screenIcons\.\w+/);
     }

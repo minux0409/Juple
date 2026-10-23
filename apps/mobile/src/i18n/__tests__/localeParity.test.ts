@@ -194,9 +194,9 @@ describe('requester vs owner approval wording', () => {
   });
 
   it('Korean: requester says 보낸 승인 요청, owner says 받은 승인 요청', () => {
-    expect(get(ko, 'collections', 'myPendingSubmissions')).toBe('보낸 승인 요청 {{count}}');
+    expect(get(ko, 'collections', 'myPendingSubmissions')).toBe('보낸 승인 요청');
     expect(get(ko, 'submissions', 'mySheetTitle')).toBe('보낸 승인 요청');
-    expect(get(ko, 'collections', 'pendingSubmissions')).toBe('받은 승인 요청 {{count}}');
+    expect(get(ko, 'collections', 'pendingSubmissions')).toBe('받은 승인 요청');
     expect(get(ko, 'submissions', 'ownerSheetTitle')).toBe('받은 승인 요청');
     expect(JSON.stringify(ko)).not.toContain('내 승인 대기');
     expect(JSON.stringify(ko)).not.toContain('승인 대기중');

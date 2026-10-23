@@ -156,8 +156,7 @@ export function parseNotificationTarget(wire: NotificationTargetWire | null | un
 /**
  * The Web page for a target (mobile navigationActionFor):
  *  - href: a Web page that shows it (친구 → /me/friends; a Collection → its page; a public link → the public page /c/{publicId}).
- *    승인 요청 and 참여 요청 open their Collection (the mobile app opens the list over it; those lists are app-only - the Collection is
- *    the nearest real page).
+ *    승인 요청 and 참여 요청 open their Collection with the answering dialog over it (`?requests=1`, like mobile's openApprovals).
  *  - collectionLink: a link IN a Collection - opened through the Collection like on mobile: see resolveCollectionLink.
  *  - received Collection invitations lead to the shared tab's received requests.
  *  - unavailable: nothing reachable any more (the mobile "이 알림의 항목을 더 이상 볼 수 없어요.").
@@ -177,9 +176,11 @@ export function webDestinationOf(target: NotificationTarget): WebDestination {
     case 'collectionInvitations':
       return { kind: 'href', href: COLLECTION_INVITATIONS_HREF };
     case 'collection':
+      return { kind: 'href', href: `/collections/${target.collectionId}` };
     case 'collectionSubmissions':
     case 'collectionJoinRequests':
-      return { kind: 'href', href: `/collections/${target.collectionId}` };
+      // The Owner's received requests: the Collection, with its answering dialog (after the Collection's own lock / password gate).
+      return { kind: 'href', href: `/collections/${target.collectionId}?requests=1` };
     case 'collectionItem':
     case 'collectionSharedItem':
       return { kind: 'collectionLink', collectionId: target.collectionId, itemId: target.itemId, mine: target.kind === 'collectionItem' };

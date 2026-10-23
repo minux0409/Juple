@@ -147,7 +147,8 @@
     "copyClearAllA11y": "Bỏ chọn toàn bộ",
     "copySelectUpTo": "Chọn tối đa {{max}}",
     "detailItemCount": "Tổng {{count}}",
-    "myPendingSubmissions": "Yêu cầu duyệt đã gửi {{count}}",
+    "myPendingSubmissions": "Yêu cầu duyệt đã gửi",
+    "myPendingStatus": "{{count}} đang chờ",
     "myPendingSubmissionsA11y": "Xem {{count}}: Yêu cầu duyệt đã gửi",
     "myPendingA11y": "Yêu cầu duyệt đã gửi: {{count}}",
     "favoritesTitle": "Yêu thích",
@@ -288,7 +289,7 @@
     "saveOutcomeAlreadyPending": "Trong bộ sưu tập bạn chọn, liên kết này đang chờ phê duyệt.",
     "saveOutcomeAlreadyInCollection": "Bộ sưu tập bạn chọn đã có liên kết này.",
     "roleSubmitter": "Cần phê duyệt",
-    "pendingSubmissions": "Yêu cầu duyệt đã nhận {{count}}",
+    "pendingSubmissions": "Yêu cầu duyệt đã nhận",
     "pendingSubmissionsA11y": "Xem {{count}}: Yêu cầu duyệt đã nhận",
     "removeFromSharedOwnerOnly": "Chỉ chủ sở hữu mới có thể gỡ liên kết khỏi bộ sưu tập được chia sẻ với bạn.",
     "removeFromCollection": "Xóa khỏi bộ sưu tập",
@@ -360,7 +361,7 @@
     "homeShortcutLocked": "Bộ sưu tập đã khóa vẫn yêu cầu mật khẩu khi mở từ màn hình chính. Nó không được thêm làm đích chia sẻ.",
     "joinPending": "Đang chờ phê duyệt",
     "joinRequestsA11y": "Yêu cầu {{count}}",
-    "joinRequests": "Yêu cầu {{count}}"
+    "joinRequests": "Yêu cầu"
   },
   "toast": {
     "moveSuccess": "Đã chuyển.",

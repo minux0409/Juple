@@ -147,7 +147,8 @@
     "copyClearAllA11y": "Annulla tutta la selezione",
     "copySelectUpTo": "Seleziona fino a {{max}}",
     "detailItemCount": "Totale: {{count}}",
-    "myPendingSubmissions": "Richieste di approvazione inviate {{count}}",
+    "myPendingSubmissions": "Richieste di approvazione inviate",
+    "myPendingStatus": "{{count}} in attesa",
     "myPendingSubmissionsA11y": "Vedi {{count}}: Richieste di approvazione inviate",
     "myPendingA11y": "Richieste di approvazione inviate: {{count}}",
     "favoritesTitle": "Preferiti",
@@ -288,7 +289,7 @@
     "saveOutcomeAlreadyPending": "Nella raccolta scelta questo link è già in attesa di approvazione.",
     "saveOutcomeAlreadyInCollection": "La raccolta scelta contiene già questo link.",
     "roleSubmitter": "Con approvazione",
-    "pendingSubmissions": "Richieste di approvazione ricevute {{count}}",
+    "pendingSubmissions": "Richieste di approvazione ricevute",
     "pendingSubmissionsA11y": "Vedi {{count}}: Richieste di approvazione ricevute",
     "removeFromSharedOwnerOnly": "Solo il proprietario può rimuovere link da una raccolta condivisa con te.",
     "removeFromCollection": "Rimuovi dalla raccolta",
@@ -360,7 +361,7 @@
     "homeShortcutLocked": "Una raccolta bloccata chiede comunque la password se aperta dalla schermata Home. Non viene aggiunta come destinazione di condivisione.",
     "joinPending": "In attesa di approvazione",
     "joinRequestsA11y": "Richieste {{count}}",
-    "joinRequests": "Richieste {{count}}"
+    "joinRequests": "Richieste"
   },
   "toast": {
     "moveSuccess": "Spostato.",
