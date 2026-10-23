@@ -5,8 +5,11 @@ export interface ReceivedCollectionInvitation {
   readonly invitationId: number;
   readonly collectionId: number;
   readonly collectionName: string;
+  readonly icon?: string | null;
+  readonly color?: string | null;
   readonly ownerJupleId: string;
   readonly ownerDisplayName?: string | null;
+  readonly ownerProfileImageUrl?: string | null;
   readonly role: string;
   readonly createdAtUtc: string;
   readonly expiresAtUtc: string;
