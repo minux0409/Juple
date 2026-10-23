@@ -21,7 +21,7 @@ function createFixture() {
       calls.push(`${method} ${path}`);
       sessionStorage.setItem('invitationCalls', JSON.stringify(calls));
       await new Promise(resolve => setTimeout(resolve, 100));
-      if (path === '/api/v1/users/me/collection-invitations') return { items: pending.map(id => ({ invitationId: id, collectionId: id, collectionName: id === 1 ? 'ddd' : id === 2 ? '아주 긴 컬렉션 이름도 좁은 화면에서 버튼을 가리지 않고 여러 줄로 표시됩니다' : `Invite ${id}`, icon: 'Folder', color: 'Blue', ownerJupleId: 'TEST-OWNER', ownerDisplayName: 'PDA', role: 'submitter', createdAtUtc: '2026-10-23T00:00:00Z', expiresAtUtc: '2026-10-30T00:00:00Z' })) };
+      if (path === '/api/v1/users/me/collection-invitations') return { items: pending.map(id => ({ invitationId: id, collectionId: id, collectionName: id === 1 ? 'ddd' : id === 2 ? '아주 긴 컬렉션 이름도 좁은 화면에서 버튼을 가리지 않고 여러 줄로 표시됩니다' : `Invite ${id}`, icon: 'Folder', color: 'Blue', ownerJupleId: 'TEST-OWNER', ownerDisplayName: 'PDA', role: 'Submitter', createdAtUtc: '2026-10-23T00:00:00Z', expiresAtUtc: '2026-10-30T00:00:00Z' })) };
       if (path.startsWith('/api/v1/collection-invitations/') && method === 'POST') {
         if (failurePending) {
           failurePending = false;

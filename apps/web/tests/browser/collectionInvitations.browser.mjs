@@ -62,6 +62,7 @@ it('single card → all invitations modal → accept once → shared list → de
     await tab.until(`location.search.includes('tab=shared') && !!${row(1)}`);
     assert.equal(await tab.evaluate(`${entry}.textContent.trim()`), '받은 초대 요청3');
     assert.equal(await tab.evaluate(`document.querySelector('dialog[open]').textContent.includes('PDA')`), true);
+    assert.equal(await tab.evaluate(`${row(1)}.textContent.includes('승인 후 추가')`), true, 'PascalCase roles from the existing PROD API keep their permission label');
     await capture(tab, 'desktop-multiple-modal');
     await tab.evaluate(`document.querySelector('dialog button[aria-label="닫기"]').click()`);
     await tab.until(`!document.querySelector('dialog[open]')`);

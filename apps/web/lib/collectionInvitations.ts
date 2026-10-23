@@ -19,7 +19,11 @@ export const RECEIVED_INVITATIONS_PATH = '/api/v1/users/me/collection-invitation
 export const COLLECTION_INVITATIONS_HREF = '/collections?tab=shared&invitations=1';
 
 export async function receivedInvitations(api: AppApi): Promise<readonly ReceivedCollectionInvitation[]> {
-  return (await api<{ items: readonly ReceivedCollectionInvitation[] }>({ path: RECEIVED_INVITATIONS_PATH })).items;
+  const { items } = await api<{ items: readonly ReceivedCollectionInvitation[] }>({ path: RECEIVED_INVITATIONS_PATH });
+  // The existing server serializes the enum with ToString() (Viewer / Submitter / Contributor).
+  // Sharing labels use lowercase roles, as do older web fixtures. Normalize only the display DTO;
+  // authority and accept/decline permissions remain entirely server-controlled.
+  return items.map(item => typeof item.role === 'string' ? { ...item, role: item.role.toLowerCase() } : item);
 }
 
 /** A stale invitation is an operation result; authentication/permission/network errors still reach the caller. */
