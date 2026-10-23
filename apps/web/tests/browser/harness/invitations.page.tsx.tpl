@@ -2,6 +2,8 @@
 // Local browser regression only. No token source and no network API: every operation uses fixtures.
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import FriendsPage from '../(app)/me/friends/page';
 import { SignedInAppContext } from '../(app)/AppRoot';
 import { CollectionsView } from '../(app)/collections/CollectionsView';
 import { ToastProvider } from '../(app)/Toaster';
@@ -58,11 +60,12 @@ function createFixture(account: string) {
 }
 
 export default function Page() {
+  const query = useSearchParams();
   const [account, setAccount] = useState('A');
   const value = useMemo(() => createFixture(account), [account]);
   return <SignedInAppContext.Provider value={value as never}><ToastProvider><AppShell>
       <div><Link data-fixture-notification href={`/invitation-test-harness${COLLECTION_INVITATIONS_HREF.slice('/collections'.length)}`}>Invitation notification</Link>
       <button data-fixture-switch-account onClick={() => setAccount('B')} type="button">Switch fixture account</button></div>
-      <CollectionsView />
+      {query.get('fixturePage') === 'friends' ? <FriendsPage /> : <CollectionsView />}
   </AppShell></ToastProvider></SignedInAppContext.Provider>;
 }

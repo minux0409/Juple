@@ -142,7 +142,7 @@ export function legacyPushTarget(data: Readonly<Record<string, unknown>> | null 
 
 /** The navigator calls one target turns into - what navigateToNotificationTarget performs. */
 export type NotificationNavigationAction =
-  | { readonly name: 'Friends' }
+  | { readonly name: 'Friends'; readonly params?: { readonly openRequests: true; readonly refreshToken: number } }
   | { readonly name: 'MainTabs'; readonly params: { readonly screen: 'Collections'; readonly params: { readonly filter: 'shared'; readonly openShareRequests: true; readonly refreshToken: number } } }
   | { readonly name: 'CollectionDetails'; readonly params: { readonly collectionId: number; readonly refreshToken: number; readonly openItem?: { readonly itemId: number; readonly focus: 'comments' | null; readonly commentRootId?: number | null; readonly shared?: boolean }; readonly openApprovals?: true; readonly openJoinRequests?: true } }
   | { readonly name: 'SharedCollection'; readonly params: { readonly publicId: string } };
@@ -151,6 +151,7 @@ export type NotificationNavigationAction =
 export function navigationActionFor(target: NotificationTarget, nowMs: number = Date.now()): NotificationNavigationAction | null {
   switch (target.kind) {
     case 'friendRequests':
+      return { name: 'Friends', params: { openRequests: true, refreshToken: nowMs } };
     case 'friends':
       return { name: 'Friends' };
     case 'collectionInvitations':

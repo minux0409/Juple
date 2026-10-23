@@ -304,7 +304,8 @@ public sealed class RequestProtectionTests
     [Fact]
     public async Task NormalStartupTenLinksPreviewScrollSearchImageSequenceAndPushAreAllowed()
     {
-        var (provider, pipeline) = Pipeline(new(), _ => Task.CompletedTask);
+        // Minute workload compressed into one loop; default burst is verified separately.
+        var (provider, pipeline) = Pipeline(new() { BrowseReadPerFiveSeconds = 1000 }, _ => Task.CompletedTask);
         await using var cleanup = provider;
         var operations = new List<(string, string, string)> { ("CurrentUserBootstrap", "Bootstrap", "POST"), ("AuthSession", "Get", "GET") };
         operations.AddRange(Enumerable.Repeat(("Inbox", "Save", "POST"), 10));
@@ -461,6 +462,8 @@ public sealed class RequestProtectionTests
         var descriptors = provider.GetRequiredService<IActionDescriptorCollectionProvider>().ActionDescriptors.Items.OfType<ControllerActionDescriptor>().ToArray();
         var cases = new[]
         {
+            ("Items", "GetHistoryAsync", "browse"), ("Items", "GetDetailAsync", "browse"),
+            ("Collections", "ListAsync", "browse"), ("ItemImages", "ListAsync", "browse"),
             ("Inbox", "SaveAsync", "link"), ("UrlMetadata", "ResolveAsync", "metadata"),
             ("ItemImages", "UploadAsync", "image"), ("UserProfile", "SetImageAsync", "image"),
             ("Collections", "SetIconImageAsync", "image"), ("Collections", "CreateAsync", "collection-create"),
@@ -477,4 +480,115 @@ public sealed class RequestProtectionTests
             Assert.Equal(category, RequestProtection.Category(context));
         }
     }
+    [Fact]
+    public async Task BrowseMinuteBoundaryIsIndependentOfWriteBudget_AndDiagnosticIdentifiesTheGate()
+    {
+        var calls = 0;
+        var (provider, pipeline) = Pipeline(new() { BrowseReadPerFiveSeconds = 1000 }, _ => { calls++; return Task.CompletedTask; });
+        await using var cleanup = provider;
+        for (var i = 0; i < 600; i++)
+        {
+            var context = Context("Items", "GetDetail");
+            await pipeline(context);
+            Assert.Equal(200, context.Response.StatusCode);
+        }
+        var refused = Context("Collections", "List");
+        await pipeline(refused);
+        Assert.Equal(429, refused.Response.StatusCode);
+        refused.Response.Body.Position = 0;
+        Assert.Contains("\"limiter\":\"browse\"", await new StreamReader(refused.Response.Body).ReadToEndAsync());
+        Assert.Equal(600, calls);
+        var write = Context("Inbox", "Save", "POST");
+        await pipeline(write);
+        Assert.Equal(200, write.Response.StatusCode);
+        var another = Context("Items", "GetDetail", user: Guid.NewGuid());
+        await pipeline(another);
+        Assert.Equal(200, another.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BrowseBurstIsSixtyAcrossPlatforms_AndRetainsRetryAfter()
+    {
+        var (provider, pipeline) = Pipeline(new(), _ => Task.CompletedTask);
+        await using var cleanup = provider;
+        for (var i = 0; i <= 60; i++)
+        {
+            var context = Context("Items", "GetHistoryByDate");
+            context.Request.Headers["X-Juple-Platform"] = new[] { "android", "ios", "web" }[i % 3];
+            await pipeline(context);
+            Assert.Equal(i == 60 ? 429 : 200, context.Response.StatusCode);
+            if (i == 60)
+            {
+                Assert.InRange(int.Parse(context.Response.Headers.RetryAfter!), 1, 5);
+                context.Response.Body.Position = 0;
+                Assert.Contains("browse-burst", await new StreamReader(context.Response.Body).ReadToEndAsync());
+            }
+        }
+    }
+
+    [Fact]
+    public async Task BrowseDoesNotExemptOtherReadsOrSensitiveWrites()
+    {
+        var (provider, pipeline) = Pipeline(new() { AccountPerMinute = 2, ReadPerMinute = 1 }, _ => Task.CompletedTask);
+        await using var cleanup = provider;
+        await pipeline(Context("Items", "GetHistory"));
+        await pipeline(Context("Items", "GetHistory"));
+        await pipeline(Context("AuthSession", "Get"));
+        var read = Context("Notifications", "List");
+        await pipeline(read);
+        Assert.Equal(429, read.Response.StatusCode);
+        Assert.NotEqual("browse", RequestProtection.Category(Context("Items", "GetDetail", "POST")));
+        Assert.Equal("password", RequestProtection.Category(Context("Collections", "SetSharePassword", "PUT")));
+        Assert.Equal("social", RequestProtection.Category(Context("Friends", "Accept", "POST")));
+    }
+
+    [Fact]
+    public async Task TwoDevicesThirtyLinkDetailVisitsAndStartupFitTheMinuteBudget()
+    {
+        // Compress a whole minute into one loop. The separate default burst test enforces 60/5s.
+        var (provider, pipeline) = Pipeline(new() { BrowseReadPerFiveSeconds = 1000 }, _ => Task.CompletedTask);
+        await using var cleanup = provider;
+        var requests = 0;
+        foreach (var platform in new[] { "android", "web" })
+        {
+            for (var visit = 0; visit < 30; visit++)
+            {
+                // Current access preflight, contextual preflight, detail popup, images, memberships.
+                foreach (var (controller, action) in new[] { ("Collections", "Get"), ("Items", "GetDetail"), ("Items", "GetDetail"), ("ItemImages", "List"), ("Collections", "List") })
+                {
+                    var context = Context(controller, action);
+                    context.Request.Headers["X-Juple-Platform"] = platform;
+                    await pipeline(context);
+                    Assert.Equal(200, context.Response.StatusCode);
+                    requests++;
+                }
+            }
+            // Initial summary + two expanded pages; two later focus refreshes of the same shape.
+            for (var refresh = 0; refresh < 3; refresh++)
+                foreach (var action in new[] { "GetHistorySections", "GetHistory", "GetHistory" })
+                {
+                    var context = Context("Items", action);
+                    await pipeline(context);
+                    Assert.Equal(200, context.Response.StatusCode);
+                    requests++;
+                }
+        }
+        Assert.Equal(318, requests);
+    }
+
+    [Fact]
+    public async Task BurstWindowReplenishesWithoutChangingOtherPolicies()
+    {
+        var (provider, pipeline) = Pipeline(new() { BrowseReadPerFiveSeconds = 1 }, _ => Task.CompletedTask);
+        await using var cleanup = provider;
+        await pipeline(Context("Items", "GetHistory"));
+        var refused = Context("Items", "GetHistory");
+        await pipeline(refused);
+        Assert.Equal(429, refused.Response.StatusCode);
+        await Task.Delay(TimeSpan.FromSeconds(5.2));
+        var recovered = Context("Items", "GetHistory");
+        await pipeline(recovered);
+        Assert.Equal(200, recovered.Response.StatusCode);
+    }
+
 }

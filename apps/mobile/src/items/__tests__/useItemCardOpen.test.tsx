@@ -50,7 +50,7 @@ describe('Home and Archive card opening - always in the card\'s Collection conte
     await act(async () => { await cardOpen.open({ id: 11, collectionId: 4 }); });
     expect(panels(tree)).toHaveLength(0);
     expect(getItemDetails).toHaveBeenCalledWith(expect.any(Function), 11, { collectionId: 4, unlockToken: null });
-    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(refresh).not.toHaveBeenCalled();
     expect(navigate).toHaveBeenCalledWith(11, { collectionId: 4, grantKey: null });
   });
 
@@ -146,4 +146,29 @@ describe('Home and Archive card opening - always in the card\'s Collection conte
       expect(navigate).not.toHaveBeenCalled();
     });
   });
+});
+
+
+it('coalesces repeated taps while current access is checked and never refreshes the read-only list', async () => {
+  let resolve!: (value: never) => void;
+  jest.mocked(getCollection).mockReturnValueOnce(new Promise(r => { resolve = r; }));
+  await render();
+  let firstOpen!: Promise<void>;
+  await act(async () => { firstOpen = cardOpen.open({ id: 11, collectionId: 4 }); await cardOpen.open({ id: 11, collectionId: 4 }); });
+  expect(getCollection).toHaveBeenCalledTimes(1);
+  await act(async () => { resolve(unlocked as never); await firstOpen; });
+  expect(getItemDetails).toHaveBeenCalledTimes(1);
+  expect(navigate).toHaveBeenCalledTimes(1);
+  expect(refresh).not.toHaveBeenCalled();
+});
+
+it('does not refresh the archive after a rejected detail read, and allows the next deliberate open', async () => {
+  jest.mocked(getCollection).mockResolvedValue(unlocked as never);
+  jest.mocked(getItemDetails).mockRejectedValueOnce(new ApiError('tooManyRequests', 429, 'rateLimited', 30));
+  await render();
+  await act(async () => cardOpen.open({ id: 11, collectionId: 4 }));
+  expect(navigate).not.toHaveBeenCalled();
+  expect(refresh).not.toHaveBeenCalled();
+  await act(async () => cardOpen.open({ id: 11, collectionId: 4 }));
+  expect(navigate).toHaveBeenCalledTimes(1);
 });

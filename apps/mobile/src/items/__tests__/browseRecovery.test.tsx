@@ -59,8 +59,15 @@ it('does not automatically retry a failed page on repeated scroll visibility eve
     for (let i = 0; i < 20; i++) visible.onViewableItemsChanged({ viewableItems: [{ item: { kind: 'item', section, position: 0 } }] as never });
   });
   expect(source.loadPage).toHaveBeenCalledTimes(2);
+  const clock = jest.spyOn(Date, 'now');
+  const now = Date.now();
   await act(async () => latest.retrySection('today'));
+  expect(source.loadPage).toHaveBeenCalledTimes(2);
+  clock.mockReturnValue(now + 31_000);
+  await act(async () => latest.retrySection('today'));
+  expect(source.loadPage).toHaveBeenCalledTimes(3);
   expect(source.loadPage).toHaveBeenLastCalledWith(section, 25, 'next');
+  clock.mockRestore();
 });
 
 it('retries the failed refresh first page, not the next cursor, while keeping prior rows', async () => {

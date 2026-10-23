@@ -48,18 +48,18 @@ export class RequestCooldown {
   remaining(scope: string | undefined, method: string, path: string): number {
     this.select(scope);
     const key = this.key(method, path);
-    const deadline = this.deadlines.get(key) ?? 0;
+    const deadline = Math.max(this.deadlines.get(key) ?? 0, isBrowseRead(method, path) ? this.deadlines.get('browse') ?? 0 : 0);
     if (deadline <= Date.now()) { this.deadlines.delete(key); return 0; }
     return Math.ceil((deadline - Date.now()) / 1000);
   }
 
-  defer(scope: string | undefined, method: string, path: string, seconds: number): void {
+  defer(scope: string | undefined, method: string, path: string, seconds: number, limiter?: string): void {
     // An old account's in-flight response cannot overwrite the new account's cooldown state.
     if (!this.initialized) this.select(scope);
     if (cooldownIdentity(scope) !== this.scope) return;
     for (const [key, deadline] of this.deadlines) if (deadline <= Date.now()) this.deadlines.delete(key);
     if (this.deadlines.size >= 64) this.deadlines.delete(this.deadlines.keys().next().value!);
-    const key = this.key(method, path);
+    const key = (limiter === 'browse' || limiter === 'browse-burst') && isBrowseRead(method, path) ? 'browse' : this.key(method, path);
     this.deadlines.set(key, Math.max(this.deadlines.get(key) ?? 0, Date.now() + seconds * 1000));
   }
 
@@ -73,4 +73,13 @@ export class RequestCooldown {
   private key(method: string, path: string): string {
     return `${method}:${path.split('?')[0].replace(/\/\d+(?=\/|$)/g, '/:id').slice(0, 256)}`;
   }
+}
+
+
+/** Mirror only the server's read-only browsing allowlist; never delay login, logout or writes. */
+function isBrowseRead(method: string, path: string): boolean {
+  if (method !== 'GET') return false;
+  const route = path.split('?')[0];
+  return /^\/api\/v1\/items\/(?:history(?:\/(?:count|sections|date))?|\d+(?:\/images)?)$/.test(route)
+    || /^\/api\/v1\/collections(?:\/search-suggestions|\/\d+(?:\/(?:items(?:\/(?:sections|\d+))?|collaborators|participants|share(?:\/link)?))?)?$/.test(route);
 }

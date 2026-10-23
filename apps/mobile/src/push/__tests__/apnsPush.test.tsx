@@ -258,7 +258,7 @@ describe('usePushMessageHandling on iOS', () => {
     await flush();
 
     expect(navigationRef.navigate).toHaveBeenCalledTimes(1);
-    expect(navigationRef.navigate).toHaveBeenCalledWith('Friends');
+    expect(navigationRef.navigate).toHaveBeenCalledWith('Friends', { openRequests: true, refreshToken: expect.any(Number) });
   });
 
   it('removes its native listeners on unmount (no leak on remount)', async () => {

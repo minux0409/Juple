@@ -15,7 +15,7 @@ const NOW = 1_700_000_000_000;
  */
 describe('notification targets', () => {
   const table: ReadonlyArray<readonly [string, unknown, NotificationTarget, unknown]> = [
-    ['friendRequest', { kind: 'friendRequests' }, { kind: 'friendRequests' }, { name: 'Friends' }],
+    ['friendRequest', { kind: 'friendRequests' }, { kind: 'friendRequests' }, { name: 'Friends', params: { openRequests: true, refreshToken: NOW } }],
     // The answer to my own request (accepted / declined): the Friends screen, where a new friend now is.
     ['friendRequestAccepted / friendRequestRejected', { kind: 'friends' }, { kind: 'friends' }, { name: 'Friends' }],
     [

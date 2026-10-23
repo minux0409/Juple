@@ -9,6 +9,8 @@ import { contentGateOfError } from '../collections/useCollectionItems';
 import { getItemDetails, type ItemHistoryEntry } from './api/itemsApi';
 import { handOffItemOpenGrant, type ItemOpenContext } from './itemOpenGrant';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ApiError } from '../api/ApiError';
+import { browseFailureMessage } from './browseFailureMessage';
 
 interface PendingOpen {
   readonly itemId: number;
@@ -33,6 +35,7 @@ export function useItemCardOpen(onNavigate: (itemId: number, openContext?: ItemO
   const [error, setError] = useState<string | null>(null);
   // The grant of the opening in progress (from the password panel) - only until that opening is finished.
   const openingGrantRef = useRef<string | null>(null);
+  const openInFlight = useRef(false);
 
   const promptFor = useCallback(async (itemId: number, collectionId: number) => {
     const fresh = await getCollection(request, collectionId);
@@ -53,7 +56,6 @@ export function useItemCardOpen(onNavigate: (itemId: number, openContext?: ItemO
       // The server's own check, in the card's Collection context with THIS opening's grant (or none, when the
       // Collection is not locked now) - never the context-free read.
       await getItemDetails(request, itemId, { collectionId, unlockToken });
-      onRefresh();
       onNavigate(itemId, { collectionId, grantKey: unlockToken ? handOffItemOpenGrant(collectionId, unlockToken) : null });
     } catch (caughtError) {
       // Locked again (or the grant is no longer valid) since the state was read: ask again, never open anything.
@@ -67,16 +69,20 @@ export function useItemCardOpen(onNavigate: (itemId: number, openContext?: ItemO
         }
       }
       Keyboard.dismiss();
-      setError(t('collections.errorItemsLoadFallback'));
+      if (caughtError instanceof ApiError && (caughtError.status === 403 || caughtError.status === 404)) onRefresh();
+      setError(browseFailureMessage(caughtError, t) ?? t('collections.errorItemsLoadFallback'));
     } finally {
       openingGrantRef.current = null;
     }
   }, [onNavigate, onRefresh, promptFor, request, t]);
 
   const open = useCallback(async (item: Pick<ItemHistoryEntry, 'id' | 'collectionId'>) => {
+    if (openInFlight.current || pending) return;
+    openInFlight.current = true;
     openingGrantRef.current = null;
     if (!item.collectionId) {
       onNavigate(item.id);
+      openInFlight.current = false;
       return;
     }
     try {
@@ -84,11 +90,13 @@ export function useItemCardOpen(onNavigate: (itemId: number, openContext?: ItemO
         return;
       }
       await finishOpen(item.id, item.collectionId, null);
-    } catch {
+    } catch (caughtError) {
       Keyboard.dismiss();
-      setError(t('collections.errorItemsLoadFallback'));
+      setError(browseFailureMessage(caughtError, t) ?? t('collections.errorItemsLoadFallback'));
+    } finally {
+      openInFlight.current = false;
     }
-  }, [finishOpen, onNavigate, promptFor, t]);
+  }, [finishOpen, onNavigate, pending, promptFor, t]);
 
   const onStateChanged = useCallback(async () => {
     if (!pending) { return true; }

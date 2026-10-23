@@ -1,8 +1,9 @@
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { AppModal } from '../components/AppModal';
 import { useMobileAttention, useAttentionSnapshot } from '../attention/attentionContext';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -76,6 +77,8 @@ export type FriendsTab = 'friends' | 'incoming' | 'outgoing';
  * each action (only the part that action changed). An action busies only its own row.
  */
 export function FriendsScreen() {
+  const route = useRoute<RouteProp<RootStackParamList, 'Friends'>>();
+  const [requestsOpen, setRequestsOpen] = useState(false);
   const { t } = useTranslation();
   const tabsTarget = useTourTarget(TOUR_TARGETS.friendsTabs, { radius: radii.md + 2 });
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -182,6 +185,14 @@ export function FriendsScreen() {
       setRequestsFailure(caughtError);
     }
   }, [authenticatedRequest, loadFriends]);
+
+  useEffect(() => {
+    if (!route.params?.openRequests) return;
+    navigation.setParams({ openRequests: undefined, refreshToken: undefined });
+    setTab('incoming');
+    setRequestsOpen(true);
+    loadRequests(true).catch(() => undefined);
+  }, [loadRequests, navigation, route.params?.openRequests, route.params?.refreshToken]);
 
   useFocusEffect(
     useCallback(() => {
@@ -468,6 +479,9 @@ export function FriendsScreen() {
       </View>
 
       {tab === 'friends' ? friendsList : tab === 'incoming' ? requestList('incoming', incoming) : requestList('outgoing', outgoing)}
+      <AppModal visible={requestsOpen} onClose={() => setRequestsOpen(false)} title={t('friends.tabIncoming')} size="large" testID="received-friend-requests-modal">
+        {requestsOpen ? requestList('incoming', incoming) : null}
+      </AppModal>
 
       <FriendDetailModal
         friend={selected}

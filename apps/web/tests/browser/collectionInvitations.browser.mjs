@@ -235,3 +235,19 @@ it('99+ badges remain inside buttons; zero invitations leaves exactly one 12px g
     } finally { await tab.close(); }
   }
 });
+
+
+it('friend notification opens received requests directly, including the already handled empty state', async () => {
+  for (const count of [2, 0]) {
+    const tab = await openFixture(`${origin}/invitation-test-harness?fixturePage=friends&fixtureFriends=${count}&requests=incoming`);
+    try {
+      await tab.until(`!!document.querySelector('[role="tab"][aria-selected="true"]') && document.querySelector('[role="tab"][aria-selected="true"]').textContent.includes('받은 요청')`);
+      await tab.until(`document.body.textContent.includes('${count ? 'Fixture' : '받은 친구 요청이 없어요'}')`);
+      assert.equal(await tab.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true);
+      const calls = JSON.parse(await tab.evaluate(`sessionStorage.getItem('invitationCalls')`));
+      assert.equal(calls.filter(call => call === 'GET /api/v1/friends/requests').length, 1);
+      assert.equal(calls.some(call => call.startsWith('POST ')), false, 'opening a notification never accepts a real request');
+      await capture(tab, `friend-requests-${count}`);
+    } finally { await tab.close(); }
+  }
+});

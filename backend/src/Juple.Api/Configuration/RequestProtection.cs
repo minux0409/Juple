@@ -17,6 +17,9 @@ public sealed class RequestProtectionOptions
     public int AccountPerMinute { get; set; } = 180;
     public int AnonymousPerMinute { get; set; } = 300;
     public int ReadPerMinute { get; set; } = 120;
+    // Authorized link browsing has a separate budget; write/auth/other endpoint budgets remain intact.
+    public int BrowseReadPerMinute { get; set; } = 600;
+    public int BrowseReadPerFiveSeconds { get; set; } = 60;
     public int LinkPerMinute { get; set; } = 30;
     public int MetadataPerMinute { get; set; } = 30;
     public int ImagePerMinute { get; set; } = 15;
@@ -62,16 +65,17 @@ public static class RequestProtection
         // leases through response completion. Endpoint-specific existing policies are ALSO acquired.
         options.GlobalLimiter = PartitionedRateLimiter.CreateChained(
             Fixed(settings, context => IsApi(context) && !IsIdentity(context) ? "anonymous" : null, _ => settings.AnonymousPerMinute),
-            Fixed(settings, context => IsApi(context) && IsIdentity(context) ? "account" : null, _ => settings.AccountPerMinute),
+            Fixed(settings, context => IsApi(context) && IsIdentity(context) && Category(context) != "browse" ? "account" : null, _ => settings.AccountPerMinute),
             Fixed(settings, context => IsApi(context) ? Category(context) : null, category => category switch
             {
-                "read" => settings.ReadPerMinute, "link" => settings.LinkPerMinute,
+                "browse" => settings.BrowseReadPerMinute, "read" => settings.ReadPerMinute, "link" => settings.LinkPerMinute,
                 "metadata" => settings.MetadataPerMinute, "image" => settings.ImagePerMinute,
                 "collection-create" => settings.CollectionCreatePerMinute, "social" => settings.SocialPerMinute,
                 "push" => settings.PushPerMinute, "bulk" => settings.BulkPerMinute,
                 "password" => settings.PasswordPer15Minutes, "password-verify" => settings.PasswordVerificationPerMinute, "admin" => settings.AdminPerMinute,
                 "public-read" => settings.PublicReadPerMinute, _ => settings.AccountPerMinute,
             }),
+            Fixed(settings, context => IsApi(context) && Category(context) == "browse" ? "browse-burst" : null, _ => settings.BrowseReadPerFiveSeconds),
             PartitionedRateLimiter.Create<HttpContext, string>(context =>
                 settings.Enabled && IsApi(context) && Category(context) is "metadata" or "link"
                     ? Concurrency("metadata-http-work", settings.MetadataOutboundConcurrency, 0)
@@ -91,14 +95,15 @@ public static class RequestProtection
         options.OnRejected = async (context, cancellationToken) =>
         {
             var retry = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var value) ? value : TimeSpan.FromSeconds(2);
-            await WriteRejectionAsync(context.HttpContext, retry, cancellationToken);
+            var policy = context.Lease.TryGetMetadata(AdmissionRateLimiter.PolicyMetadata, out var label) ? label as string : null;
+            await WriteRejectionAsync(context.HttpContext, retry, cancellationToken, policy);
         };
     }
 
-    public static async Task WriteRejectionAsync(HttpContext context, TimeSpan retry, CancellationToken cancellationToken)
+    public static async Task WriteRejectionAsync(HttpContext context, TimeSpan retry, CancellationToken cancellationToken, string? policy = null)
     {
         // A fixed tag, no URL, identity, password, token, IP, or client-supplied policy names.
-        Rejections.Add(1, new KeyValuePair<string, object?>("policy", "request-admission"));
+        Rejections.Add(1, new KeyValuePair<string, object?>("policy", policy ?? "request-admission"));
         context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         context.Response.Headers.RetryAfter = Math.Max(1, (int)Math.Ceiling(retry.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
         context.Response.Headers.CacheControl = "no-store";
@@ -106,7 +111,7 @@ public static class RequestProtection
         {
             Status = StatusCodes.Status429TooManyRequests,
             Title = "Too many requests",
-            Extensions = { ["code"] = "rateLimited", ["policy"] = "request-admission" },
+            Extensions = { ["code"] = "rateLimited", ["policy"] = "request-admission", ["limiter"] = policy },
         }, options: null, contentType: "application/problem+json", cancellationToken: cancellationToken);
     }
 
@@ -117,12 +122,13 @@ public static class RequestProtection
             var category = settings.Enabled ? select(context) : null;
             if (!settings.AnonymousIpLimitsEnabled && !IsIdentity(context)) category = null;
             if (category is null) return RateLimitPartition.GetNoLimiter("none");
-            return RateLimitPartition.GetFixedWindowLimiter(category + ":" + RateLimitPolicies.IdentityPartitionKey(context),
-                _ => new FixedWindowRateLimiterOptions
+            return RateLimitPartition.Get(category + ":" + RateLimitPolicies.IdentityPartitionKey(context),
+                _ => new AdmissionRateLimiter(new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = permits(category), QueueLimit = 0,
-                    Window = category == "password" ? TimeSpan.FromMinutes(15) : TimeSpan.FromMinutes(1),
-                });
+                    AutoReplenishment = true,
+                    Window = category == "password" ? TimeSpan.FromMinutes(15) : category == "browse-burst" ? TimeSpan.FromSeconds(5) : TimeSpan.FromMinutes(1),
+                }), category));
         });
 
     private static RateLimitPartition<string> Concurrency(string key, int count, int queue) =>
@@ -155,6 +161,7 @@ public static class RequestProtection
         if (write && (controller == "CollectionLockSettings" || name is "SetSharePassword" or "RemoveSharePassword")) return "password";
         if (write && (name.Contains("Password", StringComparison.Ordinal) || name.Contains("Unlock", StringComparison.Ordinal) || name == "RemoveLock")) return "password-verify";
         if (write && controller == "Collections" && name == "Create") return "collection-create";
+        if (!write && IsBrowseRead(controller, name)) return "browse";
         if (!write) return "read";
         if (name.Contains("Comment", StringComparison.Ordinal) || name.Contains("Reaction", StringComparison.Ordinal)
             || name.Contains("Submission", StringComparison.Ordinal) || name.Contains("JoinRequest", StringComparison.Ordinal)
@@ -164,4 +171,13 @@ public static class RequestProtection
             || controller.Contains("Invitation", StringComparison.Ordinal) || controller.Contains("Submission", StringComparison.Ordinal)) return "social";
         return null;
     }
+
+    private static bool IsBrowseRead(string controller, string action) => controller switch
+    {
+        "Items" => action is "GetHistory" or "GetHistoryCount" or "GetHistorySections" or "GetHistoryByDate" or "GetDetail",
+        "ItemImages" => action == "List",
+        "Collections" => action is "List" or "SearchSuggestions" or "Get" or "GetItems" or "GetItemSections" or "GetSharedItem"
+            or "GetCollaboration" or "GetParticipants" or "GetShare" or "GetShareLink",
+        _ => false,
+    };
 }

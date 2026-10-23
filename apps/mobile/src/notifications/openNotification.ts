@@ -57,7 +57,8 @@ export function subscribeNotificationUnavailable(listener: UnavailableListener):
 export function navigateWithRootNavigator(action: NotificationNavigationAction): void {
   switch (action.name) {
     case 'Friends':
-      navigationRef.navigate('Friends');
+      if (action.params) navigationRef.navigate('Friends', action.params);
+      else navigationRef.navigate('Friends');
       return;
     case 'MainTabs':
       navigationRef.navigate('MainTabs', action.params);

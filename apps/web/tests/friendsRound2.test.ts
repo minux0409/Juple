@@ -13,7 +13,8 @@ describe('Friends: three tabs - 친구, 받은 요청, 보낸 요청 (no 차단�
     for (const key of ['friends', 'incoming', 'outgoing']) {
       assert.ok(friends.includes(`['${key}', dictionary.`), key);
     }
-    assert.doesNotMatch(friends, /blocked|Blocked|useSearchParams|BLOCKED_USERS_PATH|safetyBlockedUsers/);
+    assert.doesNotMatch(friends, /blocked|Blocked|BLOCKED_USERS_PATH|safetyBlockedUsers/);
+    assert.ok(friends.includes("searchParams.get('requests') === 'incoming'"));
     assert.ok(friends.includes("tab === 'incoming' || tab === 'outgoing'"));
   });
 

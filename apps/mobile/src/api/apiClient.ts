@@ -184,8 +184,15 @@ async function requestApiWithCooldown<T>({
 
   if (response.status === 429) {
     const retry = retryAfterSeconds(response.headers?.get?.('Retry-After'));
-    cooldown.defer(accessToken, method, path, retry);
-    throw new ApiError('tooManyRequests', response.status, await readProblemCode(response), retry);
+    let code: string | undefined;
+    let limiter: string | undefined;
+    try {
+      const problem = await response.json() as { code?: unknown; limiter?: unknown };
+      if (typeof problem?.code === 'string') code = problem.code;
+      if (typeof problem?.limiter === 'string') limiter = problem.limiter;
+    } catch { /* Status and Retry-After remain authoritative. */ }
+    cooldown.defer(accessToken, method, path, retry, limiter);
+    throw new ApiError('tooManyRequests', response.status, code, retry);
   }
 
   throw new ApiError('unavailable', response.status);

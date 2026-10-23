@@ -57,5 +57,5 @@ export function useHistorySections(isExpanded: (key: string) => boolean, options
     [authenticatedRequest, t],
   );
   // enabled false (the Archive in 이름순, which reads the whole archive as one flat list): no summary or page is requested.
-  return useDateSectionPages(source, isExpanded, { enabled: options.enabled ?? true }) as UseHistorySectionsResult;
+  return useDateSectionPages(source, isExpanded, { enabled: options.enabled ?? true, focusCacheMs: 15_000 }) as UseHistorySectionsResult;
 }

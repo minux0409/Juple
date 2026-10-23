@@ -171,6 +171,7 @@ export type WebDestination =
 export function webDestinationOf(target: NotificationTarget): WebDestination {
   switch (target.kind) {
     case 'friendRequests':
+      return { kind: 'href', href: '/me/friends?requests=incoming' };
     case 'friends':
       return { kind: 'href', href: '/me/friends' };
     case 'collectionInvitations':

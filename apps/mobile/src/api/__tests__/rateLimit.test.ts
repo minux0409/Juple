@@ -86,3 +86,19 @@ describe('rate limit handling shared by Android and iOS', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
+
+
+it('shares a server-identified browse cooldown across screens, with no retry queue or blocked logout', async () => {
+  jest.useFakeTimers();
+  const client = createApiClient();
+  const fetchMock = jest.fn().mockResolvedValueOnce({ status: 429, headers: { get: () => '5' }, json: async () => ({ code: 'rateLimited', limiter: 'browse-burst' }) }).mockResolvedValue({ status: 204 });
+  globalThis.fetch = fetchMock as unknown as typeof fetch;
+  await expect(client({ method: 'GET', path: '/api/v1/items/history/date', accessToken: 'browse-a' })).rejects.toMatchObject({ status: 429 });
+  await expect(client({ method: 'GET', path: '/api/v1/collections/123/items', accessToken: 'browse-a' })).rejects.toMatchObject({ status: 429, retryAfterSeconds: 5 });
+  await expect(client({ method: 'GET', path: '/api/v1/items/5/images', accessToken: 'browse-a' })).rejects.toMatchObject({ status: 429 });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  await expect(client({ method: 'DELETE', path: '/api/v1/push-devices/device', accessToken: 'browse-a' })).resolves.toEqual({ status: 204 });
+  await jest.advanceTimersByTimeAsync(5000);
+  await expect(client({ method: 'GET', path: '/api/v1/collections', accessToken: 'browse-a' })).resolves.toEqual({ status: 204 });
+  expect(fetchMock).toHaveBeenCalledTimes(3);
+});

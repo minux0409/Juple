@@ -1,5 +1,62 @@
 # API 요청 제한 및 자원 보호 — 2026-10-21
 
+## 2026-10-23 정상 탐색 429 및 친구 요청 진입 수정
+
+### 확인된 운영 증거
+
+- 제공된 26초 Android 영상: 날짜 구간 탐색 → 상세 열기 실패 → 보관함/컬렉션/Home의 요청 제한 안내. 이미 로드한 행과 이미지는 남는다.
+- API Requests 메트릭: 2026-10-23 06:56 UTC에 200 45건, 06:57 UTC에 200 77건·429 9건. 영상의 기기 시계는 15:55–15:56 KST다. 메트릭 시각/집계 지연과 앞선 탐색을 고려해야 하며, 26초 영상만으로 전체 요청 수를 추정하지 않는다.
+- 현재 운영 로그에는 거부한 정책명이 없다. 이 사건의 정확한 limiter/route/계정은 미확정이다. 공통 조회 120/분과 계정 180/분이 겹치는 구조와 불필요한 클라이언트 조회는 코드로 확인했다.
+- 운영 API `f14719c2…` 소스/설정 기준: RequestProtection 환경변수 override 없음, appsettings 조회 120/분·계정 180/분, QueueLimit 0, 익명 IP 제한 OFF. 제한은 replica별이며 서비스 전체 quota가 아니다.
+
+### 요청 수: 코드와 Mock 기준 (실기기 네트워크 캡처 아님)
+
+`E`는 펼쳐져 이미 읽은 날짜 구간 수, `P`는 상세의 소속 컬렉션 페이지 수다.
+
+| 동작 | 수정 전 | 수정 후 |
+|---|---|---|
+| 보관함 최초 시간순 진입 | summary 1 + 펼친 구간 E | 동일 |
+| 처음 펼친 날짜 구간 / 다음 페이지 | 각각 1 | 동일, 같은 cursor 동시 요청 방지 |
+| 접기/재펼치기, 보기 변경 | 캐시된 구간은 0 | 동일 |
+| 검색 | 300ms debounce 후 페이지당 1 | 동일, 오래된 응답 무시 유지 |
+| 컬렉션 소속 링크 열기 | 현재 권한 1 + contextual preflight 1 + 목록 refresh(1+E) + 상세 1 + images 1 + memberships P | 목록 refresh 제거: 4+P |
+| 마지막 summary 성공 후 15초 이내 복귀 | summary 1 + 펼친 구간 E | 0 (명시적 수정/삭제 이벤트 refresh는 즉시 실행) |
+| 캐시 만료 후 복귀 | summary 1 + E | 동일 |
+| 배지 | 계정별 초대·친구 요청·컬렉션 메타데이터, 다음 페이지 필요 시 추가 | 60초 캐시/진행 중 Promise 공유 유지, 상세 열기마다 추가하지 않음 |
+
+예: E=2, P=1이면 열기+빠른 복귀의 기본 GET은 11 → 5. 잠금 비밀번호, 추가 이미지 페이지, 댓글/반응, 장시간 상세 열기, 최초 배지 조회는 별도다. 접근 권한/잠금 preflight는 제거하지 않는다. 로컬 hook 테스트는 중복 탭·30회 빠른 focus·명시적 refresh·캐시 만료를 실제 hook으로 검증한다. 서버 workload 테스트는 두 기기의 각 30회 방문(5회 읽기/방문)과 초기/주기 refresh를 합친 318회/분 계획을 검증한다. 이는 SQL 처리 용량을 증명하는 부하 테스트가 아니다.
+
+### 새 제한과 보호 경계
+
+| 구분 | 정책 |
+|---|---|
+| 인증된 탐색 GET allowlist | 600/분 + 60/5초, QueueLimit 0; 기존 account/read bucket과 분리 |
+| 그 외 조회 | 기존 120/분 + account 180/분 |
+| 쓰기·인증 등 그 외 요청 | account 180/분 및 기존 endpoint별 제한 유지 |
+| 저장/메타데이터/이미지/컬렉션 생성 | 기존 30/30/15/15회/분 |
+| 소셜/Push 등록/Bulk/Admin | 기존 40/10/5/60회/분 |
+| 비밀번호 설정/검증 | 기존 5/15분 및 30/분, 기존 named limiter도 유지 |
+| Billing/Export/잠금 해제 등 | 기존 endpoint named limiter 유지; 기능 플래그 변경 없음 |
+| 익명 IP | 기본 OFF 유지; XFF 신뢰 정책 변경 없음 |
+
+탐색 allowlist는 Items의 history/count/sections/date/detail, ItemImages.List, Collections의 list/search-suggestions/detail/items/item-sections/shared-item/collaborators/participants/share/link GET이다. 쓰기, share-password 조회, 친구/알림/관리자·인증·공개 API는 이 예외에 포함하지 않는다. 서버 MVC action metadata를 사용하며 클라이언트 헤더로 예외를 선택할 수 없다.
+
+600/분은 새 클라이언트의 두 기기 318회 계획 및 기존 버전의 더 많은 읽기에 여유를 주되 무제한을 피하는 초기 운영값이다. 60/5초는 짧은 폭주를 제한한다. 최대 3 replica에서 합산 제한이 커지는 기존 한계는 남는다. SQL S0 부하와 실제 429를 관찰해 조정해야 하며 PROD 부하 테스트는 수행하지 않는다.
+
+`RequestProtection__BrowseReadPerMinute`, `RequestProtection__BrowseReadPerFiveSeconds`로 서버 측 조정 가능하다. 환경변수 > appsettings > class 기본값 순서이며 프로세스 재시작/새 revision에서 반영된다. 앱 재배포는 필요 없지만 동적 hot reload라고 주장하지 않는다. 이번 image-only 배포는 환경변수와 기존 설정을 변경하지 않는다.
+
+429의 기존 code/policy와 Retry-After를 유지하고, 고정 문자열 `limiter`(browse/browse-burst/read/account 등)를 추가한다. 토큰·URL·사용자 식별자는 포함하지 않는다. Mobile은 서버가 browse 거부라고 명시한 경우에만 탐색 경로 사이의 cooldown을 공유한다. 다른 쓰기/로그아웃은 차단하지 않고 자동 재시도 큐도 만들지 않는다. 기존 API 응답이면 경로별 cooldown을 유지한다. 실패한 날짜 페이지는 자동 visibility 이벤트로 재시도하지 않으며 명시적 retry도 Retry-After 이후에만 실행한다.
+
+### 친구 요청 알림
+
+기존 friendRequests/friends target이 모두 일반 Friends 이동으로 합쳐져 받은 요청 intent가 사라졌다. 이제 friendRequests만 `{openRequests:true, refreshToken}`으로 전달하고 Friends가 intent를 소비해 받은 요청 모달을 연다. 수락/거절·이미 처리된 빈 상태·계정별 서버 확인·기존 알림 tap dedup/로그인 대기 처리는 유지한다. Android/iOS 공통 코드이며 native 수신 E2E와 iOS native build는 별도 검증이다. 웹은 `/me/friends?requests=incoming`으로 받은 요청 탭을 직접 연다. 응답 결과 알림(friendRequestAccepted/Rejected)은 일반 친구 목록을 유지한다.
+
+운영 API 후보는 기존 검증 ZIP + 29c78d8 overlay로 복원한 현재 운영 소스 749개 파일 일치 확인 후 RequestProtection.cs/AdmissionRateLimiter.cs만 수정한다. master 전체 backend, 신규 Migration, Worker/Job, APNs/FCM 코드는 반영하지 않는다. Web은 기존 운영 6a86b33 이후 배지/12px 간격 및 위 친구 요청 진입 변경을 포함한다. 장애 시 해당 API/Web의 사전 기록 immutable 이미지로만 복구하고 DB/Worker/Job은 변경하지 않는다.
+
+최종 로컬 검증: master Unit 2,236/2,236, 운영 기반 후보 Unit 2,188/2,188, localhost SQL/Azurite Integration 1,001/1,001, Mobile 3,112/3,112 (214 suites), Web 871/871, Chrome 9/9. 모두 skip 0. Web/Mobile TypeScript·ESLint, Web build, Android PROD release build를 실행한다. iOS native build/실기기 및 배포 후 사용자 수신·탐색 확인은 별도다. 병렬 Mobile 실행 중 기존 컬렉션 전체선택 테스트의 5초 timeout 1건은 timeout 수정 없이 최종 전체 직렬 실행에서 통과했다.
+
+Linux 후보 비교는 123개 중 119개 동일이다. Api DLL/PDB는 위 두 원본 소스 변경, Infrastructure DLL/PDB는 LoggerMessageGenerator의 동일한 PlatformPushSender/ApnsPushSender 블록 순서 교환뿐임을 embedded source와 모든 나머지 PDB 문서 체크섬으로 확인했다. 설정·deps·runtimeconfig와 Application/Domain 바이너리는 동일하다. 후보 health/readiness 200, 미인증 history 401은 로컬 테스트 DB에서 확인했다.
+
 ## 범위와 작업 상태
 
 - 시작 기준 및 최종 검증 전 fetch 결과: `master`, HEAD = origin/master = `e9f7e10b811d74afb2483d505e2cbbbcc1178327`, ahead/behind 0/0.

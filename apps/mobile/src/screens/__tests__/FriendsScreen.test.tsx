@@ -57,13 +57,15 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   },
 }));
 // The header's [+] is set through navigation options - kept here so a test can render and tap it.
-const mockNavigation = { setOptions: jest.fn(), navigate: jest.fn() };
+const mockRoute: { params?: { openRequests?: true; refreshToken?: number } } = {};
+const mockNavigation = { setOptions: jest.fn(), navigate: jest.fn(), setParams: jest.fn(params => { mockRoute.params = { ...mockRoute.params, ...params }; }) };
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (callback: () => void | (() => void)) => {
     const React = require('react');
     React.useEffect(() => callback(), [callback]);
   },
   useNavigation: () => mockNavigation,
+  useRoute: () => mockRoute,
 }));
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
@@ -117,6 +119,7 @@ const incomingCharmander: FriendRequest = {
 const outgoingTogepi: FriendRequest = { requestId: 2, jupleId: 'TGNG2345', displayName: null, direction: 'outgoing', createdAtUtc: '' };
 
 beforeEach(() => {
+  mockRoute.params = undefined;
   jest.useFakeTimers();
   jest.mocked(getFriends).mockResolvedValue({ items: [pikachu, noNickname], nextCursor: null });
   jest.mocked(getFriendRequests).mockResolvedValue([incomingCharmander, outgoingTogepi]);
@@ -1465,5 +1468,33 @@ describe('FriendsScreen - the empty state follows the loaded data, not the text 
       slow.resolve({ items: [pikachu], nextCursor: null });
     });
     expect(texts(renderer)).not.toContain('피카츄');
+  });
+});
+
+
+describe('received friend request notification entry', () => {
+  it('opens the incoming requests modal once, consumes the intent and can be opened again', async () => {
+    mockRoute.params = { openRequests: true, refreshToken: 1 };
+    const renderer = await renderScreen();
+    let modal = renderer.root.findAllByType(AppModal).find(node => node.props.testID === 'received-friend-requests-modal')!;
+    expect(modal.props.visible).toBe(true);
+    expect(modal.findAllByType(Text).some(node => node.props.children === '파이리')).toBe(true);
+    expect(mockNavigation.setParams).toHaveBeenCalledWith({ openRequests: undefined, refreshToken: undefined });
+    await act(async () => modal.props.onClose());
+    expect(renderer.root.findAllByType(AppModal).find(node => node.props.testID === 'received-friend-requests-modal')?.props.visible).toBe(false);
+    mockRoute.params = { openRequests: true, refreshToken: 2 };
+    await act(async () => renderer.update(<FriendsScreen />));
+    modal = renderer.root.findAllByType(AppModal).find(node => node.props.testID === 'received-friend-requests-modal')!;
+    expect(modal.props.visible).toBe(true);
+  });
+
+  it('keeps an already answered request entry as an empty incoming modal rather than the friends tab', async () => {
+    jest.mocked(getFriendRequests).mockResolvedValue([]);
+    mockRoute.params = { openRequests: true, refreshToken: 1 };
+    const renderer = await renderScreen();
+    const modal = renderer.root.findAllByType(AppModal).find(node => node.props.testID === 'received-friend-requests-modal')!;
+    expect(modal.props.visible).toBe(true);
+    expect(acceptFriendRequest).not.toHaveBeenCalled();
+    expect(declineFriendRequest).not.toHaveBeenCalled();
   });
 });

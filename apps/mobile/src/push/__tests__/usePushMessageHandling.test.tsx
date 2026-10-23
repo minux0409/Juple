@@ -256,7 +256,7 @@ describe('usePushMessageHandling', () => {
     };
 
     await open({ type: 'friendRequest' }, 'a');
-    expect(navigationRef.navigate).toHaveBeenLastCalledWith('Friends');
+    expect(navigationRef.navigate).toHaveBeenLastCalledWith('Friends', { openRequests: true, refreshToken: expect.any(Number) });
     await open({ type: 'collectionInvitation', collectionId: '3' }, 'b');
     expect(navigationRef.navigate).toHaveBeenLastCalledWith('MainTabs', {
       screen: 'Collections',
@@ -298,7 +298,7 @@ describe('usePushMessageHandling', () => {
     act(() => stateListener());
     await flush();
     expect(navigationRef.navigate).toHaveBeenCalledTimes(1);
-    expect(navigationRef.navigate).toHaveBeenCalledWith('Friends');
+    expect(navigationRef.navigate).toHaveBeenCalledWith('Friends', { openRequests: true, refreshToken: expect.any(Number) });
 
     // The same tap also reported by onNotificationOpenedApp: not opened a second time.
     act(() => tapHandler()(coldStart));

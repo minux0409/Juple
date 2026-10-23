@@ -125,7 +125,7 @@ export type RootStackParamList = {
   /** A signed-in public-link submitter's (not a member's) own waiting links. A member's 내 승인 대기 is a popup (ApprovalSubmissionSheet), not a screen. */
   MyCollectionSubmissions: { publicId: string };
   /** 친구: friends, friend requests and the signed-in user's private notes. Grants no Collection access. */
-  Friends: undefined;
+  Friends: { readonly openRequests?: true; readonly refreshToken?: number } | undefined;
   /** 알림: the signed-in user's Notification Inbox, newest first. */
   Notifications: undefined;
   /**

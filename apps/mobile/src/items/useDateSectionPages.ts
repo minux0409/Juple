@@ -53,6 +53,8 @@ export interface DateSectionPagesSource<T> {
 }
 
 export interface DateSectionPagesOptions {
+  /** A short cache for ordinary focus only. Explicit refresh/mutations still read immediately. */
+  readonly focusCacheMs?: number;
   /** False: nothing is requested (on focus or otherwise) until it turns true. Default true. */
   readonly enabled?: boolean;
   /**
@@ -72,7 +74,7 @@ export interface UseDateSectionPagesResult<T> {
   readonly error: string | null;
   readonly errorCause?: unknown;
   readonly refresh: () => void;
-  /** Loads a section's first page if it was never loaded (or failed) - a no-op otherwise. */
+  /** Loads a section's first page if it was never loaded; failed requests require retrySection - a no-op otherwise. */
   readonly ensureLoaded: (key: string) => void;
   /** Loads a section's next page - a no-op while one is in flight, before the first page, or at its end. */
   readonly loadMore: (key: string) => void;
@@ -92,7 +94,7 @@ export interface UseDateSectionPagesResult<T> {
  * same cursor is never requested twice, and nothing lands after unmount. A collapsed section keeps
  * its loaded pages for this visit (reopening shows them at once); the screen unmounts their rows.
  *
- * Every focus after the first refreshes the summary. Sections that no longer exist lose their
+ * Focus refreshes the summary after the optional short focus cache expires. Sections that no longer exist lose their
  * pages; a section with loaded links that is expanded (isExpanded) reloads them in place - up to
  * the same number of rows, capped at the server's page limit - so edits made elsewhere show
  * without the list collapsing to its first page; a collapsed one just forgets them and loads again
@@ -101,7 +103,7 @@ export interface UseDateSectionPagesResult<T> {
 export function useDateSectionPages<T>(
   source: DateSectionPagesSource<T>,
   isExpanded: (key: string) => boolean,
-  { enabled = true, resetKey = '' }: DateSectionPagesOptions = {},
+  { enabled = true, resetKey = '', focusCacheMs = 0 }: DateSectionPagesOptions = {},
 ): UseDateSectionPagesResult<T> {
   const [sections, setSections] = useState<readonly DateSection[]>([]);
   const [pages, setPages] = useState<ReadonlyMap<string, DateSectionPage<T>>>(new Map());
@@ -110,6 +112,12 @@ export function useDateSectionPages<T>(
   const [error, setError] = useState<string | null>(null);
   const [errorCause, setErrorCause] = useState<unknown>(null);
   const summaryInFlight = useRef(false);
+  const lastSummarySuccessAt = useRef(-Infinity);
+  const blockedUntil = useRef(0);
+  const recordCooldown = useCallback((caught: unknown) => {
+    const failure = caught as { status?: number; retryAfterSeconds?: number };
+    if (failure?.status === 429) blockedUntil.current = Math.max(blockedUntil.current, Date.now() + Math.max(1, failure.retryAfterSeconds ?? 2) * 1000);
+  }, []);
 
   const sourceRef = useRef(source);
   sourceRef.current = source;
@@ -192,7 +200,7 @@ export function useDateSectionPages<T>(
   /** A section's first rows: `limit` of them, replacing what it had (in place when `keepRows`). */
   const loadFirst = useCallback(
     async (section: DateSection, limit: number, keepRows: boolean) => {
-      if (firstLoadInFlightRef.current.has(section.key)) return;
+      if (Date.now() < blockedUntil.current || firstLoadInFlightRef.current.has(section.key)) return;
       const token = nextToken(section.key);
       requestedCursorRef.current.delete(section.key);
       firstLoadInFlightRef.current.add(section.key);
@@ -209,6 +217,7 @@ export function useDateSectionPages<T>(
           updatePage(section.key, () => ({ items: page.items, nextCursor: page.nextCursor, isLoading: false, isLoadingMore: false, error: null }));
         }
       } catch (caughtError) {
+        recordCooldown(caughtError);
         if (isCurrent(section.key, token) && !handleBlockingError(caughtError)) {
           updatePage(section.key, previous => ({
             items: previous?.items ?? [],
@@ -226,14 +235,14 @@ export function useDateSectionPages<T>(
         }
       }
     },
-    [handleBlockingError, updatePage],
+    [handleBlockingError, recordCooldown, updatePage],
   );
 
   const ensureLoaded = useCallback(
     (key: string) => {
       const section = sectionsRef.current.find(entry => entry.key === key);
       const page = pagesRef.current.get(key);
-      if (!enabledRef.current || !section || firstLoadInFlightRef.current.has(key) || (page && (page.isLoading || page.items.length > 0 || page.error === null))) {
+      if (!enabledRef.current || !section || firstLoadInFlightRef.current.has(key) || page) {
         return;
       }
       loadFirst(section, DATE_SECTION_PAGE_SIZE, false);
@@ -242,11 +251,11 @@ export function useDateSectionPages<T>(
   );
 
   const loadMore = useCallback(
-    (key: string) => {
+    (key: string, retry = false) => {
       const section = sectionsRef.current.find(entry => entry.key === key);
       const page = pagesRef.current.get(key);
       const cursor = page?.nextCursor;
-      if (!enabledRef.current || !section || !page || !cursor || firstLoadInFlightRef.current.has(key) || page.isLoading || page.isLoadingMore || requestedCursorRef.current.get(key) === cursor) {
+      if (Date.now() < blockedUntil.current || !enabledRef.current || !section || !page || !cursor || (!retry && page.error !== null) || firstLoadInFlightRef.current.has(key) || page.isLoading || page.isLoadingMore || requestedCursorRef.current.get(key) === cursor) {
         return;
       }
       const token = sectionTokenRef.current.get(key) ?? 0;
@@ -271,6 +280,7 @@ export function useDateSectionPages<T>(
           });
         })
         .catch(caughtError => {
+          recordCooldown(caughtError);
           if (!isCurrent(key, token) || handleBlockingError(caughtError)) {
             return;
           }
@@ -279,12 +289,12 @@ export function useDateSectionPages<T>(
           updatePage(key, previous => (previous ? { ...previous, isLoadingMore: false, error: sourceRef.current.errorMessage(caughtError), errorCause: caughtError, failedRequest: 'more' } : previous));
         });
     },
-    [handleBlockingError, updatePage],
+    [handleBlockingError, recordCooldown, updatePage],
   );
 
   const loadSummary = useCallback(
     async (mode: 'initial' | 'refresh') => {
-      if (summaryInFlight.current) return;
+      if (Date.now() < blockedUntil.current || summaryInFlight.current) return;
       summaryInFlight.current = true;
       const requestId = ++summaryRequestRef.current;
       if (mode === 'refresh') {
@@ -301,6 +311,7 @@ export function useDateSectionPages<T>(
         }
         const previousByKey = new Map(sectionsRef.current.map(section => [section.key, section]));
         sectionsRef.current = loaded;
+        lastSummarySuccessAt.current = Date.now();
         setSections(loaded);
         sourceRef.current.onSectionsLoaded?.();
 
@@ -338,6 +349,7 @@ export function useDateSectionPages<T>(
           });
         }
       } catch (caughtError) {
+        recordCooldown(caughtError);
         if (isMountedRef.current && requestId === summaryRequestRef.current && !handleBlockingError(caughtError)) {
           // Whatever is already shown stays - only the error text changes.
           setError(sourceRef.current.errorMessage(caughtError));
@@ -352,15 +364,15 @@ export function useDateSectionPages<T>(
         }
       }
     },
-    [handleBlockingError, loadFirst],
+    [handleBlockingError, loadFirst, recordCooldown],
   );
 
   useFocusEffect(
     useCallback(() => {
-      if (enabledRef.current) {
+      if (enabledRef.current && Date.now() - lastSummarySuccessAt.current >= focusCacheMs) {
         loadSummary(hasLoadedOnceRef.current ? 'refresh' : 'initial');
       }
-    }, [loadSummary]),
+    }, [focusCacheMs, loadSummary]),
   );
 
   // Turned on later (e.g. switching a Collection back to 시간순): load as a focus would.
@@ -421,7 +433,7 @@ export function useDateSectionPages<T>(
     const section = sectionsRef.current.find(entry => entry.key === key);
     const page = pagesRef.current.get(key);
     if (!enabledRef.current || !section || !page?.error) return;
-    if (page.failedRequest === 'more') loadMore(key);
+    if (page.failedRequest === 'more') loadMore(key, true);
     else loadFirst(section, Math.min(Math.max(page.items.length, DATE_SECTION_PAGE_SIZE), MAX_PAGE_LIMIT), true);
   }, [loadFirst, loadMore]);
 

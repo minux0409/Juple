@@ -246,7 +246,7 @@ describe('where a notification leads (the server\'s target -> a Web page)', () =
 
   it('each kind maps to its Web page (mobile navigationActionFor)', () => {
     const go = (wire: Parameters<typeof parseNotificationTarget>[0]) => webDestinationOf(parseNotificationTarget(wire));
-    assert.deepEqual(go({ kind: 'friendRequests' }), { kind: 'href', href: '/me/friends' });
+    assert.deepEqual(go({ kind: 'friendRequests' }), { kind: 'href', href: '/me/friends?requests=incoming' });
     assert.deepEqual(go({ kind: 'friends' }), { kind: 'href', href: '/me/friends' });
     assert.deepEqual(go({ kind: 'collection', collectionId: 5 }), { kind: 'href', href: '/collections/5' });
     assert.deepEqual(go({ kind: 'collectionSubmissions', collectionId: 5 }), { kind: 'href', href: '/collections/5' }, '승인 대기 list is app-only: its Collection');

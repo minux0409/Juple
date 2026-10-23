@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { formatJupleId } from '../../../../lib/accountDisplay';
 import { isSessionLost } from '../../../../lib/authSession';
@@ -57,9 +58,20 @@ function friendsPath(query: string, cursor: string | null): string {
  * sent, adding by Juple ID, and my private note per friend (never shown to anyone else).
  */
 export default function FriendsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const incomingEntry = searchParams.get('requests') === 'incoming';
   const { api, dictionary, onSessionLost } = useSignedInApp();
   const { store: attentionStore, snapshot: attention } = useAttention();
-  const [tab, setTab] = useState<Tab>('friends');
+  const [tab, setTab] = useState<Tab>(incomingEntry ? 'incoming' : 'friends');
+  const selectTab = (next: Tab) => {
+    setTab(next);
+    if (incomingEntry) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('requests');
+      router.replace(`/me/friends${params.size ? `?${params}` : ''}`, { scroll: false });
+    }
+  };
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [friends, setFriends] = useState<FriendsState>({ kind: 'loading' });
@@ -74,6 +86,9 @@ export default function FriendsPage() {
   const [message, setMessage] = useState<{ readonly text: string; readonly error: boolean } | null>(null);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (incomingEntry) Promise.resolve().then(() => setTab('incoming'));
+  }, [incomingEntry]);
 
   // Searching waits for the typing to pause (one request, not one per keystroke - mobile).
   useEffect(() => {
@@ -197,7 +212,7 @@ export default function FriendsPage() {
             ['outgoing', dictionary.friendsTabOutgoing, outgoing.length],
           ] as const
         ).map(([key, label, count]) => (
-          <button aria-selected={tab === key} className={tab === key ? styles.filterTabSelected : styles.filterTab} key={key} onClick={() => setTab(key)} role="tab" type="button">
+          <button aria-selected={tab === key} className={tab === key ? styles.filterTabSelected : styles.filterTab} key={key} onClick={() => selectTab(key)} role="tab" type="button">
             {label}
             {count ? <span className={styles.countPill}>{count}</span> : null}
           </button>
