@@ -64,7 +64,7 @@ interface PendingSubmissionCardProps {
  *
  *   [thumbnail]  Title (2 lines)                [trailing icons]
  *                host
- *                [icon] Collection · 3분 전
+ *                [icon] Collection           (mine: the Collection only; the Owner's: proposer · 3분 전)
  *
  * The Owner's card adds a strip below: [open link] [reject X] [approve check], three equal zones.
  *
@@ -87,7 +87,7 @@ export function PendingSubmissionCard({ row, variant, trailing, actionStrip, emb
     <View style={[styles.card, embedded && styles.cardEmbedded]} testID={variant === 'owner' ? `submission-${row.submissionId}` : `my-submission-${row.submissionId}`}>
       <View style={styles.top}>
         <View
-          accessibilityLabel={variant === 'mine' ? [title, contextName, time].filter(Boolean).join(', ') : undefined}
+          accessibilityLabel={variant === 'mine' ? [title, contextName].filter(Boolean).join(', ') : undefined}
           accessible={variant === 'mine'}
           style={styles.info}
           testID={variant === 'mine' ? `my-submission-info-${row.submissionId}` : undefined}
@@ -127,19 +127,13 @@ export function PendingSubmissionCard({ row, variant, trailing, actionStrip, emb
               )}
               <Text numberOfLines={1} style={styles.time}>· {time}</Text>
             </View>
-          ) : (
+          ) : contextName ? (
+            // My own request: the Collection it waits in - no request time and no status line (the sheet's title already says it waits).
             <View style={styles.contextRow} testID={`my-submission-context-${row.submissionId}`}>
-              {contextName ? (
-                <>
-                  <ContextIcon color={colors.textSecondary} size={CONTEXT_ICON_SIZE} />
-                  <Text numberOfLines={1} style={styles.contextName}>{contextName}</Text>
-                  <Text numberOfLines={1} style={styles.time}>· {time}</Text>
-                </>
-              ) : (
-                <Text numberOfLines={1} style={styles.time}>{time}</Text>
-              )}
+              <ContextIcon color={colors.textSecondary} size={CONTEXT_ICON_SIZE} />
+              <Text numberOfLines={1} style={styles.contextName}>{contextName}</Text>
             </View>
-          )}
+          ) : null}
         </View>
         </View>
         {trailing ? <View style={styles.trailing}>{trailing}</View> : null}

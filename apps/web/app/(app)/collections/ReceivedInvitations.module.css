@@ -30,7 +30,7 @@
 .tile { display: grid; flex: 0 0 44px; place-items: center; width: 44px; height: 44px; border-radius: 14px; }
 .details { flex: 1; min-width: 0; }
 .name { margin: 0; font-size: 16px; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
-.owner { display: flex; align-items: center; gap: 4px; margin-top: 2px; color: var(--app-text-secondary); font-size: 13px; }
+.owner { display: flex; align-items: center; gap: 10px; margin-top: 2px; color: var(--app-text-secondary); font-size: 13px; }
 .owner > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .meta { margin: 2px 0 0; color: var(--app-text-secondary); font-size: 13px; }
 .actions { display: flex; gap: 8px; margin-top: 12px; }

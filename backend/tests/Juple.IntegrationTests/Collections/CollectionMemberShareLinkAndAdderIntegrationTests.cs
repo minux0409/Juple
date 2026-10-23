@@ -319,6 +319,33 @@ public sealed class CollectionMemberShareLinkAndAdderIntegrationTests : IAsyncLi
     }
 
     [Fact]
+    public async Task TheOwner_RemovesAnotherMembersLink_OnlyTheLink_NeverTheirItem_AndTheirOtherCollectionsKeepIt()
+    {
+        await InviteAndAcceptAsync(_contributor, CollectionCollaboratorRole.Contributor);
+        await InviteAndAcceptAsync(_viewer, CollectionCollaboratorRole.Viewer);
+        var contributorItem = await NewItemAsync(_contributor, "https://example.test/contributor");
+        var otherCollection = (await _collections.CreateAsync(_contributor, "Mine", "MINE", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        await _addItem.AddAsync(_contributor, _sharedId, contributorItem);
+        await _addItem.AddAsync(_contributor, otherCollection, contributorItem);
+        _db.ChangeTracker.Clear();
+
+        // A plain member (here a Viewer) cannot remove someone else's link: refused, nothing changes.
+        await Assert.ThrowsAsync<CollectionForbiddenException>(() => Remove().RemoveAsync(_viewer, _sharedId, contributorItem));
+        Assert.True(await LinkedAsync(contributorItem));
+
+        // The Collection's Owner may remove any link from THEIR Collection ...
+        await Remove().RemoveAsync(_owner, _sharedId, contributorItem);
+
+        Assert.False(await LinkedAsync(contributorItem));
+        // ... and only the link: the member's Item and their link in their own Collection stay untouched.
+        Assert.True(await _db.Items.AsNoTracking().AnyAsync(item => item.Id == contributorItem && item.UserId == _contributor && item.DeletedAtUtc == null));
+        Assert.True(await _db.CollectionItems.AsNoTracking().AnyAsync(link => link.CollectionId == otherCollection && link.ItemId == contributorItem));
+        // A stranger is refused as well.
+        await Assert.ThrowsAnyAsync<Exception>(() => Remove().RemoveAsync(_stranger, _sharedId, contributorItem));
+        Assert.False(await LinkedAsync(contributorItem));
+    }
+
+    [Fact]
     public async Task AMemberWhoIsNowAViewer_StillRemovesTheLinksTheyAdded()
     {
         await InviteAndAcceptAsync(_contributor, CollectionCollaboratorRole.Contributor);

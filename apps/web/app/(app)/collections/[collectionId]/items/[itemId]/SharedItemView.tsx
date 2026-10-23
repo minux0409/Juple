@@ -9,7 +9,8 @@ import { ItemDetailSkeleton } from '../../../../Skeletons';
 import { linkTitleText } from '../../../../SavedLinkList';
 import { ItemPhoto, OpenLinkButton, SourceRow } from '../../../../ItemParts';
 import { ItemCollaboration } from '../../../../ItemCollaboration';
-import { adderText, useCopyToMine, useSharedItem } from './SharedItemContent';
+import { useRouter } from 'next/navigation';
+import { adderText, useCopyToMine, useRemoveFromCollection, useSharedItem } from './SharedItemContent';
 import { ActionMenu } from '../../../../Popover';
 import styles from '../../../../app.module.css';
 
@@ -22,6 +23,9 @@ export function SharedItemView({ collectionIdParam, itemIdParam }: { readonly co
   const { dictionary, locale } = useSignedInApp();
   const { collectionId, state, reload } = useSharedItem(collectionIdParam, itemIdParam);
   const copy = useCopyToMine(collectionId, parseRouteId(itemIdParam));
+  const router = useRouter();
+  // The Owner's 컬렉션에서 제거: only the link's membership here; afterwards back to the Collection.
+  const removal = useRemoveFromCollection(collectionId, parseRouteId(itemIdParam), () => router.push(collectionId === null ? '/collections' : collectionHref(collectionId)));
 
   const back = <BackButton dictionary={dictionary} fallbackHref={collectionId === null ? '/collections' : collectionHref(collectionId)} />;
 
@@ -87,10 +91,11 @@ export function SharedItemView({ collectionIdParam, itemIdParam }: { readonly co
           <p className={styles.readOnlyNote}>{dictionary.sharedItemReadOnly}</p>
           <div className={styles.formActions}>
             <OpenLinkButton dictionary={dictionary} url={item.url} />
-            <ActionMenu actions={copy.actions} label={dictionary.linkActionsLabel} />
+            <ActionMenu actions={[...copy.actions, ...removal.actions]} label={dictionary.linkActionsLabel} />
           </div>
           {copy.notice}
           {copy.dialog}
+          {removal.dialog}
         </div>
       </article>
       {collectionId !== null ? <ItemCollaboration always collectionId={collectionId} itemId={item.itemId} row={item} /> : null}

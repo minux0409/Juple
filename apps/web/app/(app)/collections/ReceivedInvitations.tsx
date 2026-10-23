@@ -101,9 +101,10 @@ export function ReceivedInvitations({ onAccepted }: { readonly onAccepted: () =>
                 <span aria-hidden className={styles.tile} style={{ background: tile.background, color: tile.icon }}><CollectionGlyph icon={item.icon ?? 'Folder'} size={20} /></span>
                 <div className={styles.details}>
                   <h3 className={styles.name}>{item.collectionName}</h3>
-                  <div className={styles.owner}>
-                    <Avatar person={{ displayName: item.ownerDisplayName, profileImageUrl: item.ownerProfileImageUrl }} size={20} />
-                    <span>{dictionary.roleOwner} {participantName({ jupleId: item.ownerJupleId, displayName: item.ownerDisplayName }, dictionary)}</span>
+                  {/* The Owner as Juple marks one everywhere: the crown on the avatar (Avatar role="owner") - no "소유자" word; assistive technology still hears it. */}
+                  <div aria-label={`${dictionary.roleOwner} ${participantName({ jupleId: item.ownerJupleId, displayName: item.ownerDisplayName }, dictionary)}`} className={styles.owner} data-invitation-owner role="group">
+                    <Avatar person={{ displayName: item.ownerDisplayName, profileImageUrl: item.ownerProfileImageUrl, role: 'owner' }} size={20} />
+                    <span>{participantName({ jupleId: item.ownerJupleId, displayName: item.ownerDisplayName }, dictionary)}</span>
                   </div>
                   <p className={styles.meta}>{roleLabel(item.role, dictionary)}</p>
                 </div>

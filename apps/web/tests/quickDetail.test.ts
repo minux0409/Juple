@@ -216,7 +216,13 @@ describe('Quick Detail sheet: another member\'s link in a Collection (no context
     assert.match(content, /api<SharedCollectionItem>\(\{ path: sharedItemPath\(collectionId, itemId\), headers: unlockHeaders\(collectionId\) \}\)/);
     const actions = content.slice(content.indexOf('className={styles.quickActions}'), content.indexOf('</div>', content.indexOf('className={styles.quickActions}')));
     assert.match(actions, /aria-label=\{dictionary\.openLink\}[^>]*title=\{dictionary\.openLink\}/);
-    assert.doesNotMatch(content, /itemEditHref|dictionary\.edit\b|dictionary\.delete\b|removeFromCollection|method: 'DELETE'/);
+    // Never an edit or a delete of the link itself. The one write is the Owner's 컬렉션에서 제거: the MEMBERSHIP endpoint, offered only to the
+    // Collection's Owner (the role is read from the Collection; the server decides again) - never the Item's own DELETE.
+    assert.doesNotMatch(content, /itemEditHref|dictionary\.edit|dictionary\.delete/);
+    assert.match(content, /method: 'DELETE', path: sharedItemPath\(collectionId, itemId\)/);
+    assert.doesNotMatch(content, /method: 'DELETE', path: itemPath|\/api\/v1\/items\//);
+    assert.match(content, /setIsOwner\(!isSharedWithMe\(collection\)\)/);
+    assert.match(content, /const actions: readonly MenuAction\[\] = isOwner && collectionId !== null && itemId !== null/);
     assert.match(content, /dictionary\.addedBy[\s\S]*dictionary\.savedAt[\s\S]*dictionary\.sharedItemReadOnly/);
     // the standalone page reads it the same way (one hook)
     assert.match(source('app/(app)/collections/[collectionId]/items/[itemId]/SharedItemView.tsx'), /useSharedItem\(collectionIdParam, itemIdParam\)/);

@@ -325,9 +325,21 @@ it('보낸 승인 요청: one row per request - thumbnail, text, then 바로가�
     await capture(tab, 'sent-and-received-393');
     await tab.evaluate(`${requestRow('sent-approvals')}.click()`);
     await tab.until(`document.querySelectorAll('[data-my-submission-id]').length === 3`);
+    // Only what identifies the request: thumbnail, title, address, Collection - no request time and no "승인 대기 중" status (the API still sends them).
+    const info = await tab.evaluate(`[...document.querySelectorAll('[data-my-submission-id]')].map(li => ({ text: li.textContent, time: !!li.querySelector('time'), ps: [...li.querySelectorAll('p')].map(p => p.textContent.trim()), collection: li.querySelector('[class*="metaName"]')?.textContent }))`);
+    assert.equal(info.length, 3);
+    for (const row of info) {
+      assert.equal(row.time, false, 'no request time');
+      assert.equal(row.text.includes('승인 대기 중'), false, 'no status text');
+      assert.equal(/\d{4}\. \d{1,2}\. \d{1,2}\./.test(row.text), false, 'no date anywhere on the row');
+      assert.equal(row.collection, '웹툰');
+      assert.ok(row.ps[1].startsWith('https://example.com/m/'), 'the address stays');
+    }
     for (const width of [1280, 393, 320]) {
       await tab.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
       await tab.evaluate(`document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(resolve)))`);
+      const ellipsis = await tab.evaluate(`(() => { const t = document.querySelector('[data-my-submission-id="900"] p'); const r = t.getBoundingClientRect(); return { oneLine: r.height < 28, clipped: t.scrollHeight > t.clientHeight + 1 || t.scrollWidth > t.clientWidth }; })()`);
+      assert.equal(ellipsis.oneLine, true, `a long title is one line ${width}`);
       const layout = await tab.evaluate(`(() => [...document.querySelectorAll('[data-my-submission-id]')].map(li => {
         const r = li.getBoundingClientRect(), open = li.querySelector('a[data-open-original]').getBoundingClientRect(), cancel = li.querySelector('[data-cancel-request]').getBoundingClientRect();
         const text = li.querySelector('p').getBoundingClientRect();
@@ -452,5 +464,59 @@ it('자동 갱신: a friend request and a notification that arrive while the pag
     await tab.until(`[...document.querySelectorAll('[role="tab"]')].some(el => el.textContent.includes('받은') && el.textContent.includes('2'))`, 10_000);
     console.log(`# automatic refresh: the arrival reached the screen ${(elapsedMs / 1000).toFixed(1)} s after it happened (poll every 60 s)`);
     assert.ok(elapsedMs <= 75_000, `the arrival reached the screen within one poll interval (took ${elapsedMs} ms)`);
+  } finally { await tab.close(); }
+});
+
+it('받은 승인 요청 컬렉션 목록: name and red count share one vertical center, the count ends on the header X line, long names ellipsize - 0 / 1 / several', async () => {
+  const tab = await openFixture(`${origin}/invitation-test-harness?tab=shared&fixtureCount=0&fixtureAttention=1&fixtureOwnerCollections=3`);
+  try {
+    await tab.until(`!!${requestRow('received-approvals')}`);
+    for (const width of [1280, 393, 320]) {
+      await tab.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
+      await tab.evaluate(`document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(resolve)))`);
+      await tab.evaluate(`${requestRow('received-approvals')}.click()`);
+      await tab.until(`document.querySelectorAll('[data-request-collection]').length === 4`);
+      const m = await tab.evaluate(`(() => {
+        const dialog = document.querySelector('dialog[open]'), x = dialog.querySelector('button[aria-label="닫기"]').getBoundingClientRect(), panel = dialog.getBoundingClientRect();
+        return {
+          panelRight: Math.round(panel.right), xRight: Math.round(x.right),
+          rows: [...dialog.querySelectorAll('[data-request-collection]')].map(row => {
+            const r = row.getBoundingClientRect(), name = row.querySelector('span:nth-of-type(2)').getBoundingClientRect(), badge = row.querySelector('[data-attention-badge]').getBoundingClientRect(), tile = row.querySelector('span').getBoundingClientRect();
+            const nameEl = row.querySelector('span:nth-of-type(2)');
+            return { badgeRight: Math.round(badge.right), centerGap: Math.round(Math.abs((name.top + name.bottom) / 2 - (badge.top + badge.bottom) / 2) * 10) / 10, tileGap: Math.round(Math.abs((tile.top + tile.bottom) / 2 - (badge.top + badge.bottom) / 2) * 10) / 10, oneLine: name.height < 30, ellipsis: nameEl.scrollWidth > nameEl.clientWidth, badgeInside: badge.right <= r.right && badge.left >= name.right - 0.5, nameText: nameEl.textContent.slice(0, 6) };
+          }),
+          overflowX: dialog.scrollWidth > dialog.clientWidth,
+        };
+      })()`);
+      assert.equal(m.overflowX, false, `no horizontal overflow ${width}`);
+      for (const row of m.rows) {
+        assert.ok(row.centerGap < 1 && row.tileGap < 1, `name, icon and count share one vertical center ${width}: ${JSON.stringify(row)}`);
+        assert.ok(row.oneLine && row.badgeInside, `one line, count after the name ${width}`);
+        assert.ok(Math.abs(row.badgeRight - m.xRight) <= 1, `the count ends on the header X line ${width}: ${row.badgeRight} vs ${m.xRight}`);
+      }
+      assert.equal(m.rows.filter(row => row.ellipsis).length, 1, `only the long name ellipsizes ${width}`);
+      await capture(tab, `picker-${width}`);
+      await tab.evaluate(`document.querySelector('dialog[open] button[aria-label="닫기"]').click()`);
+      await tab.until(`!document.querySelector('dialog[open]')`);
+    }
+  } finally { await tab.close(); }
+});
+
+it('받은 초대 요청: the Owner is the avatar with Juple\'s crown and the name - no "소유자" word - and nothing overlaps at 1280 / 393 / 320', async () => {
+  const tab = await openFixture(`${origin}/invitation-test-harness?tab=shared&fixtureCount=2`);
+  try {
+    await tab.until(`!!${entry}`);
+    await tab.evaluate(`${entry}.click()`);
+    await tab.until(`document.querySelectorAll('[data-invitation-owner]').length === 2`);
+    for (const width of [1280, 393, 320]) {
+      await tab.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
+      await tab.evaluate(`document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(resolve)))`);
+      const g = await tab.evaluate(`(() => { const o = document.querySelector('[data-invitation-owner]'); const name = o.lastElementChild; const c = o.querySelector('[data-owner-crown] svg').getBoundingClientRect(), n = name.getBoundingClientRect(), av = o.querySelector('[data-owner-crown] > span').getBoundingClientRect();
+        return { text: o.textContent.trim(), hasCrown: !!o.querySelector('[data-owner-crown] svg'), crownOnAvatar: c.left < av.right + 8 && c.right > av.left, crownClearOfName: c.right <= n.left + 1, label: o.getAttribute('aria-label') }; })()`);
+      assert.equal(g.text.includes('소유자'), false, `no owner word on the card ${width}: ${g.text}`);
+      assert.equal(g.hasCrown && g.crownOnAvatar && g.crownClearOfName, true, `crown beside the avatar, clear of the name ${width}: ${JSON.stringify(g)}`);
+      assert.ok(g.label.includes('소유자'), 'assistive technology still hears the role');
+      await capture(tab, `invitation-owner-${width}`);
+    }
   } finally { await tab.close(); }
 });

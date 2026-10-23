@@ -322,6 +322,10 @@ describe('ApprovalSubmissionSheet - 내 링크 승인 대기 (my own, view only)
     expect(shown(renderer).some(text => typeof text === 'string' && text.includes('승인 대기 중'))).toBe(false);
     const context = renderer.root.find(node => node.props.testID === 'my-submission-context-13');
     expect(context.findAllByType(FolderIcon)).toHaveLength(1);
+    // My own request shows where it waits and nothing about when: no "· 3분 전" time text, none in the spoken label either.
+    expect(context.findAllByType(Text).map(node => node.props.children)).toEqual(['위시리스트']);
+    expect(shown(renderer).some(text => typeof text === 'string' && text.startsWith('·'))).toBe(false);
+    expect(renderer.root.findByProps({ testID: 'my-submission-info-13' }).props.accessibilityLabel).toBe('Link 13, 위시리스트');
     // No title: the site stands in for it.
     expect(shown(renderer)).toContain('example.com');
     expect(renderer.root.findAll(node => node.props.testID === 'submission-approve-13')).toHaveLength(0);

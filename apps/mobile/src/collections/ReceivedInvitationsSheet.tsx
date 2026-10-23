@@ -18,6 +18,7 @@ import {
   type ReceivedCollectionInvitation,
 } from './api/collaborationApi';
 import { CategoryIconTile } from './CategoryIconTile';
+import { OwnerCrown } from './OwnerCrown';
 import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 /** What accepting an invitation with this role gives, in the invited person's words. */
@@ -109,18 +110,28 @@ export function ReceivedInvitationsSheet({
                     <CategoryIconTile collectionId={invitation.collectionId} color={invitation.color} icon={invitation.icon} size={44} />
                     <View style={styles.headerText}>
                       <Text numberOfLines={2} style={styles.name}>{invitation.collectionName}</Text>
-                      <View style={styles.ownerRow}>
-                        <UserAvatar
-                          displayName={invitation.ownerDisplayName}
-                          imageUrl={invitation.ownerProfileImageUrl}
-                          imageVersion={invitation.ownerProfileImageVersion}
-                          jupleId={invitation.ownerJupleId}
-                          size={20}
-                        />
+                      {/* The Owner is shown the way Juple marks an Owner everywhere (OwnerCrown on the avatar) - no "소유자" word on the card; the
+                          spoken label still says it. */}
+                      <View
+                        accessibilityLabel={t('collections.sharedByOwner', {
+                          jupleId: personLabel({ jupleId: invitation.ownerJupleId, displayName: invitation.ownerDisplayName }),
+                        })}
+                        accessible
+                        style={styles.ownerRow}
+                        testID={`share-request-owner-${invitation.invitationId}`}
+                      >
+                        <View>
+                          <UserAvatar
+                            displayName={invitation.ownerDisplayName}
+                            imageUrl={invitation.ownerProfileImageUrl}
+                            imageVersion={invitation.ownerProfileImageVersion}
+                            jupleId={invitation.ownerJupleId}
+                            size={20}
+                          />
+                          <OwnerCrown avatarSize={20} testID={`share-request-owner-crown-${invitation.invitationId}`} />
+                        </View>
                         <Text numberOfLines={1} style={[styles.meta, styles.ownerText]}>
-                          {t('collections.sharedByOwner', {
-                            jupleId: personLabel({ jupleId: invitation.ownerJupleId, displayName: invitation.ownerDisplayName }),
-                          })}
+                          {personLabel({ jupleId: invitation.ownerJupleId, displayName: invitation.ownerDisplayName })}
                         </Text>
                       </View>
                       {/* What accepting gives: 읽기 전용, 승인 후 추가 (proposes links the Owner approves) or 링크 추가. */}

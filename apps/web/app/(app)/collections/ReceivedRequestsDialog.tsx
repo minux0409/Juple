@@ -45,7 +45,7 @@ export function ReceivedRequestsDialog({
   const busyRef = useRef(false);
   // The Modal renders its body only while open, so every opening starts from a fresh load.
   return (
-    <Modal closeLabel={dictionary.close} onClose={() => { if (!busyRef.current) onClose(); }} open={open} title={`${dictionary.requestsPendingSubmissions} · ${collection.name}`}>
+    <Modal closeLabel={dictionary.close} onClose={() => { if (!busyRef.current) onClose(); }} open={open} title={dictionary.requestsPendingSubmissions}>
       <RequestsBody collectionId={collection.id} onBusyChange={value => { busyRef.current = value; }} onChanged={onChanged} />
     </Modal>
   );

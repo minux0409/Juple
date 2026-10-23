@@ -5424,6 +5424,9 @@ ul.friendGrid > * + * {
   display: flex;
   flex-direction: column;
   width: clamp(720px, 60vw, 900px);
+  /* ONE size from the first frame: the sheet is not as tall as whatever it holds right now (a skeleton, then the link, then its comments), so
+     nothing that loads can change it - the content scrolls inside (mobile's sheet is a fixed share of the screen for the same reason). */
+  height: min(78vh, 640px);
   max-height: 82vh;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -5716,6 +5719,7 @@ ul.friendGrid > * + * {
   .quickPanel {
     width: 100%;
     max-width: none;
+    height: 78vh;
     max-height: 90vh;
     border-width: 1px 0 0;
     border-radius: 24px 24px 0 0;

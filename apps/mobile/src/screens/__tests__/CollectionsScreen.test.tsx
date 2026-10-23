@@ -894,9 +894,13 @@ describe('CollectionsScreen 공유 요청 (received collaboration invitations)',
     const shown = card.findAllByType(Text).map(node => node.props.children);
     expect(shown).toEqual(expect.arrayContaining([
       'Trip 3',
-      i18n.t('collections.sharedByOwner', { jupleId: '피카츄' }),
+      '피카츄',
       i18n.t('collaboration.roleContributor'),
     ]));
+    // The Owner is the name plus the usual crown on the avatar - no "소유자" word on the card; the spoken label still says it.
+    expect(shown).not.toContain(i18n.t('collections.sharedByOwner', { jupleId: '피카츄' }));
+    expect(renderer.root.findByProps({ testID: 'share-request-owner-crown-3' })).toBeTruthy();
+    expect(card.findByProps({ testID: 'share-request-owner-3' }).props.accessibilityLabel).toBe(i18n.t('collections.sharedByOwner', { jupleId: '피카츄' }));
     expect(renderer.root.findByProps({ testID: 'share-request-accept-3' })).toBeTruthy();
     expect(renderer.root.findByProps({ testID: 'share-request-decline-3' })).toBeTruthy();
   });

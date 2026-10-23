@@ -1,9 +1,16 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { formatMessage, type AppDictionary } from '../../../../../../lib/appI18n';
 import { isSessionLost } from '../../../../../../lib/authSession';
-import { contentGateOf, isNotFound } from '../../../../../../lib/collectionDetails';
+import { collectionPath, contentGateOf, isNotFound } from '../../../../../../lib/collectionDetails';
+import { isSharedWithMe } from '../../../../../../lib/collectionSharing';
+import type { CollectionSummary } from '../../../../../../lib/collectionsView';
+import { notifyItemsChanged } from '../../../../../../lib/itemChanges';
+import { membershipErrorMessage } from '../../../../../../lib/itemEdit';
+import { ConfirmDialog } from '../../../../ConfirmDialog';
+import { useToast } from '../../../../Toaster';
 import { adderLabel, sharedItemPath, type SharedCollectionItem } from '../../../../../../lib/itemDetails';
 import { unlockHeaders, unlockTokenFor } from '../../../../../../lib/collectionUnlock';
 import { addCopyResults, copyItemsPath, copyResultMessage, grantHeaders, NO_COPY, type CopyResult } from '../../../../../../lib/collectionOperations';
@@ -133,6 +140,80 @@ export function useCopyToMine(collectionId: number | null, itemId: number | null
   return { actions, dialog, notice: noticeLine } as const;
 }
 
+/**
+ * 컬렉션에서 제거 for the Collection's OWNER on another member's link (mobile: the sheet's one action there). It removes only this link's
+ * membership in this Collection - DELETE /collections/{id}/items/{itemId}, never the Item: the link stays in its adder's library and in
+ * their other Collections. Only the Owner is offered it (the role is read from the Collection once; a plain member sees nothing), and the
+ * server decides again - a refusal removes nothing from the screen. It asks first; on success the Collection's list and count follow
+ * through the same signal every removal uses.
+ */
+export function useRemoveFromCollection(collectionId: number | null, itemId: number | null, onLeave: () => void) {
+  const { api, dictionary, onSessionLost } = useSignedInApp();
+  const toast = useToast();
+  const [isOwner, setIsOwner] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (collectionId === null) {
+      return undefined;
+    }
+    let ignore = false;
+    api<CollectionSummary>({ path: collectionPath(collectionId), headers: unlockHeaders(collectionId) }).then(
+      collection => {
+        if (!ignore) setIsOwner(!isSharedWithMe(collection));
+      },
+      () => {
+        if (!ignore) setIsOwner(false);
+      },
+    );
+    return () => {
+      ignore = true;
+    };
+  }, [api, collectionId]);
+
+  const remove = async () => {
+    if (collectionId === null || itemId === null || busy) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await api<void>({ method: 'DELETE', path: sharedItemPath(collectionId, itemId), headers: unlockHeaders(collectionId) });
+      setConfirming(false);
+      notifyItemsChanged({ kind: 'removedFromCollection', itemId, collectionId });
+      toast.showNotice(dictionary.unlinkSuccess);
+      onLeave();
+    } catch (caught) {
+      setConfirming(false);
+      if (isSessionLost(caught)) {
+        onSessionLost();
+      } else {
+        toast.showNotice(membershipErrorMessage(caught, dictionary), 'error');
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const actions: readonly MenuAction[] = isOwner && collectionId !== null && itemId !== null
+    ? [{ key: 'removeFromCollection', label: dictionary.removeFromCollection, icon: 'Trash', destructive: true, onSelect: () => setConfirming(true) }]
+    : [];
+  const dialog = (
+    <ConfirmDialog
+      busy={busy}
+      cancelLabel={dictionary.cancel}
+      confirmLabel={dictionary.removeFromCollection}
+      destructive
+      message={dictionary.unlinkConfirmMessage}
+      onCancel={() => setConfirming(false)}
+      onConfirm={() => void remove()}
+      open={confirming}
+      title={dictionary.unlinkConfirmTitle}
+    />
+  );
+  return { actions, dialog, isOwner } as const;
+}
+
 export function adderText(adder: NonNullable<ReturnType<typeof adderLabel>>, dictionary: AppDictionary): string {
   return adder.kind === 'me' ? dictionary.addedByMe : adder.kind === 'publicLink' ? dictionary.addedViaPublicLink : adder.name;
 }
@@ -147,6 +228,9 @@ export function SharedItemQuickContent({ collectionIdParam, itemIdParam }: { rea
   const { dictionary, locale } = useSignedInApp();
   const { collectionId, state, reload } = useSharedItem(collectionIdParam, itemIdParam);
   const copy = useCopyToMine(collectionId, parseRouteId(itemIdParam));
+  const router = useRouter();
+  // Removed from the Collection: the sheet closes (back to the Collection, which already lost the link and one from its count).
+  const removal = useRemoveFromCollection(collectionId, parseRouteId(itemIdParam), () => router.back());
 
   if (state.kind === 'loading') {
     return (
@@ -199,7 +283,7 @@ export function SharedItemQuickContent({ collectionIdParam, itemIdParam }: { rea
           ) : null}
           {isSafeHttpUrl(item.url) ? <CopyLinkButton url={item.url} /> : null}
           {/* Not mine: never moved or edited here - only 내 컬렉션으로 복사 (a new link of my own). */}
-          <ActionMenu actions={copy.actions} className={styles.quickActionButton} label={dictionary.linkActionsLabel} />
+          <ActionMenu actions={[...copy.actions, ...removal.actions]} className={styles.quickActionButton} label={dictionary.linkActionsLabel} />
         </div>
       </div>
 
@@ -228,6 +312,7 @@ export function SharedItemQuickContent({ collectionIdParam, itemIdParam }: { rea
       <p className={styles.readOnlyNote}>{dictionary.sharedItemReadOnly}</p>
       {copy.notice}
       {copy.dialog}
+      {removal.dialog}
       {/* Read-only means not theirs to edit or delete - any member may still react and comment (mobile CollectionSharedItemScreen). */}
       {collectionId !== null ? <ItemCollaboration always collectionId={collectionId} itemId={item.itemId} row={item} /> : null}
     </article>

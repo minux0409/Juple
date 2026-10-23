@@ -55,7 +55,7 @@ function createFixture(account: string) {
         return undefined;
       }
       if (path === '/api/v1/collections/my-pending-submissions/count') return { myPendingSubmissionCount: mine };
-      if (path === '/api/v1/collections/submissions/mine') return { items: Array.from({ length: mine }, (_, index) => ({ submissionId: 900 + index, url: `https://example.com/m/${index}`, title: `Mine ${index + 1}`, previewImageUrl: null, submittedAtUtc: '2026-10-23T00:00:00Z', collectionId: 11, collectionName: '웹툰' })), nextCursor: null, totalCount: mine };
+      if (path === '/api/v1/collections/submissions/mine') return { items: Array.from({ length: mine }, (_, index) => ({ submissionId: 900 + index, url: `https://example.com/m/${index}`, title: index === 0 ? '아주 긴 제목의 보낸 승인 요청 링크는 한 줄에서 말줄임표로 줄어들고 오른쪽 아이콘 버튼을 밀어내지 않아야 합니다' : `Mine ${index + 1}`, previewImageUrl: null, submittedAtUtc: '2026-10-23T00:00:00Z', collectionId: 11, collectionName: '웹툰' })), nextCursor: null, totalCount: mine };
       if (path.startsWith('/api/v1/collections/submissions/mine/') && method === 'DELETE') { mine = Math.max(0, mine - 1); return undefined; }
       if (path === '/api/v1/friends/requests') return { items: [
         ...Array.from({ length: friendCount }, (_, index) => ({ requestId: index + 1, direction: 'incoming', jupleId: 'FIXTURE', displayName: 'Fixture', createdAtUtc: '2026-10-23T00:00:00Z', profileImageUrl: index === 0 ? 'http://localhost:3198/icon.png' : null })),
@@ -96,6 +96,8 @@ function createFixture(account: string) {
         ...(accepted ? [{ id: 1, name: 'Accepted collection', icon: 'Folder', color: null, itemCount: 0, isFavorite: false, accessRole: 'viewer' }] : []),
         { id: 10, name: '잡동사니', icon: 'Folder', color: 'Blue', itemCount: 8, isFavorite: true, accessRole: 'owner', hasCollaborators: true, attentionCount: proposals.length + newLinks, unreadNewLinkCount: newLinks, pendingSubmissionCount: proposals.length, pendingJoinRequestCount: 0 },
         { id: 11, name: '웹툰', icon: 'Folder', color: 'Blue', itemCount: 5, isFavorite: true, accessRole: 'viewer', attentionCount: 0 },
+        // More Collections of mine with waiting requests (fixtureOwnerCollections = how many extra): one with a very long name, one with a big number.
+        ...Array.from({ length: Number(query.get('fixtureOwnerCollections') ?? 0) }, (_, index) => ({ id: 20 + index, name: index === 0 ? '아주 긴 컬렉션 이름은 한 줄에서 말줄임표로 줄어들고 오른쪽 숫자 배지를 밀어내지 않아야 합니다' : `Owner ${index}`, icon: 'Folder', color: 'Blue', itemCount: 1, isFavorite: false, accessRole: 'owner', hasCollaborators: true, attentionCount: index === 1 ? 12 : 1, pendingSubmissionCount: index === 1 ? 12 : 1, pendingJoinRequestCount: 0 })),
       ], nextCursor: null };
       return { items: [], nextCursor: null };
     };

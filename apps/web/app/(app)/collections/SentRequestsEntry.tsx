@@ -5,7 +5,7 @@ import { ApiHttpError } from '../../../lib/appApi';
 import { formatMessage } from '../../../lib/appI18n';
 import { isSessionLost } from '../../../lib/authSession';
 import { cancelMySubmission, loadMyPendingCount, loadMySubmissions, type MySubmission } from '../../../lib/collectionApprovals';
-import { formatLinkTimestamp, isSafeHttpUrl, siteOf } from '../../../lib/savedLinks';
+import { isSafeHttpUrl, siteOf } from '../../../lib/savedLinks';
 import { useSignedInApp } from '../AppRoot';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { Glyph } from '../Glyph';
@@ -21,7 +21,7 @@ import styles from './ReceivedRequests.module.css';
  * list behind it (what, which Collection, since when) with 요청 취소. Only my own rows; never the Owner's queue. Shown only while something waits.
  */
 export function SentRequestsEntry() {
-  const { api, dictionary, locale, onSessionLost } = useSignedInApp();
+  const { api, dictionary, onSessionLost } = useSignedInApp();
   const [count, setCount] = useState(0);
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<readonly MySubmission[] | null>(null);
@@ -112,9 +112,8 @@ export function SentRequestsEntry() {
                       <p className={styles.title} dir="auto">{title}</p>
                       <p className={styles.url}>{row.url}</p>
                       <div className={styles.meta}>
-                        <span>{row.collectionName ?? dictionary.submissionsSharedCollectionShort}</span>
-                        <time dateTime={row.submittedAtUtc}>{formatLinkTimestamp(row.submittedAtUtc, locale, true)}</time>
-                        <span>{dictionary.submissionsMyStatus}</span>
+                        {/* Only where it waits: no request time and no status text (the dialog's title says they all wait). The API still sends both. */}
+                        <span className={styles.metaName}>{row.collectionName ?? dictionary.submissionsSharedCollectionShort}</span>
                       </div>
                     </div>
                     {/* Right end of the row: 바로가기 (the saved page, new tab) and 요청 취소 - each only this request's, never a full-width button below. */}
