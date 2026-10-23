@@ -1,5 +1,8 @@
 import { BrokenLinkIcon } from '../../icons/BrokenLinkIcon';
 import { InfoIcon } from '../../icons/InfoIcon';
+import { ApiError } from '../../api/ApiError';
+import { RefreshFailureNotice } from '../../components/RefreshFailureNotice';
+import { LoadFailureState } from '../../components/LoadFailureState';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Dimensions, FlatList, Modal, StyleSheet, type ListViewToken } from 'react-native';
 import i18n from '../../i18n';
@@ -1085,6 +1088,32 @@ describe('DateHistoryScreen - search the whole archive', () => {
 });
 
 describe('DateHistoryScreen load failure placement', () => {
+  it.each([
+    [new ApiError('tooManyRequests', 429), 'collaboration.tooManyRequests'],
+    [new ApiError('unavailable', 503), 'history.errorServer'],
+    [new ApiError('timeout'), 'history.errorNetwork'],
+  ] as const)('keeps the actual initial failure cause and its specific message: %s', async (cause, key) => {
+    installFakeServer([]);
+    jest.mocked(getItemHistorySections).mockRejectedValueOnce(cause);
+    const renderer = await renderScreen();
+    const header = renderPart(getList(renderer).props.ListHeaderComponent);
+    const failure = header.root.findByType(LoadFailureState);
+    expect(failure.props.error).toBe(cause);
+    expect(failure.props.notice).toBe(i18n.t(key));
+  });
+
+  it('a summary refresh 429 retains the groups and thumbnails with only a compact notice', async () => {
+    installFakeServer([{ kind: 'today', key: '2026-09-30', items: itemsFor(1, 3) }]);
+    const renderer = await renderScreen();
+    const rowsBefore = getRows(renderer);
+    jest.mocked(getItemHistorySections).mockRejectedValueOnce(new ApiError('tooManyRequests', 429, 'rateLimited', 30));
+    await act(async () => getList(renderer).props.refreshControl.props.onRefresh());
+    expect(getRows(renderer)).toEqual(rowsBefore);
+    const header = renderPart(getList(renderer).props.ListHeaderComponent);
+    expect(header.root.findAllByType(LoadFailureState)).toHaveLength(0);
+    expect(header.root.findByType(RefreshFailureNotice).props.message).toBe(i18n.t('collaboration.tooManyRequests'));
+  });
+
   it('a failed load sits below search with the standard wording', async () => {
     installFakeServer([]);
     jest.mocked(getItemHistorySections).mockRejectedValue(new Error('offline'));

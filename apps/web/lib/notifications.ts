@@ -1,4 +1,5 @@
 import { formatMessage, type AppDictionary } from './appI18n.ts';
+import { COLLECTION_INVITATIONS_HREF } from './collectionInvitations.ts';
 import type { STATUS_ICON_MARKUP } from './collectionIconMarkup.ts';
 
 /**
@@ -158,7 +159,7 @@ export function parseNotificationTarget(wire: NotificationTargetWire | null | un
  *    승인 요청 and 참여 요청 open their Collection (the mobile app opens the list over it; those lists are app-only - the Collection is
  *    the nearest real page).
  *  - collectionLink: a link IN a Collection - opened through the Collection like on mobile: see resolveCollectionLink.
- *  - appOnly: a received Collection invitation - the Web has no 공유 요청 list; the person is told to open it in the app.
+ *  - received Collection invitations lead to the shared tab's received requests.
  *  - unavailable: nothing reachable any more (the mobile "이 알림의 항목을 더 이상 볼 수 없어요.").
  */
 export type WebDestination =
@@ -173,7 +174,7 @@ export function webDestinationOf(target: NotificationTarget): WebDestination {
     case 'friends':
       return { kind: 'href', href: '/me/friends' };
     case 'collectionInvitations':
-      return { kind: 'appOnly' };
+      return { kind: 'href', href: COLLECTION_INVITATIONS_HREF };
     case 'collection':
     case 'collectionSubmissions':
     case 'collectionJoinRequests':

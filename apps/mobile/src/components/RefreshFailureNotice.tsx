@@ -8,12 +8,12 @@ import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/t
  * row - "불러오지 못했어요 [다시 시도]" - under/over the content, which stays usable. Never a red line and never a
  * replacement for the content (that is LoadFailureState, for a load that has nothing to show yet).
  */
-export function RefreshFailureNotice({ onRetry, testID }: { readonly onRetry?: () => void; readonly testID?: string }) {
+export function RefreshFailureNotice({ onRetry, testID, message }: { readonly onRetry?: () => void; readonly testID?: string; readonly message?: string | null }) {
   const { t } = useTranslation();
   return (
     <View accessibilityLiveRegion="polite" style={styles.row} testID={testID ?? 'refresh-failure-notice'}>
       <InfoIcon color={colors.textSecondary} size={16} />
-      <Text numberOfLines={2} style={styles.text}>{t('importantState.loadFailedTitle')}</Text>
+      <Text numberOfLines={2} style={styles.text}>{message ?? t('importantState.loadFailedTitle')}</Text>
       {onRetry ? (
         <Pressable accessibilityRole="button" onPress={onRetry} style={styles.retry} testID={`${testID ?? 'refresh-failure-notice'}-retry`}>
           <Text numberOfLines={1} style={styles.retryLabel}>{t('importantState.retry')}</Text>

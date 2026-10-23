@@ -91,6 +91,8 @@
     "searchEmpty": "No results.",
     "empty": "No links saved yet.",
     "errorLoadFallback": "Couldn't load your history.",
+    "errorNetwork": "Check your internet connection and try again.",
+    "errorServer": "The server could not load your records. Please try again shortly.",
     "today": "Today",
     "yesterday": "Yesterday",
     "thisWeek": "This week",

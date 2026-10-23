@@ -31,6 +31,7 @@ import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchField } from '../components/SearchField';
 import { savedLinkLayout } from '../components/savedLinkLayout';
 import { useArchiveSearch } from '../items/useArchiveSearch';
+import { browseFailureMessage } from '../items/browseFailureMessage';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow, subscribeRowOpened } from '../components/swipeableRowCoordinator';
 import { HintBanner } from '../hints/HintBanner';
@@ -144,7 +145,7 @@ export function DateHistoryScreen() {
   expandedRef.current = expandedKeys ?? new Set();
   const isExpanded = useCallback((key: string) => expandedRef.current.has(key), []);
 
-  const { sections, pages, isLoading, isRefreshing, error, refresh, ensureLoaded, loadMore, removeItem } = useHistorySections(isExpanded, { enabled: isSortReady && archiveSort === 'time' });
+  const { sections, pages, isLoading, isRefreshing, error, errorCause, refresh, ensureLoaded, loadMore, retrySection, removeItem } = useHistorySections(isExpanded, { enabled: isSortReady && archiveSort === 'time' });
 
   // 보관함 search and 이름순: the whole archive on the server, as ONE flat paged list (see useArchiveSearch). 시간순 with
   // empty/short text = the date sections.
@@ -356,9 +357,11 @@ export function DateHistoryScreen() {
         return row.status === 'loading' ? (
           <ActivityIndicator style={styles.searchStatus} testID="history-search-loading" />
         ) : row.status === 'moreError' ? (
-          <RefreshFailureNotice onRetry={() => search.loadMore()} testID="history-more-error" />
+          <RefreshFailureNotice message={browseFailureMessage(search.errorCause, t)} onRetry={() => search.loadMore()} testID="history-more-error" />
         ) : row.status === 'error' ? (
-          <LoadFailureState error={search.error} onRetry={() => search.refresh()} testID="history-search-error" />
+          search.items.length > 0
+            ? <RefreshFailureNotice message={browseFailureMessage(search.errorCause, t)} onRetry={() => search.refresh()} testID="history-search-error" />
+            : <LoadFailureState error={search.errorCause} notice={browseFailureMessage(search.errorCause, t)} onRetry={() => search.refresh()} testID="history-search-error" />
         ) : (
           <Text style={styles.searchStatusText} testID={`history-search-${row.status}`}>{t('history.searchEmpty')}</Text>
         );
@@ -436,14 +439,8 @@ export function DateHistoryScreen() {
       case 'error':
         return (
           <DateSectionErrorRow
-            onRetry={() => {
-              const page = pages.get(row.section.key);
-              if (page && page.items.length > 0) {
-                loadMore(row.section.key);
-              } else {
-                ensureLoaded(row.section.key);
-              }
-            }}
+            message={browseFailureMessage(pages.get(row.section.key)?.errorCause, t) ?? undefined}
+            onRetry={() => retrySection(row.section.key)}
             retryTestID={`history-section-retry-${row.section.key}`}
             testID={`history-section-error-${row.section.key}`}
           />
@@ -508,12 +505,14 @@ export function DateHistoryScreen() {
             ) : null}
             {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
             {/* A failed load belongs to the result area: under the query controls (search, then date), above the content. */}
-            {error && !search.isFlat ? <LoadFailureState compact onRetry={() => refresh()} testID="history-sections-error" /> : null}
+            {error && !search.isFlat ? sections.length > 0
+              ? <RefreshFailureNotice message={browseFailureMessage(errorCause, t)} onRetry={() => refresh()} testID="history-sections-error" />
+              : <LoadFailureState compact error={errorCause} notice={browseFailureMessage(errorCause, t)} onRetry={() => refresh()} testID="history-sections-error" /> : null}
           </View>
         }
         maxToRenderPerBatch={10}
         onScrollBeginDrag={closeOpenRow}
-        onEndReached={() => (search.isFlat ? search.loadMore() : undefined)}
+        onEndReached={() => (search.isFlat && !search.error && !search.moreError ? search.loadMore() : undefined)}
         onContentSizeChange={viewportFill.onContentSizeChange}
         onEndReachedThreshold={END_REACHED_THRESHOLD}
         onLayout={viewportFill.onLayout}

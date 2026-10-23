@@ -120,7 +120,8 @@ export function useDateSectionViewability<T>(
         continue;
       }
       const page = pagesRef.current.get(row.section.key);
-      if (!page?.nextCursor) {
+      // A failed page waits for its retry button; further viewability events must not replay it.
+      if (!page?.nextCursor || page.error) {
         continue;
       }
       const reached = row.kind === 'skeleton' ? page.items.length : row.position + (row.kind === 'gridRow' || row.kind === 'imageRow' ? row.items.length : 1);
@@ -182,11 +183,11 @@ export function DateSectionSkeletonRow({ grid, image = false, isFirst, isLast, t
  * One section's page failed while the other sections stay usable: a compact, non-blocking row in the standard words
  * ("불러오지 못했어요 [다시 시도]") with a retry that asks for exactly that page again - never a red, section-specific line.
  */
-export function DateSectionErrorRow({ onRetry, testID, retryTestID }: { readonly onRetry: () => void; readonly testID: string; readonly retryTestID: string }) {
+export function DateSectionErrorRow({ onRetry, testID, retryTestID, message }: { readonly onRetry: () => void; readonly testID: string; readonly retryTestID: string; readonly message?: string }) {
   const { t } = useTranslation();
   return (
     <View accessibilityLiveRegion="polite" style={[dateAccordionStyles.row, dateAccordionStyles.rowLast, styles.errorRow]} testID={testID}>
-      <Text style={styles.errorRowText}>{t('importantState.loadFailedTitle')}</Text>
+      <Text style={styles.errorRowText}>{message ?? t('importantState.loadFailedTitle')}</Text>
       <Pressable accessibilityRole="button" onPress={onRetry} style={styles.retryButton} testID={retryTestID}>
         <Text style={styles.retryLabel}>{t('importantState.retry')}</Text>
       </Pressable>

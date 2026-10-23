@@ -32,6 +32,8 @@ export interface DateSectionPage<T> {
   /** A next page is on its way (loaded rows stay, a few skeleton rows below them). */
   readonly isLoadingMore: boolean;
   readonly error: string | null;
+  readonly errorCause?: unknown;
+  readonly failedRequest?: 'first' | 'more';
 }
 
 /** Where a screen's sections and their pages come from - see useDateSectionPages. */
@@ -68,11 +70,13 @@ export interface UseDateSectionPagesResult<T> {
   readonly isLoading: boolean;
   readonly isRefreshing: boolean;
   readonly error: string | null;
+  readonly errorCause?: unknown;
   readonly refresh: () => void;
   /** Loads a section's first page if it was never loaded (or failed) - a no-op otherwise. */
   readonly ensureLoaded: (key: string) => void;
   /** Loads a section's next page - a no-op while one is in flight, before the first page, or at its end. */
   readonly loadMore: (key: string) => void;
+  readonly retrySection: (key: string) => void;
   /** Takes an already-removed link out of its section and lowers that section's count (an emptied section goes). */
   readonly removeItem: (itemId: number) => void;
 }
@@ -104,6 +108,8 @@ export function useDateSectionPages<T>(
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCause, setErrorCause] = useState<unknown>(null);
+  const summaryInFlight = useRef(false);
 
   const sourceRef = useRef(source);
   sourceRef.current = source;
@@ -186,6 +192,7 @@ export function useDateSectionPages<T>(
   /** A section's first rows: `limit` of them, replacing what it had (in place when `keepRows`). */
   const loadFirst = useCallback(
     async (section: DateSection, limit: number, keepRows: boolean) => {
+      if (firstLoadInFlightRef.current.has(section.key)) return;
       const token = nextToken(section.key);
       requestedCursorRef.current.delete(section.key);
       firstLoadInFlightRef.current.add(section.key);
@@ -209,6 +216,8 @@ export function useDateSectionPages<T>(
             isLoading: false,
             isLoadingMore: false,
             error: sourceRef.current.errorMessage(caughtError),
+            errorCause: caughtError,
+            failedRequest: 'first',
           }));
         }
       } finally {
@@ -237,7 +246,7 @@ export function useDateSectionPages<T>(
       const section = sectionsRef.current.find(entry => entry.key === key);
       const page = pagesRef.current.get(key);
       const cursor = page?.nextCursor;
-      if (!enabledRef.current || !section || !page || !cursor || page.isLoading || page.isLoadingMore || requestedCursorRef.current.get(key) === cursor) {
+      if (!enabledRef.current || !section || !page || !cursor || firstLoadInFlightRef.current.has(key) || page.isLoading || page.isLoadingMore || requestedCursorRef.current.get(key) === cursor) {
         return;
       }
       const token = sectionTokenRef.current.get(key) ?? 0;
@@ -265,9 +274,9 @@ export function useDateSectionPages<T>(
           if (!isCurrent(key, token) || handleBlockingError(caughtError)) {
             return;
           }
-          // The same cursor may be tried again (on the next scroll).
+          // The same cursor may be tried again through the explicit retry action.
           requestedCursorRef.current.delete(key);
-          updatePage(key, previous => (previous ? { ...previous, isLoadingMore: false, error: sourceRef.current.errorMessage(caughtError) } : previous));
+          updatePage(key, previous => (previous ? { ...previous, isLoadingMore: false, error: sourceRef.current.errorMessage(caughtError), errorCause: caughtError, failedRequest: 'more' } : previous));
         });
     },
     [handleBlockingError, updatePage],
@@ -275,6 +284,8 @@ export function useDateSectionPages<T>(
 
   const loadSummary = useCallback(
     async (mode: 'initial' | 'refresh') => {
+      if (summaryInFlight.current) return;
+      summaryInFlight.current = true;
       const requestId = ++summaryRequestRef.current;
       if (mode === 'refresh') {
         setIsRefreshing(true);
@@ -282,9 +293,10 @@ export function useDateSectionPages<T>(
         setIsLoading(true);
       }
       setError(null);
+      setErrorCause(null);
       try {
         const loaded = await sourceRef.current.loadSections();
-        if (!isMountedRef.current || requestId !== summaryRequestRef.current) {
+        if (!isMountedRef.current || requestId !== summaryRequestRef.current || !enabledRef.current) {
           return;
         }
         const previousByKey = new Map(sectionsRef.current.map(section => [section.key, section]));
@@ -329,8 +341,10 @@ export function useDateSectionPages<T>(
         if (isMountedRef.current && requestId === summaryRequestRef.current && !handleBlockingError(caughtError)) {
           // Whatever is already shown stays - only the error text changes.
           setError(sourceRef.current.errorMessage(caughtError));
+          setErrorCause(caughtError);
         }
       } finally {
+        summaryInFlight.current = false;
         if (isMountedRef.current && requestId === summaryRequestRef.current) {
           hasLoadedOnceRef.current = true;
           setIsLoading(false);
@@ -403,5 +417,13 @@ export function useDateSectionPages<T>(
     });
   }, []);
 
-  return { sections, pages, isLoading, isRefreshing, error, refresh, ensureLoaded, loadMore, removeItem };
+  const retrySection = useCallback((key: string) => {
+    const section = sectionsRef.current.find(entry => entry.key === key);
+    const page = pagesRef.current.get(key);
+    if (!enabledRef.current || !section || !page?.error) return;
+    if (page.failedRequest === 'more') loadMore(key);
+    else loadFirst(section, Math.min(Math.max(page.items.length, DATE_SECTION_PAGE_SIZE), MAX_PAGE_LIMIT), true);
+  }, [loadFirst, loadMore]);
+
+  return { sections, pages, isLoading, isRefreshing, error, errorCause, refresh, ensureLoaded, loadMore, retrySection, removeItem };
 }

@@ -255,7 +255,7 @@ describe('where a notification leads (the server\'s target -> a Web page)', () =
     assert.deepEqual(go({ kind: 'collectionSharedItem', collectionId: 5, itemId: 9, rootCommentId: 3 }), { kind: 'collectionLink', collectionId: 5, itemId: 9, mine: false });
     assert.deepEqual(go({ kind: 'collectionItem', collectionId: 5 }), { kind: 'href', href: '/collections/5' }, 'no link id: its Collection');
     assert.deepEqual(go({ kind: 'publicCollection', publicId: 'AbCdEfGh12345678' }), { kind: 'href', href: '/c/AbCdEfGh12345678' });
-    assert.deepEqual(go({ kind: 'collectionInvitations' }), { kind: 'appOnly' }, 'no 공유 요청 list on the Web');
+    assert.deepEqual(go({ kind: 'collectionInvitations' }), { kind: 'href', href: '/collections?tab=shared&invitations=1' });
   });
 
   it('untrusted targets: unknown kinds and malformed ids are unavailable, never a half-built route', () => {

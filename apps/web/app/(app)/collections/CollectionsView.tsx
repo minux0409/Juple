@@ -40,6 +40,7 @@ import { Avatar } from '../Avatar';
 import { LinkImage } from '../LinkImage';
 import { LoadFailed } from '../PageStates';
 import { CollectionSearchBox } from './CollectionSearchBox';
+import { ReceivedInvitations } from './ReceivedInvitations';
 import { CollectionSkeleton } from '../Skeletons';
 import { useToast } from '../Toaster';
 import { useStoredChoice } from '../useStoredChoice';
@@ -255,6 +256,8 @@ export function CollectionsView() {
           </Link>
         </div>
       </div>
+
+      {filter === 'shared' ? <ReceivedInvitations onAccepted={() => setReloadToken(token => token + 1)} /> : null}
 
       {/* Between the tabs and the cards (mobile: the same place, under the header and above the tabs' cards). */}
       <div className={styles.collectionSearch} data-collection-search>

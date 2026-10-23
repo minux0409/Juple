@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ApiError } from '../api/ApiError';
+import { browseFailureMessage } from './browseFailureMessage';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getItemHistory, getItemHistorySections, type ItemHistoryEntry, type ItemHistorySection } from './api/itemsApi';
 import {
@@ -24,6 +25,8 @@ export type UseHistorySectionsResult = UseDateSectionPagesResult<ItemHistoryEntr
 };
 
 function errorMessage(error: unknown, t: TFunction): string {
+  const message = browseFailureMessage(error, t);
+  if (message) return message;
   if (error instanceof ApiError) {
     if (error.kind === 'conflict') {
       return t('errors.accountNotReady');

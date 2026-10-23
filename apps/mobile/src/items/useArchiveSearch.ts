@@ -28,6 +28,7 @@ export interface ArchiveSearchState {
   readonly isLoading: boolean;
   readonly isLoadingMore: boolean;
   readonly error: boolean;
+  readonly errorCause?: unknown;
   /** Identifies the query + sort the shown items belong to (null until the first page of it landed). */
   readonly settledTerm: string | null;
   /** More pages exist after the loaded ones. */
@@ -60,9 +61,11 @@ export function useArchiveSearch(rawQuery: string, sort: ArchiveFlatSort = 'time
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState(false);
+  const [errorCause, setErrorCause] = useState<unknown>(null);
   const [moreError, setMoreError] = useState(false);
   const sequenceRef = useRef(0);
   const loadingMoreRef = useRef(false);
+  const firstInFlight = useRef<string | null>(null);
   const queryKeyRef = useRef(queryKey);
   queryKeyRef.current = queryKey;
 
@@ -81,26 +84,34 @@ export function useArchiveSearch(rawQuery: string, sort: ArchiveFlatSort = 'time
 
   const run = useCallback(
     async (key: string) => {
+      if (firstInFlight.current === key) return;
       const sequence = ++sequenceRef.current;
+      firstInFlight.current = key;
+      loadingMoreRef.current = false;
+      setIsLoadingMore(false);
       setIsLoading(true);
       setError(false);
+      setMoreError(false);
+      setErrorCause(null);
       try {
         const page = await fetchPage(undefined);
-        if (sequence !== sequenceRef.current) {
+        if (sequence !== sequenceRef.current || key !== queryKeyRef.current) {
           return;
         }
         setItems(page.items);
         setNextCursor(page.nextCursor);
         setSettledKey(key);
-      } catch {
-        if (sequence === sequenceRef.current) {
+      } catch (cause) {
+        if (sequence === sequenceRef.current && key === queryKeyRef.current) {
           setError(true);
-          setItems([]);
-          setNextCursor(null);
+          setErrorCause(cause);
+          // A refresh failure leaves this query's successful pages available. A changed query
+          // already cleared its old rows in the effect below; never show another query's data.
           setSettledKey(key);
         }
       } finally {
         if (sequence === sequenceRef.current) {
+          firstInFlight.current = null;
           setIsLoading(false);
         }
       }
@@ -111,31 +122,35 @@ export function useArchiveSearch(rawQuery: string, sort: ArchiveFlatSort = 'time
   useEffect(() => {
     // Whatever was loaded belongs to the previous query/sort.
     sequenceRef.current += 1;
+    firstInFlight.current = null;
+    loadingMoreRef.current = false;
+    setIsLoadingMore(false);
     setItems([]);
     setNextCursor(null);
     setSettledKey(null);
     setError(false);
+    setErrorCause(null);
     setMoreError(false);
     if (!isFlat) {
       // Back to the date sections: nothing in flight can land later.
       setIsLoading(false);
-      return undefined;
+      return () => { sequenceRef.current++; };
     }
     setIsLoading(true);
     if (term === null) {
       // 이름순 without text: nothing to wait for typing.
       run(queryKey).catch(() => undefined);
-      return undefined;
+      return () => { sequenceRef.current++; };
     }
     // Debounced: one request after the typing pauses, not one per keystroke.
     const timer = setTimeout(() => {
       run(queryKey).catch(() => undefined);
     }, ARCHIVE_SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(timer); sequenceRef.current++; };
   }, [isFlat, queryKey, run, term]);
 
   const loadMore = useCallback(() => {
-    if (!isFlat || !nextCursor || isLoading || loadingMoreRef.current || settledKey !== queryKeyRef.current) {
+    if (!isFlat || !nextCursor || isLoading || firstInFlight.current !== null || loadingMoreRef.current || settledKey !== queryKeyRef.current) {
       return;
     }
     const sequence = sequenceRef.current;
@@ -153,14 +168,17 @@ export function useArchiveSearch(rawQuery: string, sort: ArchiveFlatSort = 'time
         });
         setNextCursor(page.nextCursor);
       })
-      .catch(() => {
+      .catch(cause => {
         if (sequence === sequenceRef.current) {
           setMoreError(true);
+          setErrorCause(cause);
         }
       })
       .finally(() => {
-        loadingMoreRef.current = false;
-        setIsLoadingMore(false);
+        if (sequence === sequenceRef.current) {
+          loadingMoreRef.current = false;
+          setIsLoadingMore(false);
+        }
       });
   }, [fetchPage, isFlat, isLoading, nextCursor, settledKey]);
 
@@ -172,5 +190,5 @@ export function useArchiveSearch(rawQuery: string, sort: ArchiveFlatSort = 'time
 
   const removeItem = useCallback((itemId: number) => setItems(previous => previous.filter(entry => entry.id !== itemId)), []);
 
-  return { isSearching: term !== null, isFlat, items, isLoading, isLoadingMore, error, settledTerm: settledKey, hasMore: nextCursor !== null, moreError, loadMore, refresh, removeItem };
+  return { isSearching: term !== null, isFlat, items, isLoading, isLoadingMore, error, errorCause, settledTerm: settledKey, hasMore: nextCursor !== null, moreError, loadMore, refresh, removeItem };
 }
