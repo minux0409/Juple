@@ -65,6 +65,10 @@ public sealed class FirebaseCloudMessagingSender : IPushSender
                         // Same logical notification replaces its own tray entry on a provider
                         // replay; different persisted notifications always have different tags.
                         Tag = "juple.notification." + payload.NotificationId.ToString(CultureInfo.InvariantCulture),
+                        // The Admin SDK always sends event_time and the Android SDK then uses it as the tray time
+                        // (setWhen/setShowWhen). Left unset it is DateTime.MinValue - "year 1" on the phone - so it is
+                        // always the notification's own creation time (UTC), or the send time.
+                        EventTimestamp = (payload.OccurredAtUtc ?? DateTimeOffset.UtcNow).UtcDateTime,
                     },
                 },
         };

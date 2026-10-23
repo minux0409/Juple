@@ -287,6 +287,19 @@ public sealed class SocialPushDispatchTests
         Assert.Equal(SocialNotificationPolicy.DataOnlyMaxAge, SocialNotificationPolicy.MaxAge(NotificationType.FriendRequestAnswered));
     }
 
+    [Theory]
+    [InlineData(NotificationType.CollectionItemCommentReceived)]
+    [InlineData(NotificationType.CollectionItemReactionReceived)]
+    [InlineData(NotificationType.CollectionInvitationReceived)]
+    [InlineData(NotificationType.CollectionLinkSubmissionApproved)]
+    [InlineData(NotificationType.CollectionContentChanged)]
+    public void EveryPayload_CarriesTheNotificationsCreationTime_TheTimeAndroidShows(NotificationType type)
+    {
+        var createdAt = Now.AddMinutes(-3);
+        var payload = DispatchPendingPushNotificationsService.BuildPayload(Pending(1, type, createdAt), new PushDispatchContext(true, "피카츄", "여행", 0), "ko");
+        Assert.Equal(createdAt, payload.OccurredAtUtc);
+    }
+
     [Fact]
     public void ALinkPassedOn_IsVisible_AndCarriesOnlyThePublicLinkId_NeverTheInternalCollectionId()
     {

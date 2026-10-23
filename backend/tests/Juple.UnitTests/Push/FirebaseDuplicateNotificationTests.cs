@@ -32,6 +32,29 @@ public sealed class FirebaseDuplicateNotificationTests
         Assert.False(messages[0].GetProperty("android").TryGetProperty("notification", out _));
     }
 
+    [Fact]
+    public async Task AVisibleNotification_CarriesItsCreationTimeAsEventTime_NeverYearOne()
+    {
+        // The Admin SDK always serializes AndroidNotification.event_time; left unset it is DateTime.MinValue (0001-01-01), which
+        // Android shows as the notification's time (when=-62135596800000; One UI: "01/1/3").
+        var createdAt = new DateTimeOffset(2026, 10, 23, 8, 45, 37, TimeSpan.FromHours(9));
+        var messages = await CaptureAsync(Visible(111) with { OccurredAtUtc = createdAt });
+
+        var eventTime = messages[0].GetProperty("android").GetProperty("notification").GetProperty("event_time").GetString()!;
+        Assert.Equal(createdAt.ToUniversalTime(), DateTimeOffset.Parse(eventTime, System.Globalization.CultureInfo.InvariantCulture));
+        Assert.StartsWith("2026-10-22T23:45:37", eventTime, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task WithoutACreationTime_TheEventTimeIsTheSendTime_NotYearOne()
+    {
+        var before = DateTimeOffset.UtcNow.AddSeconds(-1);
+        var messages = await CaptureAsync(Visible(112));
+
+        var eventTime = DateTimeOffset.Parse(messages[0].GetProperty("android").GetProperty("notification").GetProperty("event_time").GetString()!, System.Globalization.CultureInfo.InvariantCulture);
+        Assert.InRange(eventTime, before, DateTimeOffset.UtcNow.AddSeconds(1));
+    }
+
     private static PushNotificationPayload Visible(long id) => new("Synthetic title", "Synthetic body", "collectionItemsAdded", id, new Dictionary<string, string>(), 1);
 
     private static async Task<List<JsonElement>> CaptureAsync(params PushNotificationPayload[] payloads)

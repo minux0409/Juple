@@ -7,6 +7,8 @@ namespace Juple.Application.Push;
 /// requests (Android launchers that support it show it; the in-app badges stay the source of truth).
 /// ExpiresAtUtc is when the message stops being worth delivering (the notification type's MaxAge after it was created): APNs keeps an
 /// undelivered message for an offline phone until then, never longer. FCM does not use it.
+/// OccurredAtUtc is when the notification was created (Notification.CreatedAtUtc): the time Android shows on the tray entry (FCM
+/// android.notification.event_time). Null = the send time.
 /// </summary>
 public sealed record PushNotificationPayload(
     string? Title,
@@ -15,4 +17,5 @@ public sealed record PushNotificationPayload(
     long NotificationId,
     IReadOnlyDictionary<string, string> Data,
     int? BadgeCount,
-    DateTimeOffset? ExpiresAtUtc = null);
+    DateTimeOffset? ExpiresAtUtc = null,
+    DateTimeOffset? OccurredAtUtc = null);
