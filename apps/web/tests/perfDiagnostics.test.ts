@@ -34,6 +34,12 @@ describe('perf diagnostics switch', () => {
     assert.equal(flag(' TRUE '), true);
   });
 
+  it('cannot enable diagnostics in Production, even with the flag set', () => {
+    const result = readWebAppConfig({ ...ENV, NODE_ENV: 'production', JUPLE_WEB_PERF_DIAGNOSTICS: 'true' });
+    assert.ok(result.ok);
+    assert.equal(result.config.perfDiagnostics, false);
+  });
+
   it('the app records only when the flag (or next dev) says so, and nothing is sent anywhere', () => {
     const root = source('app/(app)/AppRoot.tsx');
     assert.match(root, /config\.perfDiagnostics \? getPerfRecorder\(\) : null/);

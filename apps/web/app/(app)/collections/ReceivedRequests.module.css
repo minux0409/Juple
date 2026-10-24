@@ -39,3 +39,5 @@
 .metaName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rowCard .meta { flex-wrap: nowrap; }
 .rowCard .title { -webkit-line-clamp: 1; }
+
+.heading { padding-inline: 12px; overflow-wrap: anywhere; }

@@ -385,9 +385,8 @@
     "displayNamePlaceholder": "请输入昵称",
     "nickname": "昵称",
     "nicknameNotSet": "未设置",
-    "webBannerTitle": "在电脑上也试试 Juple",
-    "webBannerBody": "你也可以在网页上管理已保存的链接和合集。",
-    "webBannerAction": "打开 Juple 网页版"
+    "webBannerTitle": "Juple 也可在网页上使用",
+    "webBannerBody": "在电脑上访问 juple.co.kr，管理已保存的链接和收藏集。"
   },
   "profile": {
     "edit": "编辑个人资料",

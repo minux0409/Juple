@@ -93,7 +93,7 @@ export function useSaveSharedLink(item: SharedCollectionItem | null) {
   const url = item && isSafeHttpUrl(item.url) ? item.url : null;
   const actions: readonly MenuAction[] =
     item && url
-      ? [{ key: 'saveLink', label: dictionary.copyToMine, icon: 'Copy', onSelect: () => openReview(url, href => router.push(href), { title: item.title, image: isSafeHttpUrl(item.previewImageUrl) ? item.previewImageUrl : null }) }]
+      ? [{ key: 'saveLink', label: dictionary.copyToMine, icon: 'Archive', onSelect: () => openReview(url, href => router.push(href), { title: item.title, image: isSafeHttpUrl(item.previewImageUrl) ? item.previewImageUrl : null }) }]
       : [];
   return { actions } as const;
 }

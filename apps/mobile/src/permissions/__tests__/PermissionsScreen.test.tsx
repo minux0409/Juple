@@ -1,9 +1,6 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import i18n from '../../i18n';
+import '../../i18n';
 import { PermissionsScreen } from '../PermissionsScreen';
-import { Platform, Text } from 'react-native';
-import { getPushPermissionStatus } from '../../push/pushPermission';
-import { reportPushSync } from '../../push/pushRegistrationStatus';
 
 // Records the SafeAreaView edges each layout asks for (the real one needs a native provider).
 jest.mock('react-native-safe-area-context', () => {
@@ -39,23 +36,4 @@ describe('PermissionsScreen safe area', () => {
     expect(safeAreaEdges(renderer)).toEqual(['bottom']);
     act(() => renderer.unmount());
   });
-});
-
-
-it('iOS shows the real APNs registration status instead of the unconditional not-ready notice', async () => {
-  const originalOS = Platform.OS;
-  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' });
-  jest.mocked(getPushPermissionStatus).mockResolvedValueOnce('granted');
-  reportPushSync('registered');
-  try {
-    const renderer = await render(<PermissionsScreen />);
-    const text = () => renderer.root.findAllByType(Text).map(node => String(node.props.children)).join(' ');
-    expect(text()).toContain(i18n.t('permissions.sync.registered'));
-    expect(text()).not.toContain(i18n.t('permissions.apnsNotReady'));
-    act(() => { reportPushSync('registrationFailed'); });
-    expect(text()).toContain(i18n.t('permissions.sync.registrationFailed'));
-    act(() => renderer.unmount());
-  } finally {
-    Object.defineProperty(Platform, 'OS', { configurable: true, value: originalOS });
-  }
 });

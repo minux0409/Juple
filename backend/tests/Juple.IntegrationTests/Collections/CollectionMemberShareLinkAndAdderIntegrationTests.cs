@@ -89,7 +89,8 @@ public sealed class CollectionMemberShareLinkAndAdderIntegrationTests : IAsyncLi
             await new AccountDeletionStore(_db).DeleteAllDataAsync(userId, $"test/{userId}/", DateTimeOffset.UtcNow);
         }
 
-        await _db.Database.ExecuteSqlRawAsync("DELETE FROM images.AccountDeletionBlobCleanups WHERE BlobPrefix LIKE 'test/%'");
+        foreach (var userId in _userIds)
+            await _db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM images.AccountDeletionBlobCleanups WHERE BlobPrefix = {$"test/{userId}/"}");
         await _db.DisposeAsync();
     }
 
@@ -281,7 +282,7 @@ public sealed class CollectionMemberShareLinkAndAdderIntegrationTests : IAsyncLi
         })), TimeProvider.System), new UserDirectoryStore(_db), new CollectionLinkShareStore(_db), TimeProvider.System);
 
     [Fact]
-    public async Task AMember_PassesThePublicLinkOn_AsANotificationOnly_NeverAMembershipOrAnInvitation()
+    public async Task AMember_CreatesAFormalInvitation_WithoutGrantingMembershipWhenSending()
     {
         await InviteAndAcceptAsync(_viewer, CollectionCollaboratorRole.Viewer);
         var share = await _shares.EnableAsync(_owner, _sharedId, NewPublicId(), DateTimeOffset.UtcNow);
@@ -293,18 +294,18 @@ public sealed class CollectionMemberShareLinkAndAdderIntegrationTests : IAsyncLi
         // Recorded in the outbox with the send; the recipient's notification is materialized asynchronously.
         await Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.MaterializeOutboxAsync(_db);
         var notification = Assert.Single(await _db.Notifications.AsNoTracking()
-            .Where(entry => entry.UserId == _stranger && entry.Type == NotificationType.CollectionLinkShared).ToListAsync());
+            .Where(entry => entry.UserId == _stranger && entry.Type == NotificationType.CollectionInvitationReceived).ToListAsync());
         Assert.Equal(_sharedId, notification.CollectionId);
         Assert.Equal(_viewer, notification.ActorUserId);
         // Nothing about membership changed.
         Assert.False(await _db.CollectionCollaborators.AnyAsync(entry => entry.UserId == _stranger));
-        Assert.False(await _db.CollectionInvitations.AnyAsync(entry => entry.InvitedUserId == _stranger));
+        Assert.True(await _db.CollectionInvitations.AnyAsync(entry => entry.InvitedUserId == _stranger && entry.Status == CollectionInvitationStatus.Pending));
         await Assert.ThrowsAsync<CollectionNotFoundException>(() => _collections.GetAsync(_stranger, _sharedId));
 
         // Sent while the link is on: the push opens that public link.
         var context = (await new PushDispatchStore(_db).GetContextsAsync([notification], DateTimeOffset.UtcNow))[notification.Id];
         Assert.True(context.IsRelevant);
-        Assert.Equal(share.PublicId, context.PublicShareId);
+        Assert.NotNull(notification.SubjectId);
 
         // Turned off before the push went out: nothing is sent.
         await _shares.RevokeAsync(_owner, _sharedId, DateTimeOffset.UtcNow);
@@ -323,7 +324,7 @@ public sealed class CollectionMemberShareLinkAndAdderIntegrationTests : IAsyncLi
             async () => await SendLink().ShareAsync(_viewer, _sharedId, [await JupleIdOfAsync(_stranger)]));
 
         Assert.Equal(CollectionCollaborationConflictException.PublicLinkInactive, conflict.Code);
-        Assert.False(await _db.Notifications.AnyAsync(entry => entry.Type == NotificationType.CollectionLinkShared && entry.CollectionId == _sharedId));
+        Assert.False(await _db.Notifications.AnyAsync(entry => entry.Type == NotificationType.CollectionInvitationReceived && entry.CollectionId == _sharedId));
     }
 
     [Fact]
@@ -335,7 +336,7 @@ public sealed class CollectionMemberShareLinkAndAdderIntegrationTests : IAsyncLi
 
         await Assert.ThrowsAsync<CollectionNotFoundException>(async () => await SendLink().ShareAsync(_pending, _sharedId, [await JupleIdOfAsync(_viewer)]));
         await Assert.ThrowsAsync<CollectionNotFoundException>(async () => await SendLink().ShareAsync(_stranger, _sharedId, [await JupleIdOfAsync(_viewer)]));
-        Assert.False(await _db.Notifications.AnyAsync(entry => entry.Type == NotificationType.CollectionLinkShared && entry.CollectionId == _sharedId));
+        Assert.False(await _db.Notifications.AnyAsync(entry => entry.Type == NotificationType.CollectionInvitationReceived && entry.CollectionId == _sharedId));
     }
 
     // ---------- 컬렉션에서 제거 by a member ----------

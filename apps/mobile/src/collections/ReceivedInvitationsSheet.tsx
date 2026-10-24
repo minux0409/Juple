@@ -83,7 +83,7 @@ export function ReceivedInvitationsSheet({
     try {
       if (accept) {
         await acceptCollectionInvitation(authenticatedRequest, invitation.invitationId);
-        showNotificationToast(t('collaboration.invitationAccepted'));
+        showNotificationToast(t(invitation.requiresOwnerApproval ? 'sharedCollection.joinPendingMessage' : 'collaboration.invitationAccepted'));
       } else {
         await declineCollectionInvitation(authenticatedRequest, invitation.invitationId);
       }
@@ -136,7 +136,7 @@ export function ReceivedInvitationsSheet({
                       </View>
                       {/* What accepting gives: 읽기 전용, 승인 후 추가 (proposes links the Owner approves) or 링크 추가. */}
                       <Text numberOfLines={2} style={styles.meta} testID={`share-request-role-${invitation.invitationId}`}>
-                        {t(RECEIVED_ROLE_LABEL_KEYS[invitationRoleOf(invitation.role)])}
+                        {invitation.requiresOwnerApproval ? t('sharedCollection.privateHint') : t(RECEIVED_ROLE_LABEL_KEYS[invitationRoleOf(invitation.role)])}
                       </Text>
                     </View>
                   </View>

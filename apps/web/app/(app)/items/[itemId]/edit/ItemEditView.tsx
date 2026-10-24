@@ -1,4 +1,5 @@
 'use client';
+import { PhotoEditor } from '../../../PhotoEditor';
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -363,29 +364,13 @@ export function ItemEditView({
         <ItemFormTop
           media={
             <>
-              {/* With a picture shown, pointing at it (or focusing the overlay button) offers 사진 변경; without one the add button stays. */}
-              <div className={styles.photoChangeFrame}>
+              <PhotoEditor hasPhoto={!!photoUrl} busy={photoBusy}
+                changeLabel={photoBusy ? dictionary.uploading : photoUrl ? dictionary.changePhoto : dictionary.addPhoto}
+                removeLabel={dictionary.removePhoto} onChange={() => fileInput.current?.click()}
+                onRemove={ownPhoto ? () => setConfirmingPhotoDelete(true) : undefined}>
                 <ItemPhoto dictionary={dictionary} photoUrl={photoUrl} url={item.url} />
-                {photoUrl ? (
-                  <button className={styles.photoChangeOverlay} disabled={photoBusy} onClick={() => fileInput.current?.click()} type="button">
-                    <Glyph name="Image" size={26} />
-                    <span>{photoBusy ? dictionary.uploading : dictionary.changePhoto}</span>
-                  </button>
-                ) : null}
-              </div>
-              <div className={styles.photoActions}>
-                <input accept={ITEM_IMAGE_ACCEPT} aria-label={dictionary.addPhoto} hidden onChange={event => pickPhoto(event.target.files?.[0])} ref={fileInput} type="file" />
-                <button className={photoUrl ? `${styles.settingsAction} ${styles.photoChangeTouchOnly}` : styles.settingsAction} disabled={photoBusy} onClick={() => fileInput.current?.click()} type="button">
-                  <Glyph name="Image" size={16} />
-                  {photoBusy ? dictionary.uploading : ownPhoto ? dictionary.changePhoto : dictionary.addPhoto}
-                </button>
-                {ownPhoto ? (
-                  <button className={styles.dangerAction} disabled={photoBusy} onClick={() => setConfirmingPhotoDelete(true)} type="button">
-                    <Glyph name="Trash" size={16} />
-                    {dictionary.removePhoto}
-                  </button>
-                ) : null}
-              </div>
+              </PhotoEditor>
+              <input accept={ITEM_IMAGE_ACCEPT} aria-label={dictionary.addPhoto} hidden onChange={event => pickPhoto(event.target.files?.[0])} ref={fileInput} type="file" />
               {photoError ? (
                 <p className={styles.fieldError} role="alert">
                   {photoError}

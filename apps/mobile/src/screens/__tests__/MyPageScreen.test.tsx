@@ -341,3 +341,11 @@ describe('MyPageScreen account deletion is not on My Page', () => {
     expect(deleteAccount).not.toHaveBeenCalled();
   });
 });
+
+it('has no app permissions settings menu or navigation action', async () => {
+  mockUseAuth({});
+  const renderer = await renderScreen();
+  expect(findTextValues(renderer)).not.toContain(i18n.t('permissions.title'));
+  expect(renderer.root.findAll(node => node.props.testID === 'my-permissions')).toHaveLength(0);
+  await act(async () => renderer.unmount());
+});

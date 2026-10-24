@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
   // the production Docker image (see Dockerfile) copies just that output, not the full
   // node_modules/Next.js compiler.
   output: 'standalone',
+  productionBrowserSourceMaps: false,
 
   // The Next.js development indicator (the round 'N' badge, development only) is not Juple UI - hidden. Compile / runtime errors are still
   // shown in development (node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/devIndicators.md); no effect on production.

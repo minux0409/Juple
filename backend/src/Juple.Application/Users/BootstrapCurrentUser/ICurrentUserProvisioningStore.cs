@@ -5,6 +5,9 @@ namespace Juple.Application.Users.BootstrapCurrentUser;
 
 public interface ICurrentUserProvisioningStore
 {
+    /// <summary>True only for the transaction which inserted this account; concurrent race recovery stays false.</summary>
+    bool CreatedAccount => false;
+
     /// <summary>
     /// When a User already exists for this external identity: best-effort syncs its stored
     /// TimeZoneId to timeZoneId (only writing when it actually differs - device timezone can

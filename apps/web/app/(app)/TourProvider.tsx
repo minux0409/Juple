@@ -45,11 +45,12 @@ export function tourStepText(dictionary: AppDictionary, key: StepKey): { readonl
 }
 
 /**
- * Owns the one running tour of the signed-in app and draws it over the page. Help starts guides with useTour().start(id); nothing
- * starts by itself on the Web (there is no reliable "new person" signal in a browser, and an update must never interrupt people).
+ * Owns the one running tour of the signed-in app and draws it over the page. Help starts guides with useTour().start(id); only an explicit server new-account signal starts the main guide automatically.
  * Each step is its own component instance (keyed), so every step starts with a clean "looking for the target" state.
  */
 export function TourProvider({ children }: { readonly children: React.ReactNode }) {
+  const { isNewAccount, account } = useSignedInApp();
+  const autoStarted = useRef(false);
   const [running, setRunning] = useState<{ readonly guide: TourGuide; readonly index: number } | null>(null);
   const returnFocusTo = useRef<Element | null>(null);
 
@@ -65,8 +66,22 @@ export function TourProvider({ children }: { readonly children: React.ReactNode 
     }
   }, []);
 
+  // Only the server transaction which actually created this account opts in. Existing accounts and old APIs fail closed.
+  // Account existence is the durable cross-device once guard; local storage also records this browser's tour outcome.
+  useEffect(() => {
+    if (!isNewAccount || autoStarted.current) return;
+    try { if (localStorage.getItem(`juple.tour.mainOnboarding.v1.${account.homeAccountId}`)) return; } catch { /* The server new-account boundary still prevents later launches. */ }
+    const timer = window.setTimeout(() => {
+      autoStarted.current = true;
+      try { localStorage.setItem(`juple.tour.mainOnboarding.v1.${account.homeAccountId}`, 'started'); } catch { /* Storage is optional. */ }
+      start('mainOnboarding');
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [isNewAccount, account.homeAccountId, start]);
+
   // The tour ends: focus goes back to what had it (the guide's button in Help), unless that is gone.
-  const close = useCallback(() => {
+  const close = useCallback((completed = false) => {
+    try { if (running?.guide.id === 'mainOnboarding') localStorage.setItem(`juple.tour.mainOnboarding.v1.${account.homeAccountId}`, completed ? 'completed' : 'skipped'); } catch { /* Storage is optional. */ }
     setRunning(null);
     const previous = returnFocusTo.current;
     returnFocusTo.current = null;
@@ -77,7 +92,7 @@ export function TourProvider({ children }: { readonly children: React.ReactNode 
         }
       }, 0);
     }
-  }, []);
+  }, [account.homeAccountId, running]);
 
   const value = useMemo<TourContextValue>(() => ({ start, isRunning: running !== null }), [running, start]);
   return (
@@ -88,7 +103,8 @@ export function TourProvider({ children }: { readonly children: React.ReactNode 
           guide={running.guide}
           index={running.index}
           key={`${running.guide.id}:${running.index}`}
-          onClose={close}
+          onClose={() => close()}
+          onComplete={() => close(true)}
           onIndex={index => setRunning(current => (current ? { ...current, index } : current))}
         />
       ) : null}
@@ -100,7 +116,7 @@ function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-function TourStepView({ guide, index, onIndex, onClose }: { readonly guide: TourGuide; readonly index: number; readonly onIndex: (index: number) => void; readonly onClose: () => void }) {
+function TourStepView({ guide, index, onIndex, onClose, onComplete }: { readonly guide: TourGuide; readonly index: number; readonly onIndex: (index: number) => void; readonly onClose: () => void; readonly onComplete: () => void }) {
   const { dictionary } = useSignedInApp();
   const router = useRouter();
   const pathname = usePathname();
@@ -194,7 +210,7 @@ function TourStepView({ guide, index, onIndex, onClose }: { readonly guide: Tour
   const progress = formatMessage(dictionary.tourProgress, { current: index + 1, total });
   const reduceMotion = prefersReducedMotion();
 
-  const goNext = () => (isLast ? onClose() : onIndex(index + 1));
+  const goNext = () => (isLast ? onComplete() : onIndex(index + 1));
   const goPrevious = () => onIndex(Math.max(0, index - 1));
 
   // Escape ends the tour and the arrows move through it wherever the focus is (the page behind is blocked, so a click may have left

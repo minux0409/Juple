@@ -41,7 +41,8 @@ public sealed record ReceivedCollectionInvitationDto(
     DateTimeOffset ExpiresAtUtc,
     string? OwnerDisplayName = null,
     string? OwnerProfileImageUrl = null,
-    string? OwnerProfileImageVersion = null);
+    string? OwnerProfileImageVersion = null,
+    bool RequiresOwnerApproval = false);
 
 /// <summary>Result of an exact Juple ID lookup - the ID, the person's chosen display name and profile photo, nothing else.</summary>
 public sealed record JupleIdLookupResult(

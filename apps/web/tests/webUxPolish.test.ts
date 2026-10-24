@@ -130,7 +130,7 @@ describe('프로필 사진 (the mobile flow, the same endpoints)', () => {
   });
 
   it('the avatar itself and a 사진 변경 button choose; 사진 삭제 asks first for a saved photo; busy states disable everything', () => {
-    assert.match(view, /styles\.profilePhotoPick/);
+    assert.match(view, /<PhotoEditor/);
     assert.match(view, /dictionary\.changePhoto/);
     assert.match(view, /pickedPhoto \? removePhoto\(\) : setIsRemoveConfirmOpen\(true\)/);
     assert.match(view, /<ConfirmDialog[\s\S]*profileRemovePhotoConfirmTitle/);

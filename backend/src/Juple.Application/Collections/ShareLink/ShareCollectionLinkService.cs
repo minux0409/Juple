@@ -9,7 +9,7 @@ namespace Juple.Application.Collections.ShareLink;
 /// <param name="Skipped">Recipients who already belong to the Collection (its Owner, a member) or hold a pending invitation to it - the link is pointless for them, so nothing was sent (not an error).</param>
 public sealed record ShareCollectionLinkResult(IReadOnlyList<string> Sent, IReadOnlyList<string> NotFound, IReadOnlyList<string>? Skipped = null);
 
-/// <summary>Records the passed-on link for each recipient - in one transaction with the "still public" check.</summary>
+/// <summary>Records the passed-on link for each recipient - in one transaction with the active-link check.</summary>
 public interface ICollectionLinkShareStore
 {
     /// <summary>
@@ -17,7 +17,7 @@ public interface ICollectionLinkShareStore
     /// (public or private - CollectionCollaborationConflictException PublicLinkInactive otherwise, and nothing is
     /// recorded for anyone), drops every recipient who already belongs to the Collection or has a pending invitation
     /// (decided here, under the lock - a stale picker can never send the link to them), then records one
-    /// CollectionLinkShared notification per remaining recipient. Only ids are stored (sender, Collection) - never the
+    /// durable invitation and CollectionInvitationReceived notification per eligible recipient. Only ids are stored - never the
     /// link itself, a password or a token. Returns the user ids that were skipped.
     /// </summary>
     Task<IReadOnlyCollection<long>> EnqueueAsync(
@@ -38,12 +38,9 @@ public interface IShareCollectionLinkService
 }
 
 /// <summary>
-/// 친구에게 / ID로 공유 of a Collection's canonical link: anyone who may view the Collection (the Owner or
-/// an accepted member) passes the Owner's link on to other Juple users, as a Juple notification that opens
-/// the same share resolver as any /c/{publicId} link (a member goes to the Collection, a nonmember to the public
-/// view or - when the Collection is private - to the participation preview). It is never a membership: nobody is
-/// invited, added or given a role. The link must exist at the moment of sending, and recipients who already belong
-/// to the Collection (or hold a pending invitation) are skipped - both decided by the server, not trusted from the app.
+/// Compatible batch entry point for passing a collection to friends. Creates the same durable invitations as owner invites;
+/// member referrals never grant private membership and acceptance creates an owner approval request instead.
+/// Existing clients retain Sent / Skipped / NotFound and receive the standard invitation notification target.
 /// </summary>
 public sealed class ShareCollectionLinkService(
     ICollectionAccessService accessService,

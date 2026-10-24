@@ -506,7 +506,7 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
       {favoriteError ? <p className={styles.fieldError} role="alert">{favoriteError}</p> : null}
       {notificationError ? <p className={styles.fieldError} data-notification-failed role="alert">{notificationError}</p> : null}
       {gate ? (
-        <UnlockPanel
+        <div className={styles.collectionGateCenter}><UnlockPanel
           collectionId={collection.id}
           isOwner={!isSharedWithMe(collection) || (collection.isMemberLocked === true && gate === 'lock')}
           kind={gate}
@@ -518,7 +518,7 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
             setContentToken(token => token + 1);
           }}
           onUnlocked={afterUnlock}
-        />
+        /></div>
       ) : (
         <>
           <div className={styles.toolbar}>

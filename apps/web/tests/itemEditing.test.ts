@@ -356,7 +356,7 @@ describe('새 링크 and 링크 수정 are one form family', () => {
     assert.ok(edit.indexOf('<ItemCollectionsSection') < edit.indexOf('<ItemMemoSection'), 'memo comes after Collections');
     assert.ok(edit.indexOf('<ItemMemoSection') < edit.indexOf('<ItemFormFooter>'));
     // The photo and its actions are inside the top card's media cell, not a column of their own.
-    assert.ok(edit.indexOf('<ItemFormTop') < edit.indexOf('styles.photoActions') && edit.indexOf('styles.photoActions') < edit.indexOf('</ItemFormTop>'));
+    assert.ok(edit.indexOf('<ItemFormTop') < edit.indexOf('<PhotoEditor') && edit.indexOf('<PhotoEditor') < edit.indexOf('</ItemFormTop>'));
   });
 
   it('the editor starts with the link\'s current Collections selected; the footer is 취소 + 저장 (new: 저장)', () => {

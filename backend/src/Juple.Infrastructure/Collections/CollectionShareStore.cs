@@ -152,6 +152,11 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
         }
 
         share.Revoke(revokedAtUtc);
+        // Referrals depend on this active link. Explicit owner invitations remain valid.
+        await dbContext.CollectionInvitations.Where(invitation => invitation.CollectionId == collectionId
+            && invitation.InvitedByUserId != userId && invitation.Status == CollectionInvitationStatus.Pending)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(invitation => invitation.Status, CollectionInvitationStatus.Revoked)
+                .SetProperty(invitation => invitation.RespondedAtUtc, revokedAtUtc), cancellationToken);
         await JoinRequestHousekeeping.ObsoleteAllPendingAsync(dbContext, collectionId, revokedAtUtc, cancellationToken);
 
         try

@@ -67,7 +67,7 @@ export function ReceivedInvitations({ onAccepted }: { readonly onAccepted: () =>
       if (items.length === 1) setOpen(false);
       if (result === 'stale') setNotice(dictionary.invitationNoLongerValid);
       else if (accept) {
-        setNotice(dictionary.invitationAccepted);
+        setNotice(invitation.requiresOwnerApproval ? dictionary.shareEntryPendingMessage : dictionary.invitationAccepted);
         onAccepted();
         void store.read('collections', true).catch(() => undefined);
       }
@@ -106,7 +106,7 @@ export function ReceivedInvitations({ onAccepted }: { readonly onAccepted: () =>
                     <Avatar person={{ displayName: item.ownerDisplayName, profileImageUrl: item.ownerProfileImageUrl, role: 'owner' }} size={20} />
                     <span>{participantName({ jupleId: item.ownerJupleId, displayName: item.ownerDisplayName }, dictionary)}</span>
                   </div>
-                  <p className={styles.meta}>{roleLabel(item.role, dictionary)}</p>
+                  <p className={styles.meta}>{roleLabel(item.role, dictionary)}{item.requiresOwnerApproval ? ` · ${dictionary.shareEntryPendingMessage}` : ''}</p>
                 </div>
               </div>
               <div className={styles.actions}>

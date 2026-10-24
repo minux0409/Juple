@@ -21,6 +21,7 @@ public sealed class CurrentUserBootstrapServiceTests
 
         Assert.Empty(store.CreatedUsers);
         Assert.Equal(UserPlan.Plus, result.Plan);
+        Assert.False(result.IsNewAccount);
         // The stored (validated, trimmed) zone - what the server's date filters use - comes back.
         Assert.Equal("Asia/Seoul", result.TimeZoneId);
     }
@@ -58,6 +59,7 @@ public sealed class CurrentUserBootstrapServiceTests
         var service = CreateService(store);
 
         var result = await service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul", Now.AddMinutes(-1)));
+        Assert.True(result.IsNewAccount);
         var plan = result.Plan;
         Assert.Equal("Asia/Seoul", result.TimeZoneId);
 
@@ -67,6 +69,14 @@ public sealed class CurrentUserBootstrapServiceTests
         Assert.Equal("Asia/Seoul", data.TimeZoneId);
         Assert.Null(data.DefaultCurrencyCode);
         Assert.Equal(UserPlan.Free, plan);
+    }
+
+    [Fact]
+    public async Task ConcurrentProvisioningLoser_DoesNotOfferANewAccountTour()
+    {
+        var store = new FakeProvisioningStore { CreationWasWonElsewhere = true };
+        var result = await CreateService(store).BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul", Now.AddMinutes(-1)));
+        Assert.False(result.IsNewAccount);
     }
 
     [Fact]
@@ -281,6 +291,9 @@ public sealed class CurrentUserBootstrapServiceTests
     private sealed class FakeProvisioningStore : ICurrentUserProvisioningStore
     {
         public UserPlan? ExistingPlan { get; init; }
+
+        public bool CreationWasWonElsewhere { get; init; }
+        public bool CreatedAccount => CreatedUsers.Count > 0 && !CreationWasWonElsewhere;
 
         public List<CurrentUserBootstrapData> CreatedUsers { get; } = [];
 

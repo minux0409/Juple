@@ -598,11 +598,12 @@ export function SharePanel({
               {url}
             </p>
             <div className={styles.formActions}>
-              {canSystemShare ? (
+              {canManage && canSystemShare ? (
                 <button className={styles.settingsAction} onClick={systemShare} type="button">
                   {dictionary.shareExternal}
                 </button>
               ) : null}
+              {!canManage ? <button className={styles.primaryAction} onClick={() => setPickerOpen(true)} type="button"><Glyph name="People" size={18} />{dictionary.chooseFriends}</button> : null}
               <button className={styles.primaryAction} onClick={copy} type="button">
                 {dictionary.shareCopy}
               </button>
@@ -836,6 +837,7 @@ export function SharePanel({
       <FriendPicker
         collectionId={collection.id}
         minimumRole={minimumRole}
+        referral={!canManage}
         onClose={() => setPickerOpen(false)}
         onInvited={onParticipantsChanged}
         open={pickerOpen}

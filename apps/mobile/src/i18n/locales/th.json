@@ -385,9 +385,8 @@
     "displayNamePlaceholder": "ป้อนชื่อเล่น",
     "nickname": "ชื่อเล่น",
     "nicknameNotSet": "ยังไม่ได้ตั้ง",
-    "webBannerTitle": "ลองใช้ Juple บนคอมพิวเตอร์ด้วย",
-    "webBannerBody": "คุณสามารถจัดการลิงก์และคอลเลกชันที่บันทึกไว้บนเว็บได้เช่นกัน",
-    "webBannerAction": "เปิด Juple เว็บ"
+    "webBannerTitle": "ใช้ Juple บนเว็บได้เช่นกัน",
+    "webBannerBody": "เข้า juple.co.kr บนพีซีเพื่อจัดการลิงก์และคอลเลกชันที่บันทึกไว้"
   },
   "profile": {
     "edit": "แก้ไขโปรไฟล์",

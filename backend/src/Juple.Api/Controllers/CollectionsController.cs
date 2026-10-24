@@ -658,8 +658,8 @@ public sealed class CollectionsController(
 
     /// <summary>
     /// 친구에게 / ID로 공유: passes the Collection's public link on to these Juple users (at most
-    /// ShareCollectionLinkService.MaxRecipientsPerShare) as a Juple notification - never an
-    /// invitation or a membership. Anyone who may view the Collection; the public link must still be
+    /// ShareCollectionLinkService.MaxRecipientsPerShare) as a durable invitation and its standard notification.
+    /// Member referrals preserve owner approval for private collections; no membership is created when sending. Anyone who may view the Collection; the public link must still be
     /// on right now (409 publicLinkInactive otherwise, and nobody is sent anything). Unknown or
     /// malformed IDs come back in notFound; one's own ID is skipped.
     /// </summary>

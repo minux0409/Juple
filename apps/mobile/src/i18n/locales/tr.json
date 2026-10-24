@@ -385,9 +385,8 @@
     "displayNamePlaceholder": "Takma ad girin",
     "nickname": "Takma ad",
     "nicknameNotSet": "Ayarlanmadı",
-    "webBannerTitle": "Juple'ı bilgisayarında da dene",
-    "webBannerBody": "Kaydettiğin bağlantıları ve koleksiyonları web üzerinden de yönetebilirsin.",
-    "webBannerAction": "Juple Web'i aç"
+    "webBannerTitle": "Juple web üzerinde de kullanılabilir",
+    "webBannerBody": "Kaydettiğiniz bağlantıları ve koleksiyonları yönetmek için PC üzerinden juple.co.kr adresini ziyaret edin."
   },
   "profile": {
     "edit": "Profili düzenle",

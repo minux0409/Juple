@@ -81,7 +81,7 @@ public sealed class DispatchPendingPushNotificationsService(
             data["collectionId"] = collectionId.ToString(CultureInfo.InvariantCulture);
         }
 
-        if (notification.Type == NotificationType.CollectionInvitationAnswered && notification.SubjectId is { } invitationId)
+        if (notification.Type is (NotificationType.CollectionInvitationReceived or NotificationType.CollectionInvitationAnswered) && notification.SubjectId is { } invitationId)
         {
             data["invitationId"] = invitationId.ToString(CultureInfo.InvariantCulture);
         }

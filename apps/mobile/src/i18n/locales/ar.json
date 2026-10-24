@@ -385,9 +385,8 @@
     "displayNamePlaceholder": "أدخل اسمًا مستعارًا",
     "nickname": "الاسم المستعار",
     "nicknameNotSet": "غير معيّن",
-    "webBannerTitle": "جرّب Juple على الكمبيوتر أيضًا",
-    "webBannerBody": "يمكنك إدارة الروابط والمجموعات المحفوظة على الويب أيضًا.",
-    "webBannerAction": "فتح Juple على الويب"
+    "webBannerTitle": "Juple متاح أيضًا على الويب",
+    "webBannerBody": "انتقل إلى juple.co.kr من الكمبيوتر لإدارة الروابط والمجموعات المحفوظة."
   },
   "profile": {
     "edit": "تعديل الملف الشخصي",
