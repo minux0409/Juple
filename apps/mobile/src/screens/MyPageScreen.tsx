@@ -1,3 +1,4 @@
+import { NoticeMenuRow } from '../notices/NoticeMenuRow';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useRef, useState } from 'react';
@@ -288,6 +289,8 @@ export function MyPageScreen() {
             </View>
             <Text style={styles.settingsRowLabel}>{t('customerCenter.title')}</Text>
           </Pressable>
+          <View style={styles.settingsRowDivider} />
+          <NoticeMenuRow />
           <View style={styles.settingsRowDivider} />
           {isSubscriptionEntryAvailable ? (
             <>

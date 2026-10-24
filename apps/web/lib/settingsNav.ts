@@ -5,7 +5,7 @@ import type { AppDictionary } from './appI18n.ts';
  * list, the content). Only features that really exist: 프로필, 언어, 컬렉션 잠금, 구독, 계정, 고객센터 and the deliberate 계정 삭제. 친구 (with its
  * 차단한 사용자 tab) and 삭제 이력 are main destinations of the side bar and are not part of it.
  */
-export type SettingsNavKey = 'profile' | 'language' | 'appearance' | 'collectionLock' | 'subscription' | 'account' | 'help' | 'support' | 'deleteAccount';
+export type SettingsNavKey = 'profile' | 'language' | 'appearance' | 'collectionLock' | 'subscription' | 'account' | 'help' | 'support' | 'notices' | 'deleteAccount';
 
 export interface SettingsNavItem {
   readonly key: SettingsNavKey;
@@ -28,6 +28,7 @@ export const SETTINGS_NAV_ITEMS: readonly SettingsNavItem[] = [
   // 도움말 (mobile HelpGuideScreen): the 기능 가이드 tours.
   { key: 'help', href: '/me/help', paths: ['/me/help'], group: 3 },
   // 고객센터 (mobile CustomerCenterScreen): the legal documents and 문의하기.
+  { key: 'notices', href: '/me/notices', paths: ['/me/notices'], group: 3 },
   { key: 'support', href: '/me/support', paths: ['/me/support'], group: 3 },
   { key: 'deleteAccount', href: '/me/account/delete', paths: ['/me/account/delete'], group: 4, danger: true },
 ];
@@ -40,7 +41,7 @@ function normalize(pathname: string): string {
 export function activeSettingsItem(pathname: string): SettingsNavItem | null {
   const path = normalize(pathname);
   // 고객센터's own pages (a new inquiry, one inquiry) are inside it: /me/support/...
-  return SETTINGS_NAV_ITEMS.find(item => item.paths.includes(path) || (item.key === 'support' && path.startsWith('/me/support/'))) ?? null;
+  return SETTINGS_NAV_ITEMS.find(item => item.paths.includes(path) || ((item.key === 'support' || item.key === 'notices') && path.startsWith(`${item.href}/`))) ?? null;
 }
 
 /** Whether the inner settings list frames this address. */
@@ -64,6 +65,8 @@ export function settingsNavLabel(key: SettingsNavKey, dictionary: AppDictionary)
       return dictionary.accountSectionTitle;
     case 'help':
       return dictionary.helpGuideTitle;
+    case 'notices':
+      return dictionary.noticeTitle;
     case 'support':
       return dictionary.customerCenterTitle;
     case 'deleteAccount':

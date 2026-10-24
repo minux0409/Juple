@@ -334,7 +334,7 @@ describe('admin pages and model', () => {
   });
 
   it('the sidebar has every section; 콘텐츠 (no decided scope) stays disabled, every enabled entry is a real page', () => {
-    assert.deepEqual(NAVIGATION.map(entry => entry.label), ['Overview', 'Users', 'Links', '콘텐츠', '문의', 'Business Expenses', 'Revenue & Profit', 'Settings', '기존 UTC 분석', 'Operations']);
+    assert.deepEqual(NAVIGATION.map(entry => entry.label), ['Overview', 'Users', 'Links', '콘텐츠', '공지사항 관리', '문의', 'Business Expenses', 'Revenue & Profit', 'Settings', '기존 UTC 분석', 'Operations']);
     const leaves = (entries: readonly NavEntry[]): NavEntry[] => entries.flatMap(entry => (entry.children ? leaves(entry.children) : [entry]));
     const enabled = leaves(NAVIGATION).filter(entry => entry.href).map(entry => entry.href);
     assert.deepEqual(enabled, [
@@ -342,6 +342,7 @@ describe('admin pages and model', () => {
       '/workspace/users',
       '/users',
       '/links',
+      '/notices',
       '/inquiries',
       '/expenses',
       '/revenue',

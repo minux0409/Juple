@@ -1,4 +1,16 @@
 {
+  "notices": {
+    "title": "公告",
+    "description": "最新消息与服务说明",
+    "empty": "暂无公告。",
+    "important": "重要",
+    "pinned": "置顶",
+    "unread": "未读",
+    "read": "已读",
+    "officialLink": "官方说明链接",
+    "readFailed": "无法保存已读状态，请重试。",
+    "more": "加载更多"
+},
   "common": {
     "viewList": "列表视图",
     "viewGrid": "网格视图",

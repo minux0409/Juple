@@ -1956,6 +1956,111 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.ToTable("RecentlyOpenedItems", "items");
                 });
 
+            modelBuilder.Entity("Juple.Domain.Notices.Notice", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("EndsAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsImportant")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsPinned")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("OfficialUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<int>("Platforms")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ReadVersion")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("StartsAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsPinned", "StartsAtUtc", "Id")
+                        .HasFilter("[DeletedAtUtc] IS NULL AND [Status] = 'Published'");
+
+                    b.ToTable("Notices", "notices");
+                });
+
+            modelBuilder.Entity("Juple.Domain.Notices.NoticeRead", b =>
+                {
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("NoticeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("ReadAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("ReadVersion")
+                        .HasColumnType("int");
+
+                    b.HasKey("UserId", "NoticeId");
+
+                    b.HasIndex("NoticeId");
+
+                    b.ToTable("NoticeReads", "notices");
+                });
+
+            modelBuilder.Entity("Juple.Domain.Notices.NoticeTranslation", b =>
+                {
+                    b.Property<long>("NoticeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Language")
+                        .HasMaxLength(16)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("NoticeId", "Language");
+
+                    b.ToTable("NoticeTranslations", "notices");
+                });
+
             modelBuilder.Entity("Juple.Domain.Notifications.Notification", b =>
                 {
                     b.Property<long>("Id")
@@ -3240,6 +3345,30 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Juple.Domain.Notices.NoticeRead", b =>
+                {
+                    b.HasOne("Juple.Domain.Notices.Notice", null)
+                        .WithMany()
+                        .HasForeignKey("NoticeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Notices.NoticeTranslation", b =>
+                {
+                    b.HasOne("Juple.Domain.Notices.Notice", null)
+                        .WithMany("Translations")
+                        .HasForeignKey("NoticeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Juple.Domain.Notifications.Notification", b =>
                 {
                     b.HasOne("Juple.Domain.Items.Item", null)
@@ -3347,6 +3476,11 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Notices.Notice", b =>
+                {
+                    b.Navigation("Translations");
                 });
 #pragma warning restore 612, 618
         }

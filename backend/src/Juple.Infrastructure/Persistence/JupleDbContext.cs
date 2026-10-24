@@ -13,6 +13,9 @@ namespace Juple.Infrastructure.Persistence;
 
 public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : DbContext(options)
 {
+    public DbSet<Juple.Domain.Notices.Notice> Notices => Set<Juple.Domain.Notices.Notice>();
+    public DbSet<Juple.Domain.Notices.NoticeRead> NoticeReads => Set<Juple.Domain.Notices.NoticeRead>();
+
     public DbSet<User> Users => Set<User>();
 
     public DbSet<ExternalIdentity> ExternalIdentities => Set<ExternalIdentity>();

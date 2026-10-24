@@ -23,6 +23,7 @@ export const NAVIGATION: readonly NavEntry[] = [
       { label: strings.navContentCollections, href: null },
     ],
   },
+  { label: '공지사항 관리', href: '/notices' },
   { label: strings.navInquiries, href: '/inquiries' },
   { label: 'Business Expenses', href: '/expenses' },
   { label: 'Revenue & Profit', href: '/revenue' },

@@ -1,4 +1,16 @@
 {
+  "notices": {
+    "title": "Notices",
+    "description": "News and service updates",
+    "empty": "No notices have been posted.",
+    "important": "Important",
+    "pinned": "Pinned",
+    "unread": "Unread",
+    "read": "Read",
+    "officialLink": "Official information link",
+    "readFailed": "Could not save read status. Please try again.",
+    "more": "Load more"
+},
   "common": {
     "viewList": "List view",
     "viewGrid": "Grid view",

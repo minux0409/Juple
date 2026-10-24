@@ -1,3 +1,5 @@
+import { NoticesScreen } from '../screens/NoticesScreen';
+import { NoticeDetailScreen } from '../screens/NoticeDetailScreen';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
@@ -162,6 +164,8 @@ export type RootStackParamList = {
   Subscription: undefined;
   /** 고객센터 > 문의하기: write an inquiry (default) or read 문의내역. Sent inside the app - no mail app. */
   SupportInquiry: { initialTab?: 'write' | 'history' } | undefined;
+  Notices: undefined;
+  NoticeDetail: { noticeId: number };
   /** 문의내역 > one inquiry: its question and the answer. Only the caller's own inquiry opens (the server answers 404 otherwise). */
   SupportInquiryDetail: { inquiryId: number };
   /**
@@ -305,6 +309,8 @@ export function RootStack() {
             {isSubscriptionProgramLive ? (
               <Stack.Screen component={themedScreen(SubscriptionScreen)} name="Subscription" options={{ title: t('subscription.title'), ...headerTitleWithIcon(screenIcons.subscription, t('subscription.title')) }} />
             ) : null}
+            <Stack.Screen component={themedScreen(NoticesScreen)} name="Notices" options={{title:t('notices.title')}} />
+            <Stack.Screen component={themedScreen(NoticeDetailScreen)} name="NoticeDetail" options={{title:t('notices.title')}} />
             <Stack.Screen component={themedScreen(SupportInquiryScreen)} name="SupportInquiry" options={{ title: t('inquiry.title'), ...headerTitleWithIcon(screenIcons.customerCenter, t('inquiry.title')) }} />
             <Stack.Screen component={themedScreen(SupportInquiryDetailScreen)} name="SupportInquiryDetail" options={{ title: t('inquiry.detailTitle'), ...headerTitleWithIcon(screenIcons.customerCenter, t('inquiry.detailTitle')) }} />
             {/* Full-screen, no header: its own skip/close and Android back (see TutorialScreen); no swipe-back gesture, so a first run is always recorded. */}

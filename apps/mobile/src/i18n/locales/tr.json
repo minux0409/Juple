@@ -1,4 +1,16 @@
 {
+  "notices": {
+    "title": "Duyurular",
+    "description": "Haberler ve hizmet bilgileri",
+    "empty": "Henüz duyuru yok.",
+    "important": "Önemli",
+    "pinned": "Sabitlenmiş",
+    "unread": "Okunmamış",
+    "read": "Okundu",
+    "officialLink": "Resmî bilgi bağlantısı",
+    "readFailed": "Okunma durumu kaydedilemedi. Tekrar deneyin.",
+    "more": "Daha fazla"
+},
   "common": {
     "viewList": "Liste görünümü",
     "viewGrid": "Izgara görünümü",

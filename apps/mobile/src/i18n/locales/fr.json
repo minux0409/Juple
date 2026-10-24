@@ -1,4 +1,16 @@
 {
+  "notices": {
+    "title": "Annonces",
+    "description": "Actualités et informations sur le service",
+    "empty": "Aucune annonce publiée.",
+    "important": "Important",
+    "pinned": "Épinglé",
+    "unread": "Non lu",
+    "read": "Lu",
+    "officialLink": "Lien d’information officiel",
+    "readFailed": "Impossible d’enregistrer la lecture. Réessayez.",
+    "more": "Afficher plus"
+},
   "common": {
     "viewList": "Vue en liste",
     "viewGrid": "Vue en grille",

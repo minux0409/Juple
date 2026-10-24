@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { NoticeBadge } from './notices/NoticeBadge';
+import noticeStyles from './notices/notices.module.css';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { activeSettingsItem, SETTINGS_NAV_ITEMS, settingsNavLabel } from '../../../lib/settingsNav';
@@ -38,7 +40,7 @@ export default function MeLayout({ children }: { readonly children: React.ReactN
                 href={item.href}
                 {...settingsTourTarget(item.key)}
               >
-                {settingsNavLabel(item.key, dictionary)}
+                {item.key === 'notices' ? <span className={noticeStyles.menuRow}><Glyph name="Bell" size={18}/><span className={noticeStyles.menuText}>{dictionary.noticeTitle}<span className={noticeStyles.menuDescription}>{dictionary.noticeDescription}</span></span><NoticeBadge/><span aria-hidden>›</span></span> : settingsNavLabel(item.key, dictionary)}
               </Link>
             </li>
           ))}

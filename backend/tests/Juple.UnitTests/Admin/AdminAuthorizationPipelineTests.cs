@@ -196,6 +196,15 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Forbidden, (await SendAsync(method, "/api/v1/admin/expenses" + suffix, InactiveAdminOid)).StatusCode);
     }
 
+    [Theory]
+    [InlineData("GET", "")][InlineData("GET", "/1")][InlineData("POST", "")][InlineData("PUT", "/1")][InlineData("DELETE", "/1?version=test")]
+    public async Task Notices_require_an_active_server_admin_grant(string method, string suffix)
+    {
+        Assert.Equal(HttpStatusCode.Unauthorized,(await SendAsync(method,"/api/v1/admin/notices"+suffix,null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden,(await SendAsync(method,"/api/v1/admin/notices"+suffix,MemberOid)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden,(await SendAsync(method,"/api/v1/admin/notices"+suffix,InactiveAdminOid)).StatusCode);
+    }
+
     [Fact]
     public async Task Expense_configuration_is_admin_only_and_does_not_enable_billing_or_the_ledger()
     {
@@ -303,7 +312,7 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
             }
         }
 
-        Assert.Equal(["AdminAzureCostsController", "AdminController", "AdminExpensesController", "AdminSupportInquiriesController", "AdminWorkspaceController"], controllers.Where(type => type.Namespace == typeof(AdminController).Namespace).Select(type => type.Name).Order().ToArray());
+        Assert.Equal(["AdminAzureCostsController", "AdminController", "AdminExpensesController", "AdminNoticesController", "AdminSupportInquiriesController", "AdminWorkspaceController"], controllers.Where(type => type.Namespace == typeof(AdminController).Namespace).Select(type => type.Name).Order().ToArray());
     }
 
     private Task<HttpResponseMessage> SendAsync(string method, string path, Guid? identity, string scope = Scope)

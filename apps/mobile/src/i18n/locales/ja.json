@@ -1,4 +1,16 @@
 {
+  "notices": {
+    "title": "お知らせ",
+    "description": "最新情報とサービス案内",
+    "empty": "お知らせはありません。",
+    "important": "重要",
+    "pinned": "固定",
+    "unread": "未読",
+    "read": "既読",
+    "officialLink": "公式案内リンク",
+    "readFailed": "既読状態を保存できませんでした。もう一度お試しください。",
+    "more": "もっと見る"
+},
   "common": {
     "viewList": "リスト表示",
     "viewGrid": "グリッド表示",

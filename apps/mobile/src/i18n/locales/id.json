@@ -1,4 +1,16 @@
 {
+  "notices": {
+    "title": "Pengumuman",
+    "description": "Berita dan informasi layanan",
+    "empty": "Belum ada pengumuman.",
+    "important": "Penting",
+    "pinned": "Disematkan",
+    "unread": "Belum dibaca",
+    "read": "Dibaca",
+    "officialLink": "Tautan informasi resmi",
+    "readFailed": "Status baca tidak dapat disimpan. Coba lagi.",
+    "more": "Muat lagi"
+},
   "common": {
     "viewList": "Tampilan daftar",
     "viewGrid": "Tampilan kisi",

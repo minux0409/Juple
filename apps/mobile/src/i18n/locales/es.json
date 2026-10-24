@@ -1,4 +1,16 @@
 {
+  "notices": {
+    "title": "Avisos",
+    "description": "Noticias y novedades del servicio",
+    "empty": "No hay avisos publicados.",
+    "important": "Importante",
+    "pinned": "Fijado",
+    "unread": "Sin leer",
+    "read": "Leído",
+    "officialLink": "Enlace de información oficial",
+    "readFailed": "No se pudo guardar el estado de lectura. Inténtalo de nuevo.",
+    "more": "Cargar más"
+},
   "common": {
     "viewList": "Vista de lista",
     "viewGrid": "Vista de cuadrícula",

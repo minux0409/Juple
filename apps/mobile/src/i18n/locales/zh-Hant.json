@@ -1,4 +1,16 @@
 {
+  "notices": {
+    "title": "公告",
+    "description": "最新消息與服務說明",
+    "empty": "目前沒有公告。",
+    "important": "重要",
+    "pinned": "置頂",
+    "unread": "未讀",
+    "read": "已讀",
+    "officialLink": "官方說明連結",
+    "readFailed": "無法儲存已讀狀態，請重試。",
+    "more": "載入更多"
+},
   "common": {
     "viewList": "清單檢視",
     "viewGrid": "格狀檢視",

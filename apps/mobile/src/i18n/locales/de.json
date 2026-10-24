@@ -1,4 +1,16 @@
 {
+  "notices": {
+    "title": "Mitteilungen",
+    "description": "Neuigkeiten und Serviceinformationen",
+    "empty": "Keine Mitteilungen vorhanden.",
+    "important": "Wichtig",
+    "pinned": "Angeheftet",
+    "unread": "Ungelesen",
+    "read": "Gelesen",
+    "officialLink": "Offizieller Informationslink",
+    "readFailed": "Lesestatus konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "more": "Mehr laden"
+},
   "common": {
     "viewList": "Listenansicht",
     "viewGrid": "Rasteransicht",

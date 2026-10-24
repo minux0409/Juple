@@ -1,4 +1,16 @@
 {
+  "notices": {
+    "title": "Thông báo",
+    "description": "Tin tức và hướng dẫn dịch vụ",
+    "empty": "Chưa có thông báo.",
+    "important": "Quan trọng",
+    "pinned": "Đã ghim",
+    "unread": "Chưa đọc",
+    "read": "Đã đọc",
+    "officialLink": "Liên kết thông tin chính thức",
+    "readFailed": "Không thể lưu trạng thái đã đọc. Vui lòng thử lại.",
+    "more": "Xem thêm"
+},
   "common": {
     "viewList": "Dạng danh sách",
     "viewGrid": "Dạng lưới",

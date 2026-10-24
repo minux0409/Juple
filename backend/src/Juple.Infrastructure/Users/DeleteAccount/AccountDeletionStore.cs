@@ -86,6 +86,8 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext, TimeProvider?
             // the leaf tables below (NotificationDeliveries, ItemImages, CollectionItems,
             // CollectionShares) - they are never touched explicitly here.
 
+            await dbContext.NoticeReads.Where(read => read.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+
             // Notifications -> cascades NotificationDeliveries. Also the ones this user caused for
             // other people (friend requests, invitations) - nothing about them stays behind.
             await dbContext.Notifications

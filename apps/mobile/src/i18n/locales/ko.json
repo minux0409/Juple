@@ -1,4 +1,16 @@
 {
+  "notices": {
+    "title": "공지사항",
+    "description": "새로운 소식과 서비스 안내",
+    "empty": "등록된 공지사항이 없습니다.",
+    "important": "중요",
+    "pinned": "고정",
+    "unread": "읽지 않음",
+    "read": "읽음",
+    "officialLink": "공식 안내 링크",
+    "readFailed": "읽음 상태를 저장하지 못했어요. 다시 시도해 주세요.",
+    "more": "더 보기"
+},
   "common": {
     "viewList": "목록 보기",
     "viewGrid": "그리드 보기",

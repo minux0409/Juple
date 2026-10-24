@@ -116,6 +116,8 @@ public static class DependencyInjection
         services.AddScoped<Juple.Application.Admin.IAdminAnalyticsStore, Juple.Infrastructure.Analytics.AdminAnalyticsStore>();
         services.AddSingleton(configuration.GetSection("AdminWorkspace").Get<Juple.Application.Admin.AdminWorkspaceOptions>() ?? new());
         services.AddScoped<Juple.Application.Admin.IAdminWorkspaceStore, Juple.Infrastructure.Analytics.AdminWorkspaceStore>();
+        services.AddScoped<Juple.Application.Notices.INoticeStore, Juple.Infrastructure.Notices.NoticeStore>();
+        services.AddScoped<Juple.Application.Notices.NoticeService>();
         services.AddMemoryCache();
         // Prefer the host's Managed Identity; the standard developer chain is only a fallback
         // when no managed-identity endpoint is available locally. Reuse its token cache.

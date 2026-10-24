@@ -47,11 +47,15 @@ public sealed class AdminAuditLog
 /// <summary>The audited admin actions. Names are stored, so they are a stable contract.</summary>
 public static class AdminAuditActions
 {
+    public const string NoticeCreated = "notice.created";
+    public const string NoticeUpdated = "notice.updated";
+    public const string NoticeDeleted = "notice.deleted";
     public const string SupportInquiryStatusChanged = "support.inquiry.status_changed";
     public const string SupportInquiryAnswered = "support.inquiry.answered";
 }
 
 public static class AdminAuditTargets
 {
+    public const string Notice = "Notice";
     public const string SupportInquiry = "SupportInquiry";
 }
