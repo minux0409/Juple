@@ -3,7 +3,6 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
-import { PermissionsScreen } from '../permissions/PermissionsScreen';
 import { usePermissionOnboarding } from '../permissions/usePermissionOnboarding';
 import { AccountManagementScreen } from '../screens/AccountManagementScreen';
 import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
@@ -152,7 +151,6 @@ export type RootStackParamList = {
   DeleteAccount: undefined;
   /** 계정 관리 / 구독 > 데이터 내보내기: the person's own data as download links (shown only when the server enables export). */
   DataExport: undefined;
-  Permissions: undefined;
   Trash: undefined;
   /** 내 페이지 > 고객센터: tutorial replay, FAQ, 문의하기 (system mail app), legal documents and the app version. */
   CustomerCenter: undefined;
@@ -237,7 +235,6 @@ export function RootStack() {
         {isReady ? (
           <Stack.Group>
             <Stack.Screen component={themedScreen(MainTabs)} name="MainTabs" options={{ headerShown: false }} />
-            <Stack.Screen component={themedScreen(PermissionsScreen)} name="Permissions" options={{ title: t('permissions.title') }} />
             {/* A bottom half-sheet over the screen it was opened from - never a full page: transparent, no header; the dimmed
                 backdrop fades in while the sheet itself slides up (see ItemDetailsScreen). The system back button (and the
                 sheet's own X / backdrop) close it. */}

@@ -385,9 +385,8 @@
     "displayNamePlaceholder": "Nhập biệt danh",
     "nickname": "Biệt danh",
     "nicknameNotSet": "Chưa đặt",
-    "webBannerTitle": "Hãy dùng Juple cả trên máy tính",
-    "webBannerBody": "Bạn cũng có thể quản lý liên kết và bộ sưu tập đã lưu trên web.",
-    "webBannerAction": "Mở Juple Web"
+    "webBannerTitle": "Juple cũng có phiên bản web",
+    "webBannerBody": "Truy cập juple.co.kr trên PC để quản lý liên kết và bộ sưu tập đã lưu."
   },
   "profile": {
     "edit": "Chỉnh sửa hồ sơ",

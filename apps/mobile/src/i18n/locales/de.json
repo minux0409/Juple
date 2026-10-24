@@ -385,9 +385,8 @@
     "displayNamePlaceholder": "Spitznamen eingeben",
     "nickname": "Spitzname",
     "nicknameNotSet": "Nicht festgelegt",
-    "webBannerTitle": "Nutze Juple auch am PC",
-    "webBannerBody": "Du kannst deine gespeicherten Links und Sammlungen auch im Web verwalten.",
-    "webBannerAction": "Juple Web öffnen"
+    "webBannerTitle": "Juple gibt es auch im Web",
+    "webBannerBody": "Verwalte deine gespeicherten Links und Sammlungen am PC auf juple.co.kr."
   },
   "profile": {
     "edit": "Profil bearbeiten",

@@ -11,7 +11,7 @@ import { LinkImage } from '../LinkImage';
 import { Notice } from '../PageStates';
 import { SettingsPage } from './SettingsPage';
 import { Avatar } from '../Avatar';
-import { Glyph } from '../Glyph';
+import { PhotoEditor } from '../PhotoEditor';
 import { PhotoCropDialog } from '../PhotoCropDialog';
 import { useObjectUrl } from '../useObjectUrl';
 import styles from '../app.module.css';
@@ -36,6 +36,7 @@ export function ProfileEditView() {
   const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false);
   const [isRemovingPhoto, setIsRemovingPhoto] = useState(false);
   const saving = useRef(false);
+  const photoInput = useRef<HTMLInputElement>(null);
   const pickedUrl = useObjectUrl(pickedPhoto);
 
   if (!profile) {
@@ -150,44 +151,13 @@ export function ProfileEditView() {
       />
       <form className={styles.profileEditCard} noValidate onSubmit={save}>
         <div className={styles.profileEditAvatar}>
-          {/* The picture itself is a way to change it, too (it is the label of a file input). */}
-          <label className={styles.profilePhotoPick} title={hasPhoto ? dictionary.changePhoto : dictionary.profilePhotoChoose}>
-            {pickedUrl ? (
-              <span className={styles.avatar} style={{ width: 104, height: 104 }}>
-                {/* a local preview of the picked file: shown at once (no lazy loading) */}
-                <LinkImage eager fallback={null} src={pickedUrl} />
-              </span>
-            ) : (
-              <Avatar person={{ displayName: nickname || profile.displayName, profileImageUrl: profile.profileImageUrl ?? null }} size={104} />
-            )}
-            {/* Pointing at the picture (or focusing the hidden input) darkens it with 사진 변경; touch screens keep the button below. */}
-            <span aria-hidden className={styles.photoChangeOverlay}>
-              <Glyph name="Image" size={22} />
-              <span>{hasPhoto ? dictionary.changePhoto : dictionary.profilePhotoChoose}</span>
-            </span>
-            <input
-              accept={PROFILE_PHOTO_ACCEPT}
-              aria-label={hasPhoto ? dictionary.changePhoto : dictionary.profilePhotoChoose}
-              className={styles.visuallyHidden}
-              data-profile-photo-input
-              disabled={busy}
-              onChange={event => {
-                pickPhoto(event.target.files?.[0]);
-                event.target.value = '';
-              }}
-              type="file"
-            />
-          </label>
-          <div className={styles.profilePhotoActions}>
-            <button className={`${styles.settingsAction} ${styles.photoChangeTouchOnly}`} disabled={busy} onClick={() => document.querySelector<HTMLInputElement>('[data-profile-photo-input]')?.click()} type="button">
-              {hasPhoto ? dictionary.changePhoto : dictionary.profilePhotoChoose}
-            </button>
-            {hasPhoto ? (
-              <button className={styles.settingsAction} disabled={busy} onClick={() => (pickedPhoto ? removePhoto() : setIsRemoveConfirmOpen(true))} type="button">
-                {dictionary.removePhoto}
-              </button>
-            ) : null}
-          </div>
+          <PhotoEditor hasPhoto={hasPhoto} busy={busy} changeLabel={hasPhoto ? dictionary.changePhoto : dictionary.profilePhotoChoose} removeLabel={dictionary.removePhoto}
+            onChange={() => photoInput.current?.click()} onRemove={() => (pickedPhoto ? removePhoto() : setIsRemoveConfirmOpen(true))}>
+            {pickedUrl ? <span className={styles.avatar} style={{ width: 104, height: 104 }}><LinkImage eager fallback={null} src={pickedUrl} /></span>
+              : <Avatar person={{ displayName: nickname || profile.displayName, profileImageUrl: profile.profileImageUrl ?? null }} size={104} />}
+          </PhotoEditor>
+          <input ref={photoInput} accept={PROFILE_PHOTO_ACCEPT} aria-label={hasPhoto ? dictionary.changePhoto : dictionary.profilePhotoChoose}
+            hidden disabled={busy} data-profile-photo-input type="file" onChange={event => { pickPhoto(event.target.files?.[0]); event.target.value = ''; }} />
           {isRemovingPhoto || isSaving ? (
             <p aria-live="polite" className={styles.stateMessage}>
               {dictionary.processing}

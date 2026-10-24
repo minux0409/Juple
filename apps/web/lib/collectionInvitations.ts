@@ -3,6 +3,7 @@ import { ApiHttpError, type AppApi } from './appApi.ts';
 /** The existing mobile API. Only invitations addressed to the signed-in caller are returned. */
 export interface ReceivedCollectionInvitation {
   readonly invitationId: number;
+  readonly requiresOwnerApproval?: boolean;
   readonly collectionId: number;
   readonly collectionName: string;
   readonly icon?: string | null;

@@ -84,7 +84,8 @@ public sealed class CurrentUserBootstrapService(
             createdPlan,
             timeZoneId,
             await entitlementService.GetForIdentityAsync(externalIdentity, cancellationToken),
-            await entitlementService.GetStoreSubscriptionForIdentityAsync(externalIdentity, cancellationToken));
+            await entitlementService.GetStoreSubscriptionForIdentityAsync(externalIdentity, cancellationToken),
+            provisioningStore.CreatedAccount);
     }
 
     /// <summary>

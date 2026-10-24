@@ -11,6 +11,8 @@ namespace Juple.Infrastructure.Users.BootstrapCurrentUser;
 public sealed class CurrentUserProvisioningStore(JupleDbContext dbContext)
     : ICurrentUserProvisioningStore
 {
+    public bool CreatedAccount { get; private set; }
+
     public async Task<UserPlan?> TrySyncTimeZoneAndGetPlanAsync(
         ExternalIdentityPrincipal externalIdentity,
         string timeZoneId,
@@ -78,6 +80,7 @@ public sealed class CurrentUserProvisioningStore(JupleDbContext dbContext)
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
+            CreatedAccount = true;
             return UserPlan.Free;
         }
         catch (DbUpdateException exception)

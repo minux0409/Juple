@@ -1,4 +1,5 @@
-﻿using Juple.Application.Collections;
+﻿using Juple.Application.Notifications;
+using Juple.Application.Collections;
 using Juple.Application.Collections.Collaboration;
 using Juple.Application.Users.Profile;
 using Juple.Domain.Collections;
@@ -365,6 +366,8 @@ public sealed class CollectionCollaborationStore(
                 OwnerDisplayName = owner.DisplayName,
                 OwnerProfileImageBlobName = owner.ProfileImageBlobName,
                 invitation.Role,
+                RequiresOwnerApproval = invitation.InvitedByUserId != collection.UserId
+                    && !dbContext.CollectionShares.Any(share => share.CollectionId == collection.Id && share.IsActive && share.IsPublic),
                 invitation.CreatedAtUtc,
                 invitation.ExpiresAtUtc,
             })
@@ -376,7 +379,7 @@ public sealed class CollectionCollaborationStore(
             var ownerImage = await profileImageStorage.ResolveProfileImageAsync(row.OwnerUserId, row.OwnerProfileImageBlobName, cancellationToken);
             invitations.Add(new ReceivedCollectionInvitationDto(
                 row.Id, row.CollectionId, row.Name, row.Icon.ToString(), row.Color, row.OwnerPublicCode,
-                row.Role.ToString(), row.CreatedAtUtc, row.ExpiresAtUtc, row.OwnerDisplayName, ownerImage.Url, ownerImage.Version));
+                row.Role.ToString(), row.CreatedAtUtc, row.ExpiresAtUtc, row.OwnerDisplayName, ownerImage.Url, ownerImage.Version, row.RequiresOwnerApproval));
         }
 
         return invitations;
@@ -412,7 +415,8 @@ public sealed class CollectionCollaborationStore(
         if (invitation.Status == CollectionInvitationStatus.Accepted)
         {
             // Idempotent replay (double tap, retried request) - but not a way back in after removal.
-            if (alreadyMember)
+            if (alreadyMember || await dbContext.CollectionJoinRequests.AnyAsync(request => request.CollectionId == collectionId
+                && request.RequesterUserId == userId && request.Status == CollectionJoinRequestStatus.Pending, cancellationToken))
             {
                 return;
             }
@@ -432,7 +436,43 @@ public sealed class CollectionCollaborationStore(
             throw new CollectionCollaborationConflictException(CollectionCollaborationConflictException.InvitationNotPending);
         }
 
-        await RequireRoleMatchesPublicShareAsync(collectionId, invitation.Role, cancellationToken);
+        if (invitation.InvitedByUserId != collectionOwnerId && !alreadyMember)
+        {
+            // A referral must still be valid at acceptance; removed members cannot grant access.
+            if (!await dbContext.CollectionCollaborators.AnyAsync(member => member.CollectionId == collectionId
+                && member.UserId == invitation.InvitedByUserId, cancellationToken))
+                throw new CollectionInvitationNotFoundException();
+            await BlockGuard.EnsureNotBlockedAsync(dbContext, userId, invitation.InvitedByUserId, cancellationToken);
+            var activeShare = await dbContext.CollectionShares.AsNoTracking().FirstOrDefaultAsync(
+                share => share.CollectionId == collectionId && share.IsActive, cancellationToken);
+            if (activeShare is null || activeShare.CreatedAtUtc > invitation.CreatedAtUtc) throw new CollectionInvitationNotFoundException();
+            if (await dbContext.CollectionSharePasswords.AnyAsync(password => password.CollectionId == collectionId
+                && password.Mode == CollectionSharePasswordMode.LegacyCommonLock, cancellationToken))
+                throw new CollectionCollaborationConflictException(CollectionCollaborationConflictException.SharePasswordMigrationRequired);
+            if (!activeShare.IsPublic)
+            {
+                // Same join-request table, lock and uniqueness rule as requesting through a private link.
+                if (!await dbContext.CollectionJoinRequests.AnyAsync(request => request.CollectionId == collectionId
+                    && request.RequesterUserId == userId && request.Status == CollectionJoinRequestStatus.Pending, cancellationToken))
+                {
+                    var request = new CollectionJoinRequest(collectionId, userId, nowUtc);
+                    dbContext.CollectionJoinRequests.Add(request);
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                    dbContext.NotificationEvents.Add(new NotificationEvent(NotificationType.JoinRequestReceived,
+                        userId, collectionOwnerId, collectionId, request.Id, null, false, null,
+                        NotificationEventKeys.JoinRequest(request.Id), nowUtc));
+                }
+                invitation.Accept(nowUtc);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return;
+            }
+            // Same as SavePublicAsync: passing on a link only ever grants Viewer, even for a writable public link.
+            invitation.ChangeRole(CollectionCollaboratorRole.Viewer, nowUtc);
+        }
+
+        if (invitation.InvitedByUserId == collectionOwnerId)
+            await RequireRoleMatchesPublicShareAsync(collectionId, invitation.Role, cancellationToken);
 
         invitation.Accept(nowUtc);
         if (!alreadyMember)

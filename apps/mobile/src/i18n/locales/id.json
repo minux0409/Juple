@@ -385,9 +385,8 @@
     "displayNamePlaceholder": "Masukkan nama panggilan",
     "nickname": "Nama panggilan",
     "nicknameNotSet": "Belum diatur",
-    "webBannerTitle": "Coba Juple juga di PC",
-    "webBannerBody": "Anda juga dapat mengelola tautan dan koleksi yang tersimpan di web.",
-    "webBannerAction": "Buka Juple Web"
+    "webBannerTitle": "Juple juga tersedia di web",
+    "webBannerBody": "Kunjungi juple.co.kr di PC untuk mengelola tautan dan koleksi tersimpan."
   },
   "profile": {
     "edit": "Edit profil",

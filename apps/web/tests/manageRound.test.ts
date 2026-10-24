@@ -217,7 +217,7 @@ describe('8-12. moving and copying links: the existing Backend API only', () => 
     const details = source('app/(app)/items/[itemId]/ItemDetailContent.tsx');
     assert.match(details, /\{removeFromCollection \? \(\s*<ActionMenu/);
     const shared = source('app/(app)/collections/[collectionId]/items/[itemId]/SharedItemContent.tsx');
-    assert.match(shared, /key: 'saveLink', label: dictionary\.copyToMine, icon: 'Copy', onSelect: \(\) => openReview\(url, href => router\.push\(href\)/);
+    assert.match(shared, /key: 'saveLink', label: dictionary\.copyToMine, icon: 'Archive', onSelect: \(\) => openReview\(url, href => router\.push\(href\)/);
     assert.doesNotMatch(shared, /moveToOther|transferPath|membershipPath/);
   });
 

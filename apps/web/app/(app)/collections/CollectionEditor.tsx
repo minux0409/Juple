@@ -1,6 +1,8 @@
 'use client';
+import { PhotoEditor } from '../PhotoEditor';
+import { LinkImage } from '../LinkImage';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AppDictionary } from '../../../lib/appI18n';
 import { COLLECTION_ICON_KEYS } from '../../../lib/collectionIconMarkup';
 import {
@@ -55,6 +57,7 @@ export function CollectionEditor({
    */
   readonly layout?: 'page' | 'dialog';
 }) {
+  const photoInput = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(initial.name);
   const [icon, setIcon] = useState(initial.icon);
   const [color, setColor] = useState<CollectionColorValue>(initial.color);
@@ -100,29 +103,14 @@ export function CollectionEditor({
 
         <fieldset className={styles.editorSection}>
           <legend className={styles.editorLegend}>{dictionary.collectionIconSection}</legend>
-          <div className={styles.photoActions}>
-            <label className={styles.settingsAction}>
-              <input
-                accept={PHOTO_TYPES}
-                className={styles.visuallyHidden}
-                disabled={isSubmitting}
-                onChange={event => {
-                  const file = event.target.files?.[0];
-                  if (file) {
-                    setImage({ kind: 'set', file });
-                  }
-                  event.target.value = '';
-                }}
-                type="file"
-              />
-              {previewImage ? dictionary.iconPhotoChange : dictionary.iconPhotoChoose}
-            </label>
-            {previewImage ? (
-              <button className={styles.settingsAction} disabled={isSubmitting} onClick={() => setImage({ kind: 'remove' })} type="button">
-                {dictionary.iconPhotoRemove}
-              </button>
-            ) : null}
-          </div>
+          <PhotoEditor hasPhoto={!!previewImage} busy={isSubmitting}
+            changeLabel={previewImage ? dictionary.iconPhotoChange : dictionary.iconPhotoChoose}
+            removeLabel={dictionary.iconPhotoRemove} onChange={() => photoInput.current?.click()}
+            onRemove={() => setImage({ kind: 'remove' })}>
+            {previewImage ? <LinkImage eager fallback={null} src={previewImage} className={styles.photoEditorImage} /> : <CollectionGlyph icon={icon} size={56} />}
+          </PhotoEditor>
+          <input accept={PHOTO_TYPES} aria-label={dictionary.iconPhotoChoose} hidden ref={photoInput} disabled={isSubmitting}
+            onChange={event => { const file = event.target.files?.[0]; if (file) setImage({ kind: 'set', file }); event.target.value = ''; }} type="file" />
           <div className={styles.iconGrid} role="radiogroup">
             {COLLECTION_ICON_KEYS.map(key => (
               <button

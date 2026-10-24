@@ -21,6 +21,9 @@ import { isSafeHttpUrl } from '../../../../lib/savedLinks';
 import { useSignedInApp } from '../../AppRoot';
 import { createPickerUnlockSession, unlockTokensFor } from '../../../../lib/pickerUnlockSession';
 import { ItemCollectionsSection, ItemFormFooter, ItemFormLayout, ItemFormSections, ItemFormTop, ItemMemoSection } from '../../ItemForm';
+import { PhotoEditor } from '../../PhotoEditor';
+import { useObjectUrl } from '../../useObjectUrl';
+import { imageUploadForm, isUploadableImage, itemImageUploadPath, ITEM_IMAGE_ACCEPT } from '../../../../lib/itemEdit';
 import { ItemPhoto, SourceRow } from '../../ItemParts';
 import { BackButton, Notice } from '../../PageStates';
 import { SaveOutcomeDialog } from '../../SaveOutcomeDialog';
@@ -57,6 +60,10 @@ export function NewLinkReviewView({ url, title: initialTitle = '', image: initia
   const [title, setTitle] = useState(initialTitle.trim().slice(0, 300));
   const [memo, setMemo] = useState('');
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(startingImage);
+  const [pickedPhoto, setPickedPhoto] = useState<File | null>(null);
+  const pickedUrl = useObjectUrl(pickedPhoto);
+  const photoInput = useRef<HTMLInputElement>(null);
+  const photoTouched = useRef(false);
   const [isResolving, setIsResolving] = useState(valid);
   const [metadataFailed, setMetadataFailed] = useState(false);
   const [destinations, setDestinations] = useState<readonly CollectionSummary[] | null>(null);
@@ -94,7 +101,7 @@ export function NewLinkReviewView({ url, title: initialTitle = '', image: initia
         if (found && !titleTouched.current) {
           setTitle(found);
         }
-        setPreviewImageUrl(current => (isSafeHttpUrl(metadata.previewImageUrl) ? metadata.previewImageUrl : current));
+        if (!photoTouched.current) setPreviewImageUrl(current => (isSafeHttpUrl(metadata.previewImageUrl) ? metadata.previewImageUrl : current));
         setIsResolving(false);
       },
       caught => {
@@ -176,7 +183,10 @@ export function NewLinkReviewView({ url, title: initialTitle = '', image: initia
         await api<void>({ method: 'PUT', path: `/api/v1/items/${saved.id}/details`, body: { title: trimmedTitle, memo: trimmedMemo } });
       }
       // Best effort, as on mobile: the server's own preview image for this link - never blocks the save.
-      if (previewImageUrl) {
+      if (pickedPhoto) {
+        await api<unknown>({ method: 'POST', path: itemImageUploadPath(saved.id), body: imageUploadForm(pickedPhoto, pickedPhoto.name || 'upload') });
+      }
+      if (!pickedPhoto && (previewImageUrl || photoTouched.current)) {
         await api<void>({ method: 'PUT', path: `/api/v1/items/${saved.id}/preview-image`, body: { previewImageUrl } }).catch(() => undefined);
       }
       const message = saveOutcomeMessage(saved, dictionary);
@@ -211,7 +221,18 @@ export function NewLinkReviewView({ url, title: initialTitle = '', image: initia
       {back}
       <PageHeader bell={false} title={dictionary.reviewTitle} />
       <ItemFormLayout onSubmit={() => void save()}>
-        <ItemFormTop media={<ItemPhoto dictionary={dictionary} photoUrl={previewImageUrl} url={url} />}>
+        <ItemFormTop media={<>
+          <PhotoEditor hasPhoto={!!(pickedUrl || previewImageUrl)} busy={isSaving} changeLabel={pickedUrl || previewImageUrl ? dictionary.changePhoto : dictionary.addPhoto} removeLabel={dictionary.removePhoto}
+            onChange={() => photoInput.current?.click()} onRemove={() => { photoTouched.current = true; setPickedPhoto(null); setPreviewImageUrl(null); }}>
+            <ItemPhoto dictionary={dictionary} photoUrl={pickedUrl || previewImageUrl} url={url} />
+          </PhotoEditor>
+          <input hidden ref={photoInput} type="file" accept={ITEM_IMAGE_ACCEPT} aria-label={dictionary.changePhoto} disabled={isSaving} onChange={event => {
+            const file = event.target.files?.[0]; event.target.value = '';
+            if (!file) return;
+            if (!isUploadableImage(file)) { setError(dictionary.imageUploadInvalid); return; }
+            photoTouched.current = true; setPickedPhoto(file); setError(null);
+          }} />
+        </>}>
           <label className={styles.field}>
             <span className={styles.fieldLabel}>{dictionary.titleLabel}</span>
             <input

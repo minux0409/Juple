@@ -77,7 +77,8 @@ public sealed class CollectionLinkShareIntegrationTests : IAsyncLifetime
             await new AccountDeletionStore(_db).DeleteAllDataAsync(userId, $"test/{userId}/", DateTimeOffset.UtcNow);
         }
 
-        await _db.Database.ExecuteSqlRawAsync("DELETE FROM images.AccountDeletionBlobCleanups WHERE BlobPrefix LIKE 'test/%'");
+        foreach (var userId in _userIds)
+            await _db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM images.AccountDeletionBlobCleanups WHERE BlobPrefix = {$"test/{userId}/"}");
         await _db.DisposeAsync();
     }
 
@@ -99,7 +100,7 @@ public sealed class CollectionLinkShareIntegrationTests : IAsyncLifetime
     }
 
     private Task<int> LinkEventsToAsync(long userId) =>
-        _db.NotificationEvents.AsNoTracking().CountAsync(entry => entry.Type == NotificationType.CollectionLinkShared && entry.RecipientUserId == userId);
+        _db.NotificationEvents.AsNoTracking().CountAsync(entry => entry.Type == NotificationType.CollectionInvitationReceived && entry.RecipientUserId == userId);
 
     [Fact]
     public async Task AMemberCanPassOnAPrivateLink_ToAFriendWhoIsNotInside()
@@ -145,16 +146,17 @@ public sealed class CollectionLinkShareIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task TheNotificationOfAPrivateLink_CarriesTheLinksPublicId_SoItOpensTheSameResolverAsAnyShareLink()
+    public async Task TheNotificationOfAReferral_CarriesTheFormalInvitationTarget()
     {
         await Service().ShareAsync(_member, _collectionId, [await CodeOfAsync(_friend)]);
 
         await Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.Dispatcher(_db, _sender).RunOnceAsync();
         _db.ChangeTracker.Clear();
 
-        var push = Assert.Single(_sender.SentTo(_friend), sent => sent.Payload.Type == "collectionLinkShared");
-        Assert.Equal(_publicId, push.Payload.Data["publicId"]);
-        Assert.False(push.Payload.Data.ContainsKey("collectionId"));
+        var push = Assert.Single(_sender.SentTo(_friend), sent => sent.Payload.Type == "collectionInvitation");
+        Assert.Equal(_collectionId.ToString(), push.Payload.Data["collectionId"]);
+        Assert.True(push.Payload.Data.ContainsKey("invitationId"));
+        Assert.False(push.Payload.Data.ContainsKey("publicId"));
     }
 
     [Fact]
@@ -167,6 +169,82 @@ public sealed class CollectionLinkShareIntegrationTests : IAsyncLifetime
         var link = (await store.GetLinkStateAsync(_publicId))!;
         Assert.False(link.IsPublic);
         Assert.Equal("Folder", link.Icon);
+    }
+
+    [Fact]
+    public async Task PrivateReferral_IsReceivedAndAcceptingRequestsApprovalWithoutMembership_AndReplayIsIdempotent()
+    {
+        await Service().ShareAsync(_member, _collectionId, [await CodeOfAsync(_friend)]);
+        var received = Assert.Single(await _collaboration.ListReceivedInvitationsAsync(_friend));
+        Assert.True(received.RequiresOwnerApproval);
+        await _collaboration.AcceptInvitationAsync(_friend, received.InvitationId);
+        await _collaboration.AcceptInvitationAsync(_friend, received.InvitationId);
+        Assert.False(await _db.CollectionCollaborators.AnyAsync(x => x.CollectionId == _collectionId && x.UserId == _friend));
+        Assert.Single(await _db.CollectionJoinRequests.Where(x => x.CollectionId == _collectionId && x.RequesterUserId == _friend && x.Status == CollectionJoinRequestStatus.Pending).ToListAsync());
+        Assert.Single(await _db.NotificationEvents.Where(x => x.CollectionId == _collectionId && x.Type == NotificationType.JoinRequestReceived).ToListAsync());
+        Assert.Empty(await _collaboration.ListReceivedInvitationsAsync(_friend));
+        var pending = await _db.CollectionJoinRequests.SingleAsync(x => x.CollectionId == _collectionId && x.RequesterUserId == _friend && x.Status == CollectionJoinRequestStatus.Pending);
+        await new CollectionJoinStore(_db).ApproveAsync(_owner, _collectionId, pending.Id, DateTimeOffset.UtcNow);
+        var approved = await _db.CollectionCollaborators.SingleAsync(x => x.CollectionId == _collectionId && x.UserId == _friend);
+        Assert.Equal(CollectionCollaboratorRole.Viewer, approved.Role);
+    }
+
+    [Theory]
+    [InlineData(CollectionSharePermission.Read)]
+    [InlineData(CollectionSharePermission.Write)]
+    public async Task PublicReferral_AcceptsOnlyAsViewer(CollectionSharePermission permission)
+    {
+        await _shares.EnableAsync(_owner, _collectionId, permission, raiseLowerRoles: true);
+        await Service().ShareAsync(_member, _collectionId, [await CodeOfAsync(_friend)]);
+        var received = Assert.Single(await _collaboration.ListReceivedInvitationsAsync(_friend));
+        Assert.False(received.RequiresOwnerApproval);
+        await _collaboration.AcceptInvitationAsync(_friend, received.InvitationId);
+        var member = await _db.CollectionCollaborators.SingleAsync(x => x.CollectionId == _collectionId && x.UserId == _friend);
+        Assert.Equal(CollectionCollaboratorRole.Viewer, member.Role);
+    }
+
+    [Fact]
+    public async Task ReferralDecline_DoesNotCreateMembershipOrApprovalRequest()
+    {
+        await Service().ShareAsync(_member, _collectionId, [await CodeOfAsync(_friend)]);
+        var received = Assert.Single(await _collaboration.ListReceivedInvitationsAsync(_friend));
+        await _collaboration.DeclineInvitationAsync(_friend, received.InvitationId);
+        Assert.Empty(await _collaboration.ListReceivedInvitationsAsync(_friend));
+        Assert.False(await _db.CollectionCollaborators.AnyAsync(x => x.CollectionId == _collectionId && x.UserId == _friend));
+        Assert.False(await _db.CollectionJoinRequests.AnyAsync(x => x.CollectionId == _collectionId && x.RequesterUserId == _friend));
+    }
+
+    [Fact]
+    public async Task RepeatedReferral_IsSkippedAndCreatesOnlyOneInvitation()
+    {
+        var code = await CodeOfAsync(_friend);
+        await Service().ShareAsync(_member, _collectionId, [code, code]);
+        var repeat = await Service().ShareAsync(_member, _collectionId, [code]);
+        Assert.Empty(repeat.Sent);
+        Assert.Equal([code], repeat.Skipped);
+        Assert.Single(await _collaboration.ListReceivedInvitationsAsync(_friend));
+        Assert.Equal(1, await LinkEventsToAsync(_friend));
+    }
+
+    [Fact]
+    public async Task ReferralFromRemovedMember_CannotBeAccepted()
+    {
+        await Service().ShareAsync(_member, _collectionId, [await CodeOfAsync(_friend)]);
+        var received = Assert.Single(await _collaboration.ListReceivedInvitationsAsync(_friend));
+        await _db.CollectionCollaborators.Where(x => x.CollectionId == _collectionId && x.UserId == _member).ExecuteDeleteAsync();
+        _db.ChangeTracker.Clear();
+        await Assert.ThrowsAsync<CollectionInvitationNotFoundException>(() => _collaboration.AcceptInvitationAsync(_friend, received.InvitationId));
+    }
+
+    [Fact]
+    public async Task RevokedThenReissuedLink_DoesNotReviveAnOldReferral()
+    {
+        await Service().ShareAsync(_member, _collectionId, [await CodeOfAsync(_friend)]);
+        var received = Assert.Single(await _collaboration.ListReceivedInvitationsAsync(_friend));
+        await new CollectionShareStore(_db).RevokeAsync(_owner, _collectionId, DateTimeOffset.UtcNow);
+        await _shares.MakePrivateAsync(_owner, _collectionId);
+        _db.ChangeTracker.Clear();
+        await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() => _collaboration.AcceptInvitationAsync(_friend, received.InvitationId));
     }
 
     private async Task<long> NewUserAsync()

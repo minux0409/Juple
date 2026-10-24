@@ -10,6 +10,8 @@ import { LoadFailed } from './PageStates';
 import { SavedLinkList } from './SavedLinkList';
 import { SavedLinkSkeleton } from './Skeletons';
 import { useToast } from './Toaster';
+import { useStoredChoice } from './useStoredChoice';
+import { ViewModeToggle } from './ViewModeToggle';
 import styles from './app.module.css';
 
 type RecentState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | { readonly kind: 'loaded'; readonly links: readonly LinkView[] };
@@ -19,7 +21,8 @@ type RecentState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | 
  * same List / Grid / Image choice as 오늘 저장한 링크. Saved is not opened: nothing appears here until the person opens a link. Each card
  * opens the link's details. 기록 지우기 clears only this history (the links themselves stay). `reloadToken` re-reads after a link was opened.
  */
-export function HomeRecentLinks({ mode, reloadToken, onOpenOriginal }: { readonly mode: LinkViewMode; readonly reloadToken: number; readonly onOpenOriginal: (link: LinkView) => void }) {
+export function HomeRecentLinks({ reloadToken, onOpenOriginal }: { readonly mode: LinkViewMode; readonly reloadToken: number; readonly onOpenOriginal: (link: LinkView) => void }) {
+  const [recentMode, setRecentMode] = useStoredChoice<'list' | 'grid'>('juple.homeRecentView.v1', value => value === 'grid' ? 'grid' : 'list');
   const { api, dictionary, onSessionLost } = useSignedInApp();
   const toast = useToast();
   const [state, setState] = useState<RecentState>({ kind: 'loading' });
@@ -80,21 +83,22 @@ export function HomeRecentLinks({ mode, reloadToken, onOpenOriginal }: { readonl
   };
 
   return (
-    <section aria-labelledby="home-recent" className={styles.surfaceSection} data-home-recent>
+    <section aria-labelledby="home-recent" className={`${styles.surfaceSection} ${styles.recentSection}`} data-home-recent>
       <div className={styles.sectionBar}>
         <h2 className={styles.sectionTitle} id="home-recent">
           {dictionary.homeRecentTitle}
         </h2>
+        <ViewModeToggle groupLabel={dictionary.viewModeLabel} labels={{ list: dictionary.viewList, grid: dictionary.viewGrid, image: dictionary.viewImage }} modes={['list', 'grid'] as const} onChange={setRecentMode} value={recentMode} />
         {state.kind === 'loaded' && state.links.length > 0 ? (
           <button className={styles.linkButton} onClick={() => setConfirming(true)} type="button">
             {dictionary.homeRecentClear}
           </button>
         ) : null}
       </div>
-      {state.kind === 'loading' ? <SavedLinkSkeleton count={2} mode={mode} /> : null}
+      {state.kind === 'loading' ? <SavedLinkSkeleton count={2} mode={recentMode} /> : null}
       {state.kind === 'failed' ? <LoadFailed dictionary={dictionary} onRetry={retry} /> : null}
       {state.kind === 'loaded' && state.links.length === 0 ? <p className={styles.emptyState}>{dictionary.homeRecentEmpty}</p> : null}
-      {state.kind === 'loaded' && state.links.length > 0 ? <SavedLinkList dictionary={dictionary} links={state.links} mode={mode} onOpenOriginal={onOpenOriginal} /> : null}
+      {state.kind === 'loaded' && state.links.length > 0 ? <div className={styles.recentScroll} tabIndex={0}><SavedLinkList dictionary={dictionary} links={state.links} mode={recentMode} onOpenOriginal={onOpenOriginal} /></div> : null}
       <ConfirmDialog
         busy={busy}
         cancelLabel={dictionary.cancel}

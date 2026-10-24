@@ -179,7 +179,7 @@ describe('Web parity: Collection sharing', () => {
     const picker = source('app/(app)/collections/[collectionId]/FriendPicker.tsx');
     assert.match(picker, /const role = raiseToMinimum\(chosenRole, minimumRole\);/);
     assert.match(picker, /disabled=\{minimumRole !== null && INVITATION_ROLE_RANK\[option\] < INVITATION_ROLE_RANK\[minimumRole\]\}/);
-    assert.match(picker, /disabled=\{blocked \|\| busy\}/);
+    assert.match(picker, /disabled=\{blocked \|\| busy/);
     const unavailable = invite.unavailableFriends({ participants: [{ jupleId: 'a', displayName: null, role: 'owner' }], pendingInvitations: [{ invitationId: 1, jupleId: 'b', role: 'viewer' }], canManage: true });
     assert.deepEqual([unavailable.get('a'), unavailable.get('b')], ['member', 'pending']);
   });

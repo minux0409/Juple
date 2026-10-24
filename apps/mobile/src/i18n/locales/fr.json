@@ -385,9 +385,8 @@
     "displayNamePlaceholder": "Saisissez un surnom",
     "nickname": "Surnom",
     "nicknameNotSet": "Non défini",
-    "webBannerTitle": "Essayez aussi Juple sur votre PC",
-    "webBannerBody": "Vous pouvez aussi gérer vos liens et collections enregistrés sur le web.",
-    "webBannerAction": "Ouvrir Juple Web"
+    "webBannerTitle": "Juple est aussi disponible sur le Web",
+    "webBannerBody": "Sur votre PC, accédez à juple.co.kr pour gérer vos liens et collections enregistrés."
   },
   "profile": {
     "edit": "Modifier le profil",

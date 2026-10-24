@@ -385,9 +385,8 @@
     "displayNamePlaceholder": "Digite um apelido",
     "nickname": "Apelido",
     "nicknameNotSet": "Não definido",
-    "webBannerTitle": "Use o Juple também no PC",
-    "webBannerBody": "Você também pode gerenciar seus links e coleções salvos na web.",
-    "webBannerAction": "Abrir o Juple Web"
+    "webBannerTitle": "Juple também está disponível na web",
+    "webBannerBody": "Acesse juple.co.kr no PC para gerenciar seus links e coleções salvos."
   },
   "profile": {
     "edit": "Editar perfil",

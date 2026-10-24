@@ -112,7 +112,7 @@ describe('locked Collections on the Web', () => {
 
   it('a locked answer shows the password prompt in the Collection page; the content requests carry the grant, the others do not', () => {
     const details = source('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx');
-    assert.match(details, /\{gate \? \(\s*<UnlockPanel/);
+    assert.match(details, /\{gate \? \(\s*<div className=\{styles\.collectionGateCenter\}>\s*<UnlockPanel/);
     assert.doesNotMatch(details, /collectionLockedWebMessage/);
     for (const call of ['collectionSectionsPath(collection.id), headers: unlockHeaders(collection.id)', 'cursor), headers: unlockHeaders(collection.id)', 'collectionNamePagePath(collectionId, direction, cursor), headers: unlockHeaders(collectionId)']) {
       assert.ok(details.includes(call), call);

@@ -91,7 +91,7 @@ export function readWebAppConfig(env: Readonly<Record<string, string | undefined
       entraApiScope: apiScope!,
       webBaseUrl: trimTrailingSlash(webBaseUrl!),
       publicWebHost: parsePublicWebHost(value(WEB_APP_CONFIG_ENV.publicWebHost)),
-      perfDiagnostics: value(WEB_APP_CONFIG_ENV.perfDiagnostics)?.toLowerCase() === 'true',
+      perfDiagnostics: env.NODE_ENV !== 'production' && value(WEB_APP_CONFIG_ENV.perfDiagnostics)?.toLowerCase() === 'true',
     },
   };
 }

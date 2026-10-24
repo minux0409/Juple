@@ -385,9 +385,8 @@
     "displayNamePlaceholder": "Introduce un apodo",
     "nickname": "Apodo",
     "nicknameNotSet": "Sin definir",
-    "webBannerTitle": "Prueba Juple también en tu PC",
-    "webBannerBody": "También puedes gestionar tus enlaces y colecciones guardados en la web.",
-    "webBannerAction": "Abrir Juple Web"
+    "webBannerTitle": "Juple también está disponible en la web",
+    "webBannerBody": "Visita juple.co.kr desde tu PC para gestionar tus enlaces y colecciones guardados."
   },
   "profile": {
     "edit": "Editar perfil",

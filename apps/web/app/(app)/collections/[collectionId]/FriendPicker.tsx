@@ -46,10 +46,12 @@ export function FriendPicker({
   collectionId,
   unavailable,
   minimumRole = null,
+  referral = false,
   onClose,
   onInvited,
 }: {
   readonly open: boolean;
+  readonly referral?: boolean;
   readonly collectionId: number;
   readonly unavailable: ReadonlyMap<string, FriendUnavailableReason>;
   /** While the Collection is public, nobody may be invited below the link's level (mobile): lower roles are not offered. */
@@ -69,6 +71,7 @@ export function FriendPicker({
   const [chosenRole, setRole] = useState<InviteRole>('contributor');
   const role = raiseToMinimum(chosenRole, minimumRole);
   const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
   const [failures, setFailures] = useState<readonly string[]>([]);
   const [reloadToken, setReloadToken] = useState(0);
 
@@ -127,14 +130,14 @@ export function FriendPicker({
   };
 
   const toggle = (friend: Friend) => {
-    if (unavailable.has(friend.jupleId) || busy) {
+    if (unavailable.has(friend.jupleId) || busy || (referral && !picked.has(friend.jupleId) && picked.size >= 20)) {
       return;
     }
     setPicked(previous => {
       const next = new Map(previous);
       if (next.has(friend.jupleId)) {
         next.delete(friend.jupleId);
-      } else {
+      } else if (!referral || previous.size < 20) {
         next.set(friend.jupleId, friend);
       }
       return next;
@@ -160,14 +163,33 @@ export function FriendPicker({
   };
 
   const confirm = async () => {
-    if (busy || picked.size === 0) {
+    if (inFlight.current || busy || picked.size === 0) {
       return;
     }
+    inFlight.current = true;
     setBusy(true);
     setFailures([]);
     const failed: string[] = [];
     const remaining = new Map(picked);
     let sent = 0;
+    if (referral) {
+      // One bounded request, not N concurrent invitation calls. Successful recipients leave the selection.
+      const batch = [...picked.values()].slice(0, 20);
+      try {
+        const result = await api<{ sent: string[]; skipped?: string[]; notFound: string[] }>({
+          method: 'POST', path: `/api/v1/collections/${collectionId}/share/link/send`,
+          body: { jupleIds: batch.map(friend => friend.jupleId) }, headers: unlockHeaders(collectionId),
+        });
+        for (const friend of batch) {
+          if (result.sent.includes(friend.jupleId)) { remaining.delete(friend.jupleId); sent++; }
+          else failed.push(`${personName(friend)}: ${result.skipped?.includes(friend.jupleId) ? dictionary.inviteAlreadyPending : dictionary.inviteFallback}`);
+        }
+      } catch (caught) {
+        if (isSessionLost(caught)) onSessionLost();
+        failed.push(inviteErrorMessage(caught, dictionary));
+      }
+      if (picked.size > 20) failed.push(dictionary.tooManyRequests);
+    } else {
     for (const friend of picked.values()) {
       try {
         await api<unknown>({ method: 'POST', path: invitationsPath(collectionId), body: { jupleId: friend.jupleId, role }, headers: unlockHeaders(collectionId) });
@@ -175,12 +197,15 @@ export function FriendPicker({
         sent += 1;
       } catch (caught) {
         if (isSessionLost(caught)) {
+          inFlight.current = false; setBusy(false);
           onSessionLost();
           return;
         }
         failed.push(`${personName(friend)}: ${inviteErrorMessage(caught, dictionary)}`);
       }
     }
+    }
+    inFlight.current = false;
     setBusy(false);
     setPicked(remaining);
     setFailures(failed);
@@ -219,7 +244,7 @@ export function FriendPicker({
           value={layout}
         />
       </div>
-      <div className={styles.friendPickerPermission}>
+      {!referral ? <div className={styles.friendPickerPermission}>
         <span className={styles.fieldLabel}>{dictionary.sharePermissionLabel}</span>
         <div aria-label={dictionary.sharePermissionLabel} className={styles.filterTabs} role="group">
           {INVITE_ROLES.map(option => (
@@ -235,7 +260,7 @@ export function FriendPicker({
             </button>
           ))}
         </div>
-      </div>
+      </div> : null}
       <div className={styles.friendPickList}>
         {list.kind === 'loading' ? <SettingsRowSkeleton count={3} /> : null}
         {list.kind === 'failed' ? (
@@ -257,7 +282,7 @@ export function FriendPicker({
                   <button
                     aria-pressed={isPicked}
                     className={layout === 'grid' ? (isPicked ? styles.friendPickTileSelected : styles.friendPickTile) : isPicked ? styles.friendPickRowSelected : styles.friendPickRow}
-                    disabled={blocked || busy}
+                    disabled={blocked || busy || (referral && !isPicked && picked.size >= 20)}
                     onClick={() => toggle(friend)}
                     type="button"
                   >

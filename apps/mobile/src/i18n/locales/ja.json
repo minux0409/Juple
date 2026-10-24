@@ -385,9 +385,8 @@
     "displayNamePlaceholder": "ニックネームを入力",
     "nickname": "ニックネーム",
     "nicknameNotSet": "未設定",
-    "webBannerTitle": "PCでもJupleを使ってみましょう",
-    "webBannerBody": "保存したリンクやコレクションをウェブでも管理できます。",
-    "webBannerAction": "Jupleウェブを開く"
+    "webBannerTitle": "Jupleはウェブでも利用できます",
+    "webBannerBody": "PCでjuple.co.krにアクセスして、保存したリンクやコレクションを管理しましょう。"
   },
   "profile": {
     "edit": "プロフィールを編集",

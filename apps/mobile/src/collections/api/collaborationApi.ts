@@ -32,6 +32,7 @@ export interface CollectionParticipants {
 }
 
 export interface ReceivedCollectionInvitation {
+  readonly requiresOwnerApproval?: boolean;
   readonly invitationId: number;
   readonly collectionId: number;
   readonly collectionName: string;

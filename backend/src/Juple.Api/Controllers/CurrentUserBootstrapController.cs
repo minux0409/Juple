@@ -54,7 +54,7 @@ public sealed class CurrentUserBootstrapController : ControllerBase
                 StoreSubscriptionResponse.From(result.StoreSubscription),
                 TermsStatusResponse.From(terms),
                 DataRetentionResponse.From(retention, timeProvider.GetUtcNow()),
-                new DataExportAvailabilityResponse(dataExportOptions.Enabled)));
+                new DataExportAvailabilityResponse(dataExportOptions.Enabled), result.IsNewAccount));
         }
         catch (AccountDeletionPendingException)
         {
@@ -88,7 +88,8 @@ public sealed class CurrentUserBootstrapController : ControllerBase
         StoreSubscriptionResponse StoreSubscription,
         TermsStatusResponse? Terms = null,
         DataRetentionResponse? DataRetention = null,
-        DataExportAvailabilityResponse? DataExport = null);
+        DataExportAvailabilityResponse? DataExport = null,
+        bool IsNewAccount = false);
 
     /// <summary>
     /// The account's place in the post-subscription data retention policy (additive; an older client ignores it). Derived from the same

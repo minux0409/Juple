@@ -185,7 +185,7 @@ export function webDestinationOf(target: NotificationTarget): WebDestination {
     case 'collectionSharedItem':
       return { kind: 'collectionLink', collectionId: target.collectionId, itemId: target.itemId, mine: target.kind === 'collectionItem' };
     case 'publicCollection':
-      return { kind: 'href', href: `/c/${encodeURIComponent(target.publicId)}` };
+      return { kind: 'href', href: `/shared/${encodeURIComponent(target.publicId)}` };
     case 'unavailable':
       return { kind: 'unavailable' };
   }

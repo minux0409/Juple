@@ -254,7 +254,7 @@ describe('where a notification leads (the server\'s target -> a Web page)', () =
     assert.deepEqual(go({ kind: 'collectionItem', collectionId: 5, itemId: 9, focus: 'comments' }), { kind: 'collectionLink', collectionId: 5, itemId: 9, mine: true });
     assert.deepEqual(go({ kind: 'collectionSharedItem', collectionId: 5, itemId: 9, rootCommentId: 3 }), { kind: 'collectionLink', collectionId: 5, itemId: 9, mine: false });
     assert.deepEqual(go({ kind: 'collectionItem', collectionId: 5 }), { kind: 'href', href: '/collections/5' }, 'no link id: its Collection');
-    assert.deepEqual(go({ kind: 'publicCollection', publicId: 'AbCdEfGh12345678' }), { kind: 'href', href: '/c/AbCdEfGh12345678' });
+    assert.deepEqual(go({ kind: 'publicCollection', publicId: 'AbCdEfGh12345678' }), { kind: 'href', href: '/shared/AbCdEfGh12345678' });
     assert.deepEqual(go({ kind: 'collectionInvitations' }), { kind: 'href', href: '/collections?tab=shared&invitations=1' });
   });
 

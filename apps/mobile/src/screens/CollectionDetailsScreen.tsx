@@ -114,6 +114,7 @@ import {
 import { BellIcon } from '../icons/BellIcon';
 import { BellOffIcon } from '../icons/BellOffIcon';
 import { CheckIcon } from '../icons/CheckIcon';
+import { ArchiveIcon } from '../icons/ArchiveIcon';
 import { CopyIcon } from '../icons/CopyIcon';
 import { copySavedLinkUrl } from '../items/copyLink';
 import { EditIcon } from '../icons/EditIcon';
@@ -1656,7 +1657,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     ...(menuItem.isMine === false
       ? [
         // Somebody else's link: 링크 저장 only (no report action here - reporting stays on comments and people).
-        { label: t('item.saveDialogTitle'), icon: CopyIcon, onPress: openSaveLink },
+        { label: t('item.saveDialogTitle'), icon: ArchiveIcon, onPress: openSaveLink },
       ]
       : [
         { label: t('common.edit'), icon: EditIcon, onPress: () => { setIsItemActionMenuVisible(false); setActionMenuItem(null); openCollectionItem(menuItem); } },

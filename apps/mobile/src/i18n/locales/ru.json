@@ -385,9 +385,8 @@
     "displayNamePlaceholder": "Введите никнейм",
     "nickname": "Никнейм",
     "nicknameNotSet": "Не задан",
-    "webBannerTitle": "Пользуйтесь Juple и на ПК",
-    "webBannerBody": "Сохранённые ссылки и коллекции можно также упорядочивать в вебе.",
-    "webBannerAction": "Открыть Juple Web"
+    "webBannerTitle": "Juple доступен и в интернете",
+    "webBannerBody": "Откройте juple.co.kr на компьютере, чтобы управлять сохранёнными ссылками и коллекциями."
   },
   "profile": {
     "edit": "Изменить профиль",

@@ -111,7 +111,8 @@ public sealed class CollectionCollaborationIntegrationTests : IAsyncLifetime
             await new AccountDeletionStore(_db).DeleteAllDataAsync(userId, $"test/{userId}/", DateTimeOffset.UtcNow);
         }
 
-        await _db.Database.ExecuteSqlRawAsync("DELETE FROM images.AccountDeletionBlobCleanups WHERE BlobPrefix LIKE 'test/%'");
+        foreach (var userId in _userIds)
+            await _db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM images.AccountDeletionBlobCleanups WHERE BlobPrefix = {$"test/{userId}/"}");
         await _db.DisposeAsync();
     }
 

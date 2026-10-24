@@ -141,7 +141,7 @@ describe('Friend picker List | Grid', () => {
   });
   it('Grid tiles keep the pick state, the disabled rule and the avatar + name + id', () => {
     assert.match(picker, /aria-pressed=\{isPicked\}/);
-    assert.match(picker, /disabled=\{blocked \|\| busy\}/);
+    assert.match(picker, /disabled=\{blocked \|\| busy/);
     assert.match(picker, /styles\.friendPickTileSelected/);
     assert.match(css, /\.friendPickGrid \{[^}]*grid-template-columns: repeat\(auto-fill, minmax\(104px, 1fr\)\)/);
     // Rows keep their own height (a taller container must not stretch the tiles' rows apart).

@@ -20,4 +20,4 @@ public interface ICurrentUserBootstrapService
 /// <param name="TimeZoneId">The user's stored (canonical) IANA time zone after this bootstrap.</param>
 /// <param name="Entitlement">The account's effective access (see IEntitlementService) - additive; Plan stays legacy compatibility only.</param>
 /// <param name="StoreSubscription">Whether the account owns a verified store subscription - separate from <paramref name="Entitlement"/> (which says whether access is required / granted) and available while the program is off.</param>
-public sealed record CurrentUserBootstrapResult(UserPlan Plan, string TimeZoneId, Entitlement Entitlement, StoreSubscriptionOwnership? StoreSubscription = null);
+public sealed record CurrentUserBootstrapResult(UserPlan Plan, string TimeZoneId, Entitlement Entitlement, StoreSubscriptionOwnership? StoreSubscription = null, bool IsNewAccount = false);

@@ -59,6 +59,7 @@ interface SignedInApp {
   readonly storeSubscription: StoreSubscription | null;
   readonly dataRetention: DataRetention | null;
   readonly dataExportEnabled: boolean;
+  readonly isNewAccount?: boolean;
   /** The result of a same-account re-authentication this page load returned from (null = none), for the page that asked. */
   readonly reauthentication: ReauthenticationResult | null;
   readonly clearReauthentication: () => void;
@@ -150,6 +151,7 @@ export function AppRoot({
   const [storeSubscription, setStoreSubscription] = useState<StoreSubscription | null>(null);
   const [dataRetention, setDataRetention] = useState<DataRetention | null>(null);
   const [dataExportEnabled, setDataExportEnabled] = useState(false);
+  const [isNewAccount, setIsNewAccount] = useState(false);
   const [reauthentication, setReauthentication] = useState<ReauthenticationResult | null>(null);
   // The Terms the server asks for and whether they were accepted (from the bootstrap). Until they are accepted the Agreement is the only
   // thing shown (before the shell, and so before the tutorial); a refusal for a NEWER Terms version brings it back the same way.
@@ -207,6 +209,7 @@ export function AppRoot({
     setStoreSubscription(null);
     setDataRetention(null);
     setDataExportEnabled(false);
+    setIsNewAccount(false);
     setTerms(null);
     setNotice(message);
     setStatus('signedOut');
@@ -221,12 +224,13 @@ export function AppRoot({
       getPerfRecorder().mark('bootstrapStart');
     }
     try {
-      const result = await api<{ readonly entitlement?: unknown; readonly storeSubscription?: unknown; readonly terms?: unknown; readonly dataRetention?: unknown; readonly dataExport?: unknown } | undefined>({
+      const result = await api<{ readonly entitlement?: unknown; readonly storeSubscription?: unknown; readonly terms?: unknown; readonly dataRetention?: unknown; readonly dataExport?: unknown; readonly isNewAccount?: boolean } | undefined>({
         method: 'POST',
         path: '/api/v1/users/me/bootstrap',
         body: bootstrapRequestBody(navigator.language, Intl.DateTimeFormat().resolvedOptions().timeZone),
       });
       clearAccountCreationMarker();
+      setIsNewAccount(result?.isNewAccount === true);
       setEntitlement(parseEntitlement(result?.entitlement));
       setStoreSubscription(parseStoreSubscription(result?.storeSubscription));
       setDataRetention(parseDataRetention(result?.dataRetention));
@@ -436,6 +440,7 @@ export function AppRoot({
             storeSubscription,
             dataRetention,
             dataExportEnabled,
+            isNewAccount,
             reauthentication,
             clearReauthentication,
             reauthenticate,
@@ -446,7 +451,7 @@ export function AppRoot({
             appDownload,
           }
         : null,
-    [account, api, appDownload, clearReauthentication, config, dataExportEnabled, dataRetention, dictionary, entitlement, language, languagePreference, onSessionLost, profile, reauthenticate, reauthentication, setLanguagePreference, signOut, storeSubscription],
+    [account, api, isNewAccount, appDownload, clearReauthentication, config, dataExportEnabled, dataRetention, dictionary, entitlement, language, languagePreference, onSessionLost, profile, reauthenticate, reauthentication, setLanguagePreference, signOut, storeSubscription],
   );
 
   const content = (() => {

@@ -385,9 +385,8 @@
     "displayNamePlaceholder": "Enter a nickname",
     "nickname": "Nickname",
     "nicknameNotSet": "Not set",
-    "webBannerTitle": "Try Juple on your PC too",
-    "webBannerBody": "You can manage your saved links and collections on the web, too.",
-    "webBannerAction": "Open Juple Web"
+    "webBannerTitle": "Juple is also available on the web",
+    "webBannerBody": "Visit juple.co.kr on your PC to manage your saved links and collections."
   },
   "profile": {
     "edit": "Edit profile",

@@ -385,9 +385,8 @@
     "displayNamePlaceholder": "उपनाम दर्ज करें",
     "nickname": "उपनाम",
     "nicknameNotSet": "सेट नहीं है",
-    "webBannerTitle": "Juple को PC पर भी आज़माएँ",
-    "webBannerBody": "आप सहेजे गए लिंक और संग्रह वेब पर भी प्रबंधित कर सकते हैं।",
-    "webBannerAction": "Juple वेब खोलें"
+    "webBannerTitle": "Juple वेब पर भी उपलब्ध है",
+    "webBannerBody": "अपने सहेजे गए लिंक और संग्रह प्रबंधित करने के लिए PC पर juple.co.kr खोलें।"
   },
   "profile": {
     "edit": "प्रोफ़ाइल संपादित करें",

@@ -305,10 +305,6 @@ export function MyPageScreen() {
               <View style={styles.settingsRowDivider} />
             </>
           ) : null}
-            <Pressable accessibilityRole="button" onPress={() => navigation.navigate('Permissions')} style={styles.settingsRow}>
-              <Text style={styles.settingsRowLabel}>{t('permissions.title')}</Text>
-            </Pressable>
-            <View style={styles.settingsRowDivider} />
             <Pressable
               accessibilityRole="button"
               onPress={() => setIsSignOutDialogVisible(true)}
