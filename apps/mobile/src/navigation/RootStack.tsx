@@ -37,7 +37,7 @@ import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
 import { NewLinkReviewScreen } from '../screens/NewLinkReviewScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { ProfileEditScreen } from '../screens/ProfileEditScreen';
-import { SharedCollectionScreen } from '../screens/SharedCollectionScreen';
+import { SharedCollectionEntry } from './SharedCollectionEntry';
 import { SignInScreen } from '../screens/SignInScreen';
 import { StartupProgressScreen } from '../screens/StartupProgressScreen';
 import { TrashScreen } from '../screens/TrashScreen';
@@ -341,10 +341,26 @@ export function RootStack() {
           <Stack.Screen component={themedScreen(SignInScreen)} name="SignIn" options={{ headerShown: false }} />
         )}
         <Stack.Screen
-          component={themedScreen(SharedCollectionScreen)}
           name="SharedCollection"
+          getId={({ params }) => params.publicId}
           options={{ title: t('nav.sharedCollection') }}
-        />
+        >
+          {props => (
+            <SharedCollectionEntry
+              {...props}
+              ready={isReady || (!isInitializing && !isAuthenticated)}
+              fallback={isTermsRequired ? (
+                <TermsAgreementScreen
+                  isSaving={termsOnboarding.isSaving}
+                  onAccept={() => { termsOnboarding.accept().catch(() => undefined); }}
+                  saveFailed={termsOnboarding.saveFailed}
+                />
+              ) : isBootstrapComplete && termsOnboarding.status === 'error' ? (
+                <TermsUnavailable onRetry={termsOnboarding.retry} onSignOut={() => { signOut().catch(() => undefined); }} />
+              ) : <StartupProgressScreen />}
+            />
+          )}
+        </Stack.Screen>
       </Stack.Navigator>
       </TourBackground>
       {/*

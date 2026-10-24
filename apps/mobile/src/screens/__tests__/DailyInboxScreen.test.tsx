@@ -475,7 +475,7 @@ describe('DailyInboxScreen direct URL entry', () => {
     jest.clearAllMocks();
   });
 
-  it('never saves anything itself - Check only navigates to NewLinkReview for the user to actually Save', async () => {
+  it.each(['button', 'enter'])('%s never saves directly - it opens NewLinkReview for confirmation', async action => {
     const renderer = await renderScreen();
 
     const urlInput = renderer.root.findByType(TextInput);
@@ -484,7 +484,11 @@ describe('DailyInboxScreen direct URL entry', () => {
     });
 
     await act(async () => {
-      pressHomeSaveButton(renderer);
+      if (action === 'enter') {
+        renderer.root.findByType(TextInput).props.onSubmitEditing();
+      } else {
+        pressHomeSaveButton(renderer);
+      }
     });
 
     expect(saveInboxEntry).not.toHaveBeenCalled();

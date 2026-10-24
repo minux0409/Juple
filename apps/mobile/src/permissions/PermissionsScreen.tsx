@@ -103,9 +103,6 @@ export function PermissionsScreen() {
           <Text testID="notification-os-status" style={styles.body}>
             {t(`permissions.${permission}`)}
           </Text>
-          {Platform.OS === 'ios' ? (
-            <Text style={styles.body}>{t('permissions.apnsNotReady')}</Text>
-          ) : null}
           {canAsk ? (
             <Pressable
               accessibilityRole="button"
@@ -126,7 +123,7 @@ export function PermissionsScreen() {
           >
             <Text style={styles.action}>{t('permissions.settings')}</Text>
           </Pressable>
-          {Platform.OS === 'android' && permission === 'granted' ? (
+          {permission === 'granted' ? (
             <>
               <Text style={styles.body} testID="push-registration-status">
                 {t(`permissions.sync.${report.status}`)}

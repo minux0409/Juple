@@ -5,6 +5,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ApiError } from '../../api/ApiError';
 import { CategoryIconTile } from '../../collections/CategoryIconTile';
 import { SharedCollectionScreen } from '../SharedCollectionScreen';
+import { SharedCollectionEntry } from '../../navigation/SharedCollectionEntry';
 import { getPublicShareMembership } from '../../collections/api/publicShareWriteApi';
 import { getPublicCollection, getPublicCollectionItems, unlockPublicCollection } from '../../collections/api/publicCollectionsApi';
 
@@ -12,6 +13,7 @@ const mockRequest = jest.fn();
 const mockReplace = jest.fn();
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
+const mockSignIn = jest.fn(() => Promise.resolve());
 let mockCanGoBack = true;
 let mockIsAuthenticated = true;
 
@@ -25,7 +27,7 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
-jest.mock('../../auth/AuthContext', () => ({ useAuth: () => ({ isAuthenticated: mockIsAuthenticated }) }));
+jest.mock('../../auth/AuthContext', () => ({ useAuth: () => ({ isAuthenticated: mockIsAuthenticated, signIn: mockSignIn }) }));
 jest.mock('../../api/useAuthenticatedApi', () => ({ useAuthenticatedApi: () => mockRequest }));
 jest.mock('../../collections/api/publicCollectionsApi', () => ({
   ...jest.requireActual('../../collections/api/publicCollectionsApi'),
@@ -63,7 +65,7 @@ beforeEach(() => {
 afterEach(() => jest.clearAllMocks());
 
 function navigationProp() {
-  return { navigate: mockNavigate, replace: mockReplace, goBack: mockGoBack, canGoBack: () => mockCanGoBack } as never;
+  return { navigate: mockNavigate, replace: mockReplace, goBack: mockGoBack, canGoBack: () => mockCanGoBack, getState: () => ({ routeNames: ['SharedCollection', 'CollectionDetails'] }) } as never;
 }
 
 async function renderScreen() {
@@ -187,12 +189,16 @@ describe('the one resolver for a Collection link (App Link, pasted URL, notifica
     expect(mockReplace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 5 });
   });
 
-  it('a failed membership lookup still resolves from the link itself (a nonmember dialog) - the server has the last word on 저장', async () => {
+  it('a failed membership lookup offers retry instead of a false nonmember dialog or an endless spinner', async () => {
     mockRequest.mockRejectedValue(new Error('network'));
     const renderer = await renderScreen();
 
     expect(mockReplace).not.toHaveBeenCalled();
-    expect(dialog(renderer, i18n.t('sharedCollection.addTitle'))).toBeDefined();
+    expect(anyEntryDialog(renderer)).toBeUndefined();
+    expect(renderer.root.findAllByType(ActivityIndicator)).toHaveLength(0);
+    mockServer({ membership: { isMember: true, collectionId: 5, role: 'viewer' } });
+    await act(async () => renderer.root.findByProps({ testID: 'shared-collection-retry' }).props.onPress());
+    expect(mockReplace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 5 });
   });
 
   it('signed out: no membership call, no save, no request - just a sign-in notice over the profile', async () => {
@@ -583,5 +589,75 @@ describe('a password-protected link (mobile unlock)', () => {
 
     expect(dialog(renderer, i18n.t('sharedCollection.addTitle')).props.message).toBe(i18n.t('sharedCollection.signInRequired'));
     expect(mockRequest).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('cold-start share route while authenticated destinations are not registered yet', () => {
+  it.each(['owner', 'viewer', 'contributor'])('keeps a %s link through startup/retry, resolves once only after destinations exist', async role => {
+    const navigation = navigationProp();
+    mockServer({ membership: { isMember: true, collectionId: 77, role } });
+    const entry = (ready: boolean) => <SharedCollectionEntry ready={ready} fallback={<Text>Startup / retry</Text>} navigation={navigation} route={route} />;
+    let renderer!: Renderer;
+    await act(async () => { renderer = ReactTestRenderer.create(entry(false)); });
+    expect(mockRequest).not.toHaveBeenCalled();
+    expect(getPublicCollection).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
+    // A failed bootstrap/retry preserves this route, without querying the link or losing its publicId.
+    await act(async () => renderer.update(entry(false)));
+    await act(async () => renderer.update(entry(true)));
+    expect(mockReplace).toHaveBeenCalledTimes(1);
+    expect(mockReplace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 77 });
+    expect(calls(/membership$/)).toHaveLength(1);
+    // A duplicate delivery/re-render of the pending route must not start another resolution.
+    await act(async () => renderer.update(entry(true)));
+    expect(calls(/membership$/)).toHaveLength(1);
+    expect(saveCalls()).toHaveLength(0);
+    expect(requestCalls()).toHaveLength(0);
+    act(() => renderer.unmount());
+  });
+
+  it('an expired/signed-out session signs in in place and retains the share route through bootstrap', async () => {
+    mockIsAuthenticated = false;
+    const navigation = navigationProp();
+    const entry = (ready: boolean) => <SharedCollectionEntry ready={ready} fallback={<Text>Restoring</Text>} navigation={navigation} route={route} />;
+    let renderer!: Renderer;
+    await act(async () => { renderer = ReactTestRenderer.create(entry(true)); });
+    await confirm(renderer, i18n.t('sharedCollection.addTitle'));
+    expect(mockSignIn).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).not.toHaveBeenCalled();
+    mockIsAuthenticated = true;
+    await act(async () => renderer.update(entry(false)));
+    mockServer({ membership: { isMember: true, collectionId: 77, role: 'viewer' } });
+    await act(async () => renderer.update(entry(true)));
+    expect(mockReplace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 77 });
+    expect(saveCalls()).toHaveLength(0);
+    expect(requestCalls()).toHaveLength(0);
+    act(() => renderer.unmount());
+  });
+
+  it('a missing destination yields an actionable retry instead of a dropped replace and an endless spinner', async () => {
+    let destinationReady = false;
+    const navigation = { ...navigationProp() as object, getState: () => ({ routeNames: destinationReady ? ['SharedCollection', 'CollectionDetails'] : ['SharedCollection', 'AuthPending'] }) } as never;
+    mockServer({ membership: { isMember: true, collectionId: 77, role: 'viewer' } });
+    let renderer!: Renderer;
+    await act(async () => { renderer = ReactTestRenderer.create(<SharedCollectionScreen navigation={navigation} route={route} />); });
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(renderer.root.findAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(anyEntryDialog(renderer)).toBeUndefined();
+    destinationReady = true;
+    await act(async () => renderer.root.findByProps({ testID: 'shared-collection-retry' }).props.onPress());
+    expect(mockReplace).toHaveBeenCalledTimes(1);
+    expect(mockReplace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 77 });
+    act(() => renderer.unmount());
+  });
+
+  it('a membership response after leaving the entry cannot navigate', async () => {
+    let resolveLookup!: (value: unknown) => void;
+    mockRequest.mockImplementation(() => new Promise(resolve => { resolveLookup = resolve; }));
+    const renderer = await renderScreen();
+    act(() => renderer.unmount());
+    await act(async () => resolveLookup({ status: 200, body: { isMember: true, collectionId: 77, role: 'viewer' } }));
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 });

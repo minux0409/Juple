@@ -59,12 +59,14 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
   const [isUnlocking, setIsUnlocking] = useState(false);
   const isUnlockingRef = useRef(false);
 
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, signIn } = useAuth();
   const authenticatedRequest = useAuthenticatedApi();
 
   // A signed-in Owner / member never sees an add or request dialog: the link opens their normal Collection. Decided before anything else is
   // shown - cold and warm links take the same path. Anything but a clear "member" (not signed in, not a member, a failed lookup) continues.
   const [isCheckingMembership, setIsCheckingMembership] = useState(isAuthenticated);
+  const [membershipLookupFailed, setMembershipLookupFailed] = useState(false);
+  const [lookupAttempt, setLookupAttempt] = useState(0);
   const [membership, setMembership] = useState<PublicShareMembership | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const isBusyRef = useRef(false);
@@ -92,27 +94,37 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
     }
     let active = true;
     setIsCheckingMembership(true);
+    setMembershipLookupFailed(false);
+    console.info('[Juple shared link] membership', { stage: 'start' });
     getPublicShareMembership(authenticatedRequest, publicId)
       .then(found => {
         if (!active) {
           return;
         }
+        console.info('[Juple shared link] membership', { stage: 'complete', member: found?.isMember === true });
+        setMembership(found);
+        setIsCheckingMembership(false);
         if (found?.isMember && found.collectionId) {
+          const destinationReady = navigation.getState().routeNames.includes('CollectionDetails');
+          console.info('[Juple shared link] navigation', { stage: 'replace', destinationReady });
+          if (!destinationReady) {
+            setMembershipLookupFailed(true);
+            return;
+          }
           navigation.replace('CollectionDetails', { collectionId: found.collectionId });
-        } else {
-          setMembership(found);
-          setIsCheckingMembership(false);
         }
       })
       .catch(() => {
         if (active) {
+          console.info('[Juple shared link] membership', { stage: 'failed' });
+          setMembershipLookupFailed(true);
           setIsCheckingMembership(false);
         }
       });
     return () => {
       active = false;
     };
-  }, [authenticatedRequest, isAuthenticated, navigation, publicId]);
+  }, [authenticatedRequest, isAuthenticated, navigation, publicId, lookupAttempt]);
 
   const loadCollection = useCallback(async () => {
     setIsLoadingCollection(true);
@@ -225,13 +237,29 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
     }
   };
 
-  if (isCheckingMembership || (isLoadingCollection && !collection && !isUnavailable)) {
+  if (isCheckingMembership || (!membershipLookupFailed && membership?.isMember) || (isLoadingCollection && !collection && !isUnavailable)) {
     return (
       <SafeAreaView edges={['top']} style={styles.centerContainer}>
         <ActivityIndicator />
       </SafeAreaView>
     );
   }
+
+  if (membershipLookupFailed || isUnavailable || !collection || (collection.name === null && !collection.isLocked)) {
+    return (
+      <SafeAreaView edges={['top']} style={styles.centerContainer}>
+        <Text style={styles.unavailableTitle}>{t(membershipLookupFailed ? 'importantState.loadFailedTitle' : 'sharedCollection.unavailableTitle')}</Text>
+        <Text style={styles.unavailableMessage}>{t(membershipLookupFailed ? 'auth.backendUnavailable' : 'sharedCollection.unavailableMessage')}</Text>
+        <Pressable accessibilityRole="button" testID="shared-collection-retry" style={styles.primaryButton} onPress={() => {
+          setLookupAttempt(attempt => attempt + 1);
+          loadCollection().catch(() => undefined);
+        }}>
+          <Text style={styles.primaryLabel}>{t('auth.retry')}</Text>
+        </Pressable>
+      </SafeAreaView>
+    );
+  }
+
 
   // A protected link before its password was proven: nothing of the Collection is known or shown, not even its name.
   if (collection !== null && !isUnavailable && collection.name === null && collection.isLocked) {
@@ -282,14 +310,6 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
     );
   }
 
-  if (isUnavailable || !collection || collection.name === null) {
-    return (
-      <SafeAreaView edges={['top']} style={styles.centerContainer}>
-        <Text style={styles.unavailableTitle}>{t('sharedCollection.unavailableTitle')}</Text>
-        <Text style={styles.unavailableMessage}>{t('sharedCollection.unavailableMessage')}</Text>
-      </SafeAreaView>
-    );
-  }
 
   const isPublic = collection.isPublic !== false;
   const isWaiting = membership?.joinRequestPending === true;
@@ -324,7 +344,7 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
           confirmLabel={t('common.confirm')}
           destructive={false}
           message={t('sharedCollection.signInRequired')}
-          onConfirm={cancel}
+          onConfirm={() => { signIn().catch(() => undefined); }}
           title={isPublic ? t('sharedCollection.addTitle') : t('sharedCollection.requestTitle')}
           visible
         >

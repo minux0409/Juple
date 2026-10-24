@@ -88,10 +88,10 @@ function isImageLine(entry: ItemHistoryEntry | ImageLine): entry is ImageLine {
 export const HOME_PAGE_SIZE = 25;
 /** The server's page limit - a refresh never asks for more rows than this in one request. */
 const MAX_PAGE_LIMIT = 100;
-/** The URL input's resting height: one touch target plus breathing room. */
-const URL_INPUT_MIN_HEIGHT = minTouchTarget + spacing.md;
-/** iOS line height of the URL input; its vertical padding is derived from it so one line sits centered. */
-const URL_INPUT_IOS_LINE_HEIGHT = 20;
+/** Preserve the existing rendered resting height: iOS's former multiline field measured 78pt.
+ * Android keeps its original touch target plus breathing room; font scaling can grow either row.
+ */
+const URL_INPUT_MIN_HEIGHT = Platform.OS === 'ios' ? 78 : minTouchTarget + spacing.md;
 /** Skeleton rows while the first page loads, and under the loaded rows while a next one does. */
 export const HOME_FIRST_PAGE_SKELETON_ROWS = 6;
 export const HOME_NEXT_PAGE_SKELETON_ROWS = 2;
@@ -589,10 +589,12 @@ export function DailyInboxScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="url"
-                multiline
                 onChangeText={setUrl}
+                onSubmitEditing={openReview}
                 placeholder={t('inbox.urlPlaceholder')}
                 placeholderTextColor={colors.placeholder}
+                returnKeyType="go"
+                submitBehavior="blurAndSubmit"
                 style={[styles.input, url && ltrTextStyle]}
                 value={url}
               />
@@ -731,57 +733,46 @@ const styles = themedStyles(() => ({
     marginBottom: spacing.lg,
   },
   inputWrapper: {
-    marginTop: spacing.md,
-  },
-  inputIconContainer: {
     alignItems: 'center',
-    bottom: 0,
-    justifyContent: 'center',
-    position: 'absolute',
-    start: spacing.md,
-    top: 0,
-    zIndex: 1,
-  },
-  input: {
     backgroundColor: colors.surface,
     borderColor: colors.inputBorder,
     borderRadius: radii.lg,
     borderWidth: 1,
-    color: colors.textPrimary,
-    fontSize: 15,
-    paddingEnd: minTouchTarget + spacing.xs,
-    paddingStart: spacing.xl + spacing.xs,
-    // A long URL wraps (the card grows) instead of scrolling sideways; the action stays centered.
-    maxHeight: 160,
+    direction: 'ltr',
+    flexDirection: 'row',
+    marginTop: spacing.md,
     minHeight: URL_INPUT_MIN_HEIGHT,
-    textAlignVertical: 'center',
-    // textAlignVertical is Android-only: an iOS multiline input starts its text (and placeholder) at the top, above the
-    // centered icons. A fixed line height with padding derived from the resting height centers one line there; longer
-    // URLs still grow the card one line at a time.
-    ...Platform.select({
-      ios: {
-        lineHeight: URL_INPUT_IOS_LINE_HEIGHT,
-        paddingVertical: (URL_INPUT_MIN_HEIGHT - URL_INPUT_IOS_LINE_HEIGHT) / 2,
-      },
-      default: { paddingVertical: spacing.md },
-    }),
+    paddingStart: spacing.md,
     ...cardShadow,
   },
-  // Overlays the input's own trailing edge (mirrors inputIconContainer's leading-edge overlay
-  // above) - a real Pressable, unlike that purely decorative icon, so it also needs its own
-  // z-index to stay tappable above the TextInput and a minTouchTarget hit area.
+  inputIconContainer: {
+    alignItems: 'center',
+    flexShrink: 0,
+    justifyContent: 'center',
+    marginEnd: spacing.sm,
+    width: 18,
+  },
+  input: {
+    color: colors.textPrimary,
+    flex: 1,
+    fontSize: 15,
+    includeFontPadding: false,
+    minHeight: URL_INPUT_MIN_HEIGHT - 2,
+    // Keep long URLs inside their own column. The native single-line field scrolls horizontally,
+    // and centers both the placeholder and scaled text without a fixed line height or iOS insets.
+    minWidth: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    textAlign: 'left',
+    textAlignVertical: 'center',
+  },
   saveIconButton: {
     alignItems: 'center',
-    bottom: 0,
-    end: 0,
-    // No fixed height: top + bottom stretch the button over the WHOLE card, so its icon stays vertically
-    // centered however tall a long, wrapped URL makes the input.
+    alignSelf: 'stretch',
+    flexShrink: 0,
     justifyContent: 'center',
     minHeight: minTouchTarget,
-    position: 'absolute',
-    top: 0,
     width: minTouchTarget,
-    zIndex: 1,
   },
   disabledButton: {
     opacity: 0.5,
