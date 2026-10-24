@@ -341,9 +341,6 @@ export function AppRoot({
   }, [config]);
 
   const signIn = useCallback(async () => {
-    if (!window.confirm(dictionary.agreementAgeNotice)) {
-      return;
-    }
     const msal = currentMsal();
     if (!config || !msal) {
       return;

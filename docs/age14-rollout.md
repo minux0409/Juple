@@ -6,7 +6,7 @@ The service owner chose a minimum account age of 14 on 2026-10-25. Age confirmat
 
 - Keep Production `Terms__CurrentVersion=2026-10-14` and `Terms__EnforceAcceptance=false` while Android v33 and iOS 1.0 (1) remain supported. Do not raise the minimum supported build as part of this deployment.
 - The API accepts the old `{ version }` request for the old policy. An explicit `isAtLeast14: true` is required when accepting `2026-10-25`. Missing or false declarations must not create acceptance of that policy.
-- New mobile and Web sign-in entry points ask for age self-declaration before opening Entra. Existing authenticated sessions are preserved. The old clients do not gain age confirmation through an API deployment.
+- Age self-declaration is requested in the Terms agreement screen. Sign-in entry points do not show a separate age popup. Existing authenticated sessions are preserved. The old clients do not gain age confirmation through an API deployment.
 - Web and mobile Terms screens require all three confirmations. A later policy activation requires existing members to reconfirm; a successful current acceptance is reused across restarts and devices.
 - Changing the published text or shipping the new binary alone does not mark legacy accounts age-confirmed. No underage account is inferred or automatically deleted.
 

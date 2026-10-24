@@ -1243,7 +1243,7 @@
   },
   "agreement": {
     "ageConfirmation": "En az 14 yaşındayım",
-    "ageNotice": "Juple yalnızca 14 yaş ve üzeri kişiler tarafından kullanılabilir. Giriş yapmadan veya hesap oluşturmadan önce yaşınızı onaylayın.",
+    "ageNotice": "Juple yalnızca 14 yaş ve üzeri kişiler tarafından kullanılabilir.",
     "title": "Hoş geldiniz!",
     "subtitle": "Juple'ı kullanmaya başlamadan önce lütfen şartları kabul edin.",
     "agreeAll": "Tümünü kabul et",

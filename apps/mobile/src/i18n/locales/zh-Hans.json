@@ -1243,7 +1243,7 @@
   },
   "agreement": {
     "ageConfirmation": "我已年满14周岁",
-    "ageNotice": "Juple仅供年满14周岁的用户使用。登录或创建账户前，请确认您的年龄。",
+    "ageNotice": "Juple仅供年满14周岁的用户使用。",
     "title": "欢迎!",
     "subtitle": "开始使用 Juple 之前,请先同意相关条款。",
     "agreeAll": "同意全部条款",

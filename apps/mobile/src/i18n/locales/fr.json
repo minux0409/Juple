@@ -1243,7 +1243,7 @@
   },
   "agreement": {
     "ageConfirmation": "J’ai au moins 14 ans",
-    "ageNotice": "Juple est réservé aux personnes de 14 ans et plus. Confirmez votre âge avant de vous connecter ou de créer un compte.",
+    "ageNotice": "Juple est réservé aux personnes de 14 ans et plus.",
     "title": "Bienvenue !",
     "subtitle": "Veuillez accepter les conditions avant de commencer à utiliser Juple.",
     "agreeAll": "Tout accepter",

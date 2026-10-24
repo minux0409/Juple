@@ -1243,7 +1243,7 @@
   },
   "agreement": {
     "ageConfirmation": "私は満14歳以上です",
-    "ageNotice": "Jupleは満14歳以上の方のみ利用できます。ログインまたはアカウント作成の前に年齢を確認してください。",
+    "ageNotice": "Jupleは満14歳以上の方のみ利用できます。",
     "title": "ようこそ!",
     "subtitle": "Juple をはじめる前に、規約に同意してください。",
     "agreeAll": "すべての規約に同意",
