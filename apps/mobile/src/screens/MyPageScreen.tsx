@@ -1,4 +1,5 @@
 import { NoticeMenuRow } from '../notices/NoticeMenuRow';
+import { SettingsMenuRow } from '../components/SettingsMenuRow';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useRef, useState } from 'react';
@@ -278,17 +279,12 @@ export function MyPageScreen() {
             <Text style={styles.settingsRowLabel}>{t('guide.title')}</Text>
           </Pressable>
           <View style={styles.settingsRowDivider} />
-          <Pressable
-            accessibilityRole="button"
+          <SettingsMenuRow
             onPress={() => navigation.navigate('CustomerCenter')}
-            style={styles.settingsRow}
             testID="my-customer-center"
-          >
-            <View style={styles.settingsRowIcon}>
-              <screenIcons.customerCenter color={colors.textSecondary} size={18} />
-            </View>
-            <Text style={styles.settingsRowLabel}>{t('customerCenter.title')}</Text>
-          </Pressable>
+            icon={<screenIcons.customerCenter color={colors.textSecondary} size={18} />}
+            title={t('customerCenter.title')}
+          />
           <View style={styles.settingsRowDivider} />
           <NoticeMenuRow />
           <View style={styles.settingsRowDivider} />

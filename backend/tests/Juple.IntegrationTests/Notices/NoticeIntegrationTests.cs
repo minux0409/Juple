@@ -58,6 +58,19 @@ public sealed class NoticeIntegrationTests : IAsyncLifetime {
             Assert.True(await db.Notices.AnyAsync(x=>x.Id==n.Id));
         }
     }
+    public static IEnumerable<object[]> SupportedLanguages() => NoticeService.Languages.Select(language => new object[] { language });
+    [Theory][MemberData(nameof(SupportedLanguages))]
+    public async Task Korean_only_publication_is_visible_with_fallback_on_all_platforms(string language){
+        var n=await Create();
+        await using var db=Db();
+        var service=new NoticeService(new NoticeStore(db),new Clock());
+        foreach(var platform in new[]{"web","android","ios"}){
+            var detail=await service.GetAsync(alice,n.Id,platform,language,default);
+            Assert.Equal("ko",detail.Notice.Language);
+            Assert.Equal("공지 제목",detail.Notice.Title);
+            Assert.Equal(n.Id,Assert.Single((await service.ListAsync(alice,platform,language,null,20,default)).Items).Id);
+        }
+    }
     [Fact] public async Task Concurrent_reads_are_idempotent_and_create_only_one_record(){
         var n=await Create();await Task.WhenAll(Enumerable.Range(0,8).Select(async _=>{await using var db=Db();await new NoticeService(new NoticeStore(db),new Clock()).MarkReadAsync(alice,n.Id,"android",1,default);}));
         await using var verify=Db();Assert.Equal(1,await verify.NoticeReads.CountAsync(x=>x.UserId==alice&&x.NoticeId==n.Id));

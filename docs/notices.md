@@ -24,6 +24,13 @@ Translations support the existing 17 languages with required Korean fallback.
 
 ## Read state and safe content
 
+Admin saves return to a freshly loaded list and show the persisted publication
+state. Draft saves explicitly remain hidden from user clients. Validation and
+HTTP failures appear beside Save with focus/scroll feedback and keep entered text;
+normal saves never silently discard an input form on error. My Page notice entries
+reuse the ordinary single-line settings menu; an empty list is centered in the
+content area below the header, while request failures retain retry UI.
+
 `notices.NoticeReads` has a composite user/notice primary key. The authenticated
 user is resolved on the server. An atomic upsert revalidates visibility and the
 detail's read version. Normal edits preserve reads; explicit `resetRead` increments

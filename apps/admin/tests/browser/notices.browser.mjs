@@ -85,6 +85,109 @@ after(async () => {
     );
 });
 const open = (url) => openPage(findChrome(), url, port++);
+const fillKorean = async (tab) => {
+  await tab.until(
+    `document.documentElement.dataset.noticeFixtureReady==='1'&&!!document.querySelector('textarea')`,
+  );
+  await tab.evaluate(
+    `document.querySelector('input[maxlength="200"]').focus()`,
+  );
+  await tab.send('Input.insertText', { text: '입력 유지 공지' });
+  await tab.evaluate(`document.querySelector('textarea').focus()`);
+  await tab.send('Input.insertText', { text: '입력한 본문 유지' });
+};
+it('validation is visible next to Save without sending a request', async () => {
+  const tab = await open(`${origin}/notice-test-harness?new=1`);
+  try {
+    await tab.until(
+      `document.documentElement.dataset.noticeFixtureReady==='1'&&!!document.querySelector('textarea')`,
+    );
+    await tab.evaluate(
+      `document.querySelector('button[type="submit"]').click()`,
+    );
+    await tab.until(
+      `document.querySelector('[role="alert"]')?.textContent.includes('한국어')`,
+    );
+    assert.equal(
+      await tab.evaluate(
+        `JSON.parse(sessionStorage.getItem('adminNoticeCalls')??'[]').some(x=>x.method==='POST')`,
+      ),
+      false,
+    );
+    assert.equal(
+      await tab.evaluate(
+        `(()=>{const r=document.querySelector('[role="alert"]').getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight;})()`,
+      ),
+      true,
+    );
+  } finally {
+    await tab.close();
+  }
+});
+for (const status of [400, 409, 500])
+  it(`save HTTP ${status} keeps inputs and visibly reports failure`, async () => {
+    const tab = await open(
+      `${origin}/notice-test-harness?new=1&failSave=${status}`,
+    );
+    try {
+      await fillKorean(tab);
+      await tab.evaluate(
+        `document.querySelector('button[type="submit"]').click()`,
+      );
+      await tab.until(
+        `document.querySelector('[role="alert"]')?.textContent.includes('HTTP ${status}')`,
+      );
+      assert.equal(
+        await tab.evaluate(`document.querySelector('textarea').value`),
+        '입력한 본문 유지',
+      );
+      assert.equal(
+        await tab.evaluate(
+          `document.querySelector('input[maxlength="200"]').value`,
+        ),
+        '입력 유지 공지',
+      );
+      assert.equal(
+        await tab.evaluate(`sessionStorage.getItem('adminNoticeNavigation')`),
+        null,
+      );
+      assert.equal(
+        await tab.evaluate(
+          `document.querySelector('button[type="submit"]').disabled`,
+        ),
+        false,
+      );
+    } finally {
+      await tab.close();
+    }
+  });
+it('save blocks duplicate requests and confirms success with a refreshed list', async () => {
+  const tab = await open(`${origin}/notice-test-harness?new=1&slowSave=1`);
+  try {
+    await fillKorean(tab);
+    await tab.evaluate(
+      `(()=>{const b=document.querySelector('button[type="submit"]');b.click();b.click();})()`,
+    );
+    await tab.until(
+      `document.querySelector('button[type="submit"]').textContent.includes('저장 중')`,
+    );
+    await tab.until(`sessionStorage.getItem('adminNoticeRefreshed')==='1'`);
+    assert.equal(
+      await tab.evaluate(
+        `JSON.parse(sessionStorage.getItem('adminNoticeCalls')).filter(x=>x.method==='POST').length`,
+      ),
+      1,
+    );
+    await tab.send('Page.navigate', {
+      url: `${origin}/notice-test-harness?list=1&saved=9`,
+    });
+    await tab.until(
+      `document.querySelector('[role="status"]')?.textContent.includes('공지를 저장했습니다.')`,
+    );
+  } finally {
+    await tab.close();
+  }
+});
 it('admin creates Korean/English notice, explicit platforms and schedule without resetting reads', async () => {
   const tab = await open(`${origin}/notice-test-harness?new=1`);
   try {
@@ -126,7 +229,7 @@ it('admin creates Korean/English notice, explicit platforms and schedule without
       `document.querySelector('button[type="submit"]').click()`,
     );
     await tab.until(
-      `sessionStorage.getItem('adminNoticeNavigation')==='/notices/9'`,
+      `sessionStorage.getItem('adminNoticeNavigation')==='/notices?saved=9'&&sessionStorage.getItem('adminNoticeRefreshed')==='1'`,
     );
     const call = await tab.evaluate(
       `JSON.parse(sessionStorage.getItem('adminNoticeCalls')).find(x=>x.method==='POST')`,

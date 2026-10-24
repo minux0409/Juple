@@ -2,12 +2,12 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AppState, Pressable, Text, View } from 'react-native';
+import { AppState, Text, View } from 'react-native';
+import { SettingsMenuRow } from '../components/SettingsMenuRow';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { BellIcon } from '../icons/BellIcon';
-import { ChevronIcon } from '../icons/ChevronIcon';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
+import { colors, themedStyles } from '../theme/tokens';
 import { noticeGet, noticePlatform, subscribeNoticeReads } from './noticesApi';
 
 export function NoticeMenuRow() {
@@ -48,41 +48,27 @@ export function NoticeMenuRow() {
     }, [request]),
   );
   return (
-    <Pressable
-      accessibilityRole="button"
+    <SettingsMenuRow
       accessibilityLabel={`${t('notices.title')}${
         unread ? `, ${t('notices.unread')}` : ''
       }`}
       testID="my-notices"
       onPress={() => navigation.navigate('Notices')}
-      style={styles.row}
-    >
-      <BellIcon color={colors.textSecondary} size={18} />
-      <View style={styles.text}>
-        <Text style={styles.title}>{t('notices.title')}</Text>
-        <Text style={styles.description}>{t('notices.description')}</Text>
-      </View>
-      {unread ? (
-        <View style={styles.badge} testID="notice-new-badge">
-          <Text style={styles.badgeText}>N</Text>
-        </View>
-      ) : null}
-      <ChevronIcon color={colors.textSecondary} size={18} direction="right" />
-    </Pressable>
+      icon={<BellIcon color={colors.textSecondary} size={18} />}
+      title={t('notices.title')}
+      badge={
+        unread ? (
+          <View style={styles.badge} testID="notice-new-badge">
+            <Text style={styles.badgeText}>N</Text>
+          </View>
+        ) : null
+      }
+    />
   );
 }
 const styles = themedStyles(() => ({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.lg,
-    minHeight: minTouchTarget,
-  },
-  text: { flex: 1, minWidth: 0 },
-  title: { fontSize: 15, color: colors.textPrimary },
-  description: { fontSize: 12, color: colors.textSecondary, marginTop: 3 },
   badge: {
+    marginStart: 8,
     backgroundColor: colors.brand,
     borderRadius: 9,
     minWidth: 18,

@@ -67,6 +67,53 @@ after(async () => {
 });
 for (const width of [1280, 393, 320])
   for (const theme of ['light', 'dark'])
+    it(`empty notice body is centered below the plain header at ${width}px ${theme}`, async () => {
+      const tab = await openPage(
+        findChrome(),
+        `${origin}/notice-test-harness?empty=1&theme=${theme}`,
+        port++,
+      );
+      try {
+        await tab.send('Emulation.setDeviceMetricsOverride', {
+          width,
+          height: 850,
+          deviceScaleFactor: 1,
+          mobile: false,
+        });
+        await tab.until(
+          `!!document.querySelector('[data-notice-empty]')&&document.documentElement.dataset.theme==='${theme}'`,
+        );
+        const geometry = await tab.evaluate(
+          `(()=>{const p=document.querySelector('[data-notice-empty]');const r=document.createRange();r.selectNodeContents(p);const text=r.getBoundingClientRect();const box=p.getBoundingClientRect();const bottom=parseFloat(getComputedStyle(p.closest('main')).paddingBottom)||0;return {center:text.top+text.height/2,expected:(box.top+innerHeight-bottom)/2,horizontal:text.left+text.width/2,expectedX:box.left+box.width/2,decoration:!!document.querySelector('header svg'),subtitle:!!document.querySelector('header p'),overflow:document.documentElement.scrollWidth>innerWidth};})()`,
+        );
+        assert.ok(Math.abs(geometry.center - geometry.expected) < 3);
+        assert.ok(Math.abs(geometry.horizontal - geometry.expectedX) < 3);
+        assert.equal(geometry.decoration, false);
+        assert.equal(geometry.subtitle, false);
+        assert.equal(geometry.overflow, false);
+      } finally {
+        await tab.close();
+      }
+    });
+it('list API failure never appears as an empty notice list', async () => {
+  const tab = await openPage(
+    findChrome(),
+    `${origin}/notice-test-harness?failList=1`,
+    port++,
+  );
+  try {
+    await tab.until(`!!document.querySelector('button')`);
+    await tab.until(`document.body.textContent.includes('다시')`);
+    assert.equal(
+      await tab.evaluate(`!!document.querySelector('[data-notice-empty]')`),
+      false,
+    );
+  } finally {
+    await tab.close();
+  }
+});
+for (const width of [1280, 393, 320])
+  for (const theme of ['light', 'dark'])
     it(`notices list, pagination, safe detail/read sync at ${width}px ${theme}`, async () => {
       const tab = await openPage(
         findChrome(),

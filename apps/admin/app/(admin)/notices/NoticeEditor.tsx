@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useAdmin, PageState } from '../AdminRoot';
 import { failureMessage } from '../../../lib/adminModel';
+import { ApiHttpError } from '../../../lib/adminApi';
 import {
   NOTICE_LANGUAGES,
   localDateTime,
@@ -33,7 +34,15 @@ export function NoticeEditor({ id }: { readonly id?: number }) {
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const feedback = useRef<HTMLDivElement>(null);
   const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (error && feedback.current) {
+      feedback.current.focus({ preventScroll: true });
+      feedback.current.scrollIntoView({ block: 'nearest' });
+    }
+  }, [error]);
   useEffect(() => {
     if (!id) return;
     let active = true;
@@ -78,6 +87,7 @@ export function NoticeEditor({ id }: { readonly id?: number }) {
     );
   const save = async (nextStatus = status) => {
     if (pending.current) return;
+    setSaved(false);
     const translations = texts.filter(
       (t) => t.language === 'ko' || t.title || t.body,
     );
@@ -92,9 +102,29 @@ export function NoticeEditor({ id }: { readonly id?: number }) {
       );
       return;
     }
-    if (!platforms || !start || (end && new Date(end) <= new Date(start))) {
+    const startsAt = new Date(start);
+    const endsAt = end ? new Date(end) : null;
+    if (
+      !platforms ||
+      !Number.isFinite(startsAt.getTime()) ||
+      (endsAt && (!Number.isFinite(endsAt.getTime()) || endsAt <= startsAt))
+    ) {
       setError('노출 플랫폼과 게시 기간을 확인해 주세요.');
       return;
+    }
+    let officialUrl: string | null = null;
+    if (url.trim()) {
+      try {
+        const parsed = new URL(url.trim());
+        if (parsed.protocol !== 'https:' || parsed.username || parsed.password)
+          throw new Error();
+        officialUrl = url.trim();
+      } catch {
+        setError(
+          '공식 안내 링크는 로그인 정보가 없는 HTTPS 주소로 입력해 주세요.',
+        );
+        return;
+      }
     }
     pending.current = true;
     setBusy(true);
@@ -108,9 +138,9 @@ export function NoticeEditor({ id }: { readonly id?: number }) {
           isImportant: important,
           isPinned: pinned,
           platforms,
-          startsAtUtc: new Date(start).toISOString(),
-          endsAtUtc: end ? new Date(end).toISOString() : null,
-          officialUrl: url || null,
+          startsAtUtc: startsAt.toISOString(),
+          endsAtUtc: endsAt ? endsAt.toISOString() : null,
+          officialUrl,
           translations,
           version: original?.version ?? null,
           resetRead: reset,
@@ -119,10 +149,16 @@ export function NoticeEditor({ id }: { readonly id?: number }) {
       setOriginal(result);
       setStatus(result.status);
       setReset(false);
-      if (!id) router.replace(`/notices/${result.id}`);
+      setSaved(true);
+      router.replace(`/notices?saved=${result.id}`);
+      router.refresh();
     } catch (e) {
       reportFailure(e);
-      setError(failureMessage(e));
+      setError(
+        `저장하지 못했습니다.${
+          e instanceof ApiHttpError ? ` (HTTP ${e.status})` : ''
+        } ${failureMessage(e)}`,
+      );
     } finally {
       pending.current = false;
       setBusy(false);
@@ -164,7 +200,7 @@ export function NoticeEditor({ id }: { readonly id?: number }) {
       </header>
       <PageState
         loading={loading}
-        error={error}
+        error={original || !id ? null : error}
         onRetry={() => {
           if (id) {
             setLoading(true);
@@ -174,6 +210,8 @@ export function NoticeEditor({ id }: { readonly id?: number }) {
       />
       {!loading && (!id || original) ? (
         <form
+          noValidate
+          aria-busy={busy}
           onSubmit={(e) => {
             e.preventDefault();
             void save();
@@ -342,6 +380,24 @@ export function NoticeEditor({ id }: { readonly id?: number }) {
               >
                 삭제
               </button>
+            ) : null}
+          </div>
+          <div ref={feedback} tabIndex={-1}>
+            {error ? (
+              <p className="state error" role="alert">
+                {error}
+              </p>
+            ) : null}
+            {saved ? (
+              <p role="status">
+                공지를 저장했습니다. 목록을 갱신하고 있습니다.
+              </p>
+            ) : null}
+            {!busy && status === 'Draft' ? (
+              <p>
+                초안은 저장해도 사용자에게 표시되지 않습니다. 공개하려면 게시
+                상태를 선택해 주세요.
+              </p>
             ) : null}
           </div>
         </form>

@@ -98,7 +98,10 @@ export function NoticesScreen() {
       <FlatList
         data={items}
         keyExtractor={item => String(item.id)}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[
+          styles.list,
+          !items.length && !busy && !error && styles.emptyList,
+        ]}
         refreshing={busy}
         onRefresh={() => {
           load().catch(() => undefined);
@@ -108,7 +111,9 @@ export function NoticesScreen() {
         }}
         ListEmptyComponent={
           !busy && !error ? (
-            <Text style={styles.secondary}>{t('notices.empty')}</Text>
+            <Text style={styles.empty} testID="notices-empty">
+              {t('notices.empty')}
+            </Text>
           ) : undefined
         }
         ListFooterComponent={
@@ -173,6 +178,8 @@ export function NoticesScreen() {
 const styles = themedStyles(() => ({
   safe: { flex: 1, backgroundColor: colors.background },
   list: { padding: spacing.lg, gap: spacing.md, flexGrow: 1 },
+  emptyList: { justifyContent: 'center' },
+  empty: { color: colors.textSecondary, fontSize: 14, textAlign: 'center' },
   card: {
     padding: spacing.lg,
     borderRadius: radii.lg,

@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { usePagedList } from '../usePagedList';
 import { PageState } from '../AdminRoot';
 import { formatInstant } from '../../../lib/adminModel';
@@ -10,18 +11,25 @@ import {
   type AdminNoticeRow,
 } from '../../../lib/notices';
 export default function NoticeListPage() {
+  const savedId = Number(useSearchParams().get('saved'));
   const [term, setTerm] = useState('');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const list = usePagedList<AdminNoticeRow>(`${search}#${status}`, (cursor) =>
     adminNoticeListPath(search, status, cursor),
   );
+  const saved = list.items.find((notice) => notice.id === savedId);
   return (
     <>
       <header className="page-header">
         <h1>공지사항 관리</h1>
         <Link href="/notices/new">공지 작성</Link>
       </header>
+      {saved ? (
+        <p className="state" role="status">
+          공지를 저장했습니다. ({publicationState(saved)})
+        </p>
+      ) : null}
       <form
         className="expense-filters"
         onSubmit={(event) => {

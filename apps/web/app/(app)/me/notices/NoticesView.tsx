@@ -27,6 +27,24 @@ export function NoticesView({ id }: { readonly id?: number }) {
   const [attempt, setAttempt] = useState(0);
   const request = useRef(0);
   const moreBusy = useRef(false);
+  const empty = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    const node = empty.current;
+    if (!node) return;
+    const size = () => {
+      const main = node.closest('main');
+      const bottom = main
+        ? Number.parseFloat(getComputedStyle(main).paddingBottom) || 0
+        : 0;
+      node.style.minHeight = `${Math.max(
+        96,
+        window.innerHeight - node.getBoundingClientRect().top - bottom,
+      )}px`;
+    };
+    size();
+    window.addEventListener('resize', size);
+    return () => window.removeEventListener('resize', size);
+  }, [busy, failed, items.length, id]);
   const date = (value: string) =>
     new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(
       new Date(value),
@@ -142,8 +160,6 @@ export function NoticesView({ id }: { readonly id?: number }) {
   return (
     <SettingsPage
       title={d.noticeTitle}
-      subtitle={id ? undefined : d.noticeDescription}
-      icon="Bell"
       backHref={id ? '/me/notices' : '/me'}
       width="medium"
     >
@@ -247,7 +263,11 @@ export function NoticesView({ id }: { readonly id?: number }) {
                 </li>
               ))}
             </ul>
-            {!busy && !failed && !items.length ? <p>{d.noticeEmpty}</p> : null}
+            {!busy && !failed && !items.length ? (
+              <p ref={empty} className={styles.empty} data-notice-empty>
+                {d.noticeEmpty}
+              </p>
+            ) : null}
             {cursor ? (
               <button
                 disabled={busy}

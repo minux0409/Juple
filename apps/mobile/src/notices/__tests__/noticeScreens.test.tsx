@@ -1,5 +1,6 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { AppState, Text } from 'react-native';
+import { AppState, Text, FlatList, StyleSheet } from 'react-native';
+import { SettingsMenuRow } from '../../components/SettingsMenuRow';
 import i18n from '../../i18n';
 import { NoticeMenuRow } from '../NoticeMenuRow';
 import { NoticesScreen } from '../../screens/NoticesScreen';
@@ -82,6 +83,47 @@ const press = (r: ReactTestRenderer.ReactTestRenderer, id: string) =>
   byId(r, id)
     .find(n => typeof n.props.onPress === 'function')!
     .props.onPress();
+it('notices uses the ordinary single-line My Page menu and keeps only the unread badge', async () => {
+  let r!: ReactTestRenderer.ReactTestRenderer;
+  await act(async () => {
+    r = ReactTestRenderer.create(<NoticeMenuRow />);
+  });
+  expect(r.root.findByType(SettingsMenuRow).props.title).toBe(
+    i18n.t('notices.title'),
+  );
+  const texts = r.root.findAllByType(Text).map(n => String(n.props.children));
+  expect(texts).not.toContain(i18n.t('notices.description'));
+  expect(texts).not.toContain('›');
+  const label = r.root
+    .findAllByType(Text)
+    .find(n => n.props.children === i18n.t('notices.title'))!;
+  expect(StyleSheet.flatten(label.props.style)).toMatchObject({
+    fontSize: 15,
+    fontWeight: '600',
+  });
+  await act(async () => r.unmount());
+});
+it('an empty list centers content inside the safe-area list, whereas failure offers retry', async () => {
+  mockRequest.mockResolvedValue({
+    status: 200,
+    body: { items: [], nextCursor: null },
+  });
+  let r!: ReactTestRenderer.ReactTestRenderer;
+  await act(async () => {
+    r = ReactTestRenderer.create(<NoticesScreen />);
+  });
+  expect(byId(r, 'notices-empty').length).toBeGreaterThan(0);
+  expect(
+    StyleSheet.flatten(r.root.findByType(FlatList).props.contentContainerStyle),
+  ).toMatchObject({ flexGrow: 1, justifyContent: 'center' });
+  await act(async () => r.unmount());
+  mockRequest.mockRejectedValue(new Error('offline'));
+  await act(async () => {
+    r = ReactTestRenderer.create(<NoticesScreen />);
+  });
+  expect(byId(r, 'notices-empty')).toHaveLength(0);
+  await act(async () => r.unmount());
+});
 it('My Page N uses a separate endpoint and a successful detail read removes N across the menu', async () => {
   let menu!: ReactTestRenderer.ReactTestRenderer;
   let detail!: ReactTestRenderer.ReactTestRenderer;
