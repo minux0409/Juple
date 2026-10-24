@@ -1242,6 +1242,8 @@
     "interactionNotAllowed": "この操作はできません。"
   },
   "agreement": {
+    "ageConfirmation": "私は満14歳以上です",
+    "ageNotice": "Jupleは満14歳以上の方のみ利用できます。ログインまたはアカウント作成の前に年齢を確認してください。",
     "title": "ようこそ!",
     "subtitle": "Juple をはじめる前に、規約に同意してください。",
     "agreeAll": "すべての規約に同意",
@@ -1262,8 +1264,8 @@
       "reportBody": "問題のあるユーザー、コレクション、リンク、コメントはアプリから通報でき、他のユーザーをブロックできます。通報は人が確認します。",
       "restrictionTitle": "利用制限",
       "restrictionBody": "規約に違反した場合、コンテンツの閲覧制限・削除、共有の停止、一部機能の制限、アカウントの利用制限が行われることがあります。",
-      "subscriptionTitle": "無料期間と定期購入",
-      "subscriptionBody": "登録後30日間は無料です。その後は Google Play の月額定期購入が必要で、アカウントを削除しても定期購入は自動的には解約されません。"
+      "subscriptionTitle": "無料サービス",
+      "subscriptionBody": "Jupleは初回リリース時に無料で利用できます。支払い方法の登録やサブスクリプションは不要で、30日間の利用制限はありません。"
     },
     "privacy": {
       "itemsTitle": "収集する項目",

@@ -165,8 +165,8 @@ describe('legal text', () => {
   });
 
   it('dates each document on its own: the policy change does not re-date the terms or the deletion page', () => {
-    assert.equal(privacyDocument(noOperator).updated, '2026-10-19');
-    assert.equal(termsDocument(noOperator).updated, '2026-10-14');
+    assert.equal(privacyDocument(noOperator).updated, '2026-10-25');
+    assert.equal(termsDocument(noOperator).updated, '2026-10-25');
     assert.equal(accountDeletionDocument(noOperator).updated, '2026-10-14');
   });
 
@@ -195,4 +195,11 @@ describe('metadata and headers', () => {
     assert.ok(!legalSecurityHeaders.some(h => h.key === 'X-Robots-Tag'));
     assert.equal(legalSecurityHeaders.length, securityHeaders.length - 1);
   });
+});
+
+it('restricts account use to age 14 and over in both public policies', () => {
+  for (const doc of [termsDocument(noOperator), privacyDocument(noOperator)]) {
+    assert.match(text(doc), /만 14세 이상/);
+    assert.match(text(doc), /만 14세 미만/);
+  }
 });

@@ -8,6 +8,7 @@ import {
   type PropsWithChildren,
 } from 'react';
 import { AppState } from 'react-native';
+import { confirmMinimumAge } from './confirmMinimumAge';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -301,6 +302,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, []);
 
   const signIn = useCallback(async () => {
+    if (!await confirmMinimumAge(t)) {
+      return;
+    }
     setState(previous =>
       previous.isSigningIn
         ? previous

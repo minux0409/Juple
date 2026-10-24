@@ -1,3 +1,4 @@
+jest.mock('../confirmMinimumAge', () => ({ confirmMinimumAge: jest.fn().mockResolvedValue(true) }));
 import { authorize } from 'react-native-app-auth';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Text } from 'react-native';

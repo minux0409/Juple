@@ -183,7 +183,12 @@ describe('Terms onboarding (the Agreement screen)', () => {
     await press(renderer, 'agreement-terms');
     expect(byId(renderer, 'agreement-next').props.disabled).toBe(true);
     await press(renderer, 'agreement-privacy');
+    expect(byId(renderer, 'agreement-next').props.disabled).toBe(true);
+    await press(renderer, 'agreement-age');
     expect(byId(renderer, 'agreement-next').props.disabled).toBe(false);
+    await press(renderer, 'agreement-age');
+    expect(byId(renderer, 'agreement-next').props.disabled).toBe(true);
+    await press(renderer, 'agreement-age');
 
     // Unchecking one disables it again; 전체동의 then checks both.
     await press(renderer, 'agreement-terms');
@@ -217,7 +222,7 @@ describe('Terms onboarding (the Agreement screen)', () => {
     const pressables = renderer.root
       .findAll(node => typeof node.props.testID === 'string' && typeof node.props.onPress === 'function')
       .map(node => node.props.testID as string);
-    expect(new Set(pressables)).toEqual(new Set(['agreement-all', 'agreement-terms', 'agreement-privacy', 'agreement-terms-detail', 'agreement-privacy-detail', 'agreement-next']));
+    expect(new Set(pressables)).toEqual(new Set(['agreement-all', 'agreement-terms', 'agreement-privacy', 'agreement-age', 'agreement-age-detail', 'agreement-terms-detail', 'agreement-privacy-detail', 'agreement-next']));
     expect(acceptTerms).not.toHaveBeenCalled();
     expect(exists(renderer, 'home')).toBe(false);
   });
@@ -236,6 +241,33 @@ describe('Terms onboarding (the Agreement screen)', () => {
     expect(exists(renderer, 'terms-agreement-screen')).toBe(true);
   });
 
+  it('requires a legacy member to confirm the new age policy once, then stays accepted after restart', async () => {
+    const current = { currentVersion: '2026-10-25', acceptedVersion: '2026-10-25', isAccepted: true };
+    jest.mocked(getTermsStatus).mockResolvedValueOnce({ ...current, acceptedVersion: '2026-10-14', isAccepted: false }).mockResolvedValue(current);
+    jest.mocked(acceptTerms).mockResolvedValue(current);
+    const first = await mount();
+    expect(exists(first, 'home')).toBe(false);
+    await press(first, 'agreement-terms');
+    await press(first, 'agreement-privacy');
+    expect(byId(first, 'agreement-next').props.disabled).toBe(true);
+    await press(first, 'agreement-age');
+    await press(first, 'agreement-next');
+    expect(acceptTerms).toHaveBeenCalledWith(expect.any(Function), '2026-10-25');
+    expect(exists(first, 'home')).toBe(true);
+    await act(async () => first.unmount());
+    const restarted = await mount();
+    expect(exists(restarted, 'home')).toBe(true);
+    expect(exists(restarted, 'terms-agreement-screen')).toBe(false);
+    expect(acceptTerms).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not treat a malformed acceptance response as a successful age confirmation', async () => {
+    const actual = jest.requireActual('../safetyApi') as typeof import('../safetyApi');
+    const request = jest.fn().mockResolvedValue({ body: {} });
+    await expect(actual.acceptTerms(request, '2026-10-25')).rejects.toThrow();
+    expect(request).toHaveBeenCalledWith(expect.objectContaining({ body: { version: '2026-10-25', isAtLeast14: true } }));
+  });
+
   it('asks nothing while not signed in / bootstrapped', async () => {
     const renderer = await mount(false);
     expect(getTermsStatus).not.toHaveBeenCalled();
@@ -247,6 +279,17 @@ describe('Terms onboarding (the Agreement screen)', () => {
     jest.mocked(getTermsStatus).mockRejectedValue(new ApiError('unavailable'));
     const renderer = await mount();
     expect(exists(renderer, 'unavailable')).toBe(true);
+    expect(exists(renderer, 'home')).toBe(false);
+  });
+
+  it('offers a fresh status retry instead of repeatedly submitting an obsolete policy version', async () => {
+    jest.mocked(getTermsStatus).mockResolvedValue(status(false));
+    jest.mocked(acceptTerms).mockRejectedValue(new ApiError('badRequest', 400));
+    const renderer = await mount();
+    await press(renderer, 'agreement-all');
+    await press(renderer, 'agreement-next');
+    expect(exists(renderer, 'unavailable')).toBe(true);
+    expect(exists(renderer, 'terms-agreement-screen')).toBe(false);
     expect(exists(renderer, 'home')).toBe(false);
   });
 

@@ -341,6 +341,9 @@ export function AppRoot({
   }, [config]);
 
   const signIn = useCallback(async () => {
+    if (!window.confirm(dictionary.agreementAgeNotice)) {
+      return;
+    }
     const msal = currentMsal();
     if (!config || !msal) {
       return;
@@ -481,6 +484,7 @@ export function AppRoot({
     if (api && terms && !terms.isAccepted) {
       return (
         <TermsAgreement
+          key={terms.currentVersion}
           api={api}
           dictionary={dictionary}
           onAccepted={accepted => setTerms(accepted)}

@@ -86,7 +86,7 @@ public sealed class CurrentUserBootstrapServiceTests
         var service = CreateService(store);
 
         var exception = await Assert.ThrowsAsync<InvalidCurrentUserBootstrapRequestException>(
-            () => service.BootstrapAsync(ExternalIdentity, new("invalid-locale", "Asia/Seoul")));
+            () => service.BootstrapAsync(ExternalIdentity, new("invalid_locale!", "Asia/Seoul", Now.AddMinutes(-1))));
 
         Assert.Equal("preferredLocale", exception.Field);
         Assert.Empty(store.CreatedUsers);

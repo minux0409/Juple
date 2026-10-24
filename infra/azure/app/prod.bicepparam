@@ -134,6 +134,8 @@ param billingProgramEnabled = false
 // that people have (v25) has no Terms screen, so enforcing would refuse their content writes with 403. Activation order: deploy the
 // new backend with this false -> ship the build with the Terms screen (closed testing) -> confirm it is stable -> make it the
 // minimum supported build (mobileAndroidMinimumSupportedBuild) and confirm older builds are forced to update -> only then true.
+// Age-14 rollout: keep the live version during the compatible backend deployment.
+// Only after age-aware iOS/Android/Web clients are available, activate 2026-10-25 + enforcement together.
 param termsEnforceAcceptance = false
 param termsCurrentVersion = '2026-10-14'
 

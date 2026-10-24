@@ -1242,6 +1242,8 @@
     "interactionNotAllowed": "Tindakan ini tidak tersedia."
   },
   "agreement": {
+    "ageConfirmation": "Saya berusia minimal 14 tahun",
+    "ageNotice": "Juple hanya tersedia bagi orang berusia 14 tahun ke atas. Konfirmasikan usia sebelum masuk atau membuat akun.",
     "title": "Selamat datang!",
     "subtitle": "Setujui ketentuan sebelum mulai menggunakan Juple.",
     "agreeAll": "Setujui semua",
@@ -1262,8 +1264,8 @@
       "reportBody": "Anda dapat melaporkan pengguna, koleksi, tautan, dan komentar di aplikasi, serta memblokir pengguna lain. Laporan ditinjau oleh manusia.",
       "restrictionTitle": "Pembatasan",
       "restrictionBody": "Jika ketentuan dilanggar, konten dapat dibatasi atau dihapus, berbagi dihentikan, beberapa fitur dibatasi, atau akun dibatasi.",
-      "subscriptionTitle": "Masa gratis dan langganan",
-      "subscriptionBody": "30 hari pertama setelah mendaftar gratis. Setelah itu diperlukan langganan bulanan Google Play, dan menghapus akun tidak membatalkannya secara otomatis."
+      "subscriptionTitle": "Layanan gratis",
+      "subscriptionBody": "Juple gratis saat peluncuran. Tidak memerlukan metode pembayaran atau langganan, dan tidak ada batas penggunaan 30 hari."
     },
     "privacy": {
       "itemsTitle": "Data yang dikumpulkan",

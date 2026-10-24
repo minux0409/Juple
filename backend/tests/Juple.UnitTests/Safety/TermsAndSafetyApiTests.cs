@@ -16,6 +16,43 @@ namespace Juple.UnitTests.Safety;
 /// <summary>The server-side Terms gate (every authenticated endpoint except the pinned allowlist) and the block mapping.</summary>
 public sealed class TermsAndSafetyApiTests
 {
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData(false, false)]
+    [InlineData(null, true)]
+    [InlineData(false, true)]
+    public async Task AgeRestrictedTerms_RefuseMissingOrFalseAgeDeclaration(bool? confirmation, bool padded)
+    {
+        // Rejection happens before any account/store access; old clients cannot accept the new policy silently.
+        var controller = new Juple.Api.Controllers.SafetyController(null!, null!, null!, null!, null!);
+        var result = await controller.AcceptTermsAsync(
+            new(padded ? $" {TermsOptions.AgeRestrictedVersion} " : TermsOptions.AgeRestrictedVersion, confirmation), CancellationToken.None);
+        var response = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(400, response.StatusCode);
+        var problem = Assert.IsType<ProblemDetails>(response.Value);
+        Assert.Equal("minimumAgeConfirmationRequired", problem.Extensions["code"]);
+    }
+
+    [Theory]
+    [InlineData("2026-10-14", null)] // Android v33 / iOS 1.0(1) request shape.
+    [InlineData("2026-10-14", true)] // New client against the staged, legacy policy.
+    [InlineData("2026-10-25", true)] // New client after explicit policy activation.
+    public async Task CompatibleClients_CanAcceptTheirCurrentPolicy(string currentVersion, bool? confirmation)
+    {
+        var controller = new Juple.Api.Controllers.SafetyController(new Identity(), new Users(), new AcceptingTerms(currentVersion), null!, null!);
+        var result = await controller.AcceptTermsAsync(new(currentVersion, confirmation), CancellationToken.None);
+        var response = Assert.IsType<OkObjectResult>(result);
+        Assert.True(Assert.IsType<Juple.Api.Controllers.SafetyController.TermsResponse>(response.Value).IsAccepted);
+    }
+
+    private sealed class AcceptingTerms(string version) : ITermsConsentService
+    {
+        public Task<TermsStatusDto> AcceptAsync(long userId, string? requested, CancellationToken cancellationToken = default) =>
+            requested == version ? Task.FromResult(new TermsStatusDto(version, version, DateTimeOffset.UtcNow, true)) : throw new InvalidTermsVersionException();
+        public Task<TermsStatusDto> GetStatusAsync(long userId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task RequireAcceptedAsync(long userId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
     private sealed class Identity : IExternalIdentityAccessor
     {
         public ExternalIdentityPrincipal GetRequired() => new(Guid.NewGuid(), Guid.NewGuid());

@@ -40,9 +40,9 @@ describe('Terms of Service acceptance', () => {
     assert.match(agreement, /href="\/terms"/);
     assert.match(agreement, /href="\/privacy"/);
     assert.match(agreement, /disabled=\{busy \|\| !allChecked\}/);
-    assert.match(agreement, /path: TERMS_ACCEPTANCE_PATH, body: \{ version \}/);
+    assert.match(agreement, /path: TERMS_ACCEPTANCE_PATH, body: \{ version, isAtLeast14: ageChecked \}/);
     // 전체동의 and the item component (used for the Terms and for the personal-information item); there is no "later" / skip
-    assert.equal((agreement.match(/type="checkbox"/g) ?? []).length, 2);
+    assert.equal((agreement.match(/type="checkbox"/g) ?? []).length, 3);
     assert.equal((agreement.match(/<AgreementItem/g) ?? []).length, 2);
     assert.doesNotMatch(agreement, /onLater|safetyTermsLater/);
     assert.doesNotMatch(agreement, /agreement-close|onClose|agreementClose/);

@@ -1242,6 +1242,8 @@
     "interactionNotAllowed": "Bu işlem kullanılamıyor."
   },
   "agreement": {
+    "ageConfirmation": "En az 14 yaşındayım",
+    "ageNotice": "Juple yalnızca 14 yaş ve üzeri kişiler tarafından kullanılabilir. Giriş yapmadan veya hesap oluşturmadan önce yaşınızı onaylayın.",
     "title": "Hoş geldiniz!",
     "subtitle": "Juple'ı kullanmaya başlamadan önce lütfen şartları kabul edin.",
     "agreeAll": "Tümünü kabul et",
@@ -1262,8 +1264,8 @@
       "reportBody": "Uygulamada kullanıcıları, koleksiyonları, bağlantıları ve yorumları bildirebilir, diğer kullanıcıları engelleyebilirsiniz. Bildirimleri insanlar inceler.",
       "restrictionTitle": "Kısıtlamalar",
       "restrictionBody": "Şartlar ihlal edilirse içerik kısıtlanabilir veya kaldırılabilir, paylaşım durdurulabilir, bazı özellikler sınırlandırılabilir veya hesap kısıtlanabilir.",
-      "subscriptionTitle": "Ücretsiz dönem ve abonelik",
-      "subscriptionBody": "Kayıttan sonraki ilk 30 gün ücretsizdir. Sonrasında aylık Google Play aboneliği gerekir; hesabınızı silmek aboneliği otomatik olarak iptal etmez."
+      "subscriptionTitle": "Ücretsiz hizmet",
+      "subscriptionBody": "Juple ilk yayınlandığında ücretsizdir. Ödeme yöntemi veya abonelik gerekmez ve 30 günlük kullanım sınırı yoktur."
     },
     "privacy": {
       "itemsTitle": "Toplanan bilgiler",

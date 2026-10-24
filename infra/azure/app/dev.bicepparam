@@ -170,7 +170,7 @@ param billingEventsServiceBusNamespace = 'sb-juple-dev-lg4zigc62h2qg.servicebus.
 // only as a Container Apps secret; an empty value fails the deployment's secret validation rather than blanking the live one silently).
 // Terms consent (main.bicep has no default on purpose). Dev enforces it: every Dev build that writes content shows the Terms.
 param termsEnforceAcceptance = true
-param termsCurrentVersion = '2026-10-14'
+param termsCurrentVersion = '2026-10-25'
 
 param entraAccountDeletionEnabled = true
 param entraAccountDeletionTenantId = 'd2e79a05-cf5f-43ab-86d2-717e025a74b1'

@@ -1242,6 +1242,8 @@
     "interactionNotAllowed": "无法执行此操作。"
   },
   "agreement": {
+    "ageConfirmation": "我已年满14周岁",
+    "ageNotice": "Juple仅供年满14周岁的用户使用。登录或创建账户前，请确认您的年龄。",
     "title": "欢迎!",
     "subtitle": "开始使用 Juple 之前,请先同意相关条款。",
     "agreeAll": "同意全部条款",
@@ -1262,8 +1264,8 @@
       "reportBody": "您可以在应用中举报有问题的用户、合集、链接和评论,也可以屏蔽其他用户。举报由人工审核。",
       "restrictionTitle": "使用限制",
       "restrictionBody": "违反条款时,可能会限制或删除内容、停止分享、限制部分功能或限制账号使用。",
-      "subscriptionTitle": "免费期与订阅",
-      "subscriptionBody": "注册后的 30 天为免费使用期。之后需要订阅 Google Play 月度订阅;删除账号不会自动取消订阅。"
+      "subscriptionTitle": "免费服务",
+      "subscriptionBody": "Juple首次发布时免费使用。无需登记付款方式或订阅，也没有30天使用限制。"
     },
     "privacy": {
       "itemsTitle": "收集的项目",

@@ -1242,6 +1242,8 @@
     "interactionNotAllowed": "Không thể thực hiện thao tác này."
   },
   "agreement": {
+    "ageConfirmation": "Tôi từ đủ 14 tuổi trở lên",
+    "ageNotice": "Juple chỉ dành cho người từ đủ 14 tuổi trở lên. Hãy xác nhận tuổi trước khi đăng nhập hoặc tạo tài khoản.",
     "title": "Chào mừng bạn!",
     "subtitle": "Vui lòng đồng ý với các điều khoản trước khi bắt đầu dùng Juple.",
     "agreeAll": "Đồng ý tất cả",
@@ -1262,8 +1264,8 @@
       "reportBody": "Bạn có thể báo cáo người dùng, bộ sưu tập, liên kết và bình luận trong ứng dụng, và chặn người dùng khác. Báo cáo được con người xem xét.",
       "restrictionTitle": "Hạn chế",
       "restrictionBody": "Nếu vi phạm điều khoản, nội dung có thể bị hạn chế hoặc xóa, ngừng chia sẻ, giới hạn một số tính năng hoặc hạn chế tài khoản.",
-      "subscriptionTitle": "Thời gian miễn phí và đăng ký",
-      "subscriptionBody": "30 ngày đầu sau khi đăng ký là miễn phí. Sau đó cần đăng ký hằng tháng qua Google Play, và xóa tài khoản không tự động hủy đăng ký."
+      "subscriptionTitle": "Dịch vụ miễn phí",
+      "subscriptionBody": "Juple miễn phí khi ra mắt. Không yêu cầu phương thức thanh toán hoặc đăng ký trả phí và không giới hạn sử dụng trong 30 ngày."
     },
     "privacy": {
       "itemsTitle": "Thông tin thu thập",

@@ -221,19 +221,17 @@ describe('legal pages: the operator, the privacy officer and the reviewed texts'
   it('names the processors with what each handles; the overseas-transfer and under-14 texts wait for the legal review', () => {
     const privacy = text(privacyDocument(config));
     assert.match(privacy, /Microsoft\(Microsoft Entra External ID\): 회원 가입·로그인과 본인 확인/);
-    assert.match(privacy, /Google\(Firebase Cloud Messaging\): 푸시 알림 전송/);
+    assert.match(privacy, /Google\(Firebase Cloud Messaging\): Android 푸시 알림 전송/);
     assert.match(privacy, /Google\(Google Play\): 구독 결제, 갱신, 해지, 환불/);
-    assert.deepEqual(pendingLegalReview(), ['overseasTransfers', 'minorsPolicy']);
-    assert.equal(privacyDocument(config).sections.some(section => section.id === 'overseas-transfer' || section.id === 'minors'), false);
+    assert.deepEqual(pendingLegalReview(), ['overseasTransfers']);
+    assert.equal(privacyDocument(config).sections.some(section => section.id === 'overseas-transfer'), false);
   });
 
-  it('the terms state the paid model: 30 free days, then a monthly Google Play subscription that deleting the account does not cancel', () => {
+  it('the first launch is free without a payment method, subscription or 30-day limit', () => {
     const terms = text(termsDocument(config));
-    assert.match(terms, /가입 후 30일은 Juple이 제공하는 무료 이용 기간입니다/);
-    assert.match(terms, /월 단위 자동 갱신 구독/);
-    assert.match(terms, /결제·갱신·해지·환불은 Google Play의 약관과 정책을 따릅니다/);
-    assert.match(terms, /계정을 삭제해도 스토어 구독은 자동으로 해지되지 않으므로/);
-    assert.doesNotMatch(terms, /구독 기능이 제공되는 경우/);
+    assert.match(terms, /첫 출시 시 무료/);
+    assert.match(terms, /30일 이용 제한은 적용되지 않습니다/);
+    assert.doesNotMatch(terms, /월 단위 자동 갱신 구독/);
   });
 
   it('never shows a placeholder, with or without the operator configured', () => {
@@ -251,14 +249,14 @@ describe('legal pages: the operator, the privacy officer and the reviewed texts'
       const deletion = text(accountDeletionDocument(operator));
       for (const [slug, body] of [['privacy', privacy], ['terms', terms], ['account-deletion', deletion]] as const) {
         assert.doesNotMatch(body, /Google 로그인|Apple 로그인|Google 계정|Apple 계정|Google, Apple|Google 또는 Apple|선택한 로그인 방식/, slug);
-        assert.doesNotMatch(body.replace(/Google\((Firebase Cloud Messaging|Google Play)\)|Google Firebase Cloud Messaging|Google Play|Firebase Cloud Messaging/g, ''), /Google|Apple/, `${slug}: Google/Apple only as Play and Firebase`);
+        assert.doesNotMatch(body.replace(/Apple\(Apple Push Notification service, APNs\)|Google\((Firebase Cloud Messaging|Google Play)\)|Google Firebase Cloud Messaging|Google Play|Firebase Cloud Messaging/g, ''), /Google|Apple/, `${slug}: Google/Apple only as Play and Firebase`);
       }
       assert.match(privacy, /회원 가입과 로그인은 이메일 주소와 비밀번호로 하며, Microsoft Entra External ID를 통해 이루어집니다/);
       assert.match(privacy, /Microsoft\(Microsoft Entra External ID\): 회원 가입·로그인과 본인 확인\. 로그인에 쓰는 이메일 주소와 비밀번호, 로그인 식별자를 처리합니다/);
-      assert.match(privacy, /Google\(Firebase Cloud Messaging\): 푸시 알림 전송/);
+      assert.match(privacy, /Google\(Firebase Cloud Messaging\): Android 푸시 알림 전송/);
       assert.match(privacy, /Google\(Google Play\): 구독 결제, 갱신, 해지, 환불/);
       assert.match(terms, /계정은 이메일 주소와 비밀번호로 만들며/);
-      assert.match(terms, /결제·갱신·해지·환불은 Google Play의 약관과 정책을 따릅니다/);
+      assert.match(terms, /첫 출시 시 무료/);
       assert.match(deletion, /가입과 로그인에 사용한 이메일 주소/);
       assert.match(deletion, /본인 확인을 위해 \*\*다시 로그인\*\*합니다/);
       assert.match(deletion, /계정을 삭제해도 Google Play 구독은 자동으로 해지되지 않습니다/);

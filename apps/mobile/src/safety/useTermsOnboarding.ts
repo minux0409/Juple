@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { acceptTerms, getTermsStatus } from './safetyApi';
 
@@ -73,13 +74,21 @@ export function useTermsOnboarding(enabled: boolean): TermsOnboarding {
     setSaveFailed(false);
     try {
       const result = await acceptTerms(request, current);
-      if (result.isAccepted) {
+      if (result.currentVersion !== current) {
+        // The policy changed while this screen was open. Retry fetches the new text/version instead of resending stale consent.
+        setStatus('error');
+      } else if (result.isAccepted) {
         setStatus('accepted');
       } else {
         setSaveFailed(true);
       }
-    } catch {
-      setSaveFailed(true);
+    } catch (error) {
+      if (error instanceof ApiError && error.kind === 'badRequest') {
+        // In particular, a stale Terms version must not trap the member on an endlessly failing submit button.
+        setStatus('error');
+      } else {
+        setSaveFailed(true);
+      }
     } finally {
       saving.current = false;
       setIsSaving(false);

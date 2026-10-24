@@ -37,8 +37,12 @@ export async function getTermsStatus(request: AuthenticatedApiRequest): Promise<
 }
 
 export async function acceptTerms(request: AuthenticatedApiRequest, version: string): Promise<TermsStatus> {
-  const response = await request<unknown>({ method: 'POST', path: '/api/v1/users/me/terms-acceptance', body: { version } });
-  return parseTermsStatus(response.body) ?? { currentVersion: version, acceptedVersion: version, isAccepted: true };
+  const response = await request<unknown>({ method: 'POST', path: '/api/v1/users/me/terms-acceptance', body: { version, isAtLeast14: true } });
+  const status = parseTermsStatus(response.body);
+  if (!status || (status.isAccepted && status.acceptedVersion !== status.currentVersion)) {
+    throw new ApiError('unavailable');
+  }
+  return status;
 }
 
 /** Whether a failure is the server asking for the current Terms first. */

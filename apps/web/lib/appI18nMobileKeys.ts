@@ -523,6 +523,8 @@ export const MOBILE_STRING_KEYS = {
   agreementSubtitle: 'agreement.subtitle',
   agreementAgreeAll: 'agreement.agreeAll',
   agreementRequired: 'agreement.required',
+  agreementAgeConfirmation: 'agreement.ageConfirmation',
+  agreementAgeNotice: 'agreement.ageNotice',
   agreementTermsName: 'agreement.termsName',
   agreementPrivacyName: 'agreement.privacyName',
   agreementNext: 'agreement.next',

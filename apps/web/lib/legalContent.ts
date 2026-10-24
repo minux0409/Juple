@@ -60,7 +60,7 @@ export function operatorFacts(config: LegalOperatorConfig): { label: string; val
  *
  * - overseasTransfers: the 국외 이전 notice - per recipient the country, when and how the data moves and how long it is kept. The parts
  *   the code itself establishes (who, what, why) are already published in "제3자와 처리 위탁" below.
- * - minorsPolicy: whether and how Juple serves people under 14 (the app has no age check or guardian consent today).
+ * - minorsPolicy: the owner-confirmed minimum account age and handling of underage accounts.
  */
 export interface OverseasTransferNotice {
   readonly recipient: string;
@@ -76,7 +76,11 @@ export const REVIEWED_LEGAL_TEXT: {
   readonly minorsPolicy: readonly string[] | null;
 } = {
   overseasTransfers: null,
-  minorsPolicy: null,
+  minorsPolicy: [
+    'Juple은 만 14세 이상만 가입하고 이용할 수 있습니다. 만 14세 미만 아동은 계정을 만들거나 서비스를 이용할 수 없습니다.',
+    '연령 확인을 지원하는 앱·웹에서는 로그인·가입 진입 및 서비스 이용약관 동의 과정에서 만 14세 이상 여부를 본인이 확인합니다. 기존 계정의 연령은 기존 약관 동의만으로 확인된 것으로 보지 않으며, 지원 버전 전환에 따라 연령 확인을 단계적으로 요청합니다. 생년월일이나 신분증은 이 연령 확인을 위해 수집하지 않습니다.',
+    '만 14세 미만 이용자의 개인정보가 수집된 사실을 알게 되면 이용을 제한하고 관련 법령에 따라 삭제 등 필요한 조치를 진행합니다. 관련 문의와 삭제 요청은 본 방침의 개인정보 문의처로 보내 주세요.',
+  ],
 };
 
 /** The reviewed texts that are still missing - empty means the pages are complete for a launch. */
@@ -213,7 +217,8 @@ export function privacyDocument(config: LegalOperatorConfig): LegalDocument {
           ul(
             'Microsoft(Microsoft Entra External ID): 회원 가입·로그인과 본인 확인. 로그인에 쓰는 이메일 주소와 비밀번호, 로그인 식별자를 처리합니다. 계정 삭제를 요청하면 Juple에서 쓰던 로그인 계정의 삭제도 함께 처리합니다.',
             'Microsoft(Azure): 서버, 데이터베이스, 파일 저장소, 운영 로그의 호스팅. 이 방침의 1항 정보를 저장·처리합니다(대한민국 리전).',
-            'Google(Firebase Cloud Messaging): 푸시 알림 전송. 푸시 토큰과 알림 내용을 처리합니다.',
+            'Google(Firebase Cloud Messaging): Android 푸시 알림 전송. 푸시 토큰과 알림 내용을 처리합니다.',
+            'Apple(Apple Push Notification service, APNs): iOS 푸시 알림 전송. APNs 기기 토큰과 알림 내용을 처리합니다.',
             'Google(Google Play): 구독 결제, 갱신, 해지, 환불. 결제 정보는 Google Play가 처리하며, Juple은 구독 확인을 위해 구매 토큰과 구독 상태를 Google Play에 조회합니다.',
             '이용자가 저장한 링크의 공개 웹사이트: 제목·이미지를 확인할 때 접속',
           ),
@@ -291,9 +296,9 @@ export function termsDocument(config: LegalOperatorConfig): LegalDocument {
   return {
     slug: 'terms',
     title: '이용약관',
-    description: 'Juple 서비스 이용 조건, 콘텐츠와 공유, 무료 이용 기간·구독, 계정 삭제에 대한 약관입니다.',
+    description: 'Juple 서비스 이용 조건, 만 14세 이상 가입 기준, 콘텐츠와 공유, 무료 이용과 계정 삭제에 대한 약관입니다.',
     intro: '이 약관은 Juple 앱과 공유 링크용 웹 페이지의 이용 조건을 설명합니다. 서비스를 이용하면 이 약관에 따르는 것으로 봅니다.',
-    updated: LEGAL_CONTENT_UPDATED,
+    updated: '2026-10-25',
     sections: [
       {
         id: 'service',
@@ -308,6 +313,7 @@ export function termsDocument(config: LegalOperatorConfig): LegalDocument {
         blocks: [
           ul(
             '계정은 이메일 주소와 비밀번호로 만들며(로그인은 Microsoft Entra External ID를 통해 이루어집니다), 이메일 계정과 비밀번호의 보안은 이용자가 관리합니다.',
+            'Juple은 만 14세 이상만 가입하고 이용할 수 있습니다. 가입 및 이용약관 동의 시 만 14세 이상임을 확인해야 하며, 만 14세 미만은 이용할 수 없습니다.',
             '계정은 이용자 본인만 사용할 수 있습니다.',
             '이용자는 앱에서 언제든 계정을 삭제할 수 있으며, 삭제되는 범위는 개인정보처리방침과 계정 삭제 안내에 따릅니다.',
           ),
@@ -364,18 +370,10 @@ export function termsDocument(config: LegalOperatorConfig): LegalDocument {
       },
       {
         id: 'subscription',
-        title: '6. 무료 이용 기간과 유료 구독',
+        title: '6. 무료 이용',
         blocks: [
-          p('Juple은 무료 이용 기간 후 유료 구독으로 이용하는 서비스이며, 다음이 적용됩니다.'),
-          ul(
-            '가입 후 30일은 Juple이 제공하는 무료 이용 기간입니다(스토어 결제와 별개).',
-            '무료 이용 기간이 끝나면 월 단위 자동 갱신 구독(Juple 구독)이 필요합니다. Android에서는 Google Play로 구독하며, 가격은 구매 화면에 표시되는 Google Play의 가격입니다.',
-            '결제·갱신·해지·환불은 Google Play의 약관과 정책을 따릅니다. Google Play의 정기 결제 설정에서 언제든 해지할 수 있습니다.',
-            '해지하면 이미 결제한 기간이 끝날 때까지 이용할 수 있습니다. 결제에 문제가 있으면 유예 기간이 적용될 수 있습니다.',
-            '무료 이용 기간이 끝났거나 구독이 만료되면 저장한 링크와 컬렉션은 계속 볼 수 있지만, 새로 저장하거나 수정·삭제·공유할 수 없습니다. 구독은 기기가 아니라 계정에 적용되며 구매 복원을 지원합니다.',
-            '컬렉션 소유자의 구독이 만료되면 그 컬렉션은 읽을 수만 있으며, 참여자가 구독 중이어도 변경할 수 없습니다.',
-            '계정을 삭제해도 스토어 구독은 자동으로 해지되지 않으므로 Google Play에서 먼저 해지해야 합니다.',
-          ),
+          p('Juple은 첫 출시 시 무료로 이용할 수 있습니다. 앱 설치와 서비스 이용에 결제수단 등록 또는 구독이 필요하지 않으며, 30일 이용 제한은 적용되지 않습니다.'),
+          p('유료 기능을 도입하는 경우 적용 전에 이용 조건과 가격을 별도로 안내하며, 이용자의 명시적인 구매 동의 없이 결제하지 않습니다.'),
         ],
       },
       {

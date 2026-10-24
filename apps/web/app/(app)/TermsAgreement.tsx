@@ -37,11 +37,13 @@ export function TermsAgreement({
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const sending = useRef(false);
-  const allChecked = termsChecked && privacyChecked;
+  const [ageChecked, setAgeChecked] = useState(false);
+  const allChecked = termsChecked && privacyChecked && ageChecked;
 
   const toggleAll = (checked: boolean) => {
     setTermsChecked(checked);
     setPrivacyChecked(checked);
+    setAgeChecked(checked);
   };
 
   const accept = (event: React.FormEvent) => {
@@ -52,11 +54,18 @@ export function TermsAgreement({
     sending.current = true;
     setBusy(true);
     setFailed(false);
-    api<unknown>({ method: 'POST', path: TERMS_ACCEPTANCE_PATH, body: { version } }).then(
+    api<unknown>({ method: 'POST', path: TERMS_ACCEPTANCE_PATH, body: { version, isAtLeast14: ageChecked } }).then(
       raw => {
-        onAccepted(parseTermsStatus(raw) ?? { currentVersion: version, acceptedVersion: version, isAccepted: true });
+        const status = parseTermsStatus(raw);
+        if (!status || (status.isAccepted && status.acceptedVersion !== status.currentVersion)) {
+          sending.current = false;
+          setBusy(false);
+          setFailed(true);
+          return;
+        }
+        onAccepted(status);
       },
-      caught => {
+      async caught => {
         sending.current = false;
         setBusy(false);
         if (isSessionLost(caught)) {
@@ -64,6 +73,14 @@ export function TermsAgreement({
           return;
         }
         setFailed(true);
+        try {
+          const status = parseTermsStatus(await api<unknown>({ method: 'GET', path: '/api/v1/users/me/terms' }));
+          if (status && (status.currentVersion !== version || status.isAccepted)) {
+            onAccepted(status);
+          }
+        } catch {
+          // Keep the error and retry action when the status cannot be refreshed.
+        }
       },
     );
   };
@@ -97,6 +114,7 @@ export function TermsAgreement({
           open={open === 'terms'}
           setOpen={isOpen => setOpen(isOpen ? 'terms' : null)}
         >
+          <Section body={dictionary.agreementAgeNotice} title={dictionary.agreementAgeConfirmation} />
           <Section body={dictionary.agreementTermsServiceBody} title={dictionary.agreementTermsServiceTitle} />
           <Section body={dictionary.agreementTermsContentBody} title={dictionary.agreementTermsContentTitle} />
           <Section body={dictionary.agreementTermsConductBody} title={dictionary.agreementTermsConductTitle} />
@@ -126,6 +144,12 @@ export function TermsAgreement({
             {dictionary.safetyTermsViewPrivacy}
           </a>
         </AgreementItem>
+
+        <label className={styles.agreementRow}>
+          <input checked={ageChecked} data-agreement-age disabled={busy} onChange={event => setAgeChecked(event.target.checked)} type="checkbox" />
+          <span>{required(dictionary.agreementAgeConfirmation)}</span>
+        </label>
+        <p className={styles.agreementSubtitle}>{dictionary.agreementAgeNotice}</p>
 
         {failed ? (
           <p className={styles.fieldError} role="alert">

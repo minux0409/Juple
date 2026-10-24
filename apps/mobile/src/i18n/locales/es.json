@@ -1242,6 +1242,8 @@
     "interactionNotAllowed": "Esta acción no está disponible."
   },
   "agreement": {
+    "ageConfirmation": "Tengo al menos 14 años",
+    "ageNotice": "Juple solo está disponible para personas de 14 años o más. Confirma tu edad antes de iniciar sesión o crear una cuenta.",
     "title": "¡Te damos la bienvenida!",
     "subtitle": "Acepta los términos antes de empezar a usar Juple.",
     "agreeAll": "Aceptar todo",
@@ -1262,8 +1264,8 @@
       "reportBody": "Puedes denunciar usuarios, colecciones, enlaces y comentarios en la app, y bloquear a otros usuarios. Las denuncias las revisan personas.",
       "restrictionTitle": "Restricciones",
       "restrictionBody": "Si se incumplen los términos, el contenido puede restringirse o eliminarse, detenerse el uso compartido, limitarse algunas funciones o restringirse la cuenta.",
-      "subscriptionTitle": "Periodo gratuito y suscripción",
-      "subscriptionBody": "Los primeros 30 días tras registrarte son gratuitos. Después se requiere una suscripción mensual de Google Play, y eliminar tu cuenta no la cancela automáticamente."
+      "subscriptionTitle": "Servicio gratuito",
+      "subscriptionBody": "Juple es gratuito en su lanzamiento. No requiere método de pago ni suscripción, y no hay límite de uso de 30 días."
     },
     "privacy": {
       "itemsTitle": "Datos que recopilamos",

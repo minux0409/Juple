@@ -29,12 +29,14 @@ export function TermsAgreementScreen({ isSaving, saveFailed, onAccept }: TermsAg
   const [termsChecked, setTermsChecked] = useState(false);
   const [privacyChecked, setPrivacyChecked] = useState(false);
   const [detail, setDetail] = useState<Document | null>(null);
-  const allChecked = termsChecked && privacyChecked;
+  const [ageChecked, setAgeChecked] = useState(false);
+  const allChecked = termsChecked && privacyChecked && ageChecked;
 
   const toggleAll = () => {
     const next = !allChecked;
     setTermsChecked(next);
     setPrivacyChecked(next);
+    setAgeChecked(next);
   };
 
   const openFull = (url: string | null) => {
@@ -82,6 +84,17 @@ export function TermsAgreementScreen({ isSaving, saveFailed, onAccept }: TermsAg
           onToggle={() => setPrivacyChecked(value => !value)}
           testID="agreement-privacy"
         />
+
+        <AgreementRow
+          checked={ageChecked}
+          detailLabel={t('agreement.viewDetail')}
+          disabled={isSaving}
+          label={t('agreement.required', { name: t('agreement.ageConfirmation') })}
+          onDetail={() => setDetail('terms')}
+          onToggle={() => setAgeChecked(value => !value)}
+          testID="agreement-age"
+        />
+        <Text style={styles.subtitle}>{t('agreement.ageNotice')}</Text>
 
         {saveFailed ? (
           <Text accessibilityLiveRegion="polite" style={styles.error} testID="agreement-error">{t('safety.termsSaveFailed')}</Text>
@@ -184,6 +197,7 @@ function TermsDetail() {
   const { t } = useTranslation();
   return (
     <View>
+      <Section title={t('agreement.ageConfirmation')}>{t('agreement.ageNotice')}</Section>
       <Section title={t('agreement.terms.serviceTitle')}>{t('agreement.terms.serviceBody')}</Section>
       <Section title={t('agreement.terms.contentTitle')}>{t('agreement.terms.contentBody')}</Section>
       <Section title={t('agreement.terms.conductTitle')}>{t('agreement.terms.conductBody')}</Section>

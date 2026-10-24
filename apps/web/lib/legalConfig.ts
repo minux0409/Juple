@@ -37,7 +37,7 @@ export interface LegalOperatorConfig {
 export const LEGAL_CONTENT_UPDATED = '2026-10-14';
 
 /** When the privacy policy's wording was last changed (2026-10-19: service usage records for analytics). */
-export const PRIVACY_POLICY_UPDATED = '2026-10-19';
+export const PRIVACY_POLICY_UPDATED = '2026-10-25';
 
 function clean(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
