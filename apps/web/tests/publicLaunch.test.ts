@@ -249,7 +249,7 @@ describe('legal pages: the operator, the privacy officer and the reviewed texts'
       const deletion = text(accountDeletionDocument(operator));
       for (const [slug, body] of [['privacy', privacy], ['terms', terms], ['account-deletion', deletion]] as const) {
         assert.doesNotMatch(body, /Google 로그인|Apple 로그인|Google 계정|Apple 계정|Google, Apple|Google 또는 Apple|선택한 로그인 방식/, slug);
-        assert.doesNotMatch(body.replace(/Apple\(Apple Push Notification service, APNs\)|Google\((Firebase Cloud Messaging|Google Play)\)|Google Firebase Cloud Messaging|Google Play|Firebase Cloud Messaging/g, ''), /Google|Apple/, `${slug}: Google/Apple only as Play and Firebase`);
+        assert.doesNotMatch(body.replace(/Apple\(Apple Push Notification service, APNs\)|Google\((Firebase Cloud Messaging|Google Play)\)|Google Firebase Cloud Messaging|Apple Push Notification service\(APNs\)|Google Play|Firebase Cloud Messaging/g, ''), /Google|Apple/, `${slug}: Google/Apple only as Play and Firebase`);
       }
       assert.match(privacy, /회원 가입과 로그인은 이메일 주소와 비밀번호로 하며, Microsoft Entra External ID를 통해 이루어집니다/);
       assert.match(privacy, /Microsoft\(Microsoft Entra External ID\): 회원 가입·로그인과 본인 확인\. 로그인에 쓰는 이메일 주소와 비밀번호, 로그인 식별자를 처리합니다/);

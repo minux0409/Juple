@@ -203,3 +203,9 @@ it('restricts account use to age 14 and over in both public policies', () => {
     assert.match(text(doc), /만 14세 미만/);
   }
 });
+
+it('names both platform push services in the collection notice', () => {
+  const policy = text(privacyDocument(noOperator));
+  assert.match(policy, /Android 푸시 전송에는 Google Firebase Cloud Messaging/);
+  assert.match(policy, /iOS 푸시 전송에는 Apple Push Notification service/);
+});
