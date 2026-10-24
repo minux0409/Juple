@@ -40,6 +40,7 @@ import { NotificationBellButton } from '../notifications/NotificationBellButton'
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow, subscribeRowOpened } from '../components/swipeableRowCoordinator';
 import { SubscriptionExpiredNotice } from '../billing/SubscriptionExpiredNotice';
+import { TrialNotice } from '../billing/TrialNotice';
 import { HintBanner } from '../hints/HintBanner';
 import { useOneTimeHint } from '../hints/useOneTimeHint';
 import { getSavedLinkSwipeActions, hasSavedLinkSwipeActions } from '../items/savedLinkSwipeActions';
@@ -579,6 +580,7 @@ export function DailyInboxScreen() {
               <NotificationBellButton onPress={() => navigation.navigate('Notifications')} />
             </View>
             <SubscriptionExpiredNotice />
+            <TrialNotice />
             <View {...inputTarget} style={styles.inputWrapper}>
               <View pointerEvents="none" style={styles.inputIconContainer}>
                 <LinkIcon color={colors.textSecondary} size={18} />

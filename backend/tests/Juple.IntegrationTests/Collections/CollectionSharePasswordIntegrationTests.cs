@@ -300,7 +300,8 @@ public sealed class CollectionSharePasswordIntegrationTests : IAsyncLifetime
         Assert.Equal(CollectionCollaborationConflictException.SharePasswordMigrationRequired, link.Code);
         _db.ChangeTracker.Clear();
         Assert.False(await _db.CollectionInvitations.AnyAsync(invitation => invitation.InvitedUserId == newcomer));
-        Assert.False(await _db.CollectionShares.AnyAsync(share => share.CollectionId == _sharedId));
+        // No PUBLIC link came out of it (the Collection keeps only the private link it was created with).
+        Assert.False(await _db.CollectionShares.AnyAsync(share => share.CollectionId == _sharedId && share.IsPublic));
 
         // The recipients it already had are exactly as protected as before.
         await Assert.ThrowsAsync<CollectionLockedException>(() => Items().GetAsync(_viewer, _sharedId, null, 25));
@@ -311,8 +312,7 @@ public sealed class CollectionSharePasswordIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task ALegacyCollection_KeepsTheLinkItAlreadyHad_ButThatIsNoNewOne()
     {
-        var publicId = Guid.NewGuid().ToString("N");
-        await _shares.EnableAsync(_owner, _sharedId, publicId, DateTimeOffset.UtcNow);
+        var publicId = (await _shares.EnableAsync(_owner, _sharedId, Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow)).PublicId;
         await LockUnderOwnerPasswordAsync("owner-lock-1");
         await MarkLegacyAsync();
 
@@ -385,9 +385,8 @@ public sealed class CollectionSharePasswordIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task APublicLink_ShowsNothingUntilItIsProven_AndProvingItNeverWidensTheLink()
     {
-        var publicId = Guid.NewGuid().ToString("N");
         await _collaboration.RemoveCollaboratorAsync(_owner, _sharedId, await JupleIdOfAsync(_viewer));
-        await _shares.EnableAsync(_owner, _sharedId, publicId, DateTimeOffset.UtcNow);
+        var publicId = (await _shares.EnableAsync(_owner, _sharedId, Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow)).PublicId;
         await SetSharePasswordAsync();
         _db.ChangeTracker.Clear();
 
@@ -412,9 +411,8 @@ public sealed class CollectionSharePasswordIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task AWritableLink_StillNeedsASignedInAccount_AndTheGrant()
     {
-        var publicId = Guid.NewGuid().ToString("N");
         await _collaboration.RemoveCollaboratorAsync(_owner, _sharedId, await JupleIdOfAsync(_viewer));
-        await _shares.EnableAsync(_owner, _sharedId, publicId, DateTimeOffset.UtcNow, CollectionSharePermission.Write);
+        var publicId = (await _shares.EnableAsync(_owner, _sharedId, Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow, CollectionSharePermission.Write)).PublicId;
         await SetSharePasswordAsync();
         _db.ChangeTracker.Clear();
         var strangerItem = (await new ItemStore(_db).SaveAsync(_stranger, "https://example.test/stranger", null, DateTimeOffset.UtcNow)).Entry.Id;

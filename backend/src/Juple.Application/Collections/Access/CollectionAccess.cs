@@ -19,7 +19,9 @@ public sealed record CollectionAccess(
     bool IsLocked,
     int LockVersion,
     CollectionSharePasswordMode SharePasswordMode = CollectionSharePasswordMode.None,
-    int SharePasswordVersion = 0)
+    int SharePasswordVersion = 0,
+    bool IsMemberLocked = false,
+    int MemberLockVersion = 0)
 {
     public bool IsOwner => Role == CollectionAccessRole.Owner;
 

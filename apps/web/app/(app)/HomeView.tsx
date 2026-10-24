@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useItemsChanged } from './useItemsChanged';
@@ -12,10 +11,13 @@ import { homeCountPath, homeHistoryPath } from '../../lib/homeItems';
 import { HOME_SUMMARY_PATH, parseHomeSummary } from '../../lib/homeSummary';
 import { classifyCollectionShareUrl, collectionShareDestination } from '../../lib/collectionShareUrl';
 import { normalizeEnteredUrl, openReview } from '../../lib/newLink';
-import { collectionHref, historyLinkView, parseViewMode, VIEW_MODE_STORAGE_KEYS, type ItemHistoryPage, type LinkView } from '../../lib/savedLinks';
+import { historyLinkView, parseViewMode, VIEW_MODE_STORAGE_KEYS, type ItemHistoryPage, type LinkView } from '../../lib/savedLinks';
 import { TOUR_TARGETS, tourTarget } from '../../lib/tour';
 import { useSignedInApp } from './AppRoot';
-import { CollectionTileView } from './collections/CollectionsView';
+import { HomeFavorites } from './HomeFavorites';
+import { TrialNotice } from './TrialNotice';
+import { HomeRecentLinks } from './HomeRecentLinks';
+import { recordLinkOpened } from '../../lib/recentLinks';
 import { CollectionGlyph, Glyph } from './Glyph';
 import { LoadFailed } from './PageStates';
 import { SavedLinkSkeleton } from './Skeletons';
@@ -44,8 +46,9 @@ interface Summary {
  *
  *  - the mobile Home input (it checks the text and opens 새 링크 검토 - nothing is saved there), as a large panel;
  *  - 오늘 저장한 링크 (GET /api/v1/items/history for today, newest first) in List / Grid / Image, each opening its page;
- *  - beside it on a wide window: exact counts only (see homeSummary.ts - a number that would be a guess is left out), the two
- *    existing destinations 새 컬렉션 / 보관함, and the favorite Collections as shortcuts.
+ *  - beside it on a wide window: exact counts only (see homeSummary.ts - a number that would be a guess is left out), then every
+ *    favorite Collection (HomeFavorites - scrolls inside its box, List / Grid, sortable) and the links the person recently
+ *    opened (HomeRecentLinks). A quiet card about the free period (TrialNotice) sits above the input while one runs.
  */
 export function HomeView() {
   const { api, dictionary, locale, onSessionLost } = useSignedInApp();
@@ -72,6 +75,11 @@ export function HomeView() {
   });
   const [viewMode, setViewMode] = useStoredChoice(VIEW_MODE_STORAGE_KEYS.home, parseViewMode);
   const [summary, setSummary] = useState<Summary | null>(null);
+  // Opening a saved link's original page is noted (best effort) for 최근 조회한 링크, which then reads its list again.
+  const [recentToken, setRecentToken] = useState(0);
+  const noteOpened = (link: LinkView) => {
+    void recordLinkOpened(api, link.id).then(() => setRecentToken(token => token + 1));
+  };
 
   useEffect(() => {
     let ignore = false;
@@ -169,6 +177,8 @@ export function HomeView() {
         title={dictionary.homeTitle}
       />
 
+      <TrialNotice />
+
       <AddLinkForm />
 
       <div className={styles.dashboard}>
@@ -191,7 +201,7 @@ export function HomeView() {
             {state.kind === 'loaded' && state.items.length === 0 ? <p className={styles.emptyState}>{dictionary.homeEmpty}</p> : null}
             {state.kind === 'loaded' && state.items.length > 0 ? (
               <>
-                <SavedLinkList dictionary={dictionary} links={state.items} mode={viewMode} />
+                <SavedLinkList dictionary={dictionary} links={state.items} mode={viewMode} onOpenOriginal={noteOpened} />
                 <LoadMore dictionary={dictionary} onLoadMore={loadMore} skeleton={<SavedLinkSkeleton count={3} mode={viewMode} />} state={state} />
               </>
             ) : null}
@@ -200,41 +210,8 @@ export function HomeView() {
 
         <aside className={`${styles.dashboardSide} ${styles.railCard}`}>
           <SummaryCards dictionary={dictionary} summary={summary} todayCount={todayCount} />
-          <div className={styles.quickActions}>
-            <Link className={styles.quickAction} href="/collections/new">
-              <Glyph name="Plus" size={18} />
-              <span>{dictionary.collectionCreate}</span>
-            </Link>
-            <Link className={styles.quickAction} href="/archive">
-              <Glyph name="Archive" size={18} />
-              <span>{dictionary.navArchive}</span>
-            </Link>
-          </div>
-          {summary && summary.favoriteShortcuts.length > 0 ? (
-            <section aria-labelledby="home-favorites" className={styles.surfaceSection}>
-              <div className={styles.sectionBar}>
-                <h2 className={styles.sectionTitle} id="home-favorites">
-                  {dictionary.filterFavorites}
-                </h2>
-                <Link className={styles.linkButton} href="/collections">
-                  {dictionary.seeAll}
-                </Link>
-              </div>
-              <ul className={styles.shortcutList}>
-                {summary.favoriteShortcuts.map(collection => (
-                  <li key={collection.id}>
-                    <Link className={styles.shortcut} href={collectionHref(collection.id)}>
-                      <CollectionTileView collection={collection} size={32} />
-                      <span className={styles.shortcutName} dir="auto">
-                        {collection.name}
-                      </span>
-                      <span className={styles.shortcutMeta}>{formatMessage(dictionary.itemCount, { count: collection.itemCount })}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
+          <HomeFavorites />
+          <HomeRecentLinks mode={viewMode} onOpenOriginal={noteOpened} reloadToken={recentToken} />
         </aside>
       </div>
     </section>
@@ -306,8 +283,8 @@ function AddLinkForm() {
       }
       return;
     }
-    // A full page navigation: see openReview (/items/new is never a Quick Detail sheet).
-    openReview(url);
+    // A soft navigation: the signed-in app stays mounted (see openReview).
+    openReview(url, href => router.push(href));
   };
   return (
     <form className={styles.addLinkPanel} noValidate onSubmit={submit}>

@@ -122,7 +122,8 @@ describe('Home: adding a link (the mobile Home -> 새 링크 검토 flow)', asyn
     assert.equal(link.normalizeEnteredUrl('당근에서 이 글을 확인해보세요!\nhttps://b.test/1 '), 'https://b.test/1');
     assert.equal(link.normalizeEnteredUrl('ftp://c.test'), null);
     assert.equal(link.normalizeEnteredUrl('just words'), null);
-    assert.equal(link.reviewHref('https://a.test/?q=1&r=2'), '/items/new?url=https%3A%2F%2Fa.test%2F%3Fq%3D1%26r%3D2');
+    assert.equal(link.reviewHref('https://a.test/?q=1&r=2'), '/save?url=https%3A%2F%2Fa.test%2F%3Fq%3D1%26r%3D2');
+    assert.equal(link.reviewHref('https://a.test/', { title: '제목', image: 'https://a.test/i.png' }), '/save?url=https%3A%2F%2Fa.test%2F&title=%EC%A0%9C%EB%AA%A9&image=https%3A%2F%2Fa.test%2Fi.png');
   });
 
   it('one save request for the link and every chosen Collection, with a retry-safe id and no unlock grant', () => {

@@ -315,7 +315,7 @@ describe('CollectionDetailsScreen - Viewer (보기 전용)', () => {
     }
     // [★] [🔔] [⋯]: their own 새 링크 알림 is the bell; the ⋯ holds only copying into their own Collection.
     expect(headerButtonIds(top)).toEqual(['collection-details-favorite', 'collection-details-notifications', 'collection-details-more']);
-    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine'), i18n.t('collections.leaveAction')]);
+    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine'), i18n.t('collections.lockSetTitle'), i18n.t('collections.leaveAction')]);
     const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
     expect(menu.findAllByType(BellIcon)).toHaveLength(0);
     expect(menu.findAllByType(CopyIcon)).toHaveLength(1);
@@ -534,7 +534,7 @@ describe('CollectionDetailsScreen - shared with me: 새 링크 알림 and 내 �
     // Nothing to copy yet, so the ⋯ holds only 컬렉션에서 나가기 (a member can always leave) - their own bell is still there.
     const top = header(renderer);
     expect(headerButtonIds(top)).toEqual(['collection-details-favorite', 'collection-details-notifications', 'collection-details-more']);
-    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.leaveAction')]);
+    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.lockSetTitle'), i18n.t('collections.leaveAction')]);
   });
 });
 
@@ -821,7 +821,7 @@ describe('CollectionDetailsScreen - emoji reactions to the links of a shared Col
       await openMenu(renderer, other);
 
       expect(bar(renderer)).toHaveLength(1);
-      expect(visibleMenu(renderer)!.props.actions.map((action: { label: string }) => action.label)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('collections.copyToMine'), i18n.t('safety.report')]);
+      expect(visibleMenu(renderer)!.props.actions.map((action: { label: string }) => action.label)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('item.saveDialogTitle')]);
     });
 
     it('and for my own link in someone else\'s Collection - 복제 and 이동 stay as they were', async () => {
@@ -1195,7 +1195,7 @@ describe('CollectionDetailsScreen - Contributor', () => {
     }
     // Their own bell in the header; the ⋯ holds only copying into their own Collection.
     expect(headerButtonIds(top)).toContain('collection-details-notifications');
-    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine'), i18n.t('collections.leaveAction')]);
+    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine'), i18n.t('collections.lockSetTitle'), i18n.t('collections.leaveAction')]);
     expect(hasLabel(top, i18n.t('collections.addFavorite'))).toBe(true);
     expect(top.root.findAllByType(Switch)).toHaveLength(0);
     // Share management is never even queried for a Contributor.
@@ -1275,41 +1275,34 @@ describe('CollectionDetailsScreen - Owner viewing a Contributor\'s link', () => 
       return (renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)?.props.actions ?? [])
         .map((action: { label: string }) => action.label);
     };
-    expect(await menuOf(theirs)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('collections.copyToMine'), i18n.t('safety.report'), i18n.t('collections.removeFromCollection')]);
+    expect(await menuOf(theirs)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('item.saveDialogTitle'), i18n.t('collections.removeFromCollection')]);
   });
 
-  it('reports a member\'s link through the shared report modal (Item target) - and never offers it for my own link', async () => {
+  it('offers no report action for any link in the Collection menu (another member\'s or my own) - reporting stays on comments and people', async () => {
     const renderer = await renderScreen();
-
-    const onTheirLongPress = row(renderer, theirs).root.findByType(SwipeableItemRow).props.onLongPress;
-    await act(async () => onTheirLongPress());
-    const itemMenu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
-    await act(async () => itemMenu.props.actions.find((action: { label: string }) => action.label === i18n.t('safety.report')).onPress());
-    // The menu runs the chosen action once it has closed.
-    await act(async () => itemMenu.props.onDismiss());
-
-    expect(renderer.root.findByType(ReportModal).props.target).toEqual({ type: 'Item', itemId: theirs.itemId, collectionId: COLLECTION_ID });
-
-    await act(async () => renderer.root.findByType(ReportModal).props.onClose());
-    expect(renderer.root.findByType(ReportModal).props.target).toBeNull();
-    const onMyLongPress = row(renderer, mine).root.findByType(SwipeableItemRow).props.onLongPress;
-    await act(async () => onMyLongPress());
-    expect((renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)?.props.actions ?? [])
-      .map((action: { label: string }) => action.label)).not.toContain(i18n.t('safety.report'));
+    for (const item of [theirs, mine]) {
+      const onLongPress = row(renderer, item).root.findByType(SwipeableItemRow).props.onLongPress;
+      await act(async () => onLongPress());
+      const labels = (renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)?.props.actions ?? [])
+        .map((action: { label: string }) => action.label);
+      expect(labels).not.toContain(i18n.t('safety.report'));
+    }
+    expect(renderer.root.findAllByType(ReportModal).every(modal => modal.props.target === null)).toBe(true);
   });
 
-  it('copies a member\'s link into one of my own Collections through the shared copy API - never a link of their Item', async () => {
-    jest.mocked(copyCollectionItems).mockResolvedValue({ copiedCount: 1, skippedCount: 0, unavailableCount: 0 });
+  it('링크 저장 on a member\'s link opens the ordinary 새 링크 검토 with that link\'s address and title - nothing is copied or saved by the menu', async () => {
     jest.mocked(getCollections).mockResolvedValue({ items: [makeCollection({ id: 9, name: 'Other of mine', accessRole: 'owner' })], nextCursor: null });
     const renderer = await renderScreen();
 
     const onTheirLongPress = row(renderer, theirs).root.findByType(SwipeableItemRow).props.onLongPress;
     await act(async () => onTheirLongPress());
     const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
-    await act(async () => menu.props.actions.find((action: { label: string }) => action.label === i18n.t('collections.copyToMine')).onPress());
-    await chooseDestinations(renderer, 9);
+    await act(async () => menu.props.actions.find((action: { label: string }) => action.label === i18n.t('item.saveDialogTitle')).onPress());
 
-    expect(copyCollectionItems).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, [theirs.itemId], 9, null);
+    expect(mockNavigate).toHaveBeenLastCalledWith('NewLinkReview', { url: theirs.url, initialTitle: theirs.title ?? null, preselectedCollectionId: null });
+    // The old copy request (and its destination picker) is not involved; the other member's link and owner are untouched.
+    expect(copyCollectionItems).not.toHaveBeenCalled();
+    expect(destinationPicker(renderer).props.visible).toBe(false);
 
     // My own link here has 복제 and 이동 (never the copy) - 이동 works here too, as add + remove.
     const onMyLongPress = row(renderer, mine).root.findByType(SwipeableItemRow).props.onLongPress;
@@ -1453,29 +1446,24 @@ describe('CollectionDetailsScreen - long press on a link: 내 컬렉션으로 �
     (renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)?.props.actions ?? [])
       .map((action: { label: string }) => action.label);
 
-  it.each(['contributor', 'viewer'] as const)('as a %s: another member\'s link offers only the copy, through my own-Collection picker and the shared copy API', async role => {
-    // The destination's access is re-read when it is picked: the source Collection is the one in this role, my own is mine.
+  it.each(['contributor', 'viewer'] as const)('as a %s: another member\'s link offers only 링크 저장 (the ordinary save screen), never a move', async role => {
     jest.mocked(getCollection).mockImplementation(async (_request, id) =>
       (id === myCollection.id ? myCollection : makeCollection({ accessRole: role, ownerJupleId: 'K7MP4Q8N' })));
     jest.mocked(getCollectionItems).mockResolvedValue({ items: [myLinkHere, othersLink], nextCursor: null });
-    jest.mocked(copyCollectionItems).mockResolvedValue({ copiedCount: 1, skippedCount: 0, unavailableCount: 0 });
     jest.mocked(getCollections).mockResolvedValue({ items: [myCollection], nextCursor: null });
     const renderer = await renderScreen();
 
     expect(await longPress(renderer, othersLink)).toBe(true);
-    expect(visibleMenuLabels(renderer)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('collections.copyToMine'), i18n.t('safety.report')]);
+    expect(visibleMenuLabels(renderer)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('item.saveDialogTitle')]);
     expect(visibleMenuLabels(renderer)).not.toContain(i18n.t('collections.moveToOther'));
 
     const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
-    await act(async () => menu.props.actions.find((action: { label: string }) => action.label === i18n.t('collections.copyToMine')).onPress());
-    expect(destinationPicker(renderer).props.visible).toBe(true);
-    await chooseDestinations(renderer, 7);
+    await act(async () => menu.props.actions.find((action: { label: string }) => action.label === i18n.t('item.saveDialogTitle')).onPress());
 
-    // Round 26's shared copy: source = this Collection, just this link - never a link of their Item.
-    expect(copyCollectionItems).toHaveBeenCalledTimes(1);
-    expect(copyCollectionItems).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, [2], 7, null);
-    expect(renderer.root.findAllByType(Text).some(node => node.props.children === '링크 1개를 복사했어요.')).toBe(true);
-    // No selection mode was involved.
+    // 링크 저장: the ordinary save screen with this link - no copy request, no destination picker, no selection mode.
+    expect(mockNavigate).toHaveBeenLastCalledWith('NewLinkReview', expect.objectContaining({ url: othersLink.url, preselectedCollectionId: null }));
+    expect(copyCollectionItems).not.toHaveBeenCalled();
+    expect(destinationPicker(renderer).props.visible).toBe(false);
     expect(renderer.root.findAll(node => node.props.testID === 'collection-copy-bar')).toHaveLength(0);
   });
 
@@ -1560,17 +1548,18 @@ describe('CollectionDetailsScreen - long press on a link: 내 컬렉션으로 �
     expect(visibleMenuLabels(renderer)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('common.edit'), i18n.t('collections.addToOther'), i18n.t('collections.moveToOther'), i18n.t('collections.removeFromCollection')]);
   });
 
-  it('cancelling the picker copies nothing, and a later selection copy is not affected by it', async () => {
+  it('a link whose address is hidden (a locked card) cannot be taken to 링크 저장', async () => {
+    const hidden = { ...othersLink, url: '' };
     jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'viewer', ownerJupleId: 'K7MP4Q8N' }));
-    jest.mocked(getCollectionItems).mockResolvedValue({ items: [othersLink], nextCursor: null });
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [hidden], nextCursor: null });
     const renderer = await renderScreen();
 
-    await longPress(renderer, othersLink);
+    await longPress(renderer, hidden);
     const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
-    await act(async () => menu.props.actions.find((action: { label: string }) => action.label === i18n.t('collections.copyToMine')).onPress());
-    await act(async () => destinationPicker(renderer).props.onClose());
+    mockNavigate.mockClear();
+    await act(async () => menu.props.actions.find((action: { label: string }) => action.label === i18n.t('item.saveDialogTitle')).onPress());
 
-    expect(destinationPicker(renderer).props.visible).toBe(false);
+    expect(mockNavigate).not.toHaveBeenCalled();
     expect(copyCollectionItems).not.toHaveBeenCalled();
   });
 });

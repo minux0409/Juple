@@ -7,7 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import { navigationRef } from '../navigation/navigationRef';
 import { bannerFromRemoteMessage, notificationBannerQueue } from '../notifications/bannerQueue';
 import { dropRetractedSubmissionBanners } from '../notifications/retractedBanners';
-import { refreshUnreadCount, resetNotificationState } from '../notifications/notificationState';
+import { refreshUnreadCount, refreshUnreadCountIfStale, resetNotificationState, UNREAD_POLL_INTERVAL_MS } from '../notifications/notificationState';
 import { notificationIdOf } from '../notifications/notificationTarget';
 import { openNotification } from '../notifications/openNotification';
 import {
@@ -115,16 +115,38 @@ export function usePushMessageHandling(): void {
     return () => subscription.remove();
   }, [request]);
 
+  // The bell also catches up by itself while the app is open: a Push is the fast path, but one that never arrives (a device that gets no
+  // APNs / FCM message, a lost message) must not leave the number stale until the person happens to open the notification list. One
+  // cheap count read a minute, only in the foreground, only signed in, and never right after another read (refreshUnreadCountIfStale).
+  useEffect(() => {
+    if (!isReady) {
+      return undefined;
+    }
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active') {
+        refreshUnreadCountIfStale(request).catch(() => undefined);
+      }
+    }, UNREAD_POLL_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [isReady, request]);
+
   // A message while the app is in front - the same handling for Android (FCM) and iOS (APNs, which shows no system banner then).
   const handleForegroundMessage = useCallback(
     (remoteMessage: PushMessage | null | undefined) => {
       const event = parseSocialPushEvent(remoteMessage?.data);
+      let countRefreshed = false;
       if (event) {
         emitSocialPushEvent(event);
+        // Any notification-creating message changes the bell, with or without a banner (the count is re-read, never guessed).
         if (event.type === 'collectionContentChanged') {
           // A requester may have cancelled a proposal: an Owner's approval-request banner (visible or
-          // queued) and the unread badge for it are re-checked against the server.
-          dropRetractedSubmissionBanners(notificationBannerQueue, request, event.collectionId, localeRef.current).catch(() => undefined);
+          // queued) and the unread badge for it are re-checked against the server - the count after the banners, as before.
+          countRefreshed = true;
+          dropRetractedSubmissionBanners(notificationBannerQueue, request, event.collectionId, localeRef.current)
+            .catch(() => undefined)
+            .finally(() => refreshUnreadCount(request).catch(() => undefined));
+        } else if (isReadyRef.current) {
+          countRefreshed = true;
           refreshUnreadCount(request).catch(() => undefined);
         }
       }
@@ -134,7 +156,9 @@ export function usePushMessageHandling(): void {
       const banner = bannerFromRemoteMessage(remoteMessage);
       if (banner) {
         notificationBannerQueue.enqueue(banner);
-        refreshUnreadCount(request).catch(() => undefined);
+        if (!countRefreshed) {
+          refreshUnreadCount(request).catch(() => undefined);
+        }
       }
     },
     [request],

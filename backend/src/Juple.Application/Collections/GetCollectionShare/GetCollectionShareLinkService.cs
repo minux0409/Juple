@@ -11,7 +11,8 @@ namespace Juple.Application.Collections.GetCollectionShare;
 /// </summary>
 public sealed class GetCollectionShareLinkService(
     ICollectionAccessService accessService,
-    ICollectionShareLinkReader shareLinkReader) : IGetCollectionShareLinkService
+    ICollectionShareLinkReader shareLinkReader,
+    ICollectionLinkEnsurer? linkEnsurer = null) : IGetCollectionShareLinkService
 {
     public async Task<string?> GetActivePublicIdAsync(
         long userId,
@@ -19,7 +20,15 @@ public sealed class GetCollectionShareLinkService(
         CancellationToken cancellationToken = default)
     {
         await accessService.RequireAsync(userId, collectionId, CollectionPermission.View, cancellationToken);
-        return await shareLinkReader.GetActivePublicIdAsync(collectionId, cancellationToken);
+        var publicId = await shareLinkReader.GetActivePublicIdAsync(collectionId, cancellationToken);
+        if (publicId is not null || linkEnsurer is null)
+        {
+            return publicId;
+        }
+
+        // A Collection that existed before links were created with it and has never had one: its first link is made now, PRIVATE, so a
+        // member can pass it on (a stranger can then only ask the Owner to join). A revoked link is never brought back.
+        return (await linkEnsurer.EnsureAsync(collectionId, cancellationToken))?.PublicId;
     }
 }
 

@@ -11,6 +11,7 @@ import { LinkImage } from '../LinkImage';
 import { Notice } from '../PageStates';
 import { SettingsPage } from './SettingsPage';
 import { Avatar } from '../Avatar';
+import { Glyph } from '../Glyph';
 import { PhotoCropDialog } from '../PhotoCropDialog';
 import { useObjectUrl } from '../useObjectUrl';
 import styles from '../app.module.css';
@@ -159,6 +160,11 @@ export function ProfileEditView() {
             ) : (
               <Avatar person={{ displayName: nickname || profile.displayName, profileImageUrl: profile.profileImageUrl ?? null }} size={104} />
             )}
+            {/* Pointing at the picture (or focusing the hidden input) darkens it with 사진 변경; touch screens keep the button below. */}
+            <span aria-hidden className={styles.photoChangeOverlay}>
+              <Glyph name="Image" size={22} />
+              <span>{hasPhoto ? dictionary.changePhoto : dictionary.profilePhotoChoose}</span>
+            </span>
             <input
               accept={PROFILE_PHOTO_ACCEPT}
               aria-label={hasPhoto ? dictionary.changePhoto : dictionary.profilePhotoChoose}
@@ -173,7 +179,7 @@ export function ProfileEditView() {
             />
           </label>
           <div className={styles.profilePhotoActions}>
-            <button className={styles.settingsAction} disabled={busy} onClick={() => document.querySelector<HTMLInputElement>('[data-profile-photo-input]')?.click()} type="button">
+            <button className={`${styles.settingsAction} ${styles.photoChangeTouchOnly}`} disabled={busy} onClick={() => document.querySelector<HTMLInputElement>('[data-profile-photo-input]')?.click()} type="button">
               {hasPhoto ? dictionary.changePhoto : dictionary.profilePhotoChoose}
             </button>
             {hasPhoto ? (

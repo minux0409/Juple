@@ -2358,6 +2358,33 @@ a.imageBody:hover .imageTile img {
   color: var(--app-text-secondary);
 }
 
+/* The unlock prompt of a locked link, centered in the content area of the Quick Detail sheet or the page. */
+.gatedCenter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 100%;
+}
+
+.gatedCenter .unlockPanel {
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Room for one line of error text, so showing it never shifts the prompt. */
+.unlockError {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 22px;
+}
+
+.unlockError .fieldError {
+  margin: 0;
+}
+
 .passwordRow {
   display: flex;
   gap: 8px;
@@ -5462,6 +5489,7 @@ ul.friendGrid > * + * {
 }
 
 .quickScroll {
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -7262,6 +7290,70 @@ button.reactionChipMine:hover {
   box-shadow: 0 0 0 3px var(--brand-soft);
 }
 
+/* 사진 변경: a translucent black layer with the camera and the words over a picture, shown on hover / keyboard focus only. A touch
+   screen has no hover, so there the ordinary button next to the picture (photoChangeTouchOnly) stays the way to change it. */
+.photoChangeFrame {
+  position: relative;
+  display: block;
+}
+
+.photoChangeOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.photoChangeFrame {
+  border-radius: 12px;
+}
+
+.photoChangeFrame:hover .photoChangeOverlay,
+.photoChangeOverlay:focus-visible,
+.profilePhotoPick:hover .photoChangeOverlay,
+.profilePhotoPick:has(input:focus-visible) .photoChangeOverlay {
+  opacity: 1;
+}
+
+.profilePhotoPick .photoChangeOverlay {
+  gap: 2px;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.photoChangeOverlay:disabled {
+  cursor: progress;
+}
+
+.photoChangeTouchOnly {
+  display: none;
+}
+
+@media (hover: none) {
+  .photoChangeOverlay {
+    display: none;
+  }
+
+  .photoChangeTouchOnly {
+    display: inline-flex;
+  }
+}
+
 .profilePhotoActions {
   display: flex;
   flex-wrap: wrap;
@@ -8765,3 +8857,88 @@ button.reactionChipMine:hover {
 .linkMain { position: relative; display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; }
 .linkMain > .cardBody, .linkMain > .linkRowBody { flex: 1 1 auto; }
 .cardReactions { padding: 0 var(--space-3) var(--space-3); min-width: 0; }
+
+/* ======================================================================================================================
+   Home 즐겨찾기: every favorite Collection inside a box that scrolls by itself (about six cards in view), so the page does not grow
+   with the number of favorites. Keyboard users reach the box with Tab and scroll it with the arrow / page keys.
+   ==================================================================================================================== */
+.homeFavScroll,
+.homeFavScrollGrid {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0 -6px;
+  padding: 2px 6px;
+  border-radius: var(--radius-control);
+}
+
+.homeFavScroll {
+  /* 6 list cards (68px) and the gaps between them, plus a sliver of the seventh so it is plain that there is more. */
+  max-height: 468px;
+}
+
+.homeFavScrollGrid {
+  max-height: 604px;
+}
+
+.homeFavScroll:focus-visible,
+.homeFavScrollGrid:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.homeFavList,
+.homeFavGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.homeFavList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.homeFavGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+/* Home: the quiet card about the free period (once when it starts, then at most daily in its last 7 days). */
+.trialNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--card-pad);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--brand-soft);
+}
+
+.trialNoticeText {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.trialNoticeTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.trialNoticeBody {
+  margin: 2px 0 0;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.trialNoticeActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}

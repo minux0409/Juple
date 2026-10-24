@@ -401,6 +401,13 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
                 ]),
             ...(isSharedWithMe(collection)
               ? [
+                  // Their own personal lock (their password; the Owner and the other members are not affected).
+                  {
+                    key: 'lock',
+                    label: collection.isMemberLocked ? dictionary.lockRemoveAction : dictionary.lockSetTitle,
+                    icon: 'Lock' as const,
+                    onSelect: () => setManagementMode(collection.isMemberLocked ? 'remove' : 'lock'),
+                  },
                   { key: 'leave', label: dictionary.collectionLeaveAction, icon: 'Logout' as const, destructive: true, onSelect: () => setManagementMode('leave') },
                 ]
               : [
@@ -445,6 +452,7 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
       ) : null}
       <CollectionManagementDialogs
         collectionId={collection.id}
+        forMember={isSharedWithMe(collection)}
         key={managementMode ?? 'closed'}
         mode={managementMode}
         onClose={() => setManagementMode(null)}
@@ -500,7 +508,7 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
       {gate ? (
         <UnlockPanel
           collectionId={collection.id}
-          isOwner={!isSharedWithMe(collection)}
+          isOwner={!isSharedWithMe(collection) || (collection.isMemberLocked === true && gate === 'lock')}
           kind={gate}
           onStateChanged={() => {
             // The password is gone meanwhile (lock removed / access password off): read the Collection and its links again.

@@ -152,6 +152,9 @@ public sealed class CollectionCollaborationIntegrationTests : IAsyncLifetime
     {
         Assert.DoesNotContain((await _collections.ListSharedAsync(_owner, null, null, null, 50)).Items, collection => collection.Id == _ownerOtherId);
 
+        // The Collection was created with its private link, which never counts as 'shared'; this test is about a PUBLIC one.
+        await _db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM collections.CollectionShares WHERE CollectionId = {_ownerOtherId}");
+        _db.ChangeTracker.Clear();
         _db.CollectionShares.Add(new CollectionShare(_ownerOtherId, Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow));
         await _db.SaveChangesAsync();
         _db.ChangeTracker.Clear();
@@ -594,8 +597,7 @@ public sealed class CollectionCollaborationIntegrationTests : IAsyncLifetime
     {
         var publicCollection = (await _collections.CreateAsync(_owner, "Public locked", "PUBLIC LOCKED", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
         await _addItem.AddAsync(_owner, publicCollection, _ownerItemInShared);
-        var publicId = NewPublicId();
-        await _shares.EnableAsync(_owner, publicCollection, publicId, DateTimeOffset.UtcNow);
+        var publicId = (await _shares.EnableAsync(_owner, publicCollection, NewPublicId(), DateTimeOffset.UtcNow)).PublicId;
         await LockAsync(publicCollection, "web secret 1");
 
         // Defense in depth: a foreign Item that somehow sits in a public Collection is never published.

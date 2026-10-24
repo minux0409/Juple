@@ -903,6 +903,44 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.ToTable("CollectionLinkSubmissions", "collections");
                 });
 
+            modelBuilder.Entity("Juple.Domain.Collections.CollectionMemberLock", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CollectionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsLocked")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("LockVersion")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CollectionId")
+                        .HasDatabaseName("IX_CollectionMemberLocks_CollectionId");
+
+                    b.HasIndex("UserId", "CollectionId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CollectionMemberLocks_UserId_CollectionId");
+
+                    b.ToTable("CollectionMemberLocks", "collections");
+                });
+
             modelBuilder.Entity("Juple.Domain.Collections.CollectionMergeCreatedMembership", b =>
                 {
                     b.Property<long>("Id")
@@ -2969,6 +3007,21 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.HasOne("Juple.Domain.Users.User", null)
                         .WithMany()
                         .HasForeignKey("SubmittedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Collections.CollectionMemberLock", b =>
+                {
+                    b.HasOne("Juple.Domain.Collections.Collection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
                 });

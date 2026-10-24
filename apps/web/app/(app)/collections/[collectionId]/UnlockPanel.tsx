@@ -102,7 +102,8 @@ export function UnlockPanel({
           {visible ? dictionary.passwordHide : dictionary.passwordShow}
         </button>
       </div>
-      {error ? <p className={styles.fieldError} role="alert">{error}</p> : null}
+      {/* Always present, so a wrong password's message appears without moving the group (it is centered in the sheet). */}
+      <div className={styles.unlockError}>{error ? <p className={styles.fieldError} role="alert">{error}</p> : null}</div>
       <button className={styles.primaryAction} disabled={busy || !password} type="submit">
         {busy ? dictionary.processing : dictionary.unlockAction}
       </button>

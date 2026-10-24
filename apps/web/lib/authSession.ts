@@ -29,7 +29,7 @@ export function isSessionLost(error: unknown): boolean {
 }
 
 /** The routes of the signed-in app (the (app) route group). Everything else - the public viewer, legal pages, the redirect bridge - never asks for sign-in. */
-export const SIGNED_IN_ROUTES = ['/', '/archive', '/collections', '/me', '/notifications'] as const;
+export const SIGNED_IN_ROUTES = ['/', '/archive', '/collections', '/me', '/notifications', '/save'] as const;
 
 /** The signed-in pages below a route: a Collection (/collections/{id}, another member's link in it), a link (/items/{id}) and 내 페이지's pages (/me/settings, /me/friends, ...). */
 export const SIGNED_IN_ROUTE_PREFIXES = ['/collections/', '/items/', '/me/', '/shared/'] as const;

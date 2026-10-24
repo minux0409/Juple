@@ -47,6 +47,7 @@ export function adjustUnreadCount(delta: number): void {
 /** Signed out: nobody's count is shown. */
 export function resetNotificationState(): void {
   refreshGeneration++;
+  lastRefreshStartedAt = 0;
   unreadCount = null;
   emitUnread();
 }
@@ -54,6 +55,7 @@ export function resetNotificationState(): void {
 /** Re-reads the total (one indexed count on the server, never the list). A newer write wins over an older answer. */
 export async function refreshUnreadCount(request: AuthenticatedApiRequest): Promise<void> {
   const generation = ++refreshGeneration;
+  lastRefreshStartedAt = Date.now();
   try {
     const count = await getUnreadNotificationCount(request);
     if (generation === refreshGeneration) {
@@ -63,6 +65,24 @@ export async function refreshUnreadCount(request: AuthenticatedApiRequest): Prom
   } catch {
     // Best-effort: the bell keeps what it showed; the next refresh corrects it.
   }
+}
+
+let lastRefreshStartedAt = 0;
+
+/** How often an open, signed-in app re-reads the bell's count by itself (Push is the fast path; this only covers a Push that never arrives). */
+export const UNREAD_POLL_INTERVAL_MS = 60_000;
+/** A poll is skipped when the count was read this recently by anything else (a Push, a screen, coming back to the app). */
+export const UNREAD_POLL_MIN_AGE_MS = 45_000;
+
+/**
+ * The same cheap read, skipped when one started within `minAgeMs`: the bell stays correct without a request storm. Used by the foreground
+ * poll; every Push and every return to the app still refreshes at once (refreshUnreadCount).
+ */
+export async function refreshUnreadCountIfStale(request: AuthenticatedApiRequest, minAgeMs: number = UNREAD_POLL_MIN_AGE_MS, now: () => number = Date.now): Promise<void> {
+  if (now() - lastRefreshStartedAt < minAgeMs) {
+    return;
+  }
+  await refreshUnreadCount(request);
 }
 
 function subscribeUnread(listener: Listener): () => void {

@@ -71,7 +71,7 @@ public sealed class AdminWorkspaceStore(JupleDbContext db) : IAdminWorkspaceStor
         var currentCollections = db.Collections.AsNoTracking().Where(x => x.DeletedAtUtc == null);
         var collectionCount = await currentCollections.CountAsync(ct);
         var sharedCount = await currentCollections.CountAsync(x => db.CollectionCollaborators.Any(c => c.CollectionId == x.Id)
-            || db.CollectionShares.Any(s => s.CollectionId == x.Id && s.IsActive), ct);
+            || db.CollectionShares.Any(s => s.CollectionId == x.Id && s.IsActive && s.IsPublic), ct);
         var openInquiries = await db.SupportInquiries.CountAsync(x => x.Status == Juple.Domain.Support.SupportInquiryStatus.Pending
             || x.Status == Juple.Domain.Support.SupportInquiryStatus.InProgress, ct);
         return new(p, "Asia/Seoul", now, total, signups.Values.Sum(), live, series.Sum(x => x.LinksSaved), savers,

@@ -248,6 +248,7 @@ builder.Services.AddScoped<IUndoMergeCollectionsService, UndoMergeCollectionsSer
 builder.Services.AddScoped<IEnableCollectionShareService, EnableCollectionShareService>();
 builder.Services.AddScoped<IGetCollectionShareService, GetCollectionShareService>();
 builder.Services.AddScoped<IGetCollectionShareLinkService, GetCollectionShareLinkService>();
+builder.Services.AddScoped<ICollectionLinkEnsurer, CollectionLinkEnsurer>();
 builder.Services.AddScoped<Juple.Application.Collections.ShareLink.IShareCollectionLinkService, Juple.Application.Collections.ShareLink.ShareCollectionLinkService>();
 builder.Services.AddScoped<Juple.Application.Collections.Submissions.ICollectionLinkSubmissionService, Juple.Application.Collections.Submissions.CollectionLinkSubmissionService>();
 builder.Services.AddScoped<Juple.Application.Collections.Reactions.ICollectionItemReactionService, Juple.Application.Collections.Reactions.CollectionItemReactionService>();

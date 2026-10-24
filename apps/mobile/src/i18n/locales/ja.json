@@ -384,7 +384,10 @@
     "jupleId": "Juple ID",
     "displayNamePlaceholder": "ニックネームを入力",
     "nickname": "ニックネーム",
-    "nicknameNotSet": "未設定"
+    "nicknameNotSet": "未設定",
+    "webBannerTitle": "PCでもJupleを使ってみましょう",
+    "webBannerBody": "保存したリンクやコレクションをウェブでも管理できます。",
+    "webBannerAction": "Jupleウェブを開く"
   },
   "profile": {
     "edit": "プロフィールを編集",
@@ -956,6 +959,13 @@
   "subscription": {
     "title": "サブスクリプション",
     "planName": "Juple サブスクリプション",
+    "trialNotice": {
+      "welcomeTitle": "1か月間、Jupleを無料でお試しください",
+      "welcomeBody": "{{date}}まで無料です。無料期間が終わると有料のサブスクリプションが必要です。",
+      "endingTitle": "無料期間がまもなく終了します",
+      "endingBody": "{{date}}まで無料でご利用いただけます。その後は有料のサブスクリプションが必要です。",
+      "view": "サブスクリプションを見る"
+    },
     "pricePerMonth": "月額 {{price}}",
     "cadence": "毎月請求され、解約するまで自動的に更新されます。",
     "access": {

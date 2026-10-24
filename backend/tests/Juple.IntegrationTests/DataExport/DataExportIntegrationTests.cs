@@ -172,6 +172,39 @@ public sealed class DataExportIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ARevokedAndReissuedLink_IsExportedOnce_AsTheActiveOne_NeverADuplicateKey()
+    {
+        var shares = new CollectionShareStore(_db);
+        string Sharing(JsonDocument collections) =>
+            collections.RootElement.GetProperty("ownedCollections").EnumerateArray().Single().GetProperty("sharing").ToString();
+
+        // A new Collection has its private link; revoking leaves a revoked row, turning sharing on again is a NEW row.
+        var first = await shares.GetActiveAsync(_owner, _sharedId);
+        Assert.NotNull(first);
+        await shares.RevokeAsync(_owner, _sharedId, DateTimeOffset.UtcNow);
+        _db.ChangeTracker.Clear();
+        using (var revokedOnly = await ExportDataAsync(_owner))
+        using (var collections = JsonDocument.Parse(Read(revokedOnly, "collections.json")))
+        {
+            var sharing = collections.RootElement.GetProperty("ownedCollections").EnumerateArray().Single().GetProperty("sharing");
+            Assert.False(sharing.GetProperty("linkActive").GetBoolean());
+            Assert.Equal(first!.PublicId, sharing.GetProperty("publicId").GetString());
+        }
+
+        var reissued = await shares.EnableAsync(_owner, _sharedId, Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow);
+        _db.ChangeTracker.Clear();
+        Assert.NotEqual(first.PublicId, reissued.PublicId);
+        Assert.Equal(2, await _db.CollectionShares.CountAsync(share => share.CollectionId == _sharedId));
+
+        using var zip = await ExportDataAsync(_owner);
+        using var both = JsonDocument.Parse(Read(zip, "collections.json"));
+        var active = both.RootElement.GetProperty("ownedCollections").EnumerateArray().Single().GetProperty("sharing");
+        Assert.True(active.GetProperty("linkActive").GetBoolean());
+        Assert.Equal(reissued.PublicId, active.GetProperty("publicId").GetString());
+        Assert.NotEmpty(Sharing(both));
+    }
+
+    [Fact]
     public async Task ThePhotoFile_CopiesOnlyThePersonsOwnPhotos_ByteForByte()
     {
         var service = Service(new DataExportOptions { Enabled = true });

@@ -42,10 +42,14 @@ param managedCertificateName = 'mc-cae-juple-prod-juple-co-kr-2013'
 param minReplicas = 1
 param maxReplicas = 2
 
-// googlePlayUrl/appStoreUrl/appStoreAppId/iosAppId are deliberately left unassigned - main.bicep's own
+// iosAppId = <Apple Team ID>.<bundle id>, both taken from the iOS project (DEVELOPMENT_TEAM 3N2K257SW3, PRODUCT_BUNDLE_IDENTIFIER
+// com.juple.app) - it makes /.well-known/apple-app-site-association serve /c/* for Universal Links; the app's Associated Domains
+// entitlement is applinks:juple.co.kr.
+param iosAppId = '3N2K257SW3.com.juple.app'
+
+// googlePlayUrl/appStoreUrl/appStoreAppId are deliberately left unassigned - main.bicep's own
 // "" defaults apply (storeConfig.ts/the two .well-known routes already treat "" identically to
-// "unset"). None of these four have a real value yet (no Play/App Store listing, no Apple Developer
-// Team ID - see ../README.md and the root README.md's "Production release signing" section).
+// "unset"). None of these three have a real value yet (no Play/App Store listing - see ../README.md and the root README.md's "Production release signing" section).
 // Add each here individually, with its own real confirmed value, only once it actually exists -
 // never a placeholder, and never dev.bicepparam's own Dev debug-keystore fingerprint (a
 // completely different, Dev-only certificate - see that file's own remarks).

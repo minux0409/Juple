@@ -1,4 +1,5 @@
 using Juple.Application.Items;
+using Juple.Domain.Collections;
 using Juple.Domain.Items;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
@@ -77,14 +78,32 @@ public sealed class RecentlyOpenedItemStore(JupleDbContext dbContext) : IRecentl
                 || (entry.LastOpenedAtUtc == cursor.LastOpenedAtUtc && entry.ItemId < cursor.ItemId));
         }
 
+        // A link that sits in a Collection whose lock or share password still stands before it (the same condition the Home / Archive
+        // history redacts a card by: a membership the caller added, in a live Collection the caller owns or collaborates on, locked for
+        // the Owner / password-protected for a member) is NOT listed: this list has no unlock step, and a title or address shown here
+        // would walk around the gate. It is simply absent, and appears again once no gate stands before the link.
+        var gatedItems = dbContext.CollectionItems.AsNoTracking()
+            .Where(membership => membership.AddedByUserId == userId
+                && dbContext.Collections.Any(collection => collection.Id == membership.CollectionId
+                    && collection.DeletedAtUtc == null
+                    && (collection.UserId == userId || dbContext.CollectionCollaborators.Any(member =>
+                        member.CollectionId == collection.Id && member.UserId == userId))
+                    && (collection.UserId == userId
+                        ? collection.IsLocked
+                        : (dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
+                            && (password.Mode == CollectionSharePasswordMode.PerCollection
+                                || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked)))
+                        || dbContext.CollectionMemberLocks.Any(memberLock => memberLock.CollectionId == collection.Id && memberLock.UserId == userId && memberLock.IsLocked)))))
+            .Select(membership => membership.ItemId);
+
         // Inner join is safe here (never silently drops a row): a RecentlyOpenedItem row cannot
         // outlive the Item it references (see RecentlyOpenedItemConfiguration's Cascade-on-Item).
         var pagedQuery =
             from entry in entriesQuery
-            join item in dbContext.Items.AsNoTracking().Where(item => item.UserId == userId)
+            join item in dbContext.Items.AsNoTracking().Where(item => item.UserId == userId && item.DeletedAtUtc == null && !gatedItems.Contains(item.Id))
                 on entry.ItemId equals item.Id
             orderby entry.LastOpenedAtUtc descending, entry.ItemId descending
-            select new { item.Id, item.Url, item.Title, entry.LastOpenedAtUtc };
+            select new { item.Id, item.Url, item.Title, entry.LastOpenedAtUtc, item.PreviewImageUrl, item.SavedAtUtc };
 
         var page = await pagedQuery.Take(limit + 1).ToListAsync(cancellationToken);
 
@@ -92,7 +111,7 @@ public sealed class RecentlyOpenedItemStore(JupleDbContext dbContext) : IRecentl
         var pageRows = hasMore ? page.GetRange(0, limit) : page;
 
         var items = pageRows
-            .Select(row => new RecentlyOpenedItemEntryDto(row.Id, row.Url, row.Title, row.LastOpenedAtUtc))
+            .Select(row => new RecentlyOpenedItemEntryDto(row.Id, row.Url, row.Title, row.LastOpenedAtUtc, row.PreviewImageUrl, row.SavedAtUtc))
             .ToList();
 
         var nextCursor = hasMore

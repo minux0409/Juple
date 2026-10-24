@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { formatMessage, type AppDictionary } from '../../../../../../lib/appI18n';
+import { type AppDictionary } from '../../../../../../lib/appI18n';
 import { isSessionLost } from '../../../../../../lib/authSession';
 import { collectionPath, contentGateOf, isNotFound } from '../../../../../../lib/collectionDetails';
 import { isSharedWithMe } from '../../../../../../lib/collectionSharing';
@@ -12,8 +12,8 @@ import { membershipErrorMessage } from '../../../../../../lib/itemEdit';
 import { ConfirmDialog } from '../../../../ConfirmDialog';
 import { useToast } from '../../../../Toaster';
 import { adderLabel, sharedItemPath, type SharedCollectionItem } from '../../../../../../lib/itemDetails';
-import { unlockHeaders, unlockTokenFor } from '../../../../../../lib/collectionUnlock';
-import { addCopyResults, copyItemsPath, copyResultMessage, grantHeaders, NO_COPY, type CopyResult } from '../../../../../../lib/collectionOperations';
+import { unlockHeaders } from '../../../../../../lib/collectionUnlock';
+import { openReview } from '../../../../../../lib/newLink';
 import { displayTitleOf, formatLinkTimestamp, isSafeHttpUrl, parseRouteId, siteIdOf, siteOf } from '../../../../../../lib/savedLinks';
 import { useSignedInApp } from '../../../../AppRoot';
 import { Glyph } from '../../../../Glyph';
@@ -23,7 +23,6 @@ import { linkTitleText } from '../../../../SavedLinkList';
 import { SiteIcon } from '../../../../SiteIcon';
 import { QuickThumb } from '../../../../items/[itemId]/ItemDetailContent';
 import { ItemCollaboration } from '../../../../ItemCollaboration';
-import { DestinationDialog, type PickedDestination } from '../../../../DestinationDialog';
 import { ActionMenu, type MenuAction } from '../../../../Popover';
 import styles from '../../../../app.module.css';
 
@@ -82,62 +81,21 @@ export function useSharedItem(collectionIdParam: string, itemIdParam: string) {
 }
 
 /**
- * 내 컬렉션으로 복사 of another member's link (mobile openSingleCopyPicker): into any of MY Collections, one request per destination,
- * one after the other. The server makes my own new Item of the URL, title and automatic preview only - never their memo, photos, who
- * added it, comments or reactions - and skips a URL the destination already has. Nothing copied anywhere rejects (the dialog stays,
- * with the reason); a partial result says what was and was not copied.
+ * 링크 저장 of another member's link: the SAME 링크 저장 screen as a link typed on Home, opened with this link's URL and - only what the
+ * Collection shows its members - its title and automatic preview picture as starting values. Nothing is saved or copied here: the person
+ * picks the Collection(s) (or none, a new one, a locked one, an approval-first one), may edit title and memo, and confirms Save, which
+ * creates a new link of their own through the ordinary save request. The other member's memo, photos, comments and reactions never travel,
+ * and the original link and its owner are untouched. Back returns to this link's details.
  */
-export function useCopyToMine(collectionId: number | null, itemId: number | null) {
-  const { api, dictionary } = useSignedInApp();
-  const [open, setOpen] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
-
-  const copyTo = async (picked: readonly PickedDestination[]) => {
-    if (collectionId === null || itemId === null) {
-      return;
-    }
-    let total = NO_COPY;
-    let failed = 0;
-    let firstFailure: unknown = null;
-    for (const destination of picked) {
-      try {
-        const result = await api<CopyResult>({
-          method: 'POST',
-          path: copyItemsPath(collectionId),
-          body: { destinationCollectionId: destination.collection.id, itemIds: [itemId] },
-          headers: grantHeaders(unlockTokenFor(collectionId), destination.unlockToken),
-        });
-        total = addCopyResults(total, result);
-      } catch (caught) {
-        firstFailure ??= caught;
-        failed += 1;
-      }
-    }
-    if (failed === picked.length) {
-      throw firstFailure;
-    }
-    setNotice(failed > 0 ? `${copyResultMessage(total, dictionary)} ${formatMessage(dictionary.copyDestinationsFailed, { count: failed })}` : copyResultMessage(total, dictionary));
-  };
-
-  const actions: readonly MenuAction[] = collectionId === null || itemId === null ? [] : [{ key: 'copyToMine', label: dictionary.copyToMine, icon: 'Copy', onSelect: () => setOpen(true) }];
-  const dialog =
-    open && collectionId !== null ? (
-      <DestinationDialog
-        confirmLabel={dictionary.confirmCopy}
-        errorMessage={() => dictionary.copyError}
-        excluded={[collectionId]}
-        onClose={() => setOpen(false)}
-        onSubmit={copyTo}
-        selection="multiple"
-        title={dictionary.copyToMine}
-      />
-    ) : null;
-  const noticeLine = notice ? (
-    <p className={styles.formNotice} role="status">
-      {notice}
-    </p>
-  ) : null;
-  return { actions, dialog, notice: noticeLine } as const;
+export function useSaveSharedLink(item: SharedCollectionItem | null) {
+  const { dictionary } = useSignedInApp();
+  const router = useRouter();
+  const url = item && isSafeHttpUrl(item.url) ? item.url : null;
+  const actions: readonly MenuAction[] =
+    item && url
+      ? [{ key: 'saveLink', label: dictionary.copyToMine, icon: 'Copy', onSelect: () => openReview(url, href => router.push(href), { title: item.title, image: isSafeHttpUrl(item.previewImageUrl) ? item.previewImageUrl : null }) }]
+      : [];
+  return { actions } as const;
 }
 
 /**
@@ -227,7 +185,7 @@ export function adderText(adder: NonNullable<ReturnType<typeof adderLabel>>, dic
 export function SharedItemQuickContent({ collectionIdParam, itemIdParam }: { readonly collectionIdParam: string; readonly itemIdParam: string }) {
   const { dictionary, locale } = useSignedInApp();
   const { collectionId, state, reload } = useSharedItem(collectionIdParam, itemIdParam);
-  const copy = useCopyToMine(collectionId, parseRouteId(itemIdParam));
+  const save = useSaveSharedLink(state.kind === 'loaded' ? state.item : null);
   const router = useRouter();
   // Removed from the Collection: the sheet closes (back to the Collection, which already lost the link and one from its count).
   const removal = useRemoveFromCollection(collectionId, parseRouteId(itemIdParam), () => router.back());
@@ -282,8 +240,8 @@ export function SharedItemQuickContent({ collectionIdParam, itemIdParam }: { rea
             </a>
           ) : null}
           {isSafeHttpUrl(item.url) ? <CopyLinkButton url={item.url} /> : null}
-          {/* Not mine: never moved or edited here - only 내 컬렉션으로 복사 (a new link of my own). */}
-          <ActionMenu actions={[...copy.actions, ...removal.actions]} className={styles.quickActionButton} label={dictionary.linkActionsLabel} />
+          {/* Not mine: never moved or edited here - only 링크 저장 (a new link of my own). */}
+          <ActionMenu actions={[...save.actions, ...removal.actions]} className={styles.quickActionButton} label={dictionary.linkActionsLabel} />
         </div>
       </div>
 
@@ -310,8 +268,6 @@ export function SharedItemQuickContent({ collectionIdParam, itemIdParam }: { rea
         </div>
       </dl>
       <p className={styles.readOnlyNote}>{dictionary.sharedItemReadOnly}</p>
-      {copy.notice}
-      {copy.dialog}
       {removal.dialog}
       {/* Read-only means not theirs to edit or delete - any member may still react and comment (mobile CollectionSharedItemScreen). */}
       {collectionId !== null ? <ItemCollaboration always collectionId={collectionId} itemId={item.itemId} row={item} /> : null}

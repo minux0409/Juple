@@ -129,6 +129,61 @@ describe('usePushMessageHandling', () => {
     expect(navigationRef.navigate).not.toHaveBeenCalled();
   });
 
+  it('any notification message re-reads the bell count, banner or not (iOS and Android alike) - exactly one read per message', async () => {
+    await mount();
+    await flush();
+    mockRequest.mockClear();
+
+    act(() => {
+      foregroundHandler()({ data: { type: 'friendRequest', notificationId: '31' }, notification: { title: 'T', body: 'B' } });
+    });
+    await flush();
+    act(() => {
+      // No visible text -> no banner, but the bell still changed on the server.
+      foregroundHandler()({ data: { type: 'collectionInvitation', notificationId: '32' } });
+    });
+    await flush();
+
+    const counts = mockRequest.mock.calls.filter(([request]) => request.path === '/api/v1/notifications/unread-count');
+    expect(counts).toHaveLength(2);
+    expect(getUnreadCount()).toBe(3);
+  });
+
+  it('while the app is open and in front the bell catches up by itself once a minute - never in the background, never right after another read', async () => {
+    jest.useFakeTimers();
+    try {
+      await mount();
+      await flush();
+      mockRequest.mockClear();
+      const { AppState } = jest.requireActual('react-native') as typeof import('react-native');
+      const original = AppState.currentState;
+      const setState = (value: 'active' | 'background') => Object.defineProperty(AppState, 'currentState', { value, configurable: true, writable: true });
+      const countReads = () => mockRequest.mock.calls.filter(([request]) => request.path === '/api/v1/notifications/unread-count').length;
+
+      setState('background');
+      await act(async () => {
+        jest.advanceTimersByTime(60_000);
+      });
+      expect(countReads()).toBe(0);
+
+      setState('active');
+      await act(async () => {
+        jest.advanceTimersByTime(60_000);
+      });
+      await flush();
+      expect(countReads()).toBe(1);
+
+      // The read just made is fresh: the very next tick of the poll does not read again within the minimum age.
+      await act(async () => {
+        jest.advanceTimersByTime(20_000);
+      });
+      expect(countReads()).toBe(1);
+      setState(original as 'active');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('a Collection refresh signal withdraws the approval-request banners whose notification no longer exists - exactly those, on screen or queued', async () => {
     mockDetails.set(155, new ApiError('notFound', 404, 'gone')); // cancelled by its requester: deleted on the server
     mockDetails.set(156, { kind: 'collectionSubmissions', collectionId: 7 }); // another request, still there

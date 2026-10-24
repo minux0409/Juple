@@ -512,9 +512,10 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                         member.CollectionId == collection.Id && member.UserId == userId))
                     && (collection.UserId == userId
                         ? collection.IsLocked
-                        : dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
+                        : (dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
                             && (password.Mode == CollectionSharePasswordMode.PerCollection
-                                || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked))))
+                                || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked)))
+                        || dbContext.CollectionMemberLocks.Any(memberLock => memberLock.CollectionId == collection.Id && memberLock.UserId == userId && memberLock.IsLocked)))
                 select membership.Id).Any());
         }
 
@@ -554,14 +555,16 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                             member.CollectionId == collection.Id && member.UserId == userId))
                     orderby (collection.UserId == userId
                         ? collection.IsLocked
-                        : dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
+                        : (dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
                             && (password.Mode == CollectionSharePasswordMode.PerCollection
-                                || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked)))) descending,
+                                || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked)))
+                        || dbContext.CollectionMemberLocks.Any(memberLock => memberLock.CollectionId == collection.Id && memberLock.UserId == userId && memberLock.IsLocked))) descending,
                         membership.AddedAtUtc descending, membership.Id descending
                     select new {
                         CollectionId = collection.Id,
                         IsOwner = collection.UserId == userId,
                         collection.IsLocked,
+                        MemberLocked = dbContext.CollectionMemberLocks.Any(memberLock => memberLock.CollectionId == collection.Id && memberLock.UserId == userId && memberLock.IsLocked),
                         SharePasswordMode = dbContext.CollectionSharePasswords
                             .Where(password => password.CollectionId == collection.Id)
                             .Select(password => (CollectionSharePasswordMode?)password.Mode).FirstOrDefault(),
@@ -595,7 +598,7 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         foreach (var row in pageRows)
         {
             var gate = row.CollectionContext is { } context
-                ? context.IsOwner && context.IsLocked || !context.IsOwner && context.SharePasswordMode == CollectionSharePasswordMode.LegacyCommonLock && context.IsLocked
+                ? context.IsOwner && context.IsLocked || !context.IsOwner && (context.MemberLocked || context.SharePasswordMode == CollectionSharePasswordMode.LegacyCommonLock && context.IsLocked)
                     ? "lock"
                     : !context.IsOwner && context.SharePasswordMode == CollectionSharePasswordMode.PerCollection ? "sharePassword" : null
                 : null;
@@ -663,9 +666,10 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                     member.CollectionId == collection.Id && member.UserId == userId))
                 && (collection.UserId == userId
                     ? collection.IsLocked
-                    : dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
+                    : (dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
                         && (password.Mode == CollectionSharePasswordMode.PerCollection
-                            || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked))))
+                            || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked)))
+                        || dbContext.CollectionMemberLocks.Any(memberLock => memberLock.CollectionId == collection.Id && memberLock.UserId == userId && memberLock.IsLocked)))
             select (long?)membership.ItemId).Distinct();
         var gated =
             from item in itemsQuery
@@ -779,9 +783,10 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                         member.CollectionId == collection.Id && member.UserId == userId))
                     && (collection.UserId == userId
                         ? collection.IsLocked
-                        : dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
+                        : (dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
                             && (password.Mode == CollectionSharePasswordMode.PerCollection
-                                || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked))))
+                                || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked)))
+                        || dbContext.CollectionMemberLocks.Any(memberLock => memberLock.CollectionId == collection.Id && memberLock.UserId == userId && memberLock.IsLocked)))
                 select membership.Id).Any());
         }
 
@@ -812,14 +817,16 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                             member.CollectionId == collection.Id && member.UserId == userId))
                     orderby (collection.UserId == userId
                         ? collection.IsLocked
-                        : dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
+                        : (dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
                             && (password.Mode == CollectionSharePasswordMode.PerCollection
-                                || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked)))) descending,
+                                || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked)))
+                        || dbContext.CollectionMemberLocks.Any(memberLock => memberLock.CollectionId == collection.Id && memberLock.UserId == userId && memberLock.IsLocked))) descending,
                         membership.AddedAtUtc descending, membership.Id descending
                     select new {
                         CollectionId = collection.Id,
                         IsOwner = collection.UserId == userId,
                         collection.IsLocked,
+                        MemberLocked = dbContext.CollectionMemberLocks.Any(memberLock => memberLock.CollectionId == collection.Id && memberLock.UserId == userId && memberLock.IsLocked),
                         SharePasswordMode = dbContext.CollectionSharePasswords
                             .Where(password => password.CollectionId == collection.Id)
                             .Select(password => (CollectionSharePasswordMode?)password.Mode).FirstOrDefault(),
@@ -854,7 +861,7 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         foreach (var row in pageRows)
         {
             var gate = row.CollectionContext is { } context
-                ? context.IsOwner && context.IsLocked || !context.IsOwner && context.SharePasswordMode == CollectionSharePasswordMode.LegacyCommonLock && context.IsLocked
+                ? context.IsOwner && context.IsLocked || !context.IsOwner && (context.MemberLocked || context.SharePasswordMode == CollectionSharePasswordMode.LegacyCommonLock && context.IsLocked)
                     ? "lock"
                     : !context.IsOwner && context.SharePasswordMode == CollectionSharePasswordMode.PerCollection ? "sharePassword" : null
                 : null;

@@ -295,8 +295,7 @@ public sealed class CollectionLockPasswordAndRoleIntegrationTests : IAsyncLifeti
         var privateOne = await NewCollectionAsync("Private");
         await LockUnderOwnerPasswordAsync(_sharedId, "common-pass-1");
         await _locks.LockAsync(_owner, privateOne);
-        var publicId = NewPublicId();
-        await _shares.EnableAsync(_owner, _sharedId, publicId, DateTimeOffset.UtcNow);
+        var publicId = (await _shares.EnableAsync(_owner, _sharedId, NewPublicId(), DateTimeOffset.UtcNow)).PublicId;
         // Locked, with this member and link, before share passwords existed (the migration's legacy
         // mode): those recipients still open it with the Owner's lock password.
         foreach (var collectionId in new[] { _sharedId, privateOne })
@@ -432,8 +431,7 @@ public sealed class CollectionLockPasswordAndRoleIntegrationTests : IAsyncLifeti
         // A read member and a pending read invitation: 보기만 for everyone is allowed.
         await InviteAndAcceptAsync(_reader, CollectionCollaboratorRole.Viewer);
         var pendingRead = await _collaboration.InviteAsync(_owner, _sharedId, await JupleIdOfAsync(_writer), CollectionCollaboratorRole.Viewer);
-        var publicId = NewPublicId();
-        await _shares.EnableAsync(_owner, _sharedId, publicId, DateTimeOffset.UtcNow);
+        var publicId = (await _shares.EnableAsync(_owner, _sharedId, NewPublicId(), DateTimeOffset.UtcNow)).PublicId;
 
         // While 보기만 is on, a specific person may still be given 링크 추가 - and back again.
         var readerJupleId = await JupleIdOfAsync(_reader);
@@ -491,8 +489,7 @@ public sealed class CollectionLockPasswordAndRoleIntegrationTests : IAsyncLifeti
         await InviteAndAcceptAsync(_writer, CollectionCollaboratorRole.Contributor);
         await _addItem.AddAsync(_writer, _sharedId, _writerItem);
         await _collaboration.ChangeCollaboratorRoleAsync(_owner, _sharedId, await JupleIdOfAsync(_writer), CollectionCollaboratorRole.Viewer);
-        var publicId = NewPublicId();
-        await _shares.EnableAsync(_owner, _sharedId, publicId, DateTimeOffset.UtcNow);
+        var publicId = (await _shares.EnableAsync(_owner, _sharedId, NewPublicId(), DateTimeOffset.UtcNow)).PublicId;
 
         var item = Assert.Single((await _public.GetItemsAsync(publicId, null, 50))!.Items);
         Assert.Equal("https://example.test/owner", item.Url);

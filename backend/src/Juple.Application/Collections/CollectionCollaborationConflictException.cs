@@ -34,5 +34,8 @@ public sealed class CollectionCollaborationConflictException(string code) : Exce
     /// <summary>The public link does not (any more) allow joining this way - its join setting is off or another mode, or the link is gone.</summary>
     public const string JoinNotAllowed = "joinNotAllowed";
 
+    /// <summary>A personal lock cannot be set on this Collection right now (it is still in the legacy common-lock mode, whose lock grants are the Owner's).</summary>
+    public const string MemberLockUnavailable = "memberLockUnavailable";
+
     public string Code { get; } = code;
 }

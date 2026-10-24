@@ -329,6 +329,11 @@ public sealed class CollectionCollaborationStore(
             .Where(favorite => favorite.CollectionId == collectionId && favorite.UserId == collaboratorUserId)
             .ExecuteDeleteAsync(cancellationToken);
 
+        // Their personal lock on a Collection they can no longer access (it protected only their own access).
+        await dbContext.CollectionMemberLocks
+            .Where(memberLock => memberLock.CollectionId == collectionId && memberLock.UserId == collaboratorUserId)
+            .ExecuteDeleteAsync(cancellationToken);
+
         dbContext.CollectionCollaborators.Remove(collaborator);
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);

@@ -238,6 +238,11 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext, TimeProvider?
                 .Where(favorite => favorite.UserId == userId)
                 .ExecuteDeleteAsync(cancellationToken);
 
+            // This user's personal locks on other people's Collections (locks on their own Collections would also cascade below).
+            await dbContext.CollectionMemberLocks
+                .Where(memberLock => memberLock.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+
             // This user's own per-Collection notification settings, including on other people's
             // Collections (settings on their own Collections would also cascade below).
             await dbContext.CollectionNotificationPreferences

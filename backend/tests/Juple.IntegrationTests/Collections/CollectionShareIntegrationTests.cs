@@ -101,7 +101,7 @@ public sealed class CollectionShareIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetActiveAsync_WhenNeverShared_ReturnsNull()
+    public async Task GetActiveAsync_ForANewCollection_ReturnsItsPrivateLink_NotAPublicOne()
     {
         var collectionStore = new CollectionStore(_dbContext);
         var collectionId = await CreateCollectionAsync(collectionStore, _userId, "Books");
@@ -110,7 +110,47 @@ public sealed class CollectionShareIntegrationTests : IAsyncLifetime
 
         var share = await shareStore.GetActiveAsync(_userId, collectionId);
 
-        Assert.Null(share);
+        // Every Collection gets a link when it is created, so there is one to pass on; it is PRIVATE (nothing of the Collection is public).
+        Assert.NotNull(share);
+        Assert.False(share!.IsPublic);
+        Assert.Equal(32, share.PublicId.Length);
+    }
+
+    [Fact]
+    public async Task GetActiveAsync_AfterTheLinkIsRevoked_ReturnsNull_AndItIsNotBroughtBack()
+    {
+        var collectionStore = new CollectionStore(_dbContext);
+        var collectionId = await CreateCollectionAsync(collectionStore, _userId, "Books");
+        _dbContext.ChangeTracker.Clear();
+        var shareStore = new CollectionShareStore(_dbContext);
+        await shareStore.RevokeAsync(_userId, collectionId, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        Assert.Null(await shareStore.GetActiveAsync(_userId, collectionId));
+        // The lazy "first link" path never resurrects a revoked link.
+        Assert.Null(await shareStore.EnsureInitialPrivateLinkAsync(collectionId, "candidate-never-used-1234567890", DateTimeOffset.UtcNow));
+        _dbContext.ChangeTracker.Clear();
+        Assert.Null(await shareStore.GetActiveAsync(_userId, collectionId));
+    }
+
+    [Fact]
+    public async Task EnsureInitialPrivateLink_ForACollectionThatNeverHadOne_CreatesExactlyOnePrivateLink()
+    {
+        var collectionStore = new CollectionStore(_dbContext);
+        var collectionId = await CreateCollectionAsync(collectionStore, _userId, "Books");
+        // Simulates a Collection from before links were created with it.
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM collections.CollectionShares WHERE CollectionId = {collectionId}");
+        _dbContext.ChangeTracker.Clear();
+        var shareStore = new CollectionShareStore(_dbContext);
+
+        var first = await shareStore.EnsureInitialPrivateLinkAsync(collectionId, "first-candidate-id-0123456789ab", DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        var second = await shareStore.EnsureInitialPrivateLinkAsync(collectionId, "second-candidate-id-0123456789a", DateTimeOffset.UtcNow);
+
+        Assert.NotNull(first);
+        Assert.False(first!.IsPublic);
+        Assert.Equal("first-candidate-id-0123456789ab", second!.PublicId);
+        Assert.Equal(1, await _dbContext.CollectionShares.AsNoTracking().CountAsync(share => share.CollectionId == collectionId));
     }
 
     [Fact]

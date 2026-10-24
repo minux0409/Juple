@@ -213,11 +213,11 @@ describe('8-12. moving and copying links: the existing Backend API only', () => 
     assert.equal(replicateResultMessage({ addedCount: 2, skippedCount: 0 }, ko), '2개 컬렉션에 복제했어요.');
   });
 
-  it('the menus by ownership: my link - 복제 / 이동; another member\'s link - only 내 컬렉션으로 복사 (never moved)', () => {
+  it('the menus by ownership: my link - 복제 / 이동; another member\'s link - only 링크 저장 (never moved)', () => {
     const details = source('app/(app)/items/[itemId]/ItemDetailContent.tsx');
     assert.match(details, /\{removeFromCollection \? \(\s*<ActionMenu/);
     const shared = source('app/(app)/collections/[collectionId]/items/[itemId]/SharedItemContent.tsx');
-    assert.match(shared, /\[\{ key: 'copyToMine', label: dictionary\.copyToMine, icon: 'Copy', onSelect: \(\) => setOpen\(true\) \}\]/);
+    assert.match(shared, /key: 'saveLink', label: dictionary\.copyToMine, icon: 'Copy', onSelect: \(\) => openReview\(url, href => router\.push\(href\)/);
     assert.doesNotMatch(shared, /moveToOther|transferPath|membershipPath/);
   });
 
@@ -232,11 +232,10 @@ describe('8-12. moving and copying links: the existing Backend API only', () => 
     assert.equal(grantHeaders(null, undefined), undefined);
   });
 
-  it('another member\'s link: one copy per destination; a partial result names what failed', () => {
+  it('another member\'s link: 링크 저장 opens the ordinary save screen with the URL / title / picture only - nothing is copied before Save', () => {
     const shared = source('app/(app)/collections/[collectionId]/items/[itemId]/SharedItemContent.tsx');
-    assert.match(shared, /body: \{ destinationCollectionId: destination\.collection\.id, itemIds: \[itemId\] \},\s*headers: grantHeaders\(unlockTokenFor\(collectionId\), destination\.unlockToken\)/);
-    assert.match(shared, /if \(failed === picked\.length\) \{\s*throw firstFailure;/);
-    assert.match(shared, /formatMessage\(dictionary\.copyDestinationsFailed, \{ count: failed \}\)/);
+    assert.match(shared, /openReview\(url, href => router\.push\(href\), \{ title: item\.title, image: isSafeHttpUrl\(item\.previewImageUrl\) \? item\.previewImageUrl : null \}\)/);
+    assert.doesNotMatch(shared, /copyItemsPath|items\/copy|item\.memo|item\.photos/, 'no copy request; the other member\'s memo and photos never travel');
   });
 
   it('copy result words are the mobile ones', () => {

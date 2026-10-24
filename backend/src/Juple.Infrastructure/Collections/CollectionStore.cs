@@ -352,9 +352,10 @@ public sealed class CollectionStore(
             EF.Functions.Like(collection.Name, pattern, ItemSearchPattern.EscapeCharacter)
             || (!(collection.UserId == userId
                     ? collection.IsLocked
-                    : dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
+                    : (dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
                         && (password.Mode == CollectionSharePasswordMode.PerCollection
-                            || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked))))
+                            || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked)))
+                        || dbContext.CollectionMemberLocks.Any(memberLock => memberLock.CollectionId == collection.Id && memberLock.UserId == userId && memberLock.IsLocked)))
                 && dbContext.CollectionItems.Any(membership => membership.CollectionId == collection.Id
                     && dbContext.Items.Any(item => item.Id == membership.ItemId
                         && item.DeletedAtUtc == null
@@ -372,9 +373,10 @@ public sealed class CollectionStore(
     private System.Linq.Expressions.Expression<Func<Collection, bool>> LinksVisibleFor(long userId) =>
         collection => !(collection.UserId == userId
             ? collection.IsLocked
-            : dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
+            : (dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
                 && (password.Mode == CollectionSharePasswordMode.PerCollection
-                    || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked))));
+                    || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked)))
+                        || dbContext.CollectionMemberLocks.Any(memberLock => memberLock.CollectionId == collection.Id && memberLock.UserId == userId && memberLock.IsLocked)));
 
     /// <summary>
     /// A handful of Collections (name) and links (title / URL) for the search box. Same scope, same access, same privacy as the list
@@ -476,6 +478,8 @@ public sealed class CollectionStore(
             Icon = collection.Icon,
             Color = collection.Color,
             IsLocked = collection.IsLocked,
+            MemberLocked = dbContext.CollectionMemberLocks.Any(
+                memberLock => memberLock.CollectionId == collection.Id && memberLock.UserId == userId && memberLock.IsLocked),
             SharePasswordMode = dbContext.CollectionSharePasswords
                 .Where(sharePassword => sharePassword.CollectionId == collection.Id)
                 .Select(sharePassword => (CollectionSharePasswordMode?)sharePassword.Mode)
@@ -643,7 +647,7 @@ public sealed class CollectionStore(
                     : CollectionDtoAccessRoles.ForCollaborator(row.CallerRole ?? CollectionCollaboratorRole.Contributor),
                 // The lock is the Owner's own gate; a recipient is only ever asked for it on a legacy
                 // Collection (see CollectionSharePasswordMode) - otherwise their gate is the share password.
-                IsLocked: isOwner ? row.IsLocked : row.IsLocked && row.SharePasswordMode == CollectionSharePasswordMode.LegacyCommonLock,
+                IsLocked: isOwner ? row.IsLocked : row.MemberLocked || row.IsLocked && row.SharePasswordMode == CollectionSharePasswordMode.LegacyCommonLock,
                 HasCollaborators: isOwner && row.HasCollaborators,
                 OwnerJupleId: isOwner ? null : owner?.PublicCode,
                 OwnerDisplayName: isOwner ? null : owner?.DisplayName,
@@ -657,7 +661,8 @@ public sealed class CollectionStore(
                 UnreadNewLinkCount: row.UnreadNewLinkCount,
                 AttentionCount: (isOwner ? row.PendingSubmissionCount + row.PendingJoinRequestCount : 0) + row.UnreadNewLinkCount,
                 MyPendingSubmissionCount: isOwner ? 0 : row.MyPendingSubmissionCount,
-                PendingJoinRequestCount: isOwner ? row.PendingJoinRequestCount : 0);
+                PendingJoinRequestCount: isOwner ? row.PendingJoinRequestCount : 0,
+                IsMemberLocked: !isOwner && row.MemberLocked);
         }).ToList();
     }
 
@@ -680,6 +685,8 @@ public sealed class CollectionStore(
         public string? Color { get; init; }
 
         public bool IsLocked { get; init; }
+
+        public bool MemberLocked { get; init; }
 
         public CollectionSharePasswordMode? SharePasswordMode { get; init; }
 
@@ -716,9 +723,18 @@ public sealed class CollectionStore(
         var collection = new Collection(userId, name, nameNormalized, icon, createdAtUtc, color);
         dbContext.Collections.Add(collection);
 
+        // The Collection and its first link are one transaction: a Collection is never left without a link to pass on. The link is
+        // PRIVATE (nothing of the Collection is public; a stranger who gets it can only ask the Owner to join), so nothing is shared by
+        // creating it - the Owner still decides about public contents, password and approval separately.
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
+            var link = new CollectionShare(collection.Id, CollectionSharePublicIdGenerator.Generate(), createdAtUtc);
+            link.SetPublic(false, createdAtUtc);
+            dbContext.CollectionShares.Add(link);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
         }
         catch (DbUpdateException exception) when (
             SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception))

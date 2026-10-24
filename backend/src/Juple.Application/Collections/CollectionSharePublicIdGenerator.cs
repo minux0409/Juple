@@ -9,11 +9,11 @@ namespace Juple.Application.Collections;
 /// 3), so the result is fixed-length and URL-safe with no trimming needed - never a sequential id
 /// or a short human-readable slug.
 /// </summary>
-internal static class CollectionSharePublicIdGenerator
+public static class CollectionSharePublicIdGenerator
 {
     private const int TokenByteLength = 24;
 
-    internal static string Generate()
+    public static string Generate()
     {
         var bytes = RandomNumberGenerator.GetBytes(TokenByteLength);
         return Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_');

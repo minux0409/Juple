@@ -34,16 +34,19 @@ export function SavedLinkList({
   links,
   mode,
   dictionary,
+  onOpenOriginal,
 }: {
   readonly links: readonly LinkView[];
   readonly mode: LinkViewMode;
   readonly dictionary: AppDictionary;
+  /** The person's own list (Home, 보관함): called when the saved original page is opened from a card (a note for 최근 조회한 링크). */
+  readonly onOpenOriginal?: (link: LinkView) => void;
 }) {
   return (
     <ul className={mode === 'list' ? styles.linkList : mode === 'grid' ? styles.linkGrid : styles.imageGrid}>
       {links.map(link => (
         <li className={mode === 'image' ? styles.imageCell : link.reactions ? `${styles.linkCard} ${styles.linkCardColumn}` : styles.linkCard} key={link.id}>
-          <LinkEntry dictionary={dictionary} link={link} mode={mode} />
+          <LinkEntry dictionary={dictionary} link={link} mode={mode} onOpenOriginal={onOpenOriginal} />
         </li>
       ))}
     </ul>
@@ -108,7 +111,7 @@ function MetaContent({ link, dictionary }: { readonly link: LinkView; readonly d
   );
 }
 
-function LinkEntry({ link, mode, dictionary }: { readonly link: LinkView; readonly mode: LinkViewMode; readonly dictionary: AppDictionary }) {
+function LinkEntry({ link, mode, dictionary, onOpenOriginal }: { readonly link: LinkView; readonly mode: LinkViewMode; readonly dictionary: AppDictionary; readonly onOpenOriginal?: (link: LinkView) => void }) {
   const title = linkTitleText(link.title, dictionary);
   const technical = link.title.kind === 'text' && link.title.technical;
   const body =
@@ -154,6 +157,8 @@ function LinkEntry({ link, mode, dictionary }: { readonly link: LinkView; readon
         href={link.externalUrl}
         rel="noopener noreferrer"
         target="_blank"
+        onAuxClick={onOpenOriginal ? () => onOpenOriginal(link) : undefined}
+        onClick={onOpenOriginal ? () => onOpenOriginal(link) : undefined}
         title={dictionary.openLink}
       >
         <Glyph name="ExternalLink" size={mode === 'grid' ? 16 : 18} />

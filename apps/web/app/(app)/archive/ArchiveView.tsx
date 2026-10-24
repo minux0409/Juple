@@ -24,6 +24,7 @@ import { LoadMore } from '../InfiniteScroll';
 import { LoadFailed } from '../PageStates';
 import { SavedLinkSkeleton } from '../Skeletons';
 import { appendPage, canLoadMore, failLoadingMore, firstPage, startLoadingMore, type PagedState } from '../../../lib/paging';
+import { recordLinkOpened } from '../../../lib/recentLinks';
 import { SavedLinkList } from '../SavedLinkList';
 import { SearchField } from '../SearchField';
 import { SortChips } from '../SortChips';
@@ -201,7 +202,7 @@ function ArchiveFlat({
   }
   return (
     <>
-      <SavedLinkList dictionary={dictionary} links={state.items} mode={viewMode} />
+      <SavedLinkList dictionary={dictionary} links={state.items} mode={viewMode} onOpenOriginal={link => void recordLinkOpened(api, link.id)} />
       <LoadMore dictionary={dictionary} onLoadMore={loadMore} skeleton={<SavedLinkSkeleton count={6} mode={viewMode} />} state={state} />
     </>
   );

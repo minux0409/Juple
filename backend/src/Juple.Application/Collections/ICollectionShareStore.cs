@@ -52,6 +52,18 @@ public interface ICollectionShareStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gives a Collection that has NEVER had a link its first, PRIVATE one (the contents stay closed; it only takes join requests the Owner
+    /// approves) so that a link exists to pass on without the Owner turning sharing on first. Idempotent and race-safe (row lock + the
+    /// one-active-link unique index). A Collection that already has a link - or had one that was revoked - is left exactly as it is: a
+    /// revoked link is never brought back. Returns the active link afterwards (null: none, e.g. revoked or the Collection is gone).
+    /// </summary>
+    Task<CollectionShareDto?> EnsureInitialPrivateLinkAsync(
+        long collectionId,
+        string candidatePublicId,
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+    /// <summary>
     /// Returns null when the Collection is owned but currently has no active share - that is a
     /// valid state, not an error. Throws CollectionNotFoundException for a missing or
     /// other-user's Collection.

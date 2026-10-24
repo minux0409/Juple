@@ -138,6 +138,13 @@ export interface WebOnlyStrings {
   readonly shareLinkInAppOnly: string;
   readonly collectionSearchPlaceholder: string;
   readonly seeAll: string;
+  readonly homeFavoritesRegion: string;
+  readonly homeRecentTitle: string;
+  readonly homeRecentEmpty: string;
+  readonly homeRecentClear: string;
+  readonly homeRecentClearTitle: string;
+  readonly homeRecentClearMessage: string;
+  readonly homeRecentClearFailed: string;
   readonly dangerZone: string;
   readonly settingsSectionTitle: string;
   readonly accountSectionTitle: string;

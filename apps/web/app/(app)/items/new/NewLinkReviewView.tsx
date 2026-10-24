@@ -32,7 +32,7 @@ import styles from '../../app.module.css';
  * found (or the person's own; never guessed), where it goes (any number of Collections, or explicitly 선택 안 함 - Save waits for that
  * decision), a memo, and the preview image the server found. Save creates the link once; a retry of the same link replays it.
  */
-export function NewLinkReviewView({ url }: { readonly url: string }) {
+export function NewLinkReviewView({ url, title: initialTitle = '', image: initialImage = '' }: { readonly url: string; readonly title?: string; readonly image?: string }) {
   const { api, dictionary, onSessionLost, publicWebHost } = useSignedInApp();
   const router = useRouter();
   const valid = isHttpUrl(url);
@@ -51,9 +51,12 @@ export function NewLinkReviewView({ url }: { readonly url: string }) {
       window.location.replace(destination.url);
     }
   };
-  const [title, setTitle] = useState('');
+  // A link taken from someone else's shared link starts with the title / picture that Collection shows - only a starting value: the
+  // person can change it, the server still resolves the link, and nothing is saved until Save.
+  const startingImage = isSafeHttpUrl(initialImage) ? initialImage : null;
+  const [title, setTitle] = useState(initialTitle.trim().slice(0, 300));
   const [memo, setMemo] = useState('');
-  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(startingImage);
   const [isResolving, setIsResolving] = useState(valid);
   const [metadataFailed, setMetadataFailed] = useState(false);
   const [destinations, setDestinations] = useState<readonly CollectionSummary[] | null>(null);
@@ -67,7 +70,7 @@ export function NewLinkReviewView({ url }: { readonly url: string }) {
   // Stable across retries of this link (the server replays the already-created Item instead of creating a second one).
   const clientRequestId = useRef<string | null>(null);
   // The person typed their own title before the server answered: theirs stays.
-  const titleTouched = useRef(false);
+  const titleTouched = useRef(initialTitle.trim().length > 0);
 
   useEffect(() => {
     if (shareTargetKind === 'inApp' && shareTargetAddress) {
@@ -91,7 +94,7 @@ export function NewLinkReviewView({ url }: { readonly url: string }) {
         if (found && !titleTouched.current) {
           setTitle(found);
         }
-        setPreviewImageUrl(isSafeHttpUrl(metadata.previewImageUrl) ? metadata.previewImageUrl : null);
+        setPreviewImageUrl(current => (isSafeHttpUrl(metadata.previewImageUrl) ? metadata.previewImageUrl : current));
         setIsResolving(false);
       },
       caught => {

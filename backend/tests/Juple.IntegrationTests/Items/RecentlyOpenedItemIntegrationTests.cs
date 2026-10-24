@@ -56,6 +56,39 @@ public sealed class RecentlyOpenedItemIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetPageAsync_LeavesOutLinksBehindALockedCollection_AndTrash_UntilTheGateIsGone()
+    {
+        var store = new RecentlyOpenedItemStore(_dbContext);
+        var plain = await CreateItemAsync("https://shop.example/recent-plain");
+        var gated = await CreateItemAsync("https://shop.example/recent-gated");
+        var trashed = await CreateItemAsync("https://shop.example/recent-trashed");
+        foreach (var itemId in new[] { plain, gated, trashed })
+        {
+            await store.RecordOpenAsync(_userId, itemId, DateTimeOffset.UtcNow);
+        }
+
+        var collections = new Juple.Infrastructure.Collections.CollectionStore(_dbContext);
+        var collectionId = (await collections.CreateAsync(_userId, "Hidden", "HIDDEN", Juple.Domain.Collections.CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        await collections.AddAsync(_userId, collectionId, gated, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync($"UPDATE collections.Collections SET IsLocked = 1, LockVersion = 1 WHERE Id = {collectionId}");
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync($"UPDATE items.Items SET DeletedAtUtc = SYSUTCDATETIME() WHERE Id = {trashed}");
+
+        var locked = await store.GetPageAsync(_userId, cursor: null, limit: 50);
+        // Neither a link behind a locked Collection (its title / address would walk around the lock) nor one in the trash is listed.
+        Assert.Equal([plain], locked.Items.Select(entry => entry.ItemId));
+
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync($"UPDATE collections.Collections SET IsLocked = 0 WHERE Id = {collectionId}");
+        var open = await store.GetPageAsync(_userId, cursor: null, limit: 50);
+        Assert.Contains(gated, open.Items.Select(entry => entry.ItemId));
+        Assert.DoesNotContain(trashed, open.Items.Select(entry => entry.ItemId));
+
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM collections.CollectionShares WHERE CollectionId = {collectionId}");
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM collections.CollectionItems WHERE CollectionId = {collectionId}");
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM collections.Collections WHERE Id = {collectionId}");
+    }
+
+    [Fact]
     public async Task RecordOpenAsync_FirstOpen_CreatesRow()
     {
         var store = new RecentlyOpenedItemStore(_dbContext);

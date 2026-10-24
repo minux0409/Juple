@@ -140,7 +140,7 @@ describe('Quick Detail sheet: size and responsiveness', () => {
   });
 });
 
-describe('새 링크 검토 (/items/new) is never a Quick Detail sheet', () => {
+describe('링크 저장 (/save) is never a Quick Detail sheet and never a full page load', () => {
   const urls = [
     'https://youtu.be/abcDEF12345?t=10&si=xyz',
     'https://www.youtube.com/watch?v=abcDEF12345&list=PL1&t=42s',
@@ -149,14 +149,14 @@ describe('새 링크 검토 (/items/new) is never a Quick Detail sheet', () => {
     'https://example.com/a/b?x=1&y=two words#frag',
   ];
 
-  it('opening the review is a full page navigation to /items/new with the whole link in the query, for every kind of link', async () => {
+  it('opening the review is a soft navigation to /save with the whole link in the query, for every kind of link', async () => {
     const { openReview, reviewHref, normalizeEnteredUrl } = await import('../lib/newLink.ts');
     for (const url of urls) {
       const assigned: string[] = [];
       const href = openReview(url, target => void assigned.push(target));
       assert.deepEqual(assigned, [href], url);
       const parsed = new URL(`http://x${href}`);
-      assert.equal(parsed.pathname, '/items/new');
+      assert.equal(parsed.pathname, '/save');
       assert.equal(parsed.searchParams.get('url'), url, 'the whole query string of the link survives');
       assert.equal(href, reviewHref(url));
       assert.equal(normalizeEnteredUrl(`  ${url}  `), url, 'pasted with spaces');
@@ -166,22 +166,24 @@ describe('새 링크 검토 (/items/new) is never a Quick Detail sheet', () => {
     assert.equal(normalizeEnteredUrl('not a link'), null);
   });
 
-  it('Home: Enter and the Save button are the SAME submit, and it opens the review with a full navigation (never router.push)', () => {
+  it('Home: Enter and the Save button are the SAME submit, and it opens the review with a soft navigation (router.push - the signed-in app is never reloaded)', () => {
     const home = source('app/(app)/HomeView.tsx');
     const form = home.slice(home.indexOf('function AddLinkForm'));
     assert.match(form, /<form className=\{styles\.addLinkPanel\} noValidate onSubmit=\{submit\}>/, 'Enter submits the form');
     assert.match(form, /<button className=\{styles\.primaryAction\} disabled=\{!value\.trim\(\)\} type="submit"(?: \{\.\.\.tourTarget\(TOUR_TARGETS\.homeCheck\)\})?>/, 'Save is a submit button of the same form');
-    assert.match(form, /const url = normalizeEnteredUrl\(value\);[\s\S]*openReview\(url\);/);
+    assert.match(form, /const url = normalizeEnteredUrl\(value\);[\s\S]*openReview\(url, href => router\.push\(href\)\);/);
     // The one client navigation on Home is a Juple Collection share link going to its Collection flow - never the review.
-    assert.deepEqual(home.match(/router\.(push|replace)\([^)]*\)/g), ['router.push(destination.href)']);
+    assert.deepEqual(home.match(/router\.(push|replace)\([^)]*\)/g), ['router.push(destination.href)', 'router.push(href)']);
     assert.match(home, /const destination = collectionShareDestination\(shareLink\);\s*if \(destination\.kind === 'inApp'\) \{\s*router\.push\(destination\.href\);/);
   });
 
-  it('no soft navigation to the review exists anywhere in the app; the intercepting route loads a non-item address for real', () => {
+  it('the review lives at /save (the Quick Detail slot cannot take it); /items/new stays for typed addresses and is still reloaded for real if it is ever softly entered', () => {
     for (const file of ['HomeView.tsx', 'archive/ArchiveView.tsx', 'collections/CollectionsView.tsx', 'AppShell.tsx', 'notifications/NotificationsView.tsx', 'items/[itemId]/ItemDetailContent.tsx']) {
-      assert.doesNotMatch(source(`app/(app)/${file}`), /reviewHref|router\.(push|replace)\([^)]*items\/new|href="\/items\/new/, file);
+      assert.doesNotMatch(source(`app/(app)/${file}`), /router\.(push|replace)\([^)]*items\/new|href="\/items\/new/, file);
     }
-    assert.match(source('lib/newLink.ts'), /window\.location\.assign\(href\)/);
+    assert.doesNotMatch(source('lib/newLink.ts'), /window\.location\.assign/, 'no full page load to open the review');
+    assert.match(source('lib/newLink.ts'), /export const REVIEW_PATH = '\/save'/);
+    assert.ok(existsSync(new URL('../app/(app)/save/page.tsx', import.meta.url)));
     assert.match(source('app/(app)/@modal/(.)items/[itemId]/NotAnItem.tsx'), /window\.location\.reload\(\)/);
     assert.ok(existsSync(new URL('../app/(app)/items/new/page.tsx', import.meta.url)));
   });
@@ -228,7 +230,7 @@ describe('Quick Detail sheet: another member\'s link in a Collection (no context
     assert.match(source('app/(app)/collections/[collectionId]/items/[itemId]/SharedItemView.tsx'), /useSharedItem\(collectionIdParam, itemIdParam\)/);
   });
 
-  it('/items/new is still opened by a full navigation (never a sheet)', () => {
-    assert.match(source('app/(app)/HomeView.tsx'), /openReview\(url\)/);
+  it('Home opens 링크 저장 by a client navigation (no login-check screen in between)', () => {
+    assert.match(source('app/(app)/HomeView.tsx'), /openReview\(url, href => router\.push\(href\)\)/);
   });
 });

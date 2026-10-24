@@ -57,7 +57,10 @@ public sealed record CollectionDto(
     int MyPendingSubmissionCount = 0,
     // Owner view only: how many people wait for the Owner to let them join (a CollectionJoinRequest, 참여 요청). A task like
     // PendingSubmissionCount and part of AttentionCount; always 0 for anyone else. Not a notification and never counted twice.
-    int PendingJoinRequestCount = 0);
+    int PendingJoinRequestCount = 0,
+    // A recipient's view only: the caller put THEIR OWN lock on this Collection (a personal choice, opened with their own lock password;
+    // IsLocked is then true for them too, so every client already treats it as locked). Never reported to the Owner or other members.
+    bool IsMemberLocked = false);
 
 /// <summary>
 /// A member of a collaborative Collection as other members see them: public Juple ID and the

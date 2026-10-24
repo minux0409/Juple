@@ -166,6 +166,14 @@ export function useCollectionLongPressMenu({ onToggleFavorite, onManage }: UseCo
         onPress: () => { closeMenu(); onManage(collection, 'lock'); },
       });
     }
+    // A member's PERSONAL lock (their own password; the Owner and other members are not affected) - the Owner has the lock above instead.
+    if (capabilities.canChangeMemberLock) {
+      actions.push({
+        label: isCollectionLocked(collection) && collection.isMemberLocked ? t('collections.lockRemoveAction') : t('collections.lockSetTitle'),
+        icon: isCollectionLocked(collection) && collection.isMemberLocked ? UnlockIcon : LockIcon,
+        onPress: () => { closeMenu(); onManage(collection, 'lock'); },
+      });
+    }
     // A real Home-screen icon - any role, read-only included (it only opens the Collection). Shown once the launcher is known to support it.
     if (homePinSupport === 'supported') {
       actions.push({

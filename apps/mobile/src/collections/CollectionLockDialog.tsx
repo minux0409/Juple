@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
-import { removeCollectionLock, setCollectionLock } from './api/collectionsApi';
+import { removeCollectionLock, removeMemberCollectionLock, setCollectionLock, setMemberCollectionLock } from './api/collectionsApi';
 import { getCollectionLockPasswordStatus } from './api/collectionLockPasswordApi';
 import { forgetCollectionUnlock } from './collectionUnlockGrants';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
@@ -46,6 +46,11 @@ interface CollectionLockDialogProps {
   readonly visible: boolean;
   readonly collectionId: number;
   readonly mode: CollectionLockDialogMode;
+  /**
+   * A member locking a Collection that someone else owns: their PERSONAL lock (their own lock password, nobody else affected) instead of
+   * the Owner's Collection lock. Same dialog, same words; only the requests differ.
+   */
+  readonly forMember?: boolean;
   readonly onCancel: () => void;
   /** Called after the server accepted the change; the caller reloads the Collection. */
   readonly onChanged: () => void;
@@ -59,7 +64,7 @@ type LockReadiness = 'checking' | 'ready' | 'notConfigured';
  * Owner-only lock actions (see CollectionLockDialogMode). Every change invalidates all outstanding
  * unlock grants server-side, including this device's own.
  */
-export function CollectionLockDialog({ visible, collectionId, mode, onCancel, onChanged, onOpenSettings }: CollectionLockDialogProps) {
+export function CollectionLockDialog({ visible, collectionId, mode, forMember = false, onCancel, onChanged, onOpenSettings }: CollectionLockDialogProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const authenticatedRequest = useAuthenticatedApi();
@@ -123,14 +128,14 @@ export function CollectionLockDialog({ visible, collectionId, mode, onCancel, on
         onOpenSettings();
         return;
       }
-      run(() => setCollectionLock(authenticatedRequest, collectionId));
+      run(() => (forMember ? setMemberCollectionLock(authenticatedRequest, collectionId) : setCollectionLock(authenticatedRequest, collectionId)));
       return;
     }
     if (!password) {
       setError(t('collections.lockPasswordRequired'));
       return;
     }
-    run(() => removeCollectionLock(authenticatedRequest, collectionId, password));
+    run(() => (forMember ? removeMemberCollectionLock(authenticatedRequest, collectionId, password) : removeCollectionLock(authenticatedRequest, collectionId, password)));
   };
 
   const isNotConfigured = mode === 'lock' && readiness === 'notConfigured';

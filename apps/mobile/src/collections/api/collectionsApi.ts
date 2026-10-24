@@ -22,6 +22,11 @@ export interface Collection {
    */
   readonly accessRole?: CollectionAccessRole;
   readonly isLocked?: boolean;
+  /**
+   * A member's view: the caller put THEIR OWN lock on this Collection (a personal choice, opened with their own lock password).
+   * isLocked is then true for them too, so every gate already treats it as locked. Never reported to the Owner or other members.
+   */
+  readonly isMemberLocked?: boolean;
   /** Owner view only: the Collection has at least one Contributor. */
   readonly hasCollaborators?: boolean;
   /** Owner view only: its 모든 사용자 (public) link is on. */
@@ -598,6 +603,32 @@ export async function setCollectionLock(request: AuthenticatedApiRequest, collec
     method: 'PUT',
     path: `/api/v1/collections/${collectionId}/lock`,
     body: {},
+  });
+}
+
+/**
+ * A MEMBER's personal lock (never the Owner, who has setCollectionLock): locks this Collection for the caller only, under the caller's
+ * own lock password. Nobody else is told or affected; the Collection is not left, hidden or changed. Rejects with
+ * ApiError conflict/"collectionLockPasswordNotConfigured" when the caller has no lock password yet.
+ */
+export async function setMemberCollectionLock(request: AuthenticatedApiRequest, collectionId: number): Promise<void> {
+  await request<void>({
+    method: 'PUT',
+    path: `/api/v1/collections/${collectionId}/member-lock`,
+    body: {},
+  });
+}
+
+/** A member removes their OWN lock after their lock password is verified (no bypass). */
+export async function removeMemberCollectionLock(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  currentPassword: string,
+): Promise<void> {
+  await request<void>({
+    method: 'POST',
+    path: `/api/v1/collections/${collectionId}/member-lock/remove`,
+    body: { currentPassword },
   });
 }
 

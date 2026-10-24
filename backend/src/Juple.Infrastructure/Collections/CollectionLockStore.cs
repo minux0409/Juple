@@ -43,6 +43,77 @@ public sealed class CollectionLockStore(JupleDbContext dbContext) : ICollectionL
         return new CollectionLockState(row.Id, row.IsLocked, passwordHash, row.LockVersion, usesOwnerPassword);
     }
 
+    public async Task<CollectionLockState?> GetMemberStateAsync(long userId, long collectionId, CancellationToken cancellationToken = default)
+    {
+        var row = await dbContext.Collections
+            .AsNoTracking()
+            .Where(collection => collection.Id == collectionId && collection.DeletedAtUtc == null)
+            .Select(collection => new
+            {
+                collection.Id,
+                MemberLock = dbContext.CollectionMemberLocks
+                    .Where(memberLock => memberLock.CollectionId == collection.Id && memberLock.UserId == userId)
+                    .Select(memberLock => new { memberLock.IsLocked, memberLock.LockVersion })
+                    .FirstOrDefault(),
+                PasswordHash = dbContext.UserCollectionLockSettings
+                    .Where(settings => settings.UserId == userId)
+                    .Select(settings => settings.PasswordHash)
+                    .FirstOrDefault(),
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+        return row is null
+            ? null
+            : new CollectionLockState(row.Id, row.MemberLock?.IsLocked ?? false, row.PasswordHash, row.MemberLock?.LockVersion ?? 0, UsesOwnerPassword: true);
+    }
+
+    public async Task LockMemberAsync(long userId, long collectionId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+    {
+        var existing = await dbContext.CollectionMemberLocks
+            .FirstOrDefaultAsync(memberLock => memberLock.CollectionId == collectionId && memberLock.UserId == userId, cancellationToken);
+        if (existing is null)
+        {
+            dbContext.CollectionMemberLocks.Add(new CollectionMemberLock(userId, collectionId, nowUtc));
+        }
+        else
+        {
+            existing.Lock(nowUtc);
+        }
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new CollectionConcurrencyException(exception);
+        }
+        catch (DbUpdateException exception) when (SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception))
+        {
+            // A concurrent lock created the row first: the Collection is locked for this person, which is what was asked.
+            dbContext.ChangeTracker.Clear();
+        }
+    }
+
+    public async Task RemoveMemberLockAsync(long userId, long collectionId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+    {
+        var existing = await dbContext.CollectionMemberLocks
+            .FirstOrDefaultAsync(memberLock => memberLock.CollectionId == collectionId && memberLock.UserId == userId, cancellationToken);
+        if (existing is null)
+        {
+            return;
+        }
+
+        existing.Unlock(nowUtc);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new CollectionConcurrencyException(exception);
+        }
+    }
+
     public async Task LockAsync(long collectionId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
     {
         var collection = await LoadAsync(collectionId, cancellationToken);

@@ -6,7 +6,7 @@
 	<string>development</string>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:app-links-host-not-configured.invalid</string>
+		<string>applinks:juple.co.kr</string>
 	</array>
 	<key>com.apple.security.application-groups</key>
 	<array>

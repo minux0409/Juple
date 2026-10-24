@@ -184,6 +184,7 @@ public sealed class CollectionUnlockTokenProtector : ICollectionUnlockTokenProte
     {
         CollectionUnlockPurpose.CollectionLock => LockPurposeCode,
         CollectionUnlockPurpose.SharePassword => "s",
+        CollectionUnlockPurpose.MemberLock => "m",
         _ => throw new ArgumentOutOfRangeException(nameof(purpose)),
     };
 

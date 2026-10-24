@@ -363,10 +363,19 @@ export function ItemEditView({
         <ItemFormTop
           media={
             <>
-              <ItemPhoto dictionary={dictionary} photoUrl={photoUrl} url={item.url} />
+              {/* With a picture shown, pointing at it (or focusing the overlay button) offers 사진 변경; without one the add button stays. */}
+              <div className={styles.photoChangeFrame}>
+                <ItemPhoto dictionary={dictionary} photoUrl={photoUrl} url={item.url} />
+                {photoUrl ? (
+                  <button className={styles.photoChangeOverlay} disabled={photoBusy} onClick={() => fileInput.current?.click()} type="button">
+                    <Glyph name="Image" size={26} />
+                    <span>{photoBusy ? dictionary.uploading : dictionary.changePhoto}</span>
+                  </button>
+                ) : null}
+              </div>
               <div className={styles.photoActions}>
                 <input accept={ITEM_IMAGE_ACCEPT} aria-label={dictionary.addPhoto} hidden onChange={event => pickPhoto(event.target.files?.[0])} ref={fileInput} type="file" />
-                <button className={styles.settingsAction} disabled={photoBusy} onClick={() => fileInput.current?.click()} type="button">
+                <button className={photoUrl ? `${styles.settingsAction} ${styles.photoChangeTouchOnly}` : styles.settingsAction} disabled={photoBusy} onClick={() => fileInput.current?.click()} type="button">
                   <Glyph name="Image" size={16} />
                   {photoBusy ? dictionary.uploading : ownPhoto ? dictionary.changePhoto : dictionary.addPhoto}
                 </button>

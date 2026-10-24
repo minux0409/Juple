@@ -145,12 +145,16 @@ public sealed class DataExportReader(JupleDbContext dbContext) : IDataExportRead
             return [];
         }
 
-        var shares = await (
+        var shares = (await (
                 from share in dbContext.CollectionShares.AsNoTracking()
                 join collection in dbContext.Collections.AsNoTracking() on share.CollectionId equals collection.Id
                 where collection.UserId == userId && collection.DeletedAtUtc == null
-                select new { share.CollectionId, share.PublicId, share.IsActive, share.IsPublic, share.Permission })
-            .ToDictionaryAsync(share => share.CollectionId, cancellationToken);
+                select new { share.Id, share.CollectionId, share.PublicId, share.IsActive, share.IsPublic, share.Permission })
+            .ToListAsync(cancellationToken))
+            // A Collection can have several link rows over its life (a revoked link stays as history, a new link is a new row): export the
+            // ACTIVE one, else the most recent revoked one - never a duplicate key.
+            .GroupBy(share => share.CollectionId)
+            .ToDictionary(group => group.Key, group => group.OrderByDescending(share => share.IsActive).ThenByDescending(share => share.Id).First());
 
         var roleCounts = await (
                 from collaborator in dbContext.CollectionCollaborators.AsNoTracking()

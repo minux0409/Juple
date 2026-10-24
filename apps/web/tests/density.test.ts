@@ -53,16 +53,17 @@ describe('Web-native layout: only real data fills the space', () => {
     assert.doesNotMatch(home, /scope: |summaryCollectionsPath|exactCollectionCount|\/api\/v1\/collections/);
   });
 
-  it('Home: the add panel and today\'s links in the main column; exact counts, the two existing destinations and favorites beside them', () => {
+  it('Home: the add panel and today\'s links in the main column; exact counts, all favorites and the recently opened links beside them', () => {
     const home = source('app/(app)/HomeView.tsx');
     assert.match(home, /<AddLinkForm \/>\s*<div className={styles.dashboard}>\s*<div className={styles.dashboardMain}>/);
     assert.match(home, /<Glyph className=\{styles\.addLinkIcon\} name="Link"/);
-    assert.match(home, /href="\/collections\/new"/);
-    assert.match(home, /href="\/archive"/);
+    // The 새 컬렉션 / 보관함 shortcut buttons are gone from Home (both pages are still in the navigation).
+    assert.doesNotMatch(home, /href="\/collections\/new"|href="\/archive"|styles\.quickAction/);
     assert.match(home, /if \(summary\?\.all != null\)/, 'a card is added only when its number is known');
     assert.match(home, /if \(cards\.length === 0\) \{\s*return null;/);
-    assert.match(home, /summary && summary\.favoriteShortcuts\.length > 0/);
-    assert.doesNotMatch(home, /recent|activity|recommend/i);
+    // 즐겨찾기 (every favorite, scrolling inside) and then 최근 조회한 링크, in the side column.
+    assert.match(home, /<HomeFavorites \/>\s*<HomeRecentLinks mode=\{viewMode\}/);
+    assert.doesNotMatch(home, /favoriteShortcuts\.map/);
   });
 
   it('Collections: the title, then one toolbar with the filters, the view switch and 새 컬렉션; no total line (no such API)', () => {

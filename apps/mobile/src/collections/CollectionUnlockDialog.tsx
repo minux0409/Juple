@@ -28,7 +28,8 @@ export function CollectionUnlockDialog({ collection, onGranted, onCancel, onStat
       key={`${collection.id}-${contentGateOf(collection) ?? 'lock'}`}
       collectionId={collection.id}
       collectionName={collection.name}
-      isOwner={!isSharedWithMe(collection)}
+      // A member's own personal lock opens with their own password: no "ask the owner" hint then.
+      isOwner={!isSharedWithMe(collection) || (collection.isMemberLocked === true && contentGateOf(collection) === 'lock')}
       kind={contentGateOf(collection) ?? 'lock'}
       onCancel={onCancel}
       onGranted={onGranted}

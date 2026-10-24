@@ -384,7 +384,10 @@
     "jupleId": "معرّف Juple",
     "displayNamePlaceholder": "أدخل اسمًا مستعارًا",
     "nickname": "الاسم المستعار",
-    "nicknameNotSet": "غير معيّن"
+    "nicknameNotSet": "غير معيّن",
+    "webBannerTitle": "جرّب Juple على الكمبيوتر أيضًا",
+    "webBannerBody": "يمكنك إدارة الروابط والمجموعات المحفوظة على الويب أيضًا.",
+    "webBannerAction": "فتح Juple على الويب"
   },
   "profile": {
     "edit": "تعديل الملف الشخصي",
@@ -956,6 +959,13 @@
   "subscription": {
     "title": "الاشتراك",
     "planName": "اشتراك Juple",
+    "trialNotice": {
+      "welcomeTitle": "استخدم Juple مجانًا لمدة شهر",
+      "welcomeBody": "مجاني حتى {{date}}. بعد انتهاء الفترة المجانية يلزم اشتراك مدفوع.",
+      "endingTitle": "فترتك المجانية على وشك الانتهاء",
+      "endingBody": "استخدام مجاني حتى {{date}}. بعد ذلك يلزم اشتراك مدفوع.",
+      "view": "عرض الاشتراك"
+    },
     "pricePerMonth": "{{price}} / شهريًا",
     "cadence": "تتم الفوترة شهريًا. يتجدد تلقائيًا حتى تلغيه.",
     "access": {

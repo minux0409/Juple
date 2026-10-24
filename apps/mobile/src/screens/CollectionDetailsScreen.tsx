@@ -82,7 +82,7 @@ import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { ActionMenuDialog, type ActionMenuDialogAction } from '../components/ActionMenuDialog';
-import { ReportModal } from '../safety/ReportModal';
+import { isHttpUrl } from '../share/resolveIncomingShare';
 import { ParticipantAvatarStack } from '../components/ParticipantAvatarStack';
 import { QuickReactionBar } from '../reactions/QuickReactionBar';
 import { ReactionChips } from '../reactions/ReactionChips';
@@ -398,9 +398,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // last one selected - so 전체 해제 is offered exactly while that full selection is untouched.
   const [isSelectingAllForCopy, setIsSelectingAllForCopy] = useState(false);
   const [selectAllForCopyCount, setSelectAllForCopyCount] = useState<number | null>(null);
-  // 내 컬렉션으로 복사 of one link (long press on another member's link) - the same copy and the same
-  // destination picker as the multi-select copy, for just this link.
-  const [singleCopyItemId, setSingleCopyItemId] = useState<number | null>(null);
   // A member's way to pass on the Owner's public link: its URL while it is on (checked on every
   // focus with the Collection itself, so a link the Owner turned off elsewhere disappears then).
   const [memberShareUrl, setMemberShareUrl] = useState<string | null>(null);
@@ -684,9 +681,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // Owner-only control below is hidden for a Contributor, and the server independently refuses
   // them (403) regardless.
   const isOwner = collection !== null && !isSharedWithMe(collection);
-  // Another member's link in this Collection, reported from its ⋯ menu (the same modal and reasons as a comment).
-  const [reportingItemId, setReportingItemId] = useState<number | null>(null);
-
   // Whatever this screen learns about the Collection (opened, renamed, locked, role changed) also keeps its app shortcut
   // right - a renamed one gets the new label, a locked or read-only one is removed - with no request of its own.
   useEffect(() => {
@@ -843,8 +837,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
    * stays open for another try; if only some failed, what was copied is reported and the rest named.
    */
   const copyToDestinations = async (destinations: readonly PickedDestination[]) => {
-    const singleItemId = singleCopyItemId;
-    const itemIds = singleItemId !== null ? [singleItemId] : selectedItemIds ? [...selectedItemIds] : [];
+    const itemIds = selectedItemIds ? [...selectedItemIds] : [];
     if (itemIds.length === 0 || isCopying) {
       return;
     }
@@ -867,11 +860,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       if (failedCount === destinations.length) {
         throw firstFailure;
       }
-      if (singleItemId === null) {
-        setSelectedItemIds(null);
-        setSelectAllForCopyCount(null);
-      }
-      setSingleCopyItemId(null);
+      setSelectedItemIds(null);
+      setSelectAllForCopyCount(null);
       const isCleanMulti = destinations.length > 1 && failedCount === 0 && totals.skippedCount === 0 && totals.unavailableCount === 0;
       const summary = isCleanMulti
         ? t('collections.copyResultMulti', { links: itemIds.length, collections: destinations.length })
@@ -1170,8 +1160,10 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     const capabilities = getCollectionCapabilities(collection);
     if (pendingAction === 'edit' && capabilities.canEdit) {
       runUnlocked(openEditDialog);
-    } else if (pendingAction === 'lock' && capabilities.canChangeLock) {
-      setLockDialogMode(isCollectionLocked(collection) ? 'remove' : 'lock');
+    } else if (pendingAction === 'lock' && (capabilities.canChangeLock || capabilities.canChangeMemberLock)) {
+      // The Owner's Collection lock, or - for a member - their own personal lock (isMemberLocked), never each other's.
+      const lockedForMe = capabilities.isOwner ? isCollectionLocked(collection) : collection.isMemberLocked === true;
+      setLockDialogMode(lockedForMe ? 'remove' : 'lock');
     } else if (pendingAction === 'delete' && capabilities.canDelete) {
       runUnlocked(confirmDeleteCollection);
     } else if (pendingAction === 'leave' && capabilities.canLeave) {
@@ -1417,17 +1409,21 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   };
   const closeDestinationPicker = () => {
     destinationPicker.close();
-    setSingleCopyItemId(null);
   };
 
-  /** Another member's link: 내 컬렉션으로 복사 - just this link, through the same picker as the selection copy. */
-  const openSingleCopyPicker = () => {
+  /**
+   * Another member's link: 링크 저장 - the ordinary 새 링크 검토 screen, opened with that link's address and title as starting values.
+   * Nothing is copied or saved here: the person chooses the Collection(s) (or none, a new one, a locked one, an approval-first one),
+   * may change the title and write their own memo, and confirms Save, which makes a new link of their own through the normal save
+   * pipeline. The other member's memo, photos, comments and reactions never travel, and their link is left as it is.
+   */
+  const openSaveLink = () => {
     setIsItemActionMenuVisible(false);
-    if (actionMenuItem) {
-      setSingleCopyItemId(actionMenuItem.itemId);
-      openDestinationPicker('copy', null);
-    }
+    const item = actionMenuItem;
     setActionMenuItem(null);
+    if (item && isHttpUrl(item.url)) {
+      navigation.navigate('NewLinkReview', { url: item.url, initialTitle: item.title ?? null, preselectedCollectionId: null });
+    }
   };
 
   /** My own link (here or in someone else's Collection): 다른 컬렉션에 복제 / 이동. */
@@ -1659,9 +1655,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     { label: t('item.copyLink'), icon: CopyIcon, onPress: () => { setIsItemActionMenuVisible(false); setActionMenuItem(null); showNotificationToast(t(copySavedLinkUrl(menuItem.url) ? 'item.linkCopied' : 'item.linkCopyFailed')); } },
     ...(menuItem.isMine === false
       ? [
-        { label: t('collections.copyToMine'), icon: CopyIcon, onPress: openSingleCopyPicker },
-        // Somebody else's link can be reported (never the caller's own).
-        { label: t('safety.report'), onPress: () => afterItemMenu(() => setReportingItemId(menuItem.itemId)) },
+        // Somebody else's link: 링크 저장 only (no report action here - reporting stays on comments and people).
+        { label: t('item.saveDialogTitle'), icon: CopyIcon, onPress: openSaveLink },
       ]
       : [
         { label: t('common.edit'), icon: EditIcon, onPress: () => { setIsItemActionMenuVisible(false); setActionMenuItem(null); openCollectionItem(menuItem); } },
@@ -1701,6 +1696,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
             setSelectAllForCopyCount(null);
             setSelectedItemIds(new Set());
           }) }]),
+        // Their own personal lock (their lock password; the Owner and the other members are not affected): a confirmation to set it,
+        // the password to remove it.
+        collection.isMemberLocked
+          ? { label: t('collections.lockRemoveAction'), icon: UnlockIcon, onPress: closeCollectionMenuThen(() => setLockDialogMode('remove')) }
+          : { label: t('collections.lockSetTitle'), icon: LockIcon, onPress: closeCollectionMenuThen(() => setLockDialogMode('lock')) },
         // An active member can always leave on their own (the Owner cannot - they delete instead).
         { label: t('collections.leaveAction'), destructive: true, icon: LogoutIcon, onPress: closeCollectionMenuThen(() => setIsLeaveConfirmVisible(true)) },
       ];
@@ -1887,7 +1887,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // Nothing to show yet: where the links are about to appear (a whole name-ordered Collection, or
   // the date summary) - skeletons only while that request is actually on its way.
   const listEmpty = isContentLocked ? (
-    <CollectionUnlockPanel collectionId={collectionId} isOwner={isOwner} kind={contentLockKind ?? 'lock'} onUnlocked={refresh} />
+    <CollectionUnlockPanel collectionId={collectionId} isOwner={isOwner || (collection.isMemberLocked === true && contentLockKind === 'lock')} kind={contentLockKind ?? 'lock'} onUnlocked={refresh} />
   ) : isLoading ? (
     <View testID="collection-items-loading">
       {Array.from({ length: FIRST_PAGE_SKELETON_ROWS }, (_, index) => (
@@ -2195,14 +2195,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         onCancel={() => { setIsItemActionMenuVisible(false); setActionMenuItem(null); }}
         visible={isItemActionMenuVisible}
       />
-      <ReportModal
-        onClose={() => setReportingItemId(null)}
-        onReported={alreadyReported => {
-          setReportingItemId(null);
-          showNotificationToast(t(alreadyReported ? 'safety.reportAlready' : 'safety.reportReceived'));
-        }}
-        target={reportingItemId !== null ? { type: 'Item', itemId: reportingItemId, collectionId } : null}
-      />
       <ActionMenuDialog
         actions={collectionMenuActions}
         cancelLabel={t('common.cancel')}
@@ -2211,6 +2203,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       />
       <CollectionLockDialog
         collectionId={collectionId}
+        forMember={!isOwner}
         mode={lockDialogMode ?? 'lock'}
         onCancel={() => setLockDialogMode(null)}
         onChanged={() => {
@@ -2228,7 +2221,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         <CollectionUnlockModal
           collectionId={collectionId}
           collectionName={collection.name}
-          isOwner={isOwner}
+          isOwner={isOwner || (collection.isMemberLocked === true && contentLockKind === 'lock')}
           onCancel={() => setPendingUnlockAction(null)}
           onUnlocked={() => {
             const action = pendingUnlockAction;

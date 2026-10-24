@@ -263,6 +263,9 @@ public sealed class CollectionItemVisibleSinceIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task AWritablePublicShareAdd_IsStampedAtTheAdd()
     {
+        // The Collection was created with its own (private) link; this test needs a writable public one in its place.
+        await _db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM collections.CollectionShares WHERE CollectionId = {_shared}");
+        _db.ChangeTracker.Clear();
         var share = new CollectionShare(_shared, Guid.NewGuid().ToString("N")[..16], Old);
         share.SetPermission(CollectionSharePermission.Write, Old);
         _db.CollectionShares.Add(share);

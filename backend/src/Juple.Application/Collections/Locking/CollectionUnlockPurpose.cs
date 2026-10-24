@@ -12,4 +12,7 @@ public enum CollectionUnlockPurpose
 
     /// <summary>The Collection's own share password (recipients only).</summary>
     SharePassword,
+
+    /// <summary>A member's PERSONAL lock on a Collection shared with them (their own lock password) - never the Owner's Collection lock.</summary>
+    MemberLock,
 }

@@ -7,6 +7,7 @@ import { isSessionLost } from '../../../../lib/authSession';
 import { collectionTile, type CollectionSummary } from '../../../../lib/collectionsView';
 import { unlockHeaders, unlockTokenFor } from '../../../../lib/collectionUnlock';
 import { grantHeaders, isCollaborationActive, itemRestorePath, membershipPath, moveStrategy, moveUndoPath, replicatePath, replicateResultMessage, transferPath, type ReplicateResult } from '../../../../lib/collectionOperations';
+import { recordLinkOpened } from '../../../../lib/recentLinks';
 import { representativePhotoKey, representativePhotoUrl, type ItemImage } from '../../../../lib/itemDetails';
 import { itemContextSearch, itemDeleteErrorMessage, itemEditHref, membershipErrorMessage } from '../../../../lib/itemEdit';
 import { notifyItemsChanged } from '../../../../lib/itemChanges';
@@ -220,6 +221,9 @@ export function ItemDetailContent({
     );
   };
 
+  // Opening the original page is noted for 최근 조회한 링크 (best effort, silent).
+  const noteOpened = () => void recordLinkOpened(api, itemId);
+
   return (
     <article className={styles.quickContent} data-item-detail>
       <div className={styles.quickTop}>
@@ -237,7 +241,7 @@ export function ItemDetailContent({
             컬렉션에서 제거 (only that membership; the link itself stays). The sheet's own 닫기 is in its bar, apart from these. */}
         <div className={styles.quickActions}>
           {isSafeHttpUrl(item.url) ? (
-            <a aria-label={dictionary.openLink} className={styles.quickActionButton} href={item.url} rel="noopener noreferrer" target="_blank" title={dictionary.openLink}>
+            <a aria-label={dictionary.openLink} className={styles.quickActionButton} href={item.url} onAuxClick={noteOpened} onClick={noteOpened} rel="noopener noreferrer" target="_blank" title={dictionary.openLink}>
               <Glyph name="ExternalLink" size={20} />
             </a>
           ) : null}

@@ -384,7 +384,10 @@
     "jupleId": "Juple ID",
     "displayNamePlaceholder": "Takma ad girin",
     "nickname": "Takma ad",
-    "nicknameNotSet": "Ayarlanmadı"
+    "nicknameNotSet": "Ayarlanmadı",
+    "webBannerTitle": "Juple'ı bilgisayarında da dene",
+    "webBannerBody": "Kaydettiğin bağlantıları ve koleksiyonları web üzerinden de yönetebilirsin.",
+    "webBannerAction": "Juple Web'i aç"
   },
   "profile": {
     "edit": "Profili düzenle",
@@ -956,6 +959,13 @@
   "subscription": {
     "title": "Abonelik",
     "planName": "Juple aboneliği",
+    "trialNotice": {
+      "welcomeTitle": "Juple'ı bir ay ücretsiz kullan",
+      "welcomeBody": "{{date}} tarihine kadar ücretsiz. Ücretsiz dönem bittikten sonra ücretli abonelik gerekir.",
+      "endingTitle": "Ücretsiz dönemin yakında bitiyor",
+      "endingBody": "{{date}} tarihine kadar ücretsiz kullanabilirsin. Sonrasında ücretli abonelik gerekir.",
+      "view": "Aboneliği gör"
+    },
     "pricePerMonth": "{{price}} / ay",
     "cadence": "Aylık faturalandırılır. Siz iptal edene kadar otomatik olarak yenilenir.",
     "access": {

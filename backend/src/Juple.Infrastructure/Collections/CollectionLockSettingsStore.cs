@@ -81,11 +81,19 @@ public sealed class CollectionLockSettingsStore(JupleDbContext dbContext) : ICol
                 setters => setters.SetProperty(collection => collection.LockVersion, collection => collection.LockVersion + 1),
                 cancellationToken);
 
+        // The same password guards this person's PERSONAL locks on Collections shared with them: their grants stop working too.
+        await dbContext.CollectionMemberLocks
+            .Where(memberLock => memberLock.UserId == userId && memberLock.IsLocked)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(memberLock => memberLock.LockVersion, memberLock => memberLock.LockVersion + 1),
+                cancellationToken);
+
         // The Owner just proved who they are - their own failed-unlock counters start over.
         var ownerThrottleKey = CollectionUnlockSubject.ForUser(userId).ThrottleKey;
         await dbContext.CollectionUnlockThrottles
             .Where(entry => entry.SubjectKey == ownerThrottleKey
-                && dbContext.Collections.Any(collection => collection.Id == entry.CollectionId && collection.UserId == userId))
+                && (dbContext.Collections.Any(collection => collection.Id == entry.CollectionId && collection.UserId == userId)
+                    || dbContext.CollectionMemberLocks.Any(memberLock => memberLock.CollectionId == entry.CollectionId && memberLock.UserId == userId)))
             .ExecuteDeleteAsync(cancellationToken);
 
         if (transaction is not null) await transaction.CommitAsync(cancellationToken);

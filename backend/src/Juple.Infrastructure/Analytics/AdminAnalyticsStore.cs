@@ -70,7 +70,7 @@ public sealed class AdminAnalyticsStore(JupleDbContext dbContext) : IAdminAnalyt
         var sharedCollections = await liveCollections.CountAsync(
             collection =>
                 dbContext.CollectionCollaborators.Any(member => member.CollectionId == collection.Id)
-                || dbContext.CollectionShares.Any(share => share.CollectionId == collection.Id && share.IsActive),
+                || dbContext.CollectionShares.Any(share => share.CollectionId == collection.Id && share.IsActive && share.IsPublic),
             cancellationToken);
         var created7 = await allCollections.CountAsync(collection => collection.CreatedAtUtc >= sevenStart && collection.CreatedAtUtc < tomorrowStart, cancellationToken);
         var created30 = await allCollections.CountAsync(collection => collection.CreatedAtUtc >= thirtyStart && collection.CreatedAtUtc < tomorrowStart, cancellationToken);

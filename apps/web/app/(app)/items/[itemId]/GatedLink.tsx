@@ -5,6 +5,7 @@ import { isSharedWithMe } from '../../../../lib/collectionSharing';
 import type { CollectionSummary } from '../../../../lib/collectionsView';
 import { useSignedInApp } from '../../AppRoot';
 import { UnlockPanel } from '../../collections/[collectionId]/UnlockPanel';
+import styles from '../../app.module.css';
 
 /**
  * The link was opened from a card its Collection locks: the password of THAT Collection stands before it (the Owner's lock, or a
@@ -29,7 +30,8 @@ export function GatedLink({
     api<CollectionSummary>({ path: `/api/v1/collections/${collectionId}` }).then(
       collection => {
         if (!ignore) {
-          setIsOwner(!isSharedWithMe(collection));
+          // A member's own personal lock opens with their own password: no "ask the owner" hint then.
+          setIsOwner(!isSharedWithMe(collection) || (collection.isMemberLocked === true && gate === 'lock'));
         }
       },
       () => undefined,
@@ -37,6 +39,11 @@ export function GatedLink({
     return () => {
       ignore = true;
     };
-  }, [api, collectionId]);
-  return <UnlockPanel collectionId={collectionId} isOwner={isOwner} kind={gate} onGranted={onGranted} onStateChanged={onStateChanged} onUnlocked={() => undefined} />;
+  }, [api, collectionId, gate]);
+  // Centered in the content area (both ways) of the sheet / page it stands in; the header and 닫기 keep their place.
+  return (
+    <div className={styles.gatedCenter}>
+      <UnlockPanel collectionId={collectionId} isOwner={isOwner} kind={gate} onGranted={onGranted} onStateChanged={onStateChanged} onUnlocked={() => undefined} />
+    </div>
+  );
 }

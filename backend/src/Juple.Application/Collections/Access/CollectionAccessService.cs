@@ -35,8 +35,8 @@ public sealed class CollectionAccessService(
     /// The permission, then the content gates for who the caller is - one place for every content
     /// and write path (items, sections, adding/removing/moving links, managing the Collection):
     /// the Owner - only the Collection lock (their lock password), never a share password;
-    /// a recipient (Contributor/Viewer) - only the Collection's own share password when it has one,
-    /// never the Owner's lock password - except a Collection still in the legacy mode, whose
+    /// a recipient (Contributor/Viewer) - the Collection's own share password when it has one (never the Owner's lock
+    /// password) AND their own personal lock when they set one (their own lock password) - except a Collection still in the legacy mode, whose
     /// recipients keep needing the lock grant while it is locked, exactly as before share passwords.
     /// </summary>
     public async Task<CollectionAccess> RequireUnlockedAsync(
@@ -63,6 +63,12 @@ public sealed class CollectionAccessService(
             }
 
             return access;
+        }
+
+        // The person's own lock on this Collection (a member's personal choice): their lock password, checked first.
+        if (access.IsMemberLocked && !HasGrant(access.MemberLockVersion, CollectionUnlockPurpose.MemberLock))
+        {
+            throw new CollectionLockedException();
         }
 
         switch (access.SharePasswordMode)

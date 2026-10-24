@@ -15,6 +15,7 @@ import { formatBadgeCount } from '../components/badgeCount';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { UserAvatar } from '../components/UserAvatar';
+import { WebAppBanner } from '../components/WebAppBanner';
 import { getFriendRequests } from '../friends/api/friendsApi';
 import { LogoutIcon } from '../icons/LogoutIcon';
 import { ShareIcon } from '../icons/ShareIcon';
@@ -319,6 +320,8 @@ export function MyPageScreen() {
             <Text style={styles.settingsRowLabel}>{t('auth.logout')}</Text>
           </Pressable>
         </View>
+
+        <WebAppBanner />
       </ScrollView>
       <ConfirmDialog
         cancelLabel={t('common.cancel')}

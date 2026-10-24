@@ -384,7 +384,10 @@
     "jupleId": "Juple ID",
     "displayNamePlaceholder": "請輸入暱稱",
     "nickname": "暱稱",
-    "nicknameNotSet": "未設定"
+    "nicknameNotSet": "未設定",
+    "webBannerTitle": "在電腦上也試試 Juple",
+    "webBannerBody": "你也可以在網頁上管理已儲存的連結和合集。",
+    "webBannerAction": "開啟 Juple 網頁版"
   },
   "profile": {
     "edit": "編輯個人檔案",
@@ -956,6 +959,13 @@
   "subscription": {
     "title": "訂閱",
     "planName": "Juple 訂閱",
+    "trialNotice": {
+      "welcomeTitle": "免費使用 Juple 一個月",
+      "welcomeBody": "至 {{date}} 免費。免費期結束後需要付費訂閱。",
+      "endingTitle": "免費期即將結束",
+      "endingBody": "可免費使用至 {{date}}。之後需要付費訂閱。",
+      "view": "查看訂閱"
+    },
     "pricePerMonth": "每月 {{price}}",
     "cadence": "按月計費,在您取消之前會自動續訂。",
     "access": {

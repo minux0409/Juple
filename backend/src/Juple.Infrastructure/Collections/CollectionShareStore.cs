@@ -218,6 +218,59 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
         return ToDto(share);
     }
 
+    public async Task<CollectionShareDto?> EnsureInitialPrivateLinkAsync(
+        long collectionId,
+        string candidatePublicId,
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken = default)
+    {
+        // Cheap path first: nearly every call finds the link (or the history of one) and never opens a transaction.
+        var existing = await dbContext.CollectionShares.AsNoTracking()
+            .Where(share => share.CollectionId == collectionId)
+            .OrderByDescending(share => share.IsActive)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (existing is not null)
+        {
+            return existing.IsActive ? ToDto(existing) : null;
+        }
+
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
+        if (await CollectionRowLock.LockActiveAsync(dbContext, collectionId, cancellationToken) is null)
+        {
+            return null;
+        }
+
+        // Under the lock: still no link and no revoked one (a concurrent call, enable or revoke wins).
+        var current = await dbContext.CollectionShares.AsNoTracking()
+            .Where(share => share.CollectionId == collectionId)
+            .OrderByDescending(share => share.IsActive)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (current is not null)
+        {
+            return current.IsActive ? ToDto(current) : null;
+        }
+
+        var share = new CollectionShare(collectionId, candidatePublicId, nowUtc);
+        share.SetPublic(false, nowUtc);
+        dbContext.CollectionShares.Add(share);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception))
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            dbContext.ChangeTracker.Clear();
+            var winner = await dbContext.CollectionShares.AsNoTracking()
+                .Where(candidate => candidate.CollectionId == collectionId && candidate.IsActive)
+                .FirstOrDefaultAsync(cancellationToken);
+            return winner is null ? null : ToDto(winner);
+        }
+
+        return ToDto(share);
+    }
+
     public async Task<CollectionShareDto?> SetPermissionAsync(
         long userId,
         long collectionId,

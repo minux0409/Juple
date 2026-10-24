@@ -384,7 +384,10 @@
     "jupleId": "Juple ID",
     "displayNamePlaceholder": "Введите никнейм",
     "nickname": "Никнейм",
-    "nicknameNotSet": "Не задан"
+    "nicknameNotSet": "Не задан",
+    "webBannerTitle": "Пользуйтесь Juple и на ПК",
+    "webBannerBody": "Сохранённые ссылки и коллекции можно также упорядочивать в вебе.",
+    "webBannerAction": "Открыть Juple Web"
   },
   "profile": {
     "edit": "Изменить профиль",
@@ -956,6 +959,13 @@
   "subscription": {
     "title": "Подписка",
     "planName": "Подписка Juple",
+    "trialNotice": {
+      "welcomeTitle": "Пользуйтесь Juple бесплатно месяц",
+      "welcomeBody": "Бесплатно до {{date}}. После бесплатного периода потребуется платная подписка.",
+      "endingTitle": "Бесплатный период скоро закончится",
+      "endingBody": "Бесплатно до {{date}}. Потом потребуется платная подписка.",
+      "view": "Посмотреть подписку"
+    },
     "pricePerMonth": "{{price}} / мес.",
     "cadence": "Оплата ежемесячно. Продлевается автоматически, пока вы её не отмените.",
     "access": {

@@ -16,6 +16,8 @@ export interface CollectionSummary {
   readonly itemCount: number;
   readonly isFavorite: boolean;
   readonly isLocked?: boolean;
+  /** A member's view: the caller put THEIR OWN lock on this Collection (isLocked is then true for them too). Never reported to the Owner or other members. */
+  readonly isMemberLocked?: boolean;
   readonly accessRole?: 'owner' | 'contributor' | 'viewer' | 'submitter';
   readonly hasCollaborators?: boolean;
   readonly isPublicShareActive?: boolean;

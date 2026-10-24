@@ -384,7 +384,10 @@
     "jupleId": "Juple ID",
     "displayNamePlaceholder": "ป้อนชื่อเล่น",
     "nickname": "ชื่อเล่น",
-    "nicknameNotSet": "ยังไม่ได้ตั้ง"
+    "nicknameNotSet": "ยังไม่ได้ตั้ง",
+    "webBannerTitle": "ลองใช้ Juple บนคอมพิวเตอร์ด้วย",
+    "webBannerBody": "คุณสามารถจัดการลิงก์และคอลเลกชันที่บันทึกไว้บนเว็บได้เช่นกัน",
+    "webBannerAction": "เปิด Juple เว็บ"
   },
   "profile": {
     "edit": "แก้ไขโปรไฟล์",
@@ -956,6 +959,13 @@
   "subscription": {
     "title": "การสมัครสมาชิก",
     "planName": "การสมัครสมาชิก Juple",
+    "trialNotice": {
+      "welcomeTitle": "ใช้ Juple ฟรีหนึ่งเดือน",
+      "welcomeBody": "ฟรีถึง {{date}} หลังหมดช่วงฟรีต้องสมัครสมาชิกแบบเสียค่าบริการ",
+      "endingTitle": "ช่วงใช้ฟรีใกล้สิ้นสุดแล้ว",
+      "endingBody": "ใช้ฟรีได้ถึง {{date}} หลังจากนั้นต้องสมัครสมาชิกแบบเสียค่าบริการ",
+      "view": "ดูการสมัครสมาชิก"
+    },
     "pricePerMonth": "{{price}} / เดือน",
     "cadence": "เรียกเก็บเงินรายเดือน ต่ออายุอัตโนมัติจนกว่าคุณจะยกเลิก",
     "access": {

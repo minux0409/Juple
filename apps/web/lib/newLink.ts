@@ -38,19 +38,34 @@ export function normalizeEnteredUrl(raw: string): string | null {
   return extracted && isHttpUrl(extracted) ? extracted : null;
 }
 
-export function reviewHref(url: string): string {
-  return `/items/new?${new URLSearchParams({ url }).toString()}`;
+/** Where 링크 저장 (the review) lives. Not under /items: see openReview. */
+export const REVIEW_PATH = '/save';
+
+/**
+ * The review's address. `title` / `image` are optional starting values for a link taken from someone else's shared link (링크 저장):
+ * only what that Collection shows its members - the page still resolves the link itself and nothing is saved before the person confirms.
+ */
+export function reviewHref(url: string, initial: { readonly title?: string | null; readonly image?: string | null } = {}): string {
+  const query = new URLSearchParams({ url });
+  if (initial.title) {
+    query.set('title', initial.title);
+  }
+  if (initial.image) {
+    query.set('image', initial.image);
+  }
+  return `${REVIEW_PATH}?${query.toString()}`;
 }
 
 /**
- * Opens 새 링크 검토 for a link. This is a FULL page navigation on purpose: /items/new is not a page that rises over the current one,
- * and a soft (client-side) navigation to it would be taken by the Quick Detail slot (app/(app)/@modal/(.)items/[itemId] matches
- * "new" as an item id - Next.js cannot exclude one value of a dynamic segment from an intercepting route, checked on a production
- * build), which leaves the page on screen with only the address changed.
+ * Opens 링크 저장 for a link as a SOFT (client-side) navigation, so the signed-in app stays mounted and the "checking login" screen is
+ * never shown again. The review lives at /save and not at /items/new on purpose: a soft navigation to /items/new is taken by the Quick
+ * Detail slot (app/(app)/@modal/(.)items/[itemId] matches "new" as an item id - Next.js cannot exclude one value of a dynamic segment
+ * from an intercepting route), which left the page on screen with only the address changed and forced a full page load. /items/new
+ * still works as a typed / reloaded address.
  */
-export function openReview(url: string, assign: (href: string) => void = href => window.location.assign(href)): string {
-  const href = reviewHref(url);
-  assign(href);
+export function openReview(url: string, navigate: (href: string) => void, initial: { readonly title?: string | null; readonly image?: string | null } = {}): string {
+  const href = reviewHref(url, initial);
+  navigate(href);
   return href;
 }
 

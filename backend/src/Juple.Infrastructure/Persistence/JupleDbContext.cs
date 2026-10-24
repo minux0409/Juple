@@ -53,6 +53,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
 
     public DbSet<CollectionFavorite> CollectionFavorites => Set<CollectionFavorite>();
 
+    public DbSet<CollectionMemberLock> CollectionMemberLocks => Set<CollectionMemberLock>();
+
     public DbSet<Friendship> Friendships => Set<Friendship>();
 
     public DbSet<FriendshipNote> FriendshipNotes => Set<FriendshipNote>();

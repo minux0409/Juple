@@ -49,7 +49,6 @@ import { SourceRow } from '../components/SourceRow';
 import { ItemAdderBadge } from '../components/ItemAdderBadge';
 import { describeItemAdder } from '../collections/itemAdder';
 import { usePersonProfile } from '../friends/PersonProfileModal';
-import { ReportModal } from '../safety/ReportModal';
 import { formatSavedLinkTimestamp } from '../components/SavedLinkMetaRow';
 import { ClockIcon } from '../icons/ClockIcon';
 import { CloseIcon } from '../icons/CloseIcon';
@@ -191,7 +190,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   // nothing in it can be edited. The Collection's Owner may only take it out of this Collection (the footer's one button).
   const isSharedView = collectionContext?.readOnly === true && collaborationCollectionId !== null;
   const { openProfile, profileModal } = usePersonProfile();
-  const [isReporting, setIsReporting] = useState(false);
   const isCollaborative = collectionContext?.isCollaborative === true && collaborationCollectionId !== null;
   const [collaborationRow, setCollaborationRow] = useState<SharedCollectionItem | null>(null);
   useEffect(() => {
@@ -998,12 +996,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {/* The Collection's reactions and comments on this link (only when opened from a shared Collection). */}
           {collaboration.reactions}
-          {/* Somebody else's link: it can be reported, as a quiet secondary action. */}
-          {isSharedView && !(sharedAdder?.kind === 'person' && sharedAdder.isMe) ? (
-            <Pressable accessibilityRole="button" hitSlop={8} onPress={() => setIsReporting(true)} style={styles.reportButton} testID="shared-item-report">
-              <Text style={styles.reportLabel}>{t('safety.report')}</Text>
-            </Pressable>
-          ) : null}
           {collaboration.comments ? (
             <View
               onLayout={event => {
@@ -1051,16 +1043,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
 
       {messageDialog}
       {isSharedView ? profileModal : null}
-      {isSharedView ? (
-        <ReportModal
-          onClose={() => setIsReporting(false)}
-          onReported={alreadyReported => {
-            setIsReporting(false);
-            showNotificationToast(t(alreadyReported ? 'safety.reportAlready' : 'safety.reportReceived'));
-          }}
-          target={isReporting && collaborationCollectionId !== null ? { type: 'Item', itemId, collectionId: collaborationCollectionId } : null}
-        />
-      ) : null}
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('common.delete')}
@@ -1241,6 +1223,4 @@ const styles = themedStyles(() => ({
   },
   saveActionLabel: { color: colors.surface, fontSize: 15, fontWeight: '700' },
   imagesLoading: { marginVertical: spacing.sm },
-  reportButton: { alignItems: 'center', alignSelf: 'center', justifyContent: 'center', marginTop: spacing.md, minHeight: minTouchTarget, paddingHorizontal: spacing.lg },
-  reportLabel: { color: colors.textSecondary, fontSize: 13, textDecorationLine: 'underline' },
 }));

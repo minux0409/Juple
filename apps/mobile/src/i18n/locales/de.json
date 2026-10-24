@@ -384,7 +384,10 @@
     "jupleId": "Juple-ID",
     "displayNamePlaceholder": "Spitznamen eingeben",
     "nickname": "Spitzname",
-    "nicknameNotSet": "Nicht festgelegt"
+    "nicknameNotSet": "Nicht festgelegt",
+    "webBannerTitle": "Nutze Juple auch am PC",
+    "webBannerBody": "Du kannst deine gespeicherten Links und Sammlungen auch im Web verwalten.",
+    "webBannerAction": "Juple Web öffnen"
   },
   "profile": {
     "edit": "Profil bearbeiten",
@@ -956,6 +959,13 @@
   "subscription": {
     "title": "Abonnement",
     "planName": "Juple-Abonnement",
+    "trialNotice": {
+      "welcomeTitle": "Nutze Juple einen Monat kostenlos",
+      "welcomeBody": "Kostenlos bis {{date}}. Nach der kostenlosen Zeit ist ein kostenpflichtiges Abo erforderlich.",
+      "endingTitle": "Deine kostenlose Zeit endet bald",
+      "endingBody": "Kostenlose Nutzung bis {{date}}. Danach ist ein kostenpflichtiges Abo erforderlich.",
+      "view": "Abo ansehen"
+    },
     "pricePerMonth": "{{price}} / Monat",
     "cadence": "Monatliche Abrechnung. Verlängert sich automatisch, bis du kündigst.",
     "access": {

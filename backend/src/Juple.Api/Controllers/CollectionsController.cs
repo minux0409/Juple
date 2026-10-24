@@ -1035,6 +1035,42 @@ public sealed class CollectionsController(
             cancellationToken);
 
     /// <summary>
+    /// A MEMBER's personal lock (never the Owner, who has PUT lock): locks this Collection for the caller only, under the caller's own
+    /// lock password (409 collectionLockPasswordNotConfigured until they set one in Settings). Nobody else - not the Owner, not other members
+    /// - is told or affected; it is not leaving, hiding or changing the Collection.
+    /// </summary>
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
+    [HttpPut("{id:long}/member-lock")]
+    [EnableRateLimiting(RateLimitPolicies.CollectionUnlock)]
+    public async Task<IActionResult> SetMemberLockAsync(
+        long id,
+        [FromServices] ICollectionLockService lockService,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await ExecuteAsync(userId => lockService.LockForMemberAsync(userId, id, cancellationToken), cancellationToken);
+        }
+        catch (CollectionLockPasswordNotConfiguredException)
+        {
+            return CollectionProblems.LockPasswordNotConfigured();
+        }
+    }
+
+    /// <summary>A member removes their OWN lock after verifying their lock password (no bypass).</summary>
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
+    [HttpPost("{id:long}/member-lock/remove")]
+    [EnableRateLimiting(RateLimitPolicies.CollectionUnlock)]
+    public Task<IActionResult> RemoveMemberLockAsync(
+        long id,
+        RemoveCollectionLockRequest request,
+        [FromServices] ICollectionLockService lockService,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => lockService.RemoveForMemberAsync(userId, id, request.CurrentPassword, cancellationToken),
+            cancellationToken);
+
+    /// <summary>
     /// Owner or Contributor. Verifies the password (throttled) and returns a short-lived grant for
     /// this user and this Collection - sent back in the X-Juple-Collection-Unlock header.
     /// </summary>

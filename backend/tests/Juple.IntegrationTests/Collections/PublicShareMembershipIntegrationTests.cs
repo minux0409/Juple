@@ -26,8 +26,8 @@ public sealed class PublicShareMembershipIntegrationTests : IAsyncLifetime
         _stranger = await NewUserAsync();
         _collectionId = (await new CollectionStore(_db).CreateAsync(_owner, "Shared", "SHARED", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
         _db.ChangeTracker.Clear();
-        _publicId = Guid.NewGuid().ToString("N");
-        await new CollectionShareStore(_db).EnableAsync(_owner, _collectionId, _publicId, DateTimeOffset.UtcNow);
+        // The Collection already has its (private) link from creation: turning sharing on makes THAT link public - the id is the one it has.
+        _publicId = (await new CollectionShareStore(_db).EnableAsync(_owner, _collectionId, Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow)).PublicId;
         _db.ChangeTracker.Clear();
     }
 

@@ -1535,7 +1535,8 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
             () => racingShares.EnableAsync(_owner, _sharedId, CollectionSharePermission.Write, raiseLowerRoles: true));
 
         _db.ChangeTracker.Clear();
-        Assert.False(await _db.CollectionShares.AnyAsync(entry => entry.CollectionId == _sharedId && entry.IsActive));
+        // The Collection keeps the PRIVATE link it was created with; what must not exist is a PUBLIC one.
+        Assert.False(await _db.CollectionShares.AnyAsync(entry => entry.CollectionId == _sharedId && entry.IsActive && entry.IsPublic));
         Assert.Equal(1, await _db.CollectionCollaborators.CountAsync(entry => entry.CollectionId == _sharedId && entry.Role == CollectionCollaboratorRole.Viewer));
     }
 
@@ -1543,7 +1544,7 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
     private async Task AssertNothingChangedAsync(CollectionSharePermission? expectedLink)
     {
         _db.ChangeTracker.Clear();
-        var link = await _db.CollectionShares.SingleOrDefaultAsync(entry => entry.CollectionId == _sharedId && entry.IsActive);
+        var link = await _db.CollectionShares.SingleOrDefaultAsync(entry => entry.CollectionId == _sharedId && entry.IsActive && entry.IsPublic);
         Assert.Equal(expectedLink, link?.Permission);
         var roles = await _db.CollectionCollaborators.Where(entry => entry.CollectionId == _sharedId).Select(entry => entry.Role).ToListAsync();
         Assert.Equal(1, roles.Count(role => role == CollectionCollaboratorRole.Viewer));

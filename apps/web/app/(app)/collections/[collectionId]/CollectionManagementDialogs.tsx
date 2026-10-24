@@ -8,7 +8,9 @@ import {
   collectionLeavePath,
   collectionManagementError,
   collectionRemoveLockPath,
+  collectionRemoveMemberLockPath,
   collectionSetLockPath,
+  collectionSetMemberLockPath,
 } from '../../../../lib/collectionManagement';
 import { forgetUnlock, unlockHeaders } from '../../../../lib/collectionUnlock';
 import { useSignedInApp } from '../../AppRoot';
@@ -20,6 +22,7 @@ export type CollectionManagementMode = 'delete' | 'leave' | 'lock' | 'remove' | 
 
 export function CollectionManagementDialogs({
   collectionId,
+  forMember = false,
   mode,
   onClose,
   onDeleted,
@@ -27,6 +30,8 @@ export function CollectionManagementDialogs({
   onOpenLockSettings,
 }: {
   readonly collectionId: number;
+  /** A member locking a Collection someone else owns: their PERSONAL lock (their own password), not the Owner's Collection lock. */
+  readonly forMember?: boolean;
   readonly mode: CollectionManagementMode;
   readonly onClose: () => void;
   readonly onDeleted: () => void;
@@ -108,7 +113,7 @@ export function CollectionManagementDialogs({
     }
     setBusy(true);
     setError(null);
-    api<void>({ method: 'PUT', path: collectionSetLockPath(collectionId), body: {} }).then(
+    api<void>({ method: 'PUT', path: forMember ? collectionSetMemberLockPath(collectionId) : collectionSetLockPath(collectionId), body: {} }).then(
       () => {
         forgetUnlock(collectionId);
         onLockChanged();
@@ -126,7 +131,7 @@ export function CollectionManagementDialogs({
     }
     setBusy(true);
     setError(null);
-    api<void>({ method: 'POST', path: collectionRemoveLockPath(collectionId), body: { currentPassword: password } }).then(
+    api<void>({ method: 'POST', path: forMember ? collectionRemoveMemberLockPath(collectionId) : collectionRemoveLockPath(collectionId), body: { currentPassword: password } }).then(
       () => {
         forgetUnlock(collectionId);
         onLockChanged();

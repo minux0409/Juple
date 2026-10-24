@@ -134,12 +134,62 @@ public sealed class CollectionMemberShareLinkAndAdderIntegrationTests : IAsyncLi
     // ---------- public link for members ----------
 
     [Fact]
-    public async Task ShareLink_IsNullForEveryoneWhileThePublicLinkIsOff()
+    public async Task ShareLink_IsNullForEveryone_OnceTheOwnerRevokedTheLink()
+    {
+        await InviteAndAcceptAsync(_viewer, CollectionCollaboratorRole.Viewer);
+        // A Collection has its (private) link from creation; the Owner revoking it is what turns the link OFF.
+        await _shares.RevokeAsync(_owner, _sharedId, DateTimeOffset.UtcNow);
+        _db.ChangeTracker.Clear();
+        var ensurer = new Juple.Application.Collections.GetCollectionShare.CollectionLinkEnsurer(_shares, TimeProvider.System);
+        var withEnsure = new GetCollectionShareLinkService(
+            new CollectionAccessService(new CollectionAccessStore(_db), new CollectionUnlockTokenProtector(Options.Create(new CollectionUnlockGrantOptions
+            {
+                EncryptionKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)),
+            })), TimeProvider.System), _shares, ensurer);
+
+        // ...and a revoked link is never brought back by the "first link" path either.
+        Assert.Null(await withEnsure.GetActivePublicIdAsync(_owner, _sharedId));
+        Assert.Null(await withEnsure.GetActivePublicIdAsync(_viewer, _sharedId));
+        Assert.Null(await _shareLink.GetActivePublicIdAsync(_owner, _sharedId));
+        Assert.Null(await _shareLink.GetActivePublicIdAsync(_viewer, _sharedId));
+    }
+
+    [Fact]
+    public async Task ShareLink_ANewCollection_HasAPrivateLinkAtOnce_ForTheOwnerAndEveryMember()
     {
         await InviteAndAcceptAsync(_viewer, CollectionCollaboratorRole.Viewer);
 
-        Assert.Null(await _shareLink.GetActivePublicIdAsync(_owner, _sharedId));
-        Assert.Null(await _shareLink.GetActivePublicIdAsync(_viewer, _sharedId));
+        var ownerSees = await _shareLink.GetActivePublicIdAsync(_owner, _sharedId);
+        var memberSees = await _shareLink.GetActivePublicIdAsync(_viewer, _sharedId);
+
+        // Nobody turned sharing on: the link exists from creation (private - the contents are not public).
+        Assert.NotNull(ownerSees);
+        Assert.Equal(ownerSees, memberSees);
+        _db.ChangeTracker.Clear();
+        Assert.False((await _shares.GetActiveAsync(_owner, _sharedId))!.IsPublic);
+    }
+
+    [Fact]
+    public async Task ShareLink_ACollectionFromBeforeLinksExisted_GetsItsFirstPrivateLinkWhenAMemberAsks()
+    {
+        await InviteAndAcceptAsync(_viewer, CollectionCollaboratorRole.Viewer);
+        await _db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM collections.CollectionShares WHERE CollectionId = {_sharedId}");
+        _db.ChangeTracker.Clear();
+        var ensurer = new Juple.Application.Collections.GetCollectionShare.CollectionLinkEnsurer(_shares, TimeProvider.System);
+        var service = new GetCollectionShareLinkService(
+            new CollectionAccessService(new CollectionAccessStore(_db), new CollectionUnlockTokenProtector(Options.Create(new CollectionUnlockGrantOptions
+            {
+                EncryptionKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)),
+            })), TimeProvider.System), _shares, ensurer);
+
+        var first = await service.GetActivePublicIdAsync(_viewer, _sharedId);
+        _db.ChangeTracker.Clear();
+        var second = await service.GetActivePublicIdAsync(_owner, _sharedId);
+
+        Assert.NotNull(first);
+        Assert.Equal(first, second);
+        // A pending invitee / stranger still get nothing, not even a link made for them.
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => service.GetActivePublicIdAsync(_stranger, _sharedId));
     }
 
     [Fact]
@@ -263,9 +313,11 @@ public sealed class CollectionMemberShareLinkAndAdderIntegrationTests : IAsyncLi
     }
 
     [Fact]
-    public async Task WhileThePublicLinkIsOff_NobodyIsSentAnything()
+    public async Task WhileTheLinkIsRevoked_NobodyIsSentAnything()
     {
         await InviteAndAcceptAsync(_viewer, CollectionCollaboratorRole.Viewer);
+        await _shares.RevokeAsync(_owner, _sharedId, DateTimeOffset.UtcNow);
+        _db.ChangeTracker.Clear();
 
         var conflict = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(
             async () => await SendLink().ShareAsync(_viewer, _sharedId, [await JupleIdOfAsync(_stranger)]));

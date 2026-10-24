@@ -22,6 +22,7 @@ describe('getCollectionCapabilities - the one role matrix', () => {
       canDelete: true,
       canLeave: false,
       canChangeLock: true,
+      canChangeMemberLock: false,
       canAddItem: true,
       canToggleFavorite: true,
       canToggleNotification: false,
@@ -47,6 +48,8 @@ describe('getCollectionCapabilities - the one role matrix', () => {
       canDelete: false,
       canLeave: true,
       canChangeLock: false,
+      // ...but their own PERSONAL lock (their password; nobody else affected) is theirs to set.
+      canChangeMemberLock: true,
       canToggleFavorite: true,
       canToggleNotification: true,
     }));
@@ -73,12 +76,11 @@ describe('getCollectionCapabilities - the one role matrix', () => {
     expect(getCollectionCapabilities(collection({ accessRole: 'contributor' })).canPinShortcut).toBe(true);
   });
 
-  it('공유: the Owner always (even locked - the prompt is the Collection own); a member only while the Owner public link is active', () => {
+  it('공유: the Owner always (even locked - the prompt is the Collection own); a member too - every Collection has a link from its creation (a revoked one shows nothing on the Collection screen)', () => {
     expect(getCollectionCapabilities(collection({ accessRole: 'owner', isLocked: true })).canShare).toBe(true);
     for (const accessRole of ['contributor', 'submitter', 'viewer'] as const) {
-      expect(getCollectionCapabilities(collection({ accessRole })).canShare).toBe(false);
-      expect(getCollectionCapabilities(collection({ accessRole, isPublicShareActive: false })).canShare).toBe(false);
-      expect(getCollectionCapabilities(collection({ accessRole, isPublicShareActive: true })).canShare).toBe(true);
+      expect(getCollectionCapabilities(collection({ accessRole })).canShare).toBe(true);
+      expect(getCollectionCapabilities(collection({ accessRole, isPublicShareActive: false })).canShare).toBe(true);
     }
   });
 

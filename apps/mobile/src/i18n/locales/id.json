@@ -384,7 +384,10 @@
     "jupleId": "ID Juple",
     "displayNamePlaceholder": "Masukkan nama panggilan",
     "nickname": "Nama panggilan",
-    "nicknameNotSet": "Belum diatur"
+    "nicknameNotSet": "Belum diatur",
+    "webBannerTitle": "Coba Juple juga di PC",
+    "webBannerBody": "Anda juga dapat mengelola tautan dan koleksi yang tersimpan di web.",
+    "webBannerAction": "Buka Juple Web"
   },
   "profile": {
     "edit": "Edit profil",
@@ -956,6 +959,13 @@
   "subscription": {
     "title": "Langganan",
     "planName": "Langganan Juple",
+    "trialNotice": {
+      "welcomeTitle": "Gunakan Juple gratis selama sebulan",
+      "welcomeBody": "Gratis hingga {{date}}. Setelah masa gratis berakhir, diperlukan langganan berbayar.",
+      "endingTitle": "Masa gratis Anda segera berakhir",
+      "endingBody": "Gratis hingga {{date}}. Setelah itu diperlukan langganan berbayar.",
+      "view": "Lihat langganan"
+    },
     "pricePerMonth": "{{price}} / bulan",
     "cadence": "Ditagih setiap bulan. Diperpanjang otomatis hingga Anda membatalkan.",
     "access": {

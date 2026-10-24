@@ -40,7 +40,7 @@ public sealed class AdminDashboardStore(JupleDbContext dbContext) : IAdminDashbo
         var sharedCollections = await collections.CountAsync(
             collection =>
                 dbContext.CollectionCollaborators.Any(member => member.CollectionId == collection.Id)
-                || dbContext.CollectionShares.Any(share => share.CollectionId == collection.Id && share.IsActive),
+                || dbContext.CollectionShares.Any(share => share.CollectionId == collection.Id && share.IsActive && share.IsPublic),
             cancellationToken);
 
         var openInquiries = await dbContext.SupportInquiries.AsNoTracking().CountAsync(

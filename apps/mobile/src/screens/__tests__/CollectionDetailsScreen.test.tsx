@@ -2071,9 +2071,19 @@ describe('CollectionDetailsScreen - an action asked for by the Collections list 
     expect(navigateMock).not.toHaveBeenCalledWith('CollectionShare', expect.anything());
   });
 
-  it('what the caller may do is decided from the Collection itself - a member asking for delete, edit or lock opens nothing, and an Owner asking to leave opens nothing', async () => {
+  it('lock (member): their OWN personal lock dialog opens (for the member, not the Owner lock); 잠금 해제 is asked once it is locked for them', async () => {
     jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor' }));
-    for (const action of ['delete', 'edit', 'lock'] as const) {
+    const set = await renderForAction('lock');
+    expect(set.renderer.root.findAll(node => node.props.mode === 'lock' && node.props.visible === true && node.props.forMember === true)).not.toHaveLength(0);
+
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', isLocked: true, isMemberLocked: true }));
+    const remove = await renderForAction('lock');
+    expect(remove.renderer.root.findAll(node => node.props.mode === 'remove' && node.props.visible === true && node.props.forMember === true)).not.toHaveLength(0);
+  });
+
+  it('what the caller may do is decided from the Collection itself - a member asking for delete or edit opens nothing, and an Owner asking to leave opens nothing', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor' }));
+    for (const action of ['delete', 'edit'] as const) {
       const { renderer } = await renderForAction(action);
       expect(visibleConfirm(renderer, 'collections.deleteConfirmTitle')).toHaveLength(0);
       expect(renderer.root.findAll(node => (node.props.mode === 'edit' || node.props.mode === 'lock') && node.props.visible === true)).toHaveLength(0);

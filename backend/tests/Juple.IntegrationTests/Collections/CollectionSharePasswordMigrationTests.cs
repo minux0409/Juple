@@ -125,7 +125,11 @@ public sealed class CollectionSharePasswordMigrationTests : IAsyncLifetime
 
     private async Task<long> NewCollectionAsync(long ownerId, string name, bool locked, bool deleted = false)
     {
-        var id = (await new CollectionStore(_db).CreateAsync(ownerId, name, name.ToUpperInvariant(), CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        // Not CollectionStore.CreateAsync: it also inserts the Collection's first link (with the IsPublic column), which this older schema does not have.
+        var collection = new Collection(ownerId, name, name.ToUpperInvariant(), CollectionIcon.Folder, DateTimeOffset.UtcNow);
+        _db.Collections.Add(collection);
+        await _db.SaveChangesAsync();
+        var id = collection.Id;
         if (locked)
         {
             await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE collections.Collections SET IsLocked = 1, LockVersion = 4 WHERE Id = {id}");

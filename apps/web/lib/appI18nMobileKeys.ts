@@ -67,7 +67,7 @@ export const MOBILE_STRING_KEYS = {
   inboxErrorForbidden: 'inbox.errorForbidden',
   inboxErrorSave: 'inbox.errorSaveFallback',
   // new link review
-  reviewTitle: 'nav.newLinkReview',
+  reviewTitle: 'item.saveDialogTitle',
   titleLabel: 'item.titleLabel',
   titlePlaceholder: 'item.titlePlaceholder',
   memoPlaceholder: 'item.memoPlaceholder',
@@ -679,7 +679,12 @@ export const MOBILE_STRING_KEYS = {
   toastUndoMoveError: 'toast.undoMoveError',
   // moving / copying links (mobile CollectionDetailsScreen link + Collection menus)
   manageAction: 'collections.manageAction',
-  copyToMine: 'collections.copyToMine',
+  copyToMine: 'item.saveDialogTitle',
+  trialWelcomeTitle: 'subscription.trialNotice.welcomeTitle',
+  trialWelcomeBody: 'subscription.trialNotice.welcomeBody',
+  trialEndingTitle: 'subscription.trialNotice.endingTitle',
+  trialEndingBody: 'subscription.trialNotice.endingBody',
+  trialNoticeView: 'subscription.trialNotice.view',
   addToOther: 'collections.addToOther',
   moveToOther: 'collections.moveToOther',
   copyResultAll: 'collections.copyResultAll',

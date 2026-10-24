@@ -201,6 +201,14 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
                 [CreatedAtUtc] datetimeoffset NOT NULL)
             """);
 
+        // ...and CollectionMemberLocks (AddCollectionMemberLocks - the member's personal lock the card and the gates read).
+        await ExecuteAsync(
+            """
+            CREATE TABLE [collections].[CollectionMemberLocks] (
+                [Id] bigint NOT NULL IDENTITY PRIMARY KEY, [UserId] bigint NOT NULL, [CollectionId] bigint NOT NULL,
+                [IsLocked] bit NOT NULL, [LockVersion] int NOT NULL, [CreatedAtUtc] datetimeoffset NOT NULL, [UpdatedAtUtc] datetimeoffset NOT NULL)
+            """);
+
         // 3-4. The previous revision stars a Collection (legacy column only) - the new revision
         // already shows it as the Owner's favorite: nothing it wrote is missed.
         await OldRevisionSetFavoriteAsync(starredLater, true);
@@ -244,6 +252,7 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
         await ExecuteAsync("DROP TABLE [collections].[CollectionSharePasswords]");
         await ExecuteAsync("DROP TABLE [collections].[CollectionLinkSubmissions]");
         await ExecuteAsync("DROP TABLE [collections].[CollectionJoinRequests]");
+        await ExecuteAsync("DROP TABLE [collections].[CollectionMemberLocks]");
         await ExecuteAsync("ALTER TABLE [notifications].[Notifications] DROP COLUMN [CollectionId]");
         await MigrateToAsync(null);
         Assert.False(await HasFavoriteRowAsync(owner, unstarredLater));

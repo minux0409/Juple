@@ -210,14 +210,14 @@ describe('the screen and the entry points', () => {
     assert.doesNotMatch(actions, /console\./, 'nothing (least of all the password) is logged');
   });
 
-  it('Home: normalize, then ANY Juple share link leaves BEFORE the review (here: /shared; another environment: its own address); every other link keeps its full navigation to /items/new', () => {
+  it('Home: normalize, then ANY Juple share link leaves BEFORE the review (here: /shared; another environment: its own address); every other link goes to 링크 저장 (/save) by a client navigation', () => {
     const home = read('app/(app)/HomeView.tsx');
     const detect = home.indexOf('classifyCollectionShareUrl(url, publicWebHost)');
     const inApp = home.indexOf('router.push(destination.href)');
     const other = home.indexOf('window.location.assign(destination.url)');
-    const review = home.indexOf('openReview(url);');
+    const review = home.indexOf('openReview(url, href => router.push(href));');
     assert.ok(home.indexOf('normalizeEnteredUrl(value)') < detect && detect < inApp && inApp < other && other < review);
-    assert.match(home, /if \(shareLink\) \{[\s\S]*?return;\s*\}\s*\/\/ A full page navigation/, 'a share link never reaches openReview');
+    assert.match(home, /if \(shareLink\) \{[\s\S]*?return;\s*\}\s*\/\/ A soft navigation/, 'a share link never reaches openReview');
   });
 
   it('11. /items/new with a share link of either environment: straight to its destination - no metadata resolve, no picker, no save; the save refusal follows the same rule', () => {

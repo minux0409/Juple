@@ -384,7 +384,10 @@
     "jupleId": "Juple ID",
     "displayNamePlaceholder": "उपनाम दर्ज करें",
     "nickname": "उपनाम",
-    "nicknameNotSet": "सेट नहीं है"
+    "nicknameNotSet": "सेट नहीं है",
+    "webBannerTitle": "Juple को PC पर भी आज़माएँ",
+    "webBannerBody": "आप सहेजे गए लिंक और संग्रह वेब पर भी प्रबंधित कर सकते हैं।",
+    "webBannerAction": "Juple वेब खोलें"
   },
   "profile": {
     "edit": "प्रोफ़ाइल संपादित करें",
@@ -956,6 +959,13 @@
   "subscription": {
     "title": "सदस्यता",
     "planName": "Juple सदस्यता",
+    "trialNotice": {
+      "welcomeTitle": "Juple को एक महीने मुफ़्त में आज़माएँ",
+      "welcomeBody": "{{date}} तक मुफ़्त। मुफ़्त अवधि समाप्त होने के बाद सशुल्क सदस्यता ज़रूरी है।",
+      "endingTitle": "आपकी मुफ़्त अवधि जल्द समाप्त होगी",
+      "endingBody": "{{date}} तक मुफ़्त उपयोग। इसके बाद सशुल्क सदस्यता ज़रूरी है।",
+      "view": "सदस्यता देखें"
+    },
     "pricePerMonth": "{{price}} / माह",
     "cadence": "हर महीने बिल किया जाता है। आपके रद्द करने तक अपने आप नवीनीकृत होती है।",
     "access": {

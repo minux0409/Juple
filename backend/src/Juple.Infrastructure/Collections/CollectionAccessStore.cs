@@ -30,6 +30,11 @@ public sealed class CollectionAccessStore(JupleDbContext dbContext) : ICollectio
                     .Where(sharePassword => sharePassword.CollectionId == collection.Id)
                     .Select(sharePassword => new { sharePassword.Mode, sharePassword.PasswordVersion })
                     .FirstOrDefault(),
+                // The caller's OWN lock on this Collection (a member only; the Owner has the Collection lock instead).
+                MemberLock = dbContext.CollectionMemberLocks
+                    .Where(memberLock => memberLock.CollectionId == collection.Id && memberLock.UserId == userId)
+                    .Select(memberLock => new { memberLock.IsLocked, memberLock.LockVersion })
+                    .FirstOrDefault(),
             })
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -55,7 +60,9 @@ public sealed class CollectionAccessStore(JupleDbContext dbContext) : ICollectio
                 row.IsLocked,
                 row.LockVersion,
                 row.SharePassword?.Mode ?? CollectionSharePasswordMode.None,
-                row.SharePassword?.PasswordVersion ?? 0)
+                row.SharePassword?.PasswordVersion ?? 0,
+                !row.IsOwner && row.MemberLock is { IsLocked: true },
+                !row.IsOwner ? row.MemberLock?.LockVersion ?? 0 : 0)
             : null;
     }
 }

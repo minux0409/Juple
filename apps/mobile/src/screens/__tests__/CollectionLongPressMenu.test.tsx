@@ -176,7 +176,7 @@ describe('Collection card long-press menu', () => {
     expect(labels(renderer)).not.toContain(t('collections.lockSetTitle'));
   });
 
-  it('a Contributor: favorite, 알림, 앱 바로가기, then 나가기 last - never edit, lock or delete', async () => {
+  it('a Contributor: favorite, 알림, 공유, their OWN lock, 앱 바로가기, then 나가기 last - never edit or delete', async () => {
     const renderer = await renderWith([collection({ id: 2, name: 'Shared', accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N' })]);
 
     await longPress(renderer, 'Shared');
@@ -184,10 +184,32 @@ describe('Collection card long-press menu', () => {
     expect(labels(renderer)).toEqual([
       t('collections.addFavorite'),
       t('collections.newLinkNotificationsTurnOff'),
+      t('collections.shareAction'),
+      t('collections.lockSetTitle'),
       t('collections.homeShortcutAdd'),
       t('collections.leaveAction'),
     ]);
     expect((menu(renderer).props.actions as { destructive?: boolean }[]).at(-1)!.destructive).toBe(true);
+  });
+
+  describe('a member\'s personal lock (their own password; the Owner and the others are not affected)', () => {
+    it('offers 잠금 설정 on a shared Collection and 잠금 해제하기 once it is locked for me; choosing it opens the Collection with the lock request', async () => {
+      const open = await renderWith([collection({ id: 2, name: 'Shared', accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N' })]);
+      await longPress(open, 'Shared');
+      await press(open, t('collections.lockSetTitle'));
+      expect(mockNavigate).toHaveBeenCalledWith('CollectionDetails', { collectionId: 2, pendingAction: 'lock' });
+
+      const locked = await renderWith([collection({ id: 5, name: 'Mine locked', accessRole: 'viewer', ownerJupleId: 'K7MP4Q8N', isLocked: true, isMemberLocked: true })]);
+      await longPress(locked, 'Mine locked');
+      expect(labels(locked)).toContain(t('collections.lockRemoveAction'));
+      expect(labels(locked)).not.toContain(t('collections.lockSetTitle'));
+    });
+
+    it('is not offered for an Owner\'s own Collection (the Owner has the Collection lock), once, in its usual place', async () => {
+      const renderer = await renderWith([collection({ id: 1, name: 'Mine', accessRole: 'owner' })]);
+      await longPress(renderer, 'Mine');
+      expect(labels(renderer).filter(label => label === t('collections.lockSetTitle'))).toHaveLength(1);
+    });
   });
 
   describe('공유 (the Collection own share entry)', () => {
@@ -207,14 +229,12 @@ describe('Collection card long-press menu', () => {
       expect(mockNavigate).toHaveBeenCalledWith('CollectionDetails', { collectionId: 4, pendingAction: 'share' });
     });
 
-    it('a member sees it only while the Owner public link is active (nobody else can be invited by a member)', async () => {
-      const without = await renderWith([collection({ id: 2, name: 'Shared', accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N' })]);
-      await longPress(without, 'Shared');
-      expect(labels(without)).not.toContain(t('collections.shareAction'));
-
-      const withLink = await renderWith([collection({ id: 3, name: 'Public', accessRole: 'viewer', ownerJupleId: 'K7MP4Q8N', isPublicShareActive: true })]);
-      await longPress(withLink, 'Public');
-      expect(labels(withLink)).toContain(t('collections.shareAction'));
+    it('a member has it too - every Collection has a link from its creation (nobody is invited by a member; the Collection screen re-checks the link)', async () => {
+      const member = await renderWith([collection({ id: 2, name: 'Shared', accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N' })]);
+      await longPress(member, 'Shared');
+      expect(labels(member)).toContain(t('collections.shareAction'));
+      await press(member, t('collections.shareAction'));
+      expect(mockNavigate).toHaveBeenCalledWith('CollectionDetails', { collectionId: 2, pendingAction: 'share' });
     });
   });
 
