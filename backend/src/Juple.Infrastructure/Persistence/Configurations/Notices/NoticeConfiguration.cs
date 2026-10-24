@@ -22,7 +22,9 @@ public sealed class NoticeReadConfiguration : IEntityTypeConfiguration<NoticeRea
     public void Configure(EntityTypeBuilder<NoticeRead> b) {
         b.ToTable("NoticeReads", "notices"); b.HasKey(x => new { x.UserId, x.NoticeId });
         b.HasOne<Notice>().WithMany().HasForeignKey(x => x.NoticeId).OnDelete(DeleteBehavior.Cascade);
-        b.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.NoAction);
+        // Older API revisions do not explicitly delete notice reads on account deletion.
+        // Cascade preserves account-deletion compatibility during an application rollback.
+        b.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         b.HasIndex(x => x.NoticeId);
     }
 }

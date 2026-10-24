@@ -28,6 +28,9 @@ Translations support the existing 17 languages with required Korean fallback.
 user is resolved on the server. An atomic upsert revalidates visibility and the
 detail's read version. Normal edits preserve reads; explicit `resetRead` increments
 the notice version used for reads. Account deletion removes only that user's reads.
+The user foreign key cascades, so an older API revision can still delete an account
+after an application rollback without needing to know about the new read table.
+Deleting a user does not delete notices or another user's reads.
 
 Clients mark a notice read after detail rendering while visible/active. Read
 failures preserve the unread indicator and offer retry. Focus, foreground and
@@ -40,6 +43,13 @@ links are interactive. There is no raw HTML renderer or external translation API
 `20261024121612_AddNotices` creates Notices, NoticeTranslations and NoticeReads
 in schema `notices`, with visibility/read indexes and concurrency tokens. It does
 not alter billing or export policy.
+
+`20261024132839_PreserveNoticeReadAccountDeletionCompatibility` changes only the
+NoticeReads-to-Users foreign key to ON DELETE CASCADE. It is a separate migration
+because AddNotices was already applied; applied migration files are immutable.
+Generate and review its SQL separately from AddNotices, and retain both migrations
+when rolling back application images. Do not execute either Down migration during
+an application rollback.
 
 Production migration and rollout require separate authorization. Review a SQL
 script for this migration alone, from `20261024054446_AddCollectionMemberLocks`

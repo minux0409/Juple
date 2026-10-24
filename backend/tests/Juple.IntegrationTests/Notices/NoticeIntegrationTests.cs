@@ -43,6 +43,21 @@ public sealed class NoticeIntegrationTests : IAsyncLifetime {
         Assert.False((await service.GetAsync(bob,n.Id,"web","en",default)).Notice.IsRead);
         Assert.False(await service.HasUnreadAsync(alice,"ios",default));Assert.True(await service.HasUnreadAsync(bob,"ios",default));
     }
+    [Fact] public async Task Previous_api_account_deletion_cascades_only_that_users_notice_reads(){
+        var n=await Create();
+        await using(var db=Db()){
+            var service=new NoticeService(new NoticeStore(db),new Clock());
+            await service.MarkReadAsync(alice,n.Id,"web",1,default);
+            await service.MarkReadAsync(bob,n.Id,"ios",1,default);
+            // Simulates an older API which deletes the user without knowing NoticeReads.
+            await db.Users.Where(x=>x.Id==alice).ExecuteDeleteAsync();
+        }
+        await using(var db=Db()){
+            Assert.False(await db.NoticeReads.AnyAsync(x=>x.UserId==alice));
+            Assert.True(await db.NoticeReads.AnyAsync(x=>x.UserId==bob&&x.NoticeId==n.Id));
+            Assert.True(await db.Notices.AnyAsync(x=>x.Id==n.Id));
+        }
+    }
     [Fact] public async Task Concurrent_reads_are_idempotent_and_create_only_one_record(){
         var n=await Create();await Task.WhenAll(Enumerable.Range(0,8).Select(async _=>{await using var db=Db();await new NoticeService(new NoticeStore(db),new Clock()).MarkReadAsync(alice,n.Id,"android",1,default);}));
         await using var verify=Db();Assert.Equal(1,await verify.NoticeReads.CountAsync(x=>x.UserId==alice&&x.NoticeId==n.Id));

@@ -3356,7 +3356,7 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.HasOne("Juple.Domain.Users.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.NoAction)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
