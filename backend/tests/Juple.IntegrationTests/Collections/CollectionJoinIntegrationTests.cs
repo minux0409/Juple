@@ -51,6 +51,35 @@ public sealed class CollectionJoinIntegrationTests : IAsyncLifetime
     private SocialNotificationPublisher _publisher = null!;
     private readonly RecordingPushSender _sender = new();
 
+    [Fact]
+    public async Task Requester_can_withdraw_only_their_pending_request_and_request_again()
+    {
+        await _join.RequestAsync(_alice, _publicId, null);
+        var request = Assert.Single(await _join.ListMineAsync(_alice));
+        await Assert.ThrowsAsync<CollectionJoinRequestNotFoundException>(() => _join.CancelMineAsync(_bob, request.RequestId));
+        await Assert.ThrowsAsync<CollectionJoinRequestNotFoundException>(() => _join.CancelMineAsync(_owner, request.RequestId));
+        Assert.Single(await _join.ListMineAsync(_alice));
+        await _join.CancelMineAsync(_alice, request.RequestId);
+        _db.ChangeTracker.Clear();
+        Assert.Empty(await _join.ListMineAsync(_alice));
+        await Assert.ThrowsAsync<CollectionJoinRequestNotFoundException>(() => _join.CancelMineAsync(_alice, request.RequestId));
+        await Assert.ThrowsAsync<CollectionJoinRequestNotFoundException>(() => _join.ApproveAsync(_owner, _collectionId, request.RequestId, null));
+        Assert.Equal(CollectionJoinOutcomes.Requested, (await _join.RequestAsync(_alice, _publicId, null))!.Outcome);
+        Assert.True(await _db.Collections.AnyAsync(collection => collection.Id == _collectionId));
+    }
+
+    [Fact]
+    public async Task Withdrawal_after_approval_never_removes_membership()
+    {
+        await _join.RequestAsync(_alice, _publicId, null);
+        var request = Assert.Single(await _join.ListMineAsync(_alice));
+        await _join.ApproveAsync(_owner, _collectionId, request.RequestId, null);
+        _db.ChangeTracker.Clear();
+        await Assert.ThrowsAsync<CollectionJoinRequestNotFoundException>(() => _join.CancelMineAsync(_alice, request.RequestId));
+        Assert.Equal(CollectionJoinOutcomes.AlreadyMember, (await _join.RequestAsync(_alice, _publicId, null))!.Outcome);
+        Assert.Empty(await _join.ListMineAsync(_alice));
+    }
+
     public async Task InitializeAsync()
     {
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__JupleDatabase")

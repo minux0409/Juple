@@ -386,7 +386,7 @@
     "nickname": "Nama panggilan",
     "nicknameNotSet": "Belum diatur",
     "webBannerTitle": "Juple juga tersedia di web",
-    "webBannerBody": "Kunjungi juple.co.kr di PC untuk mengelola tautan dan koleksi tersimpan."
+    "webBannerBody": "Kelola tautan dan koleksi tersimpan dengan mudah di PC juga."
   },
   "profile": {
     "edit": "Edit profil",
@@ -542,6 +542,8 @@
     "collectionLinkNotSavable": "Tautan koleksi Juple tidak dapat disimpan sebagai tautan biasa. Buka sebagai koleksi."
   },
   "sharedCollection": {
+    "cancelJoinTitle": "Batalkan permintaan bergabung?",
+    "cancelJoinMessage": "Permintaan Anda untuk bergabung ke koleksi ini akan ditarik.",
     "itemsEmpty": "Koleksi bersama ini belum memiliki tautan yang disimpan.",
     "unavailableTitle": "Tautan bersama ini tidak tersedia.",
     "unavailableMessage": "Mungkin sudah dibatalkan berbaginya, atau tautannya tidak benar.",

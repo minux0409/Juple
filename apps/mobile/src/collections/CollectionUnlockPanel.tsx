@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
-import { ThemedTextInput } from '../components/ThemedTextInput';
+import { PasswordInput } from '../components/PasswordInput';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { KeyIcon } from '../icons/KeyIcon';
@@ -122,7 +122,7 @@ export function CollectionUnlockPanel({ collectionId, onUnlocked, onGranted, onS
       </View>
       {hideTitle ? null : <Text style={styles.title}>{t(isSharePassword ? 'collections.sharePasswordLockedTitle' : 'collections.lockedTitle')}</Text>}
       <Text style={styles.message}>{t(isSharePassword ? 'collections.sharePasswordLockedMessage' : 'collections.lockedMessage')}</Text>
-      <ThemedTextInput
+      <PasswordInput
         accessibilityLabel={t(isSharePassword ? 'collections.sharePasswordLabel' : 'collections.lockPasswordLabel')}
         autoCapitalize="none"
         autoComplete="off"
@@ -132,7 +132,6 @@ export function CollectionUnlockPanel({ collectionId, onUnlocked, onGranted, onS
         onSubmitEditing={submit}
         placeholder={t(isSharePassword ? 'collections.sharePasswordLabel' : 'collections.lockPasswordLabel')}
         returnKeyType="done"
-        secureTextEntry
         style={styles.input}
         testID="collection-unlock-password"
         value={password}
@@ -222,7 +221,7 @@ const styles = themedStyles(() => ({
     backgroundColor: colors.brand,
     borderRadius: radii.md,
     justifyContent: 'center',
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
     minHeight: minTouchTarget,
   },
   buttonDisabled: {

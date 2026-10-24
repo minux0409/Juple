@@ -82,6 +82,9 @@ public interface ICollectionJoinStore
 
     Task<IReadOnlyList<MyCollectionJoinRequestDto>> ListMineAsync(long userId, CancellationToken cancellationToken = default);
 
+    /// <summary>Cancels only the authenticated requester's own pending request; never removes membership.</summary>
+    Task CancelMineAsync(long userId, long requestId, CancellationToken cancellationToken = default);
+
     Task<CollectionJoinRequestPage> ListPendingAsync(long collectionId, long? cursor, int limit, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -104,6 +107,9 @@ public interface ICollectionJoinService
     Task<CollectionJoinResultDto?> SavePublicAsync(long userId, string publicId, string? unlockToken, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<MyCollectionJoinRequestDto>> ListMineAsync(long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Cancels only the authenticated requester's own pending request; never removes membership.</summary>
+    Task CancelMineAsync(long userId, long requestId, CancellationToken cancellationToken = default);
 
     Task<CollectionJoinRequestPage> ListAsync(long userId, long collectionId, long? cursor, int limit, string? unlockToken, CancellationToken cancellationToken = default);
 
@@ -208,6 +214,9 @@ public sealed class CollectionJoinService(
             result.CollectionId,
             result.Role);
     }
+
+    public Task CancelMineAsync(long userId, long requestId, CancellationToken cancellationToken = default) =>
+        store.CancelMineAsync(userId, requestId, cancellationToken);
 
     public Task<IReadOnlyList<MyCollectionJoinRequestDto>> ListMineAsync(long userId, CancellationToken cancellationToken = default) =>
         store.ListMineAsync(userId, cancellationToken);

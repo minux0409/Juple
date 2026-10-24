@@ -81,6 +81,12 @@ for (const width of [1280,393,320]) for (const theme of ['light','dark']) {
    assert.equal(await tab.evaluate(`document.querySelector('[data-home-recent] ul li a').textContent.includes('Recent 10')`),true);
    const centered=await tab.evaluate(`(()=>{const a=document.querySelector('[data-gate]').getBoundingClientRect(),b=document.querySelector('[data-gate] form').getBoundingClientRect();return Math.abs((a.left+a.right-b.left-b.right)/2)<2&&Math.abs((a.top+a.bottom-b.top-b.bottom)/2)<2;})()`);
    assert.equal(centered,true);
+   assert.equal(await tab.evaluate(`(()=>{const f=document.querySelector('[data-gate] form'),i=f.querySelector('input'),b=f.querySelector('button[type="submit"]');const gap=b.getBoundingClientRect().top-i.getBoundingClientRect().bottom;return gap>=8&&gap<=12&&i.type==='password';})()`),true);
+   await tab.evaluate(`document.querySelector('[data-gate] button[aria-pressed]').click()`);
+   assert.equal(await tab.evaluate(`document.querySelector('[data-gate] input').type`),'text');
+   await tab.evaluate(`document.querySelector('[data-gate] button[aria-pressed]').click()`);
+   assert.equal(await tab.evaluate(`document.querySelector('[data-gate] input').type`),'password');
+
    await capture(tab,`ux-${width}-${theme}`);
   }finally{await tab.close();}
  });

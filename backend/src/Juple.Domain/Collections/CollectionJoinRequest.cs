@@ -7,7 +7,7 @@ public enum CollectionJoinRequestStatus
     Approved,
     Rejected,
 
-    /// <summary>The requester became a member another way (an invitation) before the Owner decided: nothing left to decide.</summary>
+    /// <summary>The requester withdrew, or became a member another way before the Owner decided: nothing left to decide.</summary>
     Obsolete,
 }
 

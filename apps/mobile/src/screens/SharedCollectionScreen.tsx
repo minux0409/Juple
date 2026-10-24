@@ -3,7 +3,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
-import { ThemedTextInput } from '../components/ThemedTextInput';
+import { PasswordInput } from '../components/PasswordInput';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
@@ -20,6 +20,7 @@ import {
   type PublicShareJoinResult,
   type PublicShareMembership,
 } from '../collections/api/publicShareWriteApi';
+import { cancelMyJoinRequest, listMyJoinRequests } from '../collections/api/collectionsApi';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
 import { shareEntryTileKey } from '../collections/shareEntryTileKey';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -68,6 +69,7 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
   const [membershipLookupFailed, setMembershipLookupFailed] = useState(false);
   const [lookupAttempt, setLookupAttempt] = useState(0);
   const [membership, setMembership] = useState<PublicShareMembership | null>(null);
+  const [confirmWithdrawal, setConfirmWithdrawal] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const isBusyRef = useRef(false);
   const { showMessage, messageDialog } = useMessageDialog();
@@ -205,6 +207,30 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
     }
   };
 
+  const withdraw = async () => {
+    if (isBusyRef.current) return;
+    isBusyRef.current = true;
+    setIsBusy(true);
+    try {
+      const waiting = (await listMyJoinRequests(authenticatedRequest)).find(request => request.publicId === publicId);
+      if (!waiting) {
+        await refreshMembership();
+        setConfirmWithdrawal(false);
+        showMessage(t('submissions.alreadyCancelledOrProcessed'));
+        return;
+      }
+      await cancelMyJoinRequest(authenticatedRequest, waiting.requestId);
+      setConfirmWithdrawal(false);
+      cancel(); // Collections refetches on focus; no optimistic deletion on failure.
+    } catch {
+      setConfirmWithdrawal(false);
+      showMessage(t('submissions.cancelFailed'));
+    } finally {
+      isBusyRef.current = false;
+      setIsBusy(false);
+    }
+  };
+
   const save = () => run(() => savePublicCollection(authenticatedRequest, publicId, unlockToken));
   const requestJoin = () => run(() => requestToJoinPublicShare(authenticatedRequest, publicId, unlockToken));
 
@@ -269,7 +295,7 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
           <View style={styles.lockedPanel} testID="shared-collection-locked">
             <Text style={styles.lockedTitle}>{t('sharedCollection.lockedTitle')}</Text>
             <Text style={styles.hint}>{t('sharedCollection.lockedMessage')}</Text>
-            <ThemedTextInput
+            <PasswordInput
               accessibilityLabel={t('sharedCollection.passwordLabel')}
               autoCapitalize="none"
               autoComplete="off"
@@ -282,7 +308,6 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
               }}
               onSubmitEditing={() => { unlock().catch(() => undefined); }}
               placeholder={t('sharedCollection.passwordLabel')}
-              secureTextEntry
               style={[styles.input, unlockError === 'wrong' && styles.inputError]}
               testID="shared-collection-unlock-password"
               textContentType="none"
@@ -298,7 +323,7 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
               accessibilityState={{ disabled: isUnlocking || !password, busy: isUnlocking }}
               disabled={isUnlocking || !password}
               onPress={() => { unlock().catch(() => undefined); }}
-              style={[styles.primaryButton, (isUnlocking || !password) && styles.disabled]}
+              style={[styles.primaryButton, styles.unlockButton, (isUnlocking || !password) && styles.disabled]}
               testID="shared-collection-unlock"
             >
               {isUnlocking ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.primaryLabel}>{t('sharedCollection.unlockAction')}</Text>}
@@ -352,12 +377,14 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
         </ConfirmDialog>
       ) : isWaiting ? (
         <ConfirmDialog
+          cancelLabel={t('submissions.cancelRequest')}
+          onCancel={() => { if (!isBusyRef.current) setConfirmWithdrawal(true); }}
           confirmLabel={t('common.confirm')}
           destructive={false}
           message={t('sharedCollection.joinPendingMessage')}
           onConfirm={cancel}
           title={t('sharedCollection.joinPendingTitle')}
-          visible
+          visible={!confirmWithdrawal}
         >
           {profile(true)}
         </ConfirmDialog>
@@ -388,6 +415,11 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
           {profile(false)}
         </ConfirmDialog>
       )}
+      <ConfirmDialog visible={confirmWithdrawal} title={t('sharedCollection.cancelJoinTitle')}
+        message={t('sharedCollection.cancelJoinMessage')} cancelLabel={t('submissions.keepRequest')}
+        confirmLabel={t('submissions.cancelRequest')} busy={isBusy}
+        onCancel={() => { if (!isBusyRef.current) setConfirmWithdrawal(false); }}
+        onConfirm={() => { withdraw().catch(() => undefined); }} />
       {messageDialog}
     </SafeAreaView>
   );
@@ -442,6 +474,7 @@ const styles = themedStyles(() => ({
     color: colors.danger,
     fontSize: 14,
   },
+  unlockButton: { marginTop: 0 },
   primaryButton: {
     alignItems: 'center',
     backgroundColor: colors.brand,

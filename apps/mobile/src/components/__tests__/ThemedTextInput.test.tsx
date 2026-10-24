@@ -61,7 +61,7 @@ describe('every TextInput of the app is the themed one (inventory guard)', () =>
   });
 
   it('knows the inventory: at least the 23 fields found by the audit use ThemedTextInput', () => {
-    const uses = files.reduce((sum, file) => sum + (fs.readFileSync(file, 'utf8').match(/<ThemedTextInput\b/g) ?? []).length, 0);
+    const uses = files.reduce((sum, file) => sum + (fs.readFileSync(file, 'utf8').match(/<(?:ThemedTextInput|PasswordInput)\b/g) ?? []).length, 0);
     expect(uses).toBeGreaterThanOrEqual(23);
   });
 });

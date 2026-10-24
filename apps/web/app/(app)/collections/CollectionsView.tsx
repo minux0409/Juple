@@ -1,6 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { loadPendingJoins, filterPendingJoins, type PendingJoin } from '../../../lib/pendingJoins';
+import { shareEntryTileKey } from '../../../lib/sharedCollectionEntry';
+import { PendingJoinDialog } from './PendingJoinDialog';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { formatMessage, type AppDictionary } from '../../../lib/appI18n';
@@ -90,13 +93,25 @@ export function CollectionsView() {
   const [viewMode, setViewMode] = useStoredChoice<CollectionViewMode>(COLLECTION_VIEW_MODE_STORAGE_KEY, parseCollectionViewMode);
   const [state, setState] = useState<ListState>({ kind: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
+  const [pendingJoins, setPendingJoins] = useState<readonly PendingJoin[]>([]);
+  const [pendingFailed, setPendingFailed] = useState(false);
+  const [openedJoin, setOpenedJoin] = useState<PendingJoin | null>(null);
   const toast = useToast();
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
   useEffect(() => {
     let ignore = false;
     api<CollectionsPage>({ path: collectionsPath(filter, null, search) }).then(
-      page => {
+      async page => {
+        let joins: readonly PendingJoin[] | undefined;
+        if (filter === 'shared') {
+          try { joins = await loadPendingJoins(api); } catch (error) {
+            if (ignore) return;
+            if (isSessionLost(error)) { onSessionLost(); return; }
+            setPendingFailed(true);
+          }
+        }
+        if (!ignore && joins) { setPendingJoins(joins); setPendingFailed(false); }
         if (!ignore) {
           setState({ kind: 'loaded', ...firstPage(page.items, page.nextCursor) });
           setSearching(false);
@@ -119,6 +134,18 @@ export function CollectionsView() {
       ignore = true;
     };
   }, [api, filter, onSessionLost, reloadToken, search]);
+
+  // Re-read on returning to this tab and while visible: approvals become normal memberships,
+  // and rejected/withdrawn/revoked requests disappear. Pending requests never enter attention counts.
+  useEffect(() => {
+    if (filter !== 'shared') return;
+    const refresh = () => { if (document.visibilityState === 'visible') setReloadToken(token => token + 1); };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    const timer = window.setInterval(refresh, 30000);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
+  }, [filter]);
+  const shownPending = filter === 'shared' ? filterPendingJoins(pendingJoins, search) : [];
 
   useEffect(
     () => () => {
@@ -288,7 +315,8 @@ export function CollectionsView() {
 
       {state.kind === 'loading' ? <CollectionSkeleton count={viewMode === 'grid' ? 10 : 6} mode={viewMode} /> : null}
       {state.kind === 'failed' ? <LoadFailed dictionary={dictionary} onRetry={retry} /> : null}
-      {state.kind === 'loaded' && state.items.length === 0 ? (
+      {pendingFailed && filter === 'shared' ? <LoadFailed dictionary={dictionary} onRetry={retry} /> : null}
+      {state.kind === 'loaded' && state.items.length === 0 && shownPending.length === 0 && !pendingFailed ? (
         search !== '' ? (
           <p className={styles.emptyState} data-collection-search-empty>
             {dictionary.searchEmpty}
@@ -297,9 +325,19 @@ export function CollectionsView() {
           <p className={styles.emptyState}>{emptyLabel(dictionary, filter)}</p>
         )
       ) : null}
-      {state.kind === 'loaded' && state.items.length > 0 ? (
+      {state.kind === 'loaded' && (state.items.length > 0 || shownPending.length > 0) ? (
         <>
           <ul aria-busy={searching} className={searching ? `${viewMode === 'grid' ? styles.collectionGrid : styles.collectionList} ${styles.listSearching}` : viewMode === 'grid' ? styles.collectionGrid : styles.collectionList}>
+            {shownPending.map(join => <li className={styles.collectionCard} key={`join-${join.requestId}`}>
+              <button type="button" className={`${styles.pendingJoinCard} ${viewMode === 'grid' ? styles.pendingJoinGrid : ''}`}
+                onClick={() => setOpenedJoin(join)} data-pending-join={join.requestId}>
+                <span className={styles.pendingJoinTile}>
+                  <CollectionTileView collection={{ id: shareEntryTileKey(join.publicId), icon: join.icon, color: join.color, iconImageUrl: join.iconImageUrl ?? null }} size={viewMode === 'grid' ? 72 : 48} />
+                  <span className={styles.pendingJoinStatus}><Glyph name="Clock" size={20} /></span>
+                </span>
+                <span className={styles.pendingJoinText}><strong dir="auto">{join.name}</strong><span>{dictionary.joinPending}</span></span>
+              </button>
+            </li>)}
             {state.items.map(collection => (
               <li className={styles.collectionCard} key={collection.id}>
                 <CollectionCard
@@ -315,6 +353,14 @@ export function CollectionsView() {
           <LoadMore dictionary={dictionary} onLoadMore={loadMore} skeleton={<CollectionSkeleton count={viewMode === 'grid' ? 5 : 3} mode={viewMode} />} state={state} />
         </>
       ) : null}
+      {openedJoin ? <PendingJoinDialog publicId={openedJoin.publicId} requestId={openedJoin.requestId}
+        onClose={() => setOpenedJoin(null)} onWithdrawn={() => {
+          setPendingJoins(items => items.filter(item => item.requestId !== openedJoin.requestId));
+          setOpenedJoin(null); setReloadToken(token => token + 1);
+        }}><div className={styles.pendingJoinProfile}>
+          <CollectionTileView collection={{ id: shareEntryTileKey(openedJoin.publicId), color: openedJoin.color, icon: openedJoin.icon, iconImageUrl: openedJoin.iconImageUrl ?? null }} size={72} />
+          <strong dir="auto">{openedJoin.name}</strong>
+        </div></PendingJoinDialog> : null}
     </section>
   );
 }

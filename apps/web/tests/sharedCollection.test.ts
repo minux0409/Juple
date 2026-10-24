@@ -196,7 +196,7 @@ describe('the screen and the entry points', () => {
     assert.match(entry, /if \(entry\?\.kind === 'member'\) \{\s*router\.replace\(collectionHref\(entry\.collectionId\)\);/);
     assert.match(entry, /run\(entry\.kind === 'publicAdd' \? saveSharedCollectionPath\(publicId\) : joinRequestPath\(publicId\)\)/);
     assert.match(entry, /headers: unlockToken \? \{ \[COLLECTION_UNLOCK_HEADER\]: unlockToken \} : undefined/);
-    assert.match(entry, /entry\.kind === 'pending' \? \(\s*<button className=\{styles\.primaryAction\} onClick=\{leave\} type="button">\s*\{dictionary\.confirm\}/);
+    assert.match(entry, /if \(entry\.kind === 'pending'\) return <PendingJoinDialog/);
     assert.match(entry, /if \(busyRef\.current\) \{\s*return;/, 'never twice at once');
     assert.doesNotMatch(entry, /useEffect\([^)]*run\(/, 'never automatic');
   });

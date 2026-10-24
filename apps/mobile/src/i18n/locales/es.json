@@ -386,7 +386,7 @@
     "nickname": "Apodo",
     "nicknameNotSet": "Sin definir",
     "webBannerTitle": "Juple también está disponible en la web",
-    "webBannerBody": "Visita juple.co.kr desde tu PC para gestionar tus enlaces y colecciones guardados."
+    "webBannerBody": "Gestiona fácilmente tus enlaces y colecciones guardados también en tu PC."
   },
   "profile": {
     "edit": "Editar perfil",
@@ -542,6 +542,8 @@
     "collectionLinkNotSavable": "Un enlace de colección de Juple no se puede guardar como enlace normal. Ábrelo como colección."
   },
   "sharedCollection": {
+    "cancelJoinTitle": "¿Cancelar la solicitud de acceso?",
+    "cancelJoinMessage": "Se retirará tu solicitud para unirte a esta colección.",
     "itemsEmpty": "Esta colección compartida aún no tiene enlaces guardados.",
     "unavailableTitle": "Este enlace compartido no está disponible.",
     "unavailableMessage": "Puede que se haya dejado de compartir o que el enlace sea incorrecto.",

@@ -68,7 +68,7 @@ describe('컬렉션 검색: the screen', () => {
   it('the search sits between the tabs (toolbar) and the cards, above the list', () => {
     const toolbar = view.indexOf('className={styles.toolbar}');
     const search = view.indexOf('data-collection-search>');
-    const list = view.indexOf("state.kind === 'loaded' && state.items.length > 0");
+    const list = view.indexOf("state.kind === 'loaded' && (state.items.length > 0 || shownPending.length > 0)");
     assert.ok(toolbar > 0 && search > toolbar && list > search);
     // The field is the shared SearchField, wrapped by the suggestions box (it owns the combobox behaviour; the list is still read here).
     assert.match(view, /<CollectionSearchBox[\s\S]*?onTextChange=\{changeText\}/);

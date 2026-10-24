@@ -1,3 +1,4 @@
+import { notifyJoinRequestWithdrawn } from '../joinRequestChanges';
 import { normalizeCollectionSearch } from '../collectionSearch';
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
 import { mobileAttentionFor } from '../../attention/mobileAttention';
@@ -1351,4 +1352,10 @@ export async function getCollectionSuggestions(
   }
 
   return response.body;
+}
+
+/** Withdraws only my pending participation request. A resolved request returns 404, without touching membership. */
+export async function cancelMyJoinRequest(request: AuthenticatedApiRequest, requestId: number): Promise<void> {
+  await request<void>({ method: 'DELETE', path: `/api/v1/collections/join-requests/mine/${requestId}` });
+  notifyJoinRequestWithdrawn(requestId);
 }

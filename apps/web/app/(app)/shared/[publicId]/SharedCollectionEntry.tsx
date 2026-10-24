@@ -19,6 +19,8 @@ import {
   type ShareProfile,
 } from '../../../../lib/sharedCollectionEntry';
 import { useSignedInApp } from '../../AppRoot';
+import { Glyph } from '../../Glyph';
+import { PendingJoinDialog } from '../../collections/PendingJoinDialog';
 import { CollectionTileView } from '../../collections/CollectionsView';
 import { readShareProfile, unlockShare } from './actions';
 import styles from '../../app.module.css';
@@ -40,6 +42,7 @@ export function SharedCollectionEntry({ publicId }: { readonly publicId: string 
   // A protected link's grant after its password was verified: memory only (never stored, never in a URL).
   const [unlockToken, setUnlockToken] = useState<string | null>(null);
   const [password, setPassword] = useState('');
+  const [visiblePassword, setVisiblePassword] = useState(false);
   const [unlockError, setUnlockError] = useState<'wrong' | 'throttled' | 'failed' | null>(null);
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
@@ -226,7 +229,7 @@ export function SharedCollectionEntry({ publicId }: { readonly publicId: string 
         <form className={styles.shareEntryCard} noValidate onSubmit={unlock}>
           <h1 className={styles.shareEntryTitle}>{dictionary.shareEntryLockedTitle}</h1>
           <p className={styles.shareEntryMessage}>{dictionary.shareEntryLockedMessage}</p>
-          <input
+          <div className={styles.passwordRow}><input
             aria-invalid={unlockError === 'wrong' ? true : undefined}
             aria-label={dictionary.shareEntryPasswordLabel}
             autoComplete="off"
@@ -237,9 +240,10 @@ export function SharedCollectionEntry({ publicId }: { readonly publicId: string 
               setUnlockError(null);
             }}
             placeholder={dictionary.shareEntryPasswordLabel}
-            type="password"
+            type={visiblePassword ? 'text' : 'password'}
             value={password}
-          />
+          /><button type="button" className={styles.passwordToggle} aria-label={visiblePassword ? dictionary.passwordHide : dictionary.passwordShow}
+            aria-pressed={visiblePassword} onClick={() => setVisiblePassword(value => !value)}><Glyph name={visiblePassword ? 'Eye' : 'EyeOff'} size={20} /></button></div>
           {unlockError ? (
             <p className={styles.fieldError} role="alert">
               {unlockError === 'wrong' ? dictionary.shareEntryWrongPassword : unlockError === 'throttled' ? dictionary.shareEntryTooManyAttempts : dictionary.shareEntryUnlockFailed}
@@ -258,17 +262,23 @@ export function SharedCollectionEntry({ publicId }: { readonly publicId: string 
     );
   }
 
+  if (entry.kind === 'pending') return <PendingJoinDialog publicId={publicId} onClose={leave}
+    onWithdrawn={() => router.replace('/collections?tab=shared')}><div className={styles.pendingJoinProfile}>
+      <CollectionTileView collection={{ id: shareEntryTileKey(publicId), color: entry.profile.color ?? null, icon: entry.profile.icon ?? 'Folder', iconImageUrl: entry.profile.iconImageUrl ?? null }} size={72} />
+      <strong dir="auto">{entry.profile.name}</strong>
+    </div></PendingJoinDialog>;
+
   const { profile: shown } = entry;
   const tile = (
-    <div className={entry.kind === 'pending' ? styles.shareEntryTileDim : styles.shareEntryTile}>
+    <div className={styles.shareEntryTile}>
       <CollectionTileView
         collection={{ id: shareEntryTileKey(publicId), color: shown.color ?? null, icon: shown.icon ?? 'Folder', iconImageUrl: shown.iconImageUrl ?? null }}
         size={72}
       />
     </div>
   );
-  const title = entry.kind === 'pending' ? dictionary.shareEntryPendingTitle : entry.kind === 'publicAdd' ? dictionary.shareEntryAddTitle : dictionary.shareEntryRequestTitle;
-  const question = entry.kind === 'pending' ? dictionary.shareEntryPendingMessage : entry.kind === 'privateRequest' ? dictionary.shareEntryPrivateQuestion : null;
+  const title = entry.kind === 'publicAdd' ? dictionary.shareEntryAddTitle : dictionary.shareEntryRequestTitle;
+  const question = entry.kind === 'privateRequest' ? dictionary.shareEntryPrivateQuestion : null;
 
   return (
     <section className={styles.shareEntryPage}>
@@ -287,11 +297,6 @@ export function SharedCollectionEntry({ publicId }: { readonly publicId: string 
           </p>
         ) : null}
         <div className={styles.shareEntryActions}>
-          {entry.kind === 'pending' ? (
-            <button className={styles.primaryAction} onClick={leave} type="button">
-              {dictionary.confirm}
-            </button>
-          ) : (
             <>
               <button className={styles.settingsAction} disabled={isBusy} onClick={leave} type="button">
                 {dictionary.cancel}
@@ -305,7 +310,6 @@ export function SharedCollectionEntry({ publicId }: { readonly publicId: string 
                 {entry.kind === 'publicAdd' ? dictionary.save : dictionary.shareEntryRequestSend}
               </button>
             </>
-          )}
         </div>
       </div>
     </section>

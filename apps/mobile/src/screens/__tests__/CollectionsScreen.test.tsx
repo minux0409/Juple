@@ -1,3 +1,4 @@
+import { notifyJoinRequestWithdrawn } from '../../collections/joinRequestChanges';
 import { BrokenLinkIcon } from '../../icons/BrokenLinkIcon';
 import { LoadFailureState } from '../../components/LoadFailureState';
 import { RefreshFailureNotice } from '../../components/RefreshFailureNotice';
@@ -1619,6 +1620,14 @@ describe('CollectionsScreen - 승인 대기 중 placeholders (my own waiting joi
     expect(card.props.onLongPress).toBeUndefined();
     expect(card.findAll(node => node.props.accessibilityLabel === i18n.t('collections.addFavorite'))).toHaveLength(0);
     act(() => renderer.unmount());
+  });
+
+  it('removes a successfully withdrawn request immediately, even before a focus refetch', async () => {
+    const renderer = await renderWaiting('grid');
+    expect(cardById(renderer)).toBeDefined();
+    await act(async () => { notifyJoinRequestWithdrawn(41); });
+    expect(cardById(renderer)).toBeUndefined();
+    await act(async () => renderer.unmount());
   });
 
   it('the waiting requests are read AFTER the Collections, so an approval in between can never show the placeholder and the real card together', async () => {

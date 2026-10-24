@@ -98,15 +98,14 @@ export function UnlockPanel({
           type={visible ? 'text' : 'password'}
           value={password}
         />
-        <button aria-pressed={visible} className={styles.settingsAction} onClick={() => setVisible(value => !value)} type="button">
-          {visible ? dictionary.passwordHide : dictionary.passwordShow}
+        <button aria-label={visible ? dictionary.passwordHide : dictionary.passwordShow} aria-pressed={visible} className={styles.passwordToggle} onClick={() => setVisible(value => !value)} type="button">
+          <Glyph name={visible ? "Eye" : "EyeOff"} size={20} />
         </button>
       </div>
-      {/* Always present, so a wrong password's message appears without moving the group (it is centered in the sheet). */}
-      <div className={styles.unlockError}>{error ? <p className={styles.fieldError} role="alert">{error}</p> : null}</div>
       <button className={styles.primaryAction} disabled={busy || !password} type="submit">
         {busy ? dictionary.processing : dictionary.unlockAction}
       </button>
+      {error ? <p className={styles.fieldError} role="alert">{error}</p> : null}
       {isOwner ? null : <p className={styles.settingsSubValue}>{isSharePassword ? dictionary.sharePasswordContactOwner : dictionary.lockContactOwner}</p>}
     </form>
   );

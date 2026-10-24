@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { ActivityIndicator, FlatList, Modal, Text } from 'react-native';
+import { ActivityIndicator, FlatList, Modal, Text, TextInput } from 'react-native';
 import i18n from '../../i18n';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ApiError } from '../../api/ApiError';
@@ -158,7 +158,7 @@ describe('the one resolver for a Collection link (App Link, pasted URL, notifica
 
     const waiting = dialog(renderer, i18n.t('sharedCollection.joinPendingTitle'));
     expect(waiting).toBeDefined();
-    expect(waiting.props.cancelLabel).toBeUndefined();
+    expect(waiting.props.cancelLabel).toBe(i18n.t('submissions.cancelRequest'));
     expect(renderer.root.findAllByType(ActivityIndicator).length).toBeGreaterThan(0);
     expect(dialog(renderer, i18n.t('sharedCollection.requestTitle'))).toBeUndefined();
     expect(requestCalls()).toHaveLength(0);
@@ -494,7 +494,7 @@ describe('a password-protected link (mobile unlock)', () => {
 
   it('the field is a secure password field that never autofills or autocorrects', async () => {
     const renderer = await renderScreen();
-    const field = byId(renderer, 'shared-collection-unlock-password');
+    const field = renderer.root.findAllByType(TextInput).find(node => node.props.testID === 'shared-collection-unlock-password')!;
 
     expect(field.props.secureTextEntry).toBe(true);
     expect(field.props.autoCorrect).toBe(false);
@@ -660,4 +660,31 @@ describe('cold-start share route while authenticated destinations are not regist
     await act(async () => resolveLookup({ status: 200, body: { isMember: true, collectionId: 77, role: 'viewer' } }));
     expect(mockReplace).not.toHaveBeenCalled();
   });
+});
+
+it.each([false, true])('withdrawal confirmation, duplicate guard and failure preservation (fails=%s)', async fails => {
+  jest.mocked(getPublicCollection).mockResolvedValue(privateDto as never);
+  let finish!: () => void;
+  const delayed = new Promise<void>(resolve => { finish = resolve; });
+  mockRequest.mockImplementation(async ({ path, method }: { path: string; method?: string }) => {
+    if (path.endsWith('/membership')) return { status: 200, body: notAMember(false, true) };
+    if (path.endsWith('/join-requests/mine')) return { status: 200, body: { items: [{ requestId: 9, publicId: 'pub-1' }] } };
+    if (method === 'DELETE') { await delayed; if (fails) throw new Error('offline'); return { status: 204 }; }
+    throw new Error('Unexpected request');
+  });
+  const renderer = await renderScreen();
+  await act(async () => dialog(renderer, i18n.t('sharedCollection.joinPendingTitle')).props.onCancel());
+  expect(calls(/mine\/9$/)).toHaveLength(0);
+  await act(async () => {
+    const confirmDialog = dialog(renderer, i18n.t('sharedCollection.cancelJoinTitle'));
+    confirmDialog.props.onConfirm(); confirmDialog.props.onConfirm();
+  });
+  expect(calls(/mine\/9$/)).toHaveLength(1);
+  await act(async () => { finish(); });
+  if (fails) {
+    expect(mockGoBack).not.toHaveBeenCalled();
+    expect(dialog(renderer, i18n.t('sharedCollection.joinPendingTitle'))).toBeDefined();
+    expect(allTexts(renderer)).toContain(i18n.t('submissions.cancelFailed'));
+  } else expect(mockGoBack).toHaveBeenCalledTimes(1);
+  await act(async () => renderer.unmount());
 });

@@ -386,7 +386,7 @@
     "nickname": "Takma ad",
     "nicknameNotSet": "Ayarlanmadı",
     "webBannerTitle": "Juple web üzerinde de kullanılabilir",
-    "webBannerBody": "Kaydettiğiniz bağlantıları ve koleksiyonları yönetmek için PC üzerinden juple.co.kr adresini ziyaret edin."
+    "webBannerBody": "Kaydettiğiniz bağlantıları ve koleksiyonları PC’nizde de kolayca yönetin."
   },
   "profile": {
     "edit": "Profili düzenle",
@@ -542,6 +542,8 @@
     "collectionLinkNotSavable": "Juple koleksiyon bağlantısı normal bağlantı olarak kaydedilemez. Koleksiyon olarak açın."
   },
   "sharedCollection": {
+    "cancelJoinTitle": "Katılma isteği iptal edilsin mi?",
+    "cancelJoinMessage": "Bu koleksiyona katılma isteğiniz geri çekilecek.",
     "itemsEmpty": "Bu paylaşılan koleksiyonda henüz kaydedilmiş bağlantı yok.",
     "unavailableTitle": "Bu paylaşılan bağlantı kullanılamıyor.",
     "unavailableMessage": "Paylaşım kaldırılmış veya bağlantı hatalı olabilir.",

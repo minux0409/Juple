@@ -168,6 +168,26 @@ public sealed class CollectionJoinStore(
         return new CollectionJoinStoreResult(CollectionJoinStoreStatus.Joined, collectionId.Value, ownerUserId.Value, WireRole(ApprovedRole));
     }
 
+    public async Task CancelMineAsync(long userId, long requestId, CancellationToken cancellationToken = default)
+    {
+        var collectionId = await dbContext.CollectionJoinRequests.AsNoTracking()
+            .Where(request => request.Id == requestId && request.RequesterUserId == userId)
+            .Select(request => (long?)request.CollectionId).SingleOrDefaultAsync(cancellationToken);
+        if (collectionId is null) throw new CollectionJoinRequestNotFoundException();
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
+        // Serialize with approval, membership and share changes. Only a still-pending, owned request can change.
+        if (await CollectionRowLock.LockActiveAsync(dbContext, collectionId.Value, cancellationToken) is null)
+            throw new CollectionJoinRequestNotFoundException();
+        var changed = await dbContext.CollectionJoinRequests
+            .Where(request => request.Id == requestId && request.RequesterUserId == userId && request.Status == CollectionJoinRequestStatus.Pending)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(request => request.Status, CollectionJoinRequestStatus.Obsolete)
+                .SetProperty(request => request.ResolvedByUserId, userId)
+                .SetProperty(request => request.ResolvedAtUtc, DateTimeOffset.UtcNow), cancellationToken);
+        if (changed == 0) throw new CollectionJoinRequestNotFoundException();
+        await transaction.CommitAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<MyCollectionJoinRequestDto>> ListMineAsync(long userId, CancellationToken cancellationToken = default)
     {
         // The caller's own waiting requests of Collections that still exist and whose link is still on: one joined query on the

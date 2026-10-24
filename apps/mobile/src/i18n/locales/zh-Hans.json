@@ -386,7 +386,7 @@
     "nickname": "昵称",
     "nicknameNotSet": "未设置",
     "webBannerTitle": "Juple 也可在网页上使用",
-    "webBannerBody": "在电脑上访问 juple.co.kr，管理已保存的链接和收藏集。"
+    "webBannerBody": "也可在电脑上轻松管理已保存的链接和收藏集。"
   },
   "profile": {
     "edit": "编辑个人资料",
@@ -542,6 +542,8 @@
     "collectionLinkNotSavable": "Juple 合集分享链接不能保存为普通链接，请作为合集打开。"
   },
   "sharedCollection": {
+    "cancelJoinTitle": "取消加入请求？",
+    "cancelJoinMessage": "你对该收藏集的加入请求将被撤回。",
     "itemsEmpty": "这个共享合集中还没有保存的链接。",
     "unavailableTitle": "此链接当前不可用。",
     "unavailableMessage": "可能已被取消分享，或链接不正确。",

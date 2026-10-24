@@ -1,3 +1,4 @@
+import { subscribeJoinRequestWithdrawn } from '../collections/joinRequestChanges';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useBottomTabBarHeight, type BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -275,6 +276,11 @@ export function CollectionsScreen() {
   // My own join requests waiting for an Owner (server state): drawn as dimmed "승인 대기 중" placeholders among my shared Collections.
   // Not memberships - they open no Collection and offer no member action.
   const [isApprovalsVisible, setIsApprovalsVisible] = useState(false);
+  const withdrawnJoinIds = useRef(new Set<number>());
+  useEffect(() => subscribeJoinRequestWithdrawn(requestId => {
+    withdrawnJoinIds.current.add(requestId);
+    setPendingJoins(rows => rows.filter(row => row.requestId !== requestId));
+  }), []);
   const [pendingJoins, setPendingJoins] = useState<readonly MyJoinRequest[]>([]);
 
   const loadRequestIdRef = useRef(0);
@@ -316,7 +322,7 @@ export function CollectionsScreen() {
         // The waiting requests are read AFTER the Collections: an approval in between can then only make a placeholder vanish a moment
         // late or the real card appear a moment late - never both at once. A failure keeps what is shown.
         listMyJoinRequests(authenticatedRequest)
-          .then(rows => { if (loadRequestIdRef.current === requestId) { setPendingJoins(rows); } })
+          .then(rows => { if (loadRequestIdRef.current === requestId) { setPendingJoins(rows.filter(row => !withdrawnJoinIds.current.has(row.requestId))); } })
           .catch(() => undefined);
       } catch (caughtError) {
         if (loadRequestIdRef.current !== requestId) {

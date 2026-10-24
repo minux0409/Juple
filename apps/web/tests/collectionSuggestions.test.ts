@@ -188,7 +188,7 @@ describe('컬렉션 검색: the space under the search matches the one above it'
     assert.ok(anchor);
     assert.doesNotMatch(anchor[1], /margin|padding|height/);
     // Both neighbours are direct children of the page: toolbar, the search wrapper, then the list/grid.
-    const order = [view.indexOf('className={styles.toolbar}'), view.indexOf('className={styles.collectionSearch}'), view.indexOf('state.kind === \'loaded\' && state.items.length > 0')];
+    const order = [view.indexOf('className={styles.toolbar}'), view.indexOf('className={styles.collectionSearch}'), view.indexOf('state.kind === \'loaded\' && (state.items.length > 0 || shownPending.length > 0)')];
     assert.ok(order[0] > 0 && order[1] > order[0] && order[2] > order[1]);
   });
 

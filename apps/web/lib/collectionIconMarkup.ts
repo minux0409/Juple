@@ -1,5 +1,6 @@
 // GENERATED from the mobile app's own Collection icons (apps/mobile/src/icons/*.tsx, CollectionExtraIcon.tsx) - the same
 // drawings, converted from react-native-svg JSX to SVG markup for the Web. Do not edit by hand: regenerate when the mobile icons change
+// Eye/EyeOff status glyphs also reuse the native SVG paths.
 // (tests/webApp.test.ts checks the key set still matches apps/mobile/src/collections/collectionIcons.ts).
 
 /** The Collection icon keys, in the mobile picker's order - the backend CollectionIcon enum names. */
@@ -38,6 +39,8 @@ export const COLLECTION_ICON_MARKUP: Readonly<Record<CollectionIconKey, string>>
 
 /** The status / favorite / detail glyphs (apps/mobile/src/icons: LockIcon, PeopleIcon, StarIcon filled, ExternalLinkIcon, LinkIcon, ClockIcon, EditIcon, ImageIcon, FolderIcon, ChevronIcon down; the tab icons HomeIcon, ArchiveIcon, UserIcon; LogoutIcon, StarIcon outline, PlusIcon, TrashIcon, RestoreIcon, SearchIcon; the notification glyphs BellIcon, CommentIcon, HeartIcon filled, SmileyPlusIcon, CheckIcon, CloseIcon) - same 24x24 markup. */
 export const STATUS_ICON_MARKUP = {
+  Eye: "<path d=\"M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linejoin=\"round\"/><circle cx=\"12\" cy=\"12\" r=\"3\" stroke=\"currentColor\" stroke-width=\"1.75\"/>",
+  EyeOff: "<path d=\"M9.9 5.8A9.9 9.9 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-2.6 3.4M6.2 7.4A16.6 16.6 0 0 0 2.5 12S6 18.5 12 18.5a9.6 9.6 0 0 0 4.6-1.2\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M9.9 9.9a3 3 0 0 0 4.2 4.2\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\"/><path d=\"M3.5 3.5l17 17\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\"/>",
   Lock: "<rect x=\"5\" y=\"10.5\" width=\"14\" height=\"10\" rx=\"2.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M8 10.5V8a4 4 0 0 1 8 0v2.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/>",
   People: "<circle cx=\"9\" cy=\"8.5\" r=\"3.25\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M3 19.5c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/><circle cx=\"16.5\" cy=\"9.5\" r=\"2.5\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M16.5 14c2.6 0 4.5 1.8 4.5 4.5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/>",
   StarFilled: "<polygon points=\"12 3 14.6 8.9 21 9.6 16.2 13.9 17.5 20.2 12 17 6.5 20.2 7.8 13.9 3 9.6 9.4 8.9\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linejoin=\"round\" fill=\"currentColor\"/>",

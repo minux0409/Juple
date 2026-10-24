@@ -386,7 +386,7 @@
     "nickname": "Nickname",
     "nicknameNotSet": "Non impostato",
     "webBannerTitle": "Juple è disponibile anche sul web",
-    "webBannerBody": "Visita juple.co.kr dal PC per gestire i link e le raccolte salvati."
+    "webBannerBody": "Gestisci comodamente link e raccolte salvati anche dal PC."
   },
   "profile": {
     "edit": "Modifica profilo",
@@ -542,6 +542,8 @@
     "collectionLinkNotSavable": "Un link di raccolta Juple non può essere salvato come link normale. Aprilo come raccolta."
   },
   "sharedCollection": {
+    "cancelJoinTitle": "Annullare la richiesta di accesso?",
+    "cancelJoinMessage": "La tua richiesta di unirti a questa raccolta verrà ritirata.",
     "itemsEmpty": "Questa raccolta condivisa non ha ancora link salvati.",
     "unavailableTitle": "Questo link condiviso non è disponibile.",
     "unavailableMessage": "La condivisione potrebbe essere stata annullata oppure il link non è corretto.",

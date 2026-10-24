@@ -386,7 +386,7 @@
     "nickname": "Spitzname",
     "nicknameNotSet": "Nicht festgelegt",
     "webBannerTitle": "Juple gibt es auch im Web",
-    "webBannerBody": "Verwalte deine gespeicherten Links und Sammlungen am PC auf juple.co.kr."
+    "webBannerBody": "Verwalte gespeicherte Links und Sammlungen bequem auch am PC."
   },
   "profile": {
     "edit": "Profil bearbeiten",
@@ -542,6 +542,8 @@
     "collectionLinkNotSavable": "Ein Juple-Sammlungslink kann nicht als normaler Link gespeichert werden. Öffne ihn stattdessen als Sammlung."
   },
   "sharedCollection": {
+    "cancelJoinTitle": "Beitrittsanfrage zurückziehen?",
+    "cancelJoinMessage": "Deine Anfrage zum Beitritt zu dieser Sammlung wird zurückgezogen.",
     "itemsEmpty": "In dieser geteilten Sammlung sind noch keine Links gespeichert.",
     "unavailableTitle": "Dieser geteilte Link ist nicht verfügbar.",
     "unavailableMessage": "Die Freigabe wurde möglicherweise aufgehoben oder der Link ist fehlerhaft.",

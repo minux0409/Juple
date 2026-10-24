@@ -92,7 +92,16 @@ function createFixture(account: string) {
         if (path.endsWith('/accept')) accepted = true;
         return undefined;
       }
+      const joinState = sessionStorage.getItem('fixtureJoinState') ?? 'pending';
+      if (path === '/api/v1/collections/join-requests/mine') return { items: query.has('fixturePendingJoin') && account !== 'B' && joinState === 'pending'
+        ? [{ requestId: 901, publicId: 'pending-public-id', name: '참여 승인 대기 컬렉션', icon: 'Folder', color: 'Blue', iconImageUrl: null }] : [] };
+      if (path === '/api/v1/collections/join-requests/mine/901' && method === 'DELETE') {
+        if (query.has('fixtureCancelFailure')) throw new ApiHttpError(503, null);
+        await new Promise(resolve => setTimeout(resolve, 150));
+        sessionStorage.setItem('fixtureJoinState', 'withdrawn'); return undefined;
+      }
       if (path.startsWith('/api/v1/collections?')) return { items: [
+        ...(joinState === 'approved' ? [{ id: 901, name: '참여 승인 대기 컬렉션', icon: 'Folder', color: null, itemCount: 0, isFavorite: false, accessRole: 'viewer' }] : []),
         ...(accepted ? [{ id: 1, name: 'Accepted collection', icon: 'Folder', color: null, itemCount: 0, isFavorite: false, accessRole: 'viewer' }] : []),
         { id: 10, name: '잡동사니', icon: 'Folder', color: 'Blue', itemCount: 8, isFavorite: true, accessRole: 'owner', hasCollaborators: true, attentionCount: proposals.length + newLinks, unreadNewLinkCount: newLinks, pendingSubmissionCount: proposals.length, pendingJoinRequestCount: 0 },
         { id: 11, name: '웹툰', icon: 'Folder', color: 'Blue', itemCount: 5, isFavorite: true, accessRole: 'viewer', attentionCount: 0 },

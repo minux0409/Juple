@@ -45,6 +45,8 @@ public sealed class CollectionJoinServiceTests
 
     private sealed class FakeJoinStore(CollectionJoinStoreResult result) : ICollectionJoinStore
     {
+        public Task CancelMineAsync(long userId, long requestId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
         public int Calls { get; private set; }
 
         public int SaveCalls { get; private set; }
@@ -230,7 +232,7 @@ public sealed class CollectionJoinServiceTests
     {
         var methods = typeof(ICollectionJoinService).GetMethods().Select(method => method.Name).OrderBy(name => name).ToList();
 
-        Assert.Equal(["ApproveAsync", "ListAsync", "ListMineAsync", "RejectAsync", "RequestAsync", "SavePublicAsync"], methods);
+        Assert.Equal(["ApproveAsync", "CancelMineAsync", "ListAsync", "ListMineAsync", "RejectAsync", "RequestAsync", "SavePublicAsync"], methods);
         // Membership policy comes from IsPublic alone: no method takes a role, a permission or a mode.
         foreach (var method in typeof(ICollectionJoinService).GetMethods().Concat(typeof(ICollectionJoinStore).GetMethods()))
         {

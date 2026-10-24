@@ -386,7 +386,7 @@
     "nickname": "Biệt danh",
     "nicknameNotSet": "Chưa đặt",
     "webBannerTitle": "Juple cũng có phiên bản web",
-    "webBannerBody": "Truy cập juple.co.kr trên PC để quản lý liên kết và bộ sưu tập đã lưu."
+    "webBannerBody": "Dễ dàng quản lý liên kết và bộ sưu tập đã lưu trên PC."
   },
   "profile": {
     "edit": "Chỉnh sửa hồ sơ",
@@ -542,6 +542,8 @@
     "collectionLinkNotSavable": "Liên kết bộ sưu tập Juple không thể lưu như liên kết thường. Hãy mở nó như một bộ sưu tập."
   },
   "sharedCollection": {
+    "cancelJoinTitle": "Hủy yêu cầu tham gia?",
+    "cancelJoinMessage": "Yêu cầu tham gia bộ sưu tập này của bạn sẽ được rút lại.",
     "itemsEmpty": "Bộ sưu tập được chia sẻ này chưa có liên kết nào được lưu.",
     "unavailableTitle": "Liên kết chia sẻ này không khả dụng.",
     "unavailableMessage": "Có thể đã ngừng chia sẻ hoặc liên kết không chính xác.",

@@ -733,6 +733,13 @@ public sealed class CollectionsController(
             items => Ok(new MyJoinRequestsResponse(items)),
             cancellationToken);
 
+    /// <summary>Withdraws only the caller's own still-pending join request. No Collection or membership is deleted.</summary>
+    [HttpDelete("join-requests/mine/{requestId:long}")]
+    public Task<IActionResult> CancelMyJoinRequestAsync(long requestId,
+        [FromServices] Juple.Application.Collections.Join.ICollectionJoinService joinService,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(userId => joinService.CancelMineAsync(userId, requestId, cancellationToken), cancellationToken);
+
     /// <summary>The Owner's list of people waiting to join, oldest first (cursor = the last row's requestId). Owner only.</summary>
     [HttpGet("{id:long}/join-requests")]
     public Task<IActionResult> ListJoinRequestsAsync(

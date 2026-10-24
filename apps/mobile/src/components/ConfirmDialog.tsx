@@ -5,6 +5,7 @@ import { DialogActions } from './DialogActions';
 
 interface ConfirmDialogProps {
   readonly visible: boolean;
+  readonly busy?: boolean;
   readonly title: string;
   readonly message: string;
   /** Omit together with onCancel to render a single-button, alert-only variant (no cancel action). */
@@ -37,6 +38,7 @@ interface ConfirmDialogProps {
  */
 export function ConfirmDialog({
   visible,
+  busy = false,
   title,
   message,
   cancelLabel,
@@ -47,7 +49,7 @@ export function ConfirmDialog({
   children,
   dismissable = true,
 }: ConfirmDialogProps) {
-  const dismiss = dismissable ? (onCancel ?? onConfirm) : ignoreDismissRequest;
+  const dismiss = dismissable && !busy ? (onCancel ?? onConfirm) : ignoreDismissRequest;
 
   // A single-button NOTICE with nothing to say (an empty message) is nothing to show. A caller whose failure was already explained
   // elsewhere - the subscription prompt - passes '' as its message (see isHandledSubscriptionRefusal); the dialog is answered as
@@ -79,8 +81,8 @@ export function ConfirmDialog({
           <View style={styles.actions}>
             <DialogActions
               actions={[
-                ...(onCancel && cancelLabel ? [{ label: cancelLabel, onPress: onCancel, tone: 'secondary' as const }] : []),
-                { label: confirmLabel, onPress: onConfirm, tone: destructive ? ('destructive' as const) : ('neutral' as const) },
+                ...(onCancel && cancelLabel ? [{ label: cancelLabel, onPress: onCancel, disabled: busy, tone: 'secondary' as const }] : []),
+                { label: confirmLabel, onPress: onConfirm, disabled: busy, busy, tone: destructive ? ('destructive' as const) : ('neutral' as const) },
               ]}
             />
           </View>

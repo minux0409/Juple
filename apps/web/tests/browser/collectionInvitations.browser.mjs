@@ -520,3 +520,52 @@ it('받은 초대 요청: the Owner is the avatar with Juple\'s crown and the na
     }
   } finally { await tab.close(); }
 });
+
+for (const width of [1280,393,320]) for (const theme of ['light','dark']) {
+ it(`pending joins: list/grid, confirmation, cancellation and refresh ${width}px ${theme}`, async () => {
+  const url=`${origin}/invitation-test-harness?tab=shared&fixtureCount=0&fixturePendingJoin=1`;
+  const tab=await openFixture(url);
+  try {
+   await tab.send('Emulation.setDeviceMetricsOverride',{width,height:850,deviceScaleFactor:1,mobile:false});
+   await tab.until(`!!document.querySelector('[data-pending-join="901"]')`);
+   await tab.evaluate(`document.documentElement.dataset.theme='${theme}'`);
+   assert.equal(await tab.evaluate(`document.querySelector('[data-pending-join="901"]').textContent.includes('승인 대기 중')`),true);
+   assert.equal(await tab.evaluate(`document.querySelector('[data-pending-join="901"] a')===null`),true);
+   assert.equal(await tab.evaluate(`document.documentElement.scrollWidth<=innerWidth`),true);
+   await tab.evaluate(`document.querySelector('button[aria-label="목록 보기"]').click()`);
+   await tab.until(`document.querySelector('button[aria-label="목록 보기"]').getAttribute('aria-pressed')==='true'`);
+   assert.equal(await tab.evaluate(`document.querySelector('[data-pending-join="901"]').className.includes('pendingJoinGrid')`),false);
+   await capture(tab,`pending-list-${width}-${theme}`);
+   await tab.evaluate(`document.querySelector('button[aria-label="그리드 보기"]').click()`);
+   await tab.until(`document.querySelector('[data-pending-join="901"]').className.includes('pendingJoinGrid')`);
+   await capture(tab,`pending-grid-${width}-${theme}`);
+
+   await tab.evaluate(`document.querySelector('[data-pending-join="901"]').click()`);
+   await tab.until(`document.querySelector('dialog[open]')?.textContent.includes('승인 대기 중')`);
+   await tab.evaluate(`[...document.querySelectorAll('dialog[open] button')].find(b=>b.textContent==='요청 취소').click()`);
+   await tab.until(`document.querySelector('dialog[open]')?.textContent.includes('참여 요청을 취소할까요?')`);
+   assert.equal(await tab.evaluate(`sessionStorage.getItem('fixtureJoinState')`),null);
+   await capture(tab,`pending-${width}-${theme}`);
+   await tab.evaluate(`[...document.querySelectorAll('dialog[open] button')].find(b=>b.textContent==='요청 취소').click()`);
+   await tab.until(`!document.querySelector('[data-pending-join="901"]')`);
+   await tab.send('Page.reload');
+   await tab.until(`!!document.querySelector('[data-collection-search]')`);
+   assert.equal(await tab.evaluate(`document.querySelector('[data-pending-join="901"]')===null`),true);
+  } finally {await tab.close();}
+ });
+}
+it('pending cancellation failure keeps the card; approval refresh replaces it with a member card',async()=>{
+ const tab=await openFixture(`${origin}/invitation-test-harness?tab=shared&fixtureCount=0&fixturePendingJoin=1&fixtureCancelFailure=1`);
+ try {
+  await tab.until(`!!document.querySelector('[data-pending-join="901"]')`);
+  await tab.evaluate(`document.querySelector('[data-pending-join="901"]').click()`);
+  await tab.until(`!!document.querySelector('dialog[open]')`);
+  await tab.evaluate(`[...document.querySelectorAll('dialog[open] button')].find(b=>b.textContent==='요청 취소').click()`);
+  await tab.until(`document.querySelector('dialog[open]').textContent.includes('참여 요청을 취소할까요?')`);
+  await tab.evaluate(`[...document.querySelectorAll('dialog[open] button')].find(b=>b.textContent==='요청 취소').click()`);
+  await tab.until(`!!document.querySelector('dialog[open] [role="alert"]')`);
+  assert.equal(await tab.evaluate(`!!document.querySelector('[data-pending-join="901"]')`),true);
+  await tab.evaluate(`sessionStorage.setItem('fixtureJoinState','approved');window.dispatchEvent(new Event('focus'))`);
+  await tab.until(`!document.querySelector('[data-pending-join="901"]') && !!document.querySelector('a[href="/collections/901"]')`);
+ }finally{await tab.close();}
+});

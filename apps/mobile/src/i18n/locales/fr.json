@@ -386,7 +386,7 @@
     "nickname": "Surnom",
     "nicknameNotSet": "Non défini",
     "webBannerTitle": "Juple est aussi disponible sur le Web",
-    "webBannerBody": "Sur votre PC, accédez à juple.co.kr pour gérer vos liens et collections enregistrés."
+    "webBannerBody": "Gérez facilement vos liens et collections enregistrés sur votre PC aussi."
   },
   "profile": {
     "edit": "Modifier le profil",
@@ -542,6 +542,8 @@
     "collectionLinkNotSavable": "Un lien de collection Juple ne peut pas être enregistré comme lien ordinaire. Ouvrez-le comme collection."
   },
   "sharedCollection": {
+    "cancelJoinTitle": "Annuler la demande d’accès ?",
+    "cancelJoinMessage": "Votre demande pour rejoindre cette collection sera retirée.",
     "itemsEmpty": "Cette collection partagée n'a pas encore de liens enregistrés.",
     "unavailableTitle": "Ce lien partagé n'est pas disponible.",
     "unavailableMessage": "Le partage a peut-être été désactivé, ou le lien est incorrect.",

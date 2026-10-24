@@ -2386,15 +2386,19 @@ a.imageBody:hover .imageTile img {
 }
 
 .passwordRow {
+  position: relative;
   display: flex;
   gap: 8px;
   width: 100%;
 }
 
 .passwordRow .textInput {
+  padding-inline-end: 48px;
   flex: 1 1 auto;
   min-width: 0;
 }
+
+.passwordToggle { position: absolute; inset-inline-end: 2px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 8px; background: transparent; color: var(--app-text-secondary); cursor: pointer; }
 
 .unlockPanel .primaryAction {
   width: 100%;
@@ -3238,6 +3242,10 @@ a.imageBody:hover .imageTile img {
   font-size: 14px;
   line-height: 1.5;
 }
+
+.shareEntryCard form { width: 100%; }
+.shareEntryCard .passwordRow .textInput { width: 100%; }
+.shareEntryCard .shareEntryActions { margin-top: 0; }
 
 .shareEntryActions {
   display: flex;
@@ -8196,7 +8204,6 @@ button.reactionChipMine:hover {
 .recentScroll > .linkGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .collectionGateCenter { display: flex; align-items: center; justify-content: center; min-height: min(560px, 60svh); width: 100%; padding: 16px 0; }
 .collectionGateCenter .unlockPanel { width: min(100%, 440px); margin: 0; min-width: 0; }
-.collectionGateCenter .unlockError { height: 72px; min-height: 72px; overflow-y: auto; overflow-wrap: anywhere; }
 @media (max-width: 400px) { .collectionGateCenter .unlockPanel { padding: 20px 12px; } }
 
 .photoEditor { position: relative; overflow: hidden; border-radius: 16px; min-height: 160px; display: grid; place-items: center; background: var(--app-surface-muted); }
@@ -8216,6 +8223,17 @@ button.reactionChipMine:hover {
 .recentScroll .cardImage { height: 96px; }
 .recentSection .sectionBar { flex-wrap: wrap; gap: 8px; }
 
+
+.pendingJoinProfile { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 16px 0; overflow-wrap: anywhere; }
+.pendingJoinProfile > div { opacity: .45; }
+.pendingJoinDialogBody { padding: 16px 20px 20px; }
+.pendingJoinCard { display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; padding: 16px; border: 0; background: var(--app-surface); color: var(--app-text-secondary); text-align: start; cursor: pointer; border-radius: var(--radius-card); }
+.pendingJoinGrid { flex-direction: column; text-align: center; height: 100%; }
+.pendingJoinTile { position: relative; flex: 0 0 auto; }
+.pendingJoinTile > div { opacity: .45; }
+.pendingJoinStatus { position: absolute; inset: 0; display: grid; place-items: center; }
+.pendingJoinText { display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.pendingJoinText span { font-size: 12px; }
 
 .tourRoot {
   position: fixed;

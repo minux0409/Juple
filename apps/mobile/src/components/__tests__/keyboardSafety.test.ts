@@ -27,6 +27,7 @@ const HOSTED_OR_TOP_OF_SCREEN: Readonly<Record<string, string>> = {
   'collections/CollectionUnlockPanel.tsx': 'rendered only inside KeyboardSafeView hosts (CollectionUnlockDialog, the Collection screen gate, SharePasswordCard)',
   'comments/CommentComposer.tsx': 'rendered by CollectionSharedItemScreen (inside a KeyboardSafeView) and ItemDetailsScreen (whose sheet moves for whichever editor is focused - see below)',
   'components/ContentPreviewCard.tsx': 'rendered by CollectionSharedItemScreen, which holds it in a KeyboardSafeView',
+  'components/PasswordInput.tsx': 'shared input wrapper; both CollectionUnlockPanel and SharedCollectionScreen hosts are audited below',
   'components/SearchField.tsx': 'the Archive search sits at the top of its list - the keyboard never covers it',
   'screens/DailyInboxScreen.tsx': 'the link field sits at the top of Home - the keyboard never covers it',
   'screens/FriendsScreen.tsx': 'the friend search sits at the top of its list - the keyboard never covers it',
@@ -48,7 +49,7 @@ function sourceFiles(dir: string): string[] {
 
 describe('every TextInput is keyboard-safe by construction', () => {
   const withInput = sourceFiles(SRC)
-    .filter(file => /<ThemedTextInput\b/.test(fs.readFileSync(file, 'utf8')))
+    .filter(file => /<(?:ThemedTextInput|PasswordInput)\b/.test(fs.readFileSync(file, 'utf8')))
     .map(file => path.relative(SRC, file).split(path.sep).join('/'));
 
   it('finds the known input holders (guards the scan itself)', () => {

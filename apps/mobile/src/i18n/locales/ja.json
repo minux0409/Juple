@@ -386,7 +386,7 @@
     "nickname": "ニックネーム",
     "nicknameNotSet": "未設定",
     "webBannerTitle": "Jupleはウェブでも利用できます",
-    "webBannerBody": "PCでjuple.co.krにアクセスして、保存したリンクやコレクションを管理しましょう。"
+    "webBannerBody": "PCでも保存したリンクとコレクションを便利に管理できます。"
   },
   "profile": {
     "edit": "プロフィールを編集",
@@ -542,6 +542,8 @@
     "collectionLinkNotSavable": "Jupleのコレクション共有リンクは通常のリンクとして保存できません。コレクションとして開いてください。"
   },
   "sharedCollection": {
+    "cancelJoinTitle": "参加リクエストを取り消しますか？",
+    "cancelJoinMessage": "このコレクションへの参加リクエストが取り消されます。",
     "itemsEmpty": "この共有コレクションにはまだ保存されたリンクがありません。",
     "unavailableTitle": "このリンクは現在利用できません。",
     "unavailableMessage": "共有が解除されたか、リンクが正しくない可能性があります。",
