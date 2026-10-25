@@ -297,7 +297,7 @@ export function ItemDetailContent({
             </dd>
           </div>
         ) : null}
-        <div className={styles.quickGroup}>
+        <div className={`${styles.quickGroup} ${styles.collectionsGroup}`}>
           <dt className={styles.quickLabel}>
             <Glyph name="Folder" size={16} />
             {dictionary.collectionsLabel}

@@ -9028,9 +9028,10 @@ button.reactionChipMine:hover {
   column-gap: 8px;
 }
 
-/* 저장일: the date sits right after its label (8px), start-aligned like "Added by [avatar]" - not in a far value column. A long label or date wraps inside its own column. */
+/* 저장일 and 컬렉션: the value (date / chips) sits right after its label (8px), start-aligned like "Added by [avatar]" - not in a far value column. A long label or date wraps inside its own column. */
 .quickGroup.savedGroup,
-.infoRow.savedGroup {
+.infoRow.savedGroup,
+.quickGroup.collectionsGroup {
   grid-template-columns: max-content minmax(0, 1fr);
   justify-content: start;
   align-items: baseline;

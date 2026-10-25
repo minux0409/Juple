@@ -291,10 +291,22 @@ describe('Saved date sits right after its label', () => {
       assert.match(source(file), /styles\.savedGroup\}`\}>\s*<dt className=\{styles\.(quick|info)Label\}>\s*<Glyph name="Clock"/, file);
     }
     const css = source('app/(app)/app.module.css');
-    const rule = css.match(/\.quickGroup\.savedGroup,\s*\.infoRow\.savedGroup \{([^}]*)\}/)?.[1] ?? '';
+    const rule = css.match(/\.quickGroup\.savedGroup,\s*\.infoRow\.savedGroup,\s*\.quickGroup\.collectionsGroup \{([^}]*)\}/)?.[1] ?? '';
     assert.match(rule, /grid-template-columns: max-content minmax\(0, 1fr\);/);
     assert.match(rule, /justify-content: start;/);
     assert.match(rule, /column-gap: 8px;/);
     assert.doesNotMatch(rule, /space-between/);
+  });
+});
+
+describe('Collections row of the own link detail sits right after its label', () => {
+  it('the 컬렉션 row uses the same label-width + 8px start-aligned grid; the chips keep their own wrapping 8px gap', () => {
+    assert.match(source('app/(app)/items/[itemId]/ItemDetailContent.tsx'), /styles\.collectionsGroup\}`\}>\s*<dt className=\{styles\.quickLabel\}>\s*<Glyph name="Folder"/);
+    const css = source('app/(app)/app.module.css');
+    const rule = css.match(/\.quickGroup\.collectionsGroup \{([^}]*)\}/)?.[1] ?? '';
+    assert.match(rule, /grid-template-columns: max-content minmax\(0, 1fr\);/);
+    assert.match(rule, /column-gap: 8px;/);
+    assert.doesNotMatch(rule, /space-between/);
+    assert.match(css, /\.collectionChips \{\s*display: flex;\s*flex-wrap: wrap;\s*gap: 8px;/);
   });
 });
