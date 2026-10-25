@@ -9027,3 +9027,12 @@ button.reactionChipMine:hover {
   align-items: center;
   column-gap: 8px;
 }
+
+/* 저장일: the date sits right after its label (8px), start-aligned like "Added by [avatar]" - not in a far value column. A long label or date wraps inside its own column. */
+.quickGroup.savedGroup,
+.infoRow.savedGroup {
+  grid-template-columns: max-content minmax(0, 1fr);
+  justify-content: start;
+  align-items: baseline;
+  column-gap: 8px;
+}

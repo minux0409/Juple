@@ -79,7 +79,7 @@ export function SharedItemView({ collectionIdParam, itemIdParam }: { readonly co
                 </dd>
               </div>
             ) : null}
-            <div className={styles.infoRow}>
+            <div className={`${styles.infoRow} ${styles.savedGroup}`}>
               <dt className={styles.infoLabel}>
                 <Glyph name="Clock" size={16} />
                 {dictionary.savedAt}

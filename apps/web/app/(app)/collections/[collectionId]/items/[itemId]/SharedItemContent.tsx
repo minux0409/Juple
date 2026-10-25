@@ -277,7 +277,7 @@ export function SharedItemQuickContent({ collectionIdParam, itemIdParam }: { rea
             </dd>
           </div>
         ) : null}
-        <div className={styles.quickGroup}>
+        <div className={`${styles.quickGroup} ${styles.savedGroup}`}>
           <dt className={styles.quickLabel}>
             <Glyph name="Clock" size={16} />
             {dictionary.savedAt}

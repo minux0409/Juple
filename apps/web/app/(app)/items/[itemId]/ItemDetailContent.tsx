@@ -306,7 +306,7 @@ export function ItemDetailContent({
             <ItemCollections dictionary={dictionary} onRetry={reloadCollections} state={collections} />
           </dd>
         </div>
-        <div className={styles.quickGroup}>
+        <div className={`${styles.quickGroup} ${styles.savedGroup}`}>
           <dt className={styles.quickLabel}>
             <Glyph name="Clock" size={16} />
             {dictionary.savedAt}

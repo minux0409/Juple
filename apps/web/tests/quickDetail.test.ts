@@ -284,3 +284,17 @@ describe('Saved date in every link detail (own and shared, sheet and page)', () 
     assert.equal(savedAtOf('not a date', 'ko-KR'), null);
   });
 });
+
+describe('Saved date sits right after its label', () => {
+  it('all four detail views mark the Saved row as savedGroup, and its grid is label-width + 8px, start-aligned', () => {
+    for (const file of ['app/(app)/items/[itemId]/ItemDetailContent.tsx', 'app/(app)/collections/[collectionId]/items/[itemId]/SharedItemContent.tsx', 'app/(app)/collections/[collectionId]/items/[itemId]/SharedItemView.tsx']) {
+      assert.match(source(file), /styles\.savedGroup\}`\}>\s*<dt className=\{styles\.(quick|info)Label\}>\s*<Glyph name="Clock"/, file);
+    }
+    const css = source('app/(app)/app.module.css');
+    const rule = css.match(/\.quickGroup\.savedGroup,\s*\.infoRow\.savedGroup \{([^}]*)\}/)?.[1] ?? '';
+    assert.match(rule, /grid-template-columns: max-content minmax\(0, 1fr\);/);
+    assert.match(rule, /justify-content: start;/);
+    assert.match(rule, /column-gap: 8px;/);
+    assert.doesNotMatch(rule, /space-between/);
+  });
+});
