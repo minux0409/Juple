@@ -170,7 +170,8 @@ describe('링크 저장 (/save) is never a Quick Detail sheet and never a full p
     const home = source('app/(app)/HomeView.tsx');
     const form = home.slice(home.indexOf('function AddLinkForm'));
     assert.match(form, /<form className=\{styles\.addLinkPanel\} noValidate onSubmit=\{submit\}>/, 'Enter submits the form');
-    assert.match(form, /<button className=\{styles\.primaryAction\} disabled=\{!value\.trim\(\)\} type="submit"(?: \{\.\.\.tourTarget\(TOUR_TARGETS\.homeCheck\)\})?>/, 'Save is a submit button of the same form');
+    assert.match(form, /<button aria-label=\{dictionary\.save\} className=\{styles\.addLinkSubmit\} disabled=\{!value\.trim\(\)\} title=\{dictionary\.save\} type="submit"(?: \{\.\.\.tourTarget\(TOUR_TARGETS\.homeCheck\)\})?>\s*<Glyph name="Search" size=\{20\} \/>/, 'the magnifier is a labelled submit button of the same form (no Save text)');
+    assert.doesNotMatch(form, />\s*\{dictionary\.save\}\s*<\/button>/);
     assert.match(form, /const url = normalizeEnteredUrl\(value\);[\s\S]*openReview\(url, href => router\.push\(href\)\);/);
     // The one client navigation on Home is a Juple Collection share link going to its Collection flow - never the review.
     assert.deepEqual(home.match(/router\.(push|replace)\([^)]*\)/g), ['router.push(destination.href)', 'router.push(href)']);
@@ -232,5 +233,30 @@ describe('Quick Detail sheet: another member\'s link in a Collection (no context
 
   it('Home opens 링크 저장 by a client navigation (no login-check screen in between)', () => {
     assert.match(source('app/(app)/HomeView.tsx'), /openReview\(url, href => router\.push\(href\)\)/);
+  });
+});
+
+describe('shared link detail: Added by shows the adder\'s avatar right after the label', () => {
+  it('both the sheet and the page draw the real adder\'s Avatar (adderViewOf), left-aligned with an 8px gap', () => {
+    const content = source('app/(app)/collections/[collectionId]/items/[itemId]/SharedItemContent.tsx');
+    const view = source('app/(app)/collections/[collectionId]/items/[itemId]/SharedItemView.tsx');
+    assert.match(content, /const view = adderViewOf\(item\.addedBy\);/, 'the person comes from the link\'s own addedBy, never the Collection owner');
+    assert.match(content, /<Avatar person=\{\{ displayName: view\.name, profileImageUrl: view\.profileImageUrl,/);
+    assert.match(content, /aria-label=\{name\}/, 'the name stays for assistive technology');
+    assert.match(content, /<AdderValue adder=\{adder\} dictionary=\{dictionary\} item=\{item\} \/>/);
+    assert.match(view, /<AdderValue adder=\{adder\} dictionary=\{dictionary\} item=\{item\} \/>/);
+    const css = source('app/(app)/app.module.css');
+    assert.match(css, /\.quickGroup\.adderGroup,\s*\.infoRow\.adderGroup \{[^}]*justify-content: start;[^}]*column-gap: 8px;/);
+  });
+});
+
+describe('Home magnifier colour', () => {
+  it('is the brand violet itself (--brand, #6751fc in both themes) and is never dimmed, even while the field is empty', () => {
+    const css = source('app/(app)/app.module.css');
+    const rule = css.match(/\.addLinkSubmit \{([^}]*)\}/)?.[1] ?? '';
+    assert.match(rule, /color: var\(--brand\);/);
+    assert.doesNotMatch(rule, /brand-text|opacity/);
+    assert.doesNotMatch(css.match(/\.addLinkSubmit:disabled \{([^}]*)\}/)?.[1] ?? '', /opacity/);
+    assert.equal([...css.matchAll(/^ {2}--brand: (#[0-9a-f]{6});/gm)].every(match => match[1] === '#6751fc'), true);
   });
 });

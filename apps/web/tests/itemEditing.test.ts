@@ -452,7 +452,7 @@ describe('Web V2: the mobile design language (theme/tokens.ts) as one token laye
 
   it('colors are the mobile values: background, surface, soft border, secondary text, brand, danger, favorite', () => {
     const tokens = css.slice(css.indexOf('.shell,'), css.indexOf('@media (prefers-color-scheme: dark)'));
-    for (const value of ['--app-background: #f7f9fc', '--app-surface: #ffffff', '--app-surface-muted: #f1f4f9', '--app-text: #111111', '--app-text-secondary: #666666', '--app-border: #dde4ef', '--app-divider: #edf1f7', '--brand: #3366cc', '--brand-soft: #e9f0fe', '--danger: #b42318', '--warning: #f5a623']) {
+    for (const value of ['--app-background: #f7f9fc', '--app-surface: #ffffff', '--app-surface-muted: #f1f4f9', '--app-text: #111111', '--app-text-secondary: #666666', '--app-border: #dde4ef', '--app-divider: #edf1f7', '--brand: #6751fc', '--brand-soft: #eeebff', '--danger: #ff8a8a', '--warning: #f5a623']) {
       assert.ok(tokens.includes(value), value);
     }
     for (const name of ['--juple-bg', '--surface', '--surface-soft', '--text', '--text-secondary', '--border', '--favorite', '--radius-sm', '--radius-md', '--radius-lg', '--radius-xl', '--space-7', '--space-8', '--shadow-card', '--shadow-floating']) {
@@ -479,8 +479,8 @@ describe('Web V2: the mobile design language (theme/tokens.ts) as one token laye
       assert.match(text, /background: var\(--surface-soft\);/);
     }
     const selected = block('}\n\n.filterTabSelected');
-    assert.match(selected, /border-color: var\(--brand\);[\s\S]*background: var\(--brand-soft\);[\s\S]*color: var\(--brand\);/);
-    assert.match(block('}\n\n.toggleButtonSelected'),/border-color: var\(--brand\);[\s\S]*background: var\(--brand-soft\);[\s\S]*color: var\(--brand\);/);
+    assert.match(selected, /border-color: var\(--brand-text\);[\s\S]*background: var\(--brand-soft\);[\s\S]*color: var\(--brand-text\);/);
+    assert.match(block('}\n\n.toggleButtonSelected'),/border-color: var\(--brand-text\);[\s\S]*background: var\(--brand-soft\);[\s\S]*color: var\(--brand-text\);/);
     // one component per switch kind, shared by every screen that has it
     for (const page of ['archive/ArchiveView.tsx', 'DateSections.tsx', 'HomeView.tsx', 'collections/CollectionsView.tsx']) {
       assert.doesNotMatch(source(`app/(app)/${page}`), /styles\.toggle\b|styles\.toggleButton/, page);

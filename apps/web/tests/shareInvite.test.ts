@@ -128,7 +128,7 @@ describe('participants and invitations: rows, roles, destructive actions', () =>
     assert.equal((sharing.match(/className=\{styles\.rowDanger\}\s*data-destructive/g) ?? []).length, 2);
     const danger = rule('.rowDanger');
     assert.match(danger, /background: transparent;/);
-    assert.match(danger, /color: var\(--danger\);/);
+    assert.match(danger, /color: var\(--danger-text\);/);
     assert.match(css, /\.rowDanger:hover:not\(:disabled\),\n\.rowDanger:focus-visible \{\s*background: var\(--danger-soft\);/);
   });
 

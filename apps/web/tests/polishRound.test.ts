@@ -146,7 +146,7 @@ describe('Friend picker List | Grid', () => {
     assert.match(css, /\.friendPickGrid \{[^}]*grid-template-columns: repeat\(auto-fill, minmax\(104px, 1fr\)\)/);
     // Rows keep their own height (a taller container must not stretch the tiles' rows apart).
     assert.match(css, /\.friendPickGrid \{[^}]*align-content: start;/);
-    assert.match(css, /\.friendPickTileSelected \{[^}]*border: 2px solid var\(--brand\)/);
+    assert.match(css, /\.friendPickTileSelected \{[^}]*border: 2px solid var\(--brand-text\)/);
   });
 });
 

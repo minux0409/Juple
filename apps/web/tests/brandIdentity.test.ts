@@ -23,11 +23,28 @@ describe('Juple identity (the app icon colours) - behaviour, not snapshots', () 
     assert.match(css, /--brand-gradient: linear-gradient\(135deg, var\(--juple-orange\)/);
   });
 
-  it('white text on the primary action stays at AA contrast along the whole gradient', () => {
-    const match = css.match(/--brand-cta: linear-gradient\(135deg, (#[0-9a-f]{6}) 0%, (#[0-9a-f]{6}) 100%\)/);
-    assert.ok(match, 'the CTA gradient is a token');
-    for (const colour of [match[1], match[2]]) {
-      assert.ok(contrast('#ffffff', colour) >= 4.5, `${colour} ${contrast('#ffffff', colour).toFixed(2)}`);
+  it('the primary action is the one brand colour (the wordmark e), white text on it stays at AA contrast, in both themes', () => {
+    assert.match(css, /--brand-cta: var\(--brand\);/, 'the CTA is the brand token');
+    const brands = [...css.matchAll(/^ {2}--brand: (#[0-9a-f]{6});/gm)].map(match => match[1]);
+    assert.deepEqual(brands, ['#6751fc', '#6751fc'], 'Light and Dark share one primary colour, equal to --juple-violet');
+    assert.ok(contrast('#ffffff', brands[0]) >= 4.5, `${contrast('#ffffff', brands[0]).toFixed(2)}`);
+    const dangers = [...css.matchAll(/^ {2}--danger: (#[0-9a-f]{6});/gm)].map(match => match[1]);
+    assert.deepEqual(dangers, ['#ff8a8a', '#ff8a8a'], 'Light and Dark share one destructive coral');
+    assert.ok(contrast('#2b0a0a', '#ff8a8a') >= 4.5, 'the label on the coral fill');
+  });
+
+  it('brand / danger as TEXT and OUTLINE have their own tokens that meet WCAG on the surfaces they sit on, in both themes', () => {
+    const token = (name: string, theme: 0 | 1) => [...css.matchAll(new RegExp(`^ {2}--${name}: (#[0-9a-f]{6})`, 'gm'))].map(match => match[1])[theme];
+    const surfaces = (theme: 0 | 1) => ['app-surface', 'app-background', 'app-surface-muted'].map(name => token(name, theme));
+    for (const theme of [0, 1] as const) {
+      for (const surface of [...surfaces(theme), token('brand-soft', theme)]) {
+        assert.ok(contrast(token('brand-text', theme), surface) >= 4.5, `brand-text ${theme} on ${surface}`);
+      }
+      for (const surface of [...surfaces(theme), token('danger-soft', theme)]) {
+        assert.ok(contrast(token('danger-text', theme), surface) >= 4.5, `danger-text ${theme} on ${surface}`);
+        assert.ok(contrast(token('danger-border', theme), surface) >= 3, `danger-border ${theme} on ${surface}`);
+      }
+      assert.ok(contrast(token('on-brand', theme) ?? '#ffffff', token('brand', theme)) >= 4.5);
     }
   });
 

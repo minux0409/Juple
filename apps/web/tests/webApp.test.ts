@@ -384,10 +384,10 @@ describe('who the signed-in person is shown as', async () => {
     assert.equal(accountLabel({ profile: null, accountName: ' Unknown ' }, ko.accountFallback), '계정');
   });
 
-  it('Juple\'s own identity first (the mobile 내 페이지): the nickname, else @XXXX-XXXX', () => {
+  it('Juple\'s own identity first (the mobile 내 페이지): the nickname, else @XXXXXXXX', () => {
     assert.equal(accountLabel({ profile: { displayName: '쥬플리', jupleId: 'ABCD2345' }, accountName: 'unknown' }, ko.accountFallback), '쥬플리');
-    assert.equal(accountLabel({ profile: { displayName: null, jupleId: 'ABCD2345' }, accountName: 'unknown' }, ko.accountFallback), '@ABCD-2345');
-    assert.equal(accountLabel({ profile: { displayName: '  ', jupleId: 'ABCD2345' } }, ko.accountFallback), '@ABCD-2345');
+    assert.equal(accountLabel({ profile: { displayName: null, jupleId: 'ABCD2345' }, accountName: 'unknown' }, ko.accountFallback), '@ABCD2345');
+    assert.equal(accountLabel({ profile: { displayName: '  ', jupleId: 'ABCD2345' } }, ko.accountFallback), '@ABCD2345');
   });
 
   it('without the profile: the sign-in\'s real name, then its sign-in name, then 계정', () => {
@@ -397,7 +397,7 @@ describe('who the signed-in person is shown as', async () => {
   });
 
   it('formats the Juple ID like the mobile app', () => {
-    assert.equal(formatJupleId('WNER2345'), 'WNER-2345');
+    assert.equal(formatJupleId('WNER2345'), 'WNER2345');
     assert.equal(formatJupleId('SHORT'), 'SHORT');
   });
 });
@@ -560,7 +560,7 @@ describe('Item Details', async () => {
   });
 
   it('who added a shared link: a name, else the Juple ID; a public-link add is never identified', () => {
-    assert.deepEqual(items.adderLabel({ kind: 'member', jupleId: 'ABCD2345', displayName: null }), { kind: 'person', name: 'ABCD-2345' });
+    assert.deepEqual(items.adderLabel({ kind: 'member', jupleId: 'ABCD2345', displayName: null }), { kind: 'person', name: 'ABCD2345' });
     assert.deepEqual(items.adderLabel({ kind: 'owner', jupleId: 'ABCD2345', displayName: '민' }), { kind: 'person', name: '민' });
     assert.deepEqual(items.adderLabel({ kind: 'publicLink', jupleId: 'ABCD2345' }), { kind: 'publicLink' });
     assert.equal(items.adderLabel({ kind: 'member' }), null);
@@ -756,5 +756,13 @@ describe('production image', () => {
     const users = [...runner.matchAll(/^USER (\S+)$/gm)].map(match => match[1]);
     assert.deepEqual(users, ['node']);
     assert.doesNotMatch(runner, /chmod|777|chown -R|--chown/);
+  });
+});
+
+describe('Juple ID display has no separator, while a typed hyphenated ID is still understood', () => {
+  it('shows the canonical form and strips a separator that came with the value', async () => {
+    const { formatJupleId } = await import('../lib/accountDisplay.ts');
+    assert.equal(formatJupleId('K7MP4Q8N'), 'K7MP4Q8N');
+    assert.equal(formatJupleId('K7MP-4Q8N'), 'K7MP4Q8N');
   });
 });

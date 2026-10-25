@@ -304,8 +304,8 @@ function AddLinkForm() {
           type="text"
           value={value}
         />
-        <button className={styles.primaryAction} disabled={!value.trim()} type="submit" {...tourTarget(TOUR_TARGETS.homeCheck)}>
-          {dictionary.save}
+        <button aria-label={dictionary.save} className={styles.addLinkSubmit} disabled={!value.trim()} title={dictionary.save} type="submit" {...tourTarget(TOUR_TARGETS.homeCheck)}>
+          <Glyph name="Search" size={20} />
         </button>
       </div>
       {error ? <p className={styles.fieldError} role="alert">{error}</p> : null}

@@ -10,7 +10,7 @@ import { linkTitleText } from '../../../../SavedLinkList';
 import { ItemPhoto, OpenLinkButton, SourceRow } from '../../../../ItemParts';
 import { ItemCollaboration } from '../../../../ItemCollaboration';
 import { useRouter } from 'next/navigation';
-import { adderText, useSaveSharedLink, useRemoveFromCollection, useSharedItem } from './SharedItemContent';
+import { AdderValue, useSaveSharedLink, useRemoveFromCollection, useSharedItem } from './SharedItemContent';
 import { ActionMenu } from '../../../../Popover';
 import styles from '../../../../app.module.css';
 
@@ -68,13 +68,13 @@ export function SharedItemView({ collectionIdParam, itemIdParam }: { readonly co
           <SourceRow url={item.url} />
           <dl className={styles.infoRows}>
             {adder ? (
-              <div className={styles.infoRow}>
+              <div className={`${styles.infoRow} ${styles.adderGroup}`}>
                 <dt className={styles.infoLabel}>
                   <Glyph name="People" size={16} />
                   {dictionary.addedBy}
                 </dt>
                 <dd className={styles.infoValue} dir="auto">
-                  {adderText(adder, dictionary)}
+                  <AdderValue adder={adder} dictionary={dictionary} item={item} />
                 </dd>
               </div>
             ) : null}

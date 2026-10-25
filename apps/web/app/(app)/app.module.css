@@ -1,7 +1,7 @@
 /*
  * The signed-in Web app - one small design system, then the screens built from it.
  *
- * Colors are the mobile app's own UI tokens (apps/mobile/src/theme/tokens.ts: background #F7F9FC, surface, brand #3366CC /
+ * Colors are the mobile app's own UI tokens (apps/mobile/src/theme/tokens.ts: background #F7F9FC, surface, brand #6751FC /
  * brandSoft, warning for the favorite star); the gradient app icon is the brand mark, never a UI color.
  * Shared rules: one content width, one card (radius / border / shadow), one control height (chips, toggles, buttons), one focus
  * ring. Layout: a side bar on wide screens and the content beside it; a top bar with a scrolling tab row on narrow ones.
@@ -27,20 +27,22 @@
   --app-text-tertiary: #8a919c;
   --app-divider: #edf1f7;
   --app-border: #dde4ef;
-  --brand: #3366cc;
-  --brand-soft: #e9f0fe;
+  --brand: #6751fc; /* the final "e" of the Juple wordmark (--juple-violet) - one primary colour for Light and Dark */
+  --brand-soft: #eeebff;
+  /* Brand colour as TEXT / outline: the fill (#6751fc) is 4.3:1 on --brand-soft, so Light uses a touch deeper violet (>= 4.5:1 everywhere). */
+  --brand-text: #5a44ee;
   --warning: #f5a623;
 
   /* Side bar destinations: semantic tokens, so a later theme only redefines these (no gradient on a navigation state). */
   --nav-hover-bg: var(--app-surface-hover);
-  --nav-active-bg: #f1f5fd;
-  --nav-active-fg: var(--brand);
+  --nav-active-bg: #f2f0ff;
+  --nav-active-fg: var(--brand-text);
   --nav-active-indicator: var(--brand);
   --nav-focus-ring: var(--brand);
 
   /* Text on a filled brand / danger surface, and the dimming layer behind dialogs: light values here, dark in the theme block below. */
   --on-brand: #ffffff;
-  --on-danger: #ffffff;
+  --on-danger: #2b0a0a;
   --scrim: rgba(16, 24, 40, 0.45);
   /* The guided tour's dimming: lighter than a dialog's scrim, so the page behind stays recognisable (the spotlight and card carry the focus). */
   --tour-scrim: rgba(16, 24, 40, 0.3);
@@ -57,8 +59,11 @@
   --text-secondary: var(--app-text-secondary);
   --border: var(--app-border);
   --favorite: var(--warning);
-  --danger: #b42318;
+  --danger: #ff8a8a; /* destructive: the same light coral in Light and Dark */
   --danger-soft: #fdecea;
+  /* Danger as text (>= 4.5:1) and as an outline (>= 3:1) on the Light surfaces; the coral fill itself is too light for either. */
+  --danger-text: #b42318;
+  --danger-border: #d92d3a;
   --success: #0f7a3d;
 
   /* Shape (mobile radii: card 20, large action 24 - a little restrained for a desktop pointer): */
@@ -150,16 +155,19 @@
   --app-text-tertiary: #8d95a3;
   --app-divider: #262c36;
   --app-border: #313846;
-  --brand: #7aa2ff;
-  --brand-soft: #1d2a45;
-  --on-brand: #0b1220;
+  --brand: #6751fc;
+  --brand-soft: #26224a;
+  --brand-text: #a99bff; /* the violet fill is ~3.4:1 on the dark cards; as text it is lifted to >= 4.5:1 */
+  --on-brand: #ffffff;
   --danger: #ff8a8a;
   --danger-soft: #3a1f22;
-  --on-danger: #2a0a0a;
+  --danger-text: #ff8a8a;
+  --danger-border: #ff8a8a;
+  --on-danger: #2b0a0a;
   --success: #4cc38a;
   --warning-text: #f5c26b;
   --warning-line: #5a4520;
-  --nav-active-bg: #1a2540;
+  --nav-active-bg: #231f45;
   --nav-hover-bg: var(--app-surface-hover);
   --nav-active-indicator: var(--brand);
   --nav-focus-ring: var(--brand);
@@ -257,8 +265,8 @@
 
 .secondaryButton:hover:not(:disabled) {
   background: var(--app-surface-hover);
-  border-color: var(--brand);
-  color: var(--brand);
+  border-color: var(--brand-text);
+  color: var(--brand-text);
 }
 
 .secondaryButton:disabled {
@@ -271,7 +279,7 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--brand);
+  color: var(--brand-text);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -323,9 +331,9 @@
 }
 
 .filterTabSelected {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 .sortArrow,
@@ -368,9 +376,9 @@
 }
 
 .toggleButtonSelected {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 .glyphList,
@@ -438,7 +446,7 @@
   height: 28px;
   margin: 32px auto;
   border: 3px solid var(--app-border);
-  border-top-color: var(--brand);
+  border-top-color: var(--brand-text);
   border-radius: 50%;
   animation: spin 0.9s linear infinite;
 }
@@ -561,7 +569,7 @@
 
 .navLinkActive {
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 .navIcon {
@@ -688,7 +696,7 @@
 }
 
 .badgeShared {
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 .favoriteBadge {
@@ -722,7 +730,7 @@
 }
 
 .linkCard:has(a:hover) {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   box-shadow: var(--shadow-raised);
 }
 
@@ -865,7 +873,7 @@
 }
 
 a.imageBody:hover .imageTile {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   box-shadow: var(--shadow-raised);
 }
 
@@ -964,7 +972,7 @@ a.imageBody:hover .imageTile img {
 }
 
 .collectionCard:has(a:hover) {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   box-shadow: var(--shadow-raised);
 }
 
@@ -1236,8 +1244,8 @@ a.imageBody:hover .imageTile img {
 }
 
 .collectionChip:hover {
-  border-color: var(--brand);
-  color: var(--brand);
+  border-color: var(--brand-text);
+  color: var(--brand-text);
 }
 
 .collectionChipTile {
@@ -1341,8 +1349,8 @@ a.imageBody:hover .imageTile img {
 }
 
 .settingsAction:hover {
-  border-color: var(--brand);
-  color: var(--brand);
+  border-color: var(--brand-text);
+  color: var(--brand-text);
 }
 
 /* ======================================================================================================================
@@ -1373,8 +1381,8 @@ a.imageBody:hover .imageTile img {
 
 .dangerAction {
   background: var(--app-surface);
-  border-color: var(--danger);
-  color: var(--danger);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
 }
 
 .primaryAction:hover:not(:disabled) {
@@ -1440,8 +1448,8 @@ a.imageBody:hover .imageTile img {
 }
 
 .iconButton:hover:not(:disabled) {
-  color: var(--brand);
-  border-color: var(--brand);
+  color: var(--brand-text);
+  border-color: var(--brand-text);
 }
 
 .iconButtonActive {
@@ -1449,8 +1457,8 @@ a.imageBody:hover .imageTile img {
 }
 
 .iconButtonDanger:hover:not(:disabled) {
-  color: var(--danger);
-  border-color: var(--danger);
+  color: var(--danger-text);
+  border-color: var(--danger-border);
 }
 
 .field,
@@ -1500,13 +1508,13 @@ a.imageBody:hover .imageTile img {
 }
 
 .textInput[aria-invalid='true'] {
-  border-color: var(--danger);
+  border-color: var(--danger-border);
 }
 
 .fieldError,
 .formError {
   margin: 0;
-  color: var(--danger);
+  color: var(--danger-text);
   font-size: 14px;
   line-height: 1.5;
   white-space: pre-line;
@@ -1632,11 +1640,11 @@ a.imageBody:hover .imageTile img {
 
 .iconOption:hover {
   color: var(--app-text);
-  border-color: var(--brand);
+  border-color: var(--brand-text);
 }
 
 .iconOptionSelected {
-  border: 2px solid var(--brand);
+  border: 2px solid var(--brand-text);
 }
 
 .swatchRow {
@@ -1724,11 +1732,11 @@ a.imageBody:hover .imageTile img {
 }
 
 .choice:hover:not(:disabled) {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
 }
 
 .choiceSelected {
-  border: 2px solid var(--brand);
+  border: 2px solid var(--brand-text);
   background: var(--brand-soft);
 }
 
@@ -1833,7 +1841,7 @@ a.imageBody:hover .imageTile img {
 }
 
 .settingsLinkRowDanger {
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 .settingsCard > * + * {
@@ -1846,7 +1854,7 @@ a.imageBody:hover .imageTile img {
 }
 
 .settingsLinkRow[aria-checked='true'] {
-  color: var(--brand);
+  color: var(--brand-text);
   font-weight: 700;
 }
 
@@ -1880,8 +1888,8 @@ a.imageBody:hover .imageTile img {
   width: 6px;
   height: 11px;
   margin-inline-end: 4px;
-  border-bottom: 2px solid var(--brand);
-  border-inline-end: 2px solid var(--brand);
+  border-bottom: 2px solid var(--brand-text);
+  border-inline-end: 2px solid var(--brand-text);
   transform: rotate(45deg);
 }
 
@@ -2095,7 +2103,7 @@ a.imageBody:hover .imageTile img {
   overflow: hidden;
   border-radius: 50%;
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
   font-weight: 700;
 }
 
@@ -2506,13 +2514,13 @@ a.imageBody:hover .imageTile img {
 }
 
 .addLinkField:focus-within {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   box-shadow: 0 0 0 3px var(--brand-soft);
 }
 
 .addLinkIcon {
   flex: 0 0 auto;
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 .addLinkInput {
@@ -2530,9 +2538,29 @@ a.imageBody:hover .imageTile img {
   outline: none;
 }
 
-.addLinkField .primaryAction {
-  min-height: var(--control-height-sm);
-  padding: 0 20px;
+/* The submit is the magnifier (as on mobile): an icon-only button in the brand text colour, a 44px target, same action as before. */
+.addLinkSubmit {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  /* The brand violet itself (#6751fc, the same as the primary buttons) in both themes - not the lighter text variant, and never dimmed, even while empty. */
+  color: var(--brand);
+  cursor: pointer;
+}
+
+.addLinkSubmit:hover:not(:disabled) {
+  background: var(--brand-soft);
+}
+
+.addLinkSubmit:disabled {
+  cursor: default;
 }
 
 .summaryGrid {
@@ -2600,8 +2628,8 @@ a.imageBody:hover .imageTile img {
 }
 
 .quickAction:hover {
-  border-color: var(--brand);
-  color: var(--brand);
+  border-color: var(--brand-text);
+  color: var(--brand-text);
 }
 
 .shortcutList {
@@ -2851,14 +2879,14 @@ a.imageBody:hover .imageTile img {
 
 .dangerZoneHeading {
   margin: 0 4px;
-  color: var(--danger);
+  color: var(--danger-text);
   font-size: 17px;
   font-weight: 800;
 }
 
 .dangerZoneCard {
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--app-border));
+  border: 1px solid color-mix(in srgb, var(--danger-border) 35%, var(--app-border));
   border-radius: var(--radius-card);
   background: var(--app-surface);
 }
@@ -2959,7 +2987,7 @@ a.imageBody:hover .imageTile img {
   border: 0;
   border-radius: var(--radius-control);
   background: none;
-  color: var(--brand);
+  color: var(--brand-text);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
@@ -3003,7 +3031,7 @@ a.imageBody:hover .imageTile img {
   justify-content: center;
   min-height: 46px;
   border-top: 1px solid var(--app-divider);
-  color: var(--brand);
+  color: var(--brand-text);
   font-size: 14px;
   font-weight: 700;
   text-decoration: none;
@@ -3086,7 +3114,7 @@ a.imageBody:hover .imageTile img {
   overflow: hidden;
   border-radius: 50%;
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 .notificationLeadingImage {
@@ -3550,7 +3578,7 @@ a.imageBody:hover .imageTile img {
 .linkCard:has(a:hover),
 .shortcut:hover,
 .summaryCard:hover {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
 }
 
 .linkCard:has(a:hover),
@@ -3577,7 +3605,7 @@ a.imageBody:hover .imageTile img {
   height: 40px;
   border-radius: var(--radius-md);
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 /* Collections - GRID: the picture / icon is the card (mobile CategoryCard), the name and status under it */
@@ -3658,7 +3686,7 @@ a.imageBody:hover .imageTile img {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 .sectionTitleRow .sectionTitle {
@@ -3801,7 +3829,7 @@ a.imageBody:hover .imageTile img {
   height: 36px;
   border-radius: var(--radius-md);
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 .shareCardTitle {
@@ -3882,7 +3910,7 @@ a.imageBody:hover .imageTile img {
 }
 
 .friendPickRowSelected {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   background: var(--brand-soft);
 }
 
@@ -3902,7 +3930,7 @@ a.imageBody:hover .imageTile img {
 }
 
 .pickMarkSelected {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   background: var(--brand);
 }
 
@@ -4667,7 +4695,7 @@ ul.friendGrid > * + * {
 
 /* ---- Collections: hover / focus ---- */
 .collectionCard:has(a:focus-visible) {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   box-shadow: 0 0 0 3px var(--brand-soft);
 }
 
@@ -4762,7 +4790,7 @@ ul.friendGrid > * + * {
   height: 36px;
   border-radius: var(--radius-md);
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 .shareSectionText {
@@ -4850,12 +4878,12 @@ ul.friendGrid > * + * {
 }
 
 .permissionChoiceSelected {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   background: var(--brand-soft);
 }
 
 .permissionChoice:hover:not(:disabled) {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
 }
 
 .permissionChoiceTitle {
@@ -5072,7 +5100,7 @@ ul.friendGrid > * + * {
 
 .friendCard:hover,
 .friendCard:focus-within {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   box-shadow: var(--shadow-card);
 }
 
@@ -5222,12 +5250,12 @@ ul.friendGrid > * + * {
 }
 
 .settingsNavDanger {
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 .settingsNavLinkActive.settingsNavDanger {
   background: var(--danger-soft);
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 .settingsPane {
@@ -5391,6 +5419,10 @@ ul.friendGrid > * + * {
   cursor: pointer;
 }
 
+.settingsNavLogout {
+  color: var(--danger-text);
+}
+
 .settingsNavAction:hover {
   background: var(--app-surface-muted);
 }
@@ -5486,7 +5518,7 @@ ul.friendGrid > * + * {
   height: 32px;
   border-radius: var(--radius-md);
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 .quickBarTitle {
@@ -5616,18 +5648,18 @@ ul.friendGrid > * + * {
 }
 
 .quickActionDanger {
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 .quickActionButton:hover,
 .quickActionButton:focus-visible {
-  border-color: var(--brand);
-  color: var(--brand);
+  border-color: var(--brand-text);
+  color: var(--brand-text);
 }
 
 .quickActionDanger:hover:not(:disabled),
 .quickActionDanger:focus-visible {
-  border-color: var(--danger);
+  border-color: var(--danger-border);
   background: var(--danger-soft);
 }
 
@@ -5836,9 +5868,9 @@ button.reactionChip:hover {
 
 .reactionChipMine,
 button.reactionChipMine:hover {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 .reactionEmoji {
@@ -5923,7 +5955,7 @@ button.reactionChipMine:hover {
 
 .pickerCellMine,
 .pickerCellMine:hover {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   background: var(--brand-soft);
 }
 
@@ -5960,7 +5992,7 @@ button.reactionChipMine:hover {
   padding: 0;
   border: 0;
   background: none;
-  color: var(--brand);
+  color: var(--brand-text);
   font: inherit;
   font-size: 14px;
   font-weight: 700;
@@ -5973,7 +6005,7 @@ button.reactionChipMine:hover {
 }
 
 .commentFailedAction {
-  color: var(--danger);
+  color: var(--danger-text);
   font-size: 13px;
 }
 
@@ -6045,7 +6077,7 @@ button.reactionChipMine:hover {
 }
 
 .commentMention {
-  color: var(--brand);
+  color: var(--brand-text);
   font-weight: 700;
 }
 
@@ -6072,7 +6104,7 @@ button.reactionChipMine:hover {
 }
 
 .commentActionDanger:hover {
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 /* The heart's own narrow column on the right edge: the text wraps before it and it never decides the row's height. */
@@ -6093,7 +6125,7 @@ button.reactionChipMine:hover {
 }
 
 .commentHeartOn {
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 .commentDeleted {
@@ -6106,7 +6138,7 @@ button.reactionChipMine:hover {
 
 .collabNotice {
   margin: 0;
-  color: var(--danger);
+  color: var(--danger-text);
   font-size: 13.5px;
 }
 
@@ -6181,7 +6213,7 @@ button.reactionChipMine:hover {
 }
 
 .composerInput:focus-visible {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   outline: none;
 }
 
@@ -6349,7 +6381,7 @@ button.reactionChipMine:hover {
 
 .roleControl .roleSelect:hover:not(:disabled),
 .roleControl .roleSelect:focus-visible {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   outline: none;
 }
 
@@ -6367,8 +6399,8 @@ button.reactionChipMine:hover {
 }
 
 .roleControlBusy .roleSelect {
-  border-color: var(--brand);
-  color: var(--brand);
+  border-color: var(--brand-text);
+  color: var(--brand-text);
   cursor: progress;
 }
 
@@ -6383,7 +6415,7 @@ button.reactionChipMine:hover {
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: transparent;
-  color: var(--danger);
+  color: var(--danger-text);
   cursor: pointer;
 }
 
@@ -6520,7 +6552,7 @@ button.reactionChipMine:hover {
 
 .pillButton:hover:not([aria-disabled='true']),
 .pillButton[aria-expanded='true'] {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
 }
 
 .pillButton[aria-disabled='true'] {
@@ -6528,8 +6560,8 @@ button.reactionChipMine:hover {
 }
 
 .roleControlBusy .pillButton {
-  border-color: var(--brand);
-  color: var(--brand);
+  border-color: var(--brand-text);
+  color: var(--brand-text);
   cursor: progress;
 }
 
@@ -6582,7 +6614,7 @@ button.reactionChipMine:hover {
 
 .floatingRow[aria-selected='true'] {
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 .floatingRow[aria-disabled='true'] {
@@ -6591,7 +6623,7 @@ button.reactionChipMine:hover {
 }
 
 .floatingRowDanger {
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 .floatingRowDanger.floatingRowActive {
@@ -6641,9 +6673,9 @@ button.reactionChipMine:hover {
 }
 
 .undoBannerFailed {
-  border-color: var(--danger);
+  border-color: var(--danger-border);
   background: var(--danger-soft);
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 .undoBannerText {
@@ -6660,7 +6692,7 @@ button.reactionChipMine:hover {
   border: 0;
   border-radius: var(--radius-md);
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
   font: inherit;
   font-size: 14px;
   font-weight: 700;
@@ -6758,7 +6790,7 @@ button.reactionChipMine:hover {
 }
 
 .toastAction {
-  color: var(--brand);
+  color: var(--brand-text);
   background: var(--brand-soft);
 }
 
@@ -6818,7 +6850,7 @@ button.reactionChipMine:hover {
   --brand-gradient-soft: linear-gradient(135deg, rgba(254, 162, 72, 0.16), rgba(253, 97, 107, 0.13) 30%, rgba(241, 51, 197, 0.1) 58%, rgba(103, 81, 252, 0.13) 82%, rgba(81, 161, 253, 0.16));
   /* White text on it stays above 4.5:1 (violet -> brand blue); the full gradient is for decoration only. */
   --brand-wash: linear-gradient(135deg, rgba(254, 162, 72, 0.09), rgba(253, 97, 107, 0.07) 30%, rgba(241, 51, 197, 0.06) 58%, rgba(103, 81, 252, 0.08) 82%, rgba(81, 161, 253, 0.09));
-  --brand-cta: linear-gradient(135deg, #7a4dff 0%, #3366cc 100%);
+  --brand-cta: var(--brand);
   --brand-line: rgba(103, 81, 252, 0.2);
   --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
@@ -6838,7 +6870,7 @@ button.reactionChipMine:hover {
 :global(html[data-theme='dark']) .tourRoot,
 :global(html[data-theme='dark']) .mobileLanding {
   --brand-gradient-soft: linear-gradient(135deg, rgba(254, 162, 72, 0.16), rgba(253, 97, 107, 0.14) 30%, rgba(241, 51, 197, 0.12) 58%, rgba(103, 81, 252, 0.18) 82%, rgba(81, 161, 253, 0.18));
-  --brand-line: rgba(122, 162, 255, 0.28);
+  --brand-line: rgba(103, 81, 252, 0.4);
   --brand-wash: linear-gradient(135deg, rgba(254, 162, 72, 0.1), rgba(253, 97, 107, 0.09) 30%, rgba(241, 51, 197, 0.08) 58%, rgba(103, 81, 252, 0.12) 82%, rgba(81, 161, 253, 0.12));
 }
 
@@ -6905,7 +6937,7 @@ button.reactionChipMine:hover {
 /* primary action: violet -> brand blue; the same height / radius as before */
 .primaryAction {
   background: var(--brand-cta);
-  box-shadow: 0 1px 2px rgba(51, 102, 204, 0.25);
+  box-shadow: 0 1px 2px rgba(103, 81, 252, 0.25);
   transition: filter 150ms var(--ease-out), box-shadow 150ms var(--ease-out), transform 150ms var(--ease-out);
 }
 
@@ -7101,7 +7133,7 @@ button.reactionChipMine:hover {
   border: 1px dashed var(--brand-line);
   border-radius: var(--radius-card);
   background: var(--brand-wash) top / 100% 100% no-repeat, var(--app-surface);
-  color: var(--brand);
+  color: var(--brand-text);
   text-align: center;
 }
 
@@ -7143,7 +7175,7 @@ button.reactionChipMine:hover {
 }
 
 .requiredMark {
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 .selectInput {
@@ -7267,12 +7299,12 @@ button.reactionChipMine:hover {
 /* "+ 새 컬렉션" in the Collection picker: a choice-sized tile that makes something instead of selecting it */
 .choiceCreate {
   border: 1px dashed var(--brand-line);
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 .choiceCreate .choiceNone {
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 /* Profile photo: the picture is the first way to change it, the actions sit beside it (under it on a narrow window) */
@@ -7394,7 +7426,7 @@ button.reactionChipMine:hover {
 
 .fieldSelectButton:hover:not([aria-disabled='true']),
 .fieldSelectButton[aria-expanded='true'] {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
 }
 
 .fieldSelectButton:focus-visible {
@@ -7493,7 +7525,7 @@ button.reactionChipMine:hover {
 }
 
 .reportReasonSelected {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
   background: var(--brand-soft);
 }
 
@@ -7512,7 +7544,7 @@ button.reactionChipMine:hover {
 }
 
 .termsLinks a {
-  color: var(--brand);
+  color: var(--brand-text);
   font-weight: 600;
 }
 
@@ -7546,7 +7578,7 @@ button.reactionChipMine:hover {
 
 .agreementBrand {
   margin: var(--space-3) 0 0;
-  color: var(--brand);
+  color: var(--brand-text);
   font-size: 28px;
   font-weight: 800;
 }
@@ -7762,7 +7794,7 @@ button.reactionChipMine:hover {
 }
 
 .agreementFullLink {
-  color: var(--brand);
+  color: var(--brand-text);
   font-weight: 600;
 }
 
@@ -7799,7 +7831,7 @@ button.reactionChipMine:hover {
 
 .linkOpen:hover {
   background: var(--app-surface-muted);
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 .linkOpen:focus-visible {
@@ -7879,7 +7911,7 @@ button.reactionChipMine:hover {
 .cardAction:hover:not(:disabled),
 .cardActionActive:hover:not(:disabled) {
   background: var(--app-surface-muted);
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 .cardActionActive:hover:not(:disabled) {
@@ -8060,7 +8092,7 @@ button.reactionChipMine:hover {
   border: 0;
   border-radius: var(--radius-control);
   background: transparent;
-  color: var(--brand);
+  color: var(--brand-text);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
@@ -8262,7 +8294,7 @@ button.reactionChipMine:hover {
 .tourSpotlightStatic {
   position: absolute;
   box-sizing: border-box;
-  border: 2px solid var(--brand);
+  border: 2px solid var(--brand-text);
   border-radius: var(--radius-control, 12px);
   box-shadow: 0 0 0 100vmax var(--tour-scrim, rgba(0, 0, 0, 0.35));
   pointer-events: none;
@@ -8690,11 +8722,11 @@ button.reactionChipMine:hover {
 }
 
 .friendPickTile:hover:not(:disabled) {
-  border-color: var(--brand);
+  border-color: var(--brand-text);
 }
 
 .friendPickTileSelected {
-  border: 2px solid var(--brand);
+  border: 2px solid var(--brand-text);
   background: var(--brand-soft);
 }
 
@@ -8985,4 +9017,13 @@ button.reactionChipMine:hover {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+}
+
+/* "Added by [avatar]": the avatar sits right after its label (8px), both start-aligned, instead of in the value column (also in RTL). */
+.quickGroup.adderGroup,
+.infoRow.adderGroup {
+  grid-template-columns: max-content max-content;
+  justify-content: start;
+  align-items: center;
+  column-gap: 8px;
 }

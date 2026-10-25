@@ -66,7 +66,7 @@ describe('3. selectable chips: one border, no movement', () => {
     assert.match(group, /border: 1px solid transparent;/);
     assert.match(group, /padding: 0 16px;/);
     const selected = rule('.filterTabSelected');
-    assert.match(selected, /border-color: var\(--brand\);/);
+    assert.match(selected, /border-color: var\(--brand-text\);/);
     assert.doesNotMatch(selected, /border(-width|-style)?:|padding|transform|inset|outset/);
     assert.doesNotMatch(rule('.filterTab'), /border|padding/);
   });

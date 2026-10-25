@@ -11,13 +11,13 @@
 .who { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
 .actions { display: flex; gap: 8px; margin-top: 12px; }
 .reject, .approve { flex: 1; min-width: 0; min-height: 44px; padding: 8px; border: 1px solid var(--app-border); border-radius: 8px; background: var(--app-surface); color: var(--app-text); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; overflow-wrap: anywhere; }
-.approve { border-color: var(--brand); background: var(--brand); color: var(--on-brand); font-weight: 700; }
+.approve { border-color: var(--brand-text); background: var(--brand); color: var(--on-brand); font-weight: 700; }
 .actions button:disabled { cursor: wait; opacity: .65; }
 .actions button:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
 .heading { margin: 12px 0 4px; font-size: 14px; font-weight: 700; }
 .empty { padding: 16px 0; color: var(--app-text-secondary); text-align: center; }
 .notice { margin: 0 0 8px; color: var(--app-text-secondary); font-size: 13px; }
-.error { margin: 0 0 8px; color: var(--danger); font-size: 13px; }
+.error { margin: 0 0 8px; color: var(--danger-text); font-size: 13px; }
 .pick { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 12px; border: 0; border-radius: 20px; background: var(--app-background); color: var(--app-text); font: inherit; cursor: pointer; text-align: start; }
 .pick { padding-inline-end: 14px; } /* the count ends on the header X button's right line (the X sits 6px into the header padding) */
 .pick > [data-attention-badge] { flex: 0 0 auto; margin-inline-start: 0; }
@@ -28,8 +28,8 @@
 .rowCard { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; column-gap: 12px; min-width: 0; padding: 10px 8px 10px 12px; border-radius: 20px; background: var(--app-background); }
 .rowActions { display: flex; align-items: center; gap: 0; }
 .iconButton, .iconDanger { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; color: var(--app-text-secondary); cursor: pointer; text-decoration: none; }
-.iconButton:hover { background: var(--app-surface-muted); color: var(--brand); }
-.iconDanger { color: var(--danger); }
+.iconButton:hover { background: var(--app-surface-muted); color: var(--brand-text); }
+.iconDanger { color: var(--danger-text); }
 .iconDanger:hover:not(:disabled) { background: var(--app-surface-muted); }
 .iconDanger:disabled { cursor: wait; opacity: .65; }
 .iconButton:focus-visible, .iconDanger:focus-visible { outline: 2px solid var(--brand); outline-offset: 0; }

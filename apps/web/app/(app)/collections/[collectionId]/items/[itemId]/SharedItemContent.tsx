@@ -14,8 +14,9 @@ import { useToast } from '../../../../Toaster';
 import { adderLabel, sharedItemPath, type SharedCollectionItem } from '../../../../../../lib/itemDetails';
 import { unlockHeaders } from '../../../../../../lib/collectionUnlock';
 import { openReview } from '../../../../../../lib/newLink';
-import { displayTitleOf, formatLinkTimestamp, isSafeHttpUrl, parseRouteId, siteIdOf, siteOf } from '../../../../../../lib/savedLinks';
+import { adderViewOf, displayTitleOf, formatLinkTimestamp, isSafeHttpUrl, parseRouteId, siteIdOf, siteOf } from '../../../../../../lib/savedLinks';
 import { useSignedInApp } from '../../../../AppRoot';
+import { Avatar } from '../../../../Avatar';
 import { Glyph } from '../../../../Glyph';
 import { CopyLinkButton } from '../../../../CopyLinkButton';
 import { LoadFailed, Notice } from '../../../../PageStates';
@@ -172,6 +173,24 @@ export function useRemoveFromCollection(collectionId: number | null, itemId: num
   return { actions, dialog, isOwner } as const;
 }
 
+/**
+ * Who added the link, as their circle (the same Avatar the link rows draw: the server's own photo for the real adder, else the initial /
+ * person glyph; the Owner's crown only for the Owner) - never the Collection owner's face for someone else. The name stays available to
+ * assistive technology and as a tooltip. A public-link add (no person) and an adder the server did not identify keep the words.
+ */
+export function AdderValue({ adder, item, dictionary }: { readonly adder: NonNullable<ReturnType<typeof adderLabel>>; readonly item: SharedCollectionItem; readonly dictionary: AppDictionary }) {
+  const view = adderViewOf(item.addedBy);
+  if (!view || view.kind !== 'person') {
+    return <>{adderText(adder, dictionary)}</>;
+  }
+  const name = adderText(adder, dictionary);
+  return (
+    <span aria-label={name} className={styles.adderMeta} data-shared-item-adder role="img" title={name}>
+      <Avatar person={{ displayName: view.name, profileImageUrl: view.profileImageUrl, role: view.isCollectionOwner ? 'owner' : null }} size={28} />
+    </span>
+  );
+}
+
 export function adderText(adder: NonNullable<ReturnType<typeof adderLabel>>, dictionary: AppDictionary): string {
   return adder.kind === 'me' ? dictionary.addedByMe : adder.kind === 'publicLink' ? dictionary.addedViaPublicLink : adder.name;
 }
@@ -247,13 +266,13 @@ export function SharedItemQuickContent({ collectionIdParam, itemIdParam }: { rea
 
       <dl className={styles.quickGroups}>
         {adder ? (
-          <div className={styles.quickGroup}>
+          <div className={`${styles.quickGroup} ${styles.adderGroup}`}>
             <dt className={styles.quickLabel}>
               <Glyph name="People" size={16} />
               {dictionary.addedBy}
             </dt>
             <dd className={styles.quickValue} dir="auto">
-              {adderText(adder, dictionary)}
+              <AdderValue adder={adder} dictionary={dictionary} item={item} />
             </dd>
           </div>
         ) : null}

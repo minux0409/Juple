@@ -132,7 +132,8 @@ describe('내 페이지: nested settings - app side bar | inner settings list | 
     }
     const css = page('app.module.css');
     assert.match(css, /\.settingsRailFooter \{[^}]*margin-top: auto;[^}]*border-top: 1px solid var\(--app-divider\);/);
-    assert.doesNotMatch(css.slice(css.indexOf('.settingsNavAction {'), css.indexOf('.settingsNavAction:hover')), /danger|color: var\(--danger\)/, 'logout is the normal text colour');
+    assert.doesNotMatch(css.slice(css.indexOf('.settingsNavAction {'), css.indexOf('.settingsNavLogout {')), /danger/, 'the base row is neutral');
+    assert.match(css, /\.settingsNavLogout \{\s*color: var\(--danger-text\);/, 'logout carries the danger text colour (not the filled coral)');
   });
 
   it('no user-visible 내 페이지: the side bar, every page title and the rail say 설정 / their own name; the main side bar keeps its six items', async () => {
@@ -212,7 +213,7 @@ describe('내 페이지: nested settings - app side bar | inner settings list | 
     assert.match(css, /@media \(max-width: 1099px\) \{\s*\.mySettings \{\s*grid-template-columns: 240px minmax\(0, 1fr\);/);
     assert.match(css, /@media \(max-width: 859px\) \{\s*\.mySettings \{\s*grid-template-columns: minmax\(0, 1fr\);[\s\S]*?\.settingsRailList \{\s*flex-direction: row;\s*overflow-x: auto;/);
     assert.match(css, /\.settingsPane > \* \{\s*max-width: 880px;\s*margin-inline: auto;/);
-    assert.match(css, /\.settingsNavDanger \{\s*color: var\(--danger\);/);
+    assert.match(css, /\.settingsNavDanger \{\s*color: var\(--danger-text\);/);
     assert.match(css, /@media \(max-width: 860px\) \{\s*\.profileActions \{\s*flex-basis: 100%;/);
   });
 

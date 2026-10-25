@@ -71,7 +71,7 @@
   align-items: center;
   justify-content: center;
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 .featureBody {

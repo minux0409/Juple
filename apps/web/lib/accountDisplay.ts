@@ -19,9 +19,9 @@ export interface UserProfile {
 
 export const PROFILE_PATH = '/api/v1/users/me/profile';
 
-/** The mobile format: XXXX-XXXX for an 8-character Juple ID (collaborationApi.ts formatJupleId). */
+/** The mobile format: the canonical XXXXXXXX, no separator (collaborationApi.ts formatJupleId); a typed XXXX-XXXX is still accepted by the server. */
 export function formatJupleId(jupleId: string): string {
-  return jupleId.length === 8 ? `${jupleId.slice(0, 4)}-${jupleId.slice(4)}` : jupleId;
+  return jupleId.replace(/[-\s]/g, '');
 }
 
 /** Values identity providers use when they have no real name - never shown. */

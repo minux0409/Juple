@@ -45,7 +45,7 @@ export default function MeLayout({ children }: { readonly children: React.ReactN
           ))}
         </ul>
         <div className={styles.settingsRailFooter}>
-          <button className={styles.settingsNavAction} onClick={() => setConfirmSignOut(true)} type="button">
+          <button className={`${styles.settingsNavAction} ${styles.settingsNavLogout}`} onClick={() => setConfirmSignOut(true)} type="button">
             <Glyph name="Logout" size={18} />
             {dictionary.logout}
           </button>
@@ -65,6 +65,7 @@ export default function MeLayout({ children }: { readonly children: React.ReactN
       <ConfirmDialog
         cancelLabel={dictionary.cancel}
         confirmLabel={dictionary.logout}
+        destructive
         message={dictionary.signOutConfirmMessage}
         onCancel={() => setConfirmSignOut(false)}
         onConfirm={() => {

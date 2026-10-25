@@ -307,7 +307,7 @@ describe('comments and replies: mobile behaviour', () => {
     assert.equal(stripLegacyReplyMention('@민 ', '민'), '@민 ');
     assert.equal(stripLegacyReplyMention('안녕 @민', '민'), '안녕 @민');
     assert.equal(stripLegacyReplyMention('@민 안녕', null), '@민 안녕');
-    assert.equal(personLabel({ jupleId: 'K7MP4Q8N', displayName: null }), 'K7MP-4Q8N');
+    assert.equal(personLabel({ jupleId: 'K7MP4Q8N', displayName: null }), 'K7MP4Q8N');
   });
 
   it('time: 방금 전 / N분 전 / N시간 전 within a day, then the date (mobile formatCommentTime)', () => {

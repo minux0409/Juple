@@ -310,7 +310,7 @@ describe('UI / parity fix pass', async () => {
     assert.equal(sharing.avatarInitial(null), null);
     assert.deepEqual(sharing.avatarStackLayout([1, 2, 3, 4]), { visible: [1, 2, 3, 4], hiddenCount: 0 });
     assert.deepEqual(sharing.avatarStackLayout([1, 2, 3, 4, 5, 6]), { visible: [1, 2, 3], hiddenCount: 3 });
-    assert.equal(sharing.participantName({ jupleId: 'ABCD2345', displayName: null, isMe: true }, ko), formatMessage(ko.participantMe, { name: 'ABCD-2345' }));
+    assert.equal(sharing.participantName({ jupleId: 'ABCD2345', displayName: null, isMe: true }, ko), formatMessage(ko.participantMe, { name: 'ABCD2345' }));
     assert.equal(sharing.roleLabel('owner', ko), ko.roleOwner);
     assert.equal(sharing.roleLabel('somethingNew', ko), null);
     assert.equal(sharing.shareDescription({ publicId: 'x', shareUrl: 'u', isPublic: false }, ko), ko.sharePrivateDescription);
