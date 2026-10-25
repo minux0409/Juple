@@ -409,6 +409,16 @@ export function formatLinkTimestamp(utc: string, locale: string, withDate: boole
   return new Intl.DateTimeFormat(locale, options).format(new Date(utc));
 }
 
+/**
+ * The 저장일 value of a link's details: the server's own saved / added instant (UTC, parsed once and formatted in the viewer's
+ * locale and time zone - never shifted twice), or null when the server sent none or something that is not a date - the caller then
+ * shows a plain dash. Never the client's current time.
+ */
+export function savedAtOf(utc: string | null | undefined, locale: string): { readonly iso: string; readonly text: string } | null {
+  const time = typeof utc === 'string' && utc.trim() ? new Date(utc) : null;
+  return time && !Number.isNaN(time.getTime()) ? { iso: time.toISOString(), text: formatLinkTimestamp(utc as string, locale, true) } : null;
+}
+
 /** Adds a page to what is loaded, never twice the same link (a page boundary can repeat one). */
 export function appendUnique<T>(loaded: readonly T[], page: readonly T[], idOf: (entry: T) => number): readonly T[] {
   const seen = new Set(loaded.map(idOf));

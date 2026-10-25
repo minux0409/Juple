@@ -221,12 +221,10 @@ export const categoryTilePalette = [
 
 /**
  * The Collections screen's 2x2 filter (즐겨찾기 | 전체 / 내 컬렉션 | 공유 컬렉션): colors for the
- * selected / unselected STATE of a filter cell. The selected cell reuses the existing blue
- * Collection tile pair (categoryTilePalette[0], identical to the 'Blue' preset in
- * collectionColors.ts - the sky-blue card background) with its own darker icon tone as the label
- * color, so it reads as part of the same visual family; it never colors a Collection itself. The
- * unselected cell keeps a visible border and a dark-enough label so it reads as tappable, never as
- * disabled.
+ * selected / unselected STATE of a filter cell. The selected cell is the Juple brand violet in both
+ * themes - a soft violet fill, a violet outline and a brandText label - and never colors a
+ * Collection itself. The unselected cell keeps a visible border and a dark-enough label so it reads
+ * as tappable, never as disabled.
  */
 export const collectionFilterColors = liveView(() =>
   activeScheme === 'dark'
@@ -239,10 +237,10 @@ export const collectionFilterColors = liveView(() =>
         unselectedBorder: '#3A4250',
       }
     : {
-        selectedBackground: categoryTilePalette[0].background,
-        /** The default blue folder glyph's stroke color - a crisp outline that keeps the soft fill. */
-        selectedBorder: categoryTilePalette[0].icon,
-        selectedText: categoryTilePalette[0].icon,
+        selectedBackground: lightColors.brandSoft,
+        /** The brand violet outline on the soft violet fill, the label in brandText - the Dark pairing in Light's values. */
+        selectedBorder: BRAND_PRIMARY,
+        selectedText: lightColors.brandText,
         unselectedBackground: '#F1F2F4',
         unselectedText: '#5F6368',
         unselectedBorder: '#D9DCE1',

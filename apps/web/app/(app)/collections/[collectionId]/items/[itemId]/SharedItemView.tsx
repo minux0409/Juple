@@ -1,7 +1,7 @@
 'use client';
 
 import { adderLabel } from '../../../../../../lib/itemDetails';
-import { collectionHref, displayTitleOf, formatLinkTimestamp, isSafeHttpUrl, parseRouteId } from '../../../../../../lib/savedLinks';
+import { collectionHref, displayTitleOf, isSafeHttpUrl, parseRouteId } from '../../../../../../lib/savedLinks';
 import { useSignedInApp } from '../../../../AppRoot';
 import { Glyph } from '../../../../Glyph';
 import { BackButton, LoadFailed, Notice } from '../../../../PageStates';
@@ -10,6 +10,7 @@ import { linkTitleText } from '../../../../SavedLinkList';
 import { ItemPhoto, OpenLinkButton, SourceRow } from '../../../../ItemParts';
 import { ItemCollaboration } from '../../../../ItemCollaboration';
 import { useRouter } from 'next/navigation';
+import { SavedAtValue } from '../../../../SavedAtValue';
 import { AdderValue, useSaveSharedLink, useRemoveFromCollection, useSharedItem } from './SharedItemContent';
 import { ActionMenu } from '../../../../Popover';
 import styles from '../../../../app.module.css';
@@ -84,7 +85,7 @@ export function SharedItemView({ collectionIdParam, itemIdParam }: { readonly co
                 {dictionary.savedAt}
               </dt>
               <dd className={styles.infoValue}>
-                <time dateTime={item.addedAtUtc}>{formatLinkTimestamp(item.addedAtUtc, locale, true)}</time>
+                <SavedAtValue locale={locale} utc={item.addedAtUtc} />
               </dd>
             </div>
           </dl>

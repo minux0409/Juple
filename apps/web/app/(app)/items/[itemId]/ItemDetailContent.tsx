@@ -12,7 +12,8 @@ import { representativePhotoKey, representativePhotoUrl, type ItemImage } from '
 import { itemContextSearch, itemDeleteErrorMessage, itemEditHref, membershipErrorMessage } from '../../../../lib/itemEdit';
 import { notifyItemsChanged } from '../../../../lib/itemChanges';
 import { markEditOpenedFromDetails } from '../../../../lib/itemOverlay';
-import { collectionHref, displayTitleOf, formatLinkTimestamp, isSafeHttpUrl, parseRouteId, siteIdOf, siteOf } from '../../../../lib/savedLinks';
+import { collectionHref, displayTitleOf, isSafeHttpUrl, parseRouteId, siteIdOf, siteOf } from '../../../../lib/savedLinks';
+import { SavedAtValue } from '../../SavedAtValue';
 import { useSignedInApp } from '../../AppRoot';
 import { useToast } from '../../Toaster';
 import { ItemCollaboration } from '../../ItemCollaboration';
@@ -311,7 +312,7 @@ export function ItemDetailContent({
             {dictionary.savedAt}
           </dt>
           <dd className={styles.quickValue}>
-            <time dateTime={item.savedAtUtc}>{formatLinkTimestamp(item.savedAtUtc, locale, true)}</time>
+            <SavedAtValue locale={locale} utc={item.savedAtUtc} />
           </dd>
         </div>
       </dl>

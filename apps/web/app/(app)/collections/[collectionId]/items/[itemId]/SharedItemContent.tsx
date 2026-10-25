@@ -14,9 +14,10 @@ import { useToast } from '../../../../Toaster';
 import { adderLabel, sharedItemPath, type SharedCollectionItem } from '../../../../../../lib/itemDetails';
 import { unlockHeaders } from '../../../../../../lib/collectionUnlock';
 import { openReview } from '../../../../../../lib/newLink';
-import { adderViewOf, displayTitleOf, formatLinkTimestamp, isSafeHttpUrl, parseRouteId, siteIdOf, siteOf } from '../../../../../../lib/savedLinks';
+import { adderViewOf, displayTitleOf, isSafeHttpUrl, parseRouteId, siteIdOf, siteOf } from '../../../../../../lib/savedLinks';
 import { useSignedInApp } from '../../../../AppRoot';
 import { Avatar } from '../../../../Avatar';
+import { SavedAtValue } from '../../../../SavedAtValue';
 import { Glyph } from '../../../../Glyph';
 import { CopyLinkButton } from '../../../../CopyLinkButton';
 import { LoadFailed, Notice } from '../../../../PageStates';
@@ -282,7 +283,7 @@ export function SharedItemQuickContent({ collectionIdParam, itemIdParam }: { rea
             {dictionary.savedAt}
           </dt>
           <dd className={styles.quickValue}>
-            <time dateTime={item.addedAtUtc}>{formatLinkTimestamp(item.addedAtUtc, locale, true)}</time>
+            <SavedAtValue locale={locale} utc={item.addedAtUtc} />
           </dd>
         </div>
       </dl>

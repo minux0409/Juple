@@ -14,7 +14,6 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Dimensions, FlatList, Image, Linking, Platform, RefreshControl, StyleSheet, Text, TextInput } from 'react-native';
 import { colors } from '../../theme/tokens';
 import { collectionFilterColors } from '../../theme/tokens';
-import { resolveCollectionColorTile } from '../../collections/collectionColors';
 import i18n from '../../i18n';
 import { CategoryIconTile } from '../../collections/CategoryIconTile';
 import { CollectionsScreen } from '../CollectionsScreen';
@@ -266,7 +265,7 @@ describe('CollectionsScreen filters', () => {
     ['all'],
     ['owned'],
     ['shared'],
-  ])('only the selected filter (%s) is the Collection blue - every other cell light gray - and it still asks for its own scope', async selected => {
+  ])('only the selected filter (%s) is the Juple violet - every other cell light gray - and it still asks for its own scope', async selected => {
     setUpGetCollectionsMock();
     const renderer = await renderScreen();
     const cellStyle = (filter: string) =>
@@ -282,18 +281,16 @@ describe('CollectionsScreen filters', () => {
     for (const filter of ['favorites', 'all', 'owned', 'shared']) {
       const isSelected = filter === selected;
       expect(renderer.root.findByProps({ testID: `collections-filter-${filter}` }).props.accessibilityState).toEqual({ selected: isSelected });
-      expect(cellStyle(filter).backgroundColor).toBe(isSelected ? '#EAF1FE' : '#F1F2F4');
-      expect(labelStyle(filter).color).toBe(isSelected ? '#5478B0' : '#5F6368');
+      expect(cellStyle(filter).backgroundColor).toBe(isSelected ? '#EEEBFF' : '#F1F2F4');
+      expect(labelStyle(filter).color).toBe(isSelected ? '#5A44EE' : '#5F6368');
       expect(labelStyle(filter).fontWeight).toBe(isSelected ? '700' : '600');
     }
-    // The selected color is the existing blue Collection tile token (the 'Blue' preset / palette
-    // slot 0), resolved from the palette - never looked up from any Collection's name or data.
+    // The selected color is the brand violet family (soft fill, #6751FC outline, brandText label) from the theme tokens - the sky blue
+    // is gone - and is never looked up from any Collection's name or data.
     expect(cellStyle(selected).backgroundColor).toBe(collectionFilterColors.selectedBackground);
-    expect(collectionFilterColors.selectedBackground).toBe(resolveCollectionColorTile('Blue').background);
-    expect(collectionFilterColors.selectedText).toBe(resolveCollectionColorTile('Blue').icon);
-    // The selected cell is outlined in the default blue folder glyph's color; the others keep the gray border.
-    expect(cellStyle(selected).borderColor).toBe(resolveCollectionColorTile('Blue').icon);
-    expect(cellStyle(selected).borderColor).toBe('#5478B0');
+    expect(collectionFilterColors.selectedBackground).toBe('#EEEBFF');
+    expect(collectionFilterColors.selectedText).toBe('#5A44EE');
+    expect(cellStyle(selected).borderColor).toBe('#6751FC');
     expect(cellStyle(selected).borderWidth).toBe(cellStyle(selected === 'favorites' ? 'all' : 'favorites').borderWidth);
     expect(cellStyle(selected === 'favorites' ? 'all' : 'favorites').borderColor).toBe(collectionFilterColors.unselectedBorder);
   });

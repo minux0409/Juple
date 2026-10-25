@@ -537,3 +537,20 @@ describe('Android navigation bar follows the resolved theme (live)', () => {
     expect(kt).toContain('runOnUiThread');
   });
 });
+
+describe('Collections selected filter (violet in both themes)', () => {
+  afterEach(() => setActiveColorScheme('light'));
+
+  it.each([
+    ['light', '#EEEBFF', '#6751FC', '#5A44EE'],
+    ['dark', '#26224A', '#A99BFF', '#A99BFF'],
+  ] as const)('%s: soft violet fill, violet outline, violet label - readable', (scheme, background, border, text) => {
+    setActiveColorScheme(scheme);
+    const filter = require('../tokens').collectionFilterColors;
+    expect(filter.selectedBackground).toBe(background);
+    expect(filter.selectedBorder).toBe(border);
+    expect(filter.selectedText).toBe(text);
+    expect(contrast(filter.selectedText, filter.selectedBackground)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(filter.selectedBorder, scheme === 'light' ? lightColors.surface : darkColors.surface)).toBeGreaterThanOrEqual(3);
+  });
+});

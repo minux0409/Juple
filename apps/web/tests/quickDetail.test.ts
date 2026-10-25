@@ -260,3 +260,27 @@ describe('Home magnifier colour', () => {
     assert.equal([...css.matchAll(/^ {2}--brand: (#[0-9a-f]{6});/gm)].every(match => match[1] === '#6751fc'), true);
   });
 });
+
+describe('Saved date in every link detail (own and shared, sheet and page)', () => {
+  it('all three detail views draw the SAME SavedAtValue from the server\'s own instant, under the 저장일 label', () => {
+    const own = source('app/(app)/items/[itemId]/ItemDetailContent.tsx');
+    const sheet = source('app/(app)/collections/[collectionId]/items/[itemId]/SharedItemContent.tsx');
+    const page = source('app/(app)/collections/[collectionId]/items/[itemId]/SharedItemView.tsx');
+    assert.match(own, /\{dictionary\.savedAt\}[\s\S]*<SavedAtValue locale=\{locale\} utc=\{item\.savedAtUtc\} \/>/);
+    assert.match(sheet, /\{dictionary\.savedAt\}[\s\S]*<SavedAtValue locale=\{locale\} utc=\{item\.addedAtUtc\} \/>/);
+    assert.match(page, /\{dictionary\.savedAt\}[\s\S]*<SavedAtValue locale=\{locale\} utc=\{item\.addedAtUtc\} \/>/);
+    for (const text of [own, sheet, page]) {
+      assert.doesNotMatch(text, /new Date\(\)|Date\.now\(\)/, 'never the client clock');
+    }
+  });
+
+  it('formats the server instant once in the viewer locale / zone; a missing or invalid value is a dash, never a made-up date', async () => {
+    const { savedAtOf } = await import('../lib/savedLinks.ts');
+    const saved = savedAtOf('2026-10-24T15:30:00+00:00', 'en-US');
+    assert.equal(saved?.iso, '2026-10-24T15:30:00.000Z');
+    assert.equal(saved?.text, new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date('2026-10-24T15:30:00Z')));
+    assert.equal(savedAtOf(undefined, 'ko-KR'), null);
+    assert.equal(savedAtOf('', 'ko-KR'), null);
+    assert.equal(savedAtOf('not a date', 'ko-KR'), null);
+  });
+});
