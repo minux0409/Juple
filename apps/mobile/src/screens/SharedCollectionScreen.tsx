@@ -326,7 +326,7 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
               style={[styles.primaryButton, styles.unlockButton, (isUnlocking || !password) && styles.disabled]}
               testID="shared-collection-unlock"
             >
-              {isUnlocking ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.primaryLabel}>{t('sharedCollection.unlockAction')}</Text>}
+              {isUnlocking ? <ActivityIndicator color={colors.onBrand} size="small" /> : <Text style={styles.primaryLabel}>{t('sharedCollection.unlockAction')}</Text>}
             </Pressable>
           </View>
         </KeyboardSafeView>
@@ -468,10 +468,10 @@ const styles = themedStyles(() => ({
     paddingHorizontal: spacing.md,
   },
   inputError: {
-    borderColor: colors.danger,
+    borderColor: colors.dangerBorder,
   },
   error: {
-    color: colors.danger,
+    color: colors.dangerText,
     fontSize: 14,
   },
   unlockButton: { marginTop: 0 },
@@ -485,7 +485,7 @@ const styles = themedStyles(() => ({
     paddingHorizontal: spacing.md,
   },
   primaryLabel: {
-    color: colors.surface,
+    color: colors.onBrand,
     fontSize: 15,
     fontWeight: '700',
     textAlign: 'center',

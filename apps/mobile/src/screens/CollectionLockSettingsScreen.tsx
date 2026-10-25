@@ -118,7 +118,7 @@ export function CollectionLockSettingsScreen() {
               testID={isConfigured ? 'lock-settings-change' : 'lock-settings-setup'}
             >
               {isSigningIn ? (
-                <ActivityIndicator color={colors.surface} size="small" />
+                <ActivityIndicator color={colors.onBrand} size="small" />
               ) : (
                 <Text style={styles.primaryLabel}>
                   {isConfigured ? t('settings.collectionLockChangePassword') : t('settings.collectionLockSetPassword')}
@@ -184,10 +184,10 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget,
     paddingHorizontal: spacing.md,
   },
-  primaryLabel: { color: colors.surface, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  primaryLabel: { color: colors.onBrand, fontSize: 15, fontWeight: '700', textAlign: 'center' },
   linkButton: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget },
   linkLabel: { color: colors.textSecondary, fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' },
   help: { color: colors.textSecondary, fontSize: 13 },
   notice: { color: colors.textPrimary, fontSize: 13, fontWeight: '600' },
-  error: { color: colors.danger, fontSize: 14 },
+  error: { color: colors.dangerText, fontSize: 14 },
 }));

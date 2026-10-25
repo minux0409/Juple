@@ -166,7 +166,7 @@ export function DeleteAccountScreen() {
               style={styles.primaryButton}
               testID="delete-account-sign-in"
             >
-              {isBusy ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryLabel}>{t('deleteAccount.reauthAction')}</Text>}
+              {isBusy ? <ActivityIndicator color={colors.onBrand} /> : <Text style={styles.primaryLabel}>{t('deleteAccount.reauthAction')}</Text>}
             </Pressable>
           </View>
         ) : null}
@@ -200,7 +200,7 @@ export function DeleteAccountScreen() {
               style={[styles.dangerButton, (!isConfirmed || isBusy) && styles.disabled]}
               testID="delete-account-final"
             >
-              {isBusy ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.dangerLabel}>{t('deleteAccount.deleteNow')}</Text>}
+              {isBusy ? <ActivityIndicator color={colors.onDanger} /> : <Text style={styles.dangerLabel}>{t('deleteAccount.deleteNow')}</Text>}
             </Pressable>
           </View>
         ) : null}
@@ -252,10 +252,10 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget + 4,
     paddingHorizontal: spacing.lg,
   },
-  primaryLabel: { color: colors.surface, fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  primaryLabel: { color: colors.onBrand, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   dangerOutlineButton: {
     alignItems: 'center',
-    borderColor: colors.danger,
+    borderColor: colors.dangerBorder,
     borderRadius: radii.xl,
     borderWidth: 1,
     justifyContent: 'center',
@@ -263,7 +263,7 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget + 4,
     paddingHorizontal: spacing.lg,
   },
-  dangerOutlineLabel: { color: colors.danger, fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  dangerOutlineLabel: { color: colors.dangerText, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   dangerButton: {
     alignItems: 'center',
     backgroundColor: colors.danger,
@@ -273,9 +273,9 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget + 4,
     paddingHorizontal: spacing.lg,
   },
-  dangerLabel: { color: colors.surface, fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  dangerLabel: { color: colors.onDanger, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   disabled: { opacity: 0.45 },
-  notice: { color: colors.danger, fontSize: 14, marginTop: spacing.md },
+  notice: { color: colors.dangerText, fontSize: 14, marginTop: spacing.md },
   cancelButton: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.md, minHeight: minTouchTarget },
   cancelLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
 }));

@@ -121,7 +121,7 @@ describe('ProfileEditScreen', () => {
     expect(byTestId(renderer, 'profile-nickname-input').props.value).toBe('피카츄');
     expect(renderer.root.findAllByProps({ testID: 'user-avatar-image' }).length).toBeGreaterThan(0);
     const jupleId = byTestId(renderer, 'profile-juple-id').findByType(Text);
-    expect(jupleId.props.children).toBe('@K7MP-4Q8N');
+    expect(jupleId.props.children).toBe('@K7MP4Q8N');
     // Read-only: shown as text, never an editable input.
     expect(renderer.root.findAll(node => node.props.testID === 'profile-juple-id-input')).toHaveLength(0);
     // No helper text under the nickname or the Juple ID any more.
@@ -145,15 +145,15 @@ describe('ProfileEditScreen', () => {
     expect(texts(renderer)).not.toContain('복사');
   });
 
-  it('copies the Juple ID exactly as shown (@XXXX-XXXX, never the raw id), with no toast of its own', async () => {
+  it('copies the Juple ID exactly as shown (@XXXXXXXX, never the raw id), with no toast of its own', async () => {
     jest.useFakeTimers();
     try {
       const renderer = await renderScreen();
-      expect(byTestId(renderer, 'profile-juple-id').findByType(Text).props.children).toBe('@K7MP-4Q8N');
+      expect(byTestId(renderer, 'profile-juple-id').findByType(Text).props.children).toBe('@K7MP4Q8N');
 
       await act(async () => pressable(renderer, 'profile-juple-id-copy').props.onPress());
       expect(Clipboard.setString).toHaveBeenCalledTimes(1);
-      expect(Clipboard.setString).toHaveBeenCalledWith('@K7MP-4Q8N');
+      expect(Clipboard.setString).toHaveBeenCalledWith('@K7MP4Q8N');
       expect(Clipboard.setString).not.toHaveBeenCalledWith('K7MP4Q8N');
       // Android already says "copied" itself; the app only turns the icon into a check for a moment.
       expect(JSON.stringify(texts(renderer))).not.toContain('복사했어요');

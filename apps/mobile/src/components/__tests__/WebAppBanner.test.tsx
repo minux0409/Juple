@@ -28,7 +28,7 @@ it.each([['light', lightColors], ['dark', darkColors]] as const)('%s uses the th
     const browser = renderer.root.findAll(node => node.props.testID === 'web-banner-browser')[0];
     expect(StyleSheet.flatten(browser.props.style).flexShrink).toBe(0);
     const domain = renderer.root.findAllByType(Text).find(node => node.props.children === 'juple.co.kr')!;
-    expect(StyleSheet.flatten(domain.props.style).color).toBe(palette.brand);
+    expect(StyleSheet.flatten(domain.props.style).color).toBe(palette.brandText);
     expect(renderer.root.findAll(node => typeof node.props.onPress === 'function')).toHaveLength(0);
     await act(async () => renderer.unmount());
   } finally { setActiveColorScheme('light'); }

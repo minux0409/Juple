@@ -190,7 +190,7 @@ export function PersonProfileModal({ person, relationship, onClose, onRequestSen
             style={styles.primaryButton}
             testID="person-profile-send"
           >
-            {isSending ? <ActivityIndicator color={colors.surface} size="small" /> : <Text numberOfLines={2} style={styles.primaryLabel}>{t('friends.sendRequest')}</Text>}
+            {isSending ? <ActivityIndicator color={colors.onBrand} size="small" /> : <Text numberOfLines={2} style={styles.primaryLabel}>{t('friends.sendRequest')}</Text>}
           </Pressable>
         ) : null}
         {relationship === 'pending' ? <Text style={styles.status} testID="person-profile-status-pending">{t('friends.requestPending')}</Text> : null}
@@ -206,7 +206,7 @@ export function PersonProfileModal({ person, relationship, onClose, onRequestSen
               <Text numberOfLines={2} style={[styles.secondaryLabel, styles.warningLabel]}>{t('safety.report')}</Text>
             </Pressable>
             <Pressable accessibilityRole="button" disabled={isSending || isBlocking} onPress={() => setIsBlockConfirmVisible(true)} style={styles.secondaryButton} testID="person-profile-block">
-              <BlockIcon color={colors.danger} size={16} />
+              <BlockIcon color={colors.dangerText} size={16} />
               <Text numberOfLines={2} style={[styles.secondaryLabel, styles.dangerLabel]}>{t('safety.block')}</Text>
             </Pressable>
           </>
@@ -239,11 +239,11 @@ const styles = themedStyles(() => ({
   meta: { color: colors.textSecondary, fontSize: 13 },
   actions: { gap: spacing.md, marginTop: spacing.lg },
   status: { color: colors.textSecondary, fontSize: 14, fontWeight: '600', textAlign: 'center' },
-  message: { color: colors.danger, fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  message: { color: colors.dangerText, fontSize: 13, fontWeight: '600', textAlign: 'center' },
   primaryButton: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.md, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
-  primaryLabel: { color: colors.surface, fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  primaryLabel: { color: colors.onBrand, fontSize: 14, fontWeight: '700', textAlign: 'center' },
   secondaryButton: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs + 2, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   secondaryLabel: { color: colors.textPrimary, flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   warningLabel: { color: colors.warningText },
-  dangerLabel: { color: colors.danger },
+  dangerLabel: { color: colors.dangerText },
 }));

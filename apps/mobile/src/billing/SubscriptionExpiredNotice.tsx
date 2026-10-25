@@ -44,5 +44,5 @@ const styles = themedStyles(() => ({
   title: { color: colors.textPrimary, fontSize: 15, fontWeight: '800' },
   body: { color: colors.textSecondary, fontSize: 14, lineHeight: 20 },
   button: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.brand, borderRadius: radii.md, justifyContent: 'center', marginTop: spacing.xs, minHeight: minTouchTarget, paddingHorizontal: spacing.lg },
-  buttonLabel: { color: colors.surface, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  buttonLabel: { color: colors.onBrand, fontSize: 15, fontWeight: '700', textAlign: 'center' },
 }));

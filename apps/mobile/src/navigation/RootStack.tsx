@@ -33,7 +33,6 @@ import { DeleteAccountScreen } from '../screens/DeleteAccountScreen';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
 import type { ItemOpenContext } from '../items/itemOpenGrant';
 import { themedScreen, useTheme } from '../theme/ThemeContext';
-import { AppearanceSettingsScreen } from '../screens/AppearanceSettingsScreen';
 import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
 import { NewLinkReviewScreen } from '../screens/NewLinkReviewScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
@@ -142,7 +141,6 @@ export type RootStackParamList = {
   };
   LanguageSettings: undefined;
   /** 화면 모드: 시스템 설정 사용 / 라이트 / 다크 (this device only). */
-  AppearanceSettings: undefined;
   /** Settings > 컬렉션 잠금: the user's own locked Collections and the passwords this device remembers. */
   CollectionLockSettings: undefined;
   /** 내 페이지 > 프로필 편집: the profile photo and nickname (the Juple ID is shown read-only). */
@@ -290,11 +288,6 @@ export function RootStack() {
               component={themedScreen(LanguageSettingsScreen)}
               name="LanguageSettings"
               options={{ title: t('nav.languageSettings'), ...headerTitleWithIcon(screenIcons.language, t('nav.languageSettings')) }}
-            />
-            <Stack.Screen
-              component={themedScreen(AppearanceSettingsScreen)}
-              name="AppearanceSettings"
-              options={{ title: t('appearance.title'), ...headerTitleWithIcon(screenIcons.appearance, t('appearance.title')) }}
             />
             <Stack.Screen
               component={themedScreen(CollectionLockSettingsScreen)}

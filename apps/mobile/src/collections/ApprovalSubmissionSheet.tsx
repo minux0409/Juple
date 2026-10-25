@@ -318,8 +318,8 @@ export function ApprovalSubmissionSheet({
           testID={`submission-reject-${row.submissionId}`}
         >
           {rejecting
-            ? <ActivityIndicator color={colors.danger} size="small" />
-            : <CloseIcon color={colors.danger} size={ACTION_ICON_SIZE} strokeWidth={2.25} />}
+            ? <ActivityIndicator color={colors.dangerText} size="small" />
+            : <CloseIcon color={colors.dangerText} size={ACTION_ICON_SIZE} strokeWidth={2.25} />}
         </Pressable>
         <Pressable
           accessibilityLabel={t('submissions.approveA11y', { title })}
@@ -331,8 +331,8 @@ export function ApprovalSubmissionSheet({
           testID={`submission-approve-${row.submissionId}`}
         >
           {approving
-            ? <ActivityIndicator color={colors.brand} size="small" />
-            : <CheckIcon color={colors.brand} size={ACTION_ICON_SIZE} strokeWidth={2.5} />}
+            ? <ActivityIndicator color={colors.brandText} size="small" />
+            : <CheckIcon color={colors.brandText} size={ACTION_ICON_SIZE} strokeWidth={2.5} />}
         </Pressable>
       </View>
     );
@@ -461,7 +461,7 @@ const styles = themedStyles(() => ({
   listContent: { paddingBottom: spacing.xs },
   gap: { height: spacing.sm },
   empty: { color: colors.textSecondary, fontSize: 15, paddingVertical: spacing.xl, textAlign: 'center' },
-  error: { color: colors.danger, fontSize: 14, marginTop: spacing.sm, paddingVertical: spacing.xs, textAlign: 'center' },
+  error: { color: colors.dangerText, fontSize: 14, marginTop: spacing.sm, paddingVertical: spacing.xs, textAlign: 'center' },
   // Three equal zones across the card; each is a full-width, 46dp-high target (>= 44dp) with a whole third of the width.
   strip: { flexDirection: 'row' },
   stripAction: { alignItems: 'center', flex: 1, height: STRIP_ACTION_HEIGHT, justifyContent: 'center' },

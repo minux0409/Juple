@@ -165,7 +165,7 @@ export function SupportInquiryScreen() {
               style={[styles.submit, !canSubmit && styles.submitDisabled]}
               testID="inquiry-submit"
             >
-              {isSubmitting ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.submitLabel}>{t('inquiry.submit')}</Text>}
+              {isSubmitting ? <ActivityIndicator color={colors.onBrand} /> : <Text style={styles.submitLabel}>{t('inquiry.submit')}</Text>}
             </Pressable>
           </ScrollView>
         </KeyboardSafeView>
@@ -250,13 +250,13 @@ const styles = themedStyles(() => ({
   flex: { flex: 1 },
   tabs: { alignSelf: 'center', flexDirection: 'row', maxWidth: 640, paddingHorizontal: spacing.xl, paddingTop: spacing.md, width: '100%' },
   tab: { alignItems: 'center', borderBottomColor: colors.inputBorder, borderBottomWidth: 2, flex: 1, justifyContent: 'center', minHeight: minTouchTarget },
-  tabSelected: { borderBottomColor: colors.brand },
+  tabSelected: { borderBottomColor: colors.brandText },
   tabLabel: { color: colors.textSecondary, fontSize: 15, fontWeight: '600' },
-  tabLabelSelected: { color: colors.brand, fontWeight: '700' },
+  tabLabelSelected: { color: colors.brandText, fontWeight: '700' },
   form: { alignSelf: 'center', maxWidth: 640, padding: spacing.xl, width: '100%' },
   fieldLabel: { color: colors.textPrimary, fontSize: 14, fontWeight: '700', marginBottom: spacing.sm },
   contentLabel: { marginTop: spacing.xl },
-  required: { color: colors.danger },
+  required: { color: colors.dangerText },
   selectField: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.inputBorder, borderRadius: radii.md, borderWidth: 1, columnGap: spacing.sm, flexDirection: 'row', minHeight: minTouchTarget + 4, paddingHorizontal: spacing.md },
   selectText: { color: colors.textPrimary, flex: 1, fontSize: 15 },
   placeholder: { color: colors.textSecondary },
@@ -267,7 +267,7 @@ const styles = themedStyles(() => ({
   noteText: { color: colors.textSecondary, flex: 1, fontSize: 13, lineHeight: 19 },
   submit: { alignItems: 'center', alignSelf: 'stretch', backgroundColor: colors.brand, borderRadius: radii.md, justifyContent: 'center', marginTop: spacing.xl, minHeight: minTouchTarget + 4, paddingHorizontal: spacing.lg },
   submitDisabled: { opacity: 0.45 },
-  submitLabel: { color: colors.surface, fontSize: 16, fontWeight: '700' },
+  submitLabel: { color: colors.onBrand, fontSize: 16, fontWeight: '700' },
   loading: { marginTop: spacing.xl },
   footerLoading: { marginVertical: spacing.lg },
   list: { alignSelf: 'center', flexGrow: 1, maxWidth: 640, padding: spacing.xl, paddingTop: spacing.lg, width: '100%' },
@@ -275,7 +275,7 @@ const styles = themedStyles(() => ({
   rowHeader: { alignItems: 'center', columnGap: spacing.sm, flexDirection: 'row', justifyContent: 'space-between' },
   rowType: { color: colors.textSecondary, flex: 1, fontSize: 13, fontWeight: '700' },
   rowStatus: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
-  rowStatusAnswered: { color: colors.brand },
+  rowStatusAnswered: { color: colors.brandText },
   rowContent: { color: colors.textPrimary, fontSize: 15, lineHeight: 21, marginTop: spacing.xs },
   rowDate: { color: colors.textSecondary, fontSize: 12, marginTop: spacing.sm },
 }));

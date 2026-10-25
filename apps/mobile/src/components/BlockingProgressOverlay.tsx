@@ -34,7 +34,7 @@ export function BlockingProgressOverlay({ visible, message, testID = 'blocking-p
           accessible
           style={styles.card}
         >
-          <ActivityIndicator color={colors.brand} size="large" />
+          <ActivityIndicator color={colors.brandText} size="large" />
           <Text style={styles.message}>{message}</Text>
         </View>
       </View>

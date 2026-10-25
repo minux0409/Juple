@@ -474,7 +474,7 @@ function SharePasswordDialog({ mode, isSaving, onSubmit, onCancel }: SharePasswo
               style={[styles.actionButton, styles.actionButtonPrimary]}
               testID="share-password-submit"
             >
-              {isSaving ? <ActivityIndicator color={colors.surface} size="small" /> : (
+              {isSaving ? <ActivityIndicator color={colors.onBrand} size="small" /> : (
                 <Text style={[styles.actionLabel, styles.actionLabelPrimary]}>{t('collections.sharePasswordSubmit')}</Text>
               )}
             </Pressable>
@@ -523,11 +523,11 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget,
     paddingHorizontal: spacing.md,
   },
-  actionButtonPrimary: { backgroundColor: colors.brand, borderColor: colors.brand },
+  actionButtonPrimary: { backgroundColor: colors.brand, borderColor: colors.brandText },
   actionLabel: { color: colors.textPrimary, fontSize: 14, fontWeight: '600', textAlign: 'center' },
-  actionLabelPrimary: { color: colors.surface, fontWeight: '700' },
+  actionLabelPrimary: { color: colors.onBrand, fontWeight: '700' },
   disabled: { opacity: 0.45 },
-  error: { color: colors.danger, fontSize: 13 },
+  error: { color: colors.dangerText, fontSize: 13 },
   overlay: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)', flex: 1, justifyContent: 'center', padding: spacing.xl },
   dialog: { backgroundColor: colors.surface, borderRadius: radii.lg, gap: spacing.sm, maxWidth: 420, padding: spacing.xl, width: '100%' },
   dialogTitle: { color: colors.textPrimary, fontSize: 17, fontWeight: '700' },

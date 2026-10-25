@@ -70,7 +70,7 @@ export function UserAvatar({ jupleId, displayName, imageUrl, imageVersion, size 
           {initial}
         </Text>
       ) : (
-        <UserIcon color={colors.brand} size={Math.round(size * 0.56)} />
+        <UserIcon color={colors.brandText} size={Math.round(size * 0.56)} />
       )}
     </View>
   );
@@ -88,7 +88,7 @@ const styles = themedStyles(() => ({
     width: '100%',
   },
   initial: {
-    color: colors.brand,
+    color: colors.brandText,
     fontWeight: '700',
   },
 }));

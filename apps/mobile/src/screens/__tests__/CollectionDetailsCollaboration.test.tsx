@@ -1382,7 +1382,7 @@ describe('CollectionDetailsScreen - who added each link', () => {
     expect(hasOwnerCrown(row(renderer, membersLink))).toBe(false);
     expect(hasOwnerCrown(row(renderer, myLink))).toBe(false);
     expect(adderLine(row(renderer, ownersLink)).props.accessibilityLabel).toBe('컬렉션 소유자 피카츄님이 추가한 링크');
-    expect(adderLine(row(renderer, membersLink)).props.accessibilityLabel).toBe('참여자 CNTR-C234님이 추가한 링크');
+    expect(adderLine(row(renderer, membersLink)).props.accessibilityLabel).toBe('참여자 CNTRC234님이 추가한 링크');
     expect(adderLine(row(renderer, myLink)).props.accessibilityLabel).toBe('내가 추가한 링크');
   });
 
@@ -1665,7 +1665,7 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
 
     const entry = pendingEntry(renderer);
     expect(entry.findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '1']);
-    expect(StyleSheet.flatten(rowStyle(entry))).toEqual(expect.objectContaining({ minHeight: 44, flexDirection: 'row', backgroundColor: colors.brandSoft, borderColor: colors.brand }));
+    expect(StyleSheet.flatten(rowStyle(entry))).toEqual(expect.objectContaining({ minHeight: 44, flexDirection: 'row', backgroundColor: colors.brandSoft, borderColor: colors.brandText }));
     expect(entry.type).toBe(PendingActionRow);
     // Order inside the list header: title, header actions, this row, then the sort chips.
     const order = header(renderer).root

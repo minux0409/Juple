@@ -39,7 +39,7 @@ export function CollectionStatusBadges({ isLocked, isShared, size = 20 }: Collec
           style={[styles.badge, styles.bottomStart, badgeStyle]}
           testID="collection-badge-shared"
         >
-          <PeopleIcon color={colors.brand} size={glyph} strokeWidth={2} />
+          <PeopleIcon color={colors.brandText} size={glyph} strokeWidth={2} />
         </View>
       ) : null}
     </>

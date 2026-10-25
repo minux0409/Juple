@@ -241,7 +241,7 @@ export function DataExportScreen() {
               style={[styles.primaryButton, isBusy && styles.disabledButton]}
               testID="data-export-reauth-action"
             >
-              {isBusy ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryLabel}>{t('dataExport.reauthAction')}</Text>}
+              {isBusy ? <ActivityIndicator color={colors.onBrand} /> : <Text style={styles.primaryLabel}>{t('dataExport.reauthAction')}</Text>}
             </Pressable>
           </View>
         ) : null}
@@ -254,7 +254,7 @@ export function DataExportScreen() {
             style={[styles.primaryButton, isBusy && styles.disabledButton]}
             testID="data-export-create"
           >
-            {isBusy ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryLabel}>{t('dataExport.create')}</Text>}
+            {isBusy ? <ActivityIndicator color={colors.onBrand} /> : <Text style={styles.primaryLabel}>{t('dataExport.create')}</Text>}
           </Pressable>
         ) : null}
         {notice ? <Text style={styles.notice} testID="data-export-notice">{notice}</Text> : null}
@@ -280,10 +280,10 @@ const styles = themedStyles(() => ({
   fileText: { flex: 1, minWidth: 0 },
   fileTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
   fileDetail: { color: colors.textSecondary, fontSize: 13, lineHeight: 19, marginTop: 2 },
-  downloadButton: { alignItems: 'center', borderColor: colors.brand, borderRadius: radii.md, borderWidth: 1, flexShrink: 0, justifyContent: 'center', maxWidth: '45%', minHeight: minTouchTarget, paddingHorizontal: spacing.lg },
-  downloadLabel: { color: colors.brand, fontSize: 15, fontWeight: '600' },
+  downloadButton: { alignItems: 'center', borderColor: colors.brandText, borderRadius: radii.md, borderWidth: 1, flexShrink: 0, justifyContent: 'center', maxWidth: '45%', minHeight: minTouchTarget, paddingHorizontal: spacing.lg },
+  downloadLabel: { color: colors.brandText, fontSize: 15, fontWeight: '600' },
   primaryButton: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.lg, justifyContent: 'center', marginTop: spacing.xl, minHeight: minTouchTarget, paddingHorizontal: spacing.md },
-  primaryLabel: { color: colors.surface, fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  primaryLabel: { color: colors.onBrand, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   disabledButton: { opacity: 0.5 },
   notice: { color: colors.textSecondary, fontSize: 14, lineHeight: 20, marginTop: spacing.md },
   standaloneNotice: { color: colors.textSecondary, fontSize: 14, lineHeight: 20, marginTop: spacing.xl, paddingHorizontal: spacing.xl },

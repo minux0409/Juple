@@ -111,5 +111,5 @@ const styles = themedStyles(() => ({
   dot: { backgroundColor: colors.inputBorder, borderRadius: 4, height: 8, width: 8 },
   dotActive: { backgroundColor: colors.brand, width: 22 },
   primaryButton: { alignItems: 'center', alignSelf: 'stretch', backgroundColor: colors.brand, borderRadius: radii.md, justifyContent: 'center', minHeight: minTouchTarget + 4, paddingHorizontal: spacing.lg },
-  primaryLabel: { color: colors.surface, fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  primaryLabel: { color: colors.onBrand, fontSize: 16, fontWeight: '700', textAlign: 'center' },
 }));

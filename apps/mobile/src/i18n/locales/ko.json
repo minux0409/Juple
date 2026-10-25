@@ -636,7 +636,7 @@
   },
   "collaboration": {
     "jupleIdLabel": "Juple ID",
-    "jupleIdPlaceholder": "예: K7MP-4Q8N",
+    "jupleIdPlaceholder": "예: K7MP4Q8N",
     "find": "찾기",
     "lookupNotFound": "해당 Juple ID를 가진 사용자가 없습니다.",
     "lookupFallback": "Juple ID를 찾지 못했습니다.",

@@ -636,7 +636,7 @@
   },
   "collaboration": {
     "jupleIdLabel": "Juple ID",
-    "jupleIdPlaceholder": "örn. K7MP-4Q8N",
+    "jupleIdPlaceholder": "örn. K7MP4Q8N",
     "find": "Bul",
     "lookupNotFound": "Bu Juple ID’ye sahip kimse yok.",
     "lookupFallback": "Bu Juple ID aranamadı.",

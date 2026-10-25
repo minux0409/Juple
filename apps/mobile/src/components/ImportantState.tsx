@@ -52,7 +52,7 @@ export function ImportantState({ variant = 'loadFailed', message, title, icon, o
   return (
     <View accessibilityLiveRegion="polite" style={[styles.container, compact && styles.containerCompact]} testID={testID ?? 'important-state'}>
       <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.iconCircle, compact && styles.iconCircleCompact]}>
-        <Icon color={variant === 'empty' ? colors.textSecondary : colors.brand} size={compact ? 22 : 28} />
+        <Icon color={variant === 'empty' ? colors.textSecondary : colors.brandText} size={compact ? 22 : 28} />
       </View>
       {headline ? <Text accessibilityRole="header" style={styles.title}>{headline}</Text> : null}
       {body ? <Text style={styles.message}>{body}</Text> : null}
@@ -74,7 +74,7 @@ const styles = themedStyles(() => ({
   message: { color: colors.textSecondary, fontSize: 14, lineHeight: 20, textAlign: 'center' },
   retry: {
     alignItems: 'center',
-    borderColor: colors.brand,
+    borderColor: colors.brandText,
     borderRadius: radii.md,
     borderWidth: 1,
     justifyContent: 'center',
@@ -82,5 +82,5 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget,
     paddingHorizontal: spacing.lg,
   },
-  retryLabel: { color: colors.brand, fontSize: 15, fontWeight: '600', textAlign: 'center' },
+  retryLabel: { color: colors.brandText, fontSize: 15, fontWeight: '600', textAlign: 'center' },
 }));

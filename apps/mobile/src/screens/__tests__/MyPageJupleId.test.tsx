@@ -71,7 +71,7 @@ describe('MyPageScreen profile header', () => {
     const renderer = await renderScreen();
 
     const value = renderer.root.findByProps({ testID: 'my-juple-id' });
-    expect(value.props.children).toBe('@K7MP-4Q8N');
+    expect(value.props.children).toBe('@K7MP4Q8N');
     expect(value.props.selectable).toBe(true);
   });
 
@@ -91,7 +91,7 @@ describe('MyPageScreen profile header', () => {
     });
     const renderer = await renderScreen();
 
-    expect(headerTexts(renderer)).toEqual(expect.arrayContaining(['피카츄', '@K7MP-4Q8N']));
+    expect(headerTexts(renderer)).toEqual(expect.arrayContaining(['피카츄', '@K7MP4Q8N']));
     const header = renderer.root.findByProps({ testID: 'my-profile-header' });
     expect(header.findByType(Image).props.source.uri).toBe('https://blob/me?sig=1');
   });

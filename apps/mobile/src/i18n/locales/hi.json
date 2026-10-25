@@ -636,7 +636,7 @@
   },
   "collaboration": {
     "jupleIdLabel": "Juple ID",
-    "jupleIdPlaceholder": "जैसे K7MP-4Q8N",
+    "jupleIdPlaceholder": "जैसे K7MP4Q8N",
     "find": "खोजें",
     "lookupNotFound": "इस Juple ID वाला कोई नहीं है।",
     "lookupFallback": "यह Juple ID खोजा नहीं जा सका।",

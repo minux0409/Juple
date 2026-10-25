@@ -6,6 +6,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMobileAttention, useAttentionSnapshot } from '../attention/attentionContext';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { DarkModeSwitchRow } from '../components/DarkModeSwitchRow';
 import { ThemedSwitch } from '../components/ThemedSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
@@ -180,18 +181,13 @@ export function MyPageScreen() {
             <Text style={styles.settingsRowLabel}>{t('settings.language')}</Text>
           </Pressable>
           <View style={styles.settingsRowDivider} />
-          <Pressable
+          <DarkModeSwitchRow
             {...appearanceTarget}
-            accessibilityRole="button"
-            onPress={() => navigation.navigate('AppearanceSettings')}
-            style={styles.settingsRow}
+            iconStyle={styles.settingsRowIcon}
+            labelStyle={[styles.settingsRowLabel, styles.settingsRowLabelFill]}
+            rowStyle={styles.settingsRow}
             testID="my-appearance"
-          >
-            <View style={styles.settingsRowIcon}>
-              <screenIcons.appearance color={colors.textSecondary} size={18} />
-            </View>
-            <Text style={styles.settingsRowLabel}>{t('appearance.title')}</Text>
-          </Pressable>
+          />
           <View style={styles.settingsRowDivider} />
           <View style={styles.settingsRow}>
             <View style={styles.settingsRowIcon}>
@@ -310,9 +306,9 @@ export function MyPageScreen() {
             style={styles.settingsRow}
           >
             <View style={styles.settingsRowIcon}>
-              <LogoutIcon color={colors.textSecondary} size={18} />
+              <LogoutIcon color={colors.dangerText} size={18} />
             </View>
-            <Text style={styles.settingsRowLabel}>{t('auth.logout')}</Text>
+            <Text style={[styles.settingsRowLabel, styles.settingsRowLabelDanger]}>{t('auth.logout')}</Text>
           </Pressable>
         </View>
 
@@ -388,7 +384,7 @@ const styles = themedStyles(() => ({
     minWidth: 20,
     paddingHorizontal: 6,
   },
-  countBadgeText: { color: colors.surface, fontSize: 12, fontWeight: '700', lineHeight: 20 },
+  countBadgeText: { color: colors.onBrand, fontSize: 12, fontWeight: '700', lineHeight: 20 },
   // One grouped white card (matches Home/Categories' floating-card language) holding every
   // settings row, rather than each row being its own separately bordered box.
   settingsGroup: {
@@ -432,6 +428,9 @@ const styles = themedStyles(() => ({
     fontSize: 15,
     fontWeight: '600',
   },
+  /** Sign out is an account-leaving action (not a data deletion): the danger text colour on the otherwise unchanged row. */
+  settingsRowLabelFill: { flex: 1 },
+  settingsRowLabelDanger: { color: colors.dangerText },
   settingsRowDescription: {
     color: colors.textSecondary,
     fontSize: 13,

@@ -156,5 +156,5 @@ const styles = themedStyles(() => ({
   content: { flexGrow: 1, gap: spacing.sm, padding: spacing.lg },
   loading: { marginTop: spacing.xl },
   empty: { color: colors.textSecondary, fontSize: 15, marginTop: spacing.xl, textAlign: 'center' },
-  error: { color: colors.danger, fontSize: 15, marginTop: spacing.xl, textAlign: 'center' },
+  error: { color: colors.dangerText, fontSize: 15, marginTop: spacing.xl, textAlign: 'center' },
 }));

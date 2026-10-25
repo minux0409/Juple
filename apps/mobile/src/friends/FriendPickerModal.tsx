@@ -272,7 +272,7 @@ const styles = themedStyles(() => ({
     paddingHorizontal: spacing.xs,
     paddingVertical: spacing.md,
   },
-  tileSelected: { backgroundColor: colors.brandSoft, borderColor: colors.brand },
+  tileSelected: { backgroundColor: colors.brandSoft, borderColor: colors.brandText },
   tileIndicator: { position: 'absolute', right: spacing.xs, top: spacing.xs },
   tileName: { color: colors.textPrimary, fontSize: 13, fontWeight: '600', textAlign: 'center' },
   tileMeta: { color: colors.textSecondary, fontSize: 11, textAlign: 'center' },
@@ -291,5 +291,5 @@ const styles = themedStyles(() => ({
   secondary: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flex: 1, justifyContent: 'center', minHeight: minTouchTarget },
   secondaryLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: '600', textAlign: 'center' },
   primary: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.md, flex: 1, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.sm },
-  primaryLabel: { color: colors.surface, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  primaryLabel: { color: colors.onBrand, fontSize: 15, fontWeight: '700', textAlign: 'center' },
 }));

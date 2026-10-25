@@ -17,7 +17,7 @@ import { colors, themedStyles } from '../theme/tokens';
  */
 export function NotificationTypeIcon({ type, size = 40 }: { readonly type: string | null; readonly size?: number }) {
   const glyph = Math.round(size * 0.5);
-  const color = colors.brand;
+  const color = colors.brandText;
   return (
     <View
       accessibilityElementsHidden

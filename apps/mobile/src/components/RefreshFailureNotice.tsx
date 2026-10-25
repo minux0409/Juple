@@ -35,5 +35,5 @@ const styles = themedStyles(() => ({
   },
   text: { color: colors.textSecondary, flex: 1, fontSize: 13, minWidth: 0, paddingVertical: spacing.sm },
   retry: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
-  retryLabel: { color: colors.brand, fontSize: 14, fontWeight: '600' },
+  retryLabel: { color: colors.brandText, fontSize: 14, fontWeight: '600' },
 }));

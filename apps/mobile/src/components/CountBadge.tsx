@@ -36,5 +36,5 @@ const styles = themedStyles(() => ({
     minWidth: 20,
     paddingHorizontal: 5,
   },
-  text: { color: colors.surface, fontSize: 11, fontWeight: '700' },
+  text: { color: colors.onDanger, fontSize: 11, fontWeight: '700' },
 }));

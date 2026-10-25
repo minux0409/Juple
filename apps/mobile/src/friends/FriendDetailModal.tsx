@@ -202,7 +202,7 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onOpe
             style={[styles.actionButton, styles.primaryButton, isBusy && !isSaving && styles.disabled]}
             testID="friend-note-save"
           >
-            {isSaving ? <ActivityIndicator color={colors.surface} size="small" /> : (
+            {isSaving ? <ActivityIndicator color={colors.onBrand} size="small" /> : (
               <>
                 <CheckIcon color={colors.surface} size={ACTION_ICON_SIZE} />
                 <Text numberOfLines={2} style={[styles.actionLabel, styles.primaryLabel]}>{t('friends.saveNote')}</Text>
@@ -275,9 +275,9 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onOpe
             style={[styles.actionButton, styles.removeButton, isBusy && !isRemoving && styles.disabled]}
             testID="friend-remove"
           >
-            {isRemoving ? <ActivityIndicator color={colors.danger} size="small" /> : (
+            {isRemoving ? <ActivityIndicator color={colors.dangerText} size="small" /> : (
               <>
-                <UserMinusIcon color={colors.danger} size={ACTION_ICON_SIZE} />
+                <UserMinusIcon color={colors.dangerText} size={ACTION_ICON_SIZE} />
                 <Text numberOfLines={2} style={[styles.actionLabel, styles.removeLabel]}>{t('friends.remove')}</Text>
               </>
             )}
@@ -323,7 +323,7 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget,
     paddingHorizontal: spacing.md,
   },
-  error: { color: colors.danger, fontSize: 14, marginTop: spacing.sm },
+  error: { color: colors.dangerText, fontSize: 14, marginTop: spacing.sm },
   // 메모 저장 and 친구 삭제 share one button shape - [icon] text, the same height, radius, border width, padding and gap -
   // only the color says which is the default action and which is destructive.
   actionButton: {
@@ -337,10 +337,10 @@ const styles = themedStyles(() => ({
     paddingHorizontal: spacing.md,
   },
   actionLabel: { flexShrink: 1, fontSize: 15, fontWeight: '700', textAlign: 'center' },
-  primaryButton: { backgroundColor: colors.brand, borderColor: colors.brand, marginTop: spacing.md },
-  primaryLabel: { color: colors.surface },
+  primaryButton: { backgroundColor: colors.brand, borderColor: colors.brandText, marginTop: spacing.md },
+  primaryLabel: { color: colors.onBrand },
   disabled: { opacity: 0.45 },
-  removeButton: { borderColor: colors.danger },
+  removeButton: { borderColor: colors.dangerBorder },
   sharedState: { marginTop: spacing.sm },
   sharedEmpty: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.sm },
   // One explicit title-to-list inset on both platforms; keep the row's bottom and tile spacing.
@@ -348,7 +348,7 @@ const styles = themedStyles(() => ({
   sharedTile: { alignItems: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.xs, rowGap: spacing.xs, width: 84 },
   sharedLock: { backgroundColor: colors.surface, borderRadius: 8, bottom: -3, padding: 2, position: 'absolute', right: -3 },
   sharedMore: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget },
-  sharedMoreLabel: { color: colors.brand, flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  sharedMoreLabel: { color: colors.brandText, flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   sharedName: { color: colors.textPrimary, fontSize: 13, fontWeight: '600', textAlign: 'center' },
-  removeLabel: { color: colors.danger },
+  removeLabel: { color: colors.dangerText },
 }));

@@ -604,7 +604,7 @@ describe('CollectionDetailsScreen', () => {
         const row = menu!.findAll(node => node.props.accessibilityLabel === menu!.props.actions[index].label && typeof node.props.onPress === 'function')[0];
         expect(row.findAllByType(icon)).toHaveLength(1);
       }
-      expect(menu!.findByType(TrashIcon).props.color).toBe(colors.danger);
+      expect(menu!.findByType(TrashIcon).props.color).toBe(colors.dangerText);
       expect(menu!.findByType(EditIcon).props.color).toBe(colors.textPrimary);
 
       await act(async () => menu?.props.actions.at(-1).onPress());

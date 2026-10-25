@@ -2114,7 +2114,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
             style={[styles.selectionButton, styles.selectionPrimary, (selectedItemIds.size === 0 || isCopying) && styles.disabledButton]}
             testID="collection-copy-confirm"
           >
-            {isCopying ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.selectionPrimaryLabel}>{t('collections.copyAction')}</Text>}
+            {isCopying ? <ActivityIndicator color={colors.onBrand} /> : <Text style={styles.selectionPrimaryLabel}>{t('collections.copyAction')}</Text>}
           </Pressable>
         </View>
       ) : null}
@@ -2455,7 +2455,7 @@ const styles = themedStyles(() => ({
     minWidth: minTouchTarget,
   },
   error: {
-    color: colors.danger,
+    color: colors.dangerText,
     fontSize: 14,
     marginTop: 12,
   },
@@ -2472,7 +2472,7 @@ const styles = themedStyles(() => ({
     top: spacing.xs,
     width: 22,
   },
-  selectionMarkSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
+  selectionMarkSelected: { backgroundColor: colors.brand, borderColor: colors.brandText },
   selectionBar: {
     alignItems: 'center',
     backgroundColor: colors.surface,
@@ -2486,7 +2486,7 @@ const styles = themedStyles(() => ({
   selectionSummary: { alignItems: 'center', columnGap: spacing.md, flex: 1, flexDirection: 'row', flexWrap: 'wrap', minWidth: 0 },
   selectionCount: { color: colors.textPrimary, flexShrink: 1, fontSize: 15, fontWeight: '600' },
   selectionAllAction: { justifyContent: 'center', minHeight: minTouchTarget },
-  selectionAllLabel: { color: colors.brand, fontSize: 15, fontWeight: '600' },
+  selectionAllLabel: { color: colors.brandText, fontSize: 15, fontWeight: '600' },
   selectionButton: {
     alignItems: 'center',
     borderRadius: radii.md,
@@ -2497,7 +2497,7 @@ const styles = themedStyles(() => ({
   },
   selectionCancelLabel: { color: colors.textSecondary, fontSize: 15, fontWeight: '600' },
   selectionPrimary: { backgroundColor: colors.brand },
-  selectionPrimaryLabel: { color: colors.surface, fontSize: 15, fontWeight: '700' },
+  selectionPrimaryLabel: { color: colors.onBrand, fontSize: 15, fontWeight: '700' },
   skeletonRow: { overflow: 'hidden' },
   // Wraps only when the sort chips and the three-option view switch genuinely do not fit side by side (the switch keeps the end edge).
   sortRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: LINK_CONTROLS_BOTTOM_GAP, marginTop: LINK_CONTROLS_TOP_GAP },

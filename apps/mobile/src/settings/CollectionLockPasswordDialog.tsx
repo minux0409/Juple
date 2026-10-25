@@ -141,7 +141,7 @@ export function CollectionLockPasswordDialog({ visible, mode, onCancel, onSaved,
               testID="lock-password-save"
             >
               {isSubmitting ? (
-                <ActivityIndicator color={colors.surface} size="small" />
+                <ActivityIndicator color={colors.onBrand} size="small" />
               ) : (
                 <Text numberOfLines={2} style={styles.confirmLabel}>{t('common.save')}</Text>
               )}
@@ -182,7 +182,7 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget,
     paddingHorizontal: spacing.md,
   },
-  error: { color: colors.danger, fontSize: 14, marginTop: spacing.md },
+  error: { color: colors.dangerText, fontSize: 14, marginTop: spacing.md },
   buttonRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   cancelButton: {
     alignItems: 'center',
@@ -203,5 +203,5 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget,
     paddingHorizontal: spacing.sm,
   },
-  confirmLabel: { color: colors.surface, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  confirmLabel: { color: colors.onBrand, fontSize: 15, fontWeight: '700', textAlign: 'center' },
 }));

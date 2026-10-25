@@ -264,7 +264,7 @@ const styles = themedStyles(() => ({
   hole: { position: 'absolute' },
   wedgeBox: { overflow: 'hidden', position: 'absolute' },
   wedgeRing: { borderColor: colors.scrim, position: 'absolute' },
-  spotlightRing: { borderColor: colors.brand, borderRadius: radii.md, borderWidth: 2, position: 'absolute' },
+  spotlightRing: { borderColor: colors.brandText, borderRadius: radii.md, borderWidth: 2, position: 'absolute' },
   card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, padding: spacing.lg, position: 'absolute', rowGap: spacing.sm, ...cardShadow, elevation: 4, shadowOpacity: 0.16, shadowRadius: 8 },
   progress: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   textScroll: { flexGrow: 0, flexShrink: 1 },
@@ -277,5 +277,5 @@ const styles = themedStyles(() => ({
   secondaryButton: { alignItems: 'center', borderColor: colors.inputBorder, borderRadius: radii.md, borderWidth: 1, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   secondaryLabel: { color: colors.textPrimary, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   primaryButton: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.md, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.lg },
-  primaryLabel: { color: colors.surface, fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  primaryLabel: { color: colors.onBrand, fontSize: 14, fontWeight: '700', textAlign: 'center' },
 }));

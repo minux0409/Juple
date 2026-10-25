@@ -1,6 +1,6 @@
 import { formatJupleId } from '../collections/api/collaborationApi';
 
-/** How the Friends screens show a Juple ID: "@K7MP-4Q8N". */
+/** How the Friends screens show a Juple ID: "@K7MP4Q8N". */
 export function atJupleId(jupleId: string): string {
   return `@${formatJupleId(jupleId)}`;
 }

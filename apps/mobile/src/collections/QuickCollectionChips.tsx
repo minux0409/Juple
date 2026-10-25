@@ -92,7 +92,7 @@ export function QuickCollectionChips({ options, favoriteIds, selectedIds, onTogg
             style={[styles.chip, isSelected && styles.chipSelected, disabled && styles.disabled]}
             testID={`${testID}-${collection.id}`}
           >
-            {isFavorite ? <StarIcon color={isSelected ? colors.surface : colors.brand} size={14} /> : null}
+            {isFavorite ? <StarIcon color={isSelected ? colors.surface : colors.brandText} size={14} /> : null}
             <Text numberOfLines={1} style={[styles.chipLabel, isSelected && styles.chipLabelSelected]}>{collection.name}</Text>
           </Pressable>
         );
@@ -107,7 +107,7 @@ export function QuickCollectionChips({ options, favoriteIds, selectedIds, onTogg
           style={[styles.chip, styles.chipCreate, disabled && styles.disabled]}
           testID={`${testID}-create`}
         >
-          <PlusIcon color={colors.brand} size={14} />
+          <PlusIcon color={colors.brandText} size={14} />
           <Text numberOfLines={1} style={styles.chipLabel}>{t('item.newCollectionChip')}</Text>
         </Pressable>
       ) : null}
@@ -129,9 +129,9 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget,
     paddingHorizontal: spacing.md,
   },
-  chipSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
-  chipCreate: { borderColor: colors.brand, borderStyle: 'dashed' },
+  chipSelected: { backgroundColor: colors.brand, borderColor: colors.brandText },
+  chipCreate: { borderColor: colors.brandText, borderStyle: 'dashed' },
   chipLabel: { color: colors.textPrimary, flexShrink: 1, fontSize: 14, fontWeight: '600' },
-  chipLabelSelected: { color: colors.surface },
+  chipLabelSelected: { color: colors.onBrand },
   disabled: { opacity: 0.5 },
 }));

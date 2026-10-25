@@ -831,7 +831,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
 
       await press(renderer, 'id-invite-find');
       const person = byId(renderer, 'id-invite-person');
-      expect(texts(person)).toEqual(expect.arrayContaining(['이상해씨', 'NAMD-2345']));
+      expect(texts(person)).toEqual(expect.arrayContaining(['이상해씨', 'NAMD2345']));
 
       await press(renderer, 'id-invite-role-contributor');
       await press(renderer, 'id-invite-add');
@@ -851,7 +851,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
 
       const found = byId(renderer, 'id-invite-person');
       const summary = renderer.root.find(node => typeof node.type === 'string' && String(node.props.testID).startsWith('invite-selected-person-') && found.findAll(inner => inner === node).length > 0);
-      expect(texts(summary)).toEqual(expect.arrayContaining(['이상해씨', 'NAMD-2345']));
+      expect(texts(summary)).toEqual(expect.arrayContaining(['이상해씨', 'NAMD2345']));
       expect(summary.findAllByType(UserAvatar)).toHaveLength(1);
       const ids = found.findAll(node => typeof node.type === 'string' && typeof node.props.testID === 'string').map(node => String(node.props.testID));
       expect(ids.findIndex(id => id.startsWith('invite-selected-person-'))).toBeLessThan(ids.indexOf('id-invite-permission'));
@@ -1412,7 +1412,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(exists(renderer, 'share-members')).toBe(false);
       const row = texts(byId(renderer, 'pending-9')).join(' ');
       expect(row).toContain('이상해씨');
-      expect(row).toContain('PNDW-R234');
+      expect(row).toContain('PNDWR234');
       expect(row).toContain(i18n.t('shareSheet.pendingStatus'));
       expect(badgeText(renderer, 'pending-role-9')).toBe(i18n.t('shareSheet.permissionWrite'));
 

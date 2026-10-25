@@ -185,7 +185,7 @@ const styles = themedStyles(() => ({
     alignSelf: 'stretch',
   },
   action: {
-    color: colors.brand,
+    color: colors.brandText,
     fontWeight: '600',
     fontSize: 16,
     textAlign: 'center',

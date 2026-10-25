@@ -802,7 +802,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           gesture={sheetGesture}
           icon={
             <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" testID="item-details-header-icon">
-              <LinkIcon color={colors.brand} size={18} />
+              <LinkIcon color={colors.brandText} size={18} />
             </View>
           }
           rowStyle={styles.header}
@@ -857,7 +857,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
               cacheKey={thumbnailCacheKey}
               fallback={
                 <View style={[styles.thumbnail, styles.thumbnailFallback]} testID="item-details-thumbnail-fallback">
-                  {site.id ? <SiteIcon siteId={site.id} size={30} /> : <LinkIcon color={colors.brand} size={26} />}
+                  {site.id ? <SiteIcon siteId={site.id} size={30} /> : <LinkIcon color={colors.brandText} size={26} />}
                 </View>
               }
               style={styles.thumbnail}
@@ -881,7 +881,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
               <SourceRow
                 trailing={
                   <Pressable accessibilityLabel={t('item.goToUrlA11y')} accessibilityRole="button" onPress={openOriginalUrl} style={styles.iconButton} testID="item-details-open-url">
-                    <ExternalLinkIcon color={colors.brand} size={20} />
+                    <ExternalLinkIcon color={colors.brandText} size={20} />
                   </Pressable>
                 }
                 url={item.url}
@@ -976,9 +976,9 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
             </View>
             {isSharedView && sharedAdder ? (
               // Who put the link here - the same avatar (crown for the Owner) the cards draw; words only for assistive technology.
-              <View style={[styles.infoRow, styles.infoRowDivided]} testID="item-details-row-added-by">
-                <View style={styles.infoLabelColumn}>
-                  <Text numberOfLines={1} style={styles.infoLabel}>{t('collections.addedByLabel')}</Text>
+              <View style={[styles.infoRow, styles.infoRowDivided, styles.infoRowAdder]} testID="item-details-row-added-by">
+                <View style={[styles.infoLabelColumn, styles.infoLabelColumnHug]}>
+                  <Text numberOfLines={2} style={styles.infoLabel}>{t('collections.addedByLabel')}</Text>
                 </View>
                 <ItemAdderBadge
                   adder={sharedAdder}
@@ -1190,10 +1190,13 @@ const styles = themedStyles(() => ({
   infoRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: minTouchTarget + 4, paddingVertical: spacing.xs },
   infoRowDivided: { borderTopColor: colors.inputBorder, borderTopWidth: StyleSheet.hairlineWidth },
   infoLabelColumn: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs + 2, width: INFO_LABEL_WIDTH },
+  /** The 추가한 사람 row: the avatar sits right after its label (8dp), not pushed to the far edge like the fixed label column of the other rows. */
+  infoRowAdder: { gap: spacing.sm, justifyContent: 'flex-start' },
+  infoLabelColumnHug: { flexShrink: 1, width: undefined },
   infoLabel: { color: colors.textSecondary, flexShrink: 1, fontSize: 13, fontWeight: '700' },
   infoValue: { alignItems: 'flex-end', flex: 1, minWidth: 0 },
   infoValueText: { color: colors.textPrimary, flex: 1, fontSize: 14, textAlign: 'right' },
-  error: { color: colors.danger, fontSize: 14, marginTop: spacing.md },
+  error: { color: colors.dangerText, fontSize: 14, marginTop: spacing.md },
   disabledButton: { opacity: 0.5 },
   footer: {
     borderTopColor: colors.inputBorder,
@@ -1205,14 +1208,14 @@ const styles = themedStyles(() => ({
   },
   deleteActionButton: {
     alignItems: 'center',
-    borderColor: colors.danger,
+    borderColor: colors.dangerBorder,
     borderRadius: radii.md + 4,
     borderWidth: 1.5,
     flex: 1,
     justifyContent: 'center',
     minHeight: minTouchTarget,
   },
-  deleteActionLabel: { color: colors.danger, fontSize: 15, fontWeight: '700', paddingHorizontal: spacing.xs, textAlign: 'center' },
+  deleteActionLabel: { color: colors.dangerText, fontSize: 15, fontWeight: '700', paddingHorizontal: spacing.xs, textAlign: 'center' },
   saveActionButton: {
     alignItems: 'center',
     backgroundColor: colors.brand,
@@ -1221,6 +1224,6 @@ const styles = themedStyles(() => ({
     justifyContent: 'center',
     minHeight: minTouchTarget,
   },
-  saveActionLabel: { color: colors.surface, fontSize: 15, fontWeight: '700' },
+  saveActionLabel: { color: colors.onBrand, fontSize: 15, fontWeight: '700' },
   imagesLoading: { marginVertical: spacing.sm },
 }));

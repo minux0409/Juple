@@ -44,7 +44,7 @@ describe('QuickReactionBar', () => {
     expect(pressableById(renderer, 'quick-reaction-heart').props.accessibilityState).toEqual({ selected: false });
     expect(pressableById(renderer, 'quick-reaction-heart').props.accessibilityLabel).toBe('😂'.length > 0 ? '❤️ 반응' : '');
     const style = StyleSheet.flatten(mine.props.style);
-    expect(style.backgroundColor).toBe('#E9F0FE');
+    expect(style.backgroundColor).toBe('#EEEBFF');
   });
 
   it('tapping a reaction selects it, + opens the picker; "+" says what it is for a screen reader', () => {

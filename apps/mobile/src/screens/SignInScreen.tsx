@@ -63,7 +63,7 @@ const styles = themedStyles(() => ({
   },
   error: {
     marginTop: 16,
-    color: colors.danger,
+    color: colors.dangerText,
     fontSize: 13,
     textAlign: 'center',
   },

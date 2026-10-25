@@ -49,8 +49,9 @@ describe('collection access readers (always the server-provided accessRole, neve
 });
 
 describe('Juple ID display', () => {
-  it('shows an 8-character ID as XXXX-XXXX and leaves anything else untouched', () => {
-    expect(formatJupleId('K7MP4Q8N')).toBe('K7MP-4Q8N');
+  it('shows an 8-character ID as XXXXXXXX and leaves anything else untouched', () => {
+    expect(formatJupleId('K7MP4Q8N')).toBe('K7MP4Q8N');
+    expect(formatJupleId('K7MP-4Q8N')).toBe('K7MP4Q8N');
     expect(formatJupleId('SHORT')).toBe('SHORT');
   });
 });

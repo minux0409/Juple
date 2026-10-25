@@ -222,7 +222,7 @@ export function AddFriendModal({ visible, onClose, friends, requests, onRequestS
               style={styles.primaryButton}
               testID="friends-add-send"
             >
-              {isSending ? <ActivityIndicator color={colors.surface} size="small" /> : <Text numberOfLines={2} style={styles.primaryLabel}>{t('friends.sendRequest')}</Text>}
+              {isSending ? <ActivityIndicator color={colors.onBrand} size="small" /> : <Text numberOfLines={2} style={styles.primaryLabel}>{t('friends.sendRequest')}</Text>}
             </Pressable>
           ) : (
             <Text style={styles.status} testID={`friends-add-status-${relationship}`}>
@@ -297,6 +297,6 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget,
     paddingHorizontal: spacing.md,
   },
-  primaryLabel: { color: colors.surface, fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  primaryLabel: { color: colors.onBrand, fontSize: 14, fontWeight: '700', textAlign: 'center' },
   message: { color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginTop: spacing.md },
 }));

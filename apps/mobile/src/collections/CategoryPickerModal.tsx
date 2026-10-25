@@ -208,7 +208,7 @@ export function CategoryPickerModal({
                   style={[styles.primaryButton, styles.submitButton, (!submitEnabled || submit.isSubmitting) && styles.primaryDisabled]}
                   testID="category-picker-submit"
                 >
-                  {submit.isSubmitting ? <ActivityIndicator color={colors.surface} size="small" /> : <Text numberOfLines={2} style={styles.primaryLabel}>{submit.label}</Text>}
+                  {submit.isSubmitting ? <ActivityIndicator color={colors.onBrand} size="small" /> : <Text numberOfLines={2} style={styles.primaryLabel}>{submit.label}</Text>}
                 </Pressable>
               </View>
             </View>
@@ -271,9 +271,9 @@ const styles = themedStyles(() => ({
     paddingHorizontal: spacing.md,
   },
   primaryDisabled: { opacity: 0.45 },
-  primaryLabel: { color: colors.surface, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  primaryLabel: { color: colors.onBrand, fontSize: 15, fontWeight: '700', textAlign: 'center' },
   error: {
-    color: colors.danger,
+    color: colors.dangerText,
     fontSize: 14,
     marginTop: spacing.md,
   },

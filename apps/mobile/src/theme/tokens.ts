@@ -43,6 +43,9 @@ export type ColorRole =
   | 'inputBorder'
   | 'divider'
   | 'danger'
+  | 'onDanger'
+  | 'dangerText'
+  | 'dangerBorder'
   | 'dangerSubtle'
   | 'warning'
   | 'warningText'
@@ -53,6 +56,7 @@ export type ColorRole =
   | 'background'
   | 'brand'
   | 'brandSoft'
+  | 'brandText'
   | 'onBrand'
   | 'onOverlay'
   | 'scrim'
@@ -62,6 +66,15 @@ export type ColorRole =
 
 export type ColorScheme = 'light' | 'dark';
 type Palette = Readonly<Record<ColorRole, string>>;
+
+/**
+ * Brand constants shared by both palettes (and mirrored by the Web's --brand / --danger). BRAND_PRIMARY is the violet-blue of the
+ * final `e` in the Juple wordmark (assets/branding/juple-wordmark.png, the same value as the Web's --juple-violet; the wordmark's last letter measures 102/85/252); BRAND_DANGER
+ * is the light coral the Dark theme already used for destructive actions.
+ */
+export const BRAND_PRIMARY = '#6751FC';
+const BRAND_DANGER = '#FF8A8A';
+const ON_DANGER = '#2B0A0A';
 
 export const lightColors: Palette = {
   textPrimary: '#111111',
@@ -75,7 +88,14 @@ export const lightColors: Palette = {
   /** Soft input/card border for the redesigned form fields - barely visible against `surface`, unlike the older, darker `border`. */
   inputBorder: '#DDE4EF',
   divider: '#EDF1F7',
-  danger: '#B42318',
+  /** Destructive / danger actions: the same light coral in Light and Dark (one role, one colour). */
+  danger: BRAND_DANGER,
+  /** A label or icon on a filled `danger` surface - dark, because white on the light coral is under 3:1. */
+  onDanger: ON_DANGER,
+  /** Danger as TEXT / icon on a normal screen: the coral fails 4.5:1 on white, so Light uses a deeper red (>= 5.6:1 on every Light surface). */
+  dangerText: '#B42318',
+  /** Outline / stroke of a danger control: >= 3:1 on the Light surfaces. */
+  dangerBorder: '#D92D3A',
   dangerSubtle: '#FDECEA',
   warning: '#F5A623',
   /** A warning as TEXT or a thin icon on white (신고): a darker amber that stays readable, unlike the fill-only `warning`. */
@@ -87,9 +107,11 @@ export const lightColors: Palette = {
   /** Screen-level background - cool, light blue-gray so a white `surface` card reads as clearly lifted off it. */
   background: '#F7F9FC',
   /** "Juple blue" - the app's primary/CTA color (buttons, selected tab, selected pill). */
-  brand: '#3366CC',
+  brand: BRAND_PRIMARY,
   /** Pale brand tint - selected-chip backgrounds. */
-  brandSoft: '#E9F0FE',
+  brandSoft: '#EEEBFF',
+  /** Brand-coloured TEXT / icon / selected outline: a touch deeper than the fill so it stays >= 4.5:1 on every Light surface. */
+  brandText: '#5A44EE',
   onBrand: '#FFFFFF',
   /** A label or spinner on the translucent dark layer over a picture (identical in both themes). */
   onOverlay: '#FFFFFF',
@@ -107,7 +129,10 @@ export const darkColors: Palette = {
   border: '#6B7482',
   inputBorder: '#313846',
   divider: '#262C36',
-  danger: '#FF8A8A',
+  danger: BRAND_DANGER,
+  onDanger: ON_DANGER,
+  dangerText: '#FF8A8A',
+  dangerBorder: '#FF8A8A',
   dangerSubtle: '#3A1F22',
   warning: '#F5A623',
   warningText: '#F5C26B',
@@ -116,9 +141,11 @@ export const darkColors: Palette = {
   surfaceMuted: '#20252E',
   surfaceRaised: '#1F242D',
   background: '#101318',
-  brand: '#7AA2FF',
-  brandSoft: '#1D2A45',
-  onBrand: '#0B1220',
+  brand: BRAND_PRIMARY,
+  brandSoft: '#26224A',
+  /** The violet fill is only ~3.4:1 on the dark cards; as text it is lifted to >= 4.5:1 on every Dark surface. */
+  brandText: '#A99BFF',
+  onBrand: '#FFFFFF',
   onOverlay: '#FFFFFF',
   scrim: 'rgba(0, 0, 0, 0.62)',
   overlay: 'rgba(0, 0, 0, 0.5)',
@@ -204,9 +231,9 @@ export const categoryTilePalette = [
 export const collectionFilterColors = liveView(() =>
   activeScheme === 'dark'
     ? {
-        selectedBackground: '#1D2A45',
-        selectedBorder: '#7AA2FF',
-        selectedText: '#9DBBFF',
+        selectedBackground: '#26224A',
+        selectedBorder: '#A99BFF',
+        selectedText: '#A99BFF',
         unselectedBackground: '#20252E',
         unselectedText: '#B4BBC7',
         unselectedBorder: '#3A4250',

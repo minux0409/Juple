@@ -29,10 +29,25 @@ const FAKE_RESPONDER_EVENT = {
   nativeEvent: {},
 };
 
-async function revealRow(renderer: ReactTestRenderer.ReactTestRenderer): Promise<void> {
+/** A fake touch history moved `dx` px from the start, so PanResponder computes gesture.dx = dx. */
+function touchesMoved(dx: number) {
+  return {
+    touchHistory: {
+      touchBank: [{ touchActive: true, startPageX: 0, startPageY: 0, startTimeStamp: 0, currentPageX: dx, currentPageY: 0, currentTimeStamp: 1, previousPageX: 0, previousPageY: 0, previousTimeStamp: 0 }],
+      numberActiveTouches: 1,
+      indexOfSingleActiveTouch: 0,
+      mostRecentTimeStamp: 1,
+    },
+    nativeEvent: {},
+  };
+}
+
+/** Drags the row toward `edge`: 'start' (right, uncovers the 공유 pane) or 'end' (left, uncovers the 삭제 pane) - only that pane is mounted. */
+async function revealRow(renderer: ReactTestRenderer.ReactTestRenderer, edge: 'start' | 'end' = 'end'): Promise<void> {
   const contentLayer = renderer.root.findAll(node => Array.isArray(node.props.accessibilityActions))[0];
   await act(async () => {
     contentLayer.props.onResponderGrant(FAKE_RESPONDER_EVENT);
+    contentLayer.props.onResponderMove(touchesMoved(edge === 'start' ? 40 : -40));
   });
 }
 
@@ -221,7 +236,7 @@ describe('SwipeableItemRow', () => {
   it('calls onShare when the revealed share action is pressed', async () => {
     const onShare = jest.fn();
     const renderer = await renderRow({ onPress: jest.fn(), onDelete: jest.fn(), onShare });
-    await revealRow(renderer);
+    await revealRow(renderer, 'start');
 
     const shareAction = findByAccessibilityLabel(renderer, '공유');
     await act(async () => {
@@ -244,8 +259,19 @@ describe('SwipeableItemRow', () => {
 
     await revealRow(renderer);
     const deleteAction = findByAccessibilityLabel(renderer, '삭제');
-    const shareAction = findByAccessibilityLabel(renderer, '공유');
     expect(deleteAction.props.disabled).toBe(true);
+    // Only the pane on the dragged edge is mounted: the share pane (disabled too) appears when dragged the other way.
+    expect(findByAccessibilityLabel(renderer, '공유')).toBeUndefined();
+    let other!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      other = ReactTestRenderer.create(
+        <SwipeableItemRow disabled onDelete={jest.fn()} onPress={onPress} onShare={jest.fn()}>
+          <Text>Row content</Text>
+        </SwipeableItemRow>,
+      );
+    });
+    await revealRow(other, 'start');
+    const shareAction = findByAccessibilityLabel(other, '공유');
     expect(shareAction.props.disabled).toBe(true);
 
     const contentPressable = renderer.root.findAll(
@@ -284,6 +310,17 @@ describe('SwipeableItemRow', () => {
   // the narrower Grid card width. The action backgrounds are no longer just visually covered by the
   // content layer while at rest - they are not mounted at all until a swipe genuinely begins, which
   // makes that class of edge-registration/rounding bleed-through structurally impossible.
+  it('mounts only the pane of the dragged edge, so the other action colour can never show through', async () => {
+    const renderer = await renderRow({ onPress: jest.fn(), onDelete: jest.fn(), onShare: jest.fn() });
+    await revealRow(renderer, 'start');
+    expect(findByAccessibilityLabel(renderer, '공유')).toBeDefined();
+    expect(findByAccessibilityLabel(renderer, '삭제')).toBeUndefined();
+    const other = await renderRow({ onPress: jest.fn(), onDelete: jest.fn(), onShare: jest.fn() });
+    await revealRow(other, 'end');
+    expect(findByAccessibilityLabel(other, '삭제')).toBeDefined();
+    expect(findByAccessibilityLabel(other, '공유')).toBeUndefined();
+  });
+
   it('does not mount the swipe action backgrounds at rest, only once a swipe actually begins', async () => {
     const renderer = await renderRow({ onPress: jest.fn(), onDelete: jest.fn(), onShare: jest.fn() });
 
@@ -319,7 +356,7 @@ describe('SwipeableItemRow startAction (a generic start-side action in place of 
         </SwipeableItemRow>,
       );
     });
-    await revealRow(renderer);
+    await revealRow(renderer, 'start');
 
     expect(onPress).not.toHaveBeenCalled();
     expect(findByAccessibilityLabel(renderer, i18n.t('common.share'))).toBeUndefined();

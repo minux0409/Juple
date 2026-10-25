@@ -78,7 +78,7 @@ const styles = themedStyles(() => ({
   body: { color: colors.textSecondary, fontSize: 14, lineHeight: 20 },
   actions: { alignItems: 'center', columnGap: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.xs, rowGap: spacing.xs },
   primary: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.md, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.lg },
-  primaryLabel: { color: colors.surface, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  primaryLabel: { color: colors.onBrand, fontSize: 15, fontWeight: '700', textAlign: 'center' },
   secondary: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   secondaryLabel: { color: colors.textSecondary, fontSize: 14, fontWeight: '600', textAlign: 'center' },
 }));

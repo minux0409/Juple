@@ -65,9 +65,9 @@ export function DialogActions({ actions }: { readonly actions: readonly DialogAc
             testID={action.testID}
           >
             {action.busy ? (
-              <ActivityIndicator color={filled ? colors.surface : colors.textPrimary} size="small" />
+              <ActivityIndicator color={filled ? labelToneColor(action.tone) : colors.textPrimary} size="small" />
             ) : (
-              <Text onTextLayout={measureLabel} style={[styles.label, filled ? styles.labelFilled : styles.labelSecondary]}>
+              <Text onTextLayout={measureLabel} style={[styles.label, filled ? labelToneStyles[action.tone] : styles.labelSecondary]}>
                 {action.label}
               </Text>
             )}
@@ -96,8 +96,19 @@ const styles = themedStyles(() => ({
   disabled: { opacity: 0.5 },
   label: { fontSize: 16, fontWeight: '600', textAlign: 'center' },
   labelSecondary: { color: colors.textPrimary },
-  labelFilled: { color: colors.surface },
 }));
+
+/** The label on a filled button: white on brand, dark on the light coral danger fill, the card colour on the neutral (text-colour) fill. */
+const labelToneStyles = themedStyles(() => ({
+  destructive: { color: colors.onDanger },
+  neutral: { color: colors.surface },
+  brand: { color: colors.onBrand },
+  secondary: { color: colors.textPrimary },
+}));
+
+function labelToneColor(tone: DialogActionTone): string {
+  return tone === 'destructive' ? colors.onDanger : tone === 'brand' ? colors.onBrand : colors.surface;
+}
 
 const toneStyles = themedStyles(() => ({
   destructive: { backgroundColor: colors.danger },

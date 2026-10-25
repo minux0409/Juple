@@ -141,7 +141,7 @@ export function CollectionChoiceGrid({
       >
         <View style={styles.tileIconSlot}>
           <View style={[styles.specialTile, isNone && styles.noneTile]}>
-            {isNone ? <CloseIcon color={colors.textSecondary} size={22} strokeWidth={2} /> : <FolderPlusIcon color={colors.brand} size={24} strokeWidth={2} />}
+            {isNone ? <CloseIcon color={colors.textSecondary} size={22} strokeWidth={2} /> : <FolderPlusIcon color={colors.brandText} size={24} strokeWidth={2} />}
           </View>
           {isSelected ? <SelectionIndicator selected style={styles.selectedBadge} testID="category-picker-selected-none" /> : null}
         </View>
@@ -267,9 +267,9 @@ const styles = themedStyles(() => ({
     paddingHorizontal: spacing.sm + 2,
     paddingVertical: spacing.xs + 2,
   },
-  sortChipSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
+  sortChipSelected: { backgroundColor: colors.brand, borderColor: colors.brandText },
   sortChipLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
-  sortChipLabelSelected: { color: colors.surface },
+  sortChipLabelSelected: { color: colors.onBrand },
   toggleWithClose: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   loading: { marginVertical: 20 },
   footerLoading: { paddingVertical: 12 },

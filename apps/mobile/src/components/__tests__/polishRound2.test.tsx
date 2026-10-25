@@ -58,7 +58,7 @@ describe('ThemedSwitch (Android: the platform switch)', () => {
   });
 
   it('no screen renders the raw Switch any more', () => {
-    const files = ['collections/SharePasswordCard.tsx', 'screens/AppearanceSettingsScreen.tsx', 'screens/CollectionShareScreen.tsx', 'screens/MyPageScreen.tsx'];
+    const files = ['collections/SharePasswordCard.tsx', 'components/DarkModeSwitchRow.tsx', 'screens/CollectionShareScreen.tsx', 'screens/MyPageScreen.tsx'];
     for (const file of files) {
       expect(fs.readFileSync(path.resolve(__dirname, '../..', file), 'utf8')).not.toMatch(/<Switch\b/);
     }

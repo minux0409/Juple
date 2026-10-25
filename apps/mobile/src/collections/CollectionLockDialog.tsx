@@ -199,9 +199,9 @@ export function CollectionLockDialog({ visible, collectionId, mode, forMember = 
               testID={mode === 'remove' ? 'lock-remove' : isNotConfigured ? 'lock-open-settings' : 'lock-save'}
             >
               {isSubmitting ? (
-                <ActivityIndicator color={colors.surface} size="small" />
+                <ActivityIndicator color={mode === 'remove' ? colors.onDanger : colors.onBrand} size="small" />
               ) : (
-                <Text numberOfLines={2} style={styles.confirmLabel}>{confirmLabel}</Text>
+                <Text numberOfLines={2} style={[styles.confirmLabel, mode === 'remove' && styles.destructiveLabel]}>{confirmLabel}</Text>
               )}
             </Pressable>
           </View>
@@ -253,12 +253,15 @@ const styles = themedStyles(() => ({
     paddingHorizontal: spacing.md,
   },
   error: {
-    color: colors.danger,
+    color: colors.dangerText,
     fontSize: 14,
     marginTop: spacing.md,
   },
   destructiveButton: {
     backgroundColor: colors.danger,
+  },
+  destructiveLabel: {
+    color: colors.onDanger,
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -293,7 +296,7 @@ const styles = themedStyles(() => ({
     paddingHorizontal: spacing.sm,
   },
   confirmLabel: {
-    color: colors.surface,
+    color: colors.onBrand,
     fontSize: 15,
     fontWeight: '700',
     textAlign: 'center',

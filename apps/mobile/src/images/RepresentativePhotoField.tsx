@@ -91,7 +91,7 @@ export function RepresentativePhotoField({ photoUrl, photoCacheKey = null, isRem
           <StableImage cacheKey={photoCacheKey} style={[styles.thumbnail, compact && styles.compactThumbnail]} testID="representative-photo-image" uri={photoUrl} />
           {isBusy ? (
             <View style={styles.busyOverlay} testID="representative-photo-busy">
-              <ActivityIndicator color={colors.surface} />
+              <ActivityIndicator color={colors.onBrand} />
             </View>
           ) : (
             <View style={[styles.editBadge, compact && styles.compactEditBadge]}>
@@ -109,10 +109,10 @@ export function RepresentativePhotoField({ photoUrl, photoCacheKey = null, isRem
           testID="representative-photo-add"
         >
           {isBusy ? (
-            <ActivityIndicator color={colors.brand} testID="representative-photo-busy" />
+            <ActivityIndicator color={colors.brandText} testID="representative-photo-busy" />
           ) : (
             <>
-              <ImageIcon color={colors.brand} size={18} />
+              <ImageIcon color={colors.brandText} size={18} />
               <Text numberOfLines={2} style={styles.addLabel}>{t('item.addPhoto')}</Text>
             </>
           )}
@@ -168,7 +168,7 @@ const styles = themedStyles(() => ({
   },
   addButton: {
     alignItems: 'center',
-    borderColor: colors.brand,
+    borderColor: colors.brandText,
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: 'row',
@@ -177,7 +177,7 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget,
     paddingHorizontal: spacing.lg,
   },
-  addLabel: { color: colors.brand, flexShrink: 1, fontSize: 15, fontWeight: '600', textAlign: 'center' },
+  addLabel: { color: colors.brandText, flexShrink: 1, fontSize: 15, fontWeight: '600', textAlign: 'center' },
   inactive: { opacity: 0.5 },
   compactSection: { alignItems: 'flex-end' },
   compactThumbnail: { height: COMPACT_THUMBNAIL_SIZE, width: COMPACT_THUMBNAIL_SIZE },

@@ -1,7 +1,7 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Appearance, Text } from 'react-native';
 import i18n from '../../i18n';
-import { AppearanceSettingsScreen } from '../../screens/AppearanceSettingsScreen';
+import { DarkModeSwitchRow } from '../../components/DarkModeSwitchRow';
 import {
   DEFAULT_THEME_PREFERENCE,
   THEME_STORAGE_KEY,
@@ -198,13 +198,20 @@ describe('semantic tokens', () => {
     expect(contrast(p.textSecondary, p.background)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(p.textMuted, p.surface)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(p.placeholder, p.inputBackground)).toBeGreaterThanOrEqual(3.5);
-    expect(contrast(p.brand, p.surface)).toBeGreaterThanOrEqual(4.5);
-    expect(contrast(p.danger, p.surface)).toBeGreaterThanOrEqual(4.5);
+    // The fills are one brand violet and one destructive coral in both themes; text and strokes use their own role tokens.
+    // Text >= 4.5:1 and meaningful strokes / icons >= 3:1, on every surface they can sit on.
+    for (const surface of [p.surface, p.background, p.surfaceMuted, p.surfaceRaised, p.brandSoft]) {
+      expect(contrast(p.brandText, surface)).toBeGreaterThanOrEqual(4.5);
+    }
+    for (const surface of [p.surface, p.background, p.surfaceMuted, p.surfaceRaised, p.dangerSubtle]) {
+      expect(contrast(p.dangerText, surface)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(p.dangerBorder, surface)).toBeGreaterThanOrEqual(3);
+    }
+    expect(contrast(p.brand, p.surface)).toBeGreaterThanOrEqual(3);
     expect(contrast(p.warningText, p.surface)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(p.success, p.surface)).toBeGreaterThanOrEqual(4.5);
     // a label on a filled brand / danger control (surface doubles as the label colour)
-    expect(contrast(p.surface, p.brand)).toBeGreaterThanOrEqual(4.5);
-    expect(contrast(p.surface, p.danger)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(p.onDanger, p.danger)).toBeGreaterThanOrEqual(7);
     expect(contrast(p.onBrand, p.brand)).toBeGreaterThanOrEqual(4.5);
     // the page, the card and the raised sheet are three distinct steps
     expect(p.background).not.toBe(p.surface);
@@ -216,7 +223,7 @@ describe('semantic tokens', () => {
   });
 });
 
-describe('Appearance screen', () => {
+describe('Dark mode row (내 페이지)', () => {
   async function mount(initialPreference: 'system' | 'light' | 'dark', system: 'light' | 'dark' = 'light') {
     await i18n.changeLanguage('ko');
     jest.spyOn(Appearance, 'setColorScheme').mockImplementation(() => undefined);
@@ -231,7 +238,7 @@ describe('Appearance screen', () => {
       renderer = ReactTestRenderer.create(
         <ThemeProvider initialPreference={initialPreference}>
           <Capture />
-          <AppearanceSettingsScreen />
+          <DarkModeSwitchRow iconStyle={undefined} labelStyle={undefined} rowStyle={undefined} />
         </ThemeProvider>,
       );
     });

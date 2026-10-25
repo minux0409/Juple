@@ -91,9 +91,12 @@ export function personLabel(person: { readonly jupleId: string; readonly display
   return person.displayName ?? formatJupleId(person.jupleId);
 }
 
-/** Display form "K7MP-4Q8N" of a canonical Juple ID - the stored/sent value never has the separator. */
+/**
+ * Display form of a Juple ID: the canonical 8 characters "K7MP4Q8N", exactly what is stored and sent - no separator, so nobody thinks a
+ * hyphen has to be typed. A typed "K7MP-4Q8N" is still accepted (the server normalizes it), see UserPublicCode.TryNormalize.
+ */
 export function formatJupleId(jupleId: string): string {
-  return jupleId.length === 8 ? `${jupleId.slice(0, 4)}-${jupleId.slice(4)}` : jupleId;
+  return jupleId.replace(/[-\s]/g, '');
 }
 
 /** Exact match only; rejects with ApiError notFound for an unknown ID, tooManyRequests when rate limited. */

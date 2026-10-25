@@ -178,7 +178,7 @@ export function ProfileEditScreen() {
     }
   };
 
-  // The shareable form, exactly as shown (`@XXXX-XXXX`) - what is copied is what the user sees.
+  // The shareable form, exactly as shown (`@XXXXXXXX`) - what is copied is what the user sees.
   const displayedJupleId = profile ? `@${formatJupleId(profile.jupleId)}` : '';
 
   // No toast of its own: Android 13+ (and e.g. Samsung One UI) already shows its own "copied"
@@ -329,7 +329,7 @@ export function ProfileEditScreen() {
             testID="profile-juple-id-copy"
           >
             {isCopied
-              ? <CheckIcon color={colors.brand} size={20} />
+              ? <CheckIcon color={colors.brandText} size={20} />
               : <CopyIcon color={colors.textSecondary} size={20} />}
           </Pressable>
         </View>
@@ -344,7 +344,7 @@ export function ProfileEditScreen() {
           style={[styles.saveButton, isSaving && styles.disabled]}
           testID="profile-save"
         >
-          {isSaving ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.saveLabel}>{t('common.save')}</Text>}
+          {isSaving ? <ActivityIndicator color={colors.onBrand} /> : <Text style={styles.saveLabel}>{t('common.save')}</Text>}
         </Pressable>
       </ScrollView>
       </KeyboardSafeView>
@@ -424,7 +424,7 @@ const styles = themedStyles(() => ({
     paddingStart: spacing.md,
   },
   readOnlyValue: { color: colors.textPrimary, flex: 1, flexShrink: 1, fontSize: 16, fontWeight: '600', letterSpacing: 1 },
-  error: { color: colors.danger, fontSize: 14, marginTop: spacing.md },
+  error: { color: colors.dangerText, fontSize: 14, marginTop: spacing.md },
   saveButton: {
     alignItems: 'center',
     backgroundColor: colors.brand,
@@ -434,6 +434,6 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget + 4,
     paddingHorizontal: spacing.lg,
   },
-  saveLabel: { color: colors.surface, fontSize: 16, fontWeight: '700' },
+  saveLabel: { color: colors.onBrand, fontSize: 16, fontWeight: '700' },
   disabled: { opacity: 0.6 },
 }));

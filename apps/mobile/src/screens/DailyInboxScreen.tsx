@@ -62,7 +62,7 @@ import type { RootStackParamList } from '../navigation/RootStack';
 import { isHttpUrl } from '../share/resolveIncomingShare';
 import { parseCollectionShareUrl } from '../share/collectionShareUrl';
 import { extractFirstHttpUrl } from '../share/sharedTextParser';
-import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
+import { BRAND_PRIMARY, cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { TOUR_TARGETS } from '../tour/tourGuides';
 import { useTourTarget } from '../tour/tourTargets';
 import { useViewModePreference } from '../settings/viewModePreference';
@@ -604,9 +604,9 @@ export function DailyInboxScreen() {
                 accessibilityRole="button"
                 disabled={!url.trim()}
                 onPress={openReview}
-                style={[styles.saveIconButton, !url.trim() ? styles.disabledButton : null]}
+                style={styles.saveIconButton}
               >
-                <SearchIcon color={colors.brand} size={20} />
+                <SearchIcon color={BRAND_PRIMARY} size={20} />
               </Pressable>
             </View>
             {error && items.length > 0 ? (
@@ -774,11 +774,8 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget,
     width: minTouchTarget,
   },
-  disabledButton: {
-    opacity: 0.5,
-  },
   error: {
-    color: colors.danger,
+    color: colors.dangerText,
     fontSize: 14,
     marginTop: spacing.md,
   },

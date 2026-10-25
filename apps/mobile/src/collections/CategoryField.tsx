@@ -53,7 +53,7 @@ export function CategoryField({ selectedCollections, isLoading, disabled, error,
                   const ChipIcon = resolveCollectionIconComponent(option.icon);
                   return (
                     <View key={option.id} style={styles.chip}>
-                      <ChipIcon color={colors.brand} size={13} />
+                      <ChipIcon color={colors.brandText} size={13} />
                       <Text numberOfLines={1} style={styles.chipLabel}>
                         {option.name}
                       </Text>
@@ -116,7 +116,7 @@ const styles = themedStyles(() => ({
     paddingVertical: spacing.xs + 2,
   },
   chipLabel: {
-    color: colors.brand,
+    color: colors.brandText,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -131,7 +131,7 @@ const styles = themedStyles(() => ({
     minWidth: minTouchTarget,
   },
   error: {
-    color: colors.danger,
+    color: colors.dangerText,
     fontSize: 14,
     marginTop: spacing.md,
   },

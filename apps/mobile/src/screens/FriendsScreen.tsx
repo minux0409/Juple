@@ -740,7 +740,7 @@ function RequestRow({ request, isBusy, onAccept, onDecline, onCancel, onOpenPers
           style={[styles.iconAction, isBusy && styles.disabled]}
           testID={`friends-cancel-${request.requestId}`}
         >
-          <TrashIcon color={colors.danger} size={20} />
+          <TrashIcon color={colors.dangerText} size={20} />
         </Pressable>
       )}
     </View>
@@ -771,14 +771,14 @@ const styles = themedStyles(() => ({
     minWidth: 0,
     paddingHorizontal: spacing.xs,
   },
-  tabSelected: { backgroundColor: colors.surface, borderColor: colors.brand, borderWidth: 1 },
+  tabSelected: { backgroundColor: colors.surface, borderColor: colors.brandText, borderWidth: 1 },
   tabLabel: { color: colors.textSecondary, flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },
-  tabLabelSelected: { color: colors.brand, fontWeight: '700' },
+  tabLabelSelected: { color: colors.brandText, fontWeight: '700' },
   tabBadge: { alignItems: 'center', borderRadius: 10, flexShrink: 0, justifyContent: 'center', minWidth: 20, paddingHorizontal: 5 },
   tabBadgeEmphasized: { backgroundColor: colors.brand },
   tabBadgeMuted: { backgroundColor: colors.border },
   tabBadgeText: { fontSize: 12, fontWeight: '700', lineHeight: 20 },
-  tabBadgeTextEmphasized: { color: colors.surface },
+  tabBadgeTextEmphasized: { color: colors.onBrand },
   tabBadgeTextMuted: { color: colors.textSecondary },
   listContent: { flexGrow: 1, paddingBottom: spacing.xl, paddingHorizontal: spacing.xl, paddingTop: spacing.md },
   searchRow: { alignItems: 'center', columnGap: spacing.sm, flexDirection: 'row', marginBottom: spacing.xs },
@@ -840,7 +840,7 @@ const styles = themedStyles(() => ({
   declineAction: { borderColor: colors.border, borderWidth: 1 },
   acceptAction: { backgroundColor: colors.brand },
   primaryButton: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.md, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
-  primaryLabel: { color: colors.surface, fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  primaryLabel: { color: colors.onBrand, fontSize: 14, fontWeight: '700', textAlign: 'center' },
   disabled: { opacity: 0.45 },
   loading: { paddingVertical: spacing.xl },
   stateBlock: { alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.xl * 2 },

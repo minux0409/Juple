@@ -315,7 +315,7 @@ describe('FriendsScreen - a friend row', () => {
     const avatar = row.findByType(UserAvatar);
     expect(avatar.props).toEqual(expect.objectContaining({ jupleId: 'K7MP4Q8N', imageUrl: pikachu.profileImageUrl, imageVersion: 'v1', size: 44 }));
     expect(row.findAllByType(Image).length).toBeGreaterThan(0);
-    expect(texts(row)).toEqual(['피카츄', '회사 개발팀 김민수', 'K7MP-4Q8N']);
+    expect(texts(row)).toEqual(['피카츄', '회사 개발팀 김민수', 'K7MP4Q8N']);
     expect(texts(row).some(text => text.includes('@'))).toBe(false);
     const [name, note] = row.findAllByType(Text);
     // The ID is the trailing, bounded, one-line, muted element - after the content, smaller than the name; the memo keeps its own line.
@@ -340,7 +340,7 @@ describe('FriendsScreen - a friend row', () => {
     const renderer = await renderScreen();
     const row = byId(renderer, 'friend-8');
 
-    expect(texts(row)[0]).toBe('@NNCK-2345');
+    expect(texts(row)[0]).toBe('@NNCK2345');
     expect(row.findAllByType(UserIcon).length).toBeGreaterThan(0);
   });
 
@@ -359,11 +359,11 @@ describe('FriendsScreen - a friend row', () => {
 
   it('List: the trailing ID is always there - also without a nickname, when the name itself falls back to the @ID', async () => {
     const renderer = await renderScreen();
-    expect(byId(renderer, 'friend-7-id').props.children).toBe('K7MP-4Q8N');
+    expect(byId(renderer, 'friend-7-id').props.children).toBe('K7MP4Q8N');
     const fallback = byId(renderer, 'friend-8-id');
-    expect(fallback.props.children).toBe('NNCK-2345');
+    expect(fallback.props.children).toBe('NNCK2345');
     expect(fallback.props.numberOfLines).toBe(1);
-    expect(texts(byId(renderer, 'friend-8'))[0]).toBe('@NNCK-2345');
+    expect(texts(byId(renderer, 'friend-8'))[0]).toBe('@NNCK2345');
   });
 
   it('List: a friend with no ID gets no fake trailing value', async () => {
@@ -432,7 +432,7 @@ describe('FriendsScreen - a friend row', () => {
       await act(async () => {
         renderer.root.findByType(ActionMenuDialog).props.onDismiss();
       });
-      expect(Clipboard.setString).toHaveBeenCalledWith('@K7MP-4Q8N');
+      expect(Clipboard.setString).toHaveBeenCalledWith('@K7MP4Q8N');
       expect(menu(renderer)).toBeUndefined();
     });
 
@@ -512,7 +512,7 @@ describe('FriendsScreen - 받은 요청', () => {
 
     expect(row.findByType(UserAvatar).props).toEqual(expect.objectContaining({ imageUrl: incomingCharmander.profileImageUrl, imageVersion: 'v3' }));
     // Icon-only actions: the words live in the accessibility labels, not as big text buttons.
-    expect(texts(row)).toEqual(expect.arrayContaining(['파이리', '@NCMN-G234', '받은 요청']));
+    expect(texts(row)).toEqual(expect.arrayContaining(['파이리', '@NCMNG234', '받은 요청']));
     expect(texts(row)).not.toEqual(expect.arrayContaining(['거절']));
     expect(byId(renderer, 'friends-accept-1').findAllByType(CheckIcon)).toHaveLength(1);
     expect(byId(renderer, 'friends-decline-1').findAllByType(CloseIcon)).toHaveLength(1);
@@ -657,12 +657,12 @@ describe('FriendsScreen - 보낸 요청', () => {
     await openTab(renderer, 'outgoing');
     const row = byId(renderer, 'friends-outgoing-2');
 
-    expect(texts(row)).toEqual(expect.arrayContaining(['@TGNG-2345', '요청 대기 중']));
+    expect(texts(row)).toEqual(expect.arrayContaining(['@TGNG2345', '요청 대기 중']));
     // No big text button under the row - the trash icon is the action, beside the person on the same line.
     expect(texts(row)).not.toContain('요청 취소');
     expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: 'row', overflow: 'hidden', marginBottom: 8 });
     const cancel = byId(renderer, 'friends-cancel-2');
-    expect(cancel.props.accessibilityLabel).toBe('@TGNG-2345 님에게 보낸 친구 요청 취소');
+    expect(cancel.props.accessibilityLabel).toBe('@TGNG2345 님에게 보낸 친구 요청 취소');
     expect(cancel.findAllByType(TrashIcon)).toHaveLength(1);
     const cancelStyle = StyleSheet.flatten(cancel.props.style);
     expect(cancelStyle.width).toBeGreaterThanOrEqual(44);
@@ -806,7 +806,7 @@ describe('FriendsScreen - 친구 추가', () => {
     expect(lookupJupleId).toHaveBeenCalledWith(expect.anything(), 'newf-2345');
     const result = byId(renderer, 'friends-add-result');
     expect(result.findByType(UserAvatar).props).toEqual(expect.objectContaining({ imageUrl: 'https://blob.example.test/p/NEWF2345.jpg?sig=1', imageVersion: 'v9' }));
-    expect(texts(result)).toEqual(expect.arrayContaining(['이상해씨', '@NEWF-2345', '친구 요청 보내기']));
+    expect(texts(result)).toEqual(expect.arrayContaining(['이상해씨', '@NEWF2345', '친구 요청 보내기']));
   });
 
   it('only drops a leading "@" - everything else is the server\'s to normalize', () => {
@@ -952,7 +952,7 @@ describe('FriendsScreen - a friend', () => {
     const modal = detail(renderer);
 
     expect(modal.findByType(UserAvatar).props).toEqual(expect.objectContaining({ size: 72, imageUrl: pikachu.profileImageUrl }));
-    expect(texts(modal)).toEqual(expect.arrayContaining(['피카츄', '@K7MP-4Q8N', '메모', '메모 저장', '친구 삭제']));
+    expect(texts(modal)).toEqual(expect.arrayContaining(['피카츄', '@K7MP4Q8N', '메모', '메모 저장', '친구 삭제']));
     expect(texts(modal)).not.toContain('내 메모');
     expect(texts(modal)).not.toContain('나에게만 보여요');
     expect(exists(renderer, 'friend-note-helper')).toBe(false);
@@ -979,7 +979,7 @@ describe('FriendsScreen - a friend', () => {
     await act(async () => {
       copy.props.onPress();
     });
-    expect(Clipboard.setString).toHaveBeenCalledWith('@K7MP-4Q8N');
+    expect(Clipboard.setString).toHaveBeenCalledWith('@K7MP4Q8N');
   });
 
   it('saves the note only on 메모 저장 (once), and the list shows it at once', async () => {
@@ -1048,7 +1048,7 @@ describe('FriendsScreen - a friend', () => {
     expect(shape(save).minHeight).toBeGreaterThanOrEqual(44);
     // Blue default action vs red destructive outline.
     expect(StyleSheet.flatten(save.props.style).backgroundColor).toBe(colors.brand);
-    expect(StyleSheet.flatten(remove.props.style).borderColor).toBe(colors.danger);
+    expect(StyleSheet.flatten(remove.props.style).borderColor).toBe(colors.dangerBorder);
   });
 
   it('메모 / 친구 삭제 each carry a meaningful icon AND keep their word - and 신고 / 차단 are no longer friend actions', async () => {
@@ -1059,7 +1059,7 @@ describe('FriendsScreen - a friend', () => {
     expect(renderer.root.findAllByType(EditIcon)).toHaveLength(1);
     expect(renderer.root.findByType(EditIcon).props.color).toBe(colors.textPrimary);
     expect(texts(renderer.root.findByType(EditIcon).parent!)).toEqual(['메모']);
-    expect(remove.findByType(UserMinusIcon).props.color).toBe(colors.danger);
+    expect(remove.findByType(UserMinusIcon).props.color).toBe(colors.dangerText);
     expect(texts(remove)).toEqual(['친구 삭제']);
     expect(StyleSheet.flatten(remove.props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' });
     expect(remove.findAllByType(Text)[0].props.numberOfLines).toBe(2);
@@ -1153,7 +1153,7 @@ describe('FriendsScreen - List / Grid', () => {
       const renderer = await renderScreen();
       await toGrid(renderer);
 
-      expect(texts(byId(renderer, 'friend-8'))).toEqual(['@NNCK-2345', '@NNCK-2345', '']);
+      expect(texts(byId(renderer, 'friend-8'))).toEqual(['@NNCK2345', '@NNCK2345', '']);
     });
 
     it('a friend with no ID gets an empty reserved ID line - nothing is made up - and every tile has the same line structure', async () => {
@@ -1174,7 +1174,7 @@ describe('FriendsScreen - List / Grid', () => {
       await toGrid(renderer);
       const lines = byId(renderer, 'friend-7').findAllByType(Text);
 
-      expect(lines.map(node => node.props.children)).toEqual(['피카츄', '@K7MP-4Q8N', '회사 개발팀 김민수']);
+      expect(lines.map(node => node.props.children)).toEqual(['피카츄', '@K7MP4Q8N', '회사 개발팀 김민수']);
       expect(lines.every(node => node.props.numberOfLines === 1)).toBe(true);
       await press(renderer, 'friend-7');
       expect(renderer.root.findAllByType(AppModal).some(modal => modal.props.testID === 'friend-detail')).toBe(true);
@@ -1192,8 +1192,8 @@ describe('FriendsScreen - List / Grid', () => {
     expect(mockPrefs.get('juple.friendsViewMode')).toBe('grid');
     const tileTexts = texts(renderer);
     // The tile shows avatar, name, the @Juple ID and the one-line memo - in that order.
-    expect(tileTexts).toEqual(expect.arrayContaining(['피카츄', '@K7MP-4Q8N', '회사 개발팀 김민수']));
-    expect(texts(byId(renderer, 'friend-7'))).toEqual(['피카츄', '@K7MP-4Q8N', '회사 개발팀 김민수']);
+    expect(tileTexts).toEqual(expect.arrayContaining(['피카츄', '@K7MP4Q8N', '회사 개발팀 김민수']));
+    expect(texts(byId(renderer, 'friend-7'))).toEqual(['피카츄', '@K7MP4Q8N', '회사 개발팀 김민수']);
     expect(byId(renderer, 'friend-7-id').props.numberOfLines).toBe(1);
     const idStyle = StyleSheet.flatten(byId(renderer, 'friend-7-id').props.style);
     expect(idStyle.fontSize).toBeLessThan(StyleSheet.flatten(byId(renderer, 'friend-7').findAllByType(Text)[0].props.style).fontSize);

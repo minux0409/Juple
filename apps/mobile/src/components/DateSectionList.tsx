@@ -201,5 +201,5 @@ const styles = themedStyles(() => ({
   errorRow: { alignItems: 'center', backgroundColor: colors.surface, flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
   errorRowText: { color: colors.textSecondary, flex: 1, fontSize: 14 },
   retryButton: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
-  retryLabel: { color: colors.brand, fontSize: 14, fontWeight: '700' },
+  retryLabel: { color: colors.brandText, fontSize: 14, fontWeight: '700' },
 }));

@@ -25,7 +25,7 @@ const styles = themedStyles(() => ({
   brand: { marginBottom: spacing.xl },
   message: { color: colors.textPrimary, fontSize: 16, textAlign: 'center' },
   retry: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.xl, justifyContent: 'center', marginTop: spacing.xl, minHeight: minTouchTarget, paddingHorizontal: spacing.xl },
-  retryLabel: { color: colors.surface, fontSize: 16, fontWeight: '700' },
+  retryLabel: { color: colors.onBrand, fontSize: 16, fontWeight: '700' },
   signOut: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.md, minHeight: minTouchTarget, paddingHorizontal: spacing.xl },
   signOutLabel: { color: colors.textSecondary, fontSize: 15, fontWeight: '600' },
 }));

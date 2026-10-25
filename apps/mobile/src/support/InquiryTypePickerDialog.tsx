@@ -31,7 +31,7 @@ export function InquiryTypePickerDialog({ visible, selected, onSelect, onClose }
               testID={`inquiry-type-${type}`}
             >
               <Text style={[styles.label, isSelected && styles.labelSelected]}>{inquiryTypeLabel(t, type)}</Text>
-              {isSelected ? <CheckIcon color={colors.brand} size={18} /> : null}
+              {isSelected ? <CheckIcon color={colors.brandText} size={18} /> : null}
             </Pressable>
           );
         })}
@@ -43,5 +43,5 @@ export function InquiryTypePickerDialog({ visible, selected, onSelect, onClose }
 const styles = themedStyles(() => ({
   option: { alignItems: 'center', columnGap: spacing.sm, flexDirection: 'row', minHeight: minTouchTarget, paddingVertical: spacing.sm },
   label: { color: colors.textPrimary, flex: 1, fontSize: 16 },
-  labelSelected: { color: colors.brand, fontWeight: '700' },
+  labelSelected: { color: colors.brandText, fontWeight: '700' },
 }));

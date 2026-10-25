@@ -325,7 +325,7 @@ export function CollectionLinkShareSheet({
                     style={[styles.addButton, (idInput.trim().length === 0 || isLookingUp) && styles.disabled]}
                     testID="link-share-id-add"
                   >
-                    {isLookingUp ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.addLabel}>{t('sharedCollection.addAction')}</Text>}
+                    {isLookingUp ? <ActivityIndicator color={colors.onBrand} size="small" /> : <Text style={styles.addLabel}>{t('sharedCollection.addAction')}</Text>}
                   </Pressable>
                 </View>
                 {idError ? <Text style={styles.error} testID="link-share-id-error">{idError}</Text> : null}
@@ -381,7 +381,7 @@ export function CollectionLinkShareSheet({
               testID="link-share-send"
             >
               {isSending ? (
-                <ActivityIndicator color={colors.surface} />
+                <ActivityIndicator color={colors.onBrand} />
               ) : (
                 <Text numberOfLines={2} style={styles.primaryLabel}>{t('linkShare.send', { count: recipients.length })}</Text>
               )}
@@ -462,14 +462,14 @@ const styles = themedStyles(() => ({
     minWidth: minTouchTarget,
     paddingHorizontal: spacing.md,
   },
-  addLabel: { color: colors.surface, fontSize: 15, fontWeight: '700' },
+  addLabel: { color: colors.onBrand, fontSize: 15, fontWeight: '700' },
   count: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   list: { flexGrow: 0, maxHeight: 240 },
   row: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, minHeight: minTouchTarget },
   rowText: { flex: 1, minWidth: 0 },
   name: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
   jupleId: { color: colors.textSecondary, fontSize: 12 },
-  error: { color: colors.danger, fontSize: 13, marginTop: 2 },
+  error: { color: colors.dangerText, fontSize: 13, marginTop: 2 },
   primaryButton: {
     alignItems: 'center',
     backgroundColor: colors.brand,
@@ -479,6 +479,6 @@ const styles = themedStyles(() => ({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  primaryLabel: { color: colors.surface, fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  primaryLabel: { color: colors.onBrand, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   disabled: { opacity: 0.5 },
 }));

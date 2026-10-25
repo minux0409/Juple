@@ -636,7 +636,7 @@
   },
   "collaboration": {
     "jupleIdLabel": "Juple ID",
-    "jupleIdPlaceholder": "例: K7MP-4Q8N",
+    "jupleIdPlaceholder": "例: K7MP4Q8N",
     "find": "検索",
     "lookupNotFound": "そのJuple IDのユーザーはいません。",
     "lookupFallback": "Juple IDを検索できませんでした。",

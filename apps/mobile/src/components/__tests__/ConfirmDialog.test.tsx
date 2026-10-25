@@ -145,7 +145,7 @@ describe('ConfirmDialog', () => {
 
     const confirmButton = findButton(renderer, 'Continue');
     const flattenedStyle = [confirmButton.props.style].flat();
-    expect(flattenedStyle.some(style => style && 'backgroundColor' in style && style.backgroundColor === '#B42318')).toBe(false);
+    expect(flattenedStyle.some(style => style && 'backgroundColor' in style && style.backgroundColor === '#FF8A8A')).toBe(false);
   });
   describe('dismissable={false}', () => {
     const modalOf = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByType(Modal)[0];

@@ -155,7 +155,7 @@ export function CommentRow({ comment, onLongPress, onOpenProfile, onReply, onTog
             style={styles.heart}
             testID={`comment-like-${comment.id}`}
           >
-            <HeartIcon color={liked ? colors.danger : colors.textSecondary} filled={liked} size={16} />
+            <HeartIcon color={liked ? colors.dangerBorder : colors.textSecondary} filled={liked} size={16} />
             {likeCount > 0 ? <Text style={[styles.likeCount, liked && styles.likeCountOn]} testID={`comment-like-count-${comment.id}`}>{likeCount}</Text> : null}
           </Pressable>
         </View>
@@ -174,7 +174,7 @@ const styles = themedStyles(() => ({
   name: { color: colors.textPrimary, flexShrink: 1, fontSize: 13, fontWeight: '700' },
   time: { color: colors.textSecondary, flexShrink: 0, fontSize: 12 },
   body: { color: colors.textPrimary, fontSize: 14, lineHeight: 20, marginTop: 2 },
-  mention: { color: colors.brand, fontWeight: '700' },
+  mention: { color: colors.brandText, fontWeight: '700' },
   // 답글 달기: its 44dp touch box is centred on the line and reaches up over the body's bottom slack, so the visible gap to the
   // body is a few dp. The lower half of the box is the room before the next comment.
   actions: { alignItems: 'center', flexDirection: 'row', marginTop: -REPLY_ACTION_OVERLAP },
@@ -183,7 +183,7 @@ const styles = themedStyles(() => ({
   side: { alignSelf: 'flex-start', flexShrink: 0, marginTop: spacing.xs, width: HEART_COLUMN_WIDTH },
   heart: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, minWidth: minTouchTarget, width: HEART_COLUMN_WIDTH },
   likeCount: { color: colors.textSecondary, fontSize: 12, marginTop: 1 },
-  likeCountOn: { color: colors.danger },
+  likeCountOn: { color: colors.dangerText },
   replyAction: { alignSelf: 'flex-start', justifyContent: 'center', minHeight: minTouchTarget, paddingEnd: spacing.md },
   replyLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
   deletedBox: { flex: 1, minHeight: minTouchTarget - 16, justifyContent: 'center' },

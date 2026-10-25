@@ -54,6 +54,6 @@ const styles = themedStyles(() => ({
   row: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.md, justifyContent: 'space-between', marginTop: spacing.xs },
   rowLabel: { color: colors.textSecondary, flexShrink: 1, fontSize: 14, lineHeight: 20 },
   rowValue: { color: colors.textPrimary, flexShrink: 1, fontSize: 14, fontWeight: '600', lineHeight: 20, textAlign: 'right' },
-  button: { alignItems: 'center', alignSelf: 'flex-start', borderColor: colors.brand, borderRadius: radii.md, borderWidth: 1, justifyContent: 'center', marginTop: spacing.sm, maxWidth: '100%', minHeight: minTouchTarget, paddingHorizontal: spacing.lg },
-  buttonLabel: { color: colors.brand, fontSize: 15, fontWeight: '600', textAlign: 'center' },
+  button: { alignItems: 'center', alignSelf: 'flex-start', borderColor: colors.brandText, borderRadius: radii.md, borderWidth: 1, justifyContent: 'center', marginTop: spacing.sm, maxWidth: '100%', minHeight: minTouchTarget, paddingHorizontal: spacing.lg },
+  buttonLabel: { color: colors.brandText, fontSize: 15, fontWeight: '600', textAlign: 'center' },
 }));

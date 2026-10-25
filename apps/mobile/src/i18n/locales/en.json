@@ -636,7 +636,7 @@
   },
   "collaboration": {
     "jupleIdLabel": "Juple ID",
-    "jupleIdPlaceholder": "e.g. K7MP-4Q8N",
+    "jupleIdPlaceholder": "e.g. K7MP4Q8N",
     "find": "Find",
     "lookupNotFound": "No one has that Juple ID.",
     "lookupFallback": "Couldn't look up that Juple ID.",

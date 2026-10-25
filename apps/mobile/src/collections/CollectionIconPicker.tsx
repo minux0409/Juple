@@ -53,7 +53,7 @@ export function CollectionIconPicker({ selected, onSelect, tile, disabled, isVis
               disabled && styles.cellDisabled,
             ]}
           >
-            <IconComponent color={isSelected ? colors.brand : tile.icon} size={30} />
+            <IconComponent color={isSelected ? colors.brandText : tile.icon} size={30} />
           </Pressable>
         );
       })}
@@ -78,7 +78,7 @@ const styles = themedStyles(() => ({
     width: '18%',
   },
   cellSelected: {
-    borderColor: colors.brand,
+    borderColor: colors.brandText,
     borderWidth: 2,
   },
   cellDisabled: {

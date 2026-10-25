@@ -217,6 +217,6 @@ const styles = themedStyles(() => ({
   title: { fontSize: 23, fontWeight: '700', color: colors.textPrimary },
   secondary: { fontSize: 13, color: colors.textSecondary },
   body: { fontSize: 16, lineHeight: 26, color: colors.textPrimary },
-  link: { color: colors.brand, textDecorationLine: 'underline' },
+  link: { color: colors.brandText, textDecorationLine: 'underline' },
   action: { minHeight: minTouchTarget, justifyContent: 'center' },
 }));

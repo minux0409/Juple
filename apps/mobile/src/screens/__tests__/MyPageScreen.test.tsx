@@ -166,7 +166,7 @@ describe('MyPageScreen settings entry points', () => {
     loadQuickSaveOnSharePreference.mockReturnValueOnce(new Promise<boolean>(resolve => { resolveLoad = resolve; }));
     mockUseAuth({ userEmail: null });
     const renderer = await renderScreen();
-    const quickSaveSwitch = () => renderer.root.findByType(ThemedSwitch);
+    const quickSaveSwitch = () => renderer.root.findAllByType(ThemedSwitch).find(node => node.props.testID !== 'appearance-dark-mode-switch')!;
 
     // Still loading: OFF and not touchable.
     expect(quickSaveSwitch().props.value).toBe(false);
@@ -184,7 +184,7 @@ describe('MyPageScreen settings entry points', () => {
     mockUseAuth({ userEmail: null });
     const renderer = await renderScreen();
 
-    expect(renderer.root.findByType(ThemedSwitch).props.value).toBe(true);
+    expect(renderer.root.findAllByType(ThemedSwitch).find(node => node.props.testID !== 'appearance-dark-mode-switch')!.props.value).toBe(true);
     expect(findTextValues(renderer)).toContain(i18n.t('settings.quickSaveOnShareOnDescription'));
   });
 

@@ -636,7 +636,7 @@
   },
   "collaboration": {
     "jupleIdLabel": "Juple ID",
-    "jupleIdPlaceholder": "例如 K7MP-4Q8N",
+    "jupleIdPlaceholder": "例如 K7MP4Q8N",
     "find": "查找",
     "lookupNotFound": "没有使用该 Juple ID 的用户。",
     "lookupFallback": "无法查找该 Juple ID。",

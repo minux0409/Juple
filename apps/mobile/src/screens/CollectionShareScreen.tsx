@@ -1233,7 +1233,7 @@ export function CollectionShareScreen({ route }: Props) {
                     style={[styles.primaryButton, inviteDisabled && styles.disabled]}
                     testID="invite-send"
                   >
-                    {isSending ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.primaryLabel}>{t('shareSheet.sendInvitations')}</Text>}
+                    {isSending ? <ActivityIndicator color={colors.onBrand} size="small" /> : <Text style={styles.primaryLabel}>{t('shareSheet.sendInvitations')}</Text>}
                   </Pressable>
                 </View>
               ) : null}
@@ -1398,8 +1398,8 @@ const badgeStyles = themedStyles(() => ({
 
 const badgeLabelStyles = themedStyles(() => ({
   owner: { color: categoryTilePalette[2].icon },
-  contributor: { color: colors.brand },
-  submitter: { color: colors.brand },
+  contributor: { color: colors.brandText },
+  submitter: { color: colors.brandText },
   viewer: { color: colors.textSecondary },
 }));
 
@@ -1490,14 +1490,14 @@ const styles = themedStyles(() => ({
   // 40dp to look at; its hitSlop keeps 44dp to touch.
   outlineButton: {
     alignItems: 'center',
-    borderColor: colors.brand,
+    borderColor: colors.brandText,
     borderRadius: radii.md,
     borderWidth: 1,
     justifyContent: 'center',
     minHeight: minTouchTarget - 4,
     paddingHorizontal: spacing.md,
   },
-  outlineButtonLabel: { color: colors.brand, fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  outlineButtonLabel: { color: colors.brandText, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   help: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
   lookupRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   input: {
@@ -1525,7 +1525,7 @@ const styles = themedStyles(() => ({
   personRowText: { flex: 1, minWidth: 0 },
   selectedPerson: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, minWidth: 0 },
   inlineAction: { alignSelf: 'flex-start', justifyContent: 'center', minHeight: minTouchTarget },
-  inlineActionLabel: { color: colors.brand, fontSize: 14, fontWeight: '700' },
+  inlineActionLabel: { color: colors.brandText, fontSize: 14, fontWeight: '700' },
   listRow: { gap: spacing.xs, paddingVertical: spacing.xs + 2 },
   // A person to invite: who, then 권한 with their choice - 8dp above and below, 6dp between.
   draftRow: { gap: spacing.xs + 2, paddingVertical: spacing.sm },
@@ -1582,8 +1582,8 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget,
     paddingHorizontal: spacing.md,
   },
-  primaryLabel: { color: colors.surface, fontSize: 15, fontWeight: '700', textAlign: 'center' },
-  removeLabel: { color: colors.danger, fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  primaryLabel: { color: colors.onBrand, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  removeLabel: { color: colors.dangerText, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   secondaryButton: {
     alignItems: 'center',
     borderColor: colors.border,
@@ -1598,5 +1598,5 @@ const styles = themedStyles(() => ({
   secondaryLabel: { color: colors.textPrimary, fontSize: 14, fontWeight: '600' },
   disabled: { opacity: 0.45 },
   loading: { paddingVertical: spacing.lg },
-  error: { color: colors.danger, fontSize: 14 },
+  error: { color: colors.dangerText, fontSize: 14 },
 }));

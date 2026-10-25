@@ -112,7 +112,7 @@ const styles = themedStyles(() => ({
   badges: { columnGap: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', rowGap: spacing.xs },
   typeBadge: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, color: colors.textPrimary, fontSize: 13, fontWeight: '700', overflow: 'hidden', paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2 },
   statusBadge: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, color: colors.textSecondary, fontSize: 13, fontWeight: '700', overflow: 'hidden', paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2 },
-  statusBadgeAnswered: { color: colors.brand },
+  statusBadgeAnswered: { color: colors.brandText },
   heading: { color: colors.textPrimary, fontSize: 15, fontWeight: '800', marginBottom: spacing.sm, marginTop: spacing.xl },
   answerHeading: { marginTop: spacing.xl + spacing.sm },
   card: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, ...cardShadow },

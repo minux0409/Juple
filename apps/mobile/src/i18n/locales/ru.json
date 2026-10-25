@@ -636,7 +636,7 @@
   },
   "collaboration": {
     "jupleIdLabel": "Juple ID",
-    "jupleIdPlaceholder": "напр. K7MP-4Q8N",
+    "jupleIdPlaceholder": "напр. K7MP4Q8N",
     "find": "Найти",
     "lookupNotFound": "Пользователя с таким Juple ID нет.",
     "lookupFallback": "Не удалось найти этот Juple ID.",

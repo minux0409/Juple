@@ -164,7 +164,7 @@ export function JoinRequestsSheet({ visible, collectionId, authenticatedRequest,
           testID={`join-request-reject-${row.requestId}`}
         >
           {rejecting
-            ? <ActivityIndicator color={colors.danger} size="small" />
+            ? <ActivityIndicator color={colors.dangerText} size="small" />
             : <Text numberOfLines={1} style={[styles.stripLabel, styles.reject]}>{t('shareSheet.joinRequestReject')}</Text>}
         </Pressable>
         <Pressable
@@ -177,7 +177,7 @@ export function JoinRequestsSheet({ visible, collectionId, authenticatedRequest,
           testID={`join-request-approve-${row.requestId}`}
         >
           {approving
-            ? <ActivityIndicator color={colors.brand} size="small" />
+            ? <ActivityIndicator color={colors.brandText} size="small" />
             : <Text numberOfLines={1} style={[styles.stripLabel, styles.approve]}>{t('shareSheet.joinRequestApprove')}</Text>}
         </Pressable>
       </View>
@@ -298,7 +298,7 @@ const styles = themedStyles(() => ({
   strip: { flexDirection: 'row' },
   stripAction: { alignItems: 'center', flex: 1, height: STRIP_ACTION_HEIGHT, justifyContent: 'center' },
   stripLabel: { fontSize: 15, fontWeight: '700' },
-  reject: { color: colors.danger },
-  approve: { color: colors.brand },
+  reject: { color: colors.dangerText },
+  approve: { color: colors.brandText },
   disabled: { opacity: 0.5 },
 }));

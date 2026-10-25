@@ -146,7 +146,7 @@ export function CollectionUnlockPanel({ collectionId, onUnlocked, onGranted, onS
         testID="collection-unlock-submit"
       >
         {isSubmitting ? (
-          <ActivityIndicator color={colors.surface} size="small" />
+          <ActivityIndicator color={colors.onBrand} size="small" />
         ) : (
           <Text style={styles.buttonLabel}>{t('collections.unlockAction')}</Text>
         )}
@@ -206,7 +206,7 @@ const styles = themedStyles(() => ({
     paddingHorizontal: spacing.md,
   },
   error: {
-    color: colors.danger,
+    color: colors.dangerText,
     fontSize: 14,
     marginTop: spacing.sm,
   },
@@ -228,7 +228,7 @@ const styles = themedStyles(() => ({
     opacity: 0.5,
   },
   buttonLabel: {
-    color: colors.surface,
+    color: colors.onBrand,
     fontSize: 15,
     fontWeight: '700',
   },

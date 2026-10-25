@@ -23,7 +23,7 @@ interface ScreenTitleProps {
 export function ScreenTitleGlyph({ icon: Icon }: { readonly icon: ScreenTitleIcon }) {
   return (
     <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.icon}>
-      <Icon color={colors.brand} size={SCREEN_TITLE_ICON_SIZE} />
+      <Icon color={colors.brandText} size={SCREEN_TITLE_ICON_SIZE} />
     </View>
   );
 }

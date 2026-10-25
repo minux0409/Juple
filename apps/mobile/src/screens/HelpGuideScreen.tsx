@@ -56,7 +56,7 @@ export function HelpGuideScreen() {
                   testID={`guide-section-${section.id}`}
                 >
                   <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.rowIcon}>
-                    <Icon color={colors.brand} size={20} />
+                    <Icon color={colors.brandText} size={20} />
                   </View>
                   <View style={styles.rowText}>
                     <Text style={styles.rowTitle}>{t(`guide.sections.${section.id}.title`)}</Text>
@@ -91,7 +91,7 @@ const styles = themedStyles(() => ({
   guidesTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: '800' },
   guideRow: { alignItems: 'center', columnGap: spacing.md, flexDirection: 'row', minHeight: minTouchTarget, paddingVertical: spacing.xs },
   startButton: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: radii.md, justifyContent: 'center', maxWidth: 140, minHeight: minTouchTarget, paddingHorizontal: spacing.md },
-  startLabel: { color: colors.brand, fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  startLabel: { color: colors.brandText, fontSize: 13, fontWeight: '700', textAlign: 'center' },
   divider: { backgroundColor: colors.divider, height: 1, marginHorizontal: spacing.md },
   row: { alignItems: 'center', columnGap: spacing.md, flexDirection: 'row', minHeight: minTouchTarget + 12, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2 },
   rowIcon: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: radii.md, height: 36, justifyContent: 'center', width: 36 },

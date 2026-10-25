@@ -588,7 +588,7 @@ const styles = themedStyles(() => ({
   searchStatus: { marginTop: spacing.xl },
   searchStatusText: { color: colors.textSecondary, fontSize: 15, marginTop: spacing.xl, textAlign: 'center' },
   error: {
-    color: colors.danger,
+    color: colors.dangerText,
     fontSize: 14,
     marginTop: spacing.md,
   },

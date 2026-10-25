@@ -154,7 +154,7 @@ export function CategoryEditorDialog({
                 style={[styles.photoButton, isSubmitting && styles.confirmButtonDisabled]}
                 testID="collection-editor-choose-photo"
               >
-                <ImageIcon color={colors.brand} size={18} />
+                <ImageIcon color={colors.brandText} size={18} />
                 <Text numberOfLines={2} style={styles.photoButtonLabel}>
                   {imageUri ? t('collections.iconPhotoChange') : t('collections.iconPhotoChoose')}
                 </Text>
@@ -234,7 +234,7 @@ const styles = themedStyles(() => ({
   },
   photoButton: {
     alignItems: 'center',
-    borderColor: colors.brand,
+    borderColor: colors.brandText,
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: 'row',
@@ -246,7 +246,7 @@ const styles = themedStyles(() => ({
     paddingHorizontal: spacing.md,
   },
   photoButtonLabel: {
-    color: colors.brand,
+    color: colors.brandText,
     flexShrink: 1,
     fontSize: 14,
     fontWeight: '700',
@@ -288,7 +288,7 @@ const styles = themedStyles(() => ({
     marginTop: spacing.md + 4,
   },
   error: {
-    color: colors.danger,
+    color: colors.dangerText,
     fontSize: 14,
     marginTop: spacing.md,
   },

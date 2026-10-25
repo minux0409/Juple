@@ -636,7 +636,7 @@
   },
   "collaboration": {
     "jupleIdLabel": "معرّف Juple",
-    "jupleIdPlaceholder": "مثال: K7MP-4Q8N",
+    "jupleIdPlaceholder": "مثال: K7MP4Q8N",
     "find": "بحث",
     "lookupNotFound": "لا يوجد مستخدم بهذا المعرّف.",
     "lookupFallback": "تعذّر البحث عن معرّف Juple هذا.",

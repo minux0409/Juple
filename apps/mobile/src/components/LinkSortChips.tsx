@@ -66,7 +66,7 @@ const styles = themedStyles(() => ({
     paddingHorizontal: spacing.sm + 2,
     paddingVertical: spacing.xs + 2,
   },
-  chipSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
+  chipSelected: { backgroundColor: colors.brand, borderColor: colors.brandText },
   label: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
-  labelSelected: { color: colors.surface },
+  labelSelected: { color: colors.onBrand },
 }));

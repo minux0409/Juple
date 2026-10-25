@@ -4,8 +4,10 @@ import {
   Animated,
   PanResponder,
   Pressable,
+  I18nManager,
   StyleSheet,
   View,
+  type LayoutChangeEvent,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -19,6 +21,10 @@ const ACTION_WIDTH = 76;
 const COMPACT_ACTION_WIDTH = 72;
 /** Below this horizontal movement, a touch is treated as a tap/vertical scroll, not a swipe. */
 const HORIZONTAL_INTENT_THRESHOLD = 8;
+/** The icon on a revealed action: white on the brand / coral panels in both themes (the panel colours are the same in both). */
+const ACTION_ICON_COLOR = '#FFFFFF';
+
+type RevealedEdge = 'left' | 'right' | 'both' | null;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -131,7 +137,10 @@ export function SwipeableItemRow({
 }: SwipeableItemRowProps) {
   const { t } = useTranslation();
   const deleteActionLabel = deleteLabel ?? t('common.delete');
-  const actionWidth = compact ? COMPACT_ACTION_WIDTH : ACTION_WIDTH;
+  const [rowWidth, setRowWidth] = useState(0);
+  // One revealed action takes its fixed pane width but never more than half the row, so a very narrow tile still keeps its content.
+  const preferredWidth = compact ? COMPACT_ACTION_WIDTH : ACTION_WIDTH;
+  const actionWidth = rowWidth > 0 ? Math.min(preferredWidth, Math.floor(rowWidth / 2)) : preferredWidth;
   const openThreshold = actionWidth / 2;
   const hasStartSide = onShare !== undefined || startAction !== undefined;
   const translateX = useRef(new Animated.Value(0)).current;
@@ -144,7 +153,17 @@ export function SwipeableItemRow({
   // "빨강/파랑" visible at rest (the exact real-device report this guards against - especially
   // visible on the narrower Grid card width, where ACTION_WIDTH is a much larger fraction of the
   // card). Sits alongside (does not replace) translateX, which stays native-driven for smooth drag.
-  const [isRevealed, setIsRevealed] = useState(false);
+  // Which PHYSICAL edge is being uncovered ('left' while the content is dragged right, 'right' while dragged left; 'both' only for a
+  // grant that carries no direction yet, narrowed by the first move). Only the pane on that
+  // edge is mounted, so the other action's colour can never show through while one action is open or being dragged.
+  const [revealedEdge, setRevealedEdge] = useState<RevealedEdge>(null);
+  const revealedEdgeRef = useRef<RevealedEdge>(null);
+  const showEdge = useCallback((edge: RevealedEdge) => {
+    if (revealedEdgeRef.current !== edge) {
+      revealedEdgeRef.current = edge;
+      setRevealedEdge(edge);
+    }
+  }, []);
 
   useEffect(() => {
     const listenerId = translateX.addListener(({ value }) => {
@@ -156,10 +175,10 @@ export function SwipeableItemRow({
   const close = useCallback(() => {
     openDirectionRef.current = null;
     Animated.timing(translateX, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
-      setIsRevealed(false);
+      showEdge(null);
     });
     notifyRowClosed(close);
-  }, [translateX]);
+  }, [translateX, showEdge]);
 
   // Unregisters this row from the shared "one open row" coordinator if it unmounts while open
   // (e.g. the item was just deleted) - never leaves a stale close callback registered.
@@ -182,7 +201,13 @@ export function SwipeableItemRow({
           !disabled &&
           Math.abs(gesture.dx) > HORIZONTAL_INTENT_THRESHOLD &&
           Math.abs(gesture.dx) > Math.abs(gesture.dy),
-        onPanResponderGrant: () => setIsRevealed(true),
+        onPanResponderGrant: (_event, gesture) => {
+          if (openDirectionRef.current !== null) {
+            showEdge(openDirectionRef.current === 'right' ? 'left' : 'right');
+          } else {
+            showEdge(gesture.dx > 0 ? 'left' : gesture.dx < 0 ? 'right' : 'both');
+          }
+        },
         onPanResponderMove: (_event, gesture) => {
           const base =
             openDirectionRef.current === 'left'
@@ -190,7 +215,9 @@ export function SwipeableItemRow({
               : openDirectionRef.current === 'right'
                 ? actionWidth
                 : 0;
-          translateX.setValue(clamp(base + gesture.dx, onDelete ? -actionWidth : 0, hasStartSide ? actionWidth : 0));
+          const next = clamp(base + gesture.dx, onDelete ? -actionWidth : 0, hasStartSide ? actionWidth : 0);
+          translateX.setValue(next);
+          showEdge(next > 0 ? 'left' : next < 0 ? 'right' : revealedEdgeRef.current);
         },
         onPanResponderRelease: () => {
           const offset = currentOffsetRef.current;
@@ -204,7 +231,7 @@ export function SwipeableItemRow({
         },
         onPanResponderTerminate: close,
       }),
-    [disabled, translateX, openTo, close, onDelete, hasStartSide, actionWidth, openThreshold],
+    [disabled, translateX, openTo, close, onDelete, hasStartSide, actionWidth, openThreshold, showEdge],
   );
 
   const handleContentPress = () => {
@@ -217,11 +244,17 @@ export function SwipeableItemRow({
     onPress?.();
   };
 
+  // The start pane sits on the physical left in LTR and on the right in RTL (logical `start`), the delete pane on the other edge.
+  const startEdge = I18nManager.isRTL ? 'right' : 'left';
+  const showStartPane = revealedEdge === 'both' || revealedEdge === startEdge;
+  const showDeletePane = revealedEdge === 'both' || (revealedEdge !== null && revealedEdge !== startEdge);
+  const onRowLayout = (event: LayoutChangeEvent) => setRowWidth(Math.round(event.nativeEvent.layout.width));
+
   return (
-    <View style={[styles.wrapper, containerStyle]}>
-      {isRevealed ? (
+    <View onLayout={onRowLayout} style={[styles.wrapper, containerStyle]}>
+      {revealedEdge !== null ? (
         <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-          {startAction ? (
+          {showStartPane && startAction ? (
           <View style={[styles.actionSlot, styles.shareSlot, { width: actionWidth }]}>
             <Pressable
               accessibilityLabel={startAction.label}
@@ -234,10 +267,10 @@ export function SwipeableItemRow({
               style={[styles.actionButton, styles.shareAction, startAction.backgroundColor ? { backgroundColor: startAction.backgroundColor } : null]}
               testID={startAction.testID}
             >
-              <startAction.icon color={colors.surface} size={22} />
+              <startAction.icon color={ACTION_ICON_COLOR} size={22} />
             </Pressable>
           </View>
-          ) : onShare ? (
+          ) : showStartPane && onShare ? (
           <View style={[styles.actionSlot, styles.shareSlot, { width: actionWidth }]}>
             <Pressable
               accessibilityLabel={t('common.share')}
@@ -249,11 +282,11 @@ export function SwipeableItemRow({
               }}
               style={[styles.actionButton, styles.shareAction]}
             >
-              <ShareIcon color={colors.surface} size={22} />
+              <ShareIcon color={ACTION_ICON_COLOR} size={22} />
             </Pressable>
           </View>
           ) : null}
-          {onDelete ? (
+          {showDeletePane && onDelete ? (
           <View style={[styles.actionSlot, styles.deleteSlot, { width: actionWidth }]}>
             <Pressable
               accessibilityLabel={deleteActionLabel}
@@ -266,7 +299,7 @@ export function SwipeableItemRow({
               style={[styles.actionButton, styles.deleteAction]}
               testID={deleteTestID}
             >
-              <TrashIcon color={colors.surface} size={22} />
+              <TrashIcon color={ACTION_ICON_COLOR} size={22} />
             </Pressable>
           </View>
           ) : null}

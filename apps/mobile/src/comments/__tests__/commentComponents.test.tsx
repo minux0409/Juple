@@ -78,7 +78,7 @@ describe('CommentRow', () => {
   });
 
   it('without a nickname the Juple ID is the name', () => {
-    expect(texts(row({ comment: comment(1, { displayName: null }) }))[0]).toBe('ABCD-2345');
+    expect(texts(row({ comment: comment(1, { displayName: null }) }))[0]).toBe('ABCD2345');
   });
 
   it('the Collection owner\'s comment has a small crown - no 소유자 text - and says so for the screen reader', () => {

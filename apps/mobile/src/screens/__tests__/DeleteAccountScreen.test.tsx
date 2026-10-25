@@ -128,7 +128,7 @@ describe('DeleteAccountScreen', () => {
   it('after signing in, the delete button stays disabled until the exact Juple ID is typed', async () => {
     const renderer = await reachConfirmStep();
 
-    expect(byTestId(renderer, 'delete-account-expected-id').props.children).toBe('K7MP-4Q8N');
+    expect(byTestId(renderer, 'delete-account-expected-id').props.children).toBe('K7MP4Q8N');
     expect(byTestId(renderer, 'delete-account-final').props.disabled).toBe(true);
 
     await type(renderer, 'K7MP4Q8');

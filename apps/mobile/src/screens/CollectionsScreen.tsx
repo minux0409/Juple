@@ -1245,7 +1245,7 @@ const styles = themedStyles(() => ({
   },
   headerButtons: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   error: {
-    color: colors.danger,
+    color: colors.dangerText,
     fontSize: 14,
     marginTop: spacing.md,
   },
@@ -1305,7 +1305,7 @@ const styles = themedStyles(() => ({
     minWidth: 20,
     paddingHorizontal: 5,
   },
-  filterBadgeText: { color: colors.surface, fontSize: 11, fontWeight: '800' },
+  filterBadgeText: { color: colors.onDanger, fontSize: 11, fontWeight: '800' },
   filterCellActive: {
     backgroundColor: collectionFilterColors.selectedBackground,
     borderColor: collectionFilterColors.selectedBorder,
@@ -1343,7 +1343,7 @@ const styles = themedStyles(() => ({
     minWidth: 20,
     paddingHorizontal: 6,
   },
-  shareRequestsBadgeText: { color: colors.surface, fontSize: 12, fontWeight: '700', lineHeight: 20 },
+  shareRequestsBadgeText: { color: colors.onBrand, fontSize: 12, fontWeight: '700', lineHeight: 20 },
   // Each cell claims exactly 1/columns of the row's width - a plain percentage flexBasis
   // (not FlatList's columnWrapperStyle) so a short final row never stretches to fill the line.
   gridCell: {

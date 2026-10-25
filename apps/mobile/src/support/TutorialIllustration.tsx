@@ -60,7 +60,7 @@ function MiniLinkRow({ tint = colors.brandSoft, titleWidth = '72%', accent }: { 
   return (
     <View style={styles.linkRow}>
       <View style={[styles.thumb, { backgroundColor: tint }]}>
-        <ImageIcon color={colors.brand} size={16} />
+        <ImageIcon color={colors.brandText} size={16} />
       </View>
       <View style={styles.linkLines}>
         <View style={[styles.bar, styles.barStrong, { width: titleWidth }]} />
@@ -76,7 +76,7 @@ function SaveIllustration() {
     <View style={styles.stack}>
       <View style={styles.pillRow}>
         <View style={styles.roundIcon}>
-          <ShareIcon color={colors.brand} size={18} />
+          <ShareIcon color={colors.brandText} size={18} />
         </View>
         <View style={styles.urlPill}>
           <LinkIcon color={colors.textSecondary} size={14} />
@@ -166,7 +166,7 @@ function ShareIllustration() {
           </View>
         </View>
         <View style={styles.roundIcon}>
-          <ShareIcon color={colors.brand} size={18} />
+          <ShareIcon color={colors.brandText} size={18} />
         </View>
       </View>
       <View style={styles.permissionPill}>
@@ -227,7 +227,7 @@ function HelpRow({ label }: { readonly label: string }) {
   return (
     <View style={styles.helpRow}>
       <View style={styles.helpIcon}>
-        <InfoIcon color={colors.brand} size={16} />
+        <InfoIcon color={colors.brandText} size={16} />
       </View>
       <Text allowFontScaling={false} numberOfLines={1} style={styles.helpLabel}>{label}</Text>
       <ChevronIcon color={colors.textSecondary} direction={direction === 'rtl' ? 'left' : 'right'} size={16} />
@@ -280,7 +280,7 @@ const styles = themedStyles(() => ({
   tab: { alignItems: 'center', borderRadius: radii.sm, justifyContent: 'center', minWidth: 84, paddingHorizontal: spacing.md, paddingVertical: 6 },
   tabSelected: { backgroundColor: colors.surface },
   tabText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
-  tabTextSelected: { color: colors.brand },
+  tabTextSelected: { color: colors.brandText },
   tilesRow: { alignItems: 'flex-start', columnGap: spacing.md, flexDirection: 'row', justifyContent: 'center' },
   tileColumn: { alignItems: 'center', rowGap: 8, width: TILE },
   tile: { alignItems: 'center', borderRadius: radii.lg, height: TILE, justifyContent: 'center', overflow: 'hidden', width: TILE },
@@ -290,7 +290,7 @@ const styles = themedStyles(() => ({
   avatarStack: { flexDirection: 'row' },
   avatar: { alignItems: 'center', borderColor: colors.surface, borderRadius: 11, borderWidth: 2, height: 22, justifyContent: 'center', width: 22 },
   permissionPill: { backgroundColor: colors.brandSoft, borderRadius: radii.lg * 2, paddingHorizontal: spacing.md, paddingVertical: 4 },
-  permissionText: { color: colors.brand, fontSize: 11, fontWeight: '700' },
+  permissionText: { color: colors.brandText, fontSize: 11, fontWeight: '700' },
   searchField: { alignItems: 'center', alignSelf: 'stretch', backgroundColor: colors.surface, borderColor: colors.inputBorder, borderRadius: radii.md, borderWidth: 1, columnGap: spacing.sm, flexDirection: 'row', paddingHorizontal: spacing.md, paddingVertical: 8 },
   searchText: { color: colors.textSecondary, flex: 1, flexShrink: 1, fontSize: 12 },
   controlsRow: { alignItems: 'center', alignSelf: 'stretch', columnGap: spacing.sm, flexDirection: 'row', justifyContent: 'space-between' },
@@ -298,7 +298,7 @@ const styles = themedStyles(() => ({
   chip: { backgroundColor: colors.surfaceMuted, borderRadius: radii.lg * 2, flexShrink: 1, paddingHorizontal: spacing.sm + 2, paddingVertical: 5 },
   chipSelected: { backgroundColor: colors.brandSoft },
   chipText: { color: colors.textSecondary, fontSize: 11, fontWeight: '600' },
-  chipTextSelected: { color: colors.brand },
+  chipTextSelected: { color: colors.brandText },
   panelsRow: { columnGap: spacing.sm, flexDirection: 'row', justifyContent: 'center' },
   panel: { backgroundColor: colors.surface, borderColor: colors.inputBorder, borderRadius: radii.md, borderWidth: 1, height: 64, padding: 6, rowGap: 5, width: 84 },
   panelGrid: { columnGap: 4, flexDirection: 'row', flexWrap: 'wrap' },

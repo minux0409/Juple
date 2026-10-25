@@ -79,7 +79,7 @@ export function ReportModal({ target, onClose, onReported }: ReportModalProps) {
             style={[styles.button, styles.submit, cannotSend && styles.disabled]}
             testID="report-submit"
           >
-            {isSending ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.submitLabel}>{t('safety.reportSubmit')}</Text>}
+            {isSending ? <ActivityIndicator color={colors.onBrand} size="small" /> : <Text style={styles.submitLabel}>{t('safety.reportSubmit')}</Text>}
           </Pressable>
         </View>
       }
@@ -129,18 +129,18 @@ export function ReportModal({ target, onClose, onReported }: ReportModalProps) {
 const styles = themedStyles(() => ({
   heading: { color: colors.textPrimary, fontSize: 15, fontWeight: '700', marginBottom: spacing.sm },
   reason: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs + 2, minHeight: minTouchTarget, paddingHorizontal: spacing.md },
-  reasonSelected: { borderColor: colors.brand },
+  reasonSelected: { borderColor: colors.brandText },
   reasonLabel: { color: colors.textPrimary, flexShrink: 1, fontSize: 15 },
   radio: { alignItems: 'center', borderColor: colors.inputBorder, borderRadius: 10, borderWidth: 2, height: 20, justifyContent: 'center', width: 20 },
-  radioSelected: { borderColor: colors.brand },
+  radioSelected: { borderColor: colors.brandText },
   radioDot: { backgroundColor: colors.brand, borderRadius: 5, height: 10, width: 10 },
   details: { backgroundColor: colors.surface, borderColor: colors.inputBorder, borderRadius: radii.md + 4, borderWidth: 1, color: colors.textPrimary, fontSize: 15, marginTop: spacing.sm, minHeight: 88, padding: spacing.md, textAlignVertical: 'top' },
-  error: { color: colors.danger, fontSize: 14, marginTop: spacing.sm },
+  error: { color: colors.dangerText, fontSize: 14, marginTop: spacing.sm },
   footer: { flexDirection: 'row', gap: spacing.sm },
   button: { alignItems: 'center', borderRadius: radii.md, flex: 1, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   cancel: { borderColor: colors.border, borderWidth: 1 },
   cancelLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
   submit: { backgroundColor: colors.brand },
-  submitLabel: { color: colors.surface, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  submitLabel: { color: colors.onBrand, fontSize: 15, fontWeight: '700', textAlign: 'center' },
   disabled: { opacity: 0.45 },
 }));

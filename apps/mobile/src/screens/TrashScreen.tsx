@@ -431,7 +431,7 @@ function EmptyTrashHeaderButton({ disabled, label, onPress }: { readonly disable
   useTheme();
   return (
     <Pressable accessibilityLabel={label} accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={styles.emptyTrashButton} testID="trash-empty-button">
-      <EmptyTrashIcon color={colors.danger} size={22} />
+      <EmptyTrashIcon color={colors.dangerText} size={22} />
     </Pressable>
   );
 }

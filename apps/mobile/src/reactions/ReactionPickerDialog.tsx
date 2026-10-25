@@ -87,6 +87,6 @@ const styles = themedStyles(() => ({
     height: minTouchTarget + 4,
     justifyContent: 'center',
   },
-  cellMine: { backgroundColor: colors.brandSoft, borderColor: colors.brand },
+  cellMine: { backgroundColor: colors.brandSoft, borderColor: colors.brandText },
   emoji: { fontSize: 26 },
 }));

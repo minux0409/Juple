@@ -121,8 +121,8 @@ const styles = themedStyles(() => ({
     paddingHorizontal: 7,
   },
   // The caller's own: a ring and a faint tint, not a filled button.
-  chipMine: { backgroundColor: colors.brandSoft, borderColor: colors.brand },
+  chipMine: { backgroundColor: colors.brandSoft, borderColor: colors.brandText },
   emoji: { fontSize: 13 },
   count: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
-  countMine: { color: colors.brand },
+  countMine: { color: colors.brandText },
 }));

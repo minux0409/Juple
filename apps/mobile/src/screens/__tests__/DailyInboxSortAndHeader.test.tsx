@@ -7,6 +7,8 @@ import { AppToastProvider } from '../../components/AppToast';
 import { LinkSortChips } from '../../components/LinkSortChips';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { ClockIcon } from '../../icons/ClockIcon';
+import { SearchIcon } from '../../icons/SearchIcon';
+import { setActiveColorScheme } from '../../theme/tokens';
 import { HomeIcon } from '../../icons/HomeIcon';
 import { SCREEN_TITLE_ICON_SIZE } from '../../components/ScreenTitle';
 import { colors } from '../../theme/tokens';
@@ -224,7 +226,28 @@ describe('Home title icon', () => {
     expect(renderer.root.findAllByType(HomeIcon)).toHaveLength(0);
     const glyph = renderer.root.findByType(ClockIcon);
     expect(glyph.props.size).toBe(SCREEN_TITLE_ICON_SIZE);
-    expect(glyph.props.color).toBe(colors.brand);
+    expect(glyph.props.color).toBe(colors.brandText);
+  });
+});
+
+describe('Home URL magnifier', () => {
+  afterEach(() => setActiveColorScheme('light'));
+
+  it.each(['light', 'dark'] as const)('is drawn in the brand violet #6751FC itself (not brandText) in %s, even while the field is empty, and is never dimmed', async scheme => {
+    setActiveColorScheme(scheme);
+    serve(ITEMS.slice(0, 3));
+    const renderer = await renderScreen();
+
+    const icon = renderer.root.findByType(SearchIcon);
+    expect(icon.props.color).toBe('#6751FC');
+    expect(icon.props.color).not.toBe(colors.brandText);
+    const button = renderer.root.findAll(node => node.props.accessibilityLabel === '저장' && node.props.accessibilityRole === 'button')[0];
+    expect(button.props.disabled).toBe(true);
+    let node: typeof icon.parent = icon.parent;
+    while (node) {
+      expect(StyleSheet.flatten(node.props.style ?? {}).opacity).toBeUndefined();
+      node = node.parent;
+    }
   });
 });
 

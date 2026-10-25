@@ -36,7 +36,7 @@ const styles = themedStyles(() => ({
 // Defined at module scope (not inline in MainTabs' render) so React Navigation always sees the
 // same tabBarIcon function identity across renders - see the "no inline component" lint rule.
 function tabIconColor(focused: boolean): string {
-  return focused ? colors.brand : colors.textSecondary;
+  return focused ? colors.brandText : colors.textSecondary;
 }
 
 function renderHomeIcon({ focused }: { focused: boolean }) {
@@ -71,10 +71,10 @@ export function MainTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.brand,
+        tabBarActiveTintColor: colors.brandText,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarLabelPosition: 'below-icon',
-        tabBarBadgeStyle: { backgroundColor: colors.danger, color: colors.surface, fontSize: 11, fontWeight: '700' },
+        tabBarBadgeStyle: { backgroundColor: colors.danger, color: colors.onDanger, fontSize: 11, fontWeight: '700' },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',

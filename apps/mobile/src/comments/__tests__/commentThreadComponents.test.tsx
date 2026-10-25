@@ -142,7 +142,7 @@ describe('CommentRow - hearts, replies and placeholders', () => {
 
   it('without a nickname the answered person is shown by Juple ID', () => {
     const renderer = row({ isReply: true, comment: reply(3, 1, { parentCommentId: 2, replyTo: { jupleId: 'WXYZ6789', displayName: null } }) });
-    expect(texts(renderer)).toContain('@WXYZ-6789 ');
+    expect(texts(renderer)).toContain('@WXYZ6789 ');
   });
 
   it('a deleted comment is only "삭제된 댓글입니다." - no avatar, name, words, heart or answer button', () => {

@@ -110,7 +110,7 @@ export function TermsAgreementScreen({ isSaving, saveFailed, onAccept }: TermsAg
           style={[styles.next, (!allChecked || isSaving) && styles.nextDisabled]}
           testID="agreement-next"
         >
-          {isSaving ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.nextLabel}>{t('agreement.next')}</Text>}
+          {isSaving ? <ActivityIndicator color={colors.onBrand} /> : <Text style={styles.nextLabel}>{t('agreement.next')}</Text>}
         </Pressable>
       </View>
 
@@ -235,17 +235,17 @@ const styles = themedStyles(() => ({
   allLabel: { color: colors.textPrimary, flexShrink: 1, fontSize: 16, fontWeight: '700', marginStart: spacing.sm },
   divider: { backgroundColor: colors.divider, height: 1, marginVertical: spacing.md },
   box: { alignItems: 'center', borderColor: colors.inputBorder, borderRadius: 12, borderWidth: 2, height: 24, justifyContent: 'center', width: 24 },
-  boxChecked: { backgroundColor: colors.brand, borderColor: colors.brand },
+  boxChecked: { backgroundColor: colors.brand, borderColor: colors.brandText },
   detailButton: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
-  error: { color: colors.danger, fontSize: 14, marginTop: spacing.md },
+  error: { color: colors.dangerText, fontSize: 14, marginTop: spacing.md },
   footer: { alignSelf: 'center', maxWidth: 560, paddingBottom: spacing.lg, paddingHorizontal: spacing.xl, width: '100%' },
   next: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.xl, justifyContent: 'center', minHeight: minTouchTarget + 8, paddingHorizontal: spacing.md },
   nextDisabled: { opacity: 0.4 },
-  nextLabel: { color: colors.surface, fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  nextLabel: { color: colors.onBrand, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   detailScroll: { flexShrink: 1 },
   section: { marginBottom: spacing.md },
   sectionTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
   sectionBody: { color: colors.textPrimary, fontSize: 14, lineHeight: 21, marginTop: spacing.xs },
   fullLink: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget },
-  fullLinkLabel: { color: colors.brand, fontSize: 15, fontWeight: '600' },
+  fullLinkLabel: { color: colors.brandText, fontSize: 15, fontWeight: '600' },
 }));

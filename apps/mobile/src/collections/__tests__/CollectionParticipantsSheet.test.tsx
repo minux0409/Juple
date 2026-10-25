@@ -106,7 +106,7 @@ describe('CollectionParticipantsSheet', () => {
     });
 
     const texts = renderer.root.findAllByType(Text).map(node => node.props.children);
-    expect(texts).toEqual(expect.arrayContaining(['피카츄', 'CNTR-B234', '이상해씨 (나)', i18n.t('collections.roleOwner')]));
+    expect(texts).toEqual(expect.arrayContaining(['피카츄', 'CNTRB234', '이상해씨 (나)', i18n.t('collections.roleOwner')]));
     // The Owner's crown is the vector icon - never an emoji glyph - and only on the Owner's row.
     expect(JSON.stringify(texts)).not.toContain('👑');
     const ownerRow = renderer.root.findByProps({ testID: 'participants-sheet-WNER2345' });
@@ -129,8 +129,8 @@ describe('CollectionParticipantsSheet', () => {
 
     const ownerRow = renderer.root.findByProps({ testID: 'participants-sheet-WNER2345' });
     expect(ownerRow.findByType(UserAvatar).props).toEqual(expect.objectContaining({ imageUrl: 'https://blob.example/owner.jpg', imageVersion: 'v1' }));
-    expect(renderer.root.findByProps({ testID: 'participants-sheet-id-WNER2345' }).props.children).toBe('WNER-2345');
-    expect(renderer.root.findByProps({ testID: 'participants-sheet-id-VIEW2345' }).props.children).toBe('VIEW-2345');
+    expect(renderer.root.findByProps({ testID: 'participants-sheet-id-WNER2345' }).props.children).toBe('WNER2345');
+    expect(renderer.root.findByProps({ testID: 'participants-sheet-id-VIEW2345' }).props.children).toBe('VIEW2345');
     const texts = renderer.root.findAllByType(Text).map(node => node.props.children);
     expect(texts).toEqual(expect.arrayContaining([i18n.t('collections.roleOwner'), i18n.t(participantRoleLabelKey('viewer'))]));
     expect(renderer.root.findAllByType(CrownIcon)).toHaveLength(1);
@@ -185,7 +185,7 @@ describe('formatParticipantSummary', () => {
   const t = i18n.t.bind(i18n);
 
   it('names up to the preview (display name, else Juple ID), then 외 N명', () => {
-    expect(formatParticipantSummary({ participantPreview: [...members], otherParticipantCount: 4 }, t)).toBe('피카츄 · CNTR-B234 외 2명');
+    expect(formatParticipantSummary({ participantPreview: [...members], otherParticipantCount: 4 }, t)).toBe('피카츄 · CNTRB234 외 2명');
     expect(formatParticipantSummary({ participantPreview: [members[0]], otherParticipantCount: 1 }, t)).toBe('피카츄');
   });
 
@@ -241,7 +241,7 @@ describe('CollectionParticipantsSheet - List / Grid', () => {
     const grid = renderer.root.findByProps({ testID: 'participants-sheet-grid' });
     expect(grid.findAllByType(UserAvatar)).toHaveLength(2);
     expect(grid.findAllByType(CrownIcon)).toHaveLength(1);
-    expect(grid.findAllByType(Text).map(node => node.props.children)).toEqual(expect.arrayContaining(['피카츄', 'CNTR-B234', i18n.t('collections.roleOwner')]));
+    expect(grid.findAllByType(Text).map(node => node.props.children)).toEqual(expect.arrayContaining(['피카츄', 'CNTRB234', i18n.t('collections.roleOwner')]));
     const ids = renderer.root.findAll(node => typeof node.props.testID === 'string').map(node => node.props.testID as string);
     expect(ids.filter(id => /-manage$|-remove-|-revoke-/.test(id))).toEqual([]);
     expect(renderer.root.findAllByType(Modal).some(modal => modal.props.visible && modal.findAll(node => node.props.accessibilityLabel === i18n.t('collaboration.remove')).length > 0)).toBe(false);

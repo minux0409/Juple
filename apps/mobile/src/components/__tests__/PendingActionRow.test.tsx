@@ -24,7 +24,7 @@ describe('PendingActionRow (the one shared requester + owner row)', () => {
     const row = renderer.root.findByType(PendingActionRow).children[0] as ReactTestRenderer.ReactTestInstance;
 
     const bell = row.findByType(BellIcon);
-    expect(bell.props).toMatchObject({ color: colors.brand, size: PENDING_ROW_ICON_SIZE });
+    expect(bell.props).toMatchObject({ color: colors.brandText, size: PENDING_ROW_ICON_SIZE });
     expect(PENDING_ROW_ICON_SIZE).toBeGreaterThanOrEqual(18);
     expect(PENDING_ROW_ICON_SIZE).toBeLessThanOrEqual(20);
     const wrapper = renderer.root.findAll(node => node.props.testID === 'row-icon')[0];
@@ -34,7 +34,7 @@ describe('PendingActionRow (the one shared requester + owner row)', () => {
     expect(row.findAllByType(ChevronIcon)).toHaveLength(1);
     expect(row.findAllByType(Text)).toHaveLength(1);
     const style = StyleSheet.flatten(row.props.style({ pressed: false }));
-    expect(style).toMatchObject({ flexDirection: 'row', backgroundColor: colors.brandSoft, borderColor: colors.brand, minHeight: minTouchTarget });
+    expect(style).toMatchObject({ flexDirection: 'row', backgroundColor: colors.brandSoft, borderColor: colors.brandText, minHeight: minTouchTarget });
   });
 
   it('the whole row is one button with the given spoken label and handler', async () => {
@@ -69,7 +69,7 @@ describe('PendingActionRow status variant (what I only wait for)', () => {
 
   it('an action row keeps the blue card with a red count badge and no status text', async () => {
     const { renderer, style } = await renderVariant();
-    expect(style).toMatchObject({ backgroundColor: colors.brandSoft, borderColor: colors.brand });
+    expect(style).toMatchObject({ backgroundColor: colors.brandSoft, borderColor: colors.brandText });
     expect(byId(renderer, 'row-badge')).toHaveLength(1);
     expect(byId(renderer, 'row-status')).toHaveLength(0);
   });

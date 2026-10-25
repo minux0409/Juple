@@ -123,5 +123,5 @@ const styles = themedStyles(() => ({
     justifyContent: 'center',
     width: AVATAR_SIZE,
   },
-  moreLabel: { color: colors.brand, fontSize: 11, fontWeight: '700' },
+  moreLabel: { color: colors.brandText, fontSize: 11, fontWeight: '700' },
 }));

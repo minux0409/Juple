@@ -36,7 +36,7 @@ export function ActionMenuDialog({ visible, title, header, actions, cancelLabel,
       {title ? <Text style={styles.title}>{title}</Text> : null}
       {header ? <View style={actions.length > 0 ? styles.header : undefined}>{header}</View> : null}
       {actions.map(action => {
-        const color = action.destructive ? colors.danger : colors.textPrimary;
+        const color = action.destructive ? colors.dangerText : colors.textPrimary;
         const Icon = action.icon;
         return <Pressable
           accessibilityLabel={action.label}

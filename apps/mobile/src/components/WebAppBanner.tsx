@@ -32,7 +32,7 @@ const styles = themedStyles(() => ({
   text: { flex: 1, minWidth: 0 },
   title: { color: colors.textPrimary, fontSize: 15, fontWeight: '700', lineHeight: 21 },
   body: { color: colors.textSecondary, fontSize: 13, lineHeight: 19, marginTop: spacing.xs },
-  domain: { color: colors.brand, fontSize: 16, fontWeight: '700', marginTop: spacing.sm },
+  domain: { color: colors.brandText, fontSize: 16, fontWeight: '700', marginTop: spacing.sm },
   browser: { backgroundColor: colors.surface, borderColor: colors.inputBorder, borderWidth: 1, borderRadius: radii.md,
     flexShrink: 0, overflow: 'hidden', width: 112, transform: [{ rotate: '5deg' }] },
   browserCompact: { width: 76 },

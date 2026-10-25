@@ -799,6 +799,6 @@ describe('TrashScreen gestures, titleless popup and icon-only empty button', () 
     // A distinct clear-all bin (with sweep lines), never the same glyph as deleting a single item; no text child.
     expect(button.props.children.type).toBe(EmptyTrashIcon);
     expect(button.props.children.type).not.toBe(TrashIcon);
-    expect(button.props.children.props.color).toBe(colors.danger);
+    expect(button.props.children.props.color).toBe(colors.dangerText);
   });
 });

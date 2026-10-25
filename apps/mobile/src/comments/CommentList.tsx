@@ -212,6 +212,6 @@ const styles = themedStyles(() => ({
   textAction: { alignItems: 'center', alignSelf: 'flex-start', justifyContent: 'center', minHeight: minTouchTarget },
   // The thread controls line up with the replies' own single indent.
   threadAction: { marginStart: REPLY_INDENT },
-  actionLabel: { color: colors.brand, fontSize: 14, fontWeight: '700' },
-  failedLabel: { color: colors.danger, fontSize: 13, fontWeight: '700' },
+  actionLabel: { color: colors.brandText, fontSize: 14, fontWeight: '700' },
+  failedLabel: { color: colors.dangerText, fontSize: 13, fontWeight: '700' },
 }));

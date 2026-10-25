@@ -76,6 +76,6 @@ export function CollectionColorPicker({ selected, onSelect, disabled }: Collecti
 }
 
 const styles = themedStyles(() => ({
-  presetRow: { flexDirection: 'row', justifyContent: 'space-between' }, swatch: { borderRadius: 15, height: 30, width: 30 }, selected: { borderColor: colors.brand, borderWidth: 3 }, disabled: { opacity: 0.5 },
+  presetRow: { flexDirection: 'row', justifyContent: 'space-between' }, swatch: { borderRadius: 15, height: 30, width: 30 }, selected: { borderColor: colors.brandText, borderWidth: 3 }, disabled: { opacity: 0.5 },
   hueBar: { borderRadius: 9, flexDirection: 'row', height: 18, marginTop: spacing.md, overflow: 'hidden', position: 'relative' }, thumb: { backgroundColor: colors.surface, borderColor: colors.textPrimary, borderRadius: 12, borderWidth: 2, height: 24, marginLeft: -12, position: 'absolute', top: -3, width: 24 },
 }));

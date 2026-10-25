@@ -188,7 +188,7 @@ const styles = themedStyles(() => ({
   },
   meta: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   secondary: { fontSize: 12, color: colors.textSecondary },
-  important: { fontSize: 12, color: colors.brand, fontWeight: '700' },
+  important: { fontSize: 12, color: colors.brandText, fontWeight: '700' },
   title: { fontSize: 17, color: colors.textPrimary, marginTop: spacing.sm },
   unread: { fontWeight: '700' },
   preview: { fontSize: 14, color: colors.textSecondary, marginTop: spacing.sm },

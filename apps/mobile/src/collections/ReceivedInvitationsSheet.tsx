@@ -158,7 +158,7 @@ export function ReceivedInvitationsSheet({
                       style={styles.acceptButton}
                       testID={`share-request-accept-${invitation.invitationId}`}
                     >
-                      {isBusy ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.acceptLabel}>{t('collaboration.accept')}</Text>}
+                      {isBusy ? <ActivityIndicator color={colors.onBrand} size="small" /> : <Text style={styles.acceptLabel}>{t('collaboration.accept')}</Text>}
                     </Pressable>
                   </View>
                 </View>
@@ -201,5 +201,5 @@ const styles = themedStyles(() => ({
     justifyContent: 'center',
     minHeight: minTouchTarget,
   },
-  acceptLabel: { color: colors.surface, fontSize: 15, fontWeight: '700' },
+  acceptLabel: { color: colors.onBrand, fontSize: 15, fontWeight: '700' },
 }));

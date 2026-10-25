@@ -188,7 +188,7 @@ export function PhotoCropper({ uri, knownSize, onApply, onCancel }: PhotoCropper
             style={styles.headerButton}
             testID="photo-cropper-apply"
           >
-            {busy ? <ActivityIndicator color={colors.brand} size="small" /> : <Text numberOfLines={1} style={[styles.headerApply, !ready && styles.disabled]}>{t('profileCrop.apply')}</Text>}
+            {busy ? <ActivityIndicator color={colors.brandText} size="small" /> : <Text numberOfLines={1} style={[styles.headerApply, !ready && styles.disabled]}>{t('profileCrop.apply')}</Text>}
           </Pressable>
         </View>
 
@@ -245,7 +245,7 @@ const styles = themedStyles(() => ({
   header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   headerButton: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, minWidth: 64 },
   headerCancel: { color: colors.textSecondary, fontSize: 16, fontWeight: '600' },
-  headerApply: { color: colors.brand, fontSize: 16, fontWeight: '700' },
+  headerApply: { color: colors.brandText, fontSize: 16, fontWeight: '700' },
   disabled: { opacity: 0.45 },
   title: { color: colors.textPrimary, flexShrink: 1, fontSize: 17, fontWeight: '700', textAlign: 'center' },
   hint: { color: colors.textSecondary, fontSize: 14, lineHeight: 20, paddingHorizontal: spacing.xl, paddingTop: spacing.sm, textAlign: 'center' },
@@ -261,5 +261,5 @@ const styles = themedStyles(() => ({
   zoomLabel: { color: colors.textSecondary, flexShrink: 1, fontSize: 13, textAlign: 'center' },
   previewCircle: { backgroundColor: colors.surfaceMuted, borderColor: colors.inputBorder, borderRadius: PREVIEW / 2, borderWidth: 1, height: PREVIEW, marginStart: spacing.md, overflow: 'hidden', width: PREVIEW },
   note: { color: colors.textMuted, fontSize: 12, lineHeight: 18, paddingBottom: spacing.md, paddingHorizontal: spacing.xl, textAlign: 'center' },
-  error: { color: colors.danger, fontSize: 14, paddingBottom: spacing.md, paddingHorizontal: spacing.xl, textAlign: 'center' },
+  error: { color: colors.dangerText, fontSize: 14, paddingBottom: spacing.md, paddingHorizontal: spacing.xl, textAlign: 'center' },
 }));

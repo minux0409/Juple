@@ -136,7 +136,7 @@ export function CommentComposer({ isSending, onSubmit, replyTarget = null, onCan
         style={[styles.send, !canSend && styles.sendDisabled]}
         testID="comment-send"
       >
-        {isSending ? <ActivityIndicator color={colors.surface} size="small" /> : <Text numberOfLines={1} style={styles.sendLabel}>{editTarget ? t('comments.editSave') : t('comments.send')}</Text>}
+        {isSending ? <ActivityIndicator color={colors.onBrand} size="small" /> : <Text numberOfLines={1} style={styles.sendLabel}>{editTarget ? t('comments.editSave') : t('comments.send')}</Text>}
       </Pressable>
       </View>
     </View>
@@ -185,5 +185,5 @@ const styles = themedStyles(() => ({
     paddingHorizontal: spacing.md,
   },
   sendDisabled: { opacity: 0.4 },
-  sendLabel: { color: colors.surface, fontSize: 14, fontWeight: '700' },
+  sendLabel: { color: colors.onBrand, fontSize: 14, fontWeight: '700' },
 }));

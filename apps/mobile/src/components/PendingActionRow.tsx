@@ -47,7 +47,7 @@ export function PendingActionRow({ label, accessibilityLabel, onPress, count = 0
     >
       {/* Decorative: the label already says it all, and the whole row is the one button. */}
       <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.icon} testID={testID ? `${testID}-icon` : 'pending-action-row-icon'}>
-        <BellIcon color={isStatus ? colors.textSecondary : colors.brand} size={PENDING_ROW_ICON_SIZE} />
+        <BellIcon color={isStatus ? colors.textSecondary : colors.brandText} size={PENDING_ROW_ICON_SIZE} />
       </View>
       <Text numberOfLines={2} style={[styles.label, isStatus && styles.labelStatus]}>{label}</Text>
       {/* Badge, then the chevron: one end-aligned group, so the two never overlap. */}
@@ -57,7 +57,7 @@ export function PendingActionRow({ label, accessibilityLabel, onPress, count = 0
         <CountBadge count={count} testID={testID ? `${testID}-badge` : undefined} />
       )}
       {/* Points toward the reading direction's end (mirrored under RTL). */}
-      <ChevronIcon color={isStatus ? colors.textSecondary : colors.brand} direction={layoutDirection === 'rtl' ? 'left' : 'right'} size={16} />
+      <ChevronIcon color={isStatus ? colors.textSecondary : colors.brandText} direction={layoutDirection === 'rtl' ? 'left' : 'right'} size={16} />
     </Pressable>
   );
 }
@@ -66,7 +66,7 @@ const styles = themedStyles(() => ({
   row: {
     alignItems: 'center',
     backgroundColor: colors.brandSoft,
-    borderColor: colors.brand,
+    borderColor: colors.brandText,
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: 'row',
@@ -80,7 +80,7 @@ const styles = themedStyles(() => ({
   rowStatus: { backgroundColor: colors.surface, borderColor: colors.inputBorder },
   pressed: { opacity: 0.7 },
   icon: { flexShrink: 0 },
-  label: { color: colors.brand, flex: 1, fontSize: 15, fontWeight: '700', minWidth: 0 },
+  label: { color: colors.brandText, flex: 1, fontSize: 15, fontWeight: '700', minWidth: 0 },
   labelStatus: { color: colors.textPrimary, fontWeight: '600' },
   statusText: { color: colors.textSecondary, flexShrink: 0, fontSize: 13, fontWeight: '600' },
 }));

@@ -507,7 +507,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           <Image source={{ uri: previewImageUrl }} style={styles.thumbnail} testID="save-link-thumbnail" />
         ) : (
           <View style={[styles.thumbnail, styles.thumbnailFallback]}>
-            {site.id ? <SiteIcon siteId={site.id} size={26} /> : <LinkIcon color={colors.brand} size={24} />}
+            {site.id ? <SiteIcon siteId={site.id} size={26} /> : <LinkIcon color={colors.brandText} size={24} />}
           </View>
         )}
         <View style={styles.previewText}>
@@ -564,7 +564,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           style={[styles.saveButton, isSaveDisabled && styles.disabledButton]}
           testID="new-link-review-save"
         >
-          {isSaving ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.saveButtonLabel}>{t('common.save')}</Text>}
+          {isSaving ? <ActivityIndicator color={colors.onBrand} size="small" /> : <Text style={styles.saveButtonLabel}>{t('common.save')}</Text>}
         </Pressable>
       </View>
 
@@ -637,6 +637,6 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget + 4,
     paddingVertical: spacing.sm,
   },
-  saveButtonLabel: { color: colors.surface, fontSize: 16, fontWeight: '600' },
+  saveButtonLabel: { color: colors.onBrand, fontSize: 16, fontWeight: '600' },
   disabledButton: { opacity: 0.5 },
 }));

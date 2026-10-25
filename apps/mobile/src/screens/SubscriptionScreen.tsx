@@ -249,7 +249,7 @@ export function SubscriptionScreen() {
             style={[styles.primaryButton, (!isReady || isBusy) && styles.disabledButton]}
             testID="subscription-subscribe"
           >
-            {isBusy ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryLabel}>{t('subscription.subscribe')}</Text>}
+            {isBusy ? <ActivityIndicator color={colors.onBrand} /> : <Text style={styles.primaryLabel}>{t('subscription.subscribe')}</Text>}
           </Pressable>
         )}
         {showManage ? (
@@ -311,8 +311,8 @@ const styles = themedStyles(() => ({
   infoTitle: { color: colors.textPrimary, fontSize: 14, fontWeight: '700' },
   infoBody: { color: colors.textSecondary, fontSize: 13, lineHeight: 19, marginTop: 2 },
   primaryButton: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.lg, justifyContent: 'center', marginTop: spacing.xl, minHeight: minTouchTarget, paddingHorizontal: spacing.md },
-  primaryLabel: { color: colors.surface, fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  primaryLabel: { color: colors.onBrand, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   secondaryButton: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, minHeight: minTouchTarget, paddingHorizontal: spacing.md },
-  secondaryLabel: { color: colors.brand, fontSize: 15, fontWeight: '600', textAlign: 'center' },
+  secondaryLabel: { color: colors.brandText, fontSize: 15, fontWeight: '600', textAlign: 'center' },
   disabledButton: { opacity: 0.5 },
 }));

@@ -43,7 +43,7 @@ export function CopyIconButton({ text, accessibilityLabel, testID, size = 18 }: 
       style={({ pressed }) => [styles.button, pressed && styles.pressed]}
       testID={testID}
     >
-      {isCopied ? <CheckIcon color={colors.brand} size={size} /> : <CopyIcon color={colors.textSecondary} size={size} />}
+      {isCopied ? <CheckIcon color={colors.brandText} size={size} /> : <CopyIcon color={colors.textSecondary} size={size} />}
     </Pressable>
   );
 }
