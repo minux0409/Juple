@@ -12,6 +12,7 @@ import { getCollectionLockPasswordStatus } from './api/collectionLockPasswordApi
 import { forgetCollectionUnlock } from './collectionUnlockGrants';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
+import { KeyboardFieldScope } from '../components/keyboardToolbar';
 
 /** Mirrors the backend CollectionLockPasswordPolicy (6-64 characters) - the server re-checks it. */
 export const LOCK_PASSWORD_MIN_LENGTH = 6;
@@ -157,6 +158,7 @@ export function CollectionLockDialog({ visible, collectionId, mode, forMember = 
 
   return (
     <Modal animationType="fade" onRequestClose={onCancel} transparent visible={visible}>
+      <KeyboardFieldScope>
       <KeyboardSafeView style={[styles.overlay, { paddingTop: spacing.xl + insets.top, paddingBottom: spacing.xl + insets.bottom }]}>
         <Pressable
           accessibilityElementsHidden
@@ -207,6 +209,7 @@ export function CollectionLockDialog({ visible, collectionId, mode, forMember = 
           </View>
         </View>
       </KeyboardSafeView>
+      </KeyboardFieldScope>
     </Modal>
   );
 }

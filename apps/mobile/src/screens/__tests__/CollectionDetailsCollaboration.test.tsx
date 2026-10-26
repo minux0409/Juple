@@ -1142,14 +1142,18 @@ describe('CollectionDetailsScreen - the participants under the title', () => {
     expect(renderer.root.findAllByType(Text).some(node => [node.props.children].flat().join('') === '피카츄')).toBe(false);
   });
 
-  it('with more than four people: three circles and one "+N" circle for everyone else', async () => {
+  it('with more than five people: five photos and one "+N" circle for everyone else, in the same row as the actions', async () => {
     withParticipants(7);
     const renderer = await renderScreen();
 
     const stack = stackOf(renderer)[0];
-    expect(stack.findAllByType(UserAvatar)).toHaveLength(3);
+    expect(stack.findAllByType(UserAvatar)).toHaveLength(5);
     const more = renderer.root.findAll(node => node.props.testID === 'collection-details-participants-more' && node.type === Text)[0];
-    expect(more.props.children).toEqual(['+', 4]);
+    expect(more.props.children).toEqual(['+', 2]);
+    // One row: the stack and the favorite button share a parent.
+    const favorite = renderer.root.find(node => node.props.testID === 'collection-details-favorite' && typeof node.props.onPress === 'function');
+    const row = stack.parent!;
+    expect(row.findAll(node => node === favorite)).toHaveLength(1);
   });
 
   it('an Owner with nobody else in it (only a public link) shows no avatars at all', async () => {
@@ -1647,8 +1651,8 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     const entry = pendingEntry(renderer);
     expect(entry.findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '3']);
     expect(entry.props.accessibilityLabel).toBe('받은 승인 요청 3개 보기');
-    // The link count is the links only - proposals are never counted in it.
-    expect(header(renderer).root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.detailItemCount', { count: 18 }))).toBe(true);
+    // No "총 N개" in the header any more (and proposals were never counted as links).
+    expect(header(renderer).root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.detailItemCount', { count: 18 }))).toBe(false);
     expect(approvalSheet(renderer, 'owner').props.visible).toBe(false);
     await act(async () => entry.props.onPress());
     expect(approvalSheet(renderer, 'owner').props.visible).toBe(true);

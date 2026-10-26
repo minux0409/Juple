@@ -12,7 +12,7 @@ import {
   View,
   type ListViewToken,
 } from 'react-native';
-import { PullRefreshControl } from '../components/PullRefreshControl';
+import { usePullToRefresh } from '../components/PullRefreshControl';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
@@ -33,7 +33,7 @@ import { savedLinkLayout } from '../components/savedLinkLayout';
 import { useArchiveSearch } from '../items/useArchiveSearch';
 import { browseFailureMessage } from '../items/browseFailureMessage';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
-import { closeOpenRow, subscribeRowOpened } from '../components/swipeableRowCoordinator';
+import { closeOpenRow, subscribeRowOpened, useSwipeAwareScrollEnabled } from '../components/swipeableRowCoordinator';
 import { HintBanner } from '../hints/HintBanner';
 import { useOneTimeHint } from '../hints/useOneTimeHint';
 import { getSavedLinkSwipeActions, hasSavedLinkSwipeActions } from '../items/savedLinkSwipeActions';
@@ -120,6 +120,7 @@ export function buildHistoryRows(
  * images - nothing is prefetched.
  */
 export function DateHistoryScreen() {
+  const swipeScrollEnabled = useSwipeAwareScrollEnabled();
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const authenticatedRequest = useAuthenticatedApi();
@@ -333,8 +334,9 @@ export function DateHistoryScreen() {
       case 'flatGridRow':
         return (
           <View style={styles.flatGridRow} testID={`history-flat-grid-row-${row.key}`}>
-            {row.items.map(item => (
+            {row.items.map((item, column) => (
               <SavedLinkGridCell
+                column={column}
                 dateDisplayMode={row.dateDisplayMode}
                 disabled={actionInFlightItemId !== null}
                 isActionInFlight={actionInFlightItemId === item.id}
@@ -449,6 +451,8 @@ export function DateHistoryScreen() {
   };
 
   // Until the stored sort is known nothing is requested (see useSortPreference), so there is nothing to show but the spinner.
+  const pullToRefresh = usePullToRefresh(isRefreshing, () => (search.isFlat ? search.refresh() : refresh()));
+
   if (!isSortReady || (isLoading && sections.length === 0 && !error && !search.isFlat)) {
     return (
       <SafeAreaView edges={['top']} style={styles.loadingContainer}>
@@ -469,6 +473,7 @@ export function DateHistoryScreen() {
         ListEmptyComponent={!error && !search.isFlat ? <CenteredEmptyState message={t('history.empty')} /> : undefined}
         ListHeaderComponent={
           <View>
+            {pullToRefresh.refreshRow}
             <View style={styles.titleRow}>
               <ScreenTitle icon={screenIcons.archive} textStyle={styles.title} title={t('history.title')} />
             </View>
@@ -512,12 +517,13 @@ export function DateHistoryScreen() {
         }
         maxToRenderPerBatch={10}
         onScrollBeginDrag={closeOpenRow}
+        scrollEnabled={swipeScrollEnabled}
         onEndReached={() => (search.isFlat && !search.error && !search.moreError ? search.loadMore() : undefined)}
         onContentSizeChange={viewportFill.onContentSizeChange}
         onEndReachedThreshold={END_REACHED_THRESHOLD}
         onLayout={viewportFill.onLayout}
         onViewableItemsChanged={onViewableItemsChanged}
-        refreshControl={<PullRefreshControl refreshing={isRefreshing} onRefresh={() => (search.isFlat ? search.refresh() : refresh())} />}
+        refreshControl={pullToRefresh.refreshControl}
         // Android: rows scrolled far away drop their native views (and images) entirely.
         removeClippedSubviews={Platform.OS === 'android'}
         renderItem={renderRow}

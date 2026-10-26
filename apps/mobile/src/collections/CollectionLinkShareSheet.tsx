@@ -14,6 +14,7 @@ import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } fr
 import { formatJupleId, getCollectionParticipants, lookupJupleId, personLabel } from './api/collaborationApi';
 import { MAX_LINK_SHARE_RECIPIENTS, sendCollectionShareLink } from './api/collectionsApi';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
+import { KeyboardFieldScope } from '../components/keyboardToolbar';
 
 /** Someone the link is about to be sent to - picked from friends or found by Juple ID. */
 interface Recipient {
@@ -250,6 +251,7 @@ export function CollectionLinkShareSheet({
         // everything as it was.
         visible={visible && !isPickingFriends}
       >
+        <KeyboardFieldScope>
         <KeyboardSafeView style={styles.backdrop}>
           <Pressable accessibilityElementsHidden importantForAccessibility="no-hide-descendants" onPress={onClose} style={StyleSheet.absoluteFill} />
           <Animated.View
@@ -388,6 +390,7 @@ export function CollectionLinkShareSheet({
             </Pressable>
           </Animated.View>
         </KeyboardSafeView>
+        </KeyboardFieldScope>
       </Modal>
       <FriendPickerModal
         authenticatedRequest={authenticatedRequest}

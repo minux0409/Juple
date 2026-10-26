@@ -3,6 +3,7 @@ import { Image, TextInput } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import i18n from '../../i18n';
 import { CategoryEditorDialog } from '../CategoryEditorDialog';
+import { PhotoCropper } from '../../images/PhotoCropper';
 
 jest.mock('react-native-image-picker', () => ({ launchImageLibrary: jest.fn() }));
 
@@ -42,7 +43,7 @@ describe('CategoryEditorDialog', () => {
     const previewImages = (renderer: ReactTestRenderer.ReactTestRenderer) =>
       renderer.root.findAllByType(Image).map(image => image.props.source?.uri);
 
-    it('picks a resized photo, previews it, and submits it as the new icon photo', async () => {
+    it('picks a working copy, fits it in the crop screen (the tile\'s rounded square), previews the crop and submits it as the icon photo', async () => {
       jest.mocked(launchImageLibrary).mockResolvedValue({ didCancel: false, assets: [picked] } as never);
       const { renderer, props } = await renderDialog();
       act(() => renderer.root.findByType(TextInput).props.onChangeText('여행'));
@@ -51,10 +52,29 @@ describe('CategoryEditorDialog', () => {
         await renderer.root.findByProps({ testID: 'collection-editor-choose-photo' }).props.onPress();
       });
 
-      expect(launchImageLibrary).toHaveBeenCalledWith(expect.objectContaining({ mediaType: 'photo', maxWidth: 512, maxHeight: 512, selectionLimit: 1 }));
-      expect(previewImages(renderer)).toContain('file:///picked.jpg');
+      expect(launchImageLibrary).toHaveBeenCalledWith(expect.objectContaining({ mediaType: 'photo', maxWidth: 1600, maxHeight: 1600, selectionLimit: 1 }));
+      // Not used as it is: the crop screen opens first.
+      const cropper = renderer.root.findByType(PhotoCropper);
+      expect(cropper.props.variant).toBe('collection');
+      expect(cropper.props.uri).toBe('file:///picked.jpg');
+      const cropped = { uri: 'file:///cropped.jpg', type: 'image/jpeg', fileName: 'collection.jpg' };
+      act(() => cropper.props.onApply(cropped));
+      expect(renderer.root.findAllByType(PhotoCropper)).toHaveLength(0);
+      expect(previewImages(renderer)).toContain('file:///cropped.jpg');
       act(() => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.createAction') }).props.onPress());
-      expect(props.onSubmit).toHaveBeenCalledWith('여행', 'Folder', 'Blue', { kind: 'set', asset: picked });
+      expect(props.onSubmit).toHaveBeenCalledWith('여행', 'Folder', 'Blue', { kind: 'set', asset: cropped });
+    });
+
+    it('cancelling the crop leaves the photo unchanged', async () => {
+      jest.mocked(launchImageLibrary).mockResolvedValue({ didCancel: false, assets: [picked] } as never);
+      const { renderer, props } = await renderDialog({ mode: 'edit', initialName: '기존' });
+      await act(async () => {
+        await renderer.root.findByProps({ testID: 'collection-editor-choose-photo' }).props.onPress();
+      });
+      act(() => renderer.root.findByType(PhotoCropper).props.onCancel());
+      expect(renderer.root.findAllByType(PhotoCropper)).toHaveLength(0);
+      act(() => renderer.root.findByProps({ accessibilityLabel: i18n.t('common.save') }).props.onPress());
+      expect(props.onSubmit).toHaveBeenCalledWith('기존', 'Folder', 'Blue', { kind: 'keep' });
     });
 
     it('a cancelled or failed pick changes nothing (a failure says why)', async () => {

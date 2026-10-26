@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { InfoIcon } from '../icons/InfoIcon';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
+import { KeyboardFieldScope } from './keyboardToolbar';
 
 const GLYPH_SIZE = 16;
 const SIDE_MARGIN = spacing.lg;
@@ -53,12 +54,14 @@ export function InfoCallout({ accessibilityLabel, message, testID }: {
         <InfoIcon color={colors.textSecondary} size={GLYPH_SIZE} />
       </Pressable>
       <Modal animationType="fade" onRequestClose={close} statusBarTranslucent transparent visible={isOpen}>
+        <KeyboardFieldScope>
         {/* Outside taps dismiss (the backdrop is invisible, not dimmed). */}
         <Pressable accessibilityLabel={accessibilityLabel} accessibilityRole="button" onPress={close} style={StyleSheet.absoluteFill} testID={testID ? `${testID}-dismiss` : undefined}>
           <View accessibilityLiveRegion="polite" style={[styles.callout, { top, width: Math.max(0, width - SIDE_MARGIN * 2) }]} testID={testID ? `${testID}-message` : undefined}>
             <Text style={styles.message}>{message}</Text>
           </View>
         </Pressable>
+        </KeyboardFieldScope>
       </Modal>
     </>
   );

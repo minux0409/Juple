@@ -1,56 +1,73 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Platform, RefreshControl } from 'react-native';
-import { PullRefreshControl } from '../PullRefreshControl';
+import { Platform, RefreshControl, View } from 'react-native';
+import { usePullToRefresh } from '../PullRefreshControl';
 
 const originalOS = Platform.OS;
 afterEach(() => {
   Object.defineProperty(Platform, 'OS', { value: originalOS, configurable: true });
 });
 
+/** A list stand-in: the native control, and the row the screen puts at the top of its content. */
+function Screen({ refreshing, onRefresh }: { readonly refreshing: boolean; readonly onRefresh: () => void }) {
+  const { refreshControl, refreshRow } = usePullToRefresh(refreshing, onRefresh);
+  return (
+    <View>
+      {refreshControl}
+      {refreshRow}
+    </View>
+  );
+}
+
 function render(refreshing: boolean, onRefresh: () => void) {
   let renderer!: ReactTestRenderer.ReactTestRenderer;
   act(() => {
-    renderer = ReactTestRenderer.create(<PullRefreshControl onRefresh={onRefresh} refreshing={refreshing} />);
+    renderer = ReactTestRenderer.create(<Screen onRefresh={onRefresh} refreshing={refreshing} />);
   });
   return renderer;
 }
 const nativeRefreshing = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findByType(RefreshControl).props.refreshing;
+const hasRow = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAll(node => node.props.testID === 'pull-refresh-row').length > 0;
 const update = (renderer: ReactTestRenderer.ReactTestRenderer, refreshing: boolean, onRefresh: () => void) =>
-  act(() => renderer.update(<PullRefreshControl onRefresh={onRefresh} refreshing={refreshing} />));
+  act(() => renderer.update(<Screen onRefresh={onRefresh} refreshing={refreshing} />));
 
-describe('PullRefreshControl', () => {
-  it('iOS: a refresh started from code (screen focus) never drives the native spinner, so nothing can be left on screen', () => {
-    Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
-    const onRefresh = jest.fn();
-    const renderer = render(true, onRefresh);
-    expect(nativeRefreshing(renderer)).toBe(false);
-    update(renderer, false, onRefresh);
-    expect(nativeRefreshing(renderer)).toBe(false);
+describe.each(['ios', 'android'] as const)('usePullToRefresh (%s) - the loading row of its own', os => {
+  beforeEach(() => {
+    Object.defineProperty(Platform, 'OS', { value: os, configurable: true });
   });
 
-  it('iOS: a pull shows the spinner for exactly the request it started; the next code-started refresh is silent again', () => {
-    Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
+  it('a pull: the native spinner is put away at once (true, then false) and the row shows until the refresh ends', () => {
     const onRefresh = jest.fn();
     const renderer = render(false, onRefresh);
+    expect(hasRow(renderer)).toBe(false);
 
     act(() => renderer.root.findByType(RefreshControl).props.onRefresh());
     expect(onRefresh).toHaveBeenCalledTimes(1);
     update(renderer, true, onRefresh);
-    expect(nativeRefreshing(renderer)).toBe(true);
+    // Handed off within the same act: the native control ended, the row took over.
+    expect(nativeRefreshing(renderer)).toBe(false);
+    expect(hasRow(renderer)).toBe(true);
 
     update(renderer, false, onRefresh); // the request finished (or failed)
-    expect(nativeRefreshing(renderer)).toBe(false);
-
-    update(renderer, true, onRefresh); // a later focus refresh
+    expect(hasRow(renderer)).toBe(false);
     expect(nativeRefreshing(renderer)).toBe(false);
   });
 
-  it('Android: unchanged - the native control follows `refreshing` for every refresh', () => {
-    Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
+  it('a refresh the screen starts itself (on focus) shows neither the row nor the native spinner', () => {
     const onRefresh = jest.fn();
     const renderer = render(true, onRefresh);
-    expect(nativeRefreshing(renderer)).toBe(true);
-    update(renderer, false, onRefresh);
     expect(nativeRefreshing(renderer)).toBe(false);
+    expect(hasRow(renderer)).toBe(false);
+  });
+
+  it('a second pull after the first ended works the same way again', () => {
+    const onRefresh = jest.fn();
+    const renderer = render(false, onRefresh);
+    for (let round = 0; round < 2; round += 1) {
+      act(() => renderer.root.findByType(RefreshControl).props.onRefresh());
+      update(renderer, true, onRefresh);
+      expect(hasRow(renderer)).toBe(true);
+      update(renderer, false, onRefresh);
+      expect(hasRow(renderer)).toBe(false);
+    }
   });
 });

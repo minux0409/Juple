@@ -3,6 +3,7 @@ import { Animated, Modal, Pressable, StyleSheet, useWindowDimensions, View, type
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 import { SheetHeader, useSheetDismissGesture } from './sheetDismissGesture';
+import { KeyboardFieldScope } from './keyboardToolbar';
 
 /** How long the backdrop fade / sheet slide takes - an animation duration, not a wait before showing anything. */
 const ENTRANCE_MS = 200;
@@ -67,6 +68,7 @@ export function BottomSheetModal({ visible, onClose, children, modalExtras, test
 
   return (
     <Modal animationType="none" navigationBarTranslucent onRequestClose={onClose} statusBarTranslucent transparent visible={visible}>
+      <KeyboardFieldScope>
       <View style={styles.overlay}>
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: Animated.multiply(entrance, gesture.backdropOpacity) }]} testID={`${testID}-backdrop`} />
         <Pressable
@@ -100,6 +102,7 @@ export function BottomSheetModal({ visible, onClose, children, modalExtras, test
         </Animated.View>
       </View>
       {modalExtras}
+      </KeyboardFieldScope>
     </Modal>
   );
 }

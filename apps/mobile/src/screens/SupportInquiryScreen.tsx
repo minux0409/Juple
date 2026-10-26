@@ -3,7 +3,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
-import { PullRefreshControl } from '../components/PullRefreshControl';
+import { usePullToRefresh } from '../components/PullRefreshControl';
 import { ThemedTextInput } from '../components/ThemedTextInput';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
@@ -193,6 +193,8 @@ export function SupportInquiryScreen() {
 function InquiryHistory({ history, onOpen }: { readonly history: ReturnType<typeof useSupportInquiryHistory>; readonly onOpen: (inquiry: SupportInquiry) => void }) {
   const { t } = useTranslation();
 
+  const pullToRefresh = usePullToRefresh(history.isRefreshing, () => { history.refresh().catch(() => undefined); });
+
   if (history.loadError !== null && history.items.length === 0) {
     return <LoadFailureState error={history.loadError} onRetry={() => { history.refresh().catch(() => undefined); }} testID="inquiry-history-error" />;
   }
@@ -215,7 +217,8 @@ function InquiryHistory({ history, onOpen }: { readonly history: ReturnType<type
       }
       onEndReached={() => { history.loadMore().catch(() => undefined); }}
       onEndReachedThreshold={0.5}
-      refreshControl={<PullRefreshControl onRefresh={() => { history.refresh().catch(() => undefined); }} refreshing={history.isRefreshing} />}
+      refreshControl={pullToRefresh.refreshControl}
+      ListHeaderComponent={pullToRefresh.refreshRow ?? undefined}
       renderItem={({ item }) => <InquiryRow inquiry={item} onPress={() => onOpen(item)} />}
       testID="inquiry-history"
     />

@@ -10,7 +10,7 @@
     "officialLink": "Resmî bilgi bağlantısı",
     "readFailed": "Okunma durumu kaydedilemedi. Tekrar deneyin.",
     "more": "Daha fazla"
-},
+  },
   "common": {
     "viewList": "Liste görünümü",
     "viewGrid": "Izgara görünümü",
@@ -28,7 +28,8 @@
     "edit": "Düzenle",
     "processing": "İşleniyor...",
     "none": "Yok",
-    "notice": "Bildirim"
+    "notice": "Bildirim",
+    "refreshing": "Yenileniyor"
   },
   "errors": {
     "unauthorized": "Oturum açma durumunuzu yeniden doğrulayamadık.",
@@ -1294,7 +1295,11 @@
     "zoomOut": "Uzaklaştır",
     "apply": "Uygula",
     "preview": "Önizleme",
-    "areaA11y": "Fotoğraf alanı. Yakınlaştırmak veya uzaklaştırmak için yukarı ya da aşağı kaydır."
+    "areaA11y": "Fotoğraf alanı. Yakınlaştırmak veya uzaklaştırmak için yukarı ya da aşağı kaydır.",
+    "collectionTitle": "Koleksiyon fotoğrafını ayarla",
+    "collectionNote": "Koleksiyon fotoğrafı kare olarak kaydedilir ve köşeleri yuvarlatılmış bir kutucuk olarak gösterilir.",
+    "linkTitle": "Bağlantı fotoğrafını ayarla",
+    "linkNote": "Bağlantı fotoğrafı kare olarak kaydedilir ve bağlantı kartının resmi olarak gösterilir."
   },
   "tour": {
     "previous": "Geri",
@@ -1491,5 +1496,10 @@
       "apnsNotReady": "iPhone push iletimi henüz hazır değil. Bildirim izni şu anda push alımını etkinleştirmez.",
       "cancelled": "Kayıt henüz kontrol edilmedi."
     }
+  },
+  "keyboard": {
+    "previous": "Önceki alan",
+    "next": "Sonraki alan",
+    "done": "Bitti"
   }
 }

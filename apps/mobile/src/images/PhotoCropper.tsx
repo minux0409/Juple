@@ -5,7 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { cropSquare, type CroppedImage } from './cropImage';
-import { MAX_ZOOM, MIN_ZOOM, coverScale, cropRect, distance, initialView, panBy, zoomTo, type CropView } from './cropMath';
+import { CROP_OUTPUT_MAX, MAX_ZOOM, MIN_ZOOM, coverScale, cropRect, distance, initialView, panBy, zoomTo, type CropView } from './cropMath';
+import { KeyboardFieldScope } from '../components/keyboardToolbar';
 
 const PREVIEW = 72;
 const ZOOM_STEP = 0.25;
@@ -25,7 +26,23 @@ interface PhotoCropperProps {
   readonly onApply: (cropped: CroppedImage) => void;
   /** Cancel, the Android back button or the iOS dismiss: nothing is changed. */
   readonly onCancel: () => void;
+  /**
+   * What the square becomes - it decides how the kept area is outlined and what the screen is called: a profile photo is shown as a
+   * circle; a Collection's photo fills its rounded tile; a link's own photo fills the link card's (slightly rounded) picture.
+   */
+  readonly variant?: CropVariant;
 }
+
+export type CropVariant = 'profile' | 'collection' | 'link';
+
+/** How each use outlines the kept square (corner radius as a share of its side) and the size of the file it produces. */
+const VARIANTS: Record<CropVariant, { readonly cornerRatio: number; readonly maxSide: number; readonly fileName: string }> = {
+  profile: { cornerRatio: 0.5, maxSide: CROP_OUTPUT_MAX, fileName: 'profile.jpg' },
+  // CategoryIconTile: radius radii.md + size / 8 on a 48pt tile.
+  collection: { cornerRatio: 14 / 48, maxSide: CROP_OUTPUT_MAX, fileName: 'collection.jpg' },
+  // A link card's picture is a square with a small rounding; it is shown up to a whole Grid card wide, hence the larger file.
+  link: { cornerRatio: 0.08, maxSide: 1024, fileName: 'link.jpg' },
+};
 
 /**
  * A full-screen square photo crop: drag to move, pinch (or the +/- buttons, or an accessibility swipe up/down) to zoom, a circle shows how
@@ -34,7 +51,8 @@ interface PhotoCropperProps {
  * a fresh image without the original's metadata - and returns it; Cancel (or back) returns nothing. Written for any square picture: a
  * Collection cover can use it later.
  */
-export function PhotoCropper({ uri, knownSize, onApply, onCancel }: PhotoCropperProps) {
+export function PhotoCropper({ uri, knownSize, onApply, onCancel, variant = 'profile' }: PhotoCropperProps) {
+  const shape = VARIANTS[variant];
   const { t } = useTranslation();
   useTheme(); // memoised styles are rebuilt for the theme in force
   const insets = useSafeAreaInsets();
@@ -150,7 +168,7 @@ export function PhotoCropper({ uri, knownSize, onApply, onCancel }: PhotoCropper
     busyRef.current = true;
     setBusy(true);
     try {
-      onApply(await cropSquare(uri, cropRect(view, size.width, size.height, viewport)));
+      onApply(await cropSquare(uri, cropRect(view, size.width, size.height, viewport), { maxSide: shape.maxSide, fileName: shape.fileName }));
     } catch {
       setFailed(true);
     } finally {
@@ -172,12 +190,13 @@ export function PhotoCropper({ uri, knownSize, onApply, onCancel }: PhotoCropper
 
   return (
     <Modal animationType="slide" onRequestClose={cancel} presentationStyle="fullScreen" statusBarTranslucent visible>
+      <KeyboardFieldScope>
       <View style={[styles.screen, { paddingBottom: insets.bottom, paddingTop: insets.top }]} testID="photo-cropper">
         <View style={styles.header}>
           <Pressable accessibilityLabel={t('common.cancel')} accessibilityRole="button" disabled={busy} hitSlop={8} onPress={cancel} style={styles.headerButton} testID="photo-cropper-cancel">
             <Text numberOfLines={1} style={styles.headerCancel}>{t('common.cancel')}</Text>
           </Pressable>
-          <Text accessibilityRole="header" numberOfLines={2} style={styles.title}>{t('profileCrop.title')}</Text>
+          <Text accessibilityRole="header" numberOfLines={2} style={styles.title}>{t(variant === 'profile' ? 'profileCrop.title' : `profileCrop.${variant}Title`)}</Text>
           <Pressable
             accessibilityLabel={t('profileCrop.apply')}
             accessibilityRole="button"
@@ -212,9 +231,10 @@ export function PhotoCropper({ uri, knownSize, onApply, onCancel }: PhotoCropper
             {...responder.panHandlers}
           >
             {size ? <Image pointerEvents="none" resizeMode="stretch" source={{ uri }} style={[styles.photo, imageBox(1)]} testID="photo-cropper-photo" /> : <ActivityIndicator color={colors.textSecondary} />}
-            {/* The circle that stays; everything around it is dimmed (a thick ring, clipped by the square). */}
-            <View pointerEvents="none" style={[styles.mask, { borderRadius: viewport * 1.5, borderWidth: viewport, height: viewport * 3, left: -viewport, top: -viewport, width: viewport * 3 }]} />
-            <View pointerEvents="none" style={[styles.circleLine, { borderRadius: viewport / 2, height: viewport, width: viewport }]} />
+            {/* The shape that stays (a circle for a profile, the tile's / card's rounded square otherwise); everything around it is dimmed
+                (a thick ring, clipped by the square: its outer radius is the hole's radius plus the ring's width). */}
+            <View pointerEvents="none" style={[styles.mask, { borderRadius: viewport * shape.cornerRatio + viewport, borderWidth: viewport, height: viewport * 3, left: -viewport, top: -viewport, width: viewport * 3 }]} />
+            <View pointerEvents="none" style={[styles.circleLine, { borderRadius: viewport * shape.cornerRatio, height: viewport, width: viewport }]} />
           </View>
         </View>
 
@@ -228,14 +248,15 @@ export function PhotoCropper({ uri, knownSize, onApply, onCancel }: PhotoCropper
               <Text style={styles.zoomGlyph}>+</Text>
             </Pressable>
           </View>
-          <View accessibilityLabel={t('profileCrop.preview')} accessibilityRole="image" style={styles.previewCircle} testID="photo-cropper-preview">
+          <View accessibilityLabel={t('profileCrop.preview')} accessibilityRole="image" style={[styles.previewCircle, { borderRadius: PREVIEW * shape.cornerRatio }]} testID="photo-cropper-preview">
             {size ? <Image resizeMode="stretch" source={{ uri }} style={[styles.photo, imageBox(PREVIEW / viewport)]} /> : null}
           </View>
         </View>
 
-        <Text style={styles.note}>{t('profileCrop.note')}</Text>
+        <Text style={styles.note}>{t(variant === 'profile' ? 'profileCrop.note' : `profileCrop.${variant}Note`)}</Text>
         {failed ? <Text accessibilityLiveRegion="polite" style={styles.error} testID="photo-cropper-error">{t('profile.photoInvalid')}</Text> : null}
       </View>
+      </KeyboardFieldScope>
     </Modal>
   );
 }

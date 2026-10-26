@@ -10,7 +10,7 @@
     "officialLink": "Link de informações oficiais",
     "readFailed": "Não foi possível salvar a leitura. Tente novamente.",
     "more": "Carregar mais"
-},
+  },
   "common": {
     "viewList": "Visualização em lista",
     "viewGrid": "Visualização em grade",
@@ -28,7 +28,8 @@
     "edit": "Editar",
     "processing": "Processando...",
     "none": "Nenhuma",
-    "notice": "Aviso"
+    "notice": "Aviso",
+    "refreshing": "Atualizando"
   },
   "errors": {
     "unauthorized": "Não foi possível verificar novamente seu status de login.",
@@ -1294,7 +1295,11 @@
     "zoomOut": "Diminuir",
     "apply": "Aplicar",
     "preview": "Pré-visualização",
-    "areaA11y": "Área da foto. Deslize para cima ou para baixo para aumentar ou diminuir."
+    "areaA11y": "Área da foto. Deslize para cima ou para baixo para aumentar ou diminuir.",
+    "collectionTitle": "Ajustar foto da coleção",
+    "collectionNote": "A foto da coleção é salva em formato quadrado e exibida como um bloco arredondado.",
+    "linkTitle": "Ajustar foto do link",
+    "linkNote": "A foto do link é salva em formato quadrado e exibida como imagem do cartão do link."
   },
   "tour": {
     "previous": "Voltar",
@@ -1491,5 +1496,10 @@
       "apnsNotReady": "O envio push no iPhone ainda não está disponível. Permitir notificações não ativa o recebimento neste momento.",
       "cancelled": "O registro ainda não foi verificado."
     }
+  },
+  "keyboard": {
+    "previous": "Campo anterior",
+    "next": "Próximo campo",
+    "done": "OK"
   }
 }

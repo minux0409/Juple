@@ -5,6 +5,8 @@
  * History's SectionList without either needing to own the other's row state.
  */
 
+import { useSyncExternalStore } from 'react';
+
 type CloseFn = () => void;
 
 let openRowClose: CloseFn | null = null;
@@ -39,4 +41,34 @@ export function closeOpenRow(): void {
   const close = openRowClose;
   openRowClose = null;
   close?.();
+}
+
+// --- Scroll lock while a row is being swiped ---------------------------------------------------------------------------------
+
+let scrollLocked = false;
+const scrollLockListeners = new Set<() => void>();
+
+/**
+ * Set by a row while its horizontal swipe is in progress (from the moment the gesture is recognized as horizontal until it is
+ * released): the list under it stops scrolling, so a finger that drifts a little up or down does not turn the swipe into a scroll
+ * that cancels the row. Cleared on release and on every termination, so the list can never stay frozen.
+ */
+export function setSwipeScrollLock(locked: boolean): void {
+  if (scrollLocked === locked) {
+    return;
+  }
+  scrollLocked = locked;
+  scrollLockListeners.forEach(listener => listener());
+}
+
+function subscribeScrollLock(listener: () => void): () => void {
+  scrollLockListeners.add(listener);
+  return () => {
+    scrollLockListeners.delete(listener);
+  };
+}
+
+/** For a list that hosts swipe rows: `scrollEnabled={useSwipeAwareScrollEnabled()}`. */
+export function useSwipeAwareScrollEnabled(): boolean {
+  return useSyncExternalStore(subscribeScrollLock, () => !scrollLocked);
 }

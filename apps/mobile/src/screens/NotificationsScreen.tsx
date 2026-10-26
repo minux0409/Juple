@@ -3,12 +3,12 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Image, Pressable, SectionList, Text, View } from 'react-native';
-import { PullRefreshControl } from '../components/PullRefreshControl';
+import { usePullToRefresh } from '../components/PullRefreshControl';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { ImportantState } from '../components/ImportantState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
-import { closeOpenRow } from '../components/swipeableRowCoordinator';
+import { closeOpenRow, useSwipeAwareScrollEnabled } from '../components/swipeableRowCoordinator';
 import { UserAvatar } from '../components/UserAvatar';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
 import { BellIcon } from '../icons/BellIcon';
@@ -76,6 +76,7 @@ const PREVIEW_TYPES: ReadonlySet<string> = new Set([
  * A failed load is a centered state with a retry. 모두 읽음 is offered only while something is unread.
  */
 export function NotificationsScreen({ navigation }: Props) {
+  const swipeScrollEnabled = useSwipeAwareScrollEnabled();
   const { t, i18n } = useTranslation();
   const request = useAuthenticatedApi();
   const unreadCount = useUnreadNotificationCount();
@@ -120,6 +121,8 @@ export function NotificationsScreen({ navigation }: Props) {
       .catch(() => setDeleteFailed(true));
   };
 
+  const pullToRefresh = usePullToRefresh(state.isRefreshing, () => reload('refresh'));
+
   if (state.status === 'loading' && state.items.length === 0) {
     return (
       <StackScreenSafeArea style={styles.centered}>
@@ -159,7 +162,9 @@ export function NotificationsScreen({ navigation }: Props) {
         }}
         onEndReachedThreshold={0.5}
         onScrollBeginDrag={closeOpenRow}
-        refreshControl={<PullRefreshControl onRefresh={() => reload('refresh')} refreshing={state.isRefreshing} />}
+        scrollEnabled={swipeScrollEnabled}
+        refreshControl={pullToRefresh.refreshControl}
+        ListHeaderComponent={pullToRefresh.refreshRow ?? undefined}
         renderItem={({ item }) => <NotificationRow notification={item} onDelete={() => deleteRow(item)} onPress={() => openRow(item)} />}
         renderSectionHeader={({ section }) => (
           <Text accessibilityRole="header" style={styles.sectionHeader} testID={`notifications-group-${section.key}`}>{section.title}</Text>

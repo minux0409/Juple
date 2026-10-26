@@ -12,6 +12,7 @@ import type { LoadFailureInfo } from '../components/LoadFailureState';
 import { CollectionChoiceGrid } from './CollectionChoiceGrid';
 import { useSheetDismissGesture } from '../components/sheetDismissGesture';
 import type { Collection } from './api/collectionsApi';
+import { KeyboardFieldScope } from '../components/keyboardToolbar';
 
 // See CollectionTargetPickerDialog.tsx's identical constants/animation - the same bottom-sheet
 // entrance pattern, kept local to each component rather than a new shared helper since only these
@@ -158,6 +159,7 @@ export function CategoryPickerModal({
 
   return (
     <Modal animationType="none" onRequestClose={onClose} transparent visible={visible}>
+      <KeyboardFieldScope>
       <View style={styles.overlay}>
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: gesture.backdropOpacity }]} />
         <Animated.View style={[styles.content, { paddingBottom: 24 + bottomInset, transform: [{ translateY: Animated.add(sheetTranslateY, gesture.dragY) }] }]} testID="category-picker-sheet">
@@ -231,6 +233,7 @@ export function CategoryPickerModal({
           visible
         />
       ) : null}
+      </KeyboardFieldScope>
     </Modal>
   );
 }

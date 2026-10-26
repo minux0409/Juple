@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CloseIcon } from '../icons/CloseIcon';
 import { KeyboardSafeView } from './KeyboardSafeView';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
+import { KeyboardFieldScope } from './keyboardToolbar';
 
 export const APP_MODAL_BACKDROP = 'rgba(0, 0, 0, 0.35)';
 
@@ -45,6 +46,7 @@ export function AppModal({ visible, title, onClose, dismissible = true, size = '
       transparent
       visible={visible}
     >
+      <KeyboardFieldScope>
       <View style={styles.backdrop} testID={testID ? `${testID}-backdrop` : undefined}>
         <Pressable
           accessibilityElementsHidden
@@ -85,6 +87,7 @@ export function AppModal({ visible, title, onClose, dismissible = true, size = '
           </View>
         </KeyboardSafeView>
       </View>
+      </KeyboardFieldScope>
     </Modal>
   );
 }

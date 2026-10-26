@@ -8,7 +8,6 @@ import {
   FlatList,
   Pressable,
   Text,
-  View,
 } from 'react-native';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
@@ -140,6 +139,7 @@ export function NoticesScreen() {
         }
         renderItem={({ item }) => (
           <Pressable
+            accessibilityHint={item.isRead ? undefined : t('notices.unread')}
             accessibilityRole="button"
             testID={`notice-${item.id}`}
             style={styles.card}
@@ -147,27 +147,19 @@ export function NoticesScreen() {
               navigation.navigate('NoticeDetail', { noticeId: item.id })
             }
           >
-            <View style={styles.meta}>
-              {item.isPinned ? (
-                <Text style={styles.secondary}>{t('notices.pinned')}</Text>
-              ) : null}
-              {item.isImportant ? (
-                <Text style={styles.important}>{t('notices.important')}</Text>
-              ) : null}
-              <Text style={styles.secondary}>
-                {new Intl.DateTimeFormat(language, {
-                  dateStyle: 'medium',
-                }).format(new Date(item.publishedAtUtc))}
-              </Text>
-              <Text style={styles.secondary}>
-                {t(item.isRead ? 'notices.read' : 'notices.unread')}
-              </Text>
-            </View>
-            <Text style={[styles.title, !item.isRead && styles.unread]}>
+            {/* Title, then the start of the text, then the date - nothing before the title. 고정 / 중요 still order the list (the
+                server sorts pinned first) but are not printed on the card; an unread notice has a bold title (and says so to a
+                screen reader). */}
+            <Text numberOfLines={2} style={[styles.title, !item.isRead && styles.unread]}>
               {item.title}
             </Text>
             <Text numberOfLines={2} style={styles.preview}>
               {item.preview}
+            </Text>
+            <Text style={styles.date} testID={`notice-${item.id}-date`}>
+              {new Intl.DateTimeFormat(language, {
+                dateStyle: 'medium',
+              }).format(new Date(item.publishedAtUtc))}
             </Text>
           </Pressable>
         )}
@@ -186,12 +178,12 @@ const styles = themedStyles(() => ({
     backgroundColor: colors.surface,
     minHeight: minTouchTarget,
   },
-  meta: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   secondary: { fontSize: 12, color: colors.textSecondary },
-  important: { fontSize: 12, color: colors.brandText, fontWeight: '700' },
-  title: { fontSize: 17, color: colors.textPrimary, marginTop: spacing.sm },
+  // One type scale with explicit line heights, so the lines sit the same on iOS and Android.
+  title: { fontSize: 17, lineHeight: 23, fontWeight: '600', color: colors.textPrimary },
   unread: { fontWeight: '700' },
-  preview: { fontSize: 14, color: colors.textSecondary, marginTop: spacing.sm },
+  preview: { fontSize: 14, lineHeight: 20, color: colors.textSecondary, marginTop: spacing.xs },
+  date: { fontSize: 12, lineHeight: 16, color: colors.textSecondary, marginTop: spacing.sm },
   more: {
     minHeight: minTouchTarget,
     justifyContent: 'center',

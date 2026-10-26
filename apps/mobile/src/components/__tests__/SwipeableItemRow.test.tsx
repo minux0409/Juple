@@ -1,8 +1,8 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import i18n from '../../i18n';
 import { SwipeableItemRow } from '../SwipeableItemRow';
-import { closeOpenRow } from '../swipeableRowCoordinator';
+import { closeOpenRow, useSwipeAwareScrollEnabled } from '../swipeableRowCoordinator';
 
 // The react-native-localize jest mock (see jest.config.js) reports "en-US", so i18n would
 // otherwise resolve to English by default - pinned to Korean so this file's label assertions are
@@ -366,5 +366,69 @@ describe('SwipeableItemRow startAction (a generic start-side action in place of 
       action.props.onPress();
     });
     expect(onPress).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('SwipeableItemRow vs. the list\'s vertical scroll (a horizontal swipe keeps the gesture)', () => {
+  function ScrollProbe({ onValue }: { readonly onValue: (enabled: boolean) => void }) {
+    onValue(useSwipeAwareScrollEnabled());
+    return null;
+  }
+
+  afterEach(() => {
+    closeOpenRow();
+  });
+
+  async function renderWithProbe() {
+    const values: boolean[] = [];
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <View>
+          <ScrollProbe onValue={value => values.push(value)} />
+          <SwipeableItemRow onDelete={jest.fn()} onPress={jest.fn()} onShare={jest.fn()}>
+            <Text>Row content</Text>
+          </SwipeableItemRow>
+        </View>,
+      );
+    });
+    const content = renderer.root.findAll(node => Array.isArray(node.props.accessibilityActions))[0];
+    return { renderer, content, scrollEnabled: () => values[values.length - 1] };
+  }
+
+  it('the list stops scrolling from the moment the swipe is recognized until the finger lifts', async () => {
+    const { content, scrollEnabled } = await renderWithProbe();
+    expect(scrollEnabled()).toBe(true);
+
+    await act(async () => {
+      content.props.onResponderGrant(FAKE_RESPONDER_EVENT);
+      content.props.onResponderMove(touchesMoved(-40));
+    });
+    expect(scrollEnabled()).toBe(false);
+
+    await act(async () => {
+      content.props.onResponderRelease(touchesMoved(-40));
+    });
+    expect(scrollEnabled()).toBe(true);
+  });
+
+  it('a scroll view asking for the touch mid-swipe is refused', async () => {
+    const { content } = await renderWithProbe();
+    await act(async () => {
+      content.props.onResponderGrant(FAKE_RESPONDER_EVENT);
+    });
+    expect(content.props.onResponderTerminationRequest(FAKE_RESPONDER_EVENT)).toBe(false);
+  });
+
+  it('an interrupted swipe past the threshold stays open (not snapped shut) and never leaves the list frozen', async () => {
+    const { renderer, content, scrollEnabled } = await renderWithProbe();
+    await act(async () => {
+      content.props.onResponderGrant(FAKE_RESPONDER_EVENT);
+      content.props.onResponderMove(touchesMoved(-200));
+      content.props.onResponderTerminate(touchesMoved(-200));
+    });
+
+    expect(scrollEnabled()).toBe(true);
+    expect(findByAccessibilityLabel(renderer, i18n.t('common.delete'))).toBeDefined();
   });
 });

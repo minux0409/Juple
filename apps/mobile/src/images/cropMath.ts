@@ -77,8 +77,8 @@ export function cropRect(view: CropView, imageWidth: number, imageHeight: number
 }
 
 /** The exported side: the crop's own size, never enlarged, never above what the server keeps. */
-export function outputSide(cropSize: number): number {
-  return Math.max(1, Math.min(cropSize, CROP_OUTPUT_MAX));
+export function outputSide(cropSize: number, maxSide: number = CROP_OUTPUT_MAX): number {
+  return Math.max(1, Math.min(cropSize, maxSide));
 }
 
 export function distance(a: { readonly x: number; readonly y: number }, b: { readonly x: number; readonly y: number }): number {

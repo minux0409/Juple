@@ -51,6 +51,8 @@ const type = async (renderer: Renderer, values: Record<string, string>) => {
     Object.entries(values).forEach(([testID, value]) => renderer.root.findByProps({ testID }).props.onChangeText(value));
   });
 };
+const lockDialog = (renderer: Renderer, mode: 'change' | 'new') =>
+  renderer.root.findAllByType(CollectionLockPasswordDialog).find(dialog => dialog.props.mode === mode)!;
 const passwordFields = (renderer: Renderer) => renderer.root.findAllByType(TextInput).map(node => node.props.testID);
 
 const notConfigured = { isConfigured: false, passwordChangedAtUtc: null };
@@ -117,7 +119,7 @@ describe('CollectionLockSettingsScreen (설정 > 컬렉션 잠금)', () => {
     const renderer = await renderScreen();
 
     await press(renderer, 'lock-settings-change');
-    expect(renderer.root.findByType(CollectionLockPasswordDialog).props).toEqual(expect.objectContaining({ visible: true, mode: 'change' }));
+    expect(lockDialog(renderer, 'change').props).toEqual(expect.objectContaining({ visible: true, mode: 'change' }));
     expect(passwordFields(renderer)).toEqual(['lock-password-current', 'lock-password-new', 'lock-password-confirm']);
     expect(reauthenticateSameAccount).not.toHaveBeenCalled();
 
@@ -174,7 +176,7 @@ describe('CollectionLockSettingsScreen (설정 > 컬렉션 잠금)', () => {
     await confirmSignIn(renderer);
 
     expect(reauthenticateSameAccount).toHaveBeenCalledTimes(1);
-    expect(renderer.root.findByType(CollectionLockPasswordDialog).props).toEqual(expect.objectContaining({ visible: true, mode: 'new' }));
+    expect(lockDialog(renderer, 'new').props).toEqual(expect.objectContaining({ visible: true, mode: 'new', presentation: 'inline' }));
 
     // A first password is saved, not changed.
     await type(renderer, { 'lock-password-new': 'brand-new-1', 'lock-password-confirm': 'brand-new-1' });
@@ -193,7 +195,7 @@ describe('CollectionLockSettingsScreen (설정 > 컬렉션 잠금)', () => {
     await press(renderer, 'lock-settings-forgot');
     await confirmSignIn(renderer);
 
-    expect(renderer.root.findByType(CollectionLockPasswordDialog).props.visible).toBe(false);
+    expect(renderer.root.findAllByType(CollectionLockPasswordDialog).every(dialog => dialog.props.visible === false)).toBe(true);
     expect(resetCollectionLockPassword).not.toHaveBeenCalled();
     expect(renderer.root.findAll(node => node.props.testID === 'lock-settings-notice')).toHaveLength(0);
     expect(JSON.stringify(texts(renderer))).not.toContain('로그인이 완료되지 않아');
@@ -219,7 +221,7 @@ describe('CollectionLockSettingsScreen (설정 > 컬렉션 잠금)', () => {
 
     await press(renderer, 'lock-password-save');
 
-    expect(renderer.root.findByType(CollectionLockPasswordDialog).props.visible).toBe(false);
+    expect(renderer.root.findAllByType(CollectionLockPasswordDialog).every(dialog => dialog.props.visible === false)).toBe(true);
     expect(renderer.root.findByProps({ testID: 'lock-settings-notice' }).props.children).toBe(i18n.t('settings.collectionLockSignInExpired'));
     expect(clearCollectionUnlockGrants).not.toHaveBeenCalled();
   });

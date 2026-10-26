@@ -10,7 +10,7 @@
     "officialLink": "Offizieller Informationslink",
     "readFailed": "Lesestatus konnte nicht gespeichert werden. Bitte erneut versuchen.",
     "more": "Mehr laden"
-},
+  },
   "common": {
     "viewList": "Listenansicht",
     "viewGrid": "Rasteransicht",
@@ -28,7 +28,8 @@
     "edit": "Bearbeiten",
     "processing": "Wird verarbeitet...",
     "none": "Keine",
-    "notice": "Hinweis"
+    "notice": "Hinweis",
+    "refreshing": "Wird aktualisiert"
   },
   "errors": {
     "unauthorized": "Ihr Anmeldestatus konnte nicht erneut überprüft werden.",
@@ -1294,7 +1295,11 @@
     "zoomOut": "Verkleinern",
     "apply": "Übernehmen",
     "preview": "Vorschau",
-    "areaA11y": "Fotobereich. Nach oben oder unten wischen, um zu vergrößern oder zu verkleinern."
+    "areaA11y": "Fotobereich. Nach oben oder unten wischen, um zu vergrößern oder zu verkleinern.",
+    "collectionTitle": "Sammlungsfoto anpassen",
+    "collectionNote": "Das Sammlungsfoto wird quadratisch gespeichert und als abgerundete Kachel angezeigt.",
+    "linkTitle": "Linkfoto anpassen",
+    "linkNote": "Das Linkfoto wird quadratisch gespeichert und als Bild der Linkkarte angezeigt."
   },
   "tour": {
     "previous": "Zurück",
@@ -1491,5 +1496,10 @@
       "apnsNotReady": "Push-Zustellung für iPhone ist noch nicht verfügbar. Eine Erlaubnis aktiviert derzeit keinen Push-Empfang.",
       "cancelled": "Registrierung noch nicht geprüft."
     }
+  },
+  "keyboard": {
+    "previous": "Vorheriges Feld",
+    "next": "Nächstes Feld",
+    "done": "Fertig"
   }
 }

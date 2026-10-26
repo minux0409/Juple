@@ -10,7 +10,7 @@
     "officialLink": "Lien d’information officiel",
     "readFailed": "Impossible d’enregistrer la lecture. Réessayez.",
     "more": "Afficher plus"
-},
+  },
   "common": {
     "viewList": "Vue en liste",
     "viewGrid": "Vue en grille",
@@ -28,7 +28,8 @@
     "edit": "Modifier",
     "processing": "Traitement...",
     "none": "Aucune",
-    "notice": "Avis"
+    "notice": "Avis",
+    "refreshing": "Actualisation"
   },
   "errors": {
     "unauthorized": "Nous n'avons pas pu revérifier votre statut de connexion.",
@@ -1294,7 +1295,11 @@
     "zoomOut": "Réduire",
     "apply": "Appliquer",
     "preview": "Aperçu",
-    "areaA11y": "Zone de la photo. Glissez vers le haut ou le bas pour zoomer ou dézoomer."
+    "areaA11y": "Zone de la photo. Glissez vers le haut ou le bas pour zoomer ou dézoomer.",
+    "collectionTitle": "Ajuster la photo de la collection",
+    "collectionNote": "La photo de la collection est enregistrée au format carré et affichée comme une vignette arrondie.",
+    "linkTitle": "Ajuster la photo du lien",
+    "linkNote": "La photo du lien est enregistrée au format carré et affichée comme image de la carte du lien."
   },
   "tour": {
     "previous": "Précédent",
@@ -1491,5 +1496,10 @@
       "apnsNotReady": "Les notifications push sur iPhone ne sont pas encore disponibles. Les autoriser ne permet pas encore de les recevoir.",
       "cancelled": "L’inscription n’a pas été vérifiée."
     }
+  },
+  "keyboard": {
+    "previous": "Champ précédent",
+    "next": "Champ suivant",
+    "done": "OK"
   }
 }

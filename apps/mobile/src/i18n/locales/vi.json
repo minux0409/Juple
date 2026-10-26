@@ -10,7 +10,7 @@
     "officialLink": "Liên kết thông tin chính thức",
     "readFailed": "Không thể lưu trạng thái đã đọc. Vui lòng thử lại.",
     "more": "Xem thêm"
-},
+  },
   "common": {
     "viewList": "Dạng danh sách",
     "viewGrid": "Dạng lưới",
@@ -28,7 +28,8 @@
     "edit": "Chỉnh sửa",
     "processing": "Đang xử lý...",
     "none": "Không có",
-    "notice": "Thông báo"
+    "notice": "Thông báo",
+    "refreshing": "Đang làm mới"
   },
   "errors": {
     "unauthorized": "Không thể xác minh lại trạng thái đăng nhập của bạn.",
@@ -1294,7 +1295,11 @@
     "zoomOut": "Thu nhỏ",
     "apply": "Áp dụng",
     "preview": "Xem trước",
-    "areaA11y": "Vùng ảnh. Vuốt lên hoặc xuống để phóng to hoặc thu nhỏ."
+    "areaA11y": "Vùng ảnh. Vuốt lên hoặc xuống để phóng to hoặc thu nhỏ.",
+    "collectionTitle": "Căn chỉnh ảnh bộ sưu tập",
+    "collectionNote": "Ảnh bộ sưu tập được lưu dạng hình vuông và hiển thị dưới dạng ô bo góc.",
+    "linkTitle": "Căn chỉnh ảnh liên kết",
+    "linkNote": "Ảnh liên kết được lưu dạng hình vuông và hiển thị làm ảnh của thẻ liên kết."
   },
   "tour": {
     "previous": "Quay lại",
@@ -1491,5 +1496,10 @@
       "apnsNotReady": "Tính năng gửi push trên iPhone chưa sẵn sàng. Cho phép thông báo chưa bật khả năng nhận push lúc này.",
       "cancelled": "Chưa kiểm tra đăng ký."
     }
+  },
+  "keyboard": {
+    "previous": "Ô trước",
+    "next": "Ô tiếp theo",
+    "done": "Xong"
   }
 }

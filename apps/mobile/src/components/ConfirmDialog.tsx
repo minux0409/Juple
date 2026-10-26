@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 import { DialogActions } from './DialogActions';
+import { KeyboardFieldScope } from './keyboardToolbar';
 
 interface ConfirmDialogProps {
   readonly visible: boolean;
@@ -66,6 +67,7 @@ export function ConfirmDialog({
 
   return (
     <Modal animationType="fade" onRequestClose={dismiss} transparent visible={isShown}>
+      <KeyboardFieldScope>
       <View style={styles.overlay}>
         <Pressable
           accessibilityElementsHidden
@@ -88,6 +90,7 @@ export function ConfirmDialog({
           </View>
         </View>
       </View>
+      </KeyboardFieldScope>
     </Modal>
   );
 }

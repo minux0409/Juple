@@ -10,13 +10,13 @@ import { BlockingProgressOverlay } from '../components/BlockingProgressOverlay';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LinkSortChips } from '../components/LinkSortChips';
 import { isDefinitiveLoadError, LoadFailureState } from '../components/LoadFailureState';
-import { SavedLinkGridCard, savedLinkGridLayout, useSavedLinkGridCellStyle } from '../components/SavedLinkGridCard';
+import { edgeAlignedCellPadding, SavedLinkGridCard, savedLinkGridLayout, useSavedLinkGridCellStyle } from '../components/SavedLinkGridCard';
 import { gridListKey, useSavedLinkColumns } from '../layout/responsiveGrid';
 import { savedLinkLayout } from '../components/savedLinkLayout';
 import { chunkIntoImageLines, SavedLinkImageRow } from '../components/SavedLinkImageTile';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
-import { closeOpenRow } from '../components/swipeableRowCoordinator';
+import { closeOpenRow, useSwipeAwareScrollEnabled } from '../components/swipeableRowCoordinator';
 import { useActionAfterMenu } from '../components/useActionAfterMenu';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { ViewModeToggle } from '../components/ViewModeToggle';
@@ -80,6 +80,7 @@ function getLoadErrorMessage(error: unknown, t: TFunction): string {
  * update local state directly on success rather than refetching the whole list.
  */
 export function TrashScreen() {
+  const swipeScrollEnabled = useSwipeAwareScrollEnabled();
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const navigation = useNavigation();
@@ -238,17 +239,6 @@ export function TrashScreen() {
 
   return (
     <StackScreenSafeArea style={styles.screen}>
-      {/*
-        The limit notice (always shown, even when the list is empty - "0개여도 안내문은 표시") sits
-        under the title row, which holds 비우기 on its right (see the headerRight above). A sibling of
-        the FlatList (not its ListHeaderComponent) so the list's own padding never opens a gap
-        between the two, and the empty-state message stays centered in the remaining space.
-      */}
-      <View style={styles.header}>
-        <Text style={styles.limitNotice} testID="trash-limit-notice">
-          {t('trash.limitNotice', { count: TRASH_LIST_LIMIT })}
-        </Text>
-      </View>
       {items.length > 0 ? (
         <View style={styles.controlsRow}>
           <LinkSortChips
@@ -273,8 +263,17 @@ export function TrashScreen() {
         data={isCompact ? imageLines : displayedItems}
         numColumns={viewMode === 'grid' ? columns.grid : 1}
         onScrollBeginDrag={closeOpenRow}
+        scrollEnabled={swipeScrollEnabled}
         style={styles.list}
         keyExtractor={item => isImageLine(item) ? `line-${item[0].id}` : item.id.toString()}
+        // The list's limit ("최근 N개까지 표시") belongs under its last item - and only when there is a list at all.
+        ListFooterComponent={
+          items.length > 0 ? (
+            <Text style={styles.limitNotice} testID="trash-limit-notice">
+              {t('trash.limitNotice', { count: TRASH_LIST_LIMIT })}
+            </Text>
+          ) : undefined
+        }
         ListEmptyComponent={
           isLoading ? (
             <ActivityIndicator style={styles.loading} />
@@ -286,7 +285,7 @@ export function TrashScreen() {
             </View>
           )
         }
-        renderItem={({ item }) => isImageLine(item) ? (
+        renderItem={({ item, index }) => isImageLine(item) ? (
           // The 3-column mode is Juple's one image-only 9-tile grid (SavedLinkImageRow, the same as Home / the Archive /
           // Collections): squares with the picture or the site fallback and nothing else. Too small for swipe panes, so a tap or
           // a long press opens the same popup (링크 열기 / 복구 / 영구 삭제), each still asking for confirmation.
@@ -295,7 +294,7 @@ export function TrashScreen() {
           // The same SavedLinkGridCard as Home/History/Collections, in the same swipe row as the List (compact: slim,
           // icon-only actions): right reveals 복구, left reveals 영구 삭제 - both still ask first. Tap and long-press open
           // the titleless action popup.
-          <View style={gridCellStyle}>
+          <View style={[gridCellStyle, edgeAlignedCellPadding(index % columns.grid, columns.grid)]}>
             <SwipeableItemRow
               accessibilityLabel={resolveTrashTitle(item)}
               compact
@@ -442,14 +441,12 @@ const styles = themedStyles(() => ({
     flex: 1,
   },
   // Same horizontal inset as the list content below, so the notice and the rows line up.
-  header: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.sm,
-  },
-  // Wraps for a long translation.
+  // Under the last item; wraps for a long translation.
   limitNotice: {
     color: colors.textSecondary,
     fontSize: 12,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     textAlign: 'center',
   },
   // flex:1 so the FlatList fills the space StackScreenSafeArea's own bottom padding already leaves

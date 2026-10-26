@@ -47,6 +47,8 @@ export type ColorRole =
   | 'dangerText'
   | 'dangerBorder'
   | 'dangerSubtle'
+  | 'badge'
+  | 'onBadge'
   | 'warning'
   | 'warningText'
   | 'success'
@@ -74,6 +76,12 @@ type Palette = Readonly<Record<ColorRole, string>>;
  */
 export const BRAND_PRIMARY = '#6751FC';
 const BRAND_DANGER = '#FF8A8A';
+/**
+ * The red of the "J" in the Juple wordmark (assets/branding/juple-wordmark.png): the J runs from #FC7660 at the top to #FB5C74 at the
+ * bottom (mean #FC656C); this is its deepest band, the only part of the J on which a white glyph reaches 3:1 (3.04:1 - the mean is
+ * 2.9:1, the old light coral 2.3:1). Used by the notification count badges and the swipe-to-delete panel, with white on top.
+ */
+const BRAND_BADGE = '#FB5D72';
 const ON_DANGER = '#2B0A0A';
 
 export const lightColors: Palette = {
@@ -97,6 +105,9 @@ export const lightColors: Palette = {
   /** Outline / stroke of a danger control: >= 3:1 on the Light surfaces. */
   dangerBorder: '#D92D3A',
   dangerSubtle: '#FDECEA',
+  /** Notification count badges and the swipe-to-delete panel: the wordmark's J red (BRAND_BADGE), white on top. */
+  badge: BRAND_BADGE,
+  onBadge: '#FFFFFF',
   warning: '#F5A623',
   /** A warning as TEXT or a thin icon on white (신고): a darker amber that stays readable, unlike the fill-only `warning`. */
   warningText: '#9A5B00',
@@ -134,6 +145,8 @@ export const darkColors: Palette = {
   dangerText: '#FF8A8A',
   dangerBorder: '#FF8A8A',
   dangerSubtle: '#3A1F22',
+  badge: BRAND_BADGE,
+  onBadge: '#FFFFFF',
   warning: '#F5A623',
   warningText: '#F5C26B',
   success: '#4CC38A',

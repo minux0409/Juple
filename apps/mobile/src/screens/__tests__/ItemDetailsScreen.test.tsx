@@ -89,6 +89,23 @@ jest.mock('../../items/shareItem', () => ({
   shareItem: jest.fn(),
 }));
 
+// The crop screen is exercised by its own tests and the profile / Collection editors; here it is a stand-in that applies the picked
+// photo right away (as a person pressing 적용 would) and records how it was opened.
+const mockCropperOpenings: Array<{ readonly variant?: string; readonly uri: string }> = [];
+jest.mock('../../images/PhotoCropper', () => {
+  const { useEffect } = jest.requireActual('react');
+  return {
+    PhotoCropper: ({ uri, variant, onApply }: { uri: string; variant?: string; onApply: (cropped: { uri: string; type: string; fileName: string }) => void }) => {
+      useEffect(() => {
+        mockCropperOpenings.push({ variant, uri });
+        onApply({ uri: `${uri}#cropped`, type: 'image/jpeg', fileName: 'link.jpg' });
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- once per opening
+      }, []);
+      return null;
+    },
+  };
+});
+
 jest.mock('react-native-image-picker', () => ({
   launchImageLibrary: jest.fn(),
 }));
@@ -466,6 +483,20 @@ describe('ItemDetailsScreen', () => {
       expect(shownPhoto(renderer)).toBeNull();
       const texts = renderer.root.findAllByType(Text).map(node => node.props.children);
       expect(JSON.stringify(texts)).not.toMatch(/\(0\/2\)|최대 2장/);
+    });
+
+    it('a picked photo is fitted in the crop screen (the link card\'s square) and the CROPPED file is what is uploaded', async () => {
+      jest.mocked(uploadItemImage).mockResolvedValue(makeImage({ id: 9, readUrl: 'https://blob.example/9.jpg' }));
+      mockCropperOpenings.splice(0);
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        byTestId(renderer, 'representative-photo-add')[0].props.onPress();
+        await Promise.resolve();
+      });
+
+      expect(mockCropperOpenings).toEqual([{ variant: 'link', uri: 'file://photo.jpg' }]);
+      expect(uploadItemImage).toHaveBeenCalledWith(expect.anything(), expect.anything(), { uri: 'file://photo.jpg#cropped', type: 'image/jpeg', fileName: 'link.jpg' });
     });
 
     it('add: the uploaded photo shows at once, the spinner ends, and the Item is not loaded again', async () => {
@@ -1771,15 +1802,15 @@ describe('ItemDetailsScreen - keyboard: the sheet moves up only as far as the fo
     expect(StyleSheet.flatten(byId(renderer, 'item-details-overlay')[0].props.style).paddingTop).toBe(NORMAL_TOP);
   });
 
-  it('the memo keeps a real editing height while focused - several lines, never a one-line strip', async () => {
+  it('the memo is two lines tall at rest and stays that size when focused (no jump), growing to five lines before it scrolls', async () => {
     const renderer = await renderScreen();
     const memo = () => byId(renderer, 'item-details-memo')[0];
+    const resting = StyleSheet.flatten(memo().props.style);
+    expect(resting.minHeight).toBe(resting.lineHeight * 2 + 8);
+    expect(resting.maxHeight).toBe(resting.lineHeight * 5 + 8);
     await act(async () => { memo().props.onFocus(); });
-    const editing = StyleSheet.flatten(memo().props.style);
-    expect(editing.minHeight).toBeGreaterThanOrEqual(90);
-    expect(editing.maxHeight).toBeGreaterThanOrEqual(editing.minHeight);
-    await act(async () => { memo().props.onBlur(); });
-    expect(StyleSheet.flatten(memo().props.style).minHeight).toBeLessThan(editing.minHeight);
+    expect(StyleSheet.flatten(memo().props.style)).toEqual(resting);
+    expect(memo().props.scrollEnabled).toBe(true);
   });
 
   it('clamped under the top inset: the sheet moves only that far, and the body scrolls the rest', async () => {

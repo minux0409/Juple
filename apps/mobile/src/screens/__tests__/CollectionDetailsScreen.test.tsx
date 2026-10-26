@@ -482,8 +482,8 @@ describe('CollectionDetailsScreen', () => {
       expect(removeItemFromCollection).toHaveBeenCalledWith(expect.anything(), 1, 9);
       expect(deleteItem).not.toHaveBeenCalled();
       expect(findItemList(renderer).props.data).toHaveLength(0);
-      expect(renderer.root.findByProps({ children: i18n.t('collections.detailItemCount', { count: 0 }) })).toBeTruthy();
-      expect(i18n.t('collections.detailItemCount', { count: 0 })).toBe('총 0개');
+      // The header shows no "총 N개" any more (the list itself shows the links).
+      expect(renderer.root.findAllByProps({ children: i18n.t('collections.detailItemCount', { count: 0 }) })).toHaveLength(0);
       expect(renderer.root.findByProps({ children: i18n.t('toast.unlinkSuccess') })).toBeTruthy();
       expect(renderer.root.findAllByProps({ children: i18n.t('toast.deleteSuccess') })).toHaveLength(0);
     });
@@ -508,9 +508,7 @@ describe('CollectionDetailsScreen', () => {
       expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 1, 9);
       expect(restoreItem).not.toHaveBeenCalled();
       expect(findItemList(renderer).props.data).toHaveLength(1);
-      expect(renderer.root.findByProps({ children: i18n.t('collections.detailItemCount', { count: 1 }) })).toBeTruthy();
-      expect(i18n.t('collections.detailItemCount', { count: 1 })).toBe('총 1개');
-      expect(i18n.t('collections.detailItemCount', { count: 12 })).toBe('총 12개');
+      expect(renderer.root.findAllByProps({ children: i18n.t('collections.detailItemCount', { count: 1 }) })).toHaveLength(0);
       expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
       expect(renderer.root.findAllByProps({ children: i18n.t('collections.addSuccess') })).toHaveLength(0);
     });
@@ -531,7 +529,7 @@ describe('CollectionDetailsScreen', () => {
       });
 
       expect(findItemList(renderer).props.data).toHaveLength(0);
-      expect(renderer.root.findByProps({ children: i18n.t('collections.detailItemCount', { count: 0 }) })).toBeTruthy();
+      expect(renderer.root.findAllByProps({ children: i18n.t('collections.detailItemCount', { count: 0 }) })).toHaveLength(0);
       expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
       expect(renderer.root.findByProps({ children: i18n.t('toast.undoUnlinkError') })).toBeTruthy();
     });
@@ -998,8 +996,12 @@ describe('CollectionDetailsScreen', () => {
   describe('link sort + view mode', () => {
     const sortChip = (renderer: ReactTestRenderer.ReactTestRenderer, which: 'date' | 'name') =>
       renderer.root.find(node => node.props.testID === `collection-sort-${which}` && typeof node.props.onPress === 'function');
-    const sortChipLabel = (renderer: ReactTestRenderer.ReactTestRenderer, which: 'date' | 'name') =>
-      sortChip(renderer, which).findByType(Text).props.children;
+    // The visible text: the label, plus the arrow when it is not the chip's invisible placeholder (LinkSortChips keeps both slots).
+    const sortChipLabel = (renderer: ReactTestRenderer.ReactTestRenderer, which: 'date' | 'name') => {
+      const [outer, arrow] = sortChip(renderer, which).findAllByType(Text);
+      const arrowVisible = StyleSheet.flatten(arrow.props.style)?.color !== 'transparent';
+      return `${outer.props.children[0]}${arrowVisible ? arrow.props.children : ''}`;
+    };
 
     type Row = { readonly kind: string; readonly key: string; readonly section: { readonly key: string; readonly count: number }; readonly item?: CollectionItemEntry; readonly items?: readonly CollectionItemEntry[] };
     const dateList = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findByType(FlatList);

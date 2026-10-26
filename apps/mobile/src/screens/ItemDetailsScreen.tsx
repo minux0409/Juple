@@ -19,6 +19,8 @@ import {
 } from 'react-native';
 import { ThemedTextInput } from '../components/ThemedTextInput';
 import { launchImageLibrary } from 'react-native-image-picker';
+import { PhotoCropper } from '../images/PhotoCropper';
+import type { CroppedImage } from '../images/cropImage';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -240,6 +242,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   // come from this, never from the room left above an open keyboard (which crushed the sheet).
   const [stableArea, setStableArea] = useState<{ readonly height: number; readonly width: number } | null>(null);
   const [isMemoFocused, setIsMemoFocused] = useState(false);
+  // The photo just picked for 사진 추가 / 사진 변경, while it is being fitted (see uploadCroppedPhoto).
+  const [photoCrop, setPhotoCrop] = useState<{ readonly uri: string; readonly width?: number; readonly height?: number } | null>(null);
   const sheetShiftY = useRef(new Animated.Value(0)).current;
   const sheetShiftRef = useRef(0);
   const overlayRef = useRef<ComponentRef<typeof View>>(null);
@@ -516,18 +520,21 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       showMessage(getImagePickerErrorMessage(result.errorCode, t));
       return;
     }
+    // Fitted first (the same crop screen as a profile photo, the link card's square): nothing is uploaded until 적용.
+    setPhotoCrop({ uri: asset.uri, width: asset.width, height: asset.height });
+  };
 
+  /** 적용 in the crop screen: the cropped square becomes the link's own photo (the automatic preview stays as it is, underneath). */
+  const uploadCroppedPhoto = async (cropped: CroppedImage) => {
     if (!beginPhotoChange()) {
       return;
     }
     try {
-      // asset.type is whatever the picker actually reports post-conversion - never assumed or
-      // overridden to 'image/jpeg' here. The server independently verifies the real format via
-      // magic bytes regardless of what this claims.
+      // The cropped file is a JPEG made on this device; the server still verifies the real format via magic bytes.
       const uploaded = await uploadItemImage(authenticatedRequest, itemId, {
-        uri: asset.uri,
-        type: asset.type,
-        fileName: asset.fileName,
+        uri: cropped.uri,
+        type: cropped.type,
+        fileName: cropped.fileName,
       });
       // The server answer is the whole truth about the photo now: this one, as the cover. Its
       // read URL is new (a new Blob per upload), so no cached image of the old one can show.
@@ -917,7 +924,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
               placeholder={t('item.memoPlaceholder')}
               placeholderTextColor={colors.textSecondary}
               scrollEnabled
-              style={[styles.memoInput, isMemoFocused && styles.memoInputEditing]}
+              style={styles.memoInput}
               testID="item-details-memo"
               value={memo}
             />
@@ -1042,6 +1049,18 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       )}
 
       {messageDialog}
+      {photoCrop !== null ? (
+        <PhotoCropper
+          knownSize={photoCrop}
+          onApply={cropped => {
+            setPhotoCrop(null);
+            uploadCroppedPhoto(cropped).catch(() => undefined);
+          }}
+          onCancel={() => setPhotoCrop(null)}
+          uri={photoCrop.uri}
+          variant="link"
+        />
+      ) : null}
       {isSharedView ? profileModal : null}
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
@@ -1095,8 +1114,10 @@ export const KEYBOARD_FIELD_GAP = 16;
 /** The sheet's top never goes higher than this under the status bar / top inset while it moves for the keyboard. */
 const SHEET_SAFE_TOP_MARGIN = 12;
 const SHEET_SHIFT_DURATION_MS = 220;
-/** While the memo is being edited it keeps at least a few lines of room - never a one-line strip. */
-export const MEMO_EDITING_MIN_HEIGHT = 96;
+/** The memo field: two lines at rest and while it is being edited (it never jumps when focused), up to five, then it scrolls. */
+const MEMO_LINE_HEIGHT = 20;
+export const MEMO_MIN_HEIGHT = MEMO_LINE_HEIGHT * 2 + spacing.xs * 2;
+export const MEMO_MAX_HEIGHT = MEMO_LINE_HEIGHT * 5 + spacing.xs * 2;
 
 /**
  * How far the sheet moves up for the keyboard: just enough for the focused field's bottom (at the sheet's normal place)
@@ -1175,17 +1196,17 @@ const styles = themedStyles(() => ({
   },
   blockTitleRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
   blockTitle: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
-  // A long memo scrolls inside its own field; the field never grows past this.
+  // Two lines at rest and while editing; a longer memo grows to five lines and then scrolls inside its own field.
   memoInput: {
     color: colors.textPrimary,
     fontSize: 15,
-    maxHeight: 140,
-    minHeight: 56,
+    lineHeight: MEMO_LINE_HEIGHT,
+    maxHeight: MEMO_MAX_HEIGHT,
+    minHeight: MEMO_MIN_HEIGHT,
     padding: 0,
     paddingVertical: spacing.xs,
     textAlignVertical: 'top',
   },
-  memoInputEditing: { minHeight: MEMO_EDITING_MIN_HEIGHT },
   infoRows: { marginTop: spacing.md },
   infoRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: minTouchTarget + 4, paddingVertical: spacing.xs },
   infoRowDivided: { borderTopColor: colors.inputBorder, borderTopWidth: StyleSheet.hairlineWidth },

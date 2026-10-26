@@ -6,6 +6,7 @@ import { CollectionChoiceGrid } from './CollectionChoiceGrid';
 import type { Collection } from './api/collectionsApi';
 import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 import { useSheetDismissGesture } from '../components/sheetDismissGesture';
+import { KeyboardFieldScope } from '../components/keyboardToolbar';
 
 // Comfortably past this component's own maxHeight ('75%') on any real device, so the sheet always
 // starts fully off-screen below regardless of exact screen height - see the entrance animation
@@ -59,6 +60,7 @@ export function CollectionTargetPickerDialog({ visible, collections, isLoading, 
   }, [visible, sheetTranslateY]);
 
   return <Modal animationType="none" onRequestClose={onCancel} transparent visible={visible}>
+    <KeyboardFieldScope>
     <View style={styles.overlay}>
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: gesture.backdropOpacity }]} />
       <Animated.View style={[styles.card, { paddingBottom: spacing.xl + insets.bottom, transform: [{ translateY: Animated.add(sheetTranslateY, gesture.dragY) }] }]} testID="collection-target-sheet">
@@ -79,6 +81,7 @@ export function CollectionTargetPickerDialog({ visible, collections, isLoading, 
       />
       <Pressable accessibilityLabel={t('common.cancel')} accessibilityRole="button" onPress={onCancel} style={styles.cancel}><Text style={styles.cancelLabel}>{t('common.cancel')}</Text></Pressable>
     </Animated.View></View>
+    </KeyboardFieldScope>
   </Modal>;
 }
 const styles = themedStyles(() => ({ overlay: { flex: 1, justifyContent: 'flex-end' }, backdrop: { backgroundColor: 'rgba(0,0,0,0.4)' }, card: { backgroundColor: colors.surface, borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg, maxHeight: '75%', padding: spacing.xl, paddingTop: 0 }, dragArea: { marginHorizontal: -spacing.xl, paddingHorizontal: spacing.xl }, listArea: { flexShrink: 1 }, cancel: { alignItems: 'center', paddingTop: spacing.lg }, cancelLabel: { color: colors.textPrimary } }));

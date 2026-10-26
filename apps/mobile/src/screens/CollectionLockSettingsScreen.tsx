@@ -10,6 +10,7 @@ import {
 } from '../collections/api/collectionLockPasswordApi';
 import { clearCollectionUnlockGrants } from '../collections/collectionUnlockGrants';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { KeyboardSafeView } from '../components/KeyboardSafeView';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { CollectionLockPasswordDialog, type CollectionLockPasswordDialogMode } from '../settings/CollectionLockPasswordDialog';
@@ -94,11 +95,17 @@ export function CollectionLockSettingsScreen() {
     load();
   };
 
+  const onSignInExpired = () => {
+    setDialogMode(null);
+    setNotice(t('settings.collectionLockSignInExpired'));
+  };
+
   const isConfigured = status?.isConfigured === true;
 
   return (
     <StackScreenSafeArea style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <KeyboardSafeView style={styles.keyboardArea}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.help}>{t('settings.collectionLockDescription')}</Text>
         {status === null && !loadError ? <ActivityIndicator style={styles.loading} /> : null}
         {loadError ? <LoadFailureState error={loadError.cause} onRetry={() => { load(); }} testID="lock-settings-load-error" /> : null}
@@ -112,7 +119,7 @@ export function CollectionLockSettingsScreen() {
             </View>
             <Pressable
               accessibilityRole="button"
-              disabled={isSigningIn}
+              disabled={isSigningIn || dialogMode !== null}
               onPress={() => (isConfigured ? openChange() : setSignInPurpose('setup'))}
               style={styles.primaryButton}
               testID={isConfigured ? 'lock-settings-change' : 'lock-settings-setup'}
@@ -128,7 +135,7 @@ export function CollectionLockSettingsScreen() {
             {isConfigured ? (
               <Pressable
                 accessibilityRole="button"
-                disabled={isSigningIn}
+                disabled={isSigningIn || dialogMode !== null}
                 onPress={() => setSignInPurpose('forgot')}
                 style={styles.linkButton}
                 testID="lock-settings-forgot"
@@ -139,7 +146,17 @@ export function CollectionLockSettingsScreen() {
           </View>
         ) : null}
         {notice ? <Text style={styles.notice} testID="lock-settings-notice">{notice}</Text> : null}
+        {/* After the interactive re-authentication: drawn in the screen, never as a Modal (see the dialog's presentation). */}
+        <CollectionLockPasswordDialog
+          mode="new"
+          onCancel={() => setDialogMode(null)}
+          onSaved={onSaved}
+          onSignInExpired={onSignInExpired}
+          presentation="inline"
+          visible={dialogMode === 'new'}
+        />
       </ScrollView>
+      </KeyboardSafeView>
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('settings.collectionLockContinue')}
@@ -155,14 +172,11 @@ export function CollectionLockSettingsScreen() {
         visible={signInPurpose !== null}
       />
       <CollectionLockPasswordDialog
-        mode={dialogMode ?? 'change'}
+        mode="change"
         onCancel={() => setDialogMode(null)}
         onSaved={onSaved}
-        onSignInExpired={() => {
-          setDialogMode(null);
-          setNotice(t('settings.collectionLockSignInExpired'));
-        }}
-        visible={dialogMode !== null}
+        onSignInExpired={onSignInExpired}
+        visible={dialogMode === 'change'}
       />
     </StackScreenSafeArea>
   );
@@ -170,6 +184,7 @@ export function CollectionLockSettingsScreen() {
 
 const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
+  keyboardArea: { flex: 1 },
   content: { alignSelf: 'center', gap: spacing.md, maxWidth: 640, padding: spacing.lg, width: '100%' },
   loading: { paddingVertical: spacing.lg },
   card: { backgroundColor: colors.surface, borderRadius: radii.lg, gap: spacing.md, padding: spacing.lg },

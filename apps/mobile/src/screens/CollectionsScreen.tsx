@@ -19,7 +19,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { PullRefreshControl } from '../components/PullRefreshControl';
+import { usePullToRefresh } from '../components/PullRefreshControl';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
@@ -831,6 +831,12 @@ export function CollectionsScreen() {
     collectionMenu.openMenu(collection);
   };
 
+  const pullToRefresh = usePullToRefresh(isRefreshing, () => {
+    load(filter, 'refresh');
+    loadReceivedInvitations(true);
+    loadMyPendingTotal();
+  });
+
   return (
     <SafeAreaView edges={['top']} onTouchStart={closeSuggestionsOnOutsideTouch} style={styles.safeArea}>
       <View collapsable={false} pointerEvents="none" ref={overlayRootRef} style={styles.overlayRoot} />
@@ -847,16 +853,7 @@ export function CollectionsScreen() {
         keyExtractor={entry => ('pendingJoin' in entry ? `join-${entry.pendingJoin.requestId}` : entry.id.toString())}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
-        refreshControl={
-          <PullRefreshControl
-            refreshing={isRefreshing}
-            onRefresh={() => {
-              load(filter, 'refresh');
-              loadReceivedInvitations(true);
-              loadMyPendingTotal();
-            }}
-          />
-        }
+        refreshControl={pullToRefresh.refreshControl}
         numColumns={viewMode === 'grid' ? gridColumns : 1}
         // With columns these count rows (a row of tiles each), not cards.
         initialNumToRender={viewMode === 'grid' ? 5 : 10}
@@ -866,6 +863,7 @@ export function CollectionsScreen() {
         removeClippedSubviews={Platform.OS === 'android'}
         ListHeaderComponent={
           <View>
+            {pullToRefresh.refreshRow}
             <SubscriptionExpiredNotice />
             <View style={styles.titleRow}>
               <ScreenTitle icon={screenIcons.collections} textStyle={styles.title} title={t('collections.title')} />
@@ -1298,14 +1296,14 @@ const styles = themedStyles(() => ({
   myPendingRow: { marginBottom: spacing.md },
   filterBadge: {
     alignItems: 'center',
-    backgroundColor: colors.danger,
+    backgroundColor: colors.badge,
     borderRadius: 10,
     height: 20,
     justifyContent: 'center',
     minWidth: 20,
     paddingHorizontal: 5,
   },
-  filterBadgeText: { color: colors.onDanger, fontSize: 11, fontWeight: '800' },
+  filterBadgeText: { color: colors.onBadge, fontSize: 11, fontWeight: '800' },
   filterCellActive: {
     backgroundColor: collectionFilterColors.selectedBackground,
     borderColor: collectionFilterColors.selectedBorder,

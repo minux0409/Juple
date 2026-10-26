@@ -26,6 +26,7 @@ import { CollectionUnlockPanel } from './CollectionUnlockPanel';
 import { isCollectionLockedError } from './useCollectionItems';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
+import { KeyboardFieldScope } from '../components/keyboardToolbar';
 
 /** One dot per character while the password is hidden. */
 const PASSWORD_MASK = '•';
@@ -437,6 +438,7 @@ function SharePasswordDialog({ mode, isSaving, onSubmit, onCancel }: SharePasswo
 
   return (
     <Modal animationType="fade" onRequestClose={onCancel} transparent visible={mode !== null}>
+      <KeyboardFieldScope>
       <KeyboardSafeView style={styles.overlay}>
         <View style={styles.dialog} testID="share-password-dialog">
           <Text accessibilityRole="header" style={styles.dialogTitle}>
@@ -481,6 +483,7 @@ function SharePasswordDialog({ mode, isSaving, onSubmit, onCancel }: SharePasswo
           </View>
         </View>
       </KeyboardSafeView>
+      </KeyboardFieldScope>
     </Modal>
   );
 }

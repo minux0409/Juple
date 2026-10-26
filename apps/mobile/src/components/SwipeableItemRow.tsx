@@ -14,7 +14,7 @@ import {
 import { ShareIcon } from '../icons/ShareIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
-import { closeOpenRow, notifyRowClosed, notifyRowOpened } from './swipeableRowCoordinator';
+import { closeOpenRow, notifyRowClosed, notifyRowOpened, setSwipeScrollLock } from './swipeableRowCoordinator';
 
 const ACTION_WIDTH = 76;
 /** A compact row (a narrow Grid tile) reveals stacked icon + short-label actions in a slimmer pane, so they never eat most of the tile. */
@@ -194,6 +194,21 @@ export function SwipeableItemRow({
     [translateX, close, actionWidth],
   );
 
+  /** Open the side that was dragged past its threshold, otherwise close - for a release and for an interrupted gesture alike. */
+  const settle = useCallback(() => {
+    const offset = currentOffsetRef.current;
+    if (onDelete && offset <= -openThreshold) {
+      openTo('left');
+    } else if (hasStartSide && offset >= openThreshold) {
+      openTo('right');
+    } else {
+      close();
+    }
+  }, [onDelete, hasStartSide, openThreshold, openTo, close]);
+
+  // Never leave the list frozen if the row disappears mid-swipe (e.g. deleted by a refresh).
+  useEffect(() => () => setSwipeScrollLock(false), []);
+
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -202,6 +217,8 @@ export function SwipeableItemRow({
           Math.abs(gesture.dx) > HORIZONTAL_INTENT_THRESHOLD &&
           Math.abs(gesture.dx) > Math.abs(gesture.dy),
         onPanResponderGrant: (_event, gesture) => {
+          // A horizontal swipe from here on: the list stops scrolling until the finger lifts (see setSwipeScrollLock).
+          setSwipeScrollLock(true);
           if (openDirectionRef.current !== null) {
             showEdge(openDirectionRef.current === 'right' ? 'left' : 'right');
           } else {
@@ -220,18 +237,20 @@ export function SwipeableItemRow({
           showEdge(next > 0 ? 'left' : next < 0 ? 'right' : revealedEdgeRef.current);
         },
         onPanResponderRelease: () => {
-          const offset = currentOffsetRef.current;
-          if (onDelete && offset <= -openThreshold) {
-            openTo('left');
-          } else if (hasStartSide && offset >= openThreshold) {
-            openTo('right');
-          } else {
-            close();
-          }
+          setSwipeScrollLock(false);
+          settle();
         },
-        onPanResponderTerminate: close,
+        // Once the swipe has been recognized as horizontal, a scroll view asking for the touch is refused - a small vertical drift
+        // must not turn it into a scroll.
+        onPanResponderTerminationRequest: () => false,
+        // If the system takes the touch anyway (an incoming call, an edge-back gesture), the row settles where the finger left it
+        // instead of always snapping shut, and the list scrolls again.
+        onPanResponderTerminate: () => {
+          setSwipeScrollLock(false);
+          settle();
+        },
       }),
-    [disabled, translateX, openTo, close, onDelete, hasStartSide, actionWidth, openThreshold, showEdge],
+    [disabled, translateX, settle, onDelete, hasStartSide, actionWidth, showEdge],
   );
 
   const handleContentPress = () => {
@@ -394,6 +413,6 @@ const styles = themedStyles(() => ({
     backgroundColor: colors.brand,
   },
   deleteAction: {
-    backgroundColor: colors.danger,
+    backgroundColor: colors.badge,
   },
 }));

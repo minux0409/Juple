@@ -38,7 +38,8 @@ export function LinkSortChips({ sort, dateLabel, nameLabel, dateNewestA11yLabel,
         testID={`${testIDPrefix}-date`}
       >
         <Text style={[styles.label, isDate && styles.labelSelected]}>
-          {isDate ? `${dateLabel} ${sort === 'oldest' ? '↑' : '↓'}` : dateLabel}
+          {dateLabel}
+          <SortArrow arrow={sort === 'oldest' ? '↑' : '↓'} visible={isDate} />
         </Text>
       </Pressable>
       <Pressable
@@ -50,14 +51,28 @@ export function LinkSortChips({ sort, dateLabel, nameLabel, dateNewestA11yLabel,
         testID={`${testIDPrefix}-name`}
       >
         <Text style={[styles.label, isName && styles.labelSelected]}>
-          {isName ? `${nameLabel} ${sort === 'titleDesc' ? '↓' : '↑'}` : nameLabel}
+          {nameLabel}
+          <SortArrow arrow={sort === 'titleDesc' ? '↓' : '↑'} visible={isName} />
         </Text>
       </Pressable>
     </View>
   );
 }
 
+/**
+ * The direction arrow after a chip's label. It always takes its place - invisible on the chip that is not selected - so choosing a
+ * chip only changes colours, never a chip's width or the row's layout.
+ */
+function SortArrow({ arrow, visible }: { readonly arrow: string; readonly visible: boolean }) {
+  return (
+    <Text accessibilityElementsHidden={!visible} importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'} style={!visible && styles.arrowHidden}>
+      {` ${arrow}`}
+    </Text>
+  );
+}
+
 const styles = themedStyles(() => ({
+  arrowHidden: { color: 'transparent' },
   row: { alignItems: 'center', flexDirection: 'row', flexShrink: 1, gap: spacing.xs },
   chip: {
     borderColor: colors.inputBorder,

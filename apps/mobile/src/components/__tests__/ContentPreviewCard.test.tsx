@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Image, Text } from 'react-native';
+import { Image, InputAccessoryView, Text } from 'react-native';
 import { ContentPreviewCard } from '../ContentPreviewCard';
 
 // oe 60000000 = 2021-01-14 (long past), F0000000 = 2097-08-05 (far future): no clock control needed.
@@ -22,7 +22,16 @@ describe('ContentPreviewCard', () => {
   it('an expired Instagram preview is not requested: the card has no picture, everything else stays', () => {
     const renderer = renderCard(EXPIRED);
     expect(renderer.root.findAllByType(Image)).toHaveLength(0);
-    expect(renderer.root.findAllByType(Text).map(node => node.props.children)).toEqual(['source row']);
+    // The card's own text only (not the iOS keyboard toolbar that the title field carries).
+    const inToolbar = (node: ReactTestRenderer.ReactTestInstance) => {
+      for (let current = node.parent; current; current = current.parent) {
+        if (current.type === InputAccessoryView) {
+          return true;
+        }
+      }
+      return false;
+    };
+    expect(renderer.root.findAllByType(Text).filter(node => !inToolbar(node)).map(node => node.props.children)).toEqual(['source row']);
   });
 
   it('a valid preview, and any other site\'s picture, keep their source', () => {

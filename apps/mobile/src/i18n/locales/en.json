@@ -10,7 +10,7 @@
     "officialLink": "Official information link",
     "readFailed": "Could not save read status. Please try again.",
     "more": "Load more"
-},
+  },
   "common": {
     "viewList": "List view",
     "viewGrid": "Grid view",
@@ -28,7 +28,8 @@
     "edit": "Edit",
     "processing": "Processing...",
     "none": "None",
-    "notice": "Notice"
+    "notice": "Notice",
+    "refreshing": "Refreshing"
   },
   "errors": {
     "unauthorized": "We couldn't re-verify your sign-in status.",
@@ -1294,7 +1295,11 @@
     "zoomOut": "Zoom out",
     "apply": "Apply",
     "preview": "Preview",
-    "areaA11y": "Photo area. Swipe up or down to zoom in or out."
+    "areaA11y": "Photo area. Swipe up or down to zoom in or out.",
+    "collectionTitle": "Fit collection photo",
+    "collectionNote": "The collection photo is saved as a square and shown as a rounded tile.",
+    "linkTitle": "Fit link photo",
+    "linkNote": "The link photo is saved as a square and shown as the link card's picture."
   },
   "tour": {
     "previous": "Back",
@@ -1491,5 +1496,10 @@
       "apnsNotReady": "iPhone push delivery is not ready yet. Allowing notifications does not enable push delivery at this time.",
       "cancelled": "Registration has not been checked."
     }
+  },
+  "keyboard": {
+    "previous": "Previous field",
+    "next": "Next field",
+    "done": "Done"
   }
 }

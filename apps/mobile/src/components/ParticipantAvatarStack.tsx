@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { OwnerCrown } from '../collections/OwnerCrown';
 import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 import { UserAvatar } from './UserAvatar';
@@ -20,6 +20,13 @@ interface ParticipantAvatarStackProps {
   readonly placeholderCount?: number;
   /** How many circles are drawn before the rest collapse into one "+N" circle. */
   readonly maxVisible?: number;
+  /**
+   * Up to this many photos, then one "+N" circle for everyone else (6 people with 5 = five photos and "+1"). When set it replaces
+   * maxVisible's rule (which counts the "+N" circle as one of its places).
+   */
+  readonly maxAvatars?: number;
+  /** Placement only (e.g. inside a row of header actions). */
+  readonly style?: StyleProp<ViewStyle>;
   readonly onPress: () => void;
   readonly accessibilityLabel: string;
   readonly accessibilityHint?: string;
@@ -41,6 +48,8 @@ export function ParticipantAvatarStack({
   participants,
   placeholderCount = 2,
   maxVisible = 4,
+  maxAvatars,
+  style,
   onPress,
   accessibilityLabel,
   accessibilityHint,
@@ -49,8 +58,9 @@ export function ParticipantAvatarStack({
   // A single overflow circle takes the place of the last slot, never an extra one - so "+N" always
   // stands for at least two people (never one person hidden behind a number).
   const loaded = participants ?? [];
-  const hasOverflow = loaded.length > maxVisible;
-  const visible = hasOverflow ? loaded.slice(0, maxVisible - 1) : loaded;
+  const visible = maxAvatars !== undefined ? loaded.slice(0, maxAvatars) : loaded.length > maxVisible ? loaded.slice(0, maxVisible - 1) : loaded;
+  const hasOverflow = visible.length < loaded.length;
+  const placeholderLimit = maxAvatars ?? maxVisible;
   const hiddenCount = loaded.length - visible.length;
 
   return (
@@ -60,11 +70,11 @@ export function ParticipantAvatarStack({
       accessibilityRole="button"
       disabled={participants === null}
       onPress={onPress}
-      style={styles.row}
+      style={[styles.row, style]}
       testID={testID}
     >
       {participants === null
-        ? Array.from({ length: Math.max(1, Math.min(placeholderCount, maxVisible)) }, (_, index) => (
+        ? Array.from({ length: Math.max(1, Math.min(placeholderCount, placeholderLimit)) }, (_, index) => (
             <View key={index} style={[styles.ring, index > 0 && styles.overlap]} testID={`${testID ?? 'participant-stack'}-placeholder-${index}`}>
               <View style={styles.placeholder} />
             </View>

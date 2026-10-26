@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useMobileAttention, useAttentionSnapshot } from '../attention/attentionContext';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { PullRefreshControl } from '../components/PullRefreshControl';
+import { usePullToRefresh } from '../components/PullRefreshControl';
 import { ThemedTextInput } from '../components/ThemedTextInput';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { ActionMenuDialog } from '../components/ActionMenuDialog';
@@ -324,7 +324,7 @@ export function FriendsScreen() {
   const incoming = requests.filter(request => request.direction === 'incoming');
   const outgoing = requests.filter(request => request.direction === 'outgoing');
 
-  const refreshControl = <PullRefreshControl onRefresh={refresh} refreshing={isRefreshing} />;
+  const { refreshControl, refreshRow } = usePullToRefresh(isRefreshing, refresh);
   const retryBlock = (onRetry: () => void, testID: string, failure: unknown) => (
     <LoadFailureState error={failure} onRetry={onRetry} testID={testID} />
   );
@@ -364,6 +364,7 @@ export function FriendsScreen() {
       }
       ListHeaderComponent={
         <View>
+          {refreshRow}
           {/* [search] on the start side, the List/Grid switch pinned to the end edge. */}
           <View style={[styles.searchRow, viewMode === 'list' && styles.searchRowList]}>
             <View style={styles.searchField}>
@@ -419,6 +420,7 @@ export function FriendsScreen() {
       }
       ListHeaderComponent={
         <View>
+          {refreshRow}
           {hasLoadedRequests && requestsError ? <RefreshFailureNotice onRetry={loadRequests} testID="friends-requests-stale" /> : null}
         </View>
       }

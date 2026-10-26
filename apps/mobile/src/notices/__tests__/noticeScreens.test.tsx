@@ -157,6 +157,23 @@ it('list renders server state and navigates to the common detail route', async (
   expect(mockNavigate).toHaveBeenCalledWith('NoticeDetail', { noticeId: 1 });
   await act(async () => renderer.unmount());
 });
+it('a notice card reads title, then its text, then the date - no 고정 / 중요 / 읽음 labels in front of the title', async () => {
+  let renderer!: ReactTestRenderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = ReactTestRenderer.create(<NoticesScreen />);
+  });
+  const card = renderer.root.find(node => node.props.testID === 'notice-1' && typeof node.props.onPress === 'function');
+  const lines = card.findAllByType(Text).map(node => String(node.props.children));
+  expect(lines[0]).toBe('공지 제목');
+  expect(lines[1]).toBe('미리보기');
+  expect(lines).toHaveLength(3);
+  for (const hidden of ['notices.pinned', 'notices.important', 'notices.read', 'notices.unread']) {
+    expect(lines).not.toContain(i18n.t(hidden));
+  }
+  // Unread: a bold title, and a screen reader is told.
+  expect(card.props.accessibilityHint).toBe(i18n.t('notices.unread'));
+  await act(async () => renderer.unmount());
+});
 it('failed mark-read keeps content visible, reports retry and does not clear N', async () => {
   failRead = true;
   let renderer!: ReactTestRenderer.ReactTestRenderer;

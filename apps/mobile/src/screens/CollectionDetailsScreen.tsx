@@ -14,7 +14,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { PullRefreshControl } from '../components/PullRefreshControl';
+import { usePullToRefresh } from '../components/PullRefreshControl';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
@@ -89,7 +89,7 @@ import { ReactionChips } from '../reactions/ReactionChips';
 import { ReactionPickerDialog } from '../reactions/ReactionPickerDialog';
 import { useRecentReactions } from '../reactions/recentReactions';
 import { useItemReactions } from '../reactions/useItemReactions';
-import { SavedLinkGridCard, savedLinkGridLayout, useSavedLinkGridCellStyle } from '../components/SavedLinkGridCard';
+import { edgeAlignedCellPadding, SavedLinkGridCard, savedLinkGridLayout, useSavedLinkGridCellStyle } from '../components/SavedLinkGridCard';
 import { gridListKey, useSavedLinkColumns } from '../layout/responsiveGrid';
 import { LINK_CONTROLS_BOTTOM_GAP, LINK_CONTROLS_TOP_GAP, savedLinkLayout } from '../components/savedLinkLayout';
 import { SavedLinkRow } from '../components/SavedLinkRow';
@@ -99,7 +99,7 @@ import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { LinkSortChips } from '../components/LinkSortChips';
 import { PendingActionRow } from '../components/PendingActionRow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
-import { closeOpenRow } from '../components/swipeableRowCoordinator';
+import { closeOpenRow, useSwipeAwareScrollEnabled } from '../components/swipeableRowCoordinator';
 import { DateSectionHeader, dateAccordionStyles } from '../components/DateAccordion';
 import {
   buildDateSectionRows,
@@ -321,6 +321,7 @@ const LIVE_REFRESH_EVENTS: readonly SocialPushEventType[] = [
 const COPY_SELECT_ALL_PAGE_SIZE = 100;
 
 export function CollectionDetailsScreen({ route, navigation }: Props) {
+  const swipeScrollEnabled = useSwipeAwareScrollEnabled();
   const { collectionId } = route.params;
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
@@ -664,6 +665,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       refreshInFlightRef.current = null;
     });
   }, [loadCollection, refresh, refreshSearch]);
+  const pullToRefresh = usePullToRefresh(isRefreshing, refreshAll);
 
   // A Push about this open Collection (a proposal, a decision, new links...) refreshes the same state.
   useLiveRefresh(
@@ -1549,7 +1551,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
   };
 
-  const renderCollectionItem = (item: CollectionItemEntry, containerStyle?: StyleProp<ViewStyle>) => {
+  // `column`: the item's column in a Grid row on the screen's content edge (see edgeAlignedCellPadding).
+  const renderCollectionItem = (item: CollectionItemEntry, containerStyle?: StyleProp<ViewStyle>, column?: number) => {
     // Another member's link: opened as the read-only shared view (the owner-only ItemDetails
     // would be a 404 anyway), and never offered Add/Move - those act on one's own Items.
     const isMine = item.isMine !== false;
@@ -1577,7 +1580,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     const isGrid = layoutMode === 'grid';
     const wrapInGridCell = isGrid && containerStyle === undefined;
     const frameStyle = containerStyle ?? (isGrid ? savedLinkGridLayout.swipeContainer : savedLinkLayout.card);
-    const inCell = (node: ReactElement) => (wrapInGridCell ? <View style={gridCellStyle}>{node}</View> : node);
+    const cellStyle = column === undefined ? gridCellStyle : [gridCellStyle, edgeAlignedCellPadding(column, columns.grid)];
+    const inCell = (node: ReactElement) => (wrapInGridCell ? <View style={cellStyle}>{node}</View> : node);
     if (selectedItemIds) {
       // 내 컬렉션으로 복사 selection: a tap only picks/unpicks - no swipe actions, menus or navigation.
       const isSelected = selectedItemIds.has(item.itemId);
@@ -1708,6 +1712,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   const listHeader = (
     <View>
+      {pullToRefresh.refreshRow}
       <View>
           <View style={styles.headerTitleRow}>
             <View style={styles.headerIconBadge}>
@@ -1720,25 +1725,24 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
               </View>
             ) : null}
           </View>
-          {showParticipantStack ? (
-            // Who is in it: small overlapping photos, the whole row opens the participant list. It is
-            // drawn from the very first render (placeholder circles until the list arrives) - never
-            // a line of names that is swapped for photos a moment later.
-            <ParticipantAvatarStack
-              accessibilityHint={t('collections.participantsTitle')}
-              accessibilityLabel={t('collections.participantsAvatarsA11y', { count: stackParticipants?.length ?? otherParticipants + 1 })}
-              onPress={() => setIsParticipantsSheetVisible(true)}
-              participants={stackParticipants}
-              placeholderCount={Math.min(otherParticipants + 1, 4)}
-              testID="collection-details-participants"
-            />
-          ) : null}
+          {/* One row: who is in it on the start side (the whole stack opens the participant list), the actions on the end side. No
+              link count - the list below shows the links. */}
           <View style={styles.headerMetaRow}>
-            <View style={styles.countCluster}>
-              <Text style={styles.itemCount}>
-                {t('collections.detailItemCount', { count: collection.itemCount })}
-              </Text>
-            </View>
+            {showParticipantStack ? (
+              // Small overlapping photos (up to five, then "+N"), drawn from the very first render (placeholder circles until the list
+              // arrives) - never a line of names swapped for photos a moment later.
+              <ParticipantAvatarStack
+                accessibilityHint={t('collections.participantsTitle')}
+                accessibilityLabel={t('collections.participantsAvatarsA11y', { count: stackParticipants?.length ?? otherParticipants + 1 })}
+                maxAvatars={5}
+                onPress={() => setIsParticipantsSheetVisible(true)}
+                participants={stackParticipants}
+                placeholderCount={Math.min(otherParticipants + 1, 5)}
+                style={styles.participantStack}
+                testID="collection-details-participants"
+              />
+            ) : null}
+            <View style={styles.headerMetaSpacer} />
             <View style={styles.headerActions}>
               {/* The caller's own favorite mark - a Contributor has one too; it changes
                   nothing for anyone else, so it is not an Owner-only control. */}
@@ -1906,7 +1910,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       case 'flatGridRow':
         return (
           <View style={styles.flatGridRow} testID={`collection-flat-grid-row-${row.key}`}>
-            {row.items.map(item => <Fragment key={item.itemId}>{renderCollectionItem(item)}</Fragment>)}
+            {row.items.map((item, column) => <Fragment key={item.itemId}>{renderCollectionItem(item, undefined, column)}</Fragment>)}
             {Array.from({ length: columns.grid - row.items.length }, (_, index) => <View key={`filler-${index}`} style={gridCellStyle} />)}
           </View>
         );
@@ -1978,7 +1982,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           data={searchRows}
           keyExtractor={row => row.key}
           keyboardShouldPersistTaps="handled"
-          refreshControl={<PullRefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
+          refreshControl={pullToRefresh.refreshControl}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={search.isLoading ? (
             <ActivityIndicator style={styles.searchStatus} testID="collection-search-loading" />
@@ -1995,6 +1999,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           onEndReachedThreshold={END_REACHED_THRESHOLD}
           onLayout={viewportFill.onLayout}
           onScrollBeginDrag={closeOpenRow}
+          scrollEnabled={swipeScrollEnabled}
           renderItem={renderFlatRow}
         />
       ) : isDateOrder && !isContentLocked ? (
@@ -2012,10 +2017,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           removeClippedSubviews={Platform.OS === 'android'}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
-          refreshControl={<PullRefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
+          refreshControl={pullToRefresh.refreshControl}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={listEmpty}
           onScrollBeginDrag={closeOpenRow}
+          scrollEnabled={swipeScrollEnabled}
           renderItem={renderDateRow}
         />
       ) : layoutMode === 'image' ? (
@@ -2030,10 +2036,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           maxToRenderPerBatch={10}
           windowSize={7}
           removeClippedSubviews={Platform.OS === 'android'}
-          refreshControl={<PullRefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
+          refreshControl={pullToRefresh.refreshControl}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={listEmpty}
           onScrollBeginDrag={closeOpenRow}
+          scrollEnabled={swipeScrollEnabled}
           renderItem={renderFlatRow}
         />
       ) : (
@@ -2048,11 +2055,12 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           maxToRenderPerBatch={10}
           windowSize={7}
           removeClippedSubviews={Platform.OS === 'android'}
-          refreshControl={<PullRefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
+          refreshControl={pullToRefresh.refreshControl}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={listEmpty}
           onScrollBeginDrag={closeOpenRow}
-          renderItem={({ item }) => renderCollectionItem(item)}
+          scrollEnabled={swipeScrollEnabled}
+          renderItem={({ item, index }) => renderCollectionItem(item, undefined, layoutMode === 'grid' ? index % columns.grid : undefined)}
         />
       )}
       </KeyboardSafeView>
@@ -2427,18 +2435,15 @@ const styles = themedStyles(() => ({
     justifyContent: 'space-between',
     marginTop: spacing.sm,
   },
-  countCluster: { alignItems: 'center', columnGap: spacing.md, flexDirection: 'row', flexShrink: 1, flexWrap: 'wrap', minWidth: 0 },
+  // In the header's one row: centered with the actions, no top offset of its own.
+  participantStack: { alignSelf: 'center', flexShrink: 1, marginTop: 0 },
+  headerMetaSpacer: { flex: 1 },
   // 승인 대기: a full-width, one-line tappable row on its own (the same family as the Collections tab's
   // 공유 요청 row), tinted so it is seen at a glance - not a small inline label.
   // Outer spacing only: the 승인 대기 look itself is the shared PendingActionRow.
   pendingRowSpacing: { marginTop: spacing.md },
   // The controls row above already carries the gap; this one the gap to the first link.
   myPendingRowSpacing: { marginBottom: LINK_CONTROLS_BOTTOM_GAP },
-  itemCount: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
   headerActions: {
     alignItems: 'center',
     flexDirection: 'row',

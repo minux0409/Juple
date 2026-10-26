@@ -7,12 +7,17 @@ import { CategoryIconTile } from './CategoryIconTile';
 import { CollectionColorPicker } from './CollectionColorPicker';
 import { CollectionIconPicker } from './CollectionIconPicker';
 import { resolveCollectionColorTile, type CollectionColorValue } from './collectionColors';
-import { KEEP_ICON_IMAGE, pickCollectionIconImage, type CollectionIconImageChange } from './collectionIconImage';
+import { KEEP_ICON_IMAGE, pickCollectionIconImage, type CollectionIconImageChange, type PickedImageAsset } from './collectionIconImage';
 import { type CollectionIconKey } from './collectionIcons';
 import { DialogActions } from '../components/DialogActions';
 import { ImageIcon } from '../icons/ImageIcon';
 import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
+import { KeyboardFieldScope } from '../components/keyboardToolbar';
+import { PhotoCropper } from '../images/PhotoCropper';
+
+/** A larger working copy than the saved photo: the crop keeps a part of it, and the result is still up to CROP_OUTPUT_MAX. */
+const COLLECTION_PHOTO_WORKING_EDGE = 1600;
 
 interface CategoryEditorDialogProps {
   readonly visible: boolean;
@@ -68,6 +73,8 @@ export function CategoryEditorDialog({
   const [color, setColor] = useState(initialColor);
   const [imageChange, setImageChange] = useState<CollectionIconImageChange>(KEEP_ICON_IMAGE);
   const [imageError, setImageError] = useState<string | null>(null);
+  // The photo just picked, being fitted to the tile (the same crop screen as a profile photo, with the tile's rounded square).
+  const [crop, setCrop] = useState<PickedImageAsset | null>(null);
 
   useEffect(() => {
     if (visible) {
@@ -87,9 +94,10 @@ export function CategoryEditorDialog({
 
   const choosePhoto = async () => {
     setImageError(null);
-    const picked = await pickCollectionIconImage(t);
+    const picked = await pickCollectionIconImage(t, { maxEdge: COLLECTION_PHOTO_WORKING_EDGE, quality: 0.9 });
     if (picked.kind === 'picked') {
-      setImageChange({ kind: 'set', asset: picked.asset });
+      // Not used as it is: the crop decides what the tile shows; cancelling it leaves the photo unchanged.
+      setCrop(picked.asset);
     } else if (picked.kind === 'error') {
       setImageError(picked.message);
     }
@@ -117,6 +125,7 @@ export function CategoryEditorDialog({
 
   return (
     <Modal animationType="fade" onRequestClose={onCancel} transparent visible={visible}>
+      <KeyboardFieldScope>
       <KeyboardSafeView
         style={[
           styles.overlay,
@@ -196,6 +205,19 @@ export function CategoryEditorDialog({
           </View>
         </View>
       </KeyboardSafeView>
+      {crop !== null ? (
+        <PhotoCropper
+          knownSize={crop}
+          onApply={cropped => {
+            setCrop(null);
+            setImageChange({ kind: 'set', asset: cropped });
+          }}
+          onCancel={() => setCrop(null)}
+          uri={crop.uri}
+          variant="collection"
+        />
+      ) : null}
+      </KeyboardFieldScope>
     </Modal>
   );
 }

@@ -10,7 +10,7 @@
     "officialLink": "官方說明連結",
     "readFailed": "無法儲存已讀狀態，請重試。",
     "more": "載入更多"
-},
+  },
   "common": {
     "viewList": "清單檢視",
     "viewGrid": "格狀檢視",
@@ -28,7 +28,8 @@
     "edit": "編輯",
     "processing": "處理中...",
     "none": "無",
-    "notice": "提示"
+    "notice": "提示",
+    "refreshing": "正在重新整理"
   },
   "errors": {
     "unauthorized": "無法重新確認您的登入狀態。",
@@ -1294,7 +1295,11 @@
     "zoomOut": "縮小",
     "apply": "套用",
     "preview": "預覽",
-    "areaA11y": "照片區域。上下滑動可放大或縮小。"
+    "areaA11y": "照片區域。上下滑動可放大或縮小。",
+    "collectionTitle": "調整收藏集照片",
+    "collectionNote": "收藏集照片會以正方形儲存，並以圓角圖塊顯示。",
+    "linkTitle": "調整連結照片",
+    "linkNote": "連結照片會以正方形儲存，並作為連結卡片的圖片顯示。"
   },
   "tour": {
     "previous": "上一步",
@@ -1491,5 +1496,10 @@
       "apnsNotReady": "iPhone推播功能尚未就緒。即使允許通知，目前仍無法接收推播。",
       "cancelled": "尚未檢查註冊狀態。"
     }
+  },
+  "keyboard": {
+    "previous": "上一項",
+    "next": "下一項",
+    "done": "完成"
   }
 }

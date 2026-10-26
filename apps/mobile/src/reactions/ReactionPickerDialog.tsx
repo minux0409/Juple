@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { CloseIcon } from '../icons/CloseIcon';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { emojiOfReaction, REACTION_CATALOG } from './reactionCatalog';
+import { KeyboardFieldScope } from '../components/keyboardToolbar';
 
 interface ReactionPickerDialogProps {
   readonly visible: boolean;
@@ -42,6 +43,7 @@ export function ReactionPickerDialog({ visible, myReaction, recent, onSelect, on
 
   return (
     <Modal animationType="none" onRequestClose={onClose} transparent visible={visible}>
+      <KeyboardFieldScope>
       <View style={styles.overlay}>
         <Pressable accessibilityElementsHidden importantForAccessibility="no-hide-descendants" onPress={onClose} style={StyleSheet.absoluteFill} />
         <View accessibilityViewIsModal style={styles.card} testID="reaction-picker">
@@ -63,6 +65,7 @@ export function ReactionPickerDialog({ visible, myReaction, recent, onSelect, on
           </ScrollView>
         </View>
       </View>
+      </KeyboardFieldScope>
     </Modal>
   );
 }

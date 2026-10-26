@@ -1,31 +1,57 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Platform, RefreshControl, type RefreshControlProps } from 'react-native';
+import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import { ActivityIndicator, RefreshControl, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { colors, minTouchTarget, themedStyles } from '../theme/tokens';
 
 /**
- * The list's pull-to-refresh control. `refreshing` is the screen's real "a refresh request is running" state, which a screen also
- * sets for refreshes it starts itself (e.g. on focus, when coming back from a pushed screen).
- *
- * iOS: the native spinner is shown only for a refresh the person started by pulling. Driving UIRefreshControl from code makes React
- * Native shift the scroll offset and call beginRefreshing; when that happens during a navigation transition and the request then
- * finishes, endRefreshing can leave the spinner on screen for good (it stayed at the top of the Collections tab after coming back
- * from a Collection). A background refresh therefore never touches the native control on iOS; the screen's own state still tracks it.
- * Android keeps the platform behavior unchanged (its SwipeRefreshLayout reflects `refreshing` either way).
+ * Pull-to-refresh with its own loading row (Instagram-style), the same on iOS and Android: the native control only takes the pull
+ * gesture. As soon as the person's pull has started the refresh, the native spinner is put away - it is driven true, then false
+ * on the next render, the one sequence both platforms reliably end on - and `refreshRow` is a row of its own, with the spinner
+ * centred in it, that the screen puts at the very top of its list content. It never floats over the screen's title or names (the
+ * native spinner could stay on screen over them when the list's offset was reset while it spun), takes room only while the pulled
+ * refresh runs and then simply goes. A refresh the screen starts by itself (on focus) shows nothing - the data stays as it is - and a
+ * first load keeps its skeletons. `refreshing` is the screen's real "a refresh request is running" state.
  */
-export function PullRefreshControl({ refreshing, onRefresh, ...rest }: RefreshControlProps) {
-  const [pulledByUser, setPulledByUser] = useState(false);
+export function usePullToRefresh(refreshing: boolean, onRefresh: () => void): { readonly refreshControl: ReactElement; readonly refreshRow: ReactElement | null } {
+  const [pulled, setPulled] = useState(false);
+  const [handedOff, setHandedOff] = useState(false);
 
-  // The pull ends with the request it started: the next code-started refresh is a background one again.
   useEffect(() => {
     if (!refreshing) {
-      setPulledByUser(false);
+      setPulled(false);
+      setHandedOff(false);
     }
   }, [refreshing]);
 
+  const nativeRefreshing = refreshing && pulled && !handedOff;
+  useEffect(() => {
+    if (nativeRefreshing) {
+      setHandedOff(true);
+    }
+  }, [nativeRefreshing]);
+
   const handleRefresh = useCallback(() => {
-    setPulledByUser(true);
-    onRefresh?.();
+    setPulled(true);
+    setHandedOff(false);
+    onRefresh();
   }, [onRefresh]);
 
-  const shown = Platform.OS === 'ios' ? refreshing && pulledByUser : refreshing;
-  return <RefreshControl {...rest} onRefresh={handleRefresh} refreshing={shown} />;
+  return {
+    refreshControl: <RefreshControl onRefresh={handleRefresh} refreshing={nativeRefreshing} />,
+    refreshRow: refreshing && pulled ? <PullRefreshRow /> : null,
+  };
 }
+
+/** The loading row: a fixed-height line of its own with the spinner in its centre. */
+export function PullRefreshRow() {
+  const { t } = useTranslation();
+  return (
+    <View accessibilityLabel={t('common.refreshing')} accessibilityRole="progressbar" style={styles.row} testID="pull-refresh-row">
+      <ActivityIndicator color={colors.textSecondary} />
+    </View>
+  );
+}
+
+const styles = themedStyles(() => ({
+  row: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center' },
+}));

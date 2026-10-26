@@ -1,6 +1,7 @@
 import type { ComponentType, ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
+import { KeyboardFieldScope } from './keyboardToolbar';
 
 const ICON_SIZE = 20;
 
@@ -32,6 +33,7 @@ export function ActionMenuDialog({ visible, title, header, actions, cancelLabel,
 }) {
   const hasIcons = actions.some(action => action.icon !== undefined);
   return <Modal animationType="fade" onDismiss={onDismiss} onRequestClose={onCancel} transparent visible={visible}>
+    <KeyboardFieldScope>
     <View style={styles.overlay}><Pressable accessibilityElementsHidden importantForAccessibility="no-hide-descendants" onPress={onCancel} style={StyleSheet.absoluteFill} /><View accessibilityViewIsModal style={styles.card}>
       {title ? <Text style={styles.title}>{title}</Text> : null}
       {header ? <View style={actions.length > 0 ? styles.header : undefined}>{header}</View> : null}
@@ -55,6 +57,7 @@ export function ActionMenuDialog({ visible, title, header, actions, cancelLabel,
       })}
       <Pressable accessibilityRole="button" onPress={onCancel} style={styles.cancel}><Text style={styles.label}>{cancelLabel}</Text></Pressable>
     </View></View>
+    </KeyboardFieldScope>
   </Modal>;
 }
 

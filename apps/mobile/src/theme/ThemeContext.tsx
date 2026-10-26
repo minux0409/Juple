@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { Appearance, NativeModules, Platform, useColorScheme } from 'react-native';
 import { colors, setActiveColorScheme, type ColorScheme } from './tokens';
+import { KeyboardFieldScope } from '../components/keyboardToolbar';
 
 /**
  * Appearance (화면 모드): the device's own choice - 시스템 설정 사용 / 라이트 / 다크 - kept on THIS device only (AsyncStorage, like the
@@ -126,7 +127,13 @@ export function themedScreen<P extends object>(Screen: ComponentType<P>): Compon
   if (!wrapper) {
     const Themed = (props: P) => {
       useTheme();
-      return <Screen {...props} />;
+      // Each screen is its own group for the keyboard toolbar's ↑ / ↓: a sheet-like screen (link details over the Archive) never
+      // moves the focus to a field of the screen underneath it.
+      return (
+        <KeyboardFieldScope>
+          <Screen {...props} />
+        </KeyboardFieldScope>
+      );
     };
     Themed.displayName = `Themed(${Screen.displayName ?? Screen.name ?? 'Screen'})`;
     themedScreens.set(Screen as ComponentType<never>, Themed as ComponentType<never>);

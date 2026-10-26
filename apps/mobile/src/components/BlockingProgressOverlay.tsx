@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Modal, Text, View } from 'react-native';
 import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 import { APP_MODAL_BACKDROP } from './AppModal';
+import { KeyboardFieldScope } from './keyboardToolbar';
 
 interface BlockingProgressOverlayProps {
   readonly visible: boolean;
@@ -26,6 +27,7 @@ export function BlockingProgressOverlay({ visible, message, testID = 'blocking-p
 
   return (
     <Modal animationType="none" navigationBarTranslucent onRequestClose={() => undefined} statusBarTranslucent transparent visible={visible}>
+      <KeyboardFieldScope>
       <View accessibilityViewIsModal style={styles.backdrop} testID={testID}>
         <View
           accessibilityLabel={message}
@@ -38,6 +40,7 @@ export function BlockingProgressOverlay({ visible, message, testID = 'blocking-p
           <Text style={styles.message}>{message}</Text>
         </View>
       </View>
+      </KeyboardFieldScope>
     </Modal>
   );
 }

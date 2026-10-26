@@ -1,5 +1,7 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { StyleSheet, Text } from 'react-native';
+import type React from 'react';
+import { NavigationContext } from '@react-navigation/native';
+import { Platform, StyleSheet, Text } from 'react-native';
 import { ScreenTitle, SCREEN_TITLE_ICON_SIZE } from '../../components/ScreenTitle';
 import { ArchiveIcon } from '../../icons/ArchiveIcon';
 import { ClockIcon } from '../../icons/ClockIcon';
@@ -7,6 +9,8 @@ import { CreditCardIcon } from '../../icons/CreditCardIcon';
 import { HelpIcon } from '../../icons/HelpIcon';
 import { InfoIcon } from '../../icons/InfoIcon';
 import { headerTitleWithIcon, screenIcons } from '../screenIcons';
+
+const goBack = jest.fn();
 
 describe('navigation identity: one icon per navigation item', () => {
   it('내 페이지: 도움말 is a question mark, 고객센터 stays info, 구독 is a payment card - three distinct glyphs', () => {
@@ -61,14 +65,29 @@ describe('navigation identity: one icon per navigation item', () => {
     expect(StyleSheet.flatten(renderer.root.findByType(Text).props.style).flexShrink).toBe(1);
   });
 
-  it('headerTitleWithIcon gives a stack screen [icon] Title as its header title', () => {
+  it('headerTitleWithIcon on iOS: no centered native title - [arrow] [icon] Title as the bar\'s leading item', () => {
     const options = headerTitleWithIcon(screenIcons.customerCenter, 'Customer Center');
+    expect(options.headerTitle).toBe('');
+    const [item] = options.unstable_headerLeftItems!({ canGoBack: true, tintColor: '#000000' }) as Array<{ element: React.ReactElement }>;
     let renderer!: ReactTestRenderer.ReactTestRenderer;
     act(() => {
-      renderer = ReactTestRenderer.create(options.headerTitle());
+      renderer = ReactTestRenderer.create(<NavigationContext.Provider value={{ goBack } as never}>{item.element}</NavigationContext.Provider>);
     });
 
     expect(renderer.root.findByType(screenIcons.customerCenter)).toBeDefined();
+    expect(renderer.root.findByType(Text).props.children).toBe('Customer Center');
+    act(() => renderer.root.findByProps({ testID: 'header-back' }).props.onPress());
+    expect(goBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('headerTitleWithIcon on Android keeps the native toolbar title', () => {
+    const platform = jest.replaceProperty(Platform, 'OS', 'android');
+    const options = headerTitleWithIcon(screenIcons.customerCenter, 'Customer Center');
+    platform.restore();
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = ReactTestRenderer.create((options.headerTitle as () => React.ReactElement)());
+    });
     expect(renderer.root.findByType(Text).props.children).toBe('Customer Center');
   });
 });

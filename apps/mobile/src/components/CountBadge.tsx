@@ -27,7 +27,7 @@ export function CountBadge({ count, style, testID }: { readonly count: number; r
 const styles = themedStyles(() => ({
   badge: {
     alignItems: 'center',
-    backgroundColor: colors.danger,
+    backgroundColor: colors.badge,
     borderColor: colors.surface,
     borderRadius: 10,
     borderWidth: 1.5,
@@ -36,5 +36,5 @@ const styles = themedStyles(() => ({
     minWidth: 20,
     paddingHorizontal: 5,
   },
-  text: { color: colors.onDanger, fontSize: 11, fontWeight: '700' },
+  text: { color: colors.onBadge, fontSize: 11, fontWeight: '700' },
 }));

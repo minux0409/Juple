@@ -1,4 +1,7 @@
+import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
+import { Platform } from 'react-native';
 import { ScreenTitle, type ScreenTitleIcon } from '../components/ScreenTitle';
+import { iosLeadingTitleOptions } from './sheetHeader';
 import { ArchiveIcon } from '../icons/ArchiveIcon';
 import { BellIcon } from '../icons/BellIcon';
 import { EditIcon } from '../icons/EditIcon';
@@ -44,12 +47,15 @@ export const screenIcons = {
   help: HelpIcon,
   subscription: CreditCardIcon,
   dataExport: DownloadIcon,
+  notices: BellIcon,
 } as const satisfies Record<string, ScreenTitleIcon>;
 
 /**
  * A stack screen's header title with its icon: `options={{ title, ...headerTitleWithIcon(icon, title) }}`.
- * `title` stays set as well (the back button's label and accessibility name).
+ * `title` stays set as well (the back button's label and accessibility name). Android: the native toolbar title (start-aligned
+ * after its arrow). iOS: the same row as the bar's leading item next to the arrow - iOS would otherwise center it.
  */
-export function headerTitleWithIcon(icon: ScreenTitleIcon, title: string) {
-  return { headerTitle: () => <ScreenTitle icon={icon} title={title} /> };
+export function headerTitleWithIcon(icon: ScreenTitleIcon, title: string): NativeStackNavigationOptions {
+  const element = <ScreenTitle icon={icon} title={title} />;
+  return Platform.OS === 'ios' ? iosLeadingTitleOptions(element) : { headerTitle: () => element };
 }

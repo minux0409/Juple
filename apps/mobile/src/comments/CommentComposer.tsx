@@ -150,17 +150,18 @@ const styles = themedStyles(() => ({
     backgroundColor: colors.surfaceMuted,
     columnGap: spacing.sm,
     flexDirection: 'row',
-    paddingStart: spacing.lg,
-    paddingEnd: spacing.sm,
+    paddingStart: spacing.md,
+    paddingEnd: spacing.xs,
   },
   replyText: { color: colors.textSecondary, flex: 1, fontSize: 13, fontWeight: '600' },
   replyCancel: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
-  // The field and 보내기 share one vertical center (a grown multi-line field keeps the button centered beside it).
+  // The field and 보내기 share one vertical center (a grown multi-line field keeps the button centered beside it). No side padding of
+  // its own: it sits in the link details' content, whose padding already sets the left/right edge the saved date, adder and dividers
+  // above use - the row lines up with them instead of being indented a second time.
   bar: {
     alignItems: 'center',
     columnGap: spacing.sm,
     flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
   input: {

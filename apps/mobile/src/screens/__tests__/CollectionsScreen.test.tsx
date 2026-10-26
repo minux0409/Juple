@@ -11,7 +11,7 @@ import { StarIcon } from '../../icons/StarIcon';
 import { PendingActionRow } from '../../components/PendingActionRow';
 import { radii, spacing } from '../../theme/tokens';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Dimensions, FlatList, Image, Linking, Platform, RefreshControl, StyleSheet, Text, TextInput } from 'react-native';
+import { Dimensions, FlatList, Image, InputAccessoryView, Linking, Platform, RefreshControl, StyleSheet, Text, TextInput } from 'react-native';
 import { colors } from '../../theme/tokens';
 import { collectionFilterColors } from '../../theme/tokens';
 import i18n from '../../i18n';
@@ -177,22 +177,25 @@ describe('CollectionsScreen - refresh spinner (iOS stuck spinner after coming ba
     act(() => renderer.unmount());
   });
 
-  it('a pull shows the spinner only while its request runs - it ends on success and on a network failure', async () => {
+  it('a pull shows its own loading row (never the floating native spinner) only while its request runs - on success and on a network failure', async () => {
     const renderer = await renderScreen();
     const pull = () => act(() => renderer.root.findByType(RefreshControl).props.onRefresh());
+    const hasRow = () => renderer.root.findAll(node => node.props.testID === 'pull-refresh-row').length > 0;
 
     const ok = deferred<Awaited<ReturnType<typeof getCollections>>>();
     jest.mocked(getCollections).mockReturnValueOnce(ok.promise);
     pull();
-    expect(nativeSpinner(renderer)).toBe(true);
-    await act(async () => { ok.resolve({ items: favoriteCollections, nextCursor: null }); });
+    expect(hasRow()).toBe(true);
     expect(nativeSpinner(renderer)).toBe(false);
+    await act(async () => { ok.resolve({ items: favoriteCollections, nextCursor: null }); });
+    expect(hasRow()).toBe(false);
 
     const failing = deferred<Awaited<ReturnType<typeof getCollections>>>();
     jest.mocked(getCollections).mockReturnValueOnce(failing.promise);
     pull();
-    expect(nativeSpinner(renderer)).toBe(true);
+    expect(hasRow()).toBe(true);
     await act(async () => { failing.reject(new ApiError('unavailable', 503)); });
+    expect(hasRow()).toBe(false);
     expect(nativeSpinner(renderer)).toBe(false);
     expect(renderer.root.findAllByProps({ testID: 'collections-refresh-failure' }).length).toBeGreaterThan(0);
     act(() => renderer.unmount());
@@ -399,6 +402,15 @@ function findRowPressableByName(renderer: ReactTestRenderer.ReactTestRenderer, n
 }
 
 
+function hasAncestorOfType(node: ReactTestRenderer.ReactTestInstance, type: unknown): boolean {
+  for (let current = node.parent; current; current = current.parent) {
+    if (current.type === type) {
+      return true;
+    }
+  }
+  return false;
+}
+
 describe('CollectionsScreen row', () => {
   afterEach(() => {
     jest.clearAllMocks();
@@ -409,7 +421,9 @@ describe('CollectionsScreen row', () => {
     setUpGetCollectionsMock();
     const renderer = await renderScreen();
 
-    expect(renderer.root.findAllByType(ChevronIcon)).toHaveLength(0);
+    // (The iOS keyboard toolbar's ↑ / ↓ above the search field's keyboard are not on a row.)
+    const onRows = renderer.root.findAllByType(ChevronIcon).filter(icon => !hasAncestorOfType(icon, InputAccessoryView));
+    expect(onRows).toHaveLength(0);
   });
 
   it('tapping a row navigates to that Collection\'s details', async () => {

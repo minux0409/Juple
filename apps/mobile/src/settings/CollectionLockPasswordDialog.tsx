@@ -9,6 +9,7 @@ import { changeCollectionLockPassword, resetCollectionLockPassword } from '../co
 import { LOCK_PASSWORD_MAX_LENGTH, LOCK_PASSWORD_MIN_LENGTH } from '../collections/CollectionLockDialog';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
+import { KeyboardFieldScope } from '../components/keyboardToolbar';
 
 export const RECENT_AUTHENTICATION_REQUIRED_CODE = 'recentAuthenticationRequired';
 
@@ -25,10 +26,16 @@ interface CollectionLockPasswordDialogProps {
   readonly onSaved: () => void;
   /** The server no longer considers the sign-in recent - the caller asks to sign in again. */
   readonly onSignInExpired: () => void;
+  /**
+   * 'modal' (default): a centered dialog. 'inline': the same form drawn in the screen itself - used right after the interactive
+   * re-authentication, because on iOS a Modal presented while the system sign-in sheet is still being dismissed is never shown
+   * (UIKit refuses to present over a dismissing controller), which left the person signing in again and again.
+   */
+  readonly presentation?: 'modal' | 'inline';
 }
 
 /** Entered passwords live only in this dialog's state and are cleared whenever it opens. */
-export function CollectionLockPasswordDialog({ visible, mode, onCancel, onSaved, onSignInExpired }: CollectionLockPasswordDialogProps) {
+export function CollectionLockPasswordDialog({ visible, mode, onCancel, onSaved, onSignInExpired, presentation = 'modal' }: CollectionLockPasswordDialogProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const authenticatedRequest = useAuthenticatedApi();
@@ -106,8 +113,49 @@ export function CollectionLockPasswordDialog({ visible, mode, onCancel, onSaved,
     />
   );
 
+  const form = (
+    <>
+      <Text style={styles.title}>
+        {mode === 'change' ? t('settings.collectionLockChangePassword') : t('settings.collectionLockSetPassword')}
+      </Text>
+      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <Text style={styles.message}>{t('collections.lockPasswordRule', { min: LOCK_PASSWORD_MIN_LENGTH })}</Text>
+        {mode === 'change'
+          ? passwordField(currentPassword, setCurrentPassword, t('settings.collectionLockCurrentPassword'), 'lock-password-current')
+          : null}
+        {passwordField(newPassword, setNewPassword, t('settings.collectionLockNewPassword'), 'lock-password-new')}
+        {passwordField(confirmPassword, setConfirmPassword, t('settings.collectionLockConfirmPassword'), 'lock-password-confirm')}
+        {error ? <Text style={styles.error} testID="lock-password-error">{error}</Text> : null}
+      </ScrollView>
+      <View style={styles.buttonRow}>
+        <Pressable accessibilityRole="button" disabled={isSubmitting} onPress={onCancel} style={styles.cancelButton}>
+          <Text style={styles.cancelLabel}>{t('common.cancel')}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }}
+          disabled={isSubmitting}
+          onPress={save}
+          style={styles.confirmButton}
+          testID="lock-password-save"
+        >
+          {isSubmitting ? (
+            <ActivityIndicator color={colors.onBrand} size="small" />
+          ) : (
+            <Text numberOfLines={2} style={styles.confirmLabel}>{t('common.save')}</Text>
+          )}
+        </Pressable>
+      </View>
+    </>
+  );
+
+  if (presentation === 'inline') {
+    return visible ? <View style={[styles.card, styles.inlineCard]} testID={`lock-password-dialog-${mode}`}>{form}</View> : null;
+  }
+
   return (
     <Modal animationType="fade" onRequestClose={onCancel} transparent visible={visible}>
+      <KeyboardFieldScope>
       <KeyboardSafeView style={[styles.overlay, { paddingTop: spacing.xl + insets.top, paddingBottom: spacing.xl + insets.bottom }]}>
         <Pressable
           accessibilityElementsHidden
@@ -116,39 +164,10 @@ export function CollectionLockPasswordDialog({ visible, mode, onCancel, onSaved,
           style={StyleSheet.absoluteFill}
         />
         <View accessibilityViewIsModal style={styles.card} testID={`lock-password-dialog-${mode}`}>
-          <Text style={styles.title}>
-            {mode === 'change' ? t('settings.collectionLockChangePassword') : t('settings.collectionLockSetPassword')}
-          </Text>
-          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            <Text style={styles.message}>{t('collections.lockPasswordRule', { min: LOCK_PASSWORD_MIN_LENGTH })}</Text>
-            {mode === 'change'
-              ? passwordField(currentPassword, setCurrentPassword, t('settings.collectionLockCurrentPassword'), 'lock-password-current')
-              : null}
-            {passwordField(newPassword, setNewPassword, t('settings.collectionLockNewPassword'), 'lock-password-new')}
-            {passwordField(confirmPassword, setConfirmPassword, t('settings.collectionLockConfirmPassword'), 'lock-password-confirm')}
-            {error ? <Text style={styles.error} testID="lock-password-error">{error}</Text> : null}
-          </ScrollView>
-          <View style={styles.buttonRow}>
-            <Pressable accessibilityRole="button" disabled={isSubmitting} onPress={onCancel} style={styles.cancelButton}>
-              <Text style={styles.cancelLabel}>{t('common.cancel')}</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }}
-              disabled={isSubmitting}
-              onPress={save}
-              style={styles.confirmButton}
-              testID="lock-password-save"
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color={colors.onBrand} size="small" />
-              ) : (
-                <Text numberOfLines={2} style={styles.confirmLabel}>{t('common.save')}</Text>
-              )}
-            </Pressable>
-          </View>
+          {form}
         </View>
       </KeyboardSafeView>
+      </KeyboardFieldScope>
     </Modal>
   );
 }
@@ -169,6 +188,7 @@ const styles = themedStyles(() => ({
     padding: spacing.xl,
     width: '100%',
   },
+  inlineCard: { alignSelf: 'center', borderColor: colors.border, borderWidth: 1, marginTop: spacing.lg },
   title: { color: colors.textPrimary, fontSize: 18, fontWeight: '700', marginBottom: spacing.sm },
   message: { color: colors.textSecondary, fontSize: 14, marginBottom: spacing.sm },
   input: {

@@ -10,7 +10,7 @@
     "officialLink": "Tautan informasi resmi",
     "readFailed": "Status baca tidak dapat disimpan. Coba lagi.",
     "more": "Muat lagi"
-},
+  },
   "common": {
     "viewList": "Tampilan daftar",
     "viewGrid": "Tampilan kisi",
@@ -28,7 +28,8 @@
     "edit": "Edit",
     "processing": "Memproses...",
     "none": "Tidak ada",
-    "notice": "Pemberitahuan"
+    "notice": "Pemberitahuan",
+    "refreshing": "Memuat ulang"
   },
   "errors": {
     "unauthorized": "Kami tidak dapat memverifikasi ulang status masuk Anda.",
@@ -1294,7 +1295,11 @@
     "zoomOut": "Perkecil",
     "apply": "Terapkan",
     "preview": "Pratinjau",
-    "areaA11y": "Area foto. Geser ke atas atau bawah untuk memperbesar atau memperkecil."
+    "areaA11y": "Area foto. Geser ke atas atau bawah untuk memperbesar atau memperkecil.",
+    "collectionTitle": "Sesuaikan foto koleksi",
+    "collectionNote": "Foto koleksi disimpan berbentuk persegi dan ditampilkan sebagai ubin bersudut bulat.",
+    "linkTitle": "Sesuaikan foto tautan",
+    "linkNote": "Foto tautan disimpan berbentuk persegi dan ditampilkan sebagai gambar kartu tautan."
   },
   "tour": {
     "previous": "Kembali",
@@ -1491,5 +1496,10 @@
       "apnsNotReady": "Pengiriman push di iPhone belum tersedia. Mengizinkan notifikasi belum mengaktifkan penerimaan push saat ini.",
       "cancelled": "Pendaftaran belum diperiksa."
     }
+  },
+  "keyboard": {
+    "previous": "Kolom sebelumnya",
+    "next": "Kolom berikutnya",
+    "done": "Selesai"
   }
 }

@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import { LinkSortChips } from '../LinkSortChips';
 import { isNameSort, nextDateSort, nextNameSort, type LinkSortOption } from '../../settings/sortPreference';
 
@@ -25,7 +25,12 @@ function render(sort: LinkSortOption, handlers: { onPressDate?: () => void; onPr
 }
 const chip = (renderer: ReactTestRenderer.ReactTestRenderer, which: 'date' | 'name') =>
   renderer.root.find(node => node.props.testID === `t-${which}` && typeof node.props.onPress === 'function');
-const label = (renderer: ReactTestRenderer.ReactTestRenderer, which: 'date' | 'name') => chip(renderer, which).findByType(Text).props.children;
+/** What can be seen on a chip: its label, plus its arrow when that arrow is not the invisible placeholder. */
+const label = (renderer: ReactTestRenderer.ReactTestRenderer, which: 'date' | 'name') => {
+  const [outer, arrow] = chip(renderer, which).findAllByType(Text);
+  const arrowVisible = StyleSheet.flatten(arrow.props.style)?.color !== 'transparent';
+  return `${outer.props.children[0]}${arrowVisible ? arrow.props.children : ''}`;
+};
 
 describe('LinkSortChips - Time and Name, each in both directions', () => {
   it.each([
@@ -52,6 +57,16 @@ describe('LinkSortChips - Time and Name, each in both directions', () => {
     expect(chip(renderer, 'name').props.accessibilityState).toEqual({ selected: true });
     expect(label(renderer, 'date')).toBe('Time');
     expect(chip(renderer, 'date').props.accessibilityState).toEqual({ selected: false });
+  });
+
+  it('both chips always keep their arrow slot (invisible when not selected), so choosing one never changes any chip\'s width', () => {
+    for (const sort of ['newest', 'title'] as const) {
+      const renderer = render(sort);
+      for (const which of ['date', 'name'] as const) {
+        const [, arrow] = chip(renderer, which).findAllByType(Text);
+        expect(arrow.props.children).toMatch(/^ [↑↓]$/);
+      }
+    }
   });
 
   it('pressing calls the handlers (the screens own what happens)', () => {

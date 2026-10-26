@@ -88,6 +88,8 @@ export function SavedLinkGridCard({ item, isActionInFlight, preferEffectiveThumb
 }
 
 interface SavedLinkGridCellProps extends SavedLinkGridCardProps {
+  /** The cell's column in a row drawn on the screen's content edge (see edgeAlignedCellPadding); absent inside a date card. */
+  readonly column?: number;
   readonly disabled?: boolean;
   readonly onPress: () => void;
   readonly onDelete: () => void;
@@ -102,9 +104,10 @@ interface SavedLinkGridCellProps extends SavedLinkGridCardProps {
  * lives on the outer cell, outside SwipeableItemRow's clipped wrapper - padding inside that wrapper is
  * exactly the area the swipe action panes would otherwise paint as a blue/red frame around the card.
  */
-export function SavedLinkGridCell({ disabled, onPress, onDelete, onShare, onLongPress, ...cardProps }: SavedLinkGridCellProps) {
+export function SavedLinkGridCell({ column, disabled, onPress, onDelete, onShare, onLongPress, ...cardProps }: SavedLinkGridCellProps) {
   const cellStyle = useSavedLinkGridCellStyle();
-  return <View style={cellStyle}>
+  const { grid } = useSavedLinkColumns();
+  return <View style={column === undefined ? cellStyle : [cellStyle, edgeAlignedCellPadding(column, grid)]}>
     <SwipeableItemRow containerStyle={savedLinkGridLayout.swipeContainer} disabled={disabled} onOpenOriginal={cardProps.onOpenOriginal} onDelete={onDelete} onLongPress={onLongPress} onPress={onPress} onShare={onShare}>
       <SavedLinkGridCard {...cardProps} />
     </SwipeableItemRow>
@@ -118,6 +121,17 @@ export function SavedLinkGridCell({ disabled, onPress, onDelete, onShare, onLong
 export function useSavedLinkGridCellStyle() {
   const { grid } = useSavedLinkColumns();
   return useMemo(() => [savedLinkGridLayout.cell, { flexBasis: columnBasis(grid), maxWidth: columnBasis(grid) }], [grid]);
+}
+
+/**
+ * A Grid row on a screen's own content edge (Home, 휴지통, a flat Collection or Archive list): the first card starts exactly where the
+ * sort chips above start and the last one ends where the List / Grid switch ends, with the usual gap between cards. Column `column` of
+ * `columns` gets gap * column / columns before it and gap * (columns - 1 - column) / columns after it - the same total for every cell,
+ * so all cards stay the same width. (Cells inside a date card keep their even padding and the card's own inset.)
+ */
+export function edgeAlignedCellPadding(column: number, columns: number): { readonly paddingStart: number; readonly paddingEnd: number } {
+  const gap = GRID_CELL_PADDING_H * 2;
+  return { paddingStart: (gap * column) / columns, paddingEnd: (gap * (columns - 1 - column)) / columns };
 }
 
 export const savedLinkGridLayout = themedStyles(() => ({

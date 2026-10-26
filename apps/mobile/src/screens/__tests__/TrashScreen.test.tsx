@@ -139,12 +139,12 @@ describe('TrashScreen empty state', () => {
     expect(findTextValues(renderer)).toContain(i18n.t('trash.empty'));
   });
 
-  it('still shows the single 50-item limit notice when the list is empty', async () => {
+  it('shows no 50-item limit notice when the list is empty (the notice belongs under a list)', async () => {
     jest.mocked(getTrashItems).mockResolvedValue([]);
 
     const renderer = await renderScreen();
 
-    expect(findTextValues(renderer)).toContain(i18n.t('trash.limitNotice', { count: 50 }));
+    expect(findTextValues(renderer)).not.toContain(i18n.t('trash.limitNotice', { count: 50 }));
   });
 });
 
@@ -262,25 +262,27 @@ describe('TrashScreen header layout', () => {
     jest.clearAllMocks();
   });
 
-  it('puts 비우기 in the navigation title row (headerRight) and keeps the limit notice below it, outside the list', async () => {
+  it('puts 비우기 in the navigation title row (headerRight) and the limit notice under the last deleted link', async () => {
     jest.mocked(getTrashItems).mockResolvedValue([makeEntry({ id: 1 })]);
     const renderer = await renderScreen();
 
     expect(findEmptyButton()).toBeDefined();
-    // Not inside the screen body any more: only the notice is in the header block of the screen.
     expect(renderer.root.findAll(node => node.props.testID === 'trash-empty-button')).toHaveLength(0);
-    const notice = renderer.root.findByProps({ testID: 'trash-limit-notice' });
-    expect(notice.props.children).toBe(i18n.t('trash.limitNotice', { count: 50 }));
-    expect(StyleSheet.flatten(notice.props.style).textAlign).toBe('center');
-    expect(renderer.root.findByType(FlatList).props.ListHeaderComponent).toBeUndefined();
-    expect(StyleSheet.flatten(renderer.root.findByType(FlatList).props.contentContainerStyle).paddingTop).toBe(0);
+    const list = renderer.root.findByType(FlatList);
+    expect(list.props.ListHeaderComponent).toBeUndefined();
+    // The list's own footer: after the last item, not above the list.
+    const footer = list.props.ListFooterComponent;
+    expect(footer.props.testID).toBe('trash-limit-notice');
+    expect(footer.props.children).toBe(i18n.t('trash.limitNotice', { count: 50 }));
+    expect(StyleSheet.flatten(footer.props.style).textAlign).toBe('center');
+    expect(StyleSheet.flatten(list.props.contentContainerStyle).paddingTop).toBe(0);
   });
 
-  it('keeps the notice but removes 비우기 from the title row when there is nothing to empty', async () => {
+  it('shows no limit notice (and no 비우기) when nothing has been deleted', async () => {
     jest.mocked(getTrashItems).mockResolvedValue([]);
     const renderer = await renderScreen();
 
-    expect(renderer.root.findByProps({ testID: 'trash-limit-notice' }).props.children).toBe(i18n.t('trash.limitNotice', { count: 50 }));
+    expect(renderer.root.findAll(node => node.props.testID === 'trash-limit-notice')).toHaveLength(0);
     expect(findEmptyButton()).toBeUndefined();
     expect(findTextValues(renderer)).toContain(i18n.t('trash.empty'));
   });

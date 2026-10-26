@@ -10,7 +10,7 @@
     "officialLink": "公式案内リンク",
     "readFailed": "既読状態を保存できませんでした。もう一度お試しください。",
     "more": "もっと見る"
-},
+  },
   "common": {
     "viewList": "リスト表示",
     "viewGrid": "グリッド表示",
@@ -28,7 +28,8 @@
     "edit": "編集",
     "processing": "処理中...",
     "none": "なし",
-    "notice": "お知らせ"
+    "notice": "お知らせ",
+    "refreshing": "更新中"
   },
   "errors": {
     "unauthorized": "ログイン状態を再確認できませんでした。",
@@ -1294,7 +1295,11 @@
     "zoomOut": "縮小する",
     "apply": "適用",
     "preview": "プレビュー",
-    "areaA11y": "写真の領域です。上下にスワイプして拡大・縮小できます。"
+    "areaA11y": "写真の領域です。上下にスワイプして拡大・縮小できます。",
+    "collectionTitle": "コレクション写真の調整",
+    "collectionNote": "コレクション写真は正方形で保存され、角の丸いタイルで表示されます。",
+    "linkTitle": "リンク写真の調整",
+    "linkNote": "リンク写真は正方形で保存され、リンクカードの写真として表示されます。"
   },
   "tour": {
     "previous": "戻る",
@@ -1491,5 +1496,10 @@
       "apnsNotReady": "iPhoneのプッシュ配信は準備中です。通知を許可しても現在は受信できません。",
       "cancelled": "登録状況は未確認です。"
     }
+  },
+  "keyboard": {
+    "previous": "前の項目",
+    "next": "次の項目",
+    "done": "完了"
   }
 }

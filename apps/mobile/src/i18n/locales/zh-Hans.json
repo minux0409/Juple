@@ -10,7 +10,7 @@
     "officialLink": "官方说明链接",
     "readFailed": "无法保存已读状态，请重试。",
     "more": "加载更多"
-},
+  },
   "common": {
     "viewList": "列表视图",
     "viewGrid": "网格视图",
@@ -28,7 +28,8 @@
     "edit": "编辑",
     "processing": "处理中...",
     "none": "无",
-    "notice": "提示"
+    "notice": "提示",
+    "refreshing": "正在刷新"
   },
   "errors": {
     "unauthorized": "无法重新确认您的登录状态。",
@@ -1294,7 +1295,11 @@
     "zoomOut": "缩小",
     "apply": "应用",
     "preview": "预览",
-    "areaA11y": "照片区域。上下滑动可放大或缩小。"
+    "areaA11y": "照片区域。上下滑动可放大或缩小。",
+    "collectionTitle": "调整收藏集照片",
+    "collectionNote": "收藏集照片将以正方形保存，并以圆角图块显示。",
+    "linkTitle": "调整链接照片",
+    "linkNote": "链接照片将以正方形保存，并作为链接卡片的图片显示。"
   },
   "tour": {
     "previous": "上一步",
@@ -1491,5 +1496,10 @@
       "apnsNotReady": "iPhone推送功能尚未就绪。即使允许通知，目前也无法接收推送。",
       "cancelled": "尚未检查注册状态。"
     }
+  },
+  "keyboard": {
+    "previous": "上一项",
+    "next": "下一项",
+    "done": "完成"
   }
 }

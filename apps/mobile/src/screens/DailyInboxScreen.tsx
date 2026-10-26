@@ -12,7 +12,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { PullRefreshControl } from '../components/PullRefreshControl';
+import { usePullToRefresh } from '../components/PullRefreshControl';
 import { ThemedTextInput } from '../components/ThemedTextInput';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
@@ -38,7 +38,7 @@ import { LinkSortChips } from '../components/LinkSortChips';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { NotificationBellButton } from '../notifications/NotificationBellButton';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
-import { closeOpenRow, subscribeRowOpened } from '../components/swipeableRowCoordinator';
+import { closeOpenRow, subscribeRowOpened, useSwipeAwareScrollEnabled } from '../components/swipeableRowCoordinator';
 import { SubscriptionExpiredNotice } from '../billing/SubscriptionExpiredNotice';
 import { TrialNotice } from '../billing/TrialNotice';
 import { HintBanner } from '../hints/HintBanner';
@@ -88,10 +88,10 @@ function isImageLine(entry: ItemHistoryEntry | ImageLine): entry is ImageLine {
 export const HOME_PAGE_SIZE = 25;
 /** The server's page limit - a refresh never asks for more rows than this in one request. */
 const MAX_PAGE_LIMIT = 100;
-/** Preserve the existing rendered resting height: iOS's former multiline field measured 78pt.
- * Android keeps its original touch target plus breathing room; font scaling can grow either row.
+/** One resting height on both platforms - Android's touch target plus breathing room (iOS used to keep a taller 78pt from its
+ * former multiline field). The icon, placeholder and magnifier are centered in it; font scaling can still grow the row.
  */
-const URL_INPUT_MIN_HEIGHT = Platform.OS === 'ios' ? 78 : minTouchTarget + spacing.md;
+const URL_INPUT_MIN_HEIGHT = minTouchTarget + spacing.md;
 /** Skeleton rows while the first page loads, and under the loaded rows while a next one does. */
 export const HOME_FIRST_PAGE_SKELETON_ROWS = 6;
 export const HOME_NEXT_PAGE_SKELETON_ROWS = 2;
@@ -162,6 +162,7 @@ function getShareErrorMessage(t: TFunction): string {
  * number of rows - so edits appear without the list collapsing back to its first page.
  */
 export function DailyInboxScreen() {
+  const swipeScrollEnabled = useSwipeAwareScrollEnabled();
   const { t } = useTranslation();
   const inputTarget = useTourTarget(TOUR_TARGETS.homeInput, { radius: radii.lg });
   const checkTarget = useTourTarget(TOUR_TARGETS.homeCheck, { radius: radii.lg });
@@ -545,6 +546,12 @@ export function DailyInboxScreen() {
       </View>
     );
 
+  const pullToRefresh = usePullToRefresh(isRefreshing, () => {
+    if (actionInFlightItemId !== null) {
+      return;
+    }
+    loadToday('refresh');
+  });
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <FlatList<ItemHistoryEntry | ImageLine>
@@ -561,19 +568,11 @@ export function DailyInboxScreen() {
         onEndReached={() => loadMore()}
         onEndReachedThreshold={0.5}
         onScrollBeginDrag={closeOpenRow}
-        refreshControl={
-          <PullRefreshControl
-            refreshing={isRefreshing}
-            onRefresh={() => {
-              if (actionInFlightItemId !== null) {
-                return;
-              }
-              loadToday('refresh');
-            }}
-          />
-        }
+        scrollEnabled={swipeScrollEnabled}
+        refreshControl={pullToRefresh.refreshControl}
         ListHeaderComponent={
           <View>
+            {pullToRefresh.refreshRow}
             <View style={styles.brandRow}>
               <JupleBrandMark size="medium" />
               {/* 알림 - Home's top end, the one place it lives (not on every screen). */}
@@ -646,10 +645,11 @@ export function DailyInboxScreen() {
             <LoadFailureState error={error.cause} notice={isDefinitiveLoadError(error.cause) ? error.message : null} onRetry={() => { loadToday('initial'); }} testID="home-load-error" />
           ) : (isLoading || isAssemblingOrder) ? renderSkeletons(HOME_FIRST_PAGE_SKELETON_ROWS, 'home-first-page-loading') : <CenteredEmptyState message={t('inbox.empty')} />
         }
-        renderItem={({ item }) => isImageLine(item) ? (
+        renderItem={({ item, index }) => isImageLine(item) ? (
           <SavedLinkImageRow items={item.items} onLongPress={linkActions.openMenu} onPress={openItem} testID={`home-image-line-${item.lineKey}`} />
         ) : viewMode === 'grid' ? (
           <SavedLinkGridCell
+            column={index % columns.grid}
             disabled={actionInFlightItemId !== null || isRefreshing}
             isActionInFlight={actionInFlightItemId === item.id}
             item={item}

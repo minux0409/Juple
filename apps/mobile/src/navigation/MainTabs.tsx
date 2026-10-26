@@ -1,7 +1,6 @@
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import type { ReactNode } from 'react';
+import { createBottomTabNavigator, type BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { useTranslation } from 'react-i18next';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { CollectionsScreen } from '../screens/CollectionsScreen';
 import { DailyInboxScreen } from '../screens/DailyInboxScreen';
 import { DateHistoryScreen } from '../screens/DateHistoryScreen';
@@ -30,7 +29,8 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 const TAB_ICON_SIZE = 22;
 
 const styles = themedStyles(() => ({
-  tabIconTarget: { alignItems: 'center', justifyContent: 'center', padding: spacing.xs },
+  // Fills the tab's cell, so the tour spotlights the whole tab - icon, label and the selected background - not only the icon.
+  tabTarget: { flex: 1 },
 }));
 
 // Defined at module scope (not inline in MainTabs' render) so React Navigation always sees the
@@ -43,22 +43,39 @@ function renderHomeIcon({ focused }: { focused: boolean }) {
   return <screenIcons.home color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
 }
 
-// The tab icons that a guided tour can spotlight: the icon area is the tour target (the tab bar buttons are navigator-owned).
-function TabIconTarget({ id, children }: { id: string; children: ReactNode }) {
-  const target = useTourTarget(id, { radius: radii.md });
-  return <View {...target} style={styles.tabIconTarget}>{children}</View>;
-}
-
 function renderHistoryIcon({ focused }: { focused: boolean }) {
-  return <TabIconTarget id={TOUR_TARGETS.tabHistory}><screenIcons.archive color={tabIconColor(focused)} size={TAB_ICON_SIZE} /></TabIconTarget>;
+  return <screenIcons.archive color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
 }
 
 function renderCollectionsIcon({ focused }: { focused: boolean }) {
-  return <TabIconTarget id={TOUR_TARGETS.tabCollections}><screenIcons.collections color={tabIconColor(focused)} size={TAB_ICON_SIZE} /></TabIconTarget>;
+  return <screenIcons.collections color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
 }
 
 function renderMyPageIcon({ focused }: { focused: boolean }) {
-  return <TabIconTarget id={TOUR_TARGETS.tabMyPage}><screenIcons.myPage color={tabIconColor(focused)} size={TAB_ICON_SIZE} /></TabIconTarget>;
+  return <screenIcons.myPage color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
+}
+
+// A tab that a guided tour can spotlight: the target is the whole tab button (the bar's cells are navigator-owned, so the button
+// is wrapped rather than measured).
+function TourTabButton({ tourId, href: _href, pressOpacity: _pressOpacity, hoverEffect: _hoverEffect, ...props }: BottomTabBarButtonProps & { readonly tourId: string }) {
+  const target = useTourTarget(tourId, { radius: radii.md });
+  return (
+    <View {...target} style={styles.tabTarget}>
+      <Pressable {...props} />
+    </View>
+  );
+}
+
+function renderHistoryButton(props: BottomTabBarButtonProps) {
+  return <TourTabButton {...props} tourId={TOUR_TARGETS.tabHistory} />;
+}
+
+function renderCollectionsButton(props: BottomTabBarButtonProps) {
+  return <TourTabButton {...props} tourId={TOUR_TARGETS.tabCollections} />;
+}
+
+function renderMyPageButton(props: BottomTabBarButtonProps) {
+  return <TourTabButton {...props} tourId={TOUR_TARGETS.tabMyPage} />;
 }
 
 export function MainTabs() {
@@ -74,13 +91,16 @@ export function MainTabs() {
         tabBarActiveTintColor: colors.brandText,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarLabelPosition: 'below-icon',
-        tabBarBadgeStyle: { backgroundColor: colors.danger, color: colors.onDanger, fontSize: 11, fontWeight: '700' },
+        tabBarBadgeStyle: { backgroundColor: colors.badge, color: colors.onBadge, fontSize: 11, fontWeight: '700' },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
         },
+        // The selected tab sits on a soft gray rounded background (the icon and label keep the brand color); every tab has the same
+        // margins and size whether it is selected or not, so switching tabs never moves anything.
+        tabBarActiveBackgroundColor: colors.surfaceMuted,
         tabBarItemStyle: {
-          borderRadius: radii.md,
+          borderRadius: radii.md + 4,
           overflow: 'hidden',
           marginHorizontal: spacing.xs,
         },
@@ -107,17 +127,17 @@ export function MainTabs() {
       <Tab.Screen
         component={themedScreen(DateHistoryScreen)}
         name="History"
-        options={{ tabBarLabel: t('tabs.history'), tabBarIcon: renderHistoryIcon, tabBarBadge: badge(counts.archive) }}
+        options={{ tabBarLabel: t('tabs.history'), tabBarIcon: renderHistoryIcon, tabBarButton: renderHistoryButton, tabBarBadge: badge(counts.archive) }}
       />
       <Tab.Screen
         component={themedScreen(CollectionsScreen)}
         name="Collections"
-        options={{ tabBarLabel: t('tabs.collections'), tabBarIcon: renderCollectionsIcon, tabBarBadge: badge(counts.collections) }}
+        options={{ tabBarLabel: t('tabs.collections'), tabBarIcon: renderCollectionsIcon, tabBarButton: renderCollectionsButton, tabBarBadge: badge(counts.collections) }}
       />
       <Tab.Screen
         component={themedScreen(MyPageScreen)}
         name="MyPage"
-        options={{ tabBarLabel: t('tabs.myPage'), tabBarIcon: renderMyPageIcon, tabBarBadge: badge(counts.myPage) }}
+        options={{ tabBarLabel: t('tabs.myPage'), tabBarIcon: renderMyPageIcon, tabBarButton: renderMyPageButton, tabBarBadge: badge(counts.myPage) }}
       />
     </Tab.Navigator>
   );

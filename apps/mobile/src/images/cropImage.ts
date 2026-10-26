@@ -19,8 +19,8 @@ const CROP_QUALITY = 0.9;
  * so it displays upright; on iOS it draws the orientation-aware UIImage and writes a fresh JPEG without metadata. The server applies the
  * orientation and removes all metadata when it normalizes the upload, which is why nothing here has to strip it.
  */
-export async function cropSquare(uri: string, rect: CropRect): Promise<CroppedImage> {
-  const side = outputSide(rect.size);
+export async function cropSquare(uri: string, rect: CropRect, options: { readonly maxSide?: number; readonly fileName?: string } = {}): Promise<CroppedImage> {
+  const side = outputSide(rect.size, options.maxSide);
   const result = await ImageEditor.cropImage(uri, {
     offset: { x: rect.x, y: rect.y },
     size: { width: rect.size, height: rect.size },
@@ -29,5 +29,5 @@ export async function cropSquare(uri: string, rect: CropRect): Promise<CroppedIm
     format: 'jpeg',
     quality: CROP_QUALITY,
   });
-  return { uri: result.uri, type: 'image/jpeg', fileName: 'profile.jpg' };
+  return { uri: result.uri, type: 'image/jpeg', fileName: options.fileName ?? 'profile.jpg' };
 }
