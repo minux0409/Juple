@@ -104,7 +104,7 @@ final class CollectionPickerView: UIView, UICollectionViewDataSource, UICollecti
     let entry = entries[indexPath.item]
     switch entry {
     case .create:
-      cell.configure(.create, title: ShareStrings.newCollection, selected: false, mode: mode, images: images)
+      cell.configure(.create, title: ShareStrings.addNewCollection, selected: false, mode: mode, images: images)
     case .none:
       cell.configure(.none, title: ShareStrings.noCollection, selected: selected.isEmpty, mode: mode, images: images)
     case .collection(let collection):
@@ -124,11 +124,11 @@ final class CollectionPickerView: UIView, UICollectionViewDataSource, UICollecti
   func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
     let width = collectionView.bounds.width - 8
     if mode == .list {
-      return CGSize(width: max(0, width), height: 60)
+      return CGSize(width: max(0, width), height: CollectionChoiceCell.listHeight)
     }
     // 4 columns on a phone; a wider sheet adds columns of about the same size (useCollectionTileColumns).
     let columns = max(4, Int(width / 92))
-    return CGSize(width: floor(width / CGFloat(columns)), height: 96)
+    return CGSize(width: floor(width / CGFloat(columns)), height: CollectionChoiceCell.gridHeight)
   }
 
   // MARK: - Search / mode
@@ -218,7 +218,7 @@ final class CollectionPickerView: UIView, UICollectionViewDataSource, UICollecti
   /// (a small phone with the keyboard up) the review scrolls instead.
   private var oneRowHeight: CGFloat {
     let insets = collectionView.contentInset.top + collectionView.contentInset.bottom
-    return (mode == .list ? 60 : 96) + insets
+    return (mode == .list ? CollectionChoiceCell.listHeight : CollectionChoiceCell.gridHeight) + insets
   }
 
   private lazy var minimumListHeight = collectionView.heightAnchor.constraint(greaterThanOrEqualToConstant: oneRowHeight)
@@ -233,89 +233,82 @@ final class CollectionPickerView: UIView, UICollectionViewDataSource, UICollecti
 }
 
 /// One tile of the picker: list = icon, name, badges and the selection mark in a row; grid = the icon over its name.
+/// One choice, drawn like the app's CollectionChoiceGrid tile (CategoryIconTile + CollectionStatusBadges + SelectionIndicator): the 48pt
+/// icon or photo, the lock badge at its top-start and the shared badge at its bottom-start, the brand check circle at its bottom-end
+/// when chosen - never a tinted or outlined cell - and the name under it (Grid) or beside it (List).
 final class CollectionChoiceCell: UICollectionViewCell {
   static let reuseId = "CollectionChoiceCell"
+  /// CategoryIconTile size 48 and its corner radius (radii.md + size / 8).
+  static let tileSize: CGFloat = 48
+  /// gridCell paddingVertical 10 + tile + label (marginTop 6, one 12pt line) + padding; listCell minHeight 44 with the 48pt tile.
+  static let gridHeight: CGFloat = 92
+  static let listHeight: CGFloat = 56
 
   private let tile = UIView()
   private let glyph = UIImageView()
   private let photo = UIImageView()
   private let name = UILabel()
-  private let check = UIImageView()
-  private let lock = UIImageView(image: UIImage(systemName: "lock.fill"))
-  private let shared = UIImageView(image: UIImage(systemName: "person.2.fill"))
+  private let check = SelectionMark()
+  private let lock = StatusBadge(symbol: "lock", tint: SharePalette.textPrimary)
+  private let shared = StatusBadge(symbol: "person.2", tint: SharePalette.brandText)
   private var listConstraints: [NSLayoutConstraint] = []
   private var gridConstraints: [NSLayoutConstraint] = []
   private var photoTask: Task<Void, Never>?
 
   override init(frame: CGRect) {
     super.init(frame: frame)
-    contentView.layer.cornerRadius = 12
-    tile.layer.cornerRadius = 12
+    tile.layer.cornerRadius = 14
+    tile.layer.cornerCurve = .continuous
     tile.clipsToBounds = true
     tile.translatesAutoresizingMaskIntoConstraints = false
     glyph.contentMode = .scaleAspectFit
+    glyph.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 20, weight: .medium)
     glyph.translatesAutoresizingMaskIntoConstraints = false
     photo.contentMode = .scaleAspectFill
     photo.clipsToBounds = true
     photo.translatesAutoresizingMaskIntoConstraints = false
     tile.addSubview(glyph)
     tile.addSubview(photo)
+    name.font = UIFontMetrics(forTextStyle: .caption1).scaledFont(for: .systemFont(ofSize: 12, weight: .semibold))
     name.adjustsFontForContentSizeCategory = true
     name.textColor = SharePalette.textPrimary
     name.lineBreakMode = .byTruncatingTail
+    name.numberOfLines = 1
     name.translatesAutoresizingMaskIntoConstraints = false
-    check.translatesAutoresizingMaskIntoConstraints = false
-    check.tintColor = SharePalette.brand
-    for badge in [lock, shared] {
-      badge.tintColor = SharePalette.textSecondary
-      badge.contentMode = .scaleAspectFit
-      badge.translatesAutoresizingMaskIntoConstraints = false
-      badge.widthAnchor.constraint(equalToConstant: 14).isActive = true
-      badge.heightAnchor.constraint(equalToConstant: 14).isActive = true
-    }
-    let badges = UIStackView(arrangedSubviews: [lock, shared])
-    badges.spacing = 4
-    badges.translatesAutoresizingMaskIntoConstraints = false
-    badges.tag = 7
-    [tile, name, check, badges].forEach(contentView.addSubview)
+    [tile, name, lock, shared, check].forEach(contentView.addSubview)
 
     NSLayoutConstraint.activate([
+      tile.widthAnchor.constraint(equalToConstant: Self.tileSize),
+      tile.heightAnchor.constraint(equalToConstant: Self.tileSize),
       glyph.centerXAnchor.constraint(equalTo: tile.centerXAnchor),
       glyph.centerYAnchor.constraint(equalTo: tile.centerYAnchor),
-      glyph.widthAnchor.constraint(equalTo: tile.widthAnchor, multiplier: 0.5),
-      glyph.heightAnchor.constraint(equalTo: tile.heightAnchor, multiplier: 0.5),
       photo.topAnchor.constraint(equalTo: tile.topAnchor),
       photo.bottomAnchor.constraint(equalTo: tile.bottomAnchor),
       photo.leadingAnchor.constraint(equalTo: tile.leadingAnchor),
       photo.trailingAnchor.constraint(equalTo: tile.trailingAnchor),
-      check.widthAnchor.constraint(equalToConstant: 22),
-      check.heightAnchor.constraint(equalToConstant: 22),
+      // CollectionStatusBadges: top-start / bottom-start, 4pt outside the tile.
+      lock.leadingAnchor.constraint(equalTo: tile.leadingAnchor, constant: -4),
+      lock.topAnchor.constraint(equalTo: tile.topAnchor, constant: -4),
+      shared.leadingAnchor.constraint(equalTo: tile.leadingAnchor, constant: -4),
+      shared.bottomAnchor.constraint(equalTo: tile.bottomAnchor, constant: 4),
+      // CollectionChoiceGrid selectedBadge: bottom -2 / right -2.
+      check.trailingAnchor.constraint(equalTo: tile.trailingAnchor, constant: 2),
+      check.bottomAnchor.constraint(equalTo: tile.bottomAnchor, constant: 2),
     ])
     listConstraints = [
-      tile.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
+      tile.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 4),
       tile.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-      tile.widthAnchor.constraint(equalToConstant: 44),
-      tile.heightAnchor.constraint(equalToConstant: 44),
       name.leadingAnchor.constraint(equalTo: tile.trailingAnchor, constant: 12),
+      name.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -8),
       name.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-      badges.leadingAnchor.constraint(equalTo: name.trailingAnchor, constant: 6),
-      badges.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-      check.leadingAnchor.constraint(greaterThanOrEqualTo: badges.trailingAnchor, constant: 8),
-      check.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
-      check.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
     ]
     gridConstraints = [
-      tile.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 6),
+      tile.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
       tile.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-      tile.widthAnchor.constraint(equalToConstant: 48),
-      tile.heightAnchor.constraint(equalToConstant: 48),
       name.topAnchor.constraint(equalTo: tile.bottomAnchor, constant: 6),
-      name.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 2),
-      name.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -2),
-      badges.topAnchor.constraint(equalTo: tile.topAnchor, constant: -4),
-      badges.leadingAnchor.constraint(equalTo: tile.leadingAnchor, constant: -6),
-      check.topAnchor.constraint(equalTo: tile.topAnchor, constant: -6),
-      check.trailingAnchor.constraint(equalTo: tile.trailingAnchor, constant: 8),
+      name.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+      name.widthAnchor.constraint(lessThanOrEqualToConstant: 76),
+      name.leadingAnchor.constraint(greaterThanOrEqualTo: contentView.leadingAnchor, constant: 2),
     ]
   }
 
@@ -332,37 +325,22 @@ final class CollectionChoiceCell: UICollectionViewCell {
     NSLayoutConstraint.deactivate(listConstraints + gridConstraints)
     NSLayoutConstraint.activate(mode == .list ? listConstraints : gridConstraints)
     name.text = title
-    name.font = .preferredFont(forTextStyle: mode == .list ? .body : .caption1)
     name.textAlignment = mode == .list ? .natural : .center
-    name.numberOfLines = 1
-    check.image = UIImage(systemName: selected ? "checkmark.circle.fill" : "circle")
-    check.isHidden = mode == .grid && !selected
-    if mode == .grid, selected {
-      check.backgroundColor = SharePalette.surface
-      check.layer.cornerRadius = 11
-    } else {
-      check.backgroundColor = .clear
-    }
-    contentView.backgroundColor = selected ? SharePalette.brandSoft : .clear
-    contentView.layer.borderWidth = selected ? 1 : 0
-    contentView.layer.borderColor = SharePalette.brand.cgColor
+    check.isHidden = !selected
     lock.isHidden = true
     shared.isHidden = true
     photo.isHidden = true
-    tile.layer.borderWidth = 0
 
     switch entry {
     case .create:
       tile.backgroundColor = SharePalette.brandSoft
       glyph.image = UIImage(systemName: "folder.badge.plus")
-      glyph.tintColor = SharePalette.brand
+      glyph.tintColor = SharePalette.brandText
       check.isHidden = true
       accessibilityLabel = title
       accessibilityTraits = .button
     case .none:
-      tile.backgroundColor = SharePalette.surface
-      tile.layer.borderWidth = 1
-      tile.layer.borderColor = SharePalette.border.cgColor
+      tile.backgroundColor = SharePalette.surfaceMuted
       glyph.image = UIImage(systemName: "xmark")
       glyph.tintColor = SharePalette.textSecondary
       accessibilityLabel = title
@@ -380,7 +358,7 @@ final class CollectionChoiceCell: UICollectionViewCell {
       accessibilityTraits = selected ? [.button, .selected] : .button
       if let address = collection.photoUrl {
         photoTask = Task { [weak self] in
-          let image = await images.image(from: address, pointSize: 48)
+          let image = await images.image(from: address, pointSize: Self.tileSize)
           await MainActor.run {
             guard let self, !Task.isCancelled, let image else { return }
             self.photo.image = image
@@ -391,4 +369,64 @@ final class CollectionChoiceCell: UICollectionViewCell {
     }
     isAccessibilityElement = true
   }
+}
+
+/// SelectionIndicator (selected): an 18pt brand circle with a 2pt surface ring and a white check.
+private final class SelectionMark: UIView {
+  private let mark = UIImageView(image: UIImage(systemName: "checkmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 9, weight: .heavy)))
+
+  init() {
+    super.init(frame: .zero)
+    backgroundColor = SharePalette.brand
+    layer.cornerRadius = 9
+    layer.borderWidth = 2
+    mark.tintColor = .white
+    mark.translatesAutoresizingMaskIntoConstraints = false
+    translatesAutoresizingMaskIntoConstraints = false
+    addSubview(mark)
+    NSLayoutConstraint.activate([
+      widthAnchor.constraint(equalToConstant: 18),
+      heightAnchor.constraint(equalToConstant: 18),
+      mark.centerXAnchor.constraint(equalTo: centerXAnchor),
+      mark.centerYAnchor.constraint(equalTo: centerYAnchor),
+    ])
+    updateRing()
+  }
+
+  required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+  override func traitCollectionDidChange(_ previous: UITraitCollection?) {
+    super.traitCollectionDidChange(previous)
+    updateRing()
+  }
+
+  private func updateRing() {
+    layer.borderColor = SharePalette.surface.resolvedColor(with: traitCollection).cgColor
+  }
+}
+
+/// CollectionStatusBadges: an 18pt surface circle with a soft shadow and the glyph at ~62% of it.
+private final class StatusBadge: UIView {
+  init(symbol: String, tint: UIColor) {
+    super.init(frame: .zero)
+    backgroundColor = SharePalette.surface
+    layer.cornerRadius = 9
+    layer.shadowColor = UIColor.black.cgColor
+    layer.shadowOpacity = 0.12
+    layer.shadowRadius = 2
+    layer.shadowOffset = CGSize(width: 0, height: 1)
+    let glyph = UIImageView(image: UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 9, weight: .semibold)))
+    glyph.tintColor = tint
+    glyph.translatesAutoresizingMaskIntoConstraints = false
+    translatesAutoresizingMaskIntoConstraints = false
+    addSubview(glyph)
+    NSLayoutConstraint.activate([
+      widthAnchor.constraint(equalToConstant: 18),
+      heightAnchor.constraint(equalToConstant: 18),
+      glyph.centerXAnchor.constraint(equalTo: centerXAnchor),
+      glyph.centerYAnchor.constraint(equalTo: centerYAnchor),
+    ])
+  }
+
+  required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 }

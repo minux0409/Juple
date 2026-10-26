@@ -13,7 +13,7 @@
 "share.collectionsFailed" = "컬렉션 목록을 불러오지 못했어요. 컬렉션 없이 저장할 수 있어요.";
 "share.titlePlaceholder" = "제목";
 "share.collections" = "컬렉션";
-"share.noCollection" = "선택 안 함";
+"share.noCollection" = "컬렉션 없음";
 "share.lockedCollection" = "잠긴 컬렉션";
 "share.memo" = "메모";
 "share.memoPlaceholder" = "메모를 입력해 주세요";
@@ -31,6 +31,7 @@
 "share.sharePasswordWrong" = "비밀번호가 올바르지 않아요.";
 "share.tooManyAttempts" = "시도 횟수가 너무 많습니다. 잠시 후 다시 시도해 주세요.";
 "share.unlockFailed" = "잠금을 해제하지 못했어요. 다시 시도해 주세요.";
+"share.addNewCollection" = "+ 새로 만들기";
 "share.newCollection" = "새 컬렉션";
 "share.collectionSearch" = "컬렉션 검색";
 "share.searchEmpty" = "검색 결과가 없어요.";

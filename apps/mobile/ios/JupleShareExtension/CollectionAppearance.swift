@@ -32,14 +32,15 @@ enum CollectionAppearance {
 
   /// collectionIcons.ts COLLECTION_ICON_KEYS -> the closest SF Symbol; anything unknown is the folder (the app's default icon).
   static func symbol(for icon: String?) -> UIImage? {
+    // Outline glyphs, like the app's line icons.
     let names: [String: String] = [
-      "Folder": "folder.fill", "Heart": "heart.fill", "Plane": "airplane", "Gamepad": "gamecontroller.fill", "Utensils": "fork.knife",
-      "ShoppingBag": "bag.fill", "Home": "house.fill", "Laptop": "laptopcomputer", "Globe": "globe", "Tag": "tag.fill",
-      "Travel": "airplane.departure", "Fitness": "figure.walk", "Book": "book.fill", "Music": "music.note", "Camera": "camera.fill",
-      "Movie": "film", "Briefcase": "briefcase.fill", "Car": "car.fill", "Gift": "gift.fill", "Coffee": "cup.and.saucer.fill",
-      "Calendar": "calendar", "Pet": "pawprint.fill", "Sports": "sportscourt.fill", "Map": "map.fill", "Study": "graduationcap.fill",
+      "Folder": "folder", "Heart": "heart", "Plane": "airplane", "Gamepad": "gamecontroller", "Utensils": "fork.knife",
+      "ShoppingBag": "bag", "Home": "house", "Laptop": "laptopcomputer", "Globe": "globe", "Tag": "tag",
+      "Travel": "airplane.departure", "Fitness": "figure.walk", "Book": "book", "Music": "music.note", "Camera": "camera",
+      "Movie": "film", "Briefcase": "briefcase", "Car": "car", "Gift": "gift", "Coffee": "cup.and.saucer",
+      "Calendar": "calendar", "Pet": "pawprint", "Sports": "sportscourt", "Map": "map", "Study": "graduationcap",
     ]
-    return UIImage(systemName: names[icon ?? ""] ?? "folder.fill") ?? UIImage(systemName: "folder.fill")
+    return UIImage(systemName: names[icon ?? ""] ?? "folder") ?? UIImage(systemName: "folder")
   }
 
   private static func customColor(_ value: String) -> Int? {

@@ -2,14 +2,18 @@ import UIKit
 
 /// Juple's colors (src/theme/tokens.ts), light and dark.
 enum SharePalette {
-  static let brand = dynamic(light: 0x3366CC, dark: 0x7AA2FF)
-  static let brandSoft = dynamic(light: 0xE9F0FE, dark: 0x1D2A45)
-  static let onBrand = dynamic(light: 0xFFFFFF, dark: 0x0B1220)
+  /// BRAND_PRIMARY (#6751FC) in both themes, as the app.
+  static let brand = dynamic(light: 0x6751FC, dark: 0x6751FC)
+  static let brandSoft = dynamic(light: 0xEEEBFF, dark: 0x26224A)
+  static let brandText = dynamic(light: 0x5A44EE, dark: 0xA99BFF)
+  static let onBrand = dynamic(light: 0xFFFFFF, dark: 0xFFFFFF)
   static let background = dynamic(light: 0xF7F9FC, dark: 0x101318)
   static let surface = dynamic(light: 0xFFFFFF, dark: 0x181C23)
-  static let border = dynamic(light: 0x9A9A9A, dark: 0x6B7482)
+  static let surfaceMuted = dynamic(light: 0xF1F4F9, dark: 0x20252E)
+  static let border = dynamic(light: 0xDDE4EF, dark: 0x313846)
   static let textPrimary = dynamic(light: 0x111111, dark: 0xF2F4F7)
   static let textSecondary = dynamic(light: 0x666666, dark: 0xA9B1BE)
+  /// dangerText: an error line on a normal surface.
   static let danger = dynamic(light: 0xB42318, dark: 0xFF8A8A)
 
   private static func dynamic(light: Int, dark: Int) -> UIColor {
@@ -56,6 +60,7 @@ enum ShareStrings {
   static let tooManyAttempts = NSLocalizedString("share.tooManyAttempts", comment: "")
   static let unlockFailed = NSLocalizedString("share.unlockFailed", comment: "")
   static let newCollection = NSLocalizedString("share.newCollection", comment: "")
+  static let addNewCollection = NSLocalizedString("share.addNewCollection", comment: "")
   static let collectionSearch = NSLocalizedString("share.collectionSearch", comment: "")
   static let searchEmpty = NSLocalizedString("share.searchEmpty", comment: "")
   static let viewMode = NSLocalizedString("share.viewMode", comment: "")

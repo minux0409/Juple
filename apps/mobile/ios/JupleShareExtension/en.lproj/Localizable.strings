@@ -13,7 +13,7 @@
 "share.collectionsFailed" = "Your Collections could not be loaded. You can still save without one.";
 "share.titlePlaceholder" = "Title";
 "share.collections" = "Collections";
-"share.noCollection" = "None";
+"share.noCollection" = "No collection";
 "share.lockedCollection" = "Locked Collection";
 "share.memo" = "Memo";
 "share.memoPlaceholder" = "Enter a memo";
@@ -31,6 +31,7 @@
 "share.sharePasswordWrong" = "The password is not correct.";
 "share.tooManyAttempts" = "Too many attempts. Please try again in a moment.";
 "share.unlockFailed" = "The Collection could not be unlocked. Please try again.";
+"share.addNewCollection" = "+ New collection";
 "share.newCollection" = "New Collection";
 "share.collectionSearch" = "Search Collections";
 "share.searchEmpty" = "No results.";

@@ -86,26 +86,31 @@ final class JupleShareAPI {
   }
 
   /// The Collections a link may go into: the caller's own, then those shared with them (not view-only) - the picker's own list
-  /// (src/collections/useCategoryPickerModal.ts). Bounded: a share sheet is not the place for thousands of rows.
-  func destinations(maxPages: Int = 6) async throws -> [ShareCollection] {
-    var result: [ShareCollection] = []
-    var seen = Set<Int64>()
-    for scope in [nil, "shared"] as [String?] {
-      var cursor: String?
-      var pages = 0
-      repeat {
-        var query = [URLQueryItem(name: "limit", value: "50")]
-        if let scope { query.append(URLQueryItem(name: "scope", value: scope)) }
-        if let cursor { query.append(URLQueryItem(name: "cursor", value: cursor)) }
-        guard let page: CollectionsPage = try await send("GET", "/api/v1/collections", query: query) else { break }
-        for collection in page.items where collection.canAddLinks && seen.insert(collection.id).inserted {
-          result.append(collection)
-        }
-        cursor = page.nextCursor
-        pages += 1
-      } while cursor != nil && pages < maxPages
-    }
-    return result
+  /// (src/collections/useCategoryPickerModal.ts). Both lists are fetched at the same time and `onUpdate` gets the combined list (own
+  /// first, then shared, no duplicates) after every page, so the first tiles appear with the first page instead of after all of them.
+  /// Bounded: a share sheet is not the place for thousands of rows. Throws only when nothing at all could be read.
+  func destinations(maxPages: Int = 6, onUpdate: @escaping @MainActor ([ShareCollection]) -> Void) async throws {
+    let collector = DestinationCollector(onUpdate: onUpdate)
+    async let own: Bool = pages(scope: nil, maxPages: maxPages) { await collector.add($0, shared: false) }
+    async let shared: Bool = pages(scope: "shared", maxPages: maxPages) { await collector.add($0, shared: true) }
+    let (ownLoaded, sharedLoaded) = await (own, shared)
+    if !ownLoaded && !sharedLoaded { throw ShareAPIError(status: 0, code: nil) }
+  }
+
+  /// One scope, page by page; false when its first page could not be read (a later failure keeps what was read).
+  private func pages(scope: String?, maxPages: Int, add: ([ShareCollection]) async -> Void) async -> Bool {
+    var cursor: String?
+    var count = 0
+    repeat {
+      var query = [URLQueryItem(name: "limit", value: "50")]
+      if let scope { query.append(URLQueryItem(name: "scope", value: scope)) }
+      if let cursor { query.append(URLQueryItem(name: "cursor", value: cursor)) }
+      guard let page: CollectionsPage = try? await send("GET", "/api/v1/collections", query: query) else { return count > 0 }
+      await add(page.items.filter(\.canAddLinks))
+      cursor = page.nextCursor
+      count += 1
+    } while cursor != nil && count < maxPages
+    return true
   }
 
   /// POST /api/v1/collections - the app's 새 컬렉션 with its defaults (icon Folder, color Blue: DEFAULT_COLLECTION_ICON / _COLOR).
@@ -123,6 +128,24 @@ final class JupleShareAPI {
   }
 
   // MARK: - Transport
+
+  /// Keeps the two lists apart so the picker always shows the caller's own Collections first, whichever answer comes back first.
+  private actor DestinationCollector {
+    private var own: [ShareCollection] = []
+    private var shared: [ShareCollection] = []
+    private let onUpdate: @MainActor ([ShareCollection]) -> Void
+
+    init(onUpdate: @escaping @MainActor ([ShareCollection]) -> Void) {
+      self.onUpdate = onUpdate
+    }
+
+    func add(_ items: [ShareCollection], shared isShared: Bool) async {
+      if isShared { shared += items } else { own += items }
+      var seen = Set<Int64>()
+      let combined = (own + shared).filter { seen.insert($0.id).inserted }
+      await onUpdate(combined)
+    }
+  }
 
   private struct CollectionsPage: Decodable {
     let items: [ShareCollection]

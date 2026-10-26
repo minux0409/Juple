@@ -29,6 +29,8 @@ final class ShareViewController: UIViewController {
   private var session: ShareSession?
   private var api: JupleShareAPI?
   private var collections: [ShareCollection] = []
+  /// Collections made in this sheet: they stay first even when a later page of the list arrives after them.
+  private var createdHere: [ShareCollection] = []
   private var selected: [Int64] = []
   private var grants: [Int64: (token: String, expiresAt: Date)] = [:]
   private var previewImageUrl: String?
@@ -251,19 +253,30 @@ final class ShareViewController: UIViewController {
       footerBackground.isHidden = false
       closeButton.isHidden = false
     }
-    // Neither blocks 저장: the link is saved as shared even when the page could not be read or the list failed.
-    async let metadata = try? api.resolveMetadata(url: link.absoluteString)
-    async let list = try? api.destinations()
-    let (resolved, destinations) = await (metadata, list)
-    await MainActor.run {
-      if let resolved {
+    // Neither blocks 저장, nor each other: the Collections appear page by page as soon as they arrive, independently of the page's
+    // title / preview (which can take up to its 12 s timeout); the link is saved as shared even when either failed.
+    Task {
+      let resolved = try? await api.resolveMetadata(url: link.absoluteString)
+      await MainActor.run {
+        guard let resolved else { return }
         applyResolvedTitle(resolved.title)
         previewImageUrl = resolved.previewImageUrl
         loadThumbnail(resolved.previewImageUrl)
       }
-      collections = destinations ?? []
-      picker.setCollections(collections, failed: destinations == nil)
-      picker.setSelected(selected)
+    }
+    do {
+      try await api.destinations { [weak self] partial in
+        guard let self else { return }
+        let created = Set(self.createdHere.map(\.id))
+        self.collections = self.createdHere + partial.filter { !created.contains($0.id) }
+        self.picker.setCollections(self.collections, failed: false)
+        self.picker.setSelected(self.selected)
+      }
+    } catch {
+      await MainActor.run {
+        picker.setCollections(collections, failed: true)
+        picker.setSelected(selected)
+      }
     }
   }
 
@@ -409,6 +422,7 @@ final class ShareViewController: UIViewController {
         let created = try await api.createCollection(name: name)
         await MainActor.run {
           self.isCreating = false
+          self.createdHere.insert(created, at: 0)
           self.collections.removeAll { $0.id == created.id }
           self.collections.insert(created, at: 0)
           self.picker.insertFirst(created)
@@ -679,6 +693,9 @@ final class ShareViewController: UIViewController {
     // A tap anywhere that is not a text field puts the keyboard away; the tap itself still goes through (a Collection is chosen).
     let dismissTap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
     dismissTap.cancelsTouchesInView = false
+    // Never hold back the touch's end: 저장 (or a tile) must get its touch-up where it was pressed, not after the keyboard has gone
+    // and the bar has moved away from under the finger.
+    dismissTap.delaysTouchesEnded = false
     dismissTap.delegate = self
     view.addGestureRecognizer(dismissTap)
 
@@ -841,10 +858,13 @@ extension ShareViewController: UITextViewDelegate, UIGestureRecognizerDelegate {
     view.endEditing(true)
   }
 
-  /// Taps in a text field (the memo, the title, the Collection search) keep the keyboard; any other tap puts it away.
+  /// Taps in a text field (the memo, the title, the Collection search) keep the keyboard; any other tap puts it away. Buttons and
+  /// other controls (저장, 닫기, the List | Grid switch) are left to themselves: 저장 closes the keyboard as part of saving, and a
+  /// dismissal underneath it would move the bar away before the button saw its touch-up - the first tap then only closed the keyboard.
   func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
     guard let touched = touch.view else { return true }
-    return ![memoView, titleField, picker.searchField].contains { touched.isDescendant(of: $0) }
+    if touched is UIControl || touched.superview is UIControl { return false }
+    return ![memoView, titleField, picker.searchField, footer].contains { touched.isDescendant(of: $0) }
   }
 }
 
