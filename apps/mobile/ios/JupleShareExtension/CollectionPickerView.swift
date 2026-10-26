@@ -70,9 +70,23 @@ final class CollectionPickerView: UIView, UICollectionViewDataSource, UICollecti
     applyFilter()
   }
 
+  /// Only the selection marks change: the visible cells are updated in place, never reloaded, so no photo is hidden and fetched
+  /// again for a tap (cells scrolled in later read `selected` when they are configured).
   func setSelected(_ ids: [Int64]) {
     selected = Set(ids)
-    collectionView.reloadData()
+    let current = entries
+    for indexPath in collectionView.indexPathsForVisibleItems where indexPath.item < current.count {
+      guard let cell = collectionView.cellForItem(at: indexPath) as? CollectionChoiceCell else { continue }
+      cell.applySelection(isSelected(current[indexPath.item]), entry: current[indexPath.item])
+    }
+  }
+
+  private func isSelected(_ entry: Entry) -> Bool {
+    switch entry {
+    case .create: return false
+    case .none: return selected.isEmpty
+    case .collection(let collection): return selected.contains(collection.id)
+    }
   }
 
   private func applyFilter() {
@@ -106,9 +120,9 @@ final class CollectionPickerView: UIView, UICollectionViewDataSource, UICollecti
     case .create:
       cell.configure(.create, title: ShareStrings.addNewCollection, selected: false, mode: mode, images: images)
     case .none:
-      cell.configure(.none, title: ShareStrings.noCollection, selected: selected.isEmpty, mode: mode, images: images)
+      cell.configure(.none, title: ShareStrings.noCollection, selected: isSelected(entry), mode: mode, images: images)
     case .collection(let collection):
-      cell.configure(.collection(collection), title: collection.name, selected: selected.contains(collection.id), mode: mode, images: images)
+      cell.configure(.collection(collection), title: collection.name, selected: isSelected(entry), mode: mode, images: images)
     }
     return cell
   }
@@ -314,12 +328,11 @@ final class CollectionChoiceCell: UICollectionViewCell {
 
   required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-  override func prepareForReuse() {
-    super.prepareForReuse()
-    photoTask?.cancel()
-    photo.image = nil
-    photo.isHidden = true
-  }
+  /// The address of the photo this cell shows (or is loading). The same address again keeps the shown picture: a reload of the
+  /// list (a page arriving, List | Grid) never blanks a photo that is already there.
+  private var photoAddress: String?
+
+  // No prepareForReuse reset of the photo: configure decides - a different address (or none) clears it, the same one keeps it.
 
   func configure(_ entry: CollectionPickerView.Entry, title: String, selected: Bool, mode: CollectionPickerView.Mode, images: ShareImageLoader) {
     NSLayoutConstraint.deactivate(listConstraints + gridConstraints)
@@ -329,7 +342,9 @@ final class CollectionChoiceCell: UICollectionViewCell {
     check.isHidden = !selected
     lock.isHidden = true
     shared.isHidden = true
-    photo.isHidden = true
+    var address: String?
+    if case .collection(let collection) = entry { address = collection.photoUrl }
+    showPhoto(address, images: images)
 
     switch entry {
     case .create:
@@ -356,18 +371,49 @@ final class CollectionChoiceCell: UICollectionViewCell {
       if collection.gate != nil { label += ", \(ShareStrings.lockedCollection)" }
       accessibilityLabel = label
       accessibilityTraits = selected ? [.button, .selected] : .button
-      if let address = collection.photoUrl {
-        photoTask = Task { [weak self] in
-          let image = await images.image(from: address, pointSize: Self.tileSize)
-          await MainActor.run {
-            guard let self, !Task.isCancelled, let image else { return }
-            self.photo.image = image
-            self.photo.isHidden = false
-          }
-        }
-      }
     }
     isAccessibilityElement = true
+  }
+
+  /// A selection change: only the mark and what VoiceOver says - the tile and its photo are left exactly as they are.
+  func applySelection(_ selected: Bool, entry: CollectionPickerView.Entry) {
+    if case .create = entry { return }
+    check.isHidden = !selected
+    accessibilityTraits = selected ? [.button, .selected] : .button
+  }
+
+  private func showPhoto(_ address: String?, images: ShareImageLoader) {
+    if address == photoAddress, address != nil {
+      return // already shown, or still loading for this cell
+    }
+    photoTask?.cancel()
+    photoTask = nil
+    photoAddress = address
+    guard let address else {
+      photo.image = nil
+      photo.isHidden = true
+      return
+    }
+    if let cached = images.cachedImage(from: address, pointSize: Self.tileSize) {
+      photo.image = cached
+      photo.isHidden = false
+      return
+    }
+    photo.image = nil
+    photo.isHidden = true
+    photoTask = Task { [weak self] in
+      let image = await images.image(from: address, pointSize: Self.tileSize)
+      await MainActor.run {
+        guard let self, !Task.isCancelled, self.photoAddress == address else { return }
+        guard let image else {
+          // Not loaded (offline, refused): the glyph stays, and a later configure may try again.
+          self.photoAddress = nil
+          return
+        }
+        self.photo.image = image
+        self.photo.isHidden = false
+      }
+    }
   }
 }
 

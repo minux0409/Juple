@@ -65,9 +65,16 @@ final class ShareImageLoader {
     cache.countLimit = 80
   }
 
+  /// Already decoded for this share: shown at once, with no task and no empty frame in between.
+  func cachedImage(from address: String, pointSize: CGFloat) -> UIImage? {
+    cache.object(forKey: Self.key(address, pointSize))
+  }
+
+  private static func key(_ address: String, _ pointSize: CGFloat) -> NSString { "\(Int(pointSize))|\(address)" as NSString }
+
   func image(from address: String?, pointSize: CGFloat) async -> UIImage? {
     guard let address, let url = URL(string: address), url.scheme?.lowercased() == "https", !(url.host ?? "").isEmpty else { return nil }
-    let key = "\(Int(pointSize))|\(address)" as NSString
+    let key = Self.key(address, pointSize)
     if let cached = cache.object(forKey: key) { return cached }
     guard let (data, response) = try? await session.data(from: url), data.count <= Self.maxBytes,
       ((response as? HTTPURLResponse)?.statusCode ?? 0) == 200,
