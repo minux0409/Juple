@@ -97,27 +97,56 @@ public sealed class CollectionLinkSubmissionStore(
         return CollectionLinkAddOutcome.Submitted;
     }
 
+    // Init-only members (not a positional record) so EF Core can keep composing the query on them (ordering, paging, joins).
+    private sealed class SubmissionWithCurrentLink
+    {
+        public required CollectionLinkSubmission Submission { get; init; }
+
+        public string? Title { get; init; }
+
+        public string? PreviewImageUrl { get; init; }
+    }
+
+    /// <summary>
+    /// A waiting proposal's title and automatic preview image as its link has them NOW, not only as they were at the moment it was
+    /// proposed: the apps save a link first and fill its title / preview right after (the server does not keep resolved metadata on
+    /// save), so the snapshot taken at proposal time is usually empty - which left the 승인 대기 list without titles or pictures that
+    /// the approved link then showed. Only the proposer's own, not-deleted link is read, and only the two fields the approved link
+    /// would show anyway (never its memo, photos or anything else); without it the snapshot is used as before.
+    /// </summary>
+    private IQueryable<SubmissionWithCurrentLink> WithCurrentLink(IQueryable<CollectionLinkSubmission> submissions) =>
+        from submission in submissions
+        join item in dbContext.Items.AsNoTracking() on submission.ItemId equals item.Id into linked
+        from item in linked.Where(item => item.UserId == submission.SubmittedByUserId && item.DeletedAtUtc == null).DefaultIfEmpty()
+        select new SubmissionWithCurrentLink
+        {
+            Submission = submission,
+            Title = item != null && item.Title != null ? item.Title : submission.Title,
+            PreviewImageUrl = item != null && item.PreviewImageUrl != null ? item.PreviewImageUrl : submission.PreviewImageUrl,
+        };
+
     public async Task<CollectionLinkSubmissionPage> ListAsync(
         long collectionId,
         long? afterSubmissionId,
         int limit,
         CancellationToken cancellationToken = default)
     {
-        var rows = await dbContext.CollectionLinkSubmissions.AsNoTracking()
-            .Where(submission => submission.CollectionId == collectionId
-                && (afterSubmissionId == null || submission.Id > afterSubmissionId))
-            .OrderBy(submission => submission.Id)
-            .Take(limit + 1)
-            .Select(submission => new
+        var rows = await (
+            from submission in WithCurrentLink(dbContext.CollectionLinkSubmissions.AsNoTracking()
+                .Where(submission => submission.CollectionId == collectionId
+                    && (afterSubmissionId == null || submission.Id > afterSubmissionId)))
+            orderby submission.Submission.Id
+            select new
             {
-                submission.Id,
-                submission.Url,
+                submission.Submission.Id,
+                submission.Submission.Url,
                 submission.Title,
                 submission.PreviewImageUrl,
-                submission.CreatedAtUtc,
-                submission.ViaPublicShare,
-                submission.SubmittedByUserId,
+                submission.Submission.CreatedAtUtc,
+                submission.Submission.ViaPublicShare,
+                submission.Submission.SubmittedByUserId,
             })
+            .Take(limit + 1)
             .ToListAsync(cancellationToken);
         var hasMore = rows.Count > limit;
         var page = hasMore ? rows.GetRange(0, limit) : rows;
@@ -175,21 +204,20 @@ public sealed class CollectionLinkSubmissionStore(
         // revoked, a former member): no id and no name - only the caller's own request and its status, so
         // nothing about the Collection is revealed merely because their proposal exists.
         var mine =
-            from submission in dbContext.CollectionLinkSubmissions.AsNoTracking()
-            where submission.SubmittedByUserId == userId
+            from current in WithCurrentLink(dbContext.CollectionLinkSubmissions.AsNoTracking().Where(submission => submission.SubmittedByUserId == userId))
             join collection in dbContext.Collections.AsNoTracking().Where(collection => collection.DeletedAtUtc == null)
-                on submission.CollectionId equals collection.Id
+                on current.Submission.CollectionId equals collection.Id
             let isMember = dbContext.CollectionCollaborators.Any(collaborator => collaborator.CollectionId == collection.Id && collaborator.UserId == userId)
             select new
             {
-                submission.Id,
+                current.Submission.Id,
                 // Only for a member; never for anyone else (see above).
                 CollectionId = isMember ? (long?)collection.Id : null,
                 CollectionName = isMember ? collection.Name : null,
-                submission.Url,
-                submission.Title,
-                submission.PreviewImageUrl,
-                submission.CreatedAtUtc,
+                current.Submission.Url,
+                current.Title,
+                current.PreviewImageUrl,
+                current.Submission.CreatedAtUtc,
             };
         var totalCount = await mine.CountAsync(cancellationToken);
         var rows = await mine
@@ -216,13 +244,14 @@ public sealed class CollectionLinkSubmissionStore(
         // Indexed queries (CollectionId / SubmittedByUserId): the caller's own rows only, and their count.
         var totalCount = await dbContext.CollectionLinkSubmissions.AsNoTracking()
             .CountAsync(submission => submission.CollectionId == collectionId && submission.SubmittedByUserId == userId, cancellationToken);
-        var rows = await dbContext.CollectionLinkSubmissions.AsNoTracking()
-            .Where(submission => submission.CollectionId == collectionId
-                && submission.SubmittedByUserId == userId
-                && (beforeSubmissionId == null || submission.Id < beforeSubmissionId))
-            .OrderByDescending(submission => submission.Id)
+        var rows = await (
+            from current in WithCurrentLink(dbContext.CollectionLinkSubmissions.AsNoTracking()
+                .Where(submission => submission.CollectionId == collectionId
+                    && submission.SubmittedByUserId == userId
+                    && (beforeSubmissionId == null || submission.Id < beforeSubmissionId)))
+            orderby current.Submission.Id descending
+            select new { current.Submission.Id, current.Submission.Url, current.Title, current.PreviewImageUrl, current.Submission.CreatedAtUtc })
             .Take(limit + 1)
-            .Select(submission => new { submission.Id, submission.Url, submission.Title, submission.PreviewImageUrl, submission.CreatedAtUtc })
             .ToListAsync(cancellationToken);
         var hasMore = rows.Count > limit;
         var page = hasMore ? rows.GetRange(0, limit) : rows;

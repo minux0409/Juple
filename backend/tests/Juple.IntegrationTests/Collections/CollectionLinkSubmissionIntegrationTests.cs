@@ -212,6 +212,31 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
         Assert.False(await _db.CollectionLinkSubmissions.AnyAsync(entry => entry.CollectionId == _sharedId));
     }
 
+    [Fact]
+    public async Task Waiting_ShowsTheLinksCurrentTitleAndPreview_FilledInAfterItWasProposed_NeverItsMemo()
+    {
+        // The apps save a link and fill in its title / preview right after (the server keeps no resolved metadata on save), so the
+        // proposal's own snapshot is empty. The waiting lists must still show what the approved link will show.
+        var proposed = await NewItemAsync(_submitter, "https://example.test/filled-later");
+        Assert.Equal(CollectionLinkAddOutcome.Submitted, await Add().AddAsync(_submitter, _sharedId, proposed));
+        var item = await _db.Items.SingleAsync(entry => entry.Id == proposed);
+        item.UpdateDetails("The real title", "private memo");
+        item.SetPreviewImageUrl("https://img.example.test/preview.jpg");
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        var ownerRow = Assert.Single((await Review().ListAsync(_owner, _sharedId, null, 50, null)).Items);
+        Assert.Equal("The real title", ownerRow.Title);
+        Assert.Equal("https://img.example.test/preview.jpg", ownerRow.PreviewImageUrl);
+        var mineHere = Assert.Single((await Review().ListMineAsync(_submitter, _sharedId, null, 50, null)).Items);
+        Assert.Equal("The real title", mineHere.Title);
+        Assert.Equal("https://img.example.test/preview.jpg", mineHere.PreviewImageUrl);
+        var mineEverywhere = Assert.Single((await Review().ListMineAcrossCollectionsAsync(_submitter, null, 50)).Items);
+        Assert.Equal("The real title", mineEverywhere.Title);
+        // Only the title and preview: the proposer's memo is never part of what the Owner sees.
+        Assert.DoesNotContain("private memo", System.Text.Json.JsonSerializer.Serialize(ownerRow), StringComparison.Ordinal);
+    }
+
     // ---------- my own waiting proposals ----------
 
     [Fact]
