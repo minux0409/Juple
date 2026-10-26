@@ -55,6 +55,17 @@ export function operatorFacts(config: LegalOperatorConfig): { label: string; val
 }
 
 /**
+ * The operator facts printed at the top of the legal DOCUMENTS (개인정보처리방침, 이용약관, 계정 삭제 안내): without the business
+ * registration number and the business address. Neither is a required item of a privacy policy (개인정보 보호법 제30조, 시행령
+ * 제31조) or of terms of service, and the operator does not want a home address published in them. The privacy officer's contact and
+ * the support mailbox stay where the documents need them. The business-information display of an online seller (전자상거래법 제10조)
+ * is a separate place - the landing / sign-in 사업자 정보 - and is unchanged here (see docs/production-bring-up.md, legal review).
+ */
+export function documentOperatorFacts(config: LegalOperatorConfig): { label: string; value: string }[] {
+  return operatorFacts(config).filter(fact => fact.label !== '사업자등록번호' && fact.label !== '사업장 주소');
+}
+
+/**
  * Wording that needs a legal decision before it can be published. Each is a FIXED policy text (code, not configuration) and is left
  * out of the pages while it is null - never a placeholder. A launch needs both reviewed and filled in (docs/production-bring-up.md, step 0 - legal review):
  *

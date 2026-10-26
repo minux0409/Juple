@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { CONFIRMED_CONTACT_EMAIL, formatLegalDate, readLegalOperatorConfig } from '../lib/legalConfig.ts';
-import { accountDeletionDocument, operatorFacts, privacyDocument, termsDocument, type LegalDocument } from '../lib/legalContent.ts';
+import { accountDeletionDocument, documentOperatorFacts, operatorFacts, privacyDocument, termsDocument, type LegalDocument } from '../lib/legalContent.ts';
 import { buildLegalMetadata } from '../lib/legalMetadata.ts';
 import { legalSecurityHeaders, securityHeaders } from '../lib/securityHeaders.ts';
 
@@ -50,6 +50,11 @@ describe('operator config', () => {
       LEGAL_EFFECTIVE_DATE: '2026-11-01',
     });
     assert.deepEqual(operatorFacts(config).map(f => f.label), ['서비스', '운영자', '사업자등록번호', '사업장 주소']);
+    // The legal documents themselves never print the business registration number or the address.
+    assert.deepEqual(documentOperatorFacts(config).map(f => f.label), ['서비스', '운영자']);
+    for (const doc of [privacyDocument(config), termsDocument(config), accountDeletionDocument(config)]) {
+      assert.doesNotMatch(text(doc), /000-00-00000|사업자등록번호|사업장 주소/);
+    }
     assert.match(text(accountDeletionDocument(config)), /help@example\.test/);
     assert.equal(config.effectiveDate, '2026-11-01');
     assert.equal(formatLegalDate('2026-11-01'), '2026년 11월 1일');

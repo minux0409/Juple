@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { formatLegalDate, type LegalOperatorConfig } from '../../lib/legalConfig';
-import { operatorFacts, type LegalDocument } from '../../lib/legalContent';
+import { documentOperatorFacts, type LegalDocument } from '../../lib/legalContent';
 
 /** Splits "**bold**" markers into <strong> - the only inline markup the legal text uses. */
 function Inline({ text }: { text: string }) {
@@ -12,7 +12,7 @@ function Inline({ text }: { text: string }) {
 }
 
 export function LegalDocumentView({ doc, config }: { doc: LegalDocument; config: LegalOperatorConfig }) {
-  const facts = operatorFacts(config);
+  const facts = documentOperatorFacts(config);
 
   return (
     <main className="legalMain" lang="ko">
