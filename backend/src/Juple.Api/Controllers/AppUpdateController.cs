@@ -1,27 +1,26 @@
 using Juple.Api.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace Juple.Api.Controllers;
 
 /// <summary>
 /// The app-update policy for one platform, readable WITHOUT signing in - so a build that must update is told so on the sign-in
 /// screen too, and an update prompt never depends on a working session. It exposes exactly what the bootstrap response already
-/// carries for that platform (<see cref="MobileVersionPolicyOptions"/>, the single source): build numbers and a public store URL.
-/// No account, device or secret is involved, nothing is read from the database, and the answer is tiny, so there is no per-caller
-/// limiter (behind the platform proxy a per-IP key would put every user in one bucket). It is read-only: an anonymous GET is not a
-/// mutation and needs no review entry.
+/// carries for that platform (<see cref="MobileVersionPolicySource"/>, the single source): build numbers and a public store URL.
+/// No account, device or secret is involved; the policy comes from a per-replica cache (one small read every 30 s at most), and
+/// the answer is tiny, so there is no per-caller limiter (behind the platform proxy a per-IP key would put every user in one
+/// bucket). It is read-only: an anonymous GET is not a mutation and needs no review entry.
 /// </summary>
 [ApiController]
 [AllowAnonymous]
 [Route("api/v1/app-update")]
-public sealed class AppUpdateController(IOptions<MobileVersionPolicyOptions> options) : ControllerBase
+public sealed class AppUpdateController(MobileVersionPolicySource source) : ControllerBase
 {
     [HttpGet("{platform}")]
-    public IActionResult Get(string platform)
+    public async Task<IActionResult> Get(string platform, CancellationToken cancellationToken)
     {
-        var policy = ResolvePlatform(options.Value, platform);
+        var policy = ResolvePlatform(await source.GetAsync(cancellationToken), platform);
         if (policy is null)
         {
             return NotFound();

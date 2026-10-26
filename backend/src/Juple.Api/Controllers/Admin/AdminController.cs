@@ -3,6 +3,7 @@ using Juple.Api.Authentication;
 using Juple.Api.Billing;
 using Juple.Api.Configuration;
 using Juple.Application.Admin;
+using Juple.Domain.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -57,14 +58,59 @@ public sealed class AdminController(
     public Task<IActionResult> GetUserLinkStatsAsync(long userId, [FromQuery] string? range, [FromServices] IAdminAnalyticsService analytics, CancellationToken cancellationToken) =>
         AdminResults.RunAsync(this, async () => Ok(await analytics.GetUserLinkStatsAsync(userId, range, cancellationToken)));
 
-    /// <summary>The mobile version policy as the API serves it (read-only - changing it is a configuration deployment).</summary>
+    /// <summary>
+    /// 운영 > 앱 버전: the mobile version policy as the API serves it, read fresh from the database (not the 30 s cache the apps go
+    /// through), with where each platform's numbers come from and the token a change must send back.
+    /// </summary>
     [HttpGet("operations/app-version")]
-    public IActionResult GetAppVersion()
+    public Task<IActionResult> GetAppVersionAsync([FromServices] MobileVersionPolicyAdminService policies, CancellationToken cancellationToken) =>
+        AdminResults.RunAsync(this, async () => Ok(await ReadAppVersionAsync(policies, cancellationToken)));
+
+    /// <summary>
+    /// Saves ONE platform's latest and minimum supported build (the other platform is untouched). Owner only - a minimum can lock
+    /// older builds out of the app. Every rule is checked here: whole numbers 1.., minimum not above latest, the Version the operator
+    /// saw (409 appVersionChanged otherwise), and explicit confirmations for raising the minimum or lowering the latest. Unchanged
+    /// values write nothing. A save is audited in the same transaction.
+    /// </summary>
+    [HttpPut("operations/app-version/{platform}")]
+    public Task<IActionResult> UpdateAppVersionAsync(
+        string platform,
+        [FromBody] AdminAppVersionWrite body,
+        [FromServices] MobileVersionPolicyAdminService policies,
+        [FromServices] MobileVersionPolicySource source,
+        CancellationToken cancellationToken) =>
+        AdminResults.RunAsync(this, async () =>
+        {
+            var admin = AdminRequestContext.GetRequired(HttpContext);
+            if (admin.Role != AdminRole.Owner)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { code = "ownerRequired" });
+            }
+
+            var key = MobileVersionPolicyAdminService.Platform(platform);
+            var configured = key == MobileVersionPolicySetting.Android ? versionPolicy.Value.Android : versionPolicy.Value.Ios;
+            var result = await policies.SaveAsync(
+                admin.UserId,
+                key,
+                new MobileVersionPolicyChange(body.LatestBuild, body.MinimumSupportedBuild, body.Version, body.ConfirmMinimumIncrease, body.ConfirmLatestDecrease),
+                new MobileBuildPolicy(configured.LatestBuild, configured.MinimumSupportedBuild),
+                cancellationToken);
+            if (result.Changed)
+            {
+                source.Invalidate();
+            }
+
+            return Ok(await ReadAppVersionAsync(policies, cancellationToken));
+        });
+
+    private async Task<AdminAppVersionResponse> ReadAppVersionAsync(MobileVersionPolicyAdminService policies, CancellationToken cancellationToken)
     {
-        var options = versionPolicy.Value;
-        return Ok(new AdminAppVersionResponse(
-            AppUpdateController.AppUpdatePolicyResponse.From("android", options.Android),
-            AppUpdateController.AppUpdatePolicyResponse.From("ios", options.Ios)));
+        var rows = await policies.ListAsync(cancellationToken);
+        var effective = MobileVersionPolicySource.Merge(versionPolicy.Value, rows);
+        var canEdit = AdminRequestContext.GetRequired(HttpContext).Role == AdminRole.Owner;
+        return new AdminAppVersionResponse(
+            AdminAppVersionPlatform.From(MobileVersionPolicySetting.Android, effective.Android, versionPolicy.Value.Android, rows, canEdit),
+            AdminAppVersionPlatform.From(MobileVersionPolicySetting.Ios, effective.Ios, versionPolicy.Value.Ios, rows, canEdit));
     }
 
     /// <summary>What this API instance is: environment name, its build version and server time. No configuration values or secrets.</summary>
@@ -77,7 +123,58 @@ public sealed class AdminController(
 
     public sealed record AdminMeResponse(long UserId, string Role);
 
-    public sealed record AdminAppVersionResponse(AppUpdateController.AppUpdatePolicyResponse Android, AppUpdateController.AppUpdatePolicyResponse Ios);
+    public sealed record AdminAppVersionResponse(AdminAppVersionPlatform Android, AdminAppVersionPlatform Ios);
+
+    /// <summary>
+    /// One platform: the first five fields are exactly what the app-update check serves. Source is "database" (an operator saved it)
+    /// or "configuration" (the deployed values, Version null). Configured* are the deployed values a platform without a row uses.
+    /// </summary>
+    public sealed record AdminAppVersionPlatform(
+        string Platform,
+        bool Enabled,
+        int LatestBuild,
+        int MinimumSupportedBuild,
+        string? StoreUrl,
+        string Source,
+        string? Version,
+        DateTimeOffset? UpdatedAtUtc,
+        long? UpdatedByAdminUserId,
+        int ConfiguredLatestBuild,
+        int ConfiguredMinimumSupportedBuild,
+        bool CanEdit)
+    {
+        public static AdminAppVersionPlatform From(
+            string platform,
+            MobilePlatformVersionPolicy effective,
+            MobilePlatformVersionPolicy configured,
+            IReadOnlyList<StoredMobileVersionPolicy> rows,
+            bool canEdit)
+        {
+            var served = AppUpdateController.AppUpdatePolicyResponse.From(platform, effective);
+            var row = rows.FirstOrDefault(candidate => candidate.Platform == platform);
+            return new(
+                served.Platform,
+                served.Enabled,
+                served.LatestBuild,
+                served.MinimumSupportedBuild,
+                served.StoreUrl,
+                row is null ? "configuration" : "database",
+                row?.Version,
+                row?.UpdatedAtUtc,
+                row?.UpdatedByAdminUserId,
+                configured.LatestBuild,
+                configured.MinimumSupportedBuild,
+                canEdit);
+        }
+    }
+
+    /// <summary>A change of one platform. Version is the token from the last read (null/empty while it runs on configuration).</summary>
+    public sealed record AdminAppVersionWrite(
+        int LatestBuild,
+        int MinimumSupportedBuild,
+        string? Version,
+        bool ConfirmMinimumIncrease = false,
+        bool ConfirmLatestDecrease = false);
 
     public sealed record AdminSystemResponse(string Environment, string? ApiVersion, DateTimeOffset ServerTimeUtc);
 }
@@ -102,6 +199,14 @@ internal static class AdminResults
         catch (Exception exception) when (exception is AdminInquiryNotFoundException or AdminUserNotFoundException)
         {
             return controller.NotFound();
+        }
+        catch (MobileVersionPolicyConflictException)
+        {
+            return controller.Conflict(new { code = "appVersionChanged" });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return controller.Forbid();
         }
     }
 

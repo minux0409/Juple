@@ -103,6 +103,41 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Juple.Domain.Admin.MobileVersionPolicySetting", b =>
+                {
+                    b.Property<string>("Platform")
+                        .HasMaxLength(16)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<int>("LatestBuild")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinimumSupportedBuild")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long?>("UpdatedByAdminUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Platform");
+
+                    b.ToTable("MobileVersionPolicies", "admin", t =>
+                        {
+                            t.HasCheckConstraint("CK_MobileVersionPolicies_Builds_Valid", "[LatestBuild] >= 1 AND [MinimumSupportedBuild] >= 1 AND [MinimumSupportedBuild] <= [LatestBuild]");
+
+                            t.HasCheckConstraint("CK_MobileVersionPolicies_Platform_Valid", "[Platform] IN ('android', 'ios')");
+                        });
+                });
+
             modelBuilder.Entity("Juple.Domain.Analytics.UserDailyActivity", b =>
                 {
                     b.Property<long>("Id")

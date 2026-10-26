@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Juple.Api.Authentication;
 using Juple.Api.Configuration;
+using Juple.Api.Controllers;
 using Juple.Api.Controllers.Admin;
 using Juple.Application.Admin;
 using Juple.Application.Identity;
@@ -32,12 +33,14 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
     private static readonly Guid Tenant = Guid.NewGuid();
 
     private static readonly Guid AdminOid = Guid.NewGuid();
+    private static readonly Guid NonOwnerAdminOid = Guid.NewGuid();
     private static readonly Guid InactiveAdminOid = Guid.NewGuid();
     private static readonly Guid MemberOid = Guid.NewGuid();
     private static readonly Guid NoAccountOid = Guid.NewGuid();
 
     private readonly RecordingAdminService _service = new();
     private readonly CannedAnalyticsStore _analyticsStore = new();
+    private readonly Juple.UnitTests.Users.FakeMobileVersionPolicyStore _versionStore = new();
     private WebApplication _app = null!;
     private HttpClient _client = null!;
 
@@ -57,9 +60,13 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
             [AdminOid] = 1,
             [InactiveAdminOid] = 2,
             [MemberOid] = 3,
+            [NonOwnerAdminOid] = 4,
         }));
         // The same rule as the real store: only ACTIVE grants authorize.
-        builder.Services.AddSingleton<IAdminAccessStore>(new FakeGrants([new(1, AdminRole.Owner, Active: true), new(2, AdminRole.Admin, Active: false)]));
+        builder.Services.AddSingleton<IAdminAccessStore>(new FakeGrants([new(1, AdminRole.Owner, Active: true), new(2, AdminRole.Admin, Active: false), new(4, AdminRole.Admin, Active: true)]));
+        builder.Services.AddSingleton<IMobileVersionPolicyStore>(_versionStore);
+        builder.Services.AddScoped<MobileVersionPolicyAdminService>();
+        builder.Services.AddScoped<MobileVersionPolicySource>();
         builder.Services.AddSingleton<IAdminService>(_service);
         // The real range validation in front of a canned store (the SQL side is covered by AdminAnalyticsIntegrationTests).
         builder.Services.AddSingleton<IAdminAnalyticsStore>(_analyticsStore);
@@ -108,6 +115,7 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         { "GET", "/api/v1/admin/dashboard/summary" },
         { "GET", "/api/v1/admin/users" },
         { "GET", "/api/v1/admin/operations/app-version" },
+        { "PUT", "/api/v1/admin/operations/app-version/android" },
         { "GET", "/api/v1/admin/analytics/overview?range=30d" },
         { "GET", "/api/v1/admin/workspace/configuration" },
         { "GET", "/api/v1/admin/workspace/overview" },
@@ -231,15 +239,143 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         Assert.Equal(disabled ? HttpStatusCode.NotFound : HttpStatusCode.OK, response.StatusCode);
     }
 
-    /// <summary>The exact JSON the Admin Web reads: the configured MobileVersionPolicy, the same values as GET /api/v1/app-update/{platform}.</summary>
+    /// <summary>
+    /// The exact JSON the Admin Web reads: the first five fields per platform are what GET /api/v1/app-update/{platform} serves,
+    /// followed by where they come from. Without a saved row that is the configured MobileVersionPolicy.
+    /// </summary>
     [Fact]
     public async Task AppVersion_ServesTheConfiguredPolicy_InTheShapeTheAdminWebReads()
     {
         var json = await (await SendAsync("GET", "/api/v1/admin/operations/app-version", AdminOid)).Content.ReadAsStringAsync();
 
         Assert.Equal(
-            """{"android":{"platform":"android","enabled":true,"latestBuild":31,"minimumSupportedBuild":24,"storeUrl":"https://play.google.com/store/apps/details?id=com.juple.app"},"ios":{"platform":"ios","enabled":false,"latestBuild":0,"minimumSupportedBuild":0,"storeUrl":null}}""",
+            """{"android":{"platform":"android","enabled":true,"latestBuild":31,"minimumSupportedBuild":24,"storeUrl":"https://play.google.com/store/apps/details?id=com.juple.app","source":"configuration","version":null,"updatedAtUtc":null,"updatedByAdminUserId":null,"configuredLatestBuild":31,"configuredMinimumSupportedBuild":24,"canEdit":true},"ios":{"platform":"ios","enabled":false,"latestBuild":0,"minimumSupportedBuild":0,"storeUrl":null,"source":"configuration","version":null,"updatedAtUtc":null,"updatedByAdminUserId":null,"configuredLatestBuild":0,"configuredMinimumSupportedBuild":0,"canEdit":true}}""",
             json);
+    }
+
+    private async Task<HttpResponseMessage> PutAppVersionAsync(string platform, object body, Guid identity)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put, $"/api/v1/admin/operations/app-version/{platform}") { Content = JsonContent.Create(body) };
+        request.Headers.Add(TestScheme.Header, $"{Tenant},{identity},{Scope}");
+        return await _client.SendAsync(request);
+    }
+
+    private async Task<System.Text.Json.JsonElement> AppVersionAsync(Guid identity) =>
+        await (await SendAsync("GET", "/api/v1/admin/operations/app-version", identity)).Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+
+    [Fact]
+    public async Task TheOwner_RaisesAndroidLatest_KeepsTheMinimum_AndLeavesIosAlone_AndTheChangeIsAuditedAndServed()
+    {
+        var response = await PutAppVersionAsync("android", new { latestBuild = 34, minimumSupportedBuild = 24, version = (string?)null, adminUserId = 999 }, AdminOid);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var android = (await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>()).GetProperty("android");
+        Assert.Equal(34, android.GetProperty("latestBuild").GetInt32());
+        Assert.Equal(24, android.GetProperty("minimumSupportedBuild").GetInt32());
+        Assert.Equal("database", android.GetProperty("source").GetString());
+        Assert.Equal(1, android.GetProperty("updatedByAdminUserId").GetInt64());
+        Assert.Null(_versionStore.Row("ios"));
+        Assert.Equal((1L, "android", "latest 31->34; minimum 24->24; from configuration"), Assert.Single(_versionStore.Audit));
+
+        // After a reload the page reads the saved values; the apps' anonymous check serves them too (same replica, cache dropped).
+        var ios = (await AppVersionAsync(AdminOid)).GetProperty("ios");
+        Assert.Equal("configuration", ios.GetProperty("source").GetString());
+        Assert.Equal(0, ios.GetProperty("latestBuild").GetInt32());
+        var served = await (await _client.GetAsync("/api/v1/app-update/android")).Content.ReadFromJsonAsync<AppUpdateController.AppUpdatePolicyResponse>();
+        Assert.Equal(new AppUpdateController.AppUpdatePolicyResponse("android", true, 34, 24, "https://play.google.com/store/apps/details?id=com.juple.app"), served);
+    }
+
+    [Fact]
+    public async Task AnActiveAdminWhoIsNotTheOwner_CanRead_ButCannotChangeTheAppVersion()
+    {
+        Assert.False((await AppVersionAsync(NonOwnerAdminOid)).GetProperty("android").GetProperty("canEdit").GetBoolean());
+
+        var response = await PutAppVersionAsync("android", new { latestBuild = 34, minimumSupportedBuild = 24, version = (string?)null }, NonOwnerAdminOid);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("ownerRequired", await response.Content.ReadAsStringAsync());
+        Assert.Null(_versionStore.Row("android"));
+        Assert.Empty(_versionStore.Audit);
+    }
+
+    [Theory]
+    [InlineData(0, 0, "latestBuild")]
+    [InlineData(-34, 24, "latestBuild")]
+    [InlineData(2_100_000_001, 24, "latestBuild")]
+    [InlineData(34, 0, "minimumSupportedBuild")]
+    [InlineData(34, 35, "minimumSupportedBuild")]
+    [InlineData(30, 24, "confirmLatestDecrease")]
+    [InlineData(34, 25, "confirmMinimumIncrease")]
+    public async Task AnInvalidOrUnconfirmedChange_Is400_AndWritesNothing(int latest, int minimum, string field)
+    {
+        var response = await PutAppVersionAsync("android", new { latestBuild = latest, minimumSupportedBuild = minimum, version = (string?)null }, AdminOid);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(field, await response.Content.ReadAsStringAsync());
+        Assert.Null(_versionStore.Row("android"));
+        Assert.Empty(_versionStore.Audit);
+    }
+
+    [Theory]
+    [InlineData("""{"minimumSupportedBuild":24}""")]
+    [InlineData("""{"latestBuild":34.5,"minimumSupportedBuild":24}""")]
+    [InlineData("""{"latestBuild":"abc","minimumSupportedBuild":24}""")]
+    public async Task ANonIntegerBuild_Is400(string json)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put, "/api/v1/admin/operations/app-version/android")
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Add(TestScheme.Header, $"{Tenant},{AdminOid},{Scope}");
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await _client.SendAsync(request)).StatusCode);
+        Assert.Null(_versionStore.Row("android"));
+    }
+
+    [Fact]
+    public async Task ConfirmedChanges_RaiseTheMinimum_OrLowerTheLatest()
+    {
+        var raised = await PutAppVersionAsync("android", new { latestBuild = 34, minimumSupportedBuild = 30, version = (string?)null, confirmMinimumIncrease = true }, AdminOid);
+        Assert.Equal(HttpStatusCode.OK, raised.StatusCode);
+        var version = _versionStore.Row("android")!.Version;
+
+        var lowered = await PutAppVersionAsync("android", new { latestBuild = 33, minimumSupportedBuild = 30, version, confirmLatestDecrease = true }, AdminOid);
+
+        Assert.Equal(HttpStatusCode.OK, lowered.StatusCode);
+        Assert.Equal((33, 30), (_versionStore.Row("android")!.LatestBuild, _versionStore.Row("android")!.MinimumSupportedBuild));
+        Assert.Equal(2, _versionStore.Audit.Count);
+    }
+
+    [Fact]
+    public async Task UnchangedValues_AreNotWrittenOrAudited()
+    {
+        var response = await PutAppVersionAsync("android", new { latestBuild = 31, minimumSupportedBuild = 24, version = (string?)null }, AdminOid);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Null(_versionStore.Row("android"));
+        Assert.Empty(_versionStore.Audit);
+    }
+
+    [Fact]
+    public async Task AStaleVersion_Is409_SoConcurrentEditsCannotOverwriteEachOther()
+    {
+        var first = await PutAppVersionAsync("android", new { latestBuild = 34, minimumSupportedBuild = 24, version = (string?)null }, AdminOid);
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+
+        // A second operator still holds the page they loaded before the first save (no row, version null).
+        var second = await PutAppVersionAsync("android", new { latestBuild = 35, minimumSupportedBuild = 24, version = (string?)null }, AdminOid);
+        var forged = await PutAppVersionAsync("android", new { latestBuild = 35, minimumSupportedBuild = 24, version = "not-the-version" }, AdminOid);
+
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+        Assert.Contains("appVersionChanged", await second.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.Conflict, forged.StatusCode);
+        Assert.Equal(34, _versionStore.Row("android")!.LatestBuild);
+    }
+
+    [Fact]
+    public async Task AnUnknownPlatform_Is400()
+    {
+        Assert.Equal(HttpStatusCode.BadRequest, (await PutAppVersionAsync("windows", new { latestBuild = 34, minimumSupportedBuild = 24 }, AdminOid)).StatusCode);
     }
 
     [Fact]
@@ -322,7 +458,9 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
             request.Content = JsonContent.Create(new { scope = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/test", month = "2026-10-01" });
         if (method == "PUT")
         {
-            request.Content = JsonContent.Create(path.EndsWith("/status", StringComparison.Ordinal) ? new { status = "InProgress" } : (object)new { answer = "Thanks" });
+            request.Content = JsonContent.Create(
+                path.Contains("/operations/app-version/", StringComparison.Ordinal) ? new { latestBuild = 31, minimumSupportedBuild = 24, version = (string?)null }
+                : path.EndsWith("/status", StringComparison.Ordinal) ? new { status = "InProgress" } : (object)new { answer = "Thanks" });
         }
 
         if (identity is { } oid)

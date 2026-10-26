@@ -88,6 +88,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
 
     public DbSet<Juple.Domain.Admin.AdminAuditLog> AdminAuditLogs => Set<Juple.Domain.Admin.AdminAuditLog>();
 
+    public DbSet<Juple.Domain.Admin.MobileVersionPolicySetting> MobileVersionPolicySettings => Set<Juple.Domain.Admin.MobileVersionPolicySetting>();
+
     public DbSet<Juple.Domain.Analytics.UserDailyActivity> UserDailyActivities => Set<Juple.Domain.Analytics.UserDailyActivity>();
     public DbSet<Juple.Domain.Analytics.UserDailyActivityKst> UserDailyActivitiesKst => Set<Juple.Domain.Analytics.UserDailyActivityKst>();
 

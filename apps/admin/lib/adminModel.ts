@@ -92,6 +92,15 @@ export interface AppVersionPolicy {
   readonly latestBuild: number;
   readonly minimumSupportedBuild: number;
   readonly storeUrl: string | null;
+  /** "database" = saved in this Admin Web; "configuration" = the deployed MobileVersionPolicy (version null). */
+  readonly source?: 'database' | 'configuration';
+  readonly version?: string | null;
+  readonly updatedAtUtc?: string | null;
+  readonly updatedByAdminUserId?: number | null;
+  readonly configuredLatestBuild?: number;
+  readonly configuredMinimumSupportedBuild?: number;
+  /** Only the Owner may change it; the API enforces the same rule. */
+  readonly canEdit?: boolean;
 }
 
 export interface AppVersionResponse {
@@ -132,6 +141,7 @@ export const adminPaths = {
   inquiryStatus: (id: number) => `/api/v1/admin/support/inquiries/${encodeURIComponent(String(id))}/status`,
   inquiryAnswer: (id: number) => `/api/v1/admin/support/inquiries/${encodeURIComponent(String(id))}/answer`,
   appVersion: '/api/v1/admin/operations/app-version',
+  appVersionPlatform: (platform: AppPlatform) => `/api/v1/admin/operations/app-version/${platform}`,
   system: '/api/v1/admin/operations/system',
 } as const;
 
@@ -202,6 +212,7 @@ export function validateAnswer(text: string): 'empty' | 'tooLong' | null {
 const AUDIT_ACTION_LABELS: Readonly<Record<string, string>> = {
   'support.inquiry.status_changed': '상태 변경',
   'support.inquiry.answered': '답변 저장',
+  'operations.app_version.updated': '앱 버전 변경',
 };
 
 export function auditActionLabel(action: string): string {
@@ -252,6 +263,102 @@ export function policyView(raw: unknown): PolicyView {
     latestBuild: policy.latestBuild,
     minimumSupportedBuild: policy.minimumSupportedBuild,
     storeUrl: safeStoreUrl(policy.storeUrl),
+  };
+}
+
+export type AppPlatform = 'android' | 'ios';
+
+/** The API's own ceiling (Android versionCode's limit); the server checks the same. */
+export const MAX_BUILD = 2_100_000_000;
+
+/** A build number as typed: digits only, 1..MAX_BUILD - no sign, decimals, spaces inside or exponent. */
+export function parseBuildInput(text: string): number | null {
+  const trimmed = text.trim();
+  if (!/^[1-9][0-9]{0,9}$/.test(trimmed)) {
+    return null;
+  }
+  const value = Number(trimmed);
+  return value <= MAX_BUILD ? value : null;
+}
+
+/** What the editor knows about one platform; null when the answer is not usable for editing. */
+export interface AppVersionEditState {
+  readonly latestBuild: number;
+  readonly minimumSupportedBuild: number;
+  readonly source: 'database' | 'configuration';
+  readonly version: string | null;
+  readonly updatedAtUtc: string | null;
+  readonly canEdit: boolean;
+}
+
+export function appVersionEditState(raw: unknown): AppVersionEditState | null {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+  const policy = raw as Partial<Record<keyof AppVersionPolicy, unknown>>;
+  if (!isBuild(policy.latestBuild) || !isBuild(policy.minimumSupportedBuild) || (policy.source !== 'database' && policy.source !== 'configuration')) {
+    return null;
+  }
+  return {
+    latestBuild: policy.latestBuild,
+    minimumSupportedBuild: policy.minimumSupportedBuild,
+    source: policy.source,
+    version: typeof policy.version === 'string' && policy.version ? policy.version : null,
+    updatedAtUtc: typeof policy.updatedAtUtc === 'string' ? policy.updatedAtUtc : null,
+    canEdit: policy.canEdit === true,
+  };
+}
+
+export type AppVersionPlan =
+  | { readonly kind: 'invalid'; readonly field: 'latest' | 'minimum'; readonly reason: 'notABuild' | 'minimumAboveLatest' }
+  | { readonly kind: 'unchanged' }
+  | {
+      readonly kind: 'change';
+      readonly latestBuild: number;
+      readonly minimumSupportedBuild: number;
+      /** Older installed builds below the new minimum will be forced to update. */
+      readonly raisesMinimum: boolean;
+      /** The update prompt for builds between the new and the old latest goes away. */
+      readonly lowersLatest: boolean;
+    };
+
+/** The same rules the API applies, judged against the values the page loaded. Unchanged values are never sent. */
+export function planAppVersionChange(current: { readonly latestBuild: number; readonly minimumSupportedBuild: number }, latestText: string, minimumText: string): AppVersionPlan {
+  const latest = parseBuildInput(latestText);
+  if (latest === null) {
+    return { kind: 'invalid', field: 'latest', reason: 'notABuild' };
+  }
+  const minimum = parseBuildInput(minimumText);
+  if (minimum === null) {
+    return { kind: 'invalid', field: 'minimum', reason: 'notABuild' };
+  }
+  if (minimum > latest) {
+    return { kind: 'invalid', field: 'minimum', reason: 'minimumAboveLatest' };
+  }
+  if (latest === current.latestBuild && minimum === current.minimumSupportedBuild) {
+    return { kind: 'unchanged' };
+  }
+  return {
+    kind: 'change',
+    latestBuild: latest,
+    minimumSupportedBuild: minimum,
+    raisesMinimum: minimum > current.minimumSupportedBuild,
+    lowersLatest: latest < current.latestBuild,
+  };
+}
+
+/** The PUT body for a planned change; the confirmations are only ever true when the operator ticked them for that change. */
+export function appVersionWriteBody(
+  plan: Extract<AppVersionPlan, { kind: 'change' }>,
+  version: string | null,
+  confirmed: { readonly minimumIncrease: boolean; readonly latestDecrease: boolean },
+) {
+  return {
+    latestBuild: plan.latestBuild,
+    minimumSupportedBuild: plan.minimumSupportedBuild,
+    version,
+    confirmMinimumIncrease: plan.raisesMinimum && confirmed.minimumIncrease,
+    confirmLatestDecrease: plan.lowersLatest && confirmed.latestDecrease,
   };
 }
 

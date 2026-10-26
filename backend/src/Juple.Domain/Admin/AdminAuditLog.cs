@@ -52,10 +52,12 @@ public static class AdminAuditActions
     public const string NoticeDeleted = "notice.deleted";
     public const string SupportInquiryStatusChanged = "support.inquiry.status_changed";
     public const string SupportInquiryAnswered = "support.inquiry.answered";
+    public const string MobileVersionPolicyUpdated = "operations.app_version.updated";
 }
 
 public static class AdminAuditTargets
 {
+    public const string MobileVersionPolicy = "MobileVersionPolicy";
     public const string Notice = "Notice";
     public const string SupportInquiry = "SupportInquiry";
 }

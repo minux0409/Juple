@@ -91,8 +91,16 @@ Granting further admins is a later, audited Owner flow. It is not built yet, and
 | 콘텐츠 (링크/컬렉션) | disabled (준비중) | No moderation scope decided. |
 | 문의 | live | `GET support/inquiries` (전체/접수/처리중/답변완료), `GET {id}`, `PUT {id}/status` (접수 <-> 처리중 only; an answered inquiry cannot go back), `PUT {id}/answer` (1..8000 chars; replaces the answer). The answer is written to the **same row** the person reads in 고객센터 > 문의내역. |
 | 분석 (개요 / 사용자 / 저장 활동 / 국가 / 플랫폼) | live (Round 4) | `GET analytics/overview?range=7d\|30d\|90d`. It covers DAU/WAU/MAU from `analytics.UserDailyActivities`, signups, saved links, Collections and platforms; country is "not collected yet". All definitions are in `docs/analytics.md`. |
-| 운영 > 앱 버전 | read-only | `GET operations/app-version`: the `MobileVersionPolicy` the API serves. It changes only through a configuration deployment. |
+| 운영 > 앱 버전 | live (Owner edits) | `GET operations/app-version`: the policy the API serves, per platform, with its source. `PUT operations/app-version/{android\|ios}`: the Owner saves one platform's latest / minimum supported build. See "App version policy" below. |
 | 운영 > 시스템 상태 | live | API `/health`, `GET operations/system` (environment, API build, server time) and the Admin Web build (`JUPLE_ADMIN_BUILD_VERSION`). |
+
+### App version policy (운영 > 앱 버전, `/operations/app-version`)
+
+- **Storage.** `admin.MobileVersionPolicies` (migration `20261026015229_AddMobileVersionPolicies`): at most one row per platform (`Platform` = `android` | `ios`, the key), `LatestBuild`, `MinimumSupportedBuild`, `UpdatedByAdminUserId` (no FK, null = written by an operator procedure), `UpdatedAtUtc`, `Version` (rowversion). Check constraints repeat the API's rules (builds >= 1, minimum <= latest, known platform).
+- **Precedence.** A platform with a row serves the row's builds; a platform without one serves the deployed `MobileVersionPolicy` configuration exactly as before. The store URL is always configuration. An API revision older than the table, or a rollback, simply serves configuration again.
+- **Serving.** `GET /api/v1/app-update/{platform}` and the bootstrap's `mobileVersionPolicy` read `MobileVersionPolicySource`: a per-replica cache of 30 s (the replica that saved drops it at once), then the public 60 s HTTP cache - a save reaches every app within about 90 s. If the table cannot be read, the configuration is served and a warning is logged. A contradictory row is served as "no policy", never as a block. Response shapes are unchanged.
+- **Editing.** Any active admin can read; only the **Owner** can save (403 `ownerRequired` otherwise; the page shows the editor only when the API says `canEdit`). The server checks every value: whole numbers 1..2100000000, minimum <= latest, the `version` the operator loaded (409 `appVersionChanged` when someone saved in between - the page reloads instead of overwriting), and explicit confirmations: `confirmMinimumIncrease` for raising the minimum (forced update for older builds) and `confirmLatestDecrease` for lowering the latest. Values equal to the current ones write nothing. Each save writes the audit record `operations.app_version.updated` (target `MobileVersionPolicy`, id = platform, detail `latest 33->34; minimum 24->24; from configuration`) in the same transaction.
+- **Operations rule (unchanged).** Enter only builds the store can actually deliver, and raise the minimum only after the new build is confirmed downloadable (`docs/architecture.md`, "Rolling out an update").
 
 ### Still not available
 

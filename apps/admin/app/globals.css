@@ -364,6 +364,71 @@ td.preview {
   overflow-wrap: anywhere;
 }
 
+.policy-rows dd.policy-source {
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.policy-form {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.policy-form h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.policy-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  gap: 8px 12px;
+  margin-bottom: 8px;
+}
+
+.policy-fields label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+}
+
+.policy-fields input {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.policy-diff dd {
+  white-space: nowrap;
+}
+
+.policy-warning {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  color: var(--danger);
+}
+
+.policy-warning p {
+  margin: 0 0 6px;
+}
+
+.policy-warning .check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--text);
+}
+
+.policy-warning .check input {
+  width: auto;
+  margin-top: 3px;
+}
+
 .facts dd {
   margin: 0;
   min-width: 0;

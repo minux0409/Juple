@@ -113,6 +113,9 @@ public static class DependencyInjection
         services.AddScoped<Juple.Application.Admin.IAdminDashboardStore, Juple.Infrastructure.Admin.AdminDashboardStore>();
         services.AddScoped<Juple.Application.Admin.IAdminUserDirectoryStore, Juple.Infrastructure.Admin.AdminUserDirectoryStore>();
         services.AddScoped<Juple.Application.Admin.IAdminSupportInquiryStore, Juple.Infrastructure.Admin.AdminSupportInquiryStore>();
+        // 운영 > 앱 버전: the operator-set build numbers that override the deployed MobileVersionPolicy configuration.
+        services.AddScoped<Juple.Application.Admin.IMobileVersionPolicyStore, Juple.Infrastructure.Admin.MobileVersionPolicyStore>();
+        services.AddScoped<Juple.Application.Admin.MobileVersionPolicyAdminService>();
         services.AddScoped<Juple.Application.Admin.IAdminAnalyticsStore, Juple.Infrastructure.Analytics.AdminAnalyticsStore>();
         services.AddSingleton(configuration.GetSection("AdminWorkspace").Get<Juple.Application.Admin.AdminWorkspaceOptions>() ?? new());
         services.AddScoped<Juple.Application.Admin.IAdminWorkspaceStore, Juple.Infrastructure.Analytics.AdminWorkspaceStore>();

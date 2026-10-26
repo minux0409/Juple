@@ -6,13 +6,17 @@ import { AdminForbiddenError, ApiHttpError, ApiNetworkError, AuthExpiredError, c
 import { ADMIN_CONFIG_ENV, knownAuthorityHosts, readAdminConfig, redirectUriFor } from '../lib/adminConfig.ts';
 import {
   adminPaths,
+  appVersionEditState,
+  appVersionWriteBody,
   displayJupleId,
   failureMessage,
   INQUIRY_FILTERS,
   inquiryStatusLabel,
   localTodayStartUtc,
   manualStatusTargets,
+  parseBuildInput,
   parseInquiryFilter,
+  planAppVersionChange,
   policyView,
   safeStoreUrl,
   validateAnswer,
@@ -327,6 +331,76 @@ describe('admin pages and model', () => {
     assert.equal(strings.policyNotConfigured, '정책 미설정');
   });
 
+  it('app version editor: build numbers are whole numbers 1..2100000000 as typed, nothing else', () => {
+    assert.equal(parseBuildInput('34'), 34);
+    assert.equal(parseBuildInput(' 34 '), 34);
+    assert.equal(parseBuildInput('2100000000'), 2_100_000_000);
+    for (const text of ['', '0', '-1', '034', '34.0', '3e1', '1 2', '+34', 'abc', '2100000001', '99999999999']) {
+      assert.equal(parseBuildInput(text), null, text);
+    }
+  });
+
+  it('app version editor: plans Android 33 -> 34 with the minimum kept, and flags raising the minimum or lowering the latest', () => {
+    const current = { latestBuild: 33, minimumSupportedBuild: 24 };
+    assert.deepEqual(planAppVersionChange(current, '34', '24'), { kind: 'change', latestBuild: 34, minimumSupportedBuild: 24, raisesMinimum: false, lowersLatest: false });
+    assert.deepEqual(planAppVersionChange(current, '33', '24'), { kind: 'unchanged' });
+    assert.deepEqual(planAppVersionChange(current, '34', '30'), { kind: 'change', latestBuild: 34, minimumSupportedBuild: 30, raisesMinimum: true, lowersLatest: false });
+    assert.deepEqual(planAppVersionChange(current, '32', '24'), { kind: 'change', latestBuild: 32, minimumSupportedBuild: 24, raisesMinimum: false, lowersLatest: true });
+    assert.deepEqual(planAppVersionChange(current, '34', '35'), { kind: 'invalid', field: 'minimum', reason: 'minimumAboveLatest' });
+    assert.deepEqual(planAppVersionChange(current, 'x', '24'), { kind: 'invalid', field: 'latest', reason: 'notABuild' });
+    assert.deepEqual(planAppVersionChange(current, '34', '0'), { kind: 'invalid', field: 'minimum', reason: 'notABuild' });
+  });
+
+  it('app version editor: the PUT body carries the loaded version and a confirmation only for the change it was given for', () => {
+    const raise = planAppVersionChange({ latestBuild: 33, minimumSupportedBuild: 24 }, '34', '30');
+    const plain = planAppVersionChange({ latestBuild: 33, minimumSupportedBuild: 24 }, '34', '24');
+    assert.equal(raise.kind, 'change');
+    assert.equal(plain.kind, 'change');
+    if (raise.kind !== 'change' || plain.kind !== 'change') return;
+    assert.deepEqual(appVersionWriteBody(raise, 'AAAAAAAAB9E=', { minimumIncrease: true, latestDecrease: true }), {
+      latestBuild: 34,
+      minimumSupportedBuild: 30,
+      version: 'AAAAAAAAB9E=',
+      confirmMinimumIncrease: true,
+      confirmLatestDecrease: false,
+    });
+    assert.deepEqual(appVersionWriteBody(plain, null, { minimumIncrease: true, latestDecrease: true }), {
+      latestBuild: 34,
+      minimumSupportedBuild: 24,
+      version: null,
+      confirmMinimumIncrease: false,
+      confirmLatestDecrease: false,
+    });
+    assert.equal(adminPaths.appVersionPlatform('ios'), '/api/v1/admin/operations/app-version/ios');
+  });
+
+  it('app version editor: reads source, version and Owner rights from the API answer; a malformed answer is not editable', () => {
+    const answer = JSON.parse(
+      '{"platform":"android","enabled":true,"latestBuild":34,"minimumSupportedBuild":24,"storeUrl":null,"source":"database","version":"AAAAAAAAB9E=","updatedAtUtc":"2026-10-26T02:00:00+00:00","updatedByAdminUserId":1,"configuredLatestBuild":33,"configuredMinimumSupportedBuild":24,"canEdit":true}',
+    );
+    assert.deepEqual(appVersionEditState(answer), {
+      latestBuild: 34,
+      minimumSupportedBuild: 24,
+      source: 'database',
+      version: 'AAAAAAAAB9E=',
+      updatedAtUtc: '2026-10-26T02:00:00+00:00',
+      canEdit: true,
+    });
+    assert.equal(appVersionEditState({ ...answer, canEdit: undefined })?.canEdit, false);
+    assert.equal(appVersionEditState({ ...answer, source: undefined }), null);
+    assert.equal(appVersionEditState({ ...answer, latestBuild: '34' }), null);
+    assert.equal(appVersionEditState({ ...answer, source: 'configuration', version: null })?.version, null);
+  });
+
+  it('app version page: one editor per platform, confirmation before saving, 409 reloads instead of overwriting', () => {
+    const page = readFileSync(new URL('../app/(admin)/operations/app-version/page.tsx', import.meta.url), 'utf8');
+    assert.match(page, /adminPaths\.appVersionPlatform\(platform\)/);
+    assert.match(page, /window\.confirm\(summary\)/);
+    assert.match(page, /error\.status === 409/);
+    assert.match(page, /strings\.policyRaiseConfirm/);
+    assert.match(page, /edit\.canEdit/);
+  });
+
   it('shows Juple IDs the way the apps do and uses the browser midnight for "today"', () => {
     assert.equal(displayJupleId('K7MP4Q8N'), '@K7MP-4Q8N');
     const now = new Date(2026, 9, 19, 13, 45);
@@ -367,9 +441,12 @@ describe('admin pages and model', () => {
     assert.equal(isActive('/', '/users'), false);
   });
 
-  it('existing user, analytics and app-version pages stay read-only; ledger has its own controlled writes', () => {
+  it('existing user and analytics pages stay read-only; inquiries and app versions have their own controlled writes', () => {
     const puts = sourceFiles().filter(file => /method: 'PUT'/.test(readFileSync(file, 'utf8')));
-    assert.deepEqual(puts.map(file => file.replace(/\\/g, '/').replace(/^.*\/app\//, 'app/')), ['app/(admin)/inquiries/[inquiryId]/page.tsx']);
+    assert.deepEqual(puts.map(file => file.replace(/\\/g, '/').replace(/^.*\/app\//, 'app/')).sort(), [
+      'app/(admin)/inquiries/[inquiryId]/page.tsx',
+      'app/(admin)/operations/app-version/page.tsx',
+    ]);
   });
 });
 

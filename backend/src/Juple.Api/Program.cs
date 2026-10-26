@@ -295,6 +295,8 @@ builder.Services.PostConfigure<MobileVersionPolicyOptions>(policy =>
         platform.StoreUrl = null;
     }
 });
+// What the API actually serves: the configuration above, with the build numbers an operator saved in the Admin Web in its place.
+builder.Services.AddScoped<MobileVersionPolicySource>();
 builder.Services.Configure<PublicCollectionCursorOptions>(
     builder.Configuration.GetSection("PublicCollectionCursor"));
 builder.Services.Configure<CollectionUnlockGrantOptions>(
