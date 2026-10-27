@@ -863,7 +863,6 @@ export function CollectionsScreen() {
         removeClippedSubviews={Platform.OS === 'android'}
         ListHeaderComponent={
           <View>
-            {pullToRefresh.refreshRow}
             <SubscriptionExpiredNotice />
             <View style={styles.titleRow}>
               <ScreenTitle icon={screenIcons.collections} textStyle={styles.title} title={t('collections.title')} />

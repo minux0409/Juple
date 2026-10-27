@@ -28,8 +28,7 @@
     "edit": "編輯",
     "processing": "處理中...",
     "none": "無",
-    "notice": "提示",
-    "refreshing": "正在重新整理"
+    "notice": "提示"
   },
   "errors": {
     "unauthorized": "無法重新確認您的登入狀態。",

@@ -28,8 +28,7 @@
     "edit": "수정",
     "processing": "처리 중...",
     "none": "없음",
-    "notice": "알림",
-    "refreshing": "새로고침 중"
+    "notice": "알림"
   },
   "errors": {
     "unauthorized": "인증 상태를 다시 확인할 수 없습니다.",

@@ -451,7 +451,7 @@ export function DateHistoryScreen() {
   };
 
   // Until the stored sort is known nothing is requested (see useSortPreference), so there is nothing to show but the spinner.
-  const pullToRefresh = usePullToRefresh(isRefreshing, () => (search.isFlat ? search.refresh() : refresh()));
+  const pullToRefresh = usePullToRefresh(search.isFlat ? search.isLoading : isRefreshing, () => (search.isFlat ? search.refresh() : refresh()));
 
   if (!isSortReady || (isLoading && sections.length === 0 && !error && !search.isFlat)) {
     return (
@@ -473,7 +473,6 @@ export function DateHistoryScreen() {
         ListEmptyComponent={!error && !search.isFlat ? <CenteredEmptyState message={t('history.empty')} /> : undefined}
         ListHeaderComponent={
           <View>
-            {pullToRefresh.refreshRow}
             <View style={styles.titleRow}>
               <ScreenTitle icon={screenIcons.archive} textStyle={styles.title} title={t('history.title')} />
             </View>

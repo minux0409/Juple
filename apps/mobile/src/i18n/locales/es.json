@@ -28,8 +28,7 @@
     "edit": "Editar",
     "processing": "Procesando...",
     "none": "Ninguno",
-    "notice": "Aviso",
-    "refreshing": "Actualizando"
+    "notice": "Aviso"
   },
   "errors": {
     "unauthorized": "No pudimos volver a verificar tu inicio de sesión.",

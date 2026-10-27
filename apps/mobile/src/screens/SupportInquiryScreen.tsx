@@ -218,7 +218,6 @@ function InquiryHistory({ history, onOpen }: { readonly history: ReturnType<type
       onEndReached={() => { history.loadMore().catch(() => undefined); }}
       onEndReachedThreshold={0.5}
       refreshControl={pullToRefresh.refreshControl}
-      ListHeaderComponent={pullToRefresh.refreshRow ?? undefined}
       renderItem={({ item }) => <InquiryRow inquiry={item} onPress={() => onOpen(item)} />}
       testID="inquiry-history"
     />

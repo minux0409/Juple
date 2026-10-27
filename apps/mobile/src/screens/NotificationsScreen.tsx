@@ -164,7 +164,6 @@ export function NotificationsScreen({ navigation }: Props) {
         onScrollBeginDrag={closeOpenRow}
         scrollEnabled={swipeScrollEnabled}
         refreshControl={pullToRefresh.refreshControl}
-        ListHeaderComponent={pullToRefresh.refreshRow ?? undefined}
         renderItem={({ item }) => <NotificationRow notification={item} onDelete={() => deleteRow(item)} onPress={() => openRow(item)} />}
         renderSectionHeader={({ section }) => (
           <Text accessibilityRole="header" style={styles.sectionHeader} testID={`notifications-group-${section.key}`}>{section.title}</Text>

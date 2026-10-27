@@ -352,8 +352,7 @@ describe('FriendsScreen - a friend row', () => {
     expect(frame).toEqual(expect.objectContaining({ backgroundColor: colors.surface, borderRadius: radii.lg }));
     // Cards sit closer together (8dp) than the controls sit above the first card (12dp): the section gap is the larger one.
     expect(frame.marginBottom).toBe(spacing.sm);
-    // children[0] is the pull-to-refresh row's slot (empty unless a pull is running).
-    const controls = StyleSheet.flatten(byId(renderer, 'friends-list').props.ListHeaderComponent.props.children[1].props.style);
+    const controls = StyleSheet.flatten(byId(renderer, 'friends-list').props.ListHeaderComponent.props.children[0].props.style);
     expect(controls.marginBottom).toBe(spacing.md);
     expect(controls.marginBottom).toBeGreaterThan(frame.marginBottom as number);
   });

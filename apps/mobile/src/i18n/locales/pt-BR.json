@@ -28,8 +28,7 @@
     "edit": "Editar",
     "processing": "Processando...",
     "none": "Nenhuma",
-    "notice": "Aviso",
-    "refreshing": "Atualizando"
+    "notice": "Aviso"
   },
   "errors": {
     "unauthorized": "Não foi possível verificar novamente seu status de login.",

@@ -28,8 +28,7 @@
     "edit": "Modifica",
     "processing": "Elaborazione...",
     "none": "Nessuna",
-    "notice": "Avviso",
-    "refreshing": "Aggiornamento"
+    "notice": "Avviso"
   },
   "errors": {
     "unauthorized": "Non è stato possibile verificare nuovamente il tuo accesso.",

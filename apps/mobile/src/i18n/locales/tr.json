@@ -28,8 +28,7 @@
     "edit": "Düzenle",
     "processing": "İşleniyor...",
     "none": "Yok",
-    "notice": "Bildirim",
-    "refreshing": "Yenileniyor"
+    "notice": "Bildirim"
   },
   "errors": {
     "unauthorized": "Oturum açma durumunuzu yeniden doğrulayamadık.",

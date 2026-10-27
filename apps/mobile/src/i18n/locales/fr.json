@@ -28,8 +28,7 @@
     "edit": "Modifier",
     "processing": "Traitement...",
     "none": "Aucune",
-    "notice": "Avis",
-    "refreshing": "Actualisation"
+    "notice": "Avis"
   },
   "errors": {
     "unauthorized": "Nous n'avons pas pu revérifier votre statut de connexion.",

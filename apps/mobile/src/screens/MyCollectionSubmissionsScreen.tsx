@@ -145,7 +145,6 @@ export function MyCollectionSubmissionsScreen({ route }: Props) {
           loadMore().catch(() => undefined);
         }}
         refreshControl={pullToRefresh.refreshControl}
-        ListHeaderComponent={pullToRefresh.refreshRow ?? undefined}
         renderItem={renderItem}
         testID="my-submissions-list"
       />

@@ -572,7 +572,6 @@ export function DailyInboxScreen() {
         refreshControl={pullToRefresh.refreshControl}
         ListHeaderComponent={
           <View>
-            {pullToRefresh.refreshRow}
             <View style={styles.brandRow}>
               <JupleBrandMark size="medium" />
               {/* 알림 - Home's top end, the one place it lives (not on every screen). */}

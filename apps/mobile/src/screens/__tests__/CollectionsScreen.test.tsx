@@ -177,7 +177,7 @@ describe('CollectionsScreen - refresh spinner (iOS stuck spinner after coming ba
     act(() => renderer.unmount());
   });
 
-  it('a pull shows its own loading row (never the floating native spinner) only while its request runs - on success and on a network failure', async () => {
+  it('a pull shows the one native spinner only while its request runs - on success and on a network failure - and no loading row', async () => {
     const renderer = await renderScreen();
     const pull = () => act(() => renderer.root.findByType(RefreshControl).props.onRefresh());
     const hasRow = () => renderer.root.findAll(node => node.props.testID === 'pull-refresh-row').length > 0;
@@ -185,15 +185,15 @@ describe('CollectionsScreen - refresh spinner (iOS stuck spinner after coming ba
     const ok = deferred<Awaited<ReturnType<typeof getCollections>>>();
     jest.mocked(getCollections).mockReturnValueOnce(ok.promise);
     pull();
-    expect(hasRow()).toBe(true);
-    expect(nativeSpinner(renderer)).toBe(false);
-    await act(async () => { ok.resolve({ items: favoriteCollections, nextCursor: null }); });
+    expect(nativeSpinner(renderer)).toBe(true);
     expect(hasRow()).toBe(false);
+    await act(async () => { ok.resolve({ items: favoriteCollections, nextCursor: null }); });
+    expect(nativeSpinner(renderer)).toBe(false);
 
     const failing = deferred<Awaited<ReturnType<typeof getCollections>>>();
     jest.mocked(getCollections).mockReturnValueOnce(failing.promise);
     pull();
-    expect(hasRow()).toBe(true);
+    expect(nativeSpinner(renderer)).toBe(true);
     await act(async () => { failing.reject(new ApiError('unavailable', 503)); });
     expect(hasRow()).toBe(false);
     expect(nativeSpinner(renderer)).toBe(false);

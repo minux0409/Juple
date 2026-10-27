@@ -28,8 +28,7 @@
     "edit": "編集",
     "processing": "処理中...",
     "none": "なし",
-    "notice": "お知らせ",
-    "refreshing": "更新中"
+    "notice": "お知らせ"
   },
   "errors": {
     "unauthorized": "ログイン状態を再確認できませんでした。",

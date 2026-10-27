@@ -28,8 +28,7 @@
     "edit": "Edit",
     "processing": "Processing...",
     "none": "None",
-    "notice": "Notice",
-    "refreshing": "Refreshing"
+    "notice": "Notice"
   },
   "errors": {
     "unauthorized": "We couldn't re-verify your sign-in status.",

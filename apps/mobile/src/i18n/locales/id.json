@@ -28,8 +28,7 @@
     "edit": "Edit",
     "processing": "Memproses...",
     "none": "Tidak ada",
-    "notice": "Pemberitahuan",
-    "refreshing": "Memuat ulang"
+    "notice": "Pemberitahuan"
   },
   "errors": {
     "unauthorized": "Kami tidak dapat memverifikasi ulang status masuk Anda.",

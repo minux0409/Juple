@@ -28,8 +28,7 @@
     "edit": "Bearbeiten",
     "processing": "Wird verarbeitet...",
     "none": "Keine",
-    "notice": "Hinweis",
-    "refreshing": "Wird aktualisiert"
+    "notice": "Hinweis"
   },
   "errors": {
     "unauthorized": "Ihr Anmeldestatus konnte nicht erneut überprüft werden.",

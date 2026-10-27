@@ -28,8 +28,7 @@
     "edit": "编辑",
     "processing": "处理中...",
     "none": "无",
-    "notice": "提示",
-    "refreshing": "正在刷新"
+    "notice": "提示"
   },
   "errors": {
     "unauthorized": "无法重新确认您的登录状态。",

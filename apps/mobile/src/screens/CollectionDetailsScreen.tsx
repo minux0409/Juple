@@ -1712,7 +1712,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   const listHeader = (
     <View>
-      {pullToRefresh.refreshRow}
       <View>
           <View style={styles.headerTitleRow}>
             <View style={styles.headerIconBadge}>

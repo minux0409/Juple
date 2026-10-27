@@ -28,8 +28,7 @@
     "edit": "Chỉnh sửa",
     "processing": "Đang xử lý...",
     "none": "Không có",
-    "notice": "Thông báo",
-    "refreshing": "Đang làm mới"
+    "notice": "Thông báo"
   },
   "errors": {
     "unauthorized": "Không thể xác minh lại trạng thái đăng nhập của bạn.",
