@@ -4,11 +4,11 @@ import {
   AppState,
   Linking,
   Platform,
-  Pressable,
   ScrollView,
   Text,
   View,
 } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import {

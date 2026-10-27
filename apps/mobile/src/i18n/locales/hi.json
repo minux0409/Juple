@@ -332,6 +332,7 @@
     "sharePasswordShow": "पासवर्ड दिखाएँ",
     "sharePasswordHide": "पासवर्ड छिपाएँ",
     "sharePasswordCopyFailed": "कॉपी नहीं हो सका। कृपया फिर से कोशिश करें।",
+    "sharePasswordCopied": "कॉपी किया गया",
     "sharePasswordChange": "बदलें",
     "sharePasswordRemoveTitle": "एक्सेस पासवर्ड सुरक्षा हटाएँ?",
     "sharePasswordRemoveMessage": "शेयरिंग वैसी ही रहेगी, और इसे बिना पासवर्ड के खोला जा सकेगा।",

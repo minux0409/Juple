@@ -6,9 +6,9 @@ import {
   ActivityIndicator,
   AppState,
   FlatList,
-  Pressable,
   Text,
 } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { LoadFailureState } from '../components/LoadFailureState';

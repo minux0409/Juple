@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { Pressable } from './Pressable';
 import { useTranslation } from 'react-i18next';
 import { InfoIcon } from '../icons/InfoIcon';
 import { BrokenLinkIcon } from '../icons/BrokenLinkIcon';

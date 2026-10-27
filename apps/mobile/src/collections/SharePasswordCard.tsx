@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, AppState, Modal, Platform, Pressable, Text, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, AppState, Modal, Platform, Text, View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { ThemedTextInput } from '../components/ThemedTextInput';
 import { ThemedSwitch } from '../components/ThemedSwitch';
 import Clipboard from '@react-native-clipboard/clipboard';
@@ -96,6 +97,14 @@ interface SharePasswordCardProps {
  * Owner's lock first: without this visit's lock grant the server refuses the reveal, and the card
  * asks for the lock password right here (the same prompt as the Collection itself), then reveals.
  */
+/** How long the card's own "복사되었습니다" stays. */
+const COPIED_NOTICE_MS = 2000;
+
+/** Android 13 (API 33) and newer confirm every clipboard copy themselves; showing ours too would say it twice. */
+function systemAnnouncesCopy(): boolean {
+  return Platform.OS === 'android' && Number(Platform.Version) >= 33;
+}
+
 export function SharePasswordCard({ collectionId, authenticatedRequest, onModeChange }: SharePasswordCardProps) {
   const { t } = useTranslation();
   const [status, setStatus] = useState<SharePasswordStatus | null>(null);
@@ -103,6 +112,14 @@ export function SharePasswordCard({ collectionId, authenticatedRequest, onModeCh
   const [busy, setBusy] = useState<'load' | 'save' | 'remove' | null>('load');
   const [error, setError] = useState<string | null>(null);
   const [needsLockUnlock, setNeedsLockUnlock] = useState(false);
+  const [isCopiedNoticeVisible, setIsCopiedNoticeVisible] = useState(false);
+  useEffect(() => {
+    if (!isCopiedNoticeVisible) {
+      return undefined;
+    }
+    const timer = setTimeout(() => setIsCopiedNoticeVisible(false), COPIED_NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, [isCopiedNoticeVisible]);
   const [dialog, setDialog] = useState<'set' | 'change' | null>(null);
   const [isRemoveConfirmVisible, setIsRemoveConfirmVisible] = useState(false);
   // Shown in plain text only after the eye is tapped - display only; the password itself is held
@@ -201,7 +218,9 @@ export function SharePasswordCard({ collectionId, authenticatedRequest, onModeCh
 
   /**
    * Copies the real password, masked or shown - the password itself is never logged, reported or put
-   * in any message. No toast of its own: the OS already says "copied" (as with the Juple ID). A
+   * in any message. Android 13+ says "복사되었습니다" itself (a system notice); iOS (and older Android)
+   * says nothing, so there the card says it - right here in the card, because this screen is a sheet
+   * on iOS and the app-wide toast would sit behind it. Only after the clipboard really took it. A
    * platform refusal only says so - it never shows the password and never breaks the screen.
    */
   const copy = () => {
@@ -211,6 +230,10 @@ export function SharePasswordCard({ collectionId, authenticatedRequest, onModeCh
     try {
       Clipboard.setString(password);
       setError(null);
+      if (!systemAnnouncesCopy()) {
+        setIsCopiedNoticeVisible(true);
+        AccessibilityInfo.announceForAccessibility(t('collections.sharePasswordCopied'));
+      }
     } catch {
       // Only a short reason - it stays masked until the Owner taps the eye.
       setError(t('collections.sharePasswordCopyFailed'));
@@ -352,6 +375,9 @@ export function SharePasswordCard({ collectionId, authenticatedRequest, onModeCh
         </View>
       ) : null}
 
+      {isCopiedNoticeVisible && !error ? (
+        <Text accessibilityLiveRegion="polite" style={styles.copiedNotice} testID="share-password-copied">{t('collections.sharePasswordCopied')}</Text>
+      ) : null}
       {error ? <Text style={styles.error} testID="share-password-error">{error}</Text> : null}
 
       <SharePasswordDialog
@@ -531,6 +557,7 @@ const styles = themedStyles(() => ({
   actionLabelPrimary: { color: colors.onBrand, fontWeight: '700' },
   disabled: { opacity: 0.45 },
   error: { color: colors.dangerText, fontSize: 13 },
+  copiedNotice: { color: colors.brandText, fontSize: 13, fontWeight: '600' },
   overlay: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)', flex: 1, justifyContent: 'center', padding: spacing.xl },
   dialog: { backgroundColor: colors.surface, borderRadius: radii.lg, gap: spacing.sm, maxWidth: 420, padding: spacing.xl, width: '100%' },
   dialogTitle: { color: colors.textPrimary, fontSize: 17, fontWeight: '700' },

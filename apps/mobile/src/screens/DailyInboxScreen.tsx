@@ -8,10 +8,10 @@ import {
   AppState,
   FlatList,
   Platform,
-  Pressable,
   Text,
   View,
 } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { usePullToRefresh } from '../components/PullRefreshControl';
 import { ThemedTextInput } from '../components/ThemedTextInput';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,7 +34,6 @@ import {
   SavedLinkImageRow,
   SavedLinkImageRowSkeleton,
 } from '../components/SavedLinkImageTile';
-import { LinkSortChips } from '../components/LinkSortChips';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { NotificationBellButton } from '../notifications/NotificationBellButton';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
@@ -66,9 +65,6 @@ import { BRAND_PRIMARY, cardShadow, colors, ltrTextStyle, minTouchTarget, radii,
 import { TOUR_TARGETS } from '../tour/tourGuides';
 import { useTourTarget } from '../tour/tourTargets';
 import { useViewModePreference } from '../settings/viewModePreference';
-import { isNameSort, nextDateSort, nextNameSort, useSortPreference } from '../settings/sortPreference';
-import { sortLinksByName } from '../collections/sortCollectionItems';
-import { NAME_ORDER_MAX_LINKS } from '../collections/useCollectionItems';
 import { JupleBrandMark } from '../components/JupleBrandMark';
 import { ScreenTitleGlyph } from '../components/ScreenTitle';
 import { ClockIcon } from '../icons/ClockIcon';
@@ -173,9 +169,6 @@ export function DailyInboxScreen() {
   // Responsive Grid: more columns on a wider window (phone: 2 cards / 3 image tiles, as always) - see layout/responsiveGrid.
   const columns = useSavedLinkColumns();
   const gridCellStyle = useSavedLinkGridCellStyle();
-  // Independent of the view mode (switching List/Grid never resets the sort) - the same two
-  // separately-persisted preferences a Collection keeps (see CollectionDetailsScreen).
-  const { sortOption, setSortOption } = useSortPreference('homeLinkSort');
   // AppToastHost renders above NavigationContainer (root coordinate space), so unlike a
   // screen-local Toast this needs the actual bottom tab bar height, not 0 - otherwise the Toast
   // sits under the tab bar, over the Android system navigation area.
@@ -471,44 +464,14 @@ export function DailyInboxScreen() {
     onCollectionsChanged: () => { loadToday('refresh'); },
   });
 
-  // 시간순 ↓ (the server's own newest-first order) pages in as the list scrolls. 시간순 ↑ and 이름순 need
-  // the whole day: it is loaded here (largest pages) before anything is shown in that order, never
-  // presenting a partial order as the day's - exactly the Collection rule. A day larger than
-  // NAME_ORDER_MAX_LINKS stays on newest-first.
-  const isSortTooLarge = (todayCount ?? 0) > NAME_ORDER_MAX_LINKS;
-  const effectiveSort = sortOption !== 'newest' && isSortTooLarge ? 'newest' : sortOption;
-  const needsWholeDay = effectiveSort !== 'newest';
-  useEffect(() => {
-    if (needsWholeDay && nextCursor && !error && !isLoading && !isRefreshing && !isLoadingMore) {
-      loadMore(MAX_PAGE_LIMIT);
-    }
-  }, [error, isLoading, isLoadingMore, isRefreshing, loadMore, needsWholeDay, nextCursor]);
-  const isAssemblingOrder = needsWholeDay && !error && (nextCursor !== null || isLoadingMore);
-  const displayedItems = useMemo(() => {
-    if (isAssemblingOrder) {
-      return [];
-    }
-    if (isNameSort(effectiveSort)) {
-      return sortLinksByName(
-        items,
-        { title: item => item.title, url: item => item.url, addedAtUtc: item => item.savedAtUtc, id: item => item.id },
-        undefined,
-        effectiveSort === 'titleDesc' ? 'desc' : 'asc',
-      );
-    }
-    return effectiveSort === 'oldest' ? [...items].reverse() : items;
-  }, [effectiveSort, isAssemblingOrder, items]);
+  // Always the server's own order - newest saved first (saved time, then id) - paging in as the list scrolls. There is no
+  // other order to pick.
+  const displayedItems = items;
   // The swipe hint: only where a swipeable row (List / Grid) is on screen and its swipe really reveals an action. One
   // completion key is shared with the Archive, and swiping any row is the taught gesture.
   const swipeHint = useOneTimeHint('savedLinkSwipe', viewMode !== 'image' && displayedItems.some(hasSavedLinkSwipeActions));
   const { markPerformed: markSwipePerformed } = swipeHint;
   useEffect(() => subscribeRowOpened(markSwipePerformed), [markSwipePerformed]);
-  const pressDateSort = () => setSortOption(nextDateSort(effectiveSort));
-  const pressNameSort = () => {
-    if (!isSortTooLarge) {
-      setSortOption(nextNameSort(effectiveSort));
-    }
-  };
 
   // Image view: the same loaded links as lines of three squares (one virtualized list, no nested lists).
   const imageLines = useMemo<readonly ImageLine[]>(
@@ -612,7 +575,7 @@ export function DailyInboxScreen() {
               <LoadFailureState compact error={error.cause} notice={isDefinitiveLoadError(error.cause) ? error.message : null} onRetry={() => { loadToday('refresh'); }} testID="home-load-error" />
             ) : null}
             <View style={styles.recentHeaderRow}>
-              {/* Title and count only - the controls are on the sort row below, as in a Collection. */}
+              {/* Title and count only - the view switch is on the row below, as in a Collection. */}
               <ScreenTitleGlyph icon={ClockIcon} />
               <View style={styles.recentHeaderLabel}>
                 <Text style={styles.recentTitle}>{t('inbox.recentSaved')}</Text>
@@ -620,20 +583,8 @@ export function DailyInboxScreen() {
               </View>
             </View>
             {swipeHint.isVisible ? <HintBanner message={t('hints.savedLinkSwipe')} onDismiss={swipeHint.dismiss} testID="home-swipe-hint" /> : null}
-            {/* [시간순 이름순] on the start side, the List/Grid switch pinned to the end edge. */}
-            <View style={styles.sortRow}>
-              <LinkSortChips
-                dateLabel={t('collections.sortDate')}
-                dateNewestA11yLabel={t('collections.sortDateNewestA11y')}
-                dateOldestA11yLabel={t('collections.sortDateOldestA11y')}
-                nameAscA11yLabel={t('collections.sortNameAscA11y')}
-                nameDescA11yLabel={t('collections.sortNameDescA11y')}
-                nameLabel={t('collections.sortName')}
-                onPressDate={pressDateSort}
-                onPressName={pressNameSort}
-                sort={effectiveSort}
-                testIDPrefix="home-sort"
-              />
+            {/* The List / Grid / Image switch, pinned to the end edge - the links are always newest first. */}
+            <View style={styles.sortRow} testID="home-view-controls">
               <View style={styles.sortRowSpacer} />
               <ViewModeToggle onChange={changeViewMode} showImage style={styles.viewModeToggle} value={viewMode} />
             </View>
@@ -642,7 +593,7 @@ export function DailyInboxScreen() {
         ListEmptyComponent={
           error ? (
             <LoadFailureState error={error.cause} notice={isDefinitiveLoadError(error.cause) ? error.message : null} onRetry={() => { loadToday('initial'); }} testID="home-load-error" />
-          ) : (isLoading || isAssemblingOrder) ? renderSkeletons(HOME_FIRST_PAGE_SKELETON_ROWS, 'home-first-page-loading') : <CenteredEmptyState message={t('inbox.empty')} />
+          ) : isLoading ? renderSkeletons(HOME_FIRST_PAGE_SKELETON_ROWS, 'home-first-page-loading') : <CenteredEmptyState message={t('inbox.empty')} />
         }
         renderItem={({ item, index }) => isImageLine(item) ? (
           <SavedLinkImageRow items={item.items} onLongPress={linkActions.openMenu} onPress={openItem} testID={`home-image-line-${item.lineKey}`} />

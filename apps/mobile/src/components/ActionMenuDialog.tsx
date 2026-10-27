@@ -1,5 +1,6 @@
 import type { ComponentType, ReactNode } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from './Pressable';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { KeyboardFieldScope } from './keyboardToolbar';
 
@@ -55,7 +56,13 @@ export function ActionMenuDialog({ visible, title, header, actions, cancelLabel,
           <Text style={[styles.label, hasIcons && styles.labelWithIcon, { color }]}>{action.label}</Text>
         </Pressable>;
       })}
-      <Pressable accessibilityRole="button" onPress={onCancel} style={styles.cancel}><Text style={styles.label}>{cancelLabel}</Text></Pressable>
+      {/* 취소: its own row under a divider, as tall as an action row (padding above AND below the label) - never pressed against the
+          card's bottom edge. */}
+      <View style={styles.cancelArea}>
+        <Pressable accessibilityRole="button" onPress={onCancel} style={({ pressed }) => [styles.cancel, pressed && styles.pressed]} testID="action-menu-cancel">
+          <Text style={styles.label}>{cancelLabel}</Text>
+        </Pressable>
+      </View>
     </View></View>
     </KeyboardFieldScope>
   </Modal>;
@@ -70,7 +77,8 @@ const styles = themedStyles(() => ({
   header: { borderBottomColor: colors.divider, borderBottomWidth: 1, marginBottom: spacing.xs, paddingBottom: spacing.xs },
   pressed: { backgroundColor: colors.surfaceMuted },
   icon: { alignItems: 'center', flexShrink: 0, height: ICON_SIZE + 2, justifyContent: 'center', width: ICON_SIZE + 2 },
-  cancel: { borderTopColor: colors.divider, borderTopWidth: 1, marginTop: spacing.sm, paddingHorizontal: spacing.md, paddingTop: spacing.md },
+  cancelArea: { borderTopColor: colors.divider, borderTopWidth: 1, marginTop: spacing.sm, paddingTop: spacing.xs },
+  cancel: { borderRadius: radii.md, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md, paddingVertical: spacing.md },
   label: { color: colors.textPrimary, fontSize: 16, fontWeight: '600', textAlign: 'center' },
   labelWithIcon: { flex: 1, flexShrink: 1, textAlign: 'auto' },
 }));

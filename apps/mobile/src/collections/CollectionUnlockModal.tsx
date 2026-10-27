@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, Text } from 'react-native';
+import { ScrollView, Text } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { AppModal } from '../components/AppModal';
 import { colors, minTouchTarget, radii, themedStyles } from '../theme/tokens';
 import { CollectionUnlockPanel } from './CollectionUnlockPanel';

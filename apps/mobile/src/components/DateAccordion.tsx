@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text } from 'react-native';
+import { Text } from 'react-native';
+import { Pressable } from './Pressable';
 import { ChevronIcon } from '../icons/ChevronIcon';
 import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 

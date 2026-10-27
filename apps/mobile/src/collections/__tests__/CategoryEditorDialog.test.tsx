@@ -1,5 +1,6 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Image, TextInput } from 'react-native';
+import { Image, StyleSheet, TextInput } from 'react-native';
+import { colors } from '../../theme/tokens';
 import { launchImageLibrary } from 'react-native-image-picker';
 import i18n from '../../i18n';
 import { CategoryEditorDialog } from '../CategoryEditorDialog';
@@ -170,5 +171,18 @@ describe('CategoryEditorDialog', () => {
     expect(renderer.root.findAllByType(TextInput)).toHaveLength(0);
     expect(props.onSubmit).not.toHaveBeenCalled();
     expect(props.onCancel).not.toHaveBeenCalled();
+  });
+});
+
+describe('CategoryEditorDialog - nothing of the screen behind looks like part of the card', () => {
+  it('the backdrop is the theme scrim and the card has its own edge and clips its content to its rounded corners', async () => {
+    const { renderer } = await renderDialog();
+    const card = renderer.root.findAll(node => node.props.accessibilityViewIsModal === true && typeof node.type === 'string')[0];
+    const cardStyle = StyleSheet.flatten(card.props.style);
+    expect(cardStyle).toEqual(expect.objectContaining({ overflow: 'hidden', borderWidth: 1, borderColor: colors.inputBorder }));
+    const backdrops = renderer.root.findAll(node => typeof node.type === 'string' && StyleSheet.flatten(node.props.style)?.backgroundColor === colors.scrim);
+    expect(backdrops.length).toBeGreaterThan(0);
+    // The old fixed, lighter backdrop is gone.
+    expect(renderer.root.findAll(node => typeof node.type === 'string' && StyleSheet.flatten(node.props.style)?.backgroundColor === 'rgba(0, 0, 0, 0.4)')).toHaveLength(0);
   });
 });

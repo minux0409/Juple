@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { ThemedTextInput } from '../components/ThemedTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CategoryIconTile } from './CategoryIconTile';
@@ -223,16 +224,23 @@ export function CategoryEditorDialog({
 }
 
 const styles = themedStyles(() => ({
+  // The theme's scrim (darker in Dark): with the keyboard up the card rises into the screen's header, and the screen's purple "+"
+  // under a light scrim showed around the card's rounded corner as if a purple corner stuck out of the dialog.
   overlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: colors.scrim,
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
   },
+  // A thin edge in the theme's border colour makes the card's own corner unmistakable over whatever is behind it; overflow
+  // hidden keeps every child (and Android's drawing) inside the rounded corners however the keyboard resizes the window.
   card: {
     backgroundColor: colors.surface,
+    borderColor: colors.inputBorder,
     borderRadius: radii.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
     maxHeight: '100%',
     maxWidth: 420,
     padding: spacing.xl,

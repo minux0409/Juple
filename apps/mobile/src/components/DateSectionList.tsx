@@ -1,6 +1,7 @@
 import { useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, View, type StyleProp, type ViewStyle, type ListViewToken } from 'react-native';
+import { Text, View, type StyleProp, type ViewStyle, type ListViewToken } from 'react-native';
+import { Pressable } from './Pressable';
 import type { DateSection, DateSectionPage } from '../items/useDateSectionPages';
 import { columnBasis, PHONE_SAVED_LINK_COLUMNS, useSavedLinkColumns, type SavedLinkColumns } from '../layout/responsiveGrid';
 import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';

@@ -1,4 +1,5 @@
-import { Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable } from './Pressable';
 import { useLayoutDirection } from '../i18n/layoutDirection';
 import { BellIcon } from '../icons/BellIcon';
 import { ChevronIcon } from '../icons/ChevronIcon';

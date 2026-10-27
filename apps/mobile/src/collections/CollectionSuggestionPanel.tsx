@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { CategoryIconTile } from './CategoryIconTile';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { SiteIcon } from '../icons/SiteIcon';

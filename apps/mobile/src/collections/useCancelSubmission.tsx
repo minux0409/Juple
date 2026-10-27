@@ -1,7 +1,8 @@
 import { isHttpUrl } from '../share/resolveIncomingShare';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Linking, Pressable, StyleSheet } from 'react-native';
+import { ActivityIndicator, Linking, StyleSheet } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { ApiError } from '../api/ApiError';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';

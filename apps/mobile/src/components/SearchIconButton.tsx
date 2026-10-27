@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable } from 'react-native';
+import { ActivityIndicator } from 'react-native';
+import { Pressable } from './Pressable';
 import { SearchIcon } from '../icons/SearchIcon';
 import { colors, minTouchTarget, radii, themedStyles } from '../theme/tokens';
 
@@ -7,16 +8,20 @@ interface SearchIconButtonProps {
   readonly accessibilityLabel: string;
   readonly onPress: () => void;
   readonly disabled?: boolean;
-  /** Replaces the magnifier with a spinner while the lookup runs; the button stays the same size. */
+  /** Replaces the magnifier with a spinner while the lookup runs; the button stays the same size and cannot be pressed again. */
   readonly isLoading?: boolean;
   readonly testID?: string;
 }
 
 /**
- * The magnifying-glass action button (an ID lookup's 찾기): a 44dp bordered square next to its input,
- * the same shape the text button had, so the row does not change size between locales.
+ * The magnifying-glass action button (an ID lookup's 찾기): a 44dp square next to its input, the same shape the text button had, so
+ * the row does not change size between locales. Its state is in its colours, not in a faded copy of the active look:
+ * - nothing to look up yet (empty field): a quiet neutral square - muted fill, soft border, light icon;
+ * - ready: the brand fill with the icon on it, like every other primary action;
+ * - looking up: the same brand square with a spinner - it cannot start a second lookup.
  */
 export function SearchIconButton({ accessibilityLabel, onPress, disabled = false, isLoading = false, testID }: SearchIconButtonProps) {
+  const isIdle = disabled && !isLoading;
   return (
     <Pressable
       accessibilityLabel={accessibilityLabel}
@@ -24,10 +29,14 @@ export function SearchIconButton({ accessibilityLabel, onPress, disabled = false
       accessibilityState={{ disabled: disabled || isLoading, busy: isLoading }}
       disabled={disabled || isLoading}
       onPress={onPress}
-      style={[styles.button, disabled && !isLoading && styles.disabled]}
+      style={({ pressed }) => [styles.button, isIdle ? styles.idle : styles.ready, pressed && styles.pressed]}
       testID={testID}
     >
-      {isLoading ? <ActivityIndicator size="small" /> : <SearchIcon color={colors.textPrimary} size={20} />}
+      {isLoading ? (
+        <ActivityIndicator color={colors.onBrand} size="small" />
+      ) : (
+        <SearchIcon color={isIdle ? colors.placeholder : colors.onBrand} size={20} />
+      )}
     </Pressable>
   );
 }
@@ -35,7 +44,6 @@ export function SearchIconButton({ accessibilityLabel, onPress, disabled = false
 const styles = themedStyles(() => ({
   button: {
     alignItems: 'center',
-    borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
     flexShrink: 0,
@@ -43,5 +51,7 @@ const styles = themedStyles(() => ({
     justifyContent: 'center',
     width: minTouchTarget,
   },
-  disabled: { opacity: 0.45 },
+  idle: { backgroundColor: colors.surfaceMuted, borderColor: colors.inputBorder },
+  ready: { backgroundColor: colors.brand, borderColor: colors.brand },
+  pressed: { opacity: 0.8 },
 }));

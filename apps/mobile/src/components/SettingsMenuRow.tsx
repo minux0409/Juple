@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { Pressable } from './Pressable';
 import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 
 /** The existing My Page single-line menu geometry, shared by ordinary menu entries. */

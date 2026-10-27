@@ -1,5 +1,6 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { SectionList, Text } from 'react-native';
+import { SectionList, StyleSheet, Text } from 'react-native';
+import { colors } from '../../theme/tokens';
 import i18n from '../../i18n';
 import { UserAvatar } from '../../components/UserAvatar';
 import { CategoryIconTile } from '../../collections/CategoryIconTile';
@@ -293,23 +294,30 @@ describe('NotificationsScreen', () => {
 });
 
 describe('NotificationBellButton', () => {
-  it('shows the unread number (99+ above 99) and says the full count', async () => {
+  it('shows a red dot (no number) while anything is unread, and still says the full count', async () => {
     let renderer!: ReactTestRenderer.ReactTestRenderer;
     await act(async () => {
       renderer = ReactTestRenderer.create(<NotificationBellButton onPress={() => undefined} />);
     });
     mounted.push(renderer);
     const bell = () => renderer.root.findAll(node => node.props.testID === 'notification-bell' && typeof node.type === 'string')[0];
+    const dots = () => renderer.root.findAll(node => node.props.testID === 'notification-bell-dot' && typeof node.type === 'string');
 
     expect(bell().props.accessibilityLabel).toBe('알림');
-    expect(renderer.root.findAll(node => node.props.testID === 'notification-bell-badge' && typeof node.type === 'string')).toHaveLength(0);
+    expect(dots()).toHaveLength(0);
 
     act(() => setUnreadCount(7));
     expect(bell().props.accessibilityLabel).toBe('알림, 읽지 않은 알림 7개');
-    expect(renderer.root.findAllByType(Text).map(text => text.props.children)).toContain('7');
+    expect(dots()).toHaveLength(1);
+    expect(StyleSheet.flatten(dots()[0].props.style)).toEqual(expect.objectContaining({ backgroundColor: colors.badge, width: 8, height: 8, borderRadius: 4 }));
+    expect(renderer.root.findAllByType(Text)).toHaveLength(0);
 
     act(() => setUnreadCount(120));
     expect(bell().props.accessibilityLabel).toBe('알림, 읽지 않은 알림 120개');
-    expect(renderer.root.findAllByType(Text).map(text => text.props.children)).toContain('99+');
+    expect(dots()).toHaveLength(1);
+    expect(renderer.root.findAllByType(Text)).toHaveLength(0);
+
+    act(() => setUnreadCount(0));
+    expect(dots()).toHaveLength(0);
   });
 });

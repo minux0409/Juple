@@ -332,6 +332,7 @@
     "sharePasswordShow": "Mostra password",
     "sharePasswordHide": "Nascondi password",
     "sharePasswordCopyFailed": "Impossibile copiare. Riprova.",
+    "sharePasswordCopied": "Copiato",
     "sharePasswordChange": "Modifica",
     "sharePasswordRemoveTitle": "Rimuovere la protezione con password di accesso?",
     "sharePasswordRemoveMessage": "La condivisione resta com’è e si potrà aprire senza password.",

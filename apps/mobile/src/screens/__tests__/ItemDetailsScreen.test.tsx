@@ -1261,6 +1261,14 @@ describe('ItemDetailsScreen', () => {
         .findAll(node => typeof node.type === 'string' && ['representative-photo-add', 'shared-item-reactions', 'comments-section', 'comment-composer'].includes(node.props.testID))
         .map(node => node.props.testID);
       expect(order.filter((id: string, index: number, all: string[]) => all.indexOf(id) === index).slice(-3)).toEqual(['shared-item-reactions', 'comments-section', 'comment-composer']);
+      // Pinned under the scrolling body (above the action row), never the last thing inside the scroll content: the sheet's
+      // spare room can no longer end up under the field.
+      const pinned = renderer.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'item-details-composer');
+      expect(pinned).toHaveLength(1);
+      expect(pinned[0].findAll(node => node.props.testID === 'comment-composer').length).toBeGreaterThan(0);
+      const scroll = renderer.root.findByType(ScrollView);
+      expect(scroll.findAll(node => node.props.testID === 'comment-composer')).toHaveLength(0);
+      expect(scroll.findAll(node => node.props.testID === 'comments-section').length).toBeGreaterThan(0);
       // The item itself is as it was: still editable, still one load.
       expect(memoField(renderer).props.editable).not.toBe(false);
       expect(getItemDetails).toHaveBeenCalledTimes(1);

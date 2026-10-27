@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { AppModal } from '../components/AppModal';
 import { CheckIcon } from '../icons/CheckIcon';
 import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';

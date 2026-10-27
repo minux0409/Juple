@@ -2,7 +2,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import type { ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Platform, Pressable, View, useWindowDimensions } from 'react-native';
+import { Platform, View, useWindowDimensions } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { BackArrowIcon } from '../icons/BackArrowIcon';
 import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 

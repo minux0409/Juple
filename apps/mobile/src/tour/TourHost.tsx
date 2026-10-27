@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, Animated, BackHandler, Pressable, ScrollView, Text, View, useWindowDimensions, type HostInstance } from 'react-native';
+import { AccessibilityInfo, Animated, BackHandler, ScrollView, Text, View, useWindowDimensions, type HostInstance } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { useTheme } from '../theme/ThemeContext';
 import { navigationRef } from '../navigation/navigationRef';
 import { cardShadow, colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';

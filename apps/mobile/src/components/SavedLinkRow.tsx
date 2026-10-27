@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
+import { Pressable } from './Pressable';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
 import { resolveEffectiveThumbnail } from '../items/resolveEffectiveThumbnailUrl';

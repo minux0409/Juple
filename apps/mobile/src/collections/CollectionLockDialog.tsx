@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { ThemedTextInput } from '../components/ThemedTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
@@ -201,7 +202,7 @@ export function CollectionLockDialog({ visible, collectionId, mode, forMember = 
               testID={mode === 'remove' ? 'lock-remove' : isNotConfigured ? 'lock-open-settings' : 'lock-save'}
             >
               {isSubmitting ? (
-                <ActivityIndicator color={mode === 'remove' ? colors.onDanger : colors.onBrand} size="small" />
+                <ActivityIndicator color={mode === 'remove' ? colors.onBadge : colors.onBrand} size="small" />
               ) : (
                 <Text numberOfLines={2} style={[styles.confirmLabel, mode === 'remove' && styles.destructiveLabel]}>{confirmLabel}</Text>
               )}
@@ -260,11 +261,13 @@ const styles = themedStyles(() => ({
     fontSize: 14,
     marginTop: spacing.md,
   },
+  // The app's one destructive look (see DialogActions): the logo's J red with a white bold label.
   destructiveButton: {
-    backgroundColor: colors.danger,
+    backgroundColor: colors.badge,
   },
   destructiveLabel: {
-    color: colors.onDanger,
+    color: colors.onBadge,
+    fontWeight: '700',
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -274,11 +277,11 @@ const styles = themedStyles(() => ({
     gap: spacing.sm,
     marginTop: spacing.lg,
   },
+  // 취소 like every dialog's (see DialogActions): a light grey fill, no outline.
   cancelButton: {
     alignItems: 'center',
-    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: radii.md,
-    borderWidth: 1,
     flex: 1,
     justifyContent: 'center',
     minHeight: minTouchTarget,

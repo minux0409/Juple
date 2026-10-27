@@ -332,6 +332,7 @@
     "sharePasswordShow": "แสดงรหัสผ่าน",
     "sharePasswordHide": "ซ่อนรหัสผ่าน",
     "sharePasswordCopyFailed": "คัดลอกไม่ได้ โปรดลองอีกครั้ง",
+    "sharePasswordCopied": "คัดลอกแล้ว",
     "sharePasswordChange": "เปลี่ยน",
     "sharePasswordRemoveTitle": "ยกเลิกการป้องกันด้วยรหัสผ่านการเข้าถึงไหม",
     "sharePasswordRemoveMessage": "การแชร์ยังคงเดิม และผู้ที่ได้รับการแชร์จะเปิดได้โดยไม่ต้องใช้รหัสผ่าน",

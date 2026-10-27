@@ -1,4 +1,5 @@
-import { Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable } from './Pressable';
 import type { ItemAdderDisplay } from '../collections/itemAdder';
 import { OwnerCrown } from '../collections/OwnerCrown';
 import { UserIcon } from '../icons/UserIcon';

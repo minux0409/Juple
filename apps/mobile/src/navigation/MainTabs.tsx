@@ -1,6 +1,7 @@
 import { createBottomTabNavigator, type BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { useTranslation } from 'react-i18next';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { CollectionsScreen } from '../screens/CollectionsScreen';
 import { DailyInboxScreen } from '../screens/DailyInboxScreen';
 import { DateHistoryScreen } from '../screens/DateHistoryScreen';
@@ -29,7 +30,7 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 const TAB_ICON_SIZE = 22;
 
 const styles = themedStyles(() => ({
-  // Fills the tab's cell, so the tour spotlights the whole tab - icon, label and the selected background - not only the icon.
+  // Fills the tab's cell, so the tour spotlights the whole tab - icon and label together - not only the icon.
   tabTarget: { flex: 1 },
 }));
 
@@ -39,20 +40,21 @@ function tabIconColor(focused: boolean): string {
   return focused ? colors.brandText : colors.textSecondary;
 }
 
+// Selected: the solid icon in the brand colour; the others: the outline. Same size and place either way.
 function renderHomeIcon({ focused }: { focused: boolean }) {
-  return <screenIcons.home color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
+  return <screenIcons.home color={tabIconColor(focused)} filled={focused} size={TAB_ICON_SIZE} />;
 }
 
 function renderHistoryIcon({ focused }: { focused: boolean }) {
-  return <screenIcons.archive color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
+  return <screenIcons.archive color={tabIconColor(focused)} cutoutColor={colors.surface} filled={focused} size={TAB_ICON_SIZE} />;
 }
 
 function renderCollectionsIcon({ focused }: { focused: boolean }) {
-  return <screenIcons.collections color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
+  return <screenIcons.collections color={tabIconColor(focused)} filled={focused} size={TAB_ICON_SIZE} />;
 }
 
 function renderMyPageIcon({ focused }: { focused: boolean }) {
-  return <screenIcons.myPage color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
+  return <screenIcons.myPage color={tabIconColor(focused)} filled={focused} size={TAB_ICON_SIZE} />;
 }
 
 // A tab that a guided tour can spotlight: the target is the whole tab button (the bar's cells are navigator-owned, so the button
@@ -96,9 +98,8 @@ export function MainTabs() {
           fontSize: 11,
           fontWeight: '600',
         },
-        // The selected tab sits on a soft gray rounded background (the icon and label keep the brand color); every tab has the same
-        // margins and size whether it is selected or not, so switching tabs never moves anything.
-        tabBarActiveBackgroundColor: colors.surfaceMuted,
+        // The selected tab is told by its solid brand-coloured icon (and label) alone - no background behind it; every tab has the
+        // same margins and size whether it is selected or not, so switching tabs never moves anything.
         tabBarItemStyle: {
           borderRadius: radii.md + 4,
           overflow: 'hidden',

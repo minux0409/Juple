@@ -1,9 +1,11 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { reauthenticateSameAccount } from '../auth/reauthentication';
+import { isUserCancelledSignIn } from '../auth/signInErrors';
 import {
   getCollectionLockPasswordStatus,
   type CollectionLockPasswordStatus,
@@ -27,9 +29,9 @@ type SignInPurpose = 'setup' | 'forgot';
  *
  * Setting it without the current one (first setup and "forgot") always starts with a fresh
  * interactive sign-in of the same account; whether that sign-in is recent enough is decided by the
- * server from the new access token, never by the app. A sign-in that is cancelled, closed or left
- * incomplete just returns here without a message; only a password the server actually saved is
- * announced (a new one as 저장, a changed or reset one as 변경).
+ * server from the new access token, never by the app. A sign-in the person cancels, closes or leaves
+ * incomplete just returns here without a message; one that fails (network, server) says so. Only a
+ * password the server actually saved is announced (a new one as 저장, a changed or reset one as 변경).
  */
 export function CollectionLockSettingsScreen() {
   const { t } = useTranslation();
@@ -73,8 +75,12 @@ export function CollectionLockSettingsScreen() {
         // Not a cancellation: the current session was deliberately kept, and the person should know why.
         setNotice(t('settings.collectionLockDifferentAccount'));
       }
-    } catch {
-      // Cancelled, closed or abandoned sign-in - quietly back to this screen.
+      // 'incomplete' (the page closed without tokens) stays quiet, like a cancel.
+    } catch (caughtError) {
+      // Closing or dismissing the sign-in page is a choice - quietly back to this screen. Anything else is a failed sign-in, and is said.
+      if (!isUserCancelledSignIn(caughtError)) {
+        setNotice(t('auth.failed'));
+      }
     } finally {
       setIsSigningIn(false);
     }

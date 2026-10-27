@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { useAuth } from '../auth/AuthContext';
 import { DataRetentionCard } from '../billing/DataRetentionCard';
 import { useSubscriptionStore } from '../billing/useSubscriptionStore';

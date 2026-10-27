@@ -2,7 +2,6 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { FlatList, Image, StyleSheet, Text } from 'react-native';
 import i18n from '../../i18n';
 import { CollectionDetailsScreen } from '../CollectionDetailsScreen';
-import { LinkSortChips } from '../../components/LinkSortChips';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { SearchField } from '../../components/SearchField';
 import { ARCHIVE_SEARCH_DEBOUNCE_MS } from '../../items/useArchiveSearch';
@@ -15,7 +14,7 @@ import {
   type CollectionItemEntry,
 } from '../../collections/api/collectionsApi';
 
-// Collection Details browsing: 시간순 (the date accordion) and 이름순 (flat), each as List / Grid / Image.
+// Collection Details browsing: one flat list, always newest first, as List / Grid / Image - and its search.
 
 const mockStore = new Map<string, string>();
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -81,7 +80,7 @@ function entry(id: number, daysBack: number, overrides: Partial<CollectionItemEn
   return { itemId: id, url: `https://site${id}.example/x`, title: `Link ${String(id).padStart(3, '0')}`, memo: `memo ${id}`, addedAtUtc: daysAgo(daysBack), sortOrder: 0, representativeImage: null, previewImageUrl: null, coverImage: null, ...overrides };
 }
 
-/** The server's 시간순 summary + section pages + search + the whole-Collection read, in memory. */
+/** The server's link pages and search, in memory (the section summary stays served to prove nothing asks for it). */
 function serve(links: readonly CollectionItemEntry[], pageLimitOverride?: number) {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -152,6 +151,10 @@ type AnyRow = { kind: string; key: string; item?: CollectionItemEntry; items?: C
 const getList = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findByType(FlatList);
 const rows = (renderer: ReactTestRenderer.ReactTestRenderer) => getList(renderer).props.data as AnyRow[];
 const idsOf = (list: readonly AnyRow[]) => list.flatMap(row => (row.item ? [row.item.itemId] : row.items ? row.items.map(item => item.itemId) : []));
+/** Every link the list shows, in order - List / Grid list the links themselves, Image lines of tiles. */
+const listedIds = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+  (getList(renderer).props.data as readonly (AnyRow | CollectionItemEntry)[]).flatMap(shown =>
+    'itemId' in shown ? [shown.itemId] : idsOf([shown as AnyRow]));
 const header = (renderer: ReactTestRenderer.ReactTestRenderer) => {
   let part!: ReactTestRenderer.ReactTestRenderer;
   act(() => {
@@ -174,15 +177,6 @@ async function setView(renderer: ReactTestRenderer.ReactTestRenderer, mode: 'lis
     toggle.props.onChange(mode);
   });
 }
-async function pressSort(renderer: ReactTestRenderer.ReactTestRenderer, which: 'date' | 'name') {
-  const chip = header(renderer).root.find(node => node.props.testID === `collection-sort-${which}` && typeof node.props.onPress === 'function');
-  await act(async () => {
-    chip.props.onPress();
-  });
-  await act(async () => {
-    await new Promise<void>(resolve => setImmediate(() => resolve()));
-  });
-}
 const flush = async () => {
   await act(async () => {
     await new Promise<void>(resolve => setImmediate(() => resolve()));
@@ -194,40 +188,36 @@ const sample = () => [entry(1, 0), entry(2, 0), entry(3, 0), entry(4, 0), entry(
 /** The server's 시간순 order: newest first, ties by id (newest id first). */
 const newestFirst = (links: readonly CollectionItemEntry[]) => [...links].sort((a, b) => b.addedAtUtc.localeCompare(a.addedAtUtc) || b.itemId - a.itemId).map(link => link.itemId);
 
-describe('Collection Details - selectors and layout', () => {
-  it('offers 시간순 / 이름순 and List / Grid / Image (the shared switch) - and no 날짜별 / 전체 selector', async () => {
+describe('Collection Details - one list, always newest first', () => {
+  it('offers only List / Grid / Image (the shared switch) - no 시간순 / 이름순 and no 날짜별 / 전체 selector', async () => {
     serve(sample());
     const renderer = await renderScreen();
     const part = header(renderer);
 
-    expect(part.root.findByType(LinkSortChips).props.dateLabel).toBe('시간순');
-    expect(part.root.findByType(LinkSortChips).props.nameLabel).toBe('이름순');
     expect(part.root.findByType(ViewModeToggle).props.showImage).toBe(true);
     for (const label of [i18n.t('common.viewList'), i18n.t('common.viewGrid'), i18n.t('common.viewImage')]) {
       expect(part.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function').length).toBeGreaterThan(0);
     }
     expect(part.root.findAll(node => node.props.testID === 'view-mode-image-glyph' && typeof node.type === 'string')[0].children).toHaveLength(9);
-    expect(part.root.findAllByType(Text).some(node => ['날짜별', '전체'].includes(String(node.props.children)))).toBe(false);
-    expect(part.root.findAll(node => String(node.props.testID).startsWith('collection-grouping'))).toHaveLength(0);
+    expect(part.root.findAllByType(Text).some(node => ['시간순', '이름순', '날짜별', '전체'].includes(String(node.props.children)))).toBe(false);
+    expect(part.root.findAll(node => /^collection-(sort|grouping)/.test(String(node.props.testID)))).toHaveLength(0);
   });
 
-  it('keeps the order: [시간순][이름순] … [List|Grid|Image] on ONE row, THEN search, THEN the links', async () => {
+  it('keeps the order: [List|Grid|Image] at the end of its row, THEN search, THEN the links', async () => {
     serve(sample());
     const renderer = await renderScreen();
     const part = header(renderer);
-    const chips = part.root.findByType(LinkSortChips);
-    const viewToggle = part.root.findByType(ViewModeToggle);
-    expect(viewToggle.parent).toBe(chips.parent);
+    const controls = part.root.findAll(node => node.props.testID === 'collection-view-controls' && typeof node.type === 'string')[0];
+    const children = controls.children as ReactTestRenderer.ReactTestInstance[];
+    expect(children[children.length - 1].type).toBe(ViewModeToggle);
     const everything = part.root.findAll(() => true);
-    expect(everything.findIndex(node => node.type === LinkSortChips)).toBeLessThan(everything.findIndex(node => node.type === SearchField));
     expect(everything.findIndex(node => node.type === ViewModeToggle)).toBeLessThan(everything.findIndex(node => node.type === SearchField));
   });
 
-  it('defaults to 시간순 + List (the current look), persists the view under its own key, and restores it', async () => {
+  it('defaults to List (the current look), persists the view under its own key, and restores it', async () => {
     serve(sample());
     const renderer = await renderScreen();
     expect(header(renderer).root.findByType(ViewModeToggle).props.value).toBe('list');
-    expect(rows(renderer).some(row => row.kind === 'header')).toBe(true);
 
     await setView(renderer, 'image');
     expect(mockStore.get('juple.collectionDetailsViewMode')).toBe('image');
@@ -250,100 +240,71 @@ describe('Collection Details - selectors and layout', () => {
       expect(header(renderer).root.findByType(ViewModeToggle).props.value).toBe(stored);
     }
   });
-});
 
-describe('Collection Details - 시간순 (the date accordion)', () => {
-  it('keeps the date sections in List, Grid and Image', async () => {
+  it('shows every link as ONE flat list, newest added first, in List, Grid and Image - no date headers to open', async () => {
     for (const view of ['list', 'grid', 'image'] as const) {
       mockStore.clear();
+      mockStore.set('juple.collectionDetailsViewMode', view);
       serve(sample());
       const renderer = await renderScreen();
-      await setView(renderer, view);
-      expect(rows(renderer).filter(row => row.kind === 'header').length).toBeGreaterThanOrEqual(2);
-      expect(rows(renderer).some(row => row.kind === (view === 'list' ? 'item' : view === 'grid' ? 'gridRow' : 'imageRow'))).toBe(true);
+
+      expect(listedIds(renderer)).toEqual(newestFirst(sample()));
+      expect(JSON.stringify(rows(renderer))).not.toContain('"header"');
+      expect(getCollectionItemSections).not.toHaveBeenCalled();
+      expect(getCollectionItems).toHaveBeenCalledWith(expect.anything(), 1, expect.objectContaining({ sort: 'dateDesc', limit: 50 }));
+      expect(jest.mocked(getCollectionItems).mock.calls.every(([, , options]) => options?.fromUtc === undefined)).toBe(true);
       renderer.unmount();
     }
   });
 
-  it('Image: header, then lines of three tiles inside the section, the last one short - no blank accordion', async () => {
+  it('a sort stored by an older version changes nothing - still newest first, no chips', async () => {
+    serve([entry(1, 0, { title: 'Zebra' }), entry(2, 5, { title: 'apple' }), entry(3, 40, { title: 'Mango' })]);
+    const renderer = await renderScreen();
+    expect(listedIds(renderer)).toEqual([1, 2, 3]);
+    expect(header(renderer).root.findAll(node => String(node.props.testID).startsWith('collection-sort-'))).toHaveLength(0);
+  });
+
+  it('Image: one continuous run of three-tile lines, the last one short - no section containers', async () => {
     serve([entry(1, 0), entry(2, 0), entry(3, 0), entry(4, 0), entry(5, 0), entry(6, 0), entry(7, 0)]);
-    const renderer = await renderScreen();
-    await setView(renderer, 'image');
-
-    expect(rows(renderer).map(row => row.kind)).toEqual(['header', 'imageRow', 'imageRow', 'imageRow']);
-    const lines = rows(renderer).filter(row => row.kind === 'imageRow');
-    expect(lines.map(row => row.items!.map(item => item.itemId))).toEqual([[7, 6, 5], [4, 3, 2], [1]]);
-    const views = lines.map(row => renderRow(renderer, row));
-    expect(views.map(view => tilesOf(view).length)).toEqual([3, 3, 1]);
-    // The card body is a COLUMN with a full-width line (a row-direction body would collapse the tiles to width 0).
-    const body = StyleSheet.flatten(views[0].root.find(node => String(node.props.testID).startsWith('collection-date-image') && typeof node.type === 'string').props.style);
-    const line = StyleSheet.flatten(views[0].root.find(node => String(node.props.testID).startsWith('collection-image-line') && typeof node.type === 'string').props.style);
-    expect(body.flexDirection).toBe('column');
-    expect(body.height).toBeUndefined();
-    expect(line).toMatchObject({ flexDirection: 'row', width: '100%' });
-  });
-
-  it('a stored image view opens straight into the sections, with 오늘 expanded', async () => {
-    mockStore.set('juple.collectionDetailsViewMode', 'image');
-    serve(sample());
-    const renderer = await renderScreen();
-    expect(rows(renderer)[0].kind).toBe('header');
-    expect(rows(renderer).some(row => row.kind === 'imageRow' && row.section?.key === 'today')).toBe(true);
-  });
-});
-
-describe('Collection Details - 이름순', () => {
-  it('is flat: no date headers in List, Grid or Image, the whole Collection by name', async () => {
-    const links = [entry(1, 0, { title: 'Zebra' }), entry(2, 5, { title: 'apple' }), entry(3, 40, { title: 'Mango' }), entry(4, 90, { title: 'banana' })];
-    for (const view of ['list', 'grid', 'image'] as const) {
-      mockStore.clear();
-      serve(links);
-      const renderer = await renderScreen();
-      await setView(renderer, view);
-      await pressSort(renderer, 'name');
-
-      const data = rows(renderer) as unknown as (CollectionItemEntry | AnyRow)[];
-      const titles = view === 'image'
-        ? (data as AnyRow[]).flatMap(row => row.items!.map(item => item.title))
-        : (data as CollectionItemEntry[]).map(item => item.title);
-      expect(titles).toEqual(['apple', 'banana', 'Mango', 'Zebra']);
-      expect(JSON.stringify(data)).not.toContain('"header"');
-      expect(getCollectionItems).toHaveBeenCalledWith(expect.anything(), 1, expect.objectContaining({ sort: 'dateDesc', limit: 100 }));
-      expect(header(renderer).root.findByType(ViewModeToggle).props.value).toBe(view);
-      renderer.unmount();
-    }
-  });
-
-  it('Image under 이름순 is one continuous run of three-tile lines, with no section containers', async () => {
-    const links = [entry(1, 0, { title: 'Zebra' }), entry(2, 5, { title: 'apple' }), entry(3, 40, { title: 'Mango' }), entry(4, 90, { title: 'banana' }), entry(5, 91, { title: 'cherry' })];
-    serve(links);
     mockStore.set('juple.collectionDetailsViewMode', 'image');
     const renderer = await renderScreen();
-    await pressSort(renderer, 'name');
 
     expect(rows(renderer).every(row => row.kind === 'flatImageRow')).toBe(true);
-    expect(rows(renderer).map(row => row.items!.map(item => item.title))).toEqual([['apple', 'banana', 'cherry'], ['Mango', 'Zebra']]);
-    const line = renderRow(renderer, rows(renderer)[0]);
-    expect(tilesOf(line)).toHaveLength(3);
+    expect(rows(renderer).map(row => row.items!.map(item => item.itemId))).toEqual([[7, 6, 5], [4, 3, 2], [1]]);
+    const views = rows(renderer).map(row => renderRow(renderer, row));
+    expect(views.map(view => tilesOf(view).length)).toEqual([3, 3, 1]);
   });
 
-  it('switching 시간순 <-> 이름순 keeps the chosen view and brings the sections back', async () => {
-    serve(sample());
-    const renderer = await renderScreen();
-    await setView(renderer, 'image');
-    await pressSort(renderer, 'name');
-    expect(header(renderer).root.findByType(ViewModeToggle).props.value).toBe('image');
-    expect(rows(renderer).some(row => row.kind === 'header')).toBe(false);
-    await pressSort(renderer, 'date');
-    expect(header(renderer).root.findByType(ViewModeToggle).props.value).toBe('image');
-    expect(rows(renderer).some(row => row.kind === 'header')).toBe(true);
+  it('pages the next links as the end of the list comes near - in order, no repeats - in List, Grid and Image', async () => {
+    const many = Array.from({ length: 75 }, (_, index) => entry(1000 + index, Math.floor(index / 10)));
+    for (const view of ['list', 'grid', 'image'] as const) {
+      mockStore.clear();
+      mockStore.set('juple.collectionDetailsViewMode', view);
+      serve(many);
+      const renderer = await renderScreen();
+      expect(listedIds(renderer)).toEqual(newestFirst(many).slice(0, 50));
+
+      await act(async () => {
+        getList(renderer).props.onEndReached();
+      });
+      await flush();
+      expect(listedIds(renderer)).toEqual(newestFirst(many));
+      expect(new Set(listedIds(renderer)).size).toBe(75);
+      // Nothing more to ask for: the end is quiet.
+      const calls = jest.mocked(getCollectionItems).mock.calls.length;
+      await act(async () => {
+        getList(renderer).props.onEndReached();
+      });
+      await flush();
+      expect(jest.mocked(getCollectionItems).mock.calls.length).toBe(calls);
+      renderer.unmount();
+    }
   });
 });
 
 describe('Collection Details - Image tiles', () => {
   it.each([[1, [1]], [2, [2]], [3, [3]], [4, [3, 1]], [7, [3, 3, 1]]])('%i links make lines %j, square tiles with no visible text', async (count, shape) => {
     serve(Array.from({ length: count }, (_, index) => entry(index + 1, 0)));
-    mockStore.set('juple.collectionDetailsLinkSort', 'title');
     mockStore.set('juple.collectionDetailsViewMode', 'image');
     const renderer = await renderScreen();
 
@@ -363,7 +324,6 @@ describe('Collection Details - Image tiles', () => {
       entry(2, 0, { url: 'https://www.youtube.com/watch?v=abc' }),
       entry(3, 0),
     ]);
-    mockStore.set('juple.collectionDetailsLinkSort', 'title');
     mockStore.set('juple.collectionDetailsViewMode', 'image');
     const renderer = await renderScreen();
     const view = renderRow(renderer, rows(renderer)[0]);
@@ -379,7 +339,6 @@ describe('Collection Details - Image tiles', () => {
 
   it('tapping a tile opens the same Item Details (own link) or shared view (another member\'s) as a card does', async () => {
     serve([entry(1, 0), entry(2, 0, { isMine: false })]);
-    mockStore.set('juple.collectionDetailsLinkSort', 'title');
     mockStore.set('juple.collectionDetailsViewMode', 'image');
     const renderer = await renderScreen();
     const view = renderRow(renderer, rows(renderer)[0]);
@@ -419,7 +378,7 @@ describe('Collection Details - search', () => {
   }
   const links = () => [entry(1, 0, { title: 'Quokka a' }), entry(2, 0, { title: 'Quokka b' }), entry(3, 0, { title: 'Quokka c' }), entry(4, 40, { title: 'Quokka d' }), entry(5, 0, { title: 'Other' })];
 
-  it('Image: flat three-tile lines of the matches from ONE server search - no date labels, no extra call on a view switch; clearing restores the sections', async () => {
+  it('Image: flat three-tile lines of the matches from ONE server search - no extra call on a view switch; clearing restores the whole list', async () => {
     serve(links());
     const renderer = await renderScreen();
     await setView(renderer, 'image');
@@ -437,144 +396,32 @@ describe('Collection Details - search', () => {
     expect(searchCalls()).toHaveLength(1);
 
     await search(renderer, '');
-    expect(rows(renderer).some(row => row.kind === 'header')).toBe(true);
+    // The whole Collection again (all five links, not the four matches), still one flat newest-first list.
+    expect(listedIds(renderer)).toEqual(newestFirst(links()));
     expect(searchCalls()).toHaveLength(1);
   });
 
-  const sortChips = (renderer: ReactTestRenderer.ReactTestRenderer) => header(renderer).root.findByType(LinkSortChips);
-  const nameLinks = () => [
-    entry(1, 0, { title: 'Quokka pear' }),
-    entry(2, 0, { title: 'Quokka apple' }),
-    entry(3, 0, { title: 'Quokka mango' }),
-    entry(4, 40, { title: 'Quokka banana' }),
-    entry(5, 0, { title: 'Other' }),
-  ];
-
-  it('시간순 + search asks the server for the time order (newest, then oldest)', async () => {
-    serve(nameLinks());
-    const renderer = await renderScreen();
-    await search(renderer, 'quokka');
-    expect(searchCalls()).toHaveLength(1);
-    expect(searchCalls()[0][2]).toMatchObject({ q: 'quokka', sort: 'dateDesc' });
-    expect(sortChips(renderer).props.sort).toBe('newest');
-
-    await search(renderer, '');
-    await pressSort(renderer, 'date'); // newest -> oldest
-    await search(renderer, 'quokka');
-    expect(searchCalls()[searchCalls().length - 1][2]).toMatchObject({ q: 'quokka', sort: 'dateAsc' });
-    expect(sortChips(renderer).props.sort).toBe('oldest');
-  });
-
-  it('이름순 + search stays 이름순: the chip is unchanged, the server is asked for the name order, results come back A-Z', async () => {
-    serve(nameLinks());
-    const renderer = await renderScreen();
-    await pressSort(renderer, 'name');
-    expect(sortChips(renderer).props.sort).toBe('title');
-    await search(renderer, 'quokka');
-
-    expect(searchCalls()).toHaveLength(1);
-    expect(searchCalls()[0][2]).toMatchObject({ q: 'quokka', sort: 'nameAsc', limit: 30 });
-    expect(sortChips(renderer).props.sort).toBe('title');
-    expect(rows(renderer).every(row => row.kind === 'flatItem')).toBe(true);
-    expect(rows(renderer).map(row => row.item!.title)).toEqual(['Quokka apple', 'Quokka banana', 'Quokka mango', 'Quokka pear']);
-    expect(mockStore.get('juple.collectionDetailsLinkSort')).toBe('title');
-  });
-
-  it('이름순 descending searches with nameDesc; the server order is shown as it arrives', async () => {
-    serve(nameLinks());
+  it('a search always asks the server for newest first', async () => {
+    serve(links());
     mockStore.set('juple.collectionDetailsLinkSort', 'titleDesc');
     const renderer = await renderScreen();
-    expect(sortChips(renderer).props.sort).toBe('titleDesc');
     await search(renderer, 'quokka');
-
-    expect(searchCalls()[0][2]).toMatchObject({ sort: 'nameDesc' });
-    expect(rows(renderer).map(row => row.item!.title)).toEqual(['Quokka pear', 'Quokka mango', 'Quokka banana', 'Quokka apple']);
+    expect(searchCalls().map(([, , options]) => options?.sort)).toEqual(['dateDesc']);
+    expect(listedIds(renderer)).toEqual([3, 2, 1, 4]);
   });
 
-  it('switching 시간순 <-> 이름순 WHILE searching re-searches in the new order, keeping the query and the view', async () => {
-    serve(nameLinks());
-    const renderer = await renderScreen();
-    await setView(renderer, 'grid');
-    await search(renderer, 'quokka');
-    expect(searchCalls()).toHaveLength(1);
-
-    await pressSort(renderer, 'name');
-    await act(async () => {
-      jest.advanceTimersByTime(ARCHIVE_SEARCH_DEBOUNCE_MS + 10);
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-    expect(searchCalls()[searchCalls().length - 1][2]).toMatchObject({ q: 'quokka', sort: 'nameAsc' });
-    expect(header(renderer).root.findByType(SearchField).props.value).toBe('quokka');
-    expect(header(renderer).root.findByType(ViewModeToggle).props.value).toBe('grid');
-    expect(rows(renderer).every(row => row.kind === 'flatGridRow')).toBe(true);
-    expect(idsOf(rows(renderer))).toEqual([2, 4, 3, 1]);
-  });
-
-  it('List / Grid / Image switches keep the sort and the query and never ask the server again', async () => {
-    serve(nameLinks());
-    mockStore.set('juple.collectionDetailsLinkSort', 'title');
+  it('List / Grid / Image switches keep the query and never ask the server again', async () => {
+    serve(links());
     const renderer = await renderScreen();
     await search(renderer, 'quokka');
     const before = searchCalls().length;
 
     for (const mode of ['grid', 'image', 'list'] as const) {
       await setView(renderer, mode);
-      expect(sortChips(renderer).props.sort).toBe('title');
       expect(header(renderer).root.findByType(SearchField).props.value).toBe('quokka');
-      expect(idsOf(rows(renderer))).toEqual([2, 4, 3, 1]);
+      expect(listedIds(renderer)).toEqual([3, 2, 1, 4]);
     }
     expect(searchCalls()).toHaveLength(before);
-  });
-
-  it('Image + 이름순 + search: flat three-tile lines in the server name order', async () => {
-    serve(nameLinks());
-    mockStore.set('juple.collectionDetailsLinkSort', 'title');
-    mockStore.set('juple.collectionDetailsViewMode', 'image');
-    const renderer = await renderScreen();
-    await search(renderer, 'quokka');
-
-    expect(rows(renderer).map(row => row.kind)).toEqual(['flatImageRow', 'flatImageRow']);
-    expect(rows(renderer).map(row => row.items!.map(item => item.itemId))).toEqual([[2, 4, 3], [1]]);
-    const line = renderRow(renderer, rows(renderer)[0]);
-    expect(tilesOf(line)).toHaveLength(3);
-  });
-
-  it('clearing the search returns to the same selected sort (이름순 stays flat, no sections)', async () => {
-    serve(nameLinks());
-    const renderer = await renderScreen();
-    await pressSort(renderer, 'name');
-    await search(renderer, 'quokka');
-    await search(renderer, '');
-
-    expect(sortChips(renderer).props.sort).toBe('title');
-    expect(rows(renderer).some(row => row.kind === 'header')).toBe(false);
-    // The whole Collection again (all five links, not the two-match search), still without date sections.
-    expect(rows(renderer)).toHaveLength(5);
-  });
-
-  it('name search pages with the name cursor: a global A-Z order across pages, no repeats', async () => {
-    const many = Array.from({ length: 45 }, (_, index) => entry(100 + index, 0, { title: `Quokka ${String(44 - index).padStart(2, '0')}` }));
-    serve(many);
-    mockStore.set('juple.collectionDetailsLinkSort', 'title');
-    mockStore.set('juple.collectionDetailsViewMode', 'image');
-    const renderer = await renderScreen();
-    await search(renderer, 'quokka');
-    expect(idsOf(rows(renderer))).toHaveLength(30);
-
-    await act(async () => {
-      getList(renderer).props.onEndReached();
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-    const ids = idsOf(rows(renderer));
-    expect(ids).toHaveLength(45);
-    expect(new Set(ids).size).toBe(45);
-    // Titles 00..44 ascend, so the ids (144 - n) descend by one.
-    expect(ids).toEqual(Array.from({ length: 45 }, (_, index) => 144 - index));
-    expect(searchCalls().map(([, , options]) => options?.sort)).toEqual(['nameAsc', 'nameAsc']);
   });
 
   it('pages search results with the cursor, appending without repeats', async () => {

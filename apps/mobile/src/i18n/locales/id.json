@@ -332,6 +332,7 @@
     "sharePasswordShow": "Tampilkan kata sandi",
     "sharePasswordHide": "Sembunyikan kata sandi",
     "sharePasswordCopyFailed": "Tidak dapat menyalin. Silakan coba lagi.",
+    "sharePasswordCopied": "Disalin",
     "sharePasswordChange": "Ubah",
     "sharePasswordRemoveTitle": "Hapus perlindungan kata sandi akses?",
     "sharePasswordRemoveMessage": "Berbagi tetap seperti semula, dan koleksi bisa dibuka tanpa kata sandi.",

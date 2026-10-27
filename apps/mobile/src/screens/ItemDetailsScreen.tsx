@@ -13,10 +13,10 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  Pressable,
   View,
   useWindowDimensions,
 } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { ThemedTextInput } from '../components/ThemedTextInput';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { PhotoCropper } from '../images/PhotoCropper';
@@ -777,7 +777,10 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     Animated.timing(sheetEnterY, { duration: SHEET_ENTER_DURATION_MS, easing: Easing.out(Easing.cubic), toValue: 0, useNativeDriver: true }).start();
   }, [sheetEnterY]);
 
-  const renderSheet = (body: ReactNode, footer?: ReactNode) => (
+  // `composer` (the comment field of a shared link) is pinned under the scrolling body, right above the action row / the home
+  // indicator: in the fixed-height sheet a short comment list used to leave all the spare room UNDER the field (it was the last
+  // thing inside the scroll content) - now that room stays above it, between the comments and the field, like a chat.
+  const renderSheet = (body: ReactNode, footer?: ReactNode, composer?: ReactNode) => (
     <View ref={overlayRef} style={[styles.overlay, { paddingTop: sheetTop }]} testID="item-details-overlay">
       {/* The dim behind the sheet - it fades as the sheet is dragged away. */}
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backdropDim, { opacity: sheetGesture.backdropOpacity }]} />
@@ -817,6 +820,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           title={<Text accessibilityRole="header" numberOfLines={1} style={styles.headerTitle}>{t('nav.itemDetails')}</Text>}
         />
         {body}
+        {composer ? <View style={styles.pinnedComposer} testID="item-details-composer">{composer}</View> : null}
         {footer}
       </Animated.View>
     </View>
@@ -1014,7 +1018,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
               {collaboration.comments}
             </View>
           ) : null}
-          {collaboration.composer}
         </ScrollView>,
         // D. The actions, always at the sheet's bottom. Another member's link: only the Owner's 컬렉션에서 제거 (no Save, no Delete of the
         // link itself); anyone else gets no action row at all - the server refuses a member removing someone else's link as well.
@@ -1046,6 +1049,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           </Pressable>
           )}
         </View>,
+        collaboration.composer,
       )}
 
       {messageDialog}
@@ -1219,6 +1223,8 @@ const styles = themedStyles(() => ({
   infoValueText: { color: colors.textPrimary, flex: 1, fontSize: 14, textAlign: 'right' },
   error: { color: colors.dangerText, fontSize: 14, marginTop: spacing.md },
   disabledButton: { opacity: 0.5 },
+  // The composer's own bar draws its top divider; it gets the content's side inset here (it no longer sits inside the content).
+  pinnedComposer: { backgroundColor: colors.surface, paddingHorizontal: spacing.lg },
   footer: {
     borderTopColor: colors.inputBorder,
     borderTopWidth: StyleSheet.hairlineWidth,

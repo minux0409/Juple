@@ -332,6 +332,7 @@
     "sharePasswordShow": "Şifreyi göster",
     "sharePasswordHide": "Şifreyi gizle",
     "sharePasswordCopyFailed": "Kopyalanamadı. Lütfen tekrar dene.",
+    "sharePasswordCopied": "Kopyalandı",
     "sharePasswordChange": "Değiştir",
     "sharePasswordRemoveTitle": "Erişim şifresi koruması kaldırılsın mı?",
     "sharePasswordRemoveMessage": "Paylaşım olduğu gibi kalır ve şifresiz açılabilir.",

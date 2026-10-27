@@ -201,6 +201,17 @@ describe('CollectionLockSettingsScreen (설정 > 컬렉션 잠금)', () => {
     expect(JSON.stringify(texts(renderer))).not.toContain('로그인이 완료되지 않아');
   });
 
+  it('a sign-in that fails (not a cancel) says so instead of silently offering the same button again', async () => {
+    jest.mocked(reauthenticateSameAccount).mockRejectedValueOnce(new Error('Network request failed'));
+    const renderer = await renderScreen();
+
+    await press(renderer, 'lock-settings-forgot');
+    await confirmSignIn(renderer);
+
+    expect(resetCollectionLockPassword).not.toHaveBeenCalled();
+    expect(renderer.root.findByProps({ testID: 'lock-settings-notice' }).props.children).toBe(i18n.t('auth.failed'));
+  });
+
   it('a different account is not a cancellation: it says the current session was kept', async () => {
     jest.mocked(reauthenticateSameAccount).mockResolvedValueOnce('differentAccount');
     const renderer = await renderScreen();

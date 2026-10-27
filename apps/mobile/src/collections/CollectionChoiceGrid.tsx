@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, FlatList, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { CategoryIconTile } from './CategoryIconTile';
 import { contentGateOf, isCollaborative, isCollectionLocked } from './collectionAccess';
 import { CollectionStatusBadges } from './CollectionStatusBadges';

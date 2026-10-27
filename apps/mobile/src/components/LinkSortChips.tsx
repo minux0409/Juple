@@ -1,4 +1,5 @@
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { Pressable } from './Pressable';
 import { isNameSort, type LinkSortOption } from '../settings/sortPreference';
 import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 

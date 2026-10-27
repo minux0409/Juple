@@ -332,6 +332,7 @@
     "sharePasswordShow": "إظهار كلمة المرور",
     "sharePasswordHide": "إخفاء كلمة المرور",
     "sharePasswordCopyFailed": "تعذّر النسخ. يُرجى المحاولة مرة أخرى.",
+    "sharePasswordCopied": "تم النسخ",
     "sharePasswordChange": "تغيير",
     "sharePasswordRemoveTitle": "هل تريد إزالة الحماية بكلمة مرور الوصول؟",
     "sharePasswordRemoveMessage": "تبقى المشاركة كما هي، ويمكن فتحها دون كلمة مرور.",

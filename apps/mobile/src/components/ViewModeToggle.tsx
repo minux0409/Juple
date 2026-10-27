@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
+import { View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable } from './Pressable';
 import type { SavedLinkViewMode, TrashViewMode } from '../settings/viewModePreference';
 import { colors, radii, themedStyles } from '../theme/tokens';
 

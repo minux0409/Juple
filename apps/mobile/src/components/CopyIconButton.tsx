@@ -1,6 +1,6 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import { useEffect, useState } from 'react';
-import { Pressable } from 'react-native';
+import { Pressable } from './Pressable';
 import { CheckIcon } from '../icons/CheckIcon';
 import { CopyIcon } from '../icons/CopyIcon';
 import { colors, minTouchTarget, themedStyles } from '../theme/tokens';

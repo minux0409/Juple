@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useId, useMemo, useState, type ComponentRef, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { InputAccessoryView, Keyboard, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { InputAccessoryView, Keyboard, Platform, Text, TextInput, View } from 'react-native';
+import { Pressable } from './Pressable';
 import { ChevronIcon } from '../icons/ChevronIcon';
 import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 

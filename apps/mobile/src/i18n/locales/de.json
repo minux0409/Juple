@@ -332,6 +332,7 @@
     "sharePasswordShow": "Passwort anzeigen",
     "sharePasswordHide": "Passwort ausblenden",
     "sharePasswordCopyFailed": "Kopieren fehlgeschlagen. Bitte versuche es erneut.",
+    "sharePasswordCopied": "Kopiert",
     "sharePasswordChange": "Ändern",
     "sharePasswordRemoveTitle": "Schutz durch Zugangspasswort entfernen?",
     "sharePasswordRemoveMessage": "Die Freigabe bleibt bestehen, und alle können sie ohne Passwort öffnen.",

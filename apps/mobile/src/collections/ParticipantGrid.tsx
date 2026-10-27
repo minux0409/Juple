@@ -1,4 +1,5 @@
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { UserAvatar } from '../components/UserAvatar';
 import { OwnerCrown } from './OwnerCrown';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';

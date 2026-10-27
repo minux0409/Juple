@@ -843,7 +843,8 @@ describe('FriendsScreen - 친구 추가', () => {
     expect(lookup.findAllByType(Text)).toHaveLength(0);
     expect(lookup.props.accessibilityLabel).toBe('찾기');
     expect(lookup.props.accessibilityState).toEqual({ disabled: true, busy: false });
-    expect(StyleSheet.flatten(lookup.props.style)).toEqual(expect.objectContaining({ height: 44, width: 44 }));
+    const lookupStyle = typeof lookup.props.style === 'function' ? lookup.props.style({ pressed: false }) : lookup.props.style;
+    expect(StyleSheet.flatten(lookupStyle)).toEqual(expect.objectContaining({ height: 44, width: 44 }));
 
     await act(async () => {
       byId(renderer, 'friends-add-input').props.onChangeText('NEWF2345');

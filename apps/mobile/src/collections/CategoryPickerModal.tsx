@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, Modal, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { CategoryEditorDialog } from './CategoryEditorDialog';
 import type { CollectionIconImageChange } from './collectionIconImage';
 import { CollectionUnlockDialog } from './CollectionUnlockDialog';

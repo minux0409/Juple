@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { resolveCollectionIconComponent } from './collectionIcons';
 import { EditIcon } from '../icons/EditIcon';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';

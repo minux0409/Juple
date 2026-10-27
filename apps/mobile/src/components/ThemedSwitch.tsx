@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Platform, Pressable, StyleSheet, Switch, View, type SwitchProps } from 'react-native';
+import { Animated, Platform, StyleSheet, Switch, View, type SwitchProps } from 'react-native';
+import { Pressable } from './Pressable';
 import { useTheme } from '../theme/ThemeContext';
 import { colors, minTouchTarget } from '../theme/tokens';
 

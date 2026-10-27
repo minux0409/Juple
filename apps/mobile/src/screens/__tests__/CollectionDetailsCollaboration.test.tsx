@@ -14,8 +14,7 @@ import { ReactionChips } from '../../reactions/ReactionChips';
 import { ReactionPickerDialog } from '../../reactions/ReactionPickerDialog';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { FlatList, Linking, StyleSheet, Switch, Text } from 'react-native';
-import { dateAccordionStyles } from '../../components/DateAccordion';
-import { LinkSortChips } from '../../components/LinkSortChips';
+import { savedLinkLayout } from '../../components/savedLinkLayout';
 import { LINK_CONTROLS_BOTTOM_GAP, LINK_CONTROLS_TOP_GAP } from '../../components/savedLinkLayout';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
@@ -662,17 +661,13 @@ describe('CollectionDetailsScreen - 전체 선택 for 내 컬렉션으로 복사
     expect(hasText(renderer, '전체 해제')).toBe(true);
   });
 
-  it('unpicking one link after 전체 선택 offers 전체 선택 again; the selection survives a sort change', async () => {
+  it('unpicking one link after 전체 선택 offers 전체 선택 again', async () => {
     jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N', itemCount: 2 }));
     serve([mine, theirs]);
     const renderer = await renderScreen();
     await pressMenu(renderer, i18n.t('collections.copyToMine'));
     await pressSelectAll(renderer);
 
-    const sortByName = renderer.root.findAll(node => node.props.testID === 'collection-sort-name' && typeof node.props.onPress === 'function')[0];
-    await act(async () => {
-      sortByName.props.onPress();
-    });
     expect(hasText(renderer, i18n.t('collections.copySelectedCount', { count: 2 }))).toBe(true);
 
     const checkbox = row(renderer, mine).root.findAll(node => node.props.accessibilityRole === 'checkbox' && typeof node.props.onPress === 'function')[0];
@@ -1673,10 +1668,10 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     expect(entry.type).toBe(PendingActionRow);
     // Order inside the list header: title, header actions, this row, then the sort chips.
     const order = header(renderer).root
-      .findAll(node => typeof node.type === 'string' && ['collection-details-title', 'collection-details-favorite', 'collection-details-pending', 'collection-sort-date'].includes(node.props.testID))
+      .findAll(node => typeof node.type === 'string' && ['collection-details-title', 'collection-details-favorite', 'collection-details-pending', 'collection-view-controls'].includes(node.props.testID))
       .map(node => node.props.testID)
       .filter((id: string, index: number, all: string[]) => all.indexOf(id) === index);
-    expect(order).toEqual(['collection-details-title', 'collection-details-favorite', 'collection-details-pending', 'collection-sort-date']);
+    expect(order).toEqual(['collection-details-title', 'collection-details-favorite', 'collection-details-pending', 'collection-view-controls']);
   });
 
   describe('참여 요청 N (people waiting to join) - a row of its own beside 받은 승인 요청', () => {
@@ -1695,10 +1690,10 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
       expect(StyleSheet.flatten(rowStyle(entry))).toEqual(expect.objectContaining({ minHeight: 44, flexDirection: 'row' }));
       // Order in the header: the link approvals, then the applicants, then the sort chips.
       const order = header(renderer).root
-        .findAll(node => typeof node.type === 'string' && ['collection-details-pending', 'collection-details-join-requests', 'collection-sort-date'].includes(node.props.testID))
+        .findAll(node => typeof node.type === 'string' && ['collection-details-pending', 'collection-details-join-requests', 'collection-view-controls'].includes(node.props.testID))
         .map(node => node.props.testID)
         .filter((id: string, index: number, all: string[]) => all.indexOf(id) === index);
-      expect(order).toEqual(['collection-details-pending', 'collection-details-join-requests', 'collection-sort-date']);
+      expect(order).toEqual(['collection-details-pending', 'collection-details-join-requests', 'collection-view-controls']);
     });
 
     it('it is hidden at zero, and for anyone but the Owner', async () => {
@@ -1760,14 +1755,15 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     });
   });
 
-  it('a link in a date section is framed by the very same accordion row History uses', async () => {
+  it('a link is framed by the very same card Home and the Archive use (rounded, thin border) - there are no date sections', async () => {
     jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true }));
     jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
     const renderer = await renderScreen();
 
     const frame = row(renderer, mine).root.findByType(SwipeableItemRow).props.containerStyle;
-    // The same style objects (not look-alike copies): one definition for History and a Collection.
-    expect([frame].flat(2)).toContain(dateAccordionStyles.row);
+    // The same style object (not a look-alike copy): one definition for Home, the Archive and a Collection.
+    expect([frame].flat(2)).toContain(savedLinkLayout.card);
+    expect(renderer.root.findAll(node => String(node.props.testID ?? '').startsWith('collection-section-'))).toHaveLength(0);
   });
 
   const myPendingEntry = (renderer: ReactTestRenderer.ReactTestRenderer) =>
@@ -1802,10 +1798,10 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     const renderer = await renderScreen();
 
     const order = header(renderer).root
-      .findAll(node => typeof node.type === 'string' && ['collection-details-title', 'collection-sort-date', 'collection-details-my-pending'].includes(node.props.testID))
+      .findAll(node => typeof node.type === 'string' && ['collection-details-title', 'collection-view-controls', 'collection-details-my-pending'].includes(node.props.testID))
       .map(node => node.props.testID)
       .filter((id: string, index: number, all: string[]) => all.indexOf(id) === index);
-    expect(order).toEqual(['collection-details-title', 'collection-sort-date', 'collection-details-my-pending']);
+    expect(order).toEqual(['collection-details-title', 'collection-view-controls', 'collection-details-my-pending']);
     // It is the last thing of the header: the list's own rows (the links) follow it directly.
     const headerChildren = header(renderer).root.findAll(node => typeof node.type === 'string' && node.props.testID === 'collection-details-my-pending');
     expect(headerChildren).toHaveLength(1);
@@ -1847,18 +1843,17 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     expect(myPendingEntry(renderer)).toBeUndefined();
   });
 
-  it('the 총 N개 line and the sort / List-Grid row are spaced like Home (the shared controls gap), the toggle at the far end', async () => {
+  it('the 총 N개 line and the List-Grid row are spaced like Home (the shared controls gap), the toggle at the far end - no sort chips', async () => {
     jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, itemCount: 18 }));
     jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
     const renderer = await renderScreen();
 
-    const chips = header(renderer).root.findByType(LinkSortChips);
-    const controlsRow = chips.parent!;
+    const controlsRow = header(renderer).root.findAll(node => node.props.testID === 'collection-view-controls' && typeof node.type === 'string')[0];
     expect(StyleSheet.flatten(controlsRow.props.style)).toMatchObject({ flexDirection: 'row', marginTop: LINK_CONTROLS_TOP_GAP, marginBottom: LINK_CONTROLS_BOTTOM_GAP });
     // Two separate gaps: 총 N개 -> controls (top) and controls -> first link (bottom), the very values Home uses.
     expect(LINK_CONTROLS_TOP_GAP).not.toBe(LINK_CONTROLS_BOTTOM_GAP);
-    // The wording is 시간순.
-    expect(chips.props.dateLabel).toBe('시간순');
+    // The links are always newest first: no 시간순 / 이름순 to pick.
+    expect(header(renderer).root.findAll(node => String(node.props.testID ?? '').startsWith('collection-sort-'))).toHaveLength(0);
     const children = controlsRow.children as ReactTestRenderer.ReactTestInstance[];
     expect(children[children.length - 1].type).toBe(ViewModeToggle);
   });

@@ -14,11 +14,11 @@ import {
   Keyboard,
   Linking,
   Platform,
-  Pressable,
   useWindowDimensions,
   Text,
   View,
 } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { usePullToRefresh } from '../components/PullRefreshControl';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
@@ -1261,19 +1261,16 @@ const styles = themedStyles(() => ({
     textAlign: 'center',
   },
   skeletonGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  // The four same-level filters as a 2x2 grid on one muted track (the previous pill language):
-  // equal halves; the selected cell the Collection blue with the blue folder-glyph outline, the
-  // others light gray (collectionFilterColors). Same border width everywhere - no layout shift.
+  // The four same-level filters as a 2x2 grid of buttons standing on their own - no track or box around them: equal halves;
+  // the selected cell the Collection blue with the blue folder-glyph outline, the others light gray (collectionFilterColors).
+  // Same border width everywhere - no layout shift.
   filterGrid: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radii.md + 6,
-    gap: 4,
+    gap: spacing.sm,
     marginBottom: spacing.md,
-    padding: 4,
   },
   filterRow: {
     flexDirection: 'row',
-    gap: 4,
+    gap: spacing.sm,
   },
   filterCell: {
     alignItems: 'center',

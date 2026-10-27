@@ -1,7 +1,8 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { GUIDE_SECTIONS } from '../help/guideContent';
 import { ChevronIcon } from '../icons/ChevronIcon';

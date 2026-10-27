@@ -332,6 +332,7 @@
     "sharePasswordShow": "비밀번호 보기",
     "sharePasswordHide": "비밀번호 숨기기",
     "sharePasswordCopyFailed": "복사하지 못했어요. 다시 시도해 주세요.",
+    "sharePasswordCopied": "복사되었습니다",
     "sharePasswordChange": "변경",
     "sharePasswordRemoveTitle": "접근 비밀번호 보호를 해제할까요?",
     "sharePasswordRemoveMessage": "공유는 그대로 유지되고, 공유받은 사용자는 비밀번호 없이 열 수 있어요.",

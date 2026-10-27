@@ -332,6 +332,7 @@
     "sharePasswordShow": "显示密码",
     "sharePasswordHide": "隐藏密码",
     "sharePasswordCopyFailed": "无法复制，请重试。",
+    "sharePasswordCopied": "已复制",
     "sharePasswordChange": "更改",
     "sharePasswordRemoveTitle": "要取消访问密码保护吗？",
     "sharePasswordRemoveMessage": "共享保持不变，被共享的人无需密码即可打开。",

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { useTranslation } from 'react-i18next';
 import { SmileyPlusIcon } from '../icons/SmileyPlusIcon';
 import { colors, radii, spacing, themedStyles } from '../theme/tokens';

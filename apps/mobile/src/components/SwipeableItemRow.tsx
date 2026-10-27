@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import {
   Animated,
   PanResponder,
-  Pressable,
   I18nManager,
   StyleSheet,
   View,
@@ -11,6 +10,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { Pressable } from './Pressable';
 import { ShareIcon } from '../icons/ShareIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';

@@ -332,6 +332,7 @@
     "sharePasswordShow": "Hiện mật khẩu",
     "sharePasswordHide": "Ẩn mật khẩu",
     "sharePasswordCopyFailed": "Không thể sao chép. Vui lòng thử lại.",
+    "sharePasswordCopied": "Đã sao chép",
     "sharePasswordChange": "Đổi",
     "sharePasswordRemoveTitle": "Gỡ bảo vệ bằng mật khẩu truy cập?",
     "sharePasswordRemoveMessage": "Việc chia sẻ vẫn giữ nguyên và mọi người có thể mở mà không cần mật khẩu.",

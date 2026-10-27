@@ -1,10 +1,8 @@
 jest.mock('../../api/apiConfig', () => ({ apiConfig: { baseUrl: 'https://api.test' } }));
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { FlatList, StyleSheet, Text } from 'react-native';
 import i18n from '../../i18n';
 import { AppToastProvider } from '../../components/AppToast';
-import { LinkSortChips } from '../../components/LinkSortChips';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { ClockIcon } from '../../icons/ClockIcon';
 import { SearchIcon } from '../../icons/SearchIcon';
@@ -93,23 +91,19 @@ async function renderScreen() {
 }
 const order = (renderer: ReactTestRenderer.ReactTestRenderer) =>
   (renderer.root.findByType(FlatList).props.data as ItemHistoryEntry[]).map(entry => entry.id);
-const press = async (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) => {
-  await act(async () => {
-    renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onPress === 'function')[0].props.onPress();
-  });
-};
 
 describe('Home header', () => {
-  it('keeps only the title and count on the 최근 저장 row; the sort chips are at the start and List/Grid at the far end of the next row (as in a Collection)', async () => {
+  it('keeps only the title and count on the 최근 저장 row; the next row holds just the List/Grid/Image switch at the far end - no sort chips', async () => {
     serve(ITEMS);
     const renderer = await renderScreen();
 
     const toggle = renderer.root.findByType(ViewModeToggle);
-    const controlsRow = toggle.parent!;
+    const controlsRow = renderer.root.findAll(node => node.props.testID === 'home-view-controls' && typeof node.type === 'string')[0];
     expect(StyleSheet.flatten(controlsRow.props.style)).toMatchObject({ flexDirection: 'row', marginTop: LINK_CONTROLS_TOP_GAP, marginBottom: LINK_CONTROLS_BOTTOM_GAP });
     const children = controlsRow.children as ReactTestRenderer.ReactTestInstance[];
-    expect(children[0].type).toBe(LinkSortChips);
     expect(children[children.length - 1]).toBe(toggle);
+    expect(renderer.root.findAll(node => String(node.props.testID ?? '').startsWith('home-sort'))).toHaveLength(0);
+    expect(renderer.root.findAllByType(Text).some(node => ['시간순', '이름순'].includes(String(node.props.children)))).toBe(false);
 
     // The title row holds the label and count only - no toggle.
     const titleRow = renderer.root.findAll(node => node.props.children === i18n.t('inbox.recentSaved') && typeof node.type === 'string')[0].parent!.parent!;
@@ -119,80 +113,30 @@ describe('Home header', () => {
   });
 });
 
-describe('Home sorting (the Collection sort control and rules)', () => {
-  it('uses the shared sort control, with 시간순 and 이름순', async () => {
-    serve(ITEMS);
-    const renderer = await renderScreen();
-
-    expect(renderer.root.findAllByType(LinkSortChips)).toHaveLength(1);
-    expect(renderer.root.findByType(LinkSortChips).props.dateLabel).toBe('시간순');
-    expect(renderer.root.findByType(LinkSortChips).props.nameLabel).toBe(i18n.t('collections.sortName'));
+describe('Home order - always newest first', () => {
+  it('shows the server\'s own newest-first order, whatever an older version stored as a sort', async () => {
+    for (const stored of [undefined, 'oldest', 'title', 'titleDesc']) {
+      mockStore.clear();
+      if (stored) {
+        mockStore.set('juple.homeLinkSort', stored);
+      }
+      serve(ITEMS);
+      const renderer = await renderScreen();
+      expect(order(renderer)).toEqual([1, 2, 3, 4]);
+    }
   });
 
-  it('시간순 keeps the server newest-first order by default, and the arrow flips it to oldest first', async () => {
-    serve(ITEMS);
-    const renderer = await renderScreen();
-    expect(order(renderer)).toEqual([1, 2, 3, 4]);
-
-    await press(renderer, 'home-sort-date');
-    expect(order(renderer)).toEqual([4, 3, 2, 1]);
-    expect(mockStore.get('juple.homeLinkSort')).toBe('oldest');
-  });
-
-  it('이름순 uses the Collection rule: locale-aware, title-less links last', async () => {
-    serve(ITEMS);
-    const renderer = await renderScreen();
-
-    await press(renderer, 'home-sort-name');
-    expect(order(renderer)).toEqual([2, 4, 1, 3]);
-    expect(mockStore.get('juple.homeLinkSort')).toBe('title');
-  });
-
-  it('이름순 flips ↑ (A→Z) ↔ ↓ (Z→A) on a second press, title-less links last in both, and persists the direction', async () => {
-    serve(ITEMS);
-    const renderer = await renderScreen();
-
-    await press(renderer, 'home-sort-name');
-    expect(order(renderer)).toEqual([2, 4, 1, 3]);
-    expect(renderer.root.findByType(LinkSortChips).props.sort).toBe('title');
-
-    await press(renderer, 'home-sort-name');
-    expect(renderer.root.findByType(LinkSortChips).props.sort).toBe('titleDesc');
-    expect(order(renderer)).toEqual([1, 4, 2, 3]);
-    expect(mockStore.get('juple.homeLinkSort')).toBe('titleDesc');
-    expect(renderer.root.findByProps({ testID: 'home-sort-name' }).props.accessibilityLabel).toBe(i18n.t('collections.sortNameDescA11y'));
-
-    // Pressing 시간순 leaves 이름순 and starts at ↓ newest again.
-    await press(renderer, 'home-sort-date');
-    expect(renderer.root.findByType(LinkSortChips).props.sort).toBe('newest');
-    expect(order(renderer)).toEqual([1, 2, 3, 4]);
-  });
-
-  it('restores a saved 이름순 ↓ next to the saved view mode', async () => {
-    mockStore.set('juple.homeLinkSort', 'titleDesc');
-    serve(ITEMS);
-    const renderer = await renderScreen();
-
-    expect(renderer.root.findByType(LinkSortChips).props.sort).toBe('titleDesc');
-    expect(order(renderer)).toEqual([1, 4, 2, 3]);
-  });
-
-  it('loads the whole day (largest pages) before showing a name order - never a partial one', async () => {
+  it('pages in as the list scrolls (no whole-day load for an order)', async () => {
     const many = Array.from({ length: 60 }, (_, index) => item(index + 1, `Link ${String(index + 1).padStart(2, '0')}`, index + 1));
     serve(many);
     const renderer = await renderScreen();
     expect(order(renderer)).toHaveLength(25);
-
-    await press(renderer, 'home-sort-name');
-    expect(jest.mocked(getItemHistory)).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ limit: 100 }));
-    expect(order(renderer)).toHaveLength(60);
-    expect(order(renderer).slice(0, 3)).toEqual([1, 2, 3]);
+    expect(jest.mocked(getItemHistory)).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ limit: 100 }));
   });
 
-  it('keeps the sort when the view mode changes: Grid shows the same order as List', async () => {
+  it('keeps the order when the view mode changes: Grid shows the same order as List', async () => {
     serve(ITEMS);
     const renderer = await renderScreen();
-    await press(renderer, 'home-sort-name');
     const listOrder = order(renderer);
 
     await act(async () => {
@@ -201,19 +145,6 @@ describe('Home sorting (the Collection sort control and rules)', () => {
 
     expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
     expect(order(renderer)).toEqual(listOrder);
-    expect(renderer.root.findByType(LinkSortChips).props.sort).toBe('title');
-  });
-
-  it('restores the saved sort next to the saved view mode', async () => {
-    mockStore.set('juple.homeLinkSort', 'title');
-    mockStore.set('juple.homeViewMode', 'grid');
-    serve(ITEMS);
-    const renderer = await renderScreen();
-
-    expect(renderer.root.findByType(LinkSortChips).props.sort).toBe('title');
-    expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
-    expect(order(renderer)).toEqual([2, 4, 1, 3]);
-    expect(AsyncStorage.getItem).toHaveBeenCalledWith('juple.homeLinkSort');
   });
 });
 

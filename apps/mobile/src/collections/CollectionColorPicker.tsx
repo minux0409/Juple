@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LayoutChangeEvent, Pressable, View, type ViewInstance } from 'react-native';
+import { LayoutChangeEvent, View, type ViewInstance } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { customColorFromHue, hueFromCustomColor, isCustomCollectionColor, resolveCollectionColorKey, resolveCollectionColorTile, type CollectionColorKey, type CollectionColorValue } from './collectionColors';
 import { colors, spacing, themedStyles } from '../theme/tokens';
 

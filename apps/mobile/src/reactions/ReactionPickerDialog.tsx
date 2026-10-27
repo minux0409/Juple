@@ -1,4 +1,5 @@
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { useTranslation } from 'react-i18next';
 import { CloseIcon } from '../icons/CloseIcon';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';

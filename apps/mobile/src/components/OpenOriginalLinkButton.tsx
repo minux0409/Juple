@@ -1,4 +1,4 @@
-import { Pressable } from 'react-native';
+import { Pressable } from './Pressable';
 import { useTranslation } from 'react-i18next';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { colors, themedStyles } from '../theme/tokens';

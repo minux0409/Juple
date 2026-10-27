@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from './Pressable';
 import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 import { DialogActions } from './DialogActions';
 import { KeyboardFieldScope } from './keyboardToolbar';

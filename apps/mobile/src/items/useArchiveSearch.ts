@@ -19,8 +19,8 @@ export interface ArchiveSearchState {
   /** A query is active (2+ characters). */
   readonly isSearching: boolean;
   /**
-   * The Archive is shown as ONE flat server-paged list instead of its date sections: a query is active, or 이름순 is
-   * (the whole archive A-Z - an order only the server can give across every page).
+   * The Archive is ONE flat server-paged list - always, once enabled (there are no date sections any more): every link,
+   * newest first, or a query's results.
    */
   readonly isFlat: boolean;
   readonly items: readonly ItemHistoryEntry[];
@@ -41,19 +41,18 @@ export interface ArchiveSearchState {
 }
 
 /**
- * The Archive as a flat, server-paged list - a search over the user's whole archive and/or 이름순 over it (never only
- * the rows already loaded): the typed text is trimmed, debounced, and each request carries a sequence number, so a slow
- * answer for an older query or sort can never overwrite the newer one. Clearing the text under 시간순 cancels any
- * pending request and returns to the date sections at once. Results page by the server's cursor: newest first under
- * 시간순, A-Z under 이름순 (the same query, only the order differs). Changing only how the rows are shown (List / Grid /
- * Image) never reaches this hook, so it never asks again. `enabled` false holds every request back (the screen is still
- * learning which sort the user chose).
+ * The Archive as one flat, server-paged list: every link newest first, or a search over the whole archive (never only
+ * the rows already loaded). The typed text is trimmed, debounced, and each request carries a sequence number, so a slow
+ * answer for an older query can never overwrite the newer one; clearing the text goes straight back to every link. Results
+ * page by the server's cursor - newest first (the server's own order: saved time, then id); `sort` 'name' asks for A-Z.
+ * Changing only how the rows are shown (List / Grid / Image) never reaches this hook, so it never asks again. `enabled`
+ * false holds every request back.
  */
 export function useArchiveSearch(rawQuery: string, sort: ArchiveFlatSort = 'time', enabled = true): ArchiveSearchState {
   const request = useAuthenticatedApi();
   const term = normalizeArchiveQuery(rawQuery);
   // enabled false (the stored sort is still being read): nothing is requested yet, so no request can go out in the wrong order.
-  const isFlat = enabled && (term !== null || sort === 'name');
+  const isFlat = enabled;
   const queryKey = `${sort}|${term ?? ''}`;
   const [items, setItems] = useState<readonly ItemHistoryEntry[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -132,13 +131,13 @@ export function useArchiveSearch(rawQuery: string, sort: ArchiveFlatSort = 'time
     setErrorCause(null);
     setMoreError(false);
     if (!isFlat) {
-      // Back to the date sections: nothing in flight can land later.
+      // Held back: nothing in flight can land later.
       setIsLoading(false);
       return () => { sequenceRef.current++; };
     }
     setIsLoading(true);
     if (term === null) {
-      // 이름순 without text: nothing to wait for typing.
+      // Every link (no text): nothing to wait for typing.
       run(queryKey).catch(() => undefined);
       return () => { sequenceRef.current++; };
     }

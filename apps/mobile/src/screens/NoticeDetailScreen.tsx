@@ -10,10 +10,10 @@ import {
   ActivityIndicator,
   AppState,
   Linking,
-  Pressable,
   ScrollView,
   Text,
 } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';

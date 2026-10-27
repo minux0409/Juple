@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { useTranslation } from 'react-i18next';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { ActionMenuDialog } from '../components/ActionMenuDialog';

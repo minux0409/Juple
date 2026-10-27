@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, ScrollView, Text, View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppModal } from '../components/AppModal';
 import { legalLinks } from '../config/legalLinks';

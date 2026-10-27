@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, Text } from 'react-native';
+import { ScrollView, Text } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { AppModal } from '../components/AppModal';
 import { CountBadge } from '../components/CountBadge';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';

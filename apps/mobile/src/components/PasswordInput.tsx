@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, View, type TextInputProps } from 'react-native';
+import { View, type TextInputProps } from 'react-native';
+import { Pressable } from './Pressable';
 import { ThemedTextInput } from './ThemedTextInput';
 import { EyeIcon } from '../icons/EyeIcon';
 import { EyeOffIcon } from '../icons/EyeOffIcon';

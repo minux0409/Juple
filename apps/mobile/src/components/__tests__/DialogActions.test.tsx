@@ -84,7 +84,7 @@ describe('DialogActions', () => {
     expect(flat(row(renderer).props.style).flexDirection).toBe('row');
   });
 
-  it('colors: destructive is the danger fill, secondary is outlined; disabled/busy actions cannot be pressed', async () => {
+  it('colors: 삭제 is the logo\'s J red (#FB5D72) with a white bold label, 취소 a light grey fill with dark text - same size and shape; disabled/busy actions cannot be pressed', async () => {
     const onPress = jest.fn();
     const renderer = await render([
       { label: 'Cancel', onPress, tone: 'secondary', disabled: true },
@@ -92,14 +92,28 @@ describe('DialogActions', () => {
     ]);
     const [cancel, confirm] = buttons(renderer);
 
-    expect(flat(confirm.props.style).backgroundColor).toBe(colors.danger);
-    expect(flat(cancel.props.style)).toEqual(expect.objectContaining({ borderWidth: 1 }));
-    expect(flat(cancel.props.style).backgroundColor).toBeUndefined();
+    expect(flat(confirm.props.style).backgroundColor).toBe('#FB5D72');
+    expect(flat(confirm.props.style).backgroundColor).toBe(colors.badge);
+    expect(flat(cancel.props.style).backgroundColor).toBe(colors.surfaceMuted);
+    expect(flat(cancel.props.style).borderWidth).toBeUndefined();
+    for (const key of ['minHeight', 'paddingVertical', 'paddingHorizontal', 'borderRadius'] as const) {
+      expect(flat(cancel.props.style)[key]).toBe(flat(confirm.props.style)[key]);
+    }
     expect(cancel.props.disabled).toBe(true);
     expect(confirm.props.accessibilityState).toEqual({ disabled: true, busy: true });
     // Busy shows a spinner in place of the label (the button keeps its size and its a11y label).
     expect(renderer.root.findAllByType(Text).map(node => node.props.children)).toEqual(['Cancel']);
     expect(confirm.props.accessibilityLabel).toBe('Delete');
+  });
+
+  it('the labels: white bold on 삭제, the dark text colour on 취소', async () => {
+    const renderer = await render([
+      { label: 'Cancel', onPress: jest.fn(), tone: 'secondary' },
+      { label: 'Delete', onPress: jest.fn(), tone: 'destructive' },
+    ]);
+    const label = (text: string) => flat(renderer.root.findAllByType(Text).find(node => node.props.children === text)!.props.style);
+    expect(label('Delete')).toEqual(expect.objectContaining({ color: '#FFFFFF', fontWeight: '700' }));
+    expect(label('Cancel').color).toBe(colors.textPrimary);
   });
 });
 

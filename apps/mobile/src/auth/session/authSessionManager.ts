@@ -40,6 +40,14 @@ let accessTokenExpirationDate: string | null = null;
 /** The most recently known idToken - only for reading display-only claims client-side (see idTokenClaims.ts), never used for API authorization. */
 let cachedIdToken: string | null = null;
 let refreshInFlight: Promise<string> | null = null;
+/**
+ * Counts session replacements (an interactive sign-in saved, or the session cleared). A refresh that started under an older
+ * generation must not write its result: on iOS, closing the sign-in sheet of a re-authentication brings the app back to the
+ * foreground, whose session check starts a forced refresh with the OLD refresh token - and when that refresh finished after the new
+ * sign-in was saved, it put back an access token from the old sign-in (old auth_time) and the old refresh token chain, so the
+ * server kept answering "sign in again" for the lock password, again and again.
+ */
+let sessionGeneration = 0;
 const sessionInvalidatedListeners = new Set<() => void>();
 
 function isAccessTokenUsable(expirationDate: string | null): boolean {
@@ -65,6 +73,7 @@ function clearCachedAccessToken(): void {
 }
 
 async function clearSessionInternal(): Promise<void> {
+  sessionGeneration += 1;
   await clearAuthSession().catch(() => undefined);
   clearCachedAccessToken();
   cachedIdToken = null;
@@ -93,6 +102,7 @@ export function onSessionInvalidated(listener: () => void): () => void {
 export async function saveAuthorizedSession(
   session: AuthorizedSession,
 ): Promise<void> {
+  sessionGeneration += 1;
   setCachedAccessToken(session.accessToken, session.accessTokenExpirationDate);
   cachedIdToken = session.idToken ?? cachedIdToken;
   await saveAuthSession({
@@ -111,9 +121,23 @@ async function refreshAccessToken(onStep?: (step: SessionRestoreStep) => void): 
     return refreshInFlight;
   }
 
+  const generation = sessionGeneration;
+  /** A newer session was saved (or the session cleared) while this refresh ran: its result belongs to the replaced session. */
+  const superseded = () => generation !== sessionGeneration;
+  /** What a superseded refresh hands its callers instead of its own (older) token. */
+  const currentSessionToken = () => {
+    if (accessToken && isAccessTokenUsable(accessTokenExpirationDate)) {
+      return accessToken;
+    }
+    throw new AuthSessionError('sessionUnavailable');
+  };
+
   const refreshPromise = (async () => {
     onStep?.('sessionRestore');
     const session = await loadAuthSession();
+    if (superseded()) {
+      return currentSessionToken();
+    }
     if (!session) {
       throw new AuthSessionError('sessionUnavailable');
     }
@@ -124,22 +148,33 @@ async function refreshAccessToken(onStep?: (step: SessionRestoreStep) => void): 
     try {
       onStep?.('entraRefresh');
       const result = await refreshEntraSession(session.refreshToken);
+      if (superseded()) {
+        return currentSessionToken();
+      }
       if (!result.accessToken) {
         throw new Error('Entra refresh completed without an access token.');
       }
 
       if (result.refreshToken) {
         const idToken = result.idToken ?? session.idToken;
+        // Started with no await after the check above, so a newer sign-in's own write is queued after this one and wins.
         await saveAuthSession({
           refreshToken: result.refreshToken,
           idToken,
         });
+        if (superseded()) {
+          return currentSessionToken();
+        }
         cachedIdToken = idToken ?? cachedIdToken;
       }
 
       setCachedAccessToken(result.accessToken, result.accessTokenExpirationDate);
       return result.accessToken;
     } catch (caughtError) {
+      if (superseded()) {
+        // The OLD session's refresh failed after it was replaced: that says nothing about the new session.
+        return currentSessionToken();
+      }
       const cause =
         caughtError instanceof EntraAuthError
           ? caughtError.cause

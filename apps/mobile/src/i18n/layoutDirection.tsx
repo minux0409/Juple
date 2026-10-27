@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 import { RTL_LANGUAGES } from './index';
+import { useTheme } from '../theme/ThemeContext';
 import { colors, themedStyles } from '../theme/tokens';
 
 export type LayoutDirection = 'ltr' | 'rtl';
@@ -23,8 +24,14 @@ export function useLayoutDirection(): LayoutDirection {
  * Arabic → Korean used to leave everything mirrored until a restart. An explicit Yoga `direction`
  * on this root overrides whatever the native root inherited, for every view below it (modals
  * included, which Fabric lays out inside the same tree), and changes the moment the language does.
+ *
+ * Its background is the app's own background, and it must follow a theme change made while the app runs (a Light/Dark choice in
+ * 화면 모드, or the OS switching on 시스템 설정 사용): this view is what shows behind the native stack, so iOS push / pop transitions
+ * reveal it at the moving screen's rounded corners and edge. Without the subscription it kept the previous theme's colour (React
+ * skips it - its props never change), which flashed a white line at the left edge on push and the right edge on back in Dark mode.
  */
 export function LayoutDirectionRoot({ children }: { readonly children: ReactNode }) {
+  useTheme();
   const direction = useLayoutDirection();
   return (
     <View style={[styles.root, { direction }]} testID="layout-direction-root">

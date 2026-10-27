@@ -2,6 +2,8 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { I18nManager, StyleSheet, Text, View } from 'react-native';
 import i18n from '../index';
 import { LayoutDirectionRoot, layoutDirectionFor, useLayoutDirection } from '../layoutDirection';
+import { ThemeProvider, useTheme } from '../../theme/ThemeContext';
+import { darkColors, lightColors } from '../../theme/tokens';
 
 function Probe() {
   return <Text testID="probe">{useLayoutDirection()}</Text>;
@@ -62,5 +64,34 @@ describe('layout direction follows the selected app language, in the same sessio
     expect(renderer.root.findByProps({ testID: 'probe' }).props.children).toBe('ltr');
     // Same tree the whole time - nothing was remounted to get there.
     expect(renderer.root.findByProps({ testID: 'probe' })).toBe(probeInstance);
+  });
+});
+
+describe('the app root (what iOS push / pop transitions reveal behind the moving screen) follows a theme change made while running', () => {
+  function ThemeSwitch({ onReady }: { readonly onReady: (set: (preference: 'light' | 'dark') => void) => void }) {
+    onReady(useTheme().setPreference);
+    return null;
+  }
+
+  it('repaints its background on Light -> Dark -> Light although its own props never change', () => {
+    let setPreference!: (preference: 'light' | 'dark') => void;
+    // The same children element on every render, like App's tree: React skips a component that does not subscribe.
+    const content = <View testID="content" />;
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = ReactTestRenderer.create(
+        <ThemeProvider initialPreference="light">
+          <ThemeSwitch onReady={set => { setPreference = set; }} />
+          <LayoutDirectionRoot>{content}</LayoutDirectionRoot>
+        </ThemeProvider>,
+      );
+    });
+    const background = () => StyleSheet.flatten(renderer.root.findByProps({ testID: 'layout-direction-root' }).findByType(View).props.style).backgroundColor;
+
+    expect(background()).toBe(lightColors.background);
+    act(() => setPreference('dark'));
+    expect(background()).toBe(darkColors.background);
+    act(() => setPreference('light'));
+    expect(background()).toBe(lightColors.background);
   });
 });

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View, type TextLayoutEvent } from 'react-native';
+import { ActivityIndicator, Text, View, type TextLayoutEvent } from 'react-native';
+import { Pressable } from './Pressable';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
-/** secondary: outlined (취소); destructive / neutral / brand: filled. */
+/** secondary: the quiet light-grey 취소; destructive (the J-red 삭제) / neutral / brand: filled. Every tone has the same size and shape. */
 export type DialogActionTone = 'secondary' | 'destructive' | 'neutral' | 'brand';
 
 export interface DialogAction {
@@ -92,26 +93,31 @@ const styles = themedStyles(() => ({
   // Equal halves: flexBasis 0 so a longer label never makes its own button wider than the other.
   buttonSideBySide: { flexBasis: 0, flexGrow: 1, flexShrink: 1, minWidth: 0 },
   buttonStacked: { alignSelf: 'stretch' },
-  secondary: { borderColor: colors.border, borderWidth: 1 },
+  // 취소: a light grey fill (no outline), dark neutral text - in Light and Dark the theme's muted surface.
+  secondary: { backgroundColor: colors.surfaceMuted },
   disabled: { opacity: 0.5 },
   label: { fontSize: 16, fontWeight: '600', textAlign: 'center' },
   labelSecondary: { color: colors.textPrimary },
 }));
 
-/** The label on a filled button: white on brand, dark on the light coral danger fill, the card colour on the neutral (text-colour) fill. */
+/**
+ * The label on a filled button: white on brand, white (bold) on the J-red delete fill, the card colour on the neutral
+ * (text-colour) fill. White on #FB5D72 is 3.04:1 - the deepest band of the logo's J, enough for this bold 16pt label.
+ */
 const labelToneStyles = themedStyles(() => ({
-  destructive: { color: colors.onDanger },
+  destructive: { color: colors.onBadge, fontWeight: '700' },
   neutral: { color: colors.surface },
   brand: { color: colors.onBrand },
   secondary: { color: colors.textPrimary },
 }));
 
 function labelToneColor(tone: DialogActionTone): string {
-  return tone === 'destructive' ? colors.onDanger : tone === 'brand' ? colors.onBrand : colors.surface;
+  return tone === 'destructive' ? colors.onBadge : tone === 'brand' ? colors.onBrand : colors.surface;
 }
 
 const toneStyles = themedStyles(() => ({
-  destructive: { backgroundColor: colors.danger },
+  // Delete: the red of the J in the Juple logo - the same colour as the swipe-to-delete panel.
+  destructive: { backgroundColor: colors.badge },
   neutral: { backgroundColor: colors.textPrimary },
   brand: { backgroundColor: colors.brand },
 }));

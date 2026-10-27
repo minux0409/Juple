@@ -332,6 +332,7 @@
     "sharePasswordShow": "Показать пароль",
     "sharePasswordHide": "Скрыть пароль",
     "sharePasswordCopyFailed": "Не удалось скопировать. Попробуйте ещё раз.",
+    "sharePasswordCopied": "Скопировано",
     "sharePasswordChange": "Изменить",
     "sharePasswordRemoveTitle": "Снять защиту паролем доступа?",
     "sharePasswordRemoveMessage": "Доступ останется как есть, и открыть коллекцию можно будет без пароля.",

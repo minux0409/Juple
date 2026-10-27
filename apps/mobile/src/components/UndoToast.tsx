@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { Animated, Pressable, Text } from 'react-native';
+import { Animated, Text } from 'react-native';
+import { Pressable } from './Pressable';
 import { colors, spacing, themedStyles } from '../theme/tokens';
 import { useAnimatedToastBottom } from './useAnimatedToastBottom';
 

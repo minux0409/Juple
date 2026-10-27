@@ -222,6 +222,20 @@ describe('CollectionsScreen filters', () => {
     expect(renderer.root.findByType(FlatList).props.data).toEqual(favoriteCollections);
   });
 
+  it('the four filter buttons stand on their own - no grey track, box or inner padding around them; each keeps its own look', async () => {
+    setUpGetCollectionsMock();
+    const renderer = await renderScreen();
+    const group = renderer.root.findAll(node => node.props.accessibilityRole === 'tablist' && typeof node.type === 'string')[0];
+    const groupStyle = StyleSheet.flatten(group.props.style);
+    expect(groupStyle.backgroundColor).toBeUndefined();
+    expect(groupStyle.borderRadius).toBeUndefined();
+    expect(groupStyle.padding).toBeUndefined();
+    const selected = StyleSheet.flatten(renderer.root.findAll(node => node.props.testID === 'collections-filter-favorites' && typeof node.type === 'string')[0].props.style);
+    const unselected = StyleSheet.flatten(renderer.root.findAll(node => node.props.testID === 'collections-filter-all' && typeof node.type === 'string')[0].props.style);
+    expect(selected.backgroundColor).not.toBe(unselected.backgroundColor);
+    expect(selected.borderWidth).toBe(unselected.borderWidth);
+  });
+
   it('a filter the user picks stays picked - a refocus or re-render never jumps back to 즐겨찾기', async () => {
     setUpGetCollectionsMock();
     let renderer!: ReactTestRenderer.ReactTestRenderer;

@@ -8,12 +8,12 @@ import {
   FlatList,
   Linking,
   Platform,
-  Pressable,
   Text,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { usePullToRefresh } from '../components/PullRefreshControl';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
@@ -29,7 +29,6 @@ import {
   getCollection,
   getCollectionNotificationPreference,
   getCollectionItems,
-  getCollectionItemSections,
   getCollections,
   mergeCollection,
   removeItemFromCollection,
@@ -54,7 +53,7 @@ import { LogoutIcon } from '../icons/LogoutIcon';
 import { isCollaborative, isCollectionLocked, isSharedWithMe } from '../collections/collectionAccess';
 import { describeItemAdder, shouldShowItemAdders } from '../collections/itemAdder';
 import { CollectionLockDialog, type CollectionLockDialogMode } from '../collections/CollectionLockDialog';
-import { beginCollectionVisit, forgetCollectionUnlock, getCollectionUnlockToken } from '../collections/collectionUnlockGrants';
+import { beginCollectionVisit, getCollectionUnlockToken } from '../collections/collectionUnlockGrants';
 import { markCollectionNewLinksRead } from '../notifications/notificationsApi';
 import { emitCollectionNewLinksRead, setUnreadCount } from '../notifications/notificationState';
 import { CollectionLinkShareSheet } from '../collections/CollectionLinkShareSheet';
@@ -71,7 +70,7 @@ import {
   type CollectionColorValue,
 } from '../collections/collectionColors';
 import { resolveCollectionIconKey, type CollectionIconKey } from '../collections/collectionIcons';
-import { contentGateOfError, getCollectionItemsErrorMessage, isCollectionLockedError, NAME_ORDER_MAX_LINKS, useCollectionItems } from '../collections/useCollectionItems';
+import { contentGateOfError, getCollectionItemsErrorMessage, isCollectionLockedError, useCollectionItems } from '../collections/useCollectionItems';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LoadFailureState } from '../components/LoadFailureState';
@@ -96,21 +95,10 @@ import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SavedLinkRowSkeleton } from '../components/SavedLinkSkeleton';
 import { SavedLinkImageRow } from '../components/SavedLinkImageTile';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
-import { LinkSortChips } from '../components/LinkSortChips';
 import { PendingActionRow } from '../components/PendingActionRow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { closeOpenRow, useSwipeAwareScrollEnabled } from '../components/swipeableRowCoordinator';
-import { DateSectionHeader, dateAccordionStyles } from '../components/DateAccordion';
-import {
-  buildDateSectionRows,
-  DATE_SECTION_IMAGE_LINE_STYLE,
-  DateSectionErrorRow,
-  DateSectionGridRow,
-  DateSectionSkeletonRow,
-  FIRST_PAGE_SKELETON_ROWS,
-  useDateSectionViewability,
-  type DateSectionRow,
-} from '../components/DateSectionList';
+import { FIRST_PAGE_SKELETON_ROWS } from '../components/DateSectionList';
 import { BellIcon } from '../icons/BellIcon';
 import { BellOffIcon } from '../icons/BellOffIcon';
 import { CheckIcon } from '../icons/CheckIcon';
@@ -128,15 +116,11 @@ import { ShareIcon } from '../icons/ShareIcon';
 import { StarIcon } from '../icons/StarIcon';
 import { MoreIcon } from '../icons/MoreIcon';
 import { CollectionTargetPickerDialog } from '../collections/CollectionTargetPickerDialog';
-import { sortCollectionItemsByName } from '../collections/sortCollectionItems';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
 import { buildFlatItemRows, type FlatItemRow } from '../items/flatItemRows';
-import { historySectionLabel } from '../items/historyDateGrouping';
 import { END_REACHED_THRESHOLD, useContinuousViewportFill } from '../items/useContinuousViewportFill';
-import { useDateSectionPages, type DateSectionPagesSource } from '../items/useDateSectionPages';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { isNameSort, nextDateSort, nextNameSort, useSortPreference } from '../settings/sortPreference';
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import type { SocialPushEventType } from '../push/pushEvents';
 import { useViewModePreference, type SavedLinkViewMode } from '../settings/viewModePreference';
@@ -419,129 +403,27 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // Responsive Grid: more columns on a wider window (phone: 2 cards / 3 image tiles, as always) - see layout/responsiveGrid.
   const columns = useSavedLinkColumns();
   const gridCellStyle = useSavedLinkGridCellStyle();
-  const { sortOption, setSortOption } = useSortPreference('collectionDetailsLinkSort');
   const [searchText, setSearchText] = useState('');
-  // 이름순 needs the whole Collection (see NAME_ORDER_MAX_LINKS): a larger one - known up front
-  // from its link count, or found while loading - stays on 시간순 instead of a partial name order.
-  const [isNameOrderTooLarge, setIsNameOrderTooLarge] = useState(false);
-  const isNameOrderUnavailable = isNameOrderTooLarge || (collection?.itemCount ?? 0) > NAME_ORDER_MAX_LINKS;
-  // The chips always show the order really in effect, searching included: the server search pages in the chosen
-  // order too (see searchSort), so typing never rewrites 이름순 to 시간순. Only a Collection too large for a whole-list
-  // name order stays on 시간순.
-  const effectiveSort = isNameSort(sortOption) && isNameOrderUnavailable ? 'newest' : sortOption;
-  // 시간순 (newest ↓ / oldest ↑): the Collection's date sections and exact counts first, then each
-  // expanded section's links from the server a page at a time (see useDateSectionPages). 이름순
-  // loads the whole Collection first and sorts it here (see NAME_ORDER_MAX_LINKS).
-  const dateSortDirection = isNameSort(effectiveSort) ? null : effectiveSort;
-  const isDateOrder = dateSortDirection !== null;
   // Picking links to copy marks each card, which an image tile has no room for: selection shows Grid instead.
   const layoutMode: SavedLinkViewMode = selectedItemIds && viewMode === 'image' ? 'grid' : viewMode;
-  const pageSort = dateSortDirection === 'oldest' ? 'dateAsc' : 'dateDesc';
-  const searchSort = effectiveSort === 'title' ? 'nameAsc' : effectiveSort === 'titleDesc' ? 'nameDesc' : pageSort;
-  const search = useCollectionSearch(collectionId, searchText, searchSort);
+  // The Collection's links are ONE list, always newest added first (the server's order: added time, then id), a page at a
+  // time as it scrolls - no date sections to open and no other order to pick. A search shows the server's results in the
+  // same order.
+  const search = useCollectionSearch(collectionId, searchText, 'dateDesc');
   const refreshSearch = search.refresh;
-
-  const nameOrdered = useCollectionItems(collectionId, 'whole', !isDateOrder);
-
-  // Which date sections are open - chosen once (today's, else the first shown), then only by the
-  // user: a refresh, a page that loads more, a removed link or flipping ↓/↑ never resets it
-  // (section keys are the same in both directions).
-  const [expandedDateKeys, setExpandedDateKeys] = useState<ReadonlySet<string> | null>(null);
-  const expandedDateKeysRef = useRef<ReadonlySet<string>>(new Set());
-  expandedDateKeysRef.current = expandedDateKeys ?? new Set();
-  const isDateSectionExpanded = useCallback((key: string) => expandedDateKeysRef.current.has(key), []);
-  // Which password withheld the date-ordered content (the Owner's lock, or - for a member - the share password).
-  const [dateOrderLockKind, setDateOrderLockKind] = useState<'lock' | 'sharePassword' | null>(null);
-  const dateSource = useMemo<DateSectionPagesSource<CollectionItemEntry>>(
-    () => ({
-      loadSections: () => getCollectionItemSections(authenticatedRequest, collectionId, getCollectionUnlockToken(collectionId)),
-      loadPage: (section, limit, cursor) =>
-        getCollectionItems(authenticatedRequest, collectionId, {
-          limit,
-          cursor,
-          sort: pageSort,
-          fromUtc: section.fromUtc,
-          toUtc: section.toUtc,
-          unlockToken: getCollectionUnlockToken(collectionId),
-        }),
-      idOf: item => item.itemId,
-      errorMessage: caughtError => getCollectionItemsErrorMessage(caughtError, t),
-      // Locked (or share-password protected) with no valid grant: a stale grant is dropped and
-      // nothing stays on screen - never a flash of the content behind it.
-      onBlockingError: caughtError => {
-        const gate = contentGateOfError(caughtError);
-        if (!gate) {
-          return false;
-        }
-        forgetCollectionUnlock(collectionId);
-        setDateOrderLockKind(gate);
-        return true;
-      },
-      onSectionsLoaded: () => setDateOrderLockKind(null),
-    }),
-    [authenticatedRequest, collectionId, pageSort, t],
-  );
-  const dated = useDateSectionPages(dateSource, isDateSectionExpanded, { enabled: isDateOrder, resetKey: pageSort });
-
-  const isLoading = isDateOrder ? dated.isLoading : nameOrdered.isLoading;
-  const isRefreshing = isDateOrder ? dated.isRefreshing : nameOrdered.isRefreshing;
-  const error = isDateOrder ? dated.error : nameOrdered.error;
-  const isContentLocked = isDateOrder ? dateOrderLockKind !== null : nameOrdered.isLocked;
-  const contentLockKind = isDateOrder ? dateOrderLockKind : nameOrdered.lockKind;
-  const isTooLargeForNameOrder = nameOrdered.isTooLargeForNameOrder;
-  const refresh = isDateOrder ? dated.refresh : nameOrdered.refresh;
+  const paged = useCollectionItems(collectionId, 'dateDesc');
+  const { isLoading, isRefreshing, error, items, refresh } = paged;
+  // Locked (or share-password protected) with no valid grant: nothing of the content is on screen, only the unlock panel.
+  const isContentLocked = paged.isLocked;
+  const contentLockKind = paged.lockKind;
   const removeLocally = (itemId: number) => {
-    dated.removeItem(itemId);
-    nameOrdered.removeLocally(itemId);
+    paged.removeLocally(itemId);
     search.removeItem(itemId);
   };
-  // Every link currently loaded, whichever way the Collection is shown.
-  const items = useMemo(
-    () => (isDateOrder ? [...dated.pages.values()].flatMap(page => page.items) : nameOrdered.items),
-    [dated.pages, isDateOrder, nameOrdered.items],
-  );
-
-  useEffect(() => {
-    if (isTooLargeForNameOrder) {
-      setIsNameOrderTooLarge(true);
-      setNotice(t('collections.sortNameTooLarge', { max: NAME_ORDER_MAX_LINKS }));
-    }
-  }, [isTooLargeForNameOrder, t]);
-
-  // Name order only ever over the whole Collection (the 'whole' load publishes nothing until every
-  // link is in).
-  const displayedItems = useMemo(
-    () => sortCollectionItemsByName(nameOrdered.items, undefined, effectiveSort === 'titleDesc' ? 'desc' : 'asc'),
-    [effectiveSort, nameOrdered.items],
-  );
-  // The server's sections are newest first; ↑ oldest shows them (and each one's pages) the other way.
-  const dateSections = useMemo(
-    () => (dateSortDirection === 'oldest' ? [...dated.sections].reverse() : dated.sections),
-    [dateSortDirection, dated.sections],
-  );
-  useEffect(() => {
-    if (expandedDateKeys !== null || dateSections.length === 0) {
-      return;
-    }
-    const initial = dateSections.find(section => section.kind === 'today') ?? dateSections[0];
-    setExpandedDateKeys(new Set([initial.key]));
-  }, [dateSections, expandedDateKeys]);
-  // An expanded section that has never loaded fetches its first page (collapsed ones never do).
-  const { ensureLoaded: ensureDateSectionLoaded } = dated;
-  useEffect(() => {
-    if (isDateOrder) {
-      expandedDateKeys?.forEach(key => ensureDateSectionLoaded(key));
-    }
-  }, [dated.sections, ensureDateSectionLoaded, expandedDateKeys, isDateOrder]);
-  const dateRows = useMemo(
-    () => (isDateOrder ? buildDateSectionRows(dateSections, dated.pages, expandedDateKeys ?? new Set(), layoutMode, item => item.itemId, columns) : []),
-    [columns, dateSections, dated.pages, expandedDateKeys, isDateOrder, layoutMode],
-  );
-  const { onViewableItemsChanged, viewabilityConfig } = useDateSectionViewability(dated.pages, dated.loadMore);
-  // 이름순 holds the whole Collection already: Image is just its links packed three to a line.
-  const nameImageRows = useMemo<readonly CollectionFlatRow[]>(
-    () => (!isDateOrder && layoutMode === 'image' ? buildFlatItemRows(displayedItems, 'image', collectionItemAccessors, columns) : []),
-    [columns, displayedItems, isDateOrder, layoutMode],
+  // Image: the loaded links packed three to a line (List / Grid list the links themselves).
+  const imageRows = useMemo<readonly CollectionFlatRow[]>(
+    () => (layoutMode === 'image' ? buildFlatItemRows(items, 'image', collectionItemAccessors, columns) : []),
+    [columns, items, layoutMode],
   );
   // Search results: one flat run in the server's date order (the search endpoint has no name order, so a name-sorted
   // Collection shows the same newest-first results while searching) - from the one server search.
@@ -579,27 +461,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       openImageTileMenuRef.current(entry);
     }
   }, []);
-  const toggleDateSection = (dateKey: string) => {
-    setExpandedDateKeys(previous => {
-      const next = new Set(previous ?? []);
-      if (next.has(dateKey)) {
-        next.delete(dateKey);
-      } else {
-        next.add(dateKey);
-      }
-      return next;
-    });
-  };
-  /** 시간순: first press picks it (newest first); pressed again it flips ↓ newest ↔ ↑ oldest. */
-  const pressDateSort = () => setSortOption(nextDateSort(effectiveSort));
-  /** 이름순, unless this Collection is too large to be name-ordered as a whole - then it says so. */
-  const pressNameSort = () => {
-    if (isNameOrderUnavailable) {
-      setNotice(t('collections.sortNameTooLarge', { max: NAME_ORDER_MAX_LINKS }));
-      return;
-    }
-    setSortOption(nextNameSort(effectiveSort));
-  };
   // Who added each link - only where more than one person can add (see shouldShowItemAdders).
   const showItemAdders = shouldShowItemAdders(collection, items);
 
@@ -890,14 +751,20 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // recreate a toast or reset its timer - mirrors CollectionsScreen's own refreshToken effect,
   // needed because a Merge Undo toast's navigate() call back to this exact Collection can land on
   // an already-focused screen, which the useFocusEffect above will not re-fire for.
+  // One reload per token: the latest loaders are read through a ref, so a loader that changes identity while it runs (the
+  // link list's refresh does) can never start the reload again.
+  const reloadForTokenRef = useRef(() => {});
+  reloadForTokenRef.current = () => {
+    loadCollection();
+    refresh();
+  };
   useEffect(() => {
     if (route.params.refreshToken === undefined) {
       return;
     }
     navigation.setParams({ refreshToken: undefined });
-    loadCollection();
-    refresh();
-  }, [route.params.refreshToken, navigation, loadCollection, refresh]);
+    reloadForTokenRef.current();
+  }, [route.params.refreshToken, navigation]);
 
   // The content is really open: the Collection and its links loaded, past its lock / share-password gate.
   const isContentOpen = collection !== null && !isLoadingCollection && !isLoading && error === null && !isContentLocked;
@@ -1715,11 +1582,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       <View>
           <View style={styles.headerTitleRow}>
             <View style={styles.headerIconBadge}>
-              <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} imageVersion={collection.iconImageVersion} size={32} />
+              <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} imageVersion={collection.iconImageVersion} size={HEADER_ICON_SIZE} />
             </View>
             <Text ellipsizeMode="tail" numberOfLines={2} style={styles.title} testID="collection-details-title">{collection.name}</Text>
             {isCollectionLocked(collection) ? (
-              <View accessibilityLabel={t('collections.lockedA11y')} testID="collection-details-locked">
+              <View accessibilityLabel={t('collections.lockedA11y')} style={styles.headerLock} testID="collection-details-locked">
                 <LockIcon color={colors.textSecondary} size={18} />
               </View>
             ) : null}
@@ -1833,26 +1700,12 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           testID="collection-details-join-requests"
         />
       ) : null}
-      {/* View mode (List/Grid) and sort are two independent, separately-persisted
-          preferences (see useViewModePreference/useSortPreference) - switching one never
-          resets the other, this round's explicit requirement. */}
-      <View style={styles.sortRow}>
-        <LinkSortChips
-          dateLabel={t('collections.sortDate')}
-          dateNewestA11yLabel={t('collections.sortDateNewestA11y')}
-          dateOldestA11yLabel={t('collections.sortDateOldestA11y')}
-          nameAscA11yLabel={t('collections.sortNameAscA11y')}
-          nameDescA11yLabel={t('collections.sortNameDescA11y')}
-          nameLabel={t('collections.sortName')}
-          onPressDate={pressDateSort}
-          onPressName={pressNameSort}
-          sort={effectiveSort}
-          testIDPrefix="collection-sort"
-        />
+      {/* How the links are shown (List / Grid / Image) at the end edge - they are always newest first, so there is no order to pick. */}
+      <View style={styles.sortRow} testID="collection-view-controls">
         <View style={styles.sortRowSpacer} />
         <ViewModeToggle onChange={changeViewMode} showImage style={styles.viewModeToggle} value={viewMode} />
       </View>
-      {/* [시간순] [이름순] ... [List/Grid/Image], then 링크 검색 right above the links - the server-backed search of this Collection. */}
+      {/* Then 링크 검색 right above the links - the server-backed search of this Collection. */}
       {isContentLocked ? null : (
         <View style={styles.searchBox}>
           <SearchField
@@ -1888,8 +1741,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     </View>
   );
 
-  // Nothing to show yet: where the links are about to appear (a whole name-ordered Collection, or
-  // the date summary) - skeletons only while that request is actually on its way.
+  // Nothing to show yet: where the links are about to appear - skeletons only while that request is actually on its way.
   const listEmpty = isContentLocked ? (
     <CollectionUnlockPanel collectionId={collectionId} isOwner={isOwner || (collection.isMemberLocked === true && contentLockKind === 'lock')} kind={contentLockKind ?? 'lock'} onUnlocked={refresh} />
   ) : isLoading ? (
@@ -1901,6 +1753,14 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       ))}
     </View>
   ) : !error ? <CenteredEmptyState message={t('collections.itemsEmpty')} /> : undefined;
+
+  // The next page of the Collection's links, as the end of the list comes near (never while locked or already loading).
+  const loadNextPage = () => {
+    if (!isContentLocked && paged.hasMore && !paged.isLoadingMore && !isLoading && !error) {
+      paged.loadMore();
+    }
+  };
+  const pageFooter = paged.isLoadingMore ? <ActivityIndicator style={styles.searchStatus} testID="collection-items-loading-more" /> : undefined;
 
   const renderFlatRow = ({ item: row }: { item: CollectionFlatRow }) => {
     switch (row.kind) {
@@ -1915,57 +1775,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         );
       case 'flatImageRow':
         return <SavedLinkImageRow items={row.items.map(toSavedLinkRowItem)} onLongPress={openImageTileMenu} onPress={openImageTile} testID={`collection-flat-image-row-${row.key}`} />;
-    }
-  };
-
-  const renderDateRow = ({ item: row }: { item: DateSectionRow<CollectionItemEntry> }) => {
-    switch (row.kind) {
-      case 'header':
-        return (
-          <DateSectionHeader
-            count={row.section.count}
-            isExpanded={expandedDateKeys?.has(row.section.key) ?? false}
-            label={historySectionLabel(row.section, t)}
-            onPress={() => toggleDateSection(row.section.key)}
-          />
-        );
-      case 'item':
-        return renderCollectionItem(row.item, [dateAccordionStyles.row, row.isLast && dateAccordionStyles.rowLast]);
-      case 'gridRow':
-        // Image view: each pair of tiles is one list row of the date's card.
-        return (
-          <DateSectionGridRow isFirst={row.isFirst} isLast={row.isLast} testID={`collection-date-grid-${row.section.key}-${row.position}`}>
-            {row.items.map(item => (
-              <View key={item.itemId} style={gridCellStyle}>
-                {renderCollectionItem(item, savedLinkGridLayout.swipeContainer)}
-              </View>
-            ))}
-          </DateSectionGridRow>
-        );
-      case 'imageRow':
-        // Image view inside a date card: lines of tiles as the card's body (one virtualized list row per line).
-        return (
-          <DateSectionGridRow isFirst={row.isFirst} isLast={row.isLast} style={[DATE_SECTION_IMAGE_LINE_STYLE, row.isLast && styles.imageSectionLast]} testID={`collection-date-image-${row.section.key}-${row.position}`}>
-            <SavedLinkImageRow items={row.items.map(toSavedLinkRowItem)} onLongPress={openImageTileMenu} onPress={openImageTile} testID={`collection-image-line-${row.section.key}-${row.position}`} />
-          </DateSectionGridRow>
-        );
-      case 'skeleton':
-        return <DateSectionSkeletonRow grid={row.grid} image={row.image} isFirst={row.isFirst} isLast={row.isLast} testID="collection-items-skeleton" />;
-      case 'error':
-        return (
-          <DateSectionErrorRow
-            onRetry={() => {
-              const page = dated.pages.get(row.section.key);
-              if (page && page.items.length > 0) {
-                dated.loadMore(row.section.key);
-              } else {
-                dated.ensureLoaded(row.section.key);
-              }
-            }}
-            retryTestID={`collection-section-retry-${row.section.key}`}
-            testID={`collection-section-error-${row.section.key}`}
-          />
-        );
     }
   };
 
@@ -2001,35 +1810,13 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           scrollEnabled={swipeScrollEnabled}
           renderItem={renderFlatRow}
         />
-      ) : isDateOrder && !isContentLocked ? (
-        // 시간순: one virtualized list: headers, the loaded rows of expanded dates (in image view one list
-        // row per line of tiles), skeletons while a page is on its way, and a retry row.
-        <FlatList
-          key="date-list"
-          contentContainerStyle={styles.content}
-          style={styles.list}
-          data={dateRows}
-          keyExtractor={row => row.key}
-          initialNumToRender={12}
-          maxToRenderPerBatch={10}
-          windowSize={7}
-          removeClippedSubviews={Platform.OS === 'android'}
-          onViewableItemsChanged={onViewableItemsChanged}
-          viewabilityConfig={viewabilityConfig}
-          refreshControl={pullToRefresh.refreshControl}
-          ListHeaderComponent={listHeader}
-          ListEmptyComponent={listEmpty}
-          onScrollBeginDrag={closeOpenRow}
-          scrollEnabled={swipeScrollEnabled}
-          renderItem={renderDateRow}
-        />
       ) : layoutMode === 'image' ? (
-        // 이름순 + Image: the whole name-ordered Collection, three tiles to a line.
+        // Image: the loaded links three tiles to a line, the next page as the end comes near.
         <FlatList
-          key="name-image-list"
+          key="image-list"
           contentContainerStyle={styles.content}
           style={styles.list}
-          data={isContentLocked ? [] : nameImageRows}
+          data={isContentLocked ? [] : imageRows}
           keyExtractor={row => row.key}
           initialNumToRender={12}
           maxToRenderPerBatch={10}
@@ -2038,6 +1825,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           refreshControl={pullToRefresh.refreshControl}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={listEmpty}
+          ListFooterComponent={pageFooter}
+          onEndReached={loadNextPage}
+          onEndReachedThreshold={END_REACHED_THRESHOLD}
           onScrollBeginDrag={closeOpenRow}
           scrollEnabled={swipeScrollEnabled}
           renderItem={renderFlatRow}
@@ -2047,7 +1837,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           key={gridListKey(layoutMode, layoutMode === 'grid', columns.grid)}
           contentContainerStyle={styles.content}
           style={styles.list}
-          data={isContentLocked ? [] : displayedItems}
+          data={isContentLocked ? [] : items}
           keyExtractor={(item: CollectionItemEntry) => item.itemId.toString()}
           numColumns={layoutMode === 'grid' ? columns.grid : 1}
           initialNumToRender={12}
@@ -2057,6 +1847,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           refreshControl={pullToRefresh.refreshControl}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={listEmpty}
+          ListFooterComponent={pageFooter}
+          onEndReached={loadNextPage}
+          onEndReachedThreshold={END_REACHED_THRESHOLD}
           onScrollBeginDrag={closeOpenRow}
           scrollEnabled={swipeScrollEnabled}
           renderItem={({ item, index }) => renderCollectionItem(item, undefined, layoutMode === 'grid' ? index % columns.grid : undefined)}
@@ -2365,6 +2158,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   );
 }
 
+/** The Collection's icon in the header, and its title's line height - one value, so the two always share a centre. */
+const HEADER_ICON_SIZE = 30;
+
 const styles = themedStyles(() => ({
   sharedByRow: {
     alignItems: 'center',
@@ -2413,18 +2209,23 @@ const styles = themedStyles(() => ({
   // no icon at all. Sits beside the title's own line-height, never competing with it for space
   // (title still gets flex: 1 below).
   headerIconBadge: {
-    marginEnd: spacing.sm,
-    marginTop: 2,
+    marginEnd: spacing.sm + 2,
   },
+  // The lock sits on the first line's centre too (a box as tall as that line).
+  headerLock: { height: HEADER_ICON_SIZE, justifyContent: 'center', marginStart: spacing.xs },
   // At most two lines, then "…" (numberOfLines/ellipsizeMode on the Text) - even a name with no
   // spaces at all; flexShrink/minWidth keep it from pushing the icon or the lock out of the row.
+  // The title's line box is exactly the icon's height, so a one-line name sits on the icon's vertical centre on every platform
+  // (no font-metric guess), and a two-line name keeps its first line there; Android's extra font padding would shift it down.
   title: {
     color: colors.textPrimary,
     flex: 1,
     flexShrink: 1,
     minWidth: 0,
-    fontSize: 22,
+    fontSize: 21,
     fontWeight: '800',
+    includeFontPadding: false,
+    lineHeight: HEADER_ICON_SIZE,
   },
   // Item count on the start edge, the favorite/share/⋯ icons pinned to the end edge - a second row
   // below the title/favorite row (see this round's "개수 오른쪽 끝" header layout requirement).

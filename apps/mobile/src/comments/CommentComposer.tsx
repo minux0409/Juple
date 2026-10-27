@@ -1,5 +1,6 @@
 import { type ElementRef, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Text, TextInput, View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { ThemedTextInput } from '../components/ThemedTextInput';
 import { useTranslation } from 'react-i18next';
 import { CloseIcon } from '../icons/CloseIcon';
@@ -156,8 +157,8 @@ const styles = themedStyles(() => ({
   replyText: { color: colors.textSecondary, flex: 1, fontSize: 13, fontWeight: '600' },
   replyCancel: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
   // The field and 보내기 share one vertical center (a grown multi-line field keeps the button centered beside it). No side padding of
-  // its own: it sits in the link details' content, whose padding already sets the left/right edge the saved date, adder and dividers
-  // above use - the row lines up with them instead of being indented a second time.
+  // its own: the link details pin it under their content with the same side inset the saved date, adder and dividers above use -
+  // the row lines up with them instead of being indented a second time.
   bar: {
     alignItems: 'center',
     columnGap: spacing.sm,

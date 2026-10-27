@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { BottomSheetModal } from '../components/BottomSheetModal';
 import { CloseButton } from '../components/CloseButton';

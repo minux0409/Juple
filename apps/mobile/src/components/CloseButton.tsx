@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Pressable } from 'react-native';
+import { Pressable } from './Pressable';
 import { CloseIcon } from '../icons/CloseIcon';
 import { colors, minTouchTarget, themedStyles } from '../theme/tokens';
 
