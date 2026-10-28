@@ -9,11 +9,12 @@ import type { AdminConfig } from '../../lib/adminConfig';
 import { adminPaths, failureMessage, type AdminMe } from '../../lib/adminModel';
 import { statusAfterAccessCheck, statusAfterInitialize, statusAfterPageFailure, type AdminSessionStatus } from '../../lib/adminSession';
 import { acquireApiToken, getMsal, resolveSignedInAccount, signIn, signOut } from '../../lib/msalClient';
-import { activeHref, NAVIGATION, type NavEntry } from '../../lib/navigation';
+import { activeHref, FOOTER_NAVIGATION, NAVIGATION, type NavEntry, type NavIcon } from '../../lib/navigation';
 import { strings } from '../../lib/strings';
-import { WorkspaceDates, useWorkspaceDates, workspaceHref } from './workspace/WorkspaceDates';
+import { DashboardIcon, InboxIcon, LogoutIcon, MegaphoneIcon, MenuIcon, PhoneIcon, PulseIcon, ShieldIcon, UsersIcon, WalletIcon } from './v2/Icons';
+import { WorkspaceDates } from './workspace/WorkspaceDates';
 
-interface AdminContextValue {
+export interface AdminContextValue {
   readonly api: AdminApi;
   readonly me: AdminMe;
   readonly config: AdminConfig;
@@ -179,9 +180,9 @@ export function AdminRoot({ config, children }: { config: AdminConfig | null; ch
     case 'ready':
       return contextValue ? (
         <AdminContext.Provider value={contextValue}>
-          <WorkspaceDates><Shell me={contextValue.me} onSignOut={startSignOut}>
+          <WorkspaceDates><AdminShell me={contextValue.me} onSignOut={startSignOut}>
             {children}
-          </Shell></WorkspaceDates>
+          </AdminShell></WorkspaceDates>
         </AdminContext.Provider>
       ) : (
         <Notice message={strings.loading} />
@@ -199,52 +200,82 @@ function Notice({ message, children }: { message: string; children?: React.React
   );
 }
 
-function Shell({ me, onSignOut, children }: { me: AdminMe; onSignOut: () => void; children: React.ReactNode }) {
+/**
+ * The confirmed-session context for a component tree. AdminRoot is its only production user (after GET /admin/me succeeded);
+ * the browser rendering test mounts pages with a fixture API through it. It grants nothing: every API call is still
+ * authorized by the API itself.
+ */
+export function AdminContextProvider({ value, children }: { readonly value: AdminContextValue; readonly children: React.ReactNode }) {
+  return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;
+}
+
+const NAV_ICONS: Readonly<Record<NavIcon, (props: { size?: number }) => React.ReactNode>> = {
+  dashboard: DashboardIcon,
+  users: UsersIcon,
+  notices: MegaphoneIcon,
+  inquiries: InboxIcon,
+  costs: WalletIcon,
+  appVersion: PhoneIcon,
+  account: ShieldIcon,
+  system: PulseIcon,
+};
+
+/** The V2 frame: a sidebar (an icon rail on tablets, a drawer on phones) and the page. */
+export function AdminShell({ me, onSignOut, children }: { me: AdminMe; onSignOut: () => void; children: React.ReactNode }) {
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const current = activeHref(pathname);
   return (
-    <div className="shell">
-      <aside className="sidebar">
-        <div className="brand">{strings.appName}</div>
-        <nav aria-label={strings.appName}>
+    <div className="v2-shell">
+      <header className="v2-topbar">
+        <button aria-controls="v2-sidebar" aria-expanded={open} aria-label="메뉴" className="v2-icon-button" onClick={() => setOpen(value => !value)} type="button">
+          <MenuIcon />
+        </button>
+        <span className="v2-brand-text">{strings.appName}</span>
+      </header>
+      <aside className={open ? 'v2-sidebar open' : 'v2-sidebar'} id="v2-sidebar">
+        <div className="v2-brand">
+          <span aria-hidden="true" className="v2-brand-mark">J</span>
+          <span className="v2-brand-text">{strings.appName}</span>
+        </div>
+        <nav aria-label="관리자 메뉴" className="v2-nav">
           <ul>
             {NAVIGATION.map(entry => (
-              <NavItem entry={entry} key={entry.label} pathname={pathname} />
+              <NavItem current={current} entry={entry} key={entry.href} onNavigate={() => setOpen(false)} />
             ))}
           </ul>
         </nav>
-        <div className="sidebar-footer">
-          <span className="role">{me.role === 'Owner' ? strings.roleOwner : strings.roleAdmin}</span>
-          <button onClick={onSignOut} type="button">
-            {strings.signOut}
-          </button>
+        <div className="v2-sidebar-footer">
+          <ul>
+            {FOOTER_NAVIGATION.map(entry => (
+              <NavItem current={current} entry={entry} key={entry.href} onNavigate={() => setOpen(false)} />
+            ))}
+          </ul>
+          <div className="v2-account">
+            <span className="v2-role" title={me.role === 'Owner' ? strings.roleOwner : strings.roleAdmin}>
+              {me.role === 'Owner' ? strings.roleOwner : strings.roleAdmin}
+            </span>
+            <button aria-label={strings.signOut} className="v2-nav-link v2-signout" onClick={onSignOut} title={strings.signOut} type="button">
+              <LogoutIcon />
+              <span className="v2-nav-label">{strings.signOut}</span>
+            </button>
+          </div>
         </div>
       </aside>
-      <main className="content">{children}</main>
+      {open ? <button aria-label="메뉴 닫기" className="v2-scrim" onClick={() => setOpen(false)} type="button" /> : null}
+      <main className="v2-content">{children}</main>
     </div>
   );
 }
 
-function NavItem({ entry, pathname }: { entry: NavEntry; pathname: string }) {
-  const { period } = useWorkspaceDates();
+function NavItem({ entry, current, onNavigate }: { entry: NavEntry; current: string | null; onNavigate: () => void }) {
+  const Icon = NAV_ICONS[entry.icon];
   return (
     <li>
-      {entry.href ? (
-        <Link aria-current={activeHref(pathname) === entry.href ? 'page' : undefined} className="nav-link" href={workspaceHref(entry.href, period)}>
-          {entry.label}
-        </Link>
-      ) : (
-        <span aria-disabled={entry.children ? undefined : true} className={entry.children ? 'nav-group' : 'nav-link disabled'}>
-          {entry.label}
-          {entry.children ? null : <small>{strings.comingSoon}</small>}
-        </span>
-      )}
-      {entry.children ? (
-        <ul>
-          {entry.children.map(child => (
-            <NavItem entry={child} key={child.label} pathname={pathname} />
-          ))}
-        </ul>
-      ) : null}
+      <Link aria-current={current === entry.href ? 'page' : undefined} className="v2-nav-link" href={entry.href} onClick={onNavigate} title={entry.label}>
+        <Icon size={20} />
+        <span className="v2-nav-label">{entry.label}</span>
+      </Link>
     </li>
   );
 }

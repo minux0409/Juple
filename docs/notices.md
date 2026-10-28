@@ -22,6 +22,14 @@ are visible. Platform masks are Web=1, Android=2, iOS=4, all=7. Ordering is pinn
 first, then publication start and ID descending. Important and pinned are independent.
 Translations support the existing 17 languages with required Korean fallback.
 
+## Machine translation (Admin V2)
+
+The Admin editor can machine-translate the Korean original into the other 16 languages (`POST /api/v1/admin/notices/translations`,
+nothing saved until the notice is saved). Each translation records its origin (Source / Machine / Manual) and, for a machine
+translation, the fingerprint of the Korean text it came from; hand-written translations are never replaced automatically.
+The provider is OFF by default (`Translation:Provider=None`). User visibility and the Korean fallback are unchanged.
+Details: [admin-v2.md](admin-v2.md).
+
 ## Read state and safe content
 
 Admin saves return to a freshly loaded list and show the persisted publication

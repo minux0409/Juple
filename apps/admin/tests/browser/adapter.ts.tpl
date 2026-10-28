@@ -5,6 +5,7 @@ const api=async(request:{method?:string;path:string;body?:object})=>{
  const calls=JSON.parse(sessionStorage.getItem('adminNoticeCalls')??'[]');calls.push(request);sessionStorage.setItem('adminNoticeCalls',JSON.stringify(calls));
  if(request.method==='DELETE'){sessionStorage.setItem('noticeDeleted','1');return undefined;}
  if(request.method==='PUT'||request.method==='POST'){const q=new URLSearchParams(location.search);if(q.has('slowSave'))await new Promise(resolve=>setTimeout(resolve,300));if(q.has('failSave'))throw new ApiHttpError(Number(q.get('failSave')), '서버 입력 검증 오류');const row={...seed,...request.body,version:'Ag=='};sessionStorage.setItem('noticeRow',JSON.stringify(row));return row;}
+ if(request.path.includes('/notices/translation-status'))return {provider:'None',configured:false,languages:[]};
  const row=JSON.parse(sessionStorage.getItem('noticeRow')??'null')??seed;
  if(request.path.includes('/notices?')){const q=new URL(request.path,'https://fixture.invalid').searchParams;return {items:(!q.get('search')||row.translations[0].title.includes(q.get('search')))&&(!q.get('status')||row.status===q.get('status'))?[{...row,title:row.translations[0].title}]:[],nextCursor:null};}
  return row;

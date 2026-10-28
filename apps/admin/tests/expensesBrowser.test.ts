@@ -274,7 +274,8 @@ test(
         if (width===1440) { const shot=await send('Page.captureScreenshot',{format:'png'}); writeFileSync(path.join(dir,'workspace-desktop.png'),Buffer.from((shot as unknown as {data:string}).data,'base64')); }
       }
       await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-color-scheme',value:'dark'}]}); await settle();
-      assert.equal(await evaluate('getComputedStyle(document.body).backgroundColor'), 'rgb(20, 22, 26)');
+      // Admin V2 is dark-only: the same background in a dark (or light) system theme.
+      assert.equal(await evaluate('getComputedStyle(document.body).backgroundColor'), 'rgb(10, 14, 25)');
       const shot=await send('Page.captureScreenshot',{format:'png'}); writeFileSync(path.join(dir,'workspace-dark.png'),Buffer.from((shot as unknown as {data:string}).data,'base64'));
       await click('오늘');
       assert.ok(await evaluate('(()=>{const p=new URL(workspaceRequests.at(-1),"https://fixture.invalid").searchParams;return p.get("from")===p.get("through")})()'));

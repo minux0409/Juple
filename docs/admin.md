@@ -1,5 +1,8 @@
 # Juple Admin Web
 
+**Admin V2 (2026-10-28):** the menu, screens, metric definitions, translation workflow, the additive migration
+`AddAdminTranslationWorkflow` and the deployment order are in [admin-v2.md](admin-v2.md). The security model below is unchanged.
+
 The 2026-10-22 local workspace/ledger expansion, new feature flags, metric definitions and safe
 deployment dependencies are documented in [admin-workspace.md](admin-workspace.md). Existing UTC
 analytics contracts and operator authorization remain unchanged.

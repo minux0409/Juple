@@ -22,7 +22,7 @@ import {
   validateAnswer,
 } from '../lib/adminModel.ts';
 import { statusAfterAccessCheck, statusAfterInitialize, statusAfterPageFailure } from '../lib/adminSession.ts';
-import { activeHref, isActive, NAVIGATION, type NavEntry } from '../lib/navigation.ts';
+import { activeHref, FOOTER_NAVIGATION, isActive, LEGACY_TOOLS, NAVIGATION } from '../lib/navigation.ts';
 import {
   activeSeries,
   analyticsPath,
@@ -402,38 +402,28 @@ describe('admin pages and model', () => {
   });
 
   it('shows Juple IDs the way the apps do and uses the browser midnight for "today"', () => {
-    assert.equal(displayJupleId('K7MP4Q8N'), '@K7MP-4Q8N');
+    assert.equal(displayJupleId('K7MP4Q8N'), '@K7MP4Q8N');
     const now = new Date(2026, 9, 19, 13, 45);
     assert.equal(localTodayStartUtc(now), new Date(2026, 9, 19).toISOString());
   });
 
-  it('the sidebar has every section; 콘텐츠 (no decided scope) stays disabled, every enabled entry is a real page', () => {
-    assert.deepEqual(NAVIGATION.map(entry => entry.label), ['Overview', 'Users', 'Links', '콘텐츠', '공지사항 관리', '문의', 'Business Expenses', 'Revenue & Profit', 'Settings', '기존 UTC 분석', 'Operations']);
-    const leaves = (entries: readonly NavEntry[]): NavEntry[] => entries.flatMap(entry => (entry.children ? leaves(entry.children) : [entry]));
-    const enabled = leaves(NAVIGATION).filter(entry => entry.href).map(entry => entry.href);
-    assert.deepEqual(enabled, [
-      '/',
-      '/workspace/users',
-      '/users',
-      '/links',
-      '/notices',
-      '/inquiries',
-      '/expenses',
-      '/revenue',
-      '/settings',
-      '/analytics',
-      '/analytics/users',
-      '/analytics/saves',
-      '/analytics/countries',
-      '/analytics/platforms',
-      '/operations/app-version',
-      '/operations/system',
-    ]);
-    assert.deepEqual(leaves(NAVIGATION.find(entry => entry.label === '콘텐츠')!.children!).map(entry => entry.href), [null, null]);
-    assert.equal(activeHref('/analytics/users'), '/analytics/users');
-    assert.equal(activeHref('/analytics'), '/analytics');
+  it('the sidebar is the six V2 screens plus account/system; every entry and every older tool is a real page', () => {
+    assert.deepEqual(NAVIGATION.map(entry => entry.label), ['대시보드', '사용자', '공지사항', '문의 관리', '비용 및 수익', '앱 버전 관리']);
+    assert.deepEqual(FOOTER_NAVIGATION.map(entry => entry.label), ['관리자 계정', '시스템 상태']);
+    const enabled = [...NAVIGATION, ...FOOTER_NAVIGATION].map(entry => entry.href);
+    assert.deepEqual(enabled, ['/', '/users', '/notices', '/inquiries', '/costs', '/app-version', '/settings', '/operations/system']);
+    // The older screens are no longer in the sidebar but keep working (bookmarks), each highlighting the section it belongs to.
+    const legacy = LEGACY_TOOLS.map(tool => tool.href);
+    assert.deepEqual(legacy, ['/workspace', '/workspace/users', '/links', '/analytics', '/operations', '/expenses', '/revenue']);
+    assert.equal(activeHref('/analytics/users'), '/');
+    assert.equal(activeHref('/workspace/users'), '/users');
+    assert.equal(activeHref('/expenses'), '/costs');
+    assert.equal(activeHref('/revenue'), '/costs');
+    assert.equal(activeHref('/operations/app-version'), '/app-version');
+    assert.equal(activeHref('/operations/system'), '/operations/system');
     assert.equal(activeHref('/inquiries/12'), '/inquiries');
-    for (const href of enabled) {
+    assert.equal(activeHref('/users'), '/users');
+    for (const href of [...enabled, ...legacy, '/operations/app-version', '/analytics/users', '/analytics/saves', '/analytics/countries', '/analytics/platforms']) {
       const page = href === '/' ? 'app/(admin)/page.tsx' : `app/(admin)${href}/page.tsx`;
       assert.ok(existsSync(new URL(`../${page}`, import.meta.url)), page);
     }

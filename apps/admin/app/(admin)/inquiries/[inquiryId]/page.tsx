@@ -3,21 +3,24 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
+import { ApiHttpError } from '../../../../lib/adminApi';
+import { auditActionLabel, failureMessage, inquiryStatusLabel, inquiryTypeLabel, manualStatusTargets } from '../../../../lib/adminModel';
 import {
-  adminPaths,
-  auditActionLabel,
-  displayJupleId,
-  failureMessage,
-  formatInstant,
-  inquiryStatusLabel,
-  inquiryTypeLabel,
-  MAX_ANSWER_LENGTH,
-  manualStatusTargets,
-  validateAnswer,
-  type InquiryDetail,
-} from '../../../../lib/adminModel';
+  LANGUAGES,
+  answerBlocker,
+  answerSendBody,
+  atJupleId,
+  formatSeoulInstant,
+  languageName,
+  translationErrorLabel,
+  v2Paths,
+  type AnswerDraftState,
+  type InquiryDetailV2,
+} from '../../../../lib/adminV2';
 import { strings } from '../../../../lib/strings';
-import { PageState, useAdmin, useAdminQuery } from '../../AdminRoot';
+import { useAdmin, useAdminQuery } from '../../AdminRoot';
+import { TranslateIcon } from '../../v2/Icons';
+import { LoadState, PageTitle, Panel } from '../../v2/ui';
 
 function parseId(value: string | string[] | undefined): number | null {
   const text = Array.isArray(value) ? value[0] : value;
@@ -25,167 +28,266 @@ function parseId(value: string | string[] | undefined): number | null {
 }
 
 /**
- * One inquiry: what the person wrote, the app's diagnostics, the status (접수 <-> 처리중 by hand) and the answer. Both changes are
- * written by the API to the SAME support.SupportInquiries row the person reads in 고객센터 > 문의내역, with an audit record.
+ * 문의 상세: what the person wrote and its Korean translation side by side (the original is never changed), then the answer -
+ * written in Korean, translated into the person's language, checked and only then sent. Nothing reaches the person before
+ * 답변 전송, and a send over a change made meanwhile is refused by the API.
  */
 export default function InquiryDetailPage() {
   const id = parseId(useParams<{ inquiryId: string }>().inquiryId);
-  const { api, reportFailure } = useAdmin();
-  const query = useAdminQuery<InquiryDetail>(id ? adminPaths.inquiry(id) : null);
-  // The API's answer to the last change wins over the first read; the draft exists only once the admin has typed.
-  const [updated, setUpdated] = useState<InquiryDetail | null>(null);
-  const [draft, setDraft] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
-  const detail = updated ?? query.data;
-  const answer = draft ?? detail?.answer ?? '';
-  const setAnswer = setDraft;
-
+  const query = useAdminQuery<InquiryDetailV2>(id ? v2Paths.inquiry(id) : null);
+  const [updated, setUpdated] = useState<InquiryDetailV2 | null>(null);
+  const detail = updated && updated.inquiryId === id ? updated : query.data;
   if (!id) {
     return <p className="state">{strings.notFound}</p>;
   }
-
-  const mutate = async (request: () => Promise<InquiryDetail>) => {
-    setBusy(true);
-    setMessage(null);
-    try {
-      setUpdated(await request());
-      setDraft(null);
-      setMessage({ kind: 'ok', text: strings.saved });
-    } catch (error) {
-      reportFailure(error);
-      setMessage({ kind: 'error', text: failureMessage(error) });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const saveAnswer = () => {
-    const problem = validateAnswer(answer);
-    if (problem) {
-      setMessage({ kind: 'error', text: problem === 'empty' ? strings.answerEmpty : strings.answerTooLong });
-      return;
-    }
-    if (!window.confirm(strings.answerConfirm)) {
-      return;
-    }
-    void mutate(() => api<InquiryDetail>({ method: 'PUT', path: adminPaths.inquiryAnswer(id), body: { answer: answer.trim() } }));
-  };
-
   return (
     <>
-      <p>
-        <Link href="/inquiries">← {strings.inquiryBack}</Link>
-      </p>
-      <PageState error={query.error} loading={query.loading && !detail} onRetry={query.reload} />
-      {detail ? (
-        <div className="detail">
-          <header className="page-header">
-            <h1>#{detail.inquiryId}</h1>
-            <span className={`badge status-${detail.status}`}>{inquiryStatusLabel(detail.status)}</span>
-          </header>
+      <PageTitle actions={<Link href="/inquiries">← 문의 목록</Link>} eyebrow="문의 관리" title={`문의 #${id}`} />
+      <LoadState error={query.error} loading={query.loading && !detail} lines={6} onRetry={query.reload} />
+      {detail ? <InquiryWorkspace detail={detail} key={`${detail.inquiryId}:${detail.changeToken}`} onChanged={setUpdated} onReload={() => { setUpdated(null); query.reload(); }} /> : null}
+    </>
+  );
+}
 
-          <dl className="facts">
-            <dt>{strings.inquiryType}</dt>
-            <dd>{inquiryTypeLabel(detail.type)}</dd>
-            <dt>{strings.inquiryUser}</dt>
-            <dd className="ltr">
-              {detail.user ? `${displayJupleId(detail.user.jupleId)}${detail.user.displayName ? ` (${detail.user.displayName})` : ''}` : strings.inquiryDeletedUser}
-            </dd>
-            <dt>{strings.inquiryCreatedAt}</dt>
-            <dd>{formatInstant(detail.createdAtUtc)}</dd>
-            <dt>{strings.inquiryUpdatedAt}</dt>
-            <dd>{formatInstant(detail.updatedAtUtc)}</dd>
-            <dt>{strings.inquiryAnsweredAt}</dt>
-            <dd>{formatInstant(detail.answeredAtUtc)}</dd>
-          </dl>
+function initialDraft(detail: InquiryDetailV2): AnswerDraftState {
+  const draft = detail.answerDraft;
+  if (draft) {
+    // A saved draft keeps its Korean text and translation together, so that translation belongs to that Korean text.
+    return {
+      language: draft.language ?? detail.suggestedLanguage,
+      sourceKo: draft.sourceKo ?? '',
+      translated: draft.translated ?? '',
+      translatedFrom: draft.translated ? draft.sourceKo : null,
+      manualConfirmed: false,
+    };
+  }
+  if (detail.answer) {
+    const language = detail.answerLanguage ?? 'ko';
+    const sourceKo = detail.answerSourceKo ?? (language === 'ko' ? detail.answer : '');
+    return { language, sourceKo, translated: language === 'ko' ? '' : detail.answer, translatedFrom: language === 'ko' ? null : sourceKo, manualConfirmed: false };
+  }
+  return { language: detail.suggestedLanguage, sourceKo: '', translated: '', translatedFrom: null, manualConfirmed: false };
+}
 
-          <section>
-            <h2>{strings.inquiryContent}</h2>
-            <p className="user-text">{detail.content}</p>
-          </section>
+function InquiryWorkspace({ detail, onChanged, onReload }: { readonly detail: InquiryDetailV2; readonly onChanged: (detail: InquiryDetailV2) => void; readonly onReload: () => void }) {
+  const { api, reportFailure } = useAdmin();
+  const [draft, setDraft] = useState<AnswerDraftState>(() => initialDraft(detail));
+  const [busy, setBusy] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ readonly kind: 'ok' | 'error'; readonly text: string } | null>(null);
+  const machine = detail.translation;
+  const canTranslate = machine?.configured === true && machine.allowed;
+  const blocker = answerBlocker(draft);
+  const update = (patch: Partial<AnswerDraftState>) => setDraft(previous => ({ ...previous, ...patch }));
 
-          <section>
-            <h2>{strings.inquiryStatus}</h2>
-            {manualStatusTargets(detail.status).length > 0 ? (
-              <div className="actions">
-                <span>{strings.changeStatusTo}</span>
-                {manualStatusTargets(detail.status).map(target => (
-                  <button
-                    disabled={busy}
-                    key={target}
-                    onClick={() => void mutate(() => api<InquiryDetail>({ method: 'PUT', path: adminPaths.inquiryStatus(id), body: { status: target } }))}
-                    type="button"
-                  >
-                    {inquiryStatusLabel(target)}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="muted">{strings.statusLocked}</p>
-            )}
-          </section>
+  const run = async <T,>(label: string, request: () => Promise<T>, done: (result: T) => void) => {
+    setBusy(label);
+    setMessage(null);
+    try {
+      done(await request());
+    } catch (error) {
+      reportFailure(error);
+      if (error instanceof ApiHttpError && error.code === 'inquiryChanged') {
+        setMessage({ kind: 'error', text: '이 문의가 다른 곳에서 먼저 변경되었습니다. 최신 내용을 불러온 뒤 다시 확인하세요.' });
+      } else if (error instanceof ApiHttpError && error.code) {
+        setMessage({ kind: 'error', text: translationErrorLabel(error.code) });
+      } else {
+        setMessage({ kind: 'error', text: failureMessage(error) });
+      }
+    } finally {
+      setBusy(null);
+    }
+  };
 
-          <section>
-            <h2>{strings.answerTitle}</h2>
-            <p className="muted">{strings.answerHint}</p>
-            <textarea
-              disabled={busy}
-              maxLength={MAX_ANSWER_LENGTH}
-              onChange={event => setAnswer(event.target.value)}
-              rows={8}
-              value={answer}
-            />
-            <div className="actions">
-              <span className="muted">
-                {answer.trim().length} / {MAX_ANSWER_LENGTH}
-              </span>
-              <button className="primary" disabled={busy} onClick={saveAnswer} type="button">
-                {detail.answer ? strings.answerReplace : strings.answerSave}
+  const translateContent = () =>
+    run('content', () => api<InquiryDetailV2>({ method: 'POST', path: v2Paths.inquiryContentTranslation(detail.inquiryId) }), onChanged);
+
+  const saveDraft = () =>
+    run(
+      'draft',
+      () => api<InquiryDetailV2>({ method: 'PUT', path: v2Paths.inquiryDraft(detail.inquiryId), body: { sourceKo: draft.sourceKo, translated: draft.language === 'ko' ? null : draft.translated, language: draft.language } }),
+      () => setMessage({ kind: 'ok', text: '임시 저장했습니다. 사용자에게는 보이지 않습니다.' }),
+    );
+
+  const translateAnswer = () =>
+    run(
+      'answer',
+      () => api<{ language: string; text: string }>({ method: 'POST', path: v2Paths.inquiryAnswerTranslation(detail.inquiryId), body: { sourceKo: draft.sourceKo, language: draft.language } }),
+      result => update({ translated: result.text, translatedFrom: draft.sourceKo, manualConfirmed: false }),
+    );
+
+  const send = () => {
+    if (blocker) {
+      setMessage({ kind: 'error', text: blocker });
+      return;
+    }
+    const preview = draft.language === 'ko' ? draft.sourceKo.trim() : draft.translated.trim();
+    const confirmed = window.confirm(
+      `${languageName(draft.language)}로 답변을 전송할까요?\n\n사용자에게 표시되는 답변:\n${preview.slice(0, 400)}${preview.length > 400 ? '…' : ''}\n\n전송하면 문의가 답변 완료로 바뀝니다.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+    void run('send', () => api<InquiryDetailV2>({ method: 'PUT', path: v2Paths.inquiryAnswer(detail.inquiryId), body: answerSendBody(draft, detail.changeToken) }), result => {
+      onChanged(result);
+    });
+  };
+
+  const changeStatus = (status: string) =>
+    run('status', () => api<InquiryDetailV2>({ method: 'PUT', path: v2Paths.inquiryStatus(detail.inquiryId), body: { status } }), onChanged);
+
+  const original = detail.contentTranslation;
+  return (
+    <div className="v2-inquiry">
+      <Panel>
+        <dl className="v2-facts">
+          <div><dt>처리 상태</dt><dd><span className={`badge status-${detail.status}`}>{inquiryStatusLabel(detail.status)}</span></dd></div>
+          <div><dt>유형</dt><dd>{inquiryTypeLabel(detail.type)}</dd></div>
+          <div><dt>사용자</dt><dd className="ltr">{detail.user ? `${atJupleId(detail.user.jupleId)}${detail.user.displayName ? ` · ${detail.user.displayName}` : ''}` : strings.inquiryDeletedUser}</dd></div>
+          <div><dt>접수일</dt><dd>{formatSeoulInstant(detail.createdAtUtc)}</dd></div>
+          {detail.answeredAtUtc ? <div><dt>답변일</dt><dd>{formatSeoulInstant(detail.answeredAtUtc)}</dd></div> : null}
+        </dl>
+        {manualStatusTargets(detail.status).length ? (
+          <div className="v2-actions">
+            {manualStatusTargets(detail.status).map(target => (
+              <button disabled={busy !== null} key={target} onClick={() => void changeStatus(target)} type="button">
+                {inquiryStatusLabel(target)}(으)로 변경
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </Panel>
+
+      <div className="v2-compare">
+        <Panel title={<>사용자 원문 <span className="v2-muted">· {original?.language ? languageName(original.language) : detail.diagnostics.locale ? `${detail.diagnostics.locale} (기기 설정)` : '언어 미확인'}</span></>}>
+          <p className="v2-user-text" lang={original?.language ?? undefined}>{detail.content}</p>
+          <details className="v2-details">
+            <summary>앱·기기 정보</summary>
+            <dl className="v2-facts">
+              <div><dt>{strings.diagAppVersion}</dt><dd>{detail.diagnostics.appVersion ?? '-'}</dd></div>
+              <div><dt>{strings.diagBuildNumber}</dt><dd>{detail.diagnostics.buildNumber ?? '-'}</dd></div>
+              <div><dt>{strings.diagPlatform}</dt><dd>{detail.diagnostics.platform ?? '-'}</dd></div>
+              <div><dt>{strings.diagOsVersion}</dt><dd>{detail.diagnostics.osVersion ?? '-'}</dd></div>
+              <div><dt>{strings.diagDeviceModel}</dt><dd>{detail.diagnostics.deviceModel ?? '-'}</dd></div>
+              <div><dt>{strings.diagLocale}</dt><dd>{detail.diagnostics.locale ?? '-'}</dd></div>
+            </dl>
+          </details>
+        </Panel>
+        <Panel
+          actions={
+            canTranslate ? (
+              <button disabled={busy !== null} onClick={() => void translateContent()} type="button">
+                <TranslateIcon size={16} /> {original ? '재번역' : '한국어로 번역'}
+              </button>
+            ) : null
+          }
+          title="한국어 번역"
+        >
+          {original ? (
+            <>
+              <p className="v2-user-text" lang="ko">{original.textKo}</p>
+              <p className="v2-footnote">자동 번역 · {formatSeoulInstant(original.translatedAtUtc)} · 원문은 바뀌지 않습니다.</p>
+            </>
+          ) : (
+            <p className="v2-state">
+              {busy === 'content'
+                ? '번역 중…'
+                : canTranslate
+                  ? '아직 번역하지 않았습니다.'
+                  : machine?.configured
+                    ? translationErrorLabel('inquiryTranslationNotAllowed')
+                    : translationErrorLabel('translationNotConfigured')}
+            </p>
+          )}
+        </Panel>
+      </div>
+
+      <Panel title={detail.status === 'Answered' ? '답변 (전송됨 · 수정해서 다시 보낼 수 있습니다)' : '답변 작성'}>
+        <div className="v2-compare">
+          <div className="v2-compose">
+            <label htmlFor="answer-ko">한국어 답변</label>
+            <textarea disabled={busy !== null} id="answer-ko" maxLength={8000} onChange={event => update({ sourceKo: event.target.value })} rows={10} value={draft.sourceKo} />
+            <div className="v2-actions">
+              <span className="v2-muted">{draft.sourceKo.trim().length} / 8000</span>
+              <button disabled={busy !== null || !draft.sourceKo.trim()} onClick={() => void saveDraft()} type="button">임시 저장</button>
+              <button disabled={busy !== null || !canTranslate || draft.language === 'ko' || !draft.sourceKo.trim()} onClick={() => void translateAnswer()} type="button">
+                <TranslateIcon size={16} /> {busy === 'answer' ? '번역 중…' : '번역하기'}
               </button>
             </div>
-          </section>
-          {message ? (
-            <p className={message.kind === 'ok' ? 'notice ok' : 'notice error'} role={message.kind === 'ok' ? 'status' : 'alert'}>
-              {message.text}
-            </p>
-          ) : null}
-
-          <section>
-            <h2>{strings.inquiryDiagnostics}</h2>
-            <dl className="facts">
-              <dt>{strings.diagAppVersion}</dt>
-              <dd>{detail.diagnostics.appVersion ?? '-'}</dd>
-              <dt>{strings.diagBuildNumber}</dt>
-              <dd>{detail.diagnostics.buildNumber ?? '-'}</dd>
-              <dt>{strings.diagPlatform}</dt>
-              <dd>{detail.diagnostics.platform ?? '-'}</dd>
-              <dt>{strings.diagOsVersion}</dt>
-              <dd>{detail.diagnostics.osVersion ?? '-'}</dd>
-              <dt>{strings.diagDeviceModel}</dt>
-              <dd>{detail.diagnostics.deviceModel ?? '-'}</dd>
-              <dt>{strings.diagLocale}</dt>
-              <dd>{detail.diagnostics.locale ?? '-'}</dd>
-            </dl>
-          </section>
-
-          <section>
-            <h2>{strings.inquiryHistory}</h2>
-            {detail.history.length === 0 ? (
-              <p className="muted">{strings.inquiryHistoryEmpty}</p>
+          </div>
+          <div className="v2-compose">
+            <label htmlFor="answer-language">사용자에게 보낼 언어</label>
+            <select disabled={busy !== null} id="answer-language" onChange={event => update({ language: event.target.value, manualConfirmed: false })} value={draft.language}>
+              {LANGUAGES.map(code => (
+                <option key={code} value={code}>
+                  {languageName(code)}{code === detail.suggestedLanguage ? ' (추천)' : ''}
+                </option>
+              ))}
+            </select>
+            {draft.language === 'ko' ? (
+              <p className="v2-state">한국어 답변이 그대로 전송됩니다.</p>
             ) : (
-              <ul className="history">
-                {detail.history.map((entry, index) => (
-                  <li key={`${entry.createdAtUtc}-${index}`}>
-                    {formatInstant(entry.createdAtUtc)} · {auditActionLabel(entry.action)}
-                    {entry.detail ? ` · ${entry.detail}` : ''} · <span className="ltr">{entry.adminJupleId ? displayJupleId(entry.adminJupleId) : `#${entry.adminUserId}`}</span>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <textarea
+                  aria-label={`${languageName(draft.language)} 번역문`}
+                  disabled={busy !== null}
+                  maxLength={8000}
+                  onChange={event => update({ translated: event.target.value, manualConfirmed: false })}
+                  placeholder={canTranslate ? '번역하기를 누르거나 직접 입력하세요.' : '번역 제공자가 없으면 번역문을 직접 입력하세요.'}
+                  rows={10}
+                  value={draft.translated}
+                />
+                {draft.translated.trim() && draft.translatedFrom?.trim() !== draft.sourceKo.trim() ? (
+                  <label className="v2-confirm">
+                    <input checked={draft.manualConfirmed} onChange={event => update({ manualConfirmed: event.target.checked })} type="checkbox" />
+                    번역문이 현재 한국어 답변과 같은 내용임을 확인했습니다.
+                  </label>
+                ) : null}
+              </>
             )}
-          </section>
+          </div>
         </div>
-      ) : null}
-    </>
+        <div className="v2-send">
+          {blocker ? <p className="v2-muted">{blocker}</p> : <p className="v2-muted">{languageName(draft.language)}로 전송됩니다. 한국어 원문도 함께 보관됩니다.</p>}
+          <button className="primary" disabled={busy !== null || blocker !== null} onClick={send} type="button">
+            {busy === 'send' ? '전송 중…' : '답변 전송'}
+          </button>
+        </div>
+        {message ? (
+          <p className={message.kind === 'ok' ? 'notice ok' : 'notice error'} role={message.kind === 'ok' ? 'status' : 'alert'}>
+            {message.text}
+            {message.kind === 'error' ? <> <button onClick={onReload} type="button">최신 내용 불러오기</button></> : null}
+          </p>
+        ) : null}
+        {detail.answer ? (
+          <details className="v2-details">
+            <summary>전송된 답변 보기</summary>
+            <p className="v2-footnote">사용자에게 표시된 답변 ({languageName(detail.answerLanguage ?? 'ko')}):</p>
+            <p className="v2-user-text">{detail.answer}</p>
+            {detail.answerSourceKo && detail.answerSourceKo !== detail.answer ? (
+              <>
+                <p className="v2-footnote">한국어 원문:</p>
+                <p className="v2-user-text">{detail.answerSourceKo}</p>
+              </>
+            ) : null}
+          </details>
+        ) : null}
+      </Panel>
+
+      <Panel title={strings.inquiryHistory}>
+        {detail.history.length === 0 ? (
+          <p className="v2-muted">{strings.inquiryHistoryEmpty}</p>
+        ) : (
+          <ul className="v2-history">
+            {detail.history.map((entry, index) => (
+              <li key={`${entry.createdAtUtc}-${index}`}>
+                <span>{formatSeoulInstant(entry.createdAtUtc)}</span>
+                <span>{auditActionLabel(entry.action)}{entry.detail ? ` · ${entry.detail}` : ''}</span>
+                <span className="ltr v2-muted">{entry.adminJupleId ? atJupleId(entry.adminJupleId) : `#${entry.adminUserId}`}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+    </div>
   );
 }

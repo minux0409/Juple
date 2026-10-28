@@ -364,9 +364,9 @@ export function appVersionWriteBody(
 
 // ---- display -----------------------------------------------------------------------------------------------------------------
 
-/** "@K7MP-4Q8N" - how the apps show a Juple ID. */
+/** "@K7MP4Q8N" - how the apps show a Juple ID (without a hyphen since the 2026-10-25 apps). */
 export function displayJupleId(code: string): string {
-  return code.length === 8 ? `@${code.slice(0, 4)}-${code.slice(4)}` : `@${code}`;
+  return `@${code}`;
 }
 
 /** An instant in the browser's own locale and time zone (nothing is hard-coded). */

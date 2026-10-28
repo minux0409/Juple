@@ -34,13 +34,16 @@ export class ApiHttpError extends Error {
   readonly retryAfterSeconds?: number;
   readonly status: number;
   readonly validationMessage: string | null;
+  /** The API's machine-readable reason of a 409 (e.g. inquiryChanged, translationNotConfigured); null otherwise. */
+  readonly code: string | null;
 
-  constructor(status: number, validationMessage: string | null, retryAfterSeconds?: number) {
+  constructor(status: number, validationMessage: string | null, retryAfterSeconds?: number, code: string | null = null) {
     super(`The Juple API answered ${status}.`);
     this.name = 'ApiHttpError';
     this.status = status;
     this.retryAfterSeconds = retryAfterSeconds;
     this.validationMessage = validationMessage;
+    this.code = code;
   }
 }
 
@@ -119,7 +122,12 @@ export function createAdminApi(options: {
       throw new ApiHttpError(429, null, retry);
     }
     if (!response.ok) {
-      throw new ApiHttpError(response.status, response.status === 400 ? await readValidationMessage(response) : null);
+      throw new ApiHttpError(
+        response.status,
+        response.status === 400 ? await readValidationMessage(response) : null,
+        undefined,
+        response.status === 409 ? await readCode(response) : null,
+      );
     }
     if (response.status === 204) {
       return undefined as T;
@@ -141,6 +149,16 @@ export async function checkApiHealth(apiBaseUrl: string, fetchImpl: typeof fetch
 }
 
 /** The first message of an ASP.NET ValidationProblem ({ errors: { field: [message] } }) - the API's own wording, no request echo. */
+/** The {code} of a 409 body - a short identifier only (never echoed as HTML or longer text). */
+async function readCode(response: Response): Promise<string | null> {
+  try {
+    const body = (await response.json()) as { code?: unknown };
+    return typeof body.code === 'string' && /^[A-Za-z_]{1,64}$/.test(body.code) ? body.code : null;
+  } catch {
+    return null;
+  }
+}
+
 async function readValidationMessage(response: Response): Promise<string | null> {
   try {
     const problem = (await response.json()) as { errors?: Record<string, unknown> };

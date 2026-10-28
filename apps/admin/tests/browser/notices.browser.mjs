@@ -29,11 +29,15 @@ before(async () => {
     ['app/(admin)/notices/NoticeEditor.tsx', 'NoticeEditor.tsx'],
     ['app/(admin)/notices/page.tsx', 'NoticeList.tsx'],
     ['app/(admin)/usePagedList.ts', 'usePagedList.ts'],
+    ['app/(admin)/v2/ui.tsx', 'ui.tsx'],
+    ['app/(admin)/v2/Icons.tsx', 'Icons.tsx'],
+    ['app/(admin)/v2/useAdminResource.ts', 'useAdminResource.ts'],
   ]) {
     let code = readFileSync(`${root}${source}`, 'utf8')
       .replaceAll("from '../AdminRoot'", "from './adapter'")
       .replaceAll("from './AdminRoot'", "from './adapter'")
       .replaceAll("from '../usePagedList'", "from './usePagedList'")
+      .replaceAll("from '../v2/", "from './")
       .replaceAll("from '../../../lib/", "from '../../lib/");
     if (name === 'NoticeEditor.tsx')
       code = code.replace("from 'next/navigation'", "from './adapter'");
@@ -64,6 +68,9 @@ after(async () => {
       'NoticeEditor.tsx',
       'NoticeList.tsx',
       'usePagedList.ts',
+      'ui.tsx',
+      'Icons.tsx',
+      'useAdminResource.ts',
     ])
       unlinkSync(`${harness}/${name}`);
     rmdirSync(harness);
@@ -200,30 +207,26 @@ it('admin creates Korean/English notice, explicit platforms and schedule without
     await tab.send('Input.insertText', { text: '새 공지' });
     await tab.evaluate(`document.querySelector('textarea').focus()`);
     await tab.send('Input.insertText', { text: '안전한 본문' });
-    await tab.evaluate(
-      `(()=>{const s=document.querySelectorAll('select')[1];s.value='en';s.dispatchEvent(new Event('change',{bubbles:true}));})()`,
+    // V2: the Korean original stays on the left; the right panel edits one translation at a time (English by default).
+    assert.equal(
+      await tab.evaluate(`[...document.querySelectorAll('.v2-language')].find(b=>b.getAttribute('aria-selected')==='true').textContent.includes('영어')`),
+      true,
     );
-    await tab.until(`document.querySelector('textarea').value===''`);
     await tab.evaluate(
-      `document.querySelector('input[maxlength="200"]').focus()`,
+      `document.querySelectorAll('input[maxlength="200"]')[1].focus()`,
     );
     await tab.send('Input.insertText', { text: 'English notice' });
-    await tab.evaluate(`document.querySelector('textarea').focus()`);
+    await tab.evaluate(`document.querySelectorAll('textarea')[1].focus()`);
     await tab.send('Input.insertText', { text: 'English body' });
-    await tab.evaluate(
-      `(()=>{const s=document.querySelectorAll('select')[1];s.value='ko';s.dispatchEvent(new Event('change',{bubbles:true}));})()`,
-    );
     await tab.until(
-      `document.querySelector('input[maxlength="200"]').value==='새 공지'`,
+      `document.querySelector('input[maxlength="200"]').value==='새 공지'&&document.querySelector('textarea').value==='안전한 본문'`,
     );
     await tab.evaluate(
       `(()=>{const s=document.querySelector('select');s.value='Published';s.dispatchEvent(new Event('change',{bubbles:true}));})()`,
     );
     assert.equal(
-      await tab.evaluate(
-        `document.querySelectorAll('select')[1].options.length`,
-      ),
-      17,
+      await tab.evaluate(`document.querySelectorAll('.v2-language').length`),
+      16,
     );
     await tab.evaluate(
       `document.querySelector('button[type="submit"]').click()`,
@@ -240,6 +243,10 @@ it('admin creates Korean/English notice, explicit platforms and schedule without
     assert.equal(
       call.body.translations.find((x) => x.language === 'en').title,
       'English notice',
+    );
+    assert.equal(
+      call.body.translations.find((x) => x.language === 'en').origin,
+      'Manual',
     );
     assert.equal(call.body.resetRead, false);
     assert.ok(call.body.startsAtUtc.endsWith('Z'));

@@ -16,6 +16,8 @@ import {
 } from '../../../../lib/adminModel';
 import { strings } from '../../../../lib/strings';
 import { PageState, useAdmin, useAdminQuery } from '../../AdminRoot';
+import { updatePolicyText } from '../../../../lib/adminV2';
+import { PageTitle } from '../../v2/ui';
 
 type Message = { readonly kind: 'ok' | 'error'; readonly text: string };
 
@@ -41,10 +43,8 @@ export default function AppVersionPage() {
 
   return (
     <>
-      <header className="page-header">
-        <h1>{strings.appVersionTitle}</h1>
-      </header>
-      <p className="muted">{strings.appVersionNote}</p>
+      <PageTitle description={strings.appVersionNote} eyebrow="앱 버전 관리" title="앱 버전 관리" />
+      <p className="v2-callout">TestFlight·내부 테스트 빌드 번호와 스토어 정식 배포 빌드는 다를 수 있습니다. 실제 스토어에서 내려받을 수 있는 빌드만 최신 빌드로 입력하세요. 이 화면의 값은 Owner만 변경할 수 있습니다.</p>
       <PageState error={error} loading={loading && !current} onRetry={reload} />
       {current ? (
         <section className="policy-cards">
@@ -114,6 +114,14 @@ function PolicySummary({ name, raw, edit }: { name: string; raw: unknown; edit: 
           <div>
             <dt>{strings.policyMinimum}</dt>
             <dd>{view.minimumSupportedBuild}</dd>
+          </div>
+          <div>
+            <dt>업데이트 정책</dt>
+            <dd className="policy-source">{updatePolicyText(view.latestBuild, view.minimumSupportedBuild)}</dd>
+          </div>
+          <div>
+            <dt>최신 버전 문자열</dt>
+            <dd className="policy-source">정책은 빌드 번호만 비교합니다 (버전 문자열 미관리)</dd>
           </div>
           <div>
             <dt>{strings.policyStoreUrl}</dt>
