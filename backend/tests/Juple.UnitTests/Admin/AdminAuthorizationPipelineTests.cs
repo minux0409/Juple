@@ -67,6 +67,13 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         builder.Services.AddSingleton<IMobileVersionPolicyStore>(_versionStore);
         builder.Services.AddScoped<MobileVersionPolicyAdminService>();
         builder.Services.AddScoped<MobileVersionPolicySource>();
+        builder.Services.AddSingleton<IAdminInsightsStore>(new CannedInsightsStore());
+        builder.Services.AddScoped<AdminInsightsService>();
+        builder.Services.AddSingleton(new Juple.Application.Translation.TranslationOptions());
+        builder.Services.AddSingleton<Juple.Application.Translation.ITextTranslator, Juple.Application.Translation.DisabledTextTranslator>();
+        builder.Services.AddSingleton<IAdminInquiryWorkflowStore>(new AcceptingWorkflowStore());
+        builder.Services.AddScoped<AdminInquiryWorkflowService>();
+        builder.Services.AddScoped<Juple.Application.Notices.NoticeTranslationService>();
         builder.Services.AddSingleton<IAdminService>(_service);
         // The real range validation in front of a canned store (the SQL side is covered by AdminAnalyticsIntegrationTests).
         builder.Services.AddSingleton<IAdminAnalyticsStore>(_analyticsStore);
@@ -128,6 +135,14 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         { "GET", "/api/v1/admin/support/inquiries/7" },
         { "PUT", "/api/v1/admin/support/inquiries/7/status" },
         { "PUT", "/api/v1/admin/support/inquiries/7/answer" },
+        { "PUT", "/api/v1/admin/support/inquiries/7/answer-draft" },
+        { "POST", "/api/v1/admin/support/inquiries/7/content-translation" },
+        { "POST", "/api/v1/admin/support/inquiries/7/answer-translation" },
+        { "GET", "/api/v1/admin/dashboard/kpis" },
+        { "GET", "/api/v1/admin/dashboard/series?metric=links&range=30d" },
+        { "GET", "/api/v1/admin/users/directory?search=K7&sort=linksDesc" },
+        { "GET", "/api/v1/admin/users/5/link-history" },
+        { "GET", "/api/v1/admin/costs/history?months=12" },
     };
 
     private sealed class DisabledTelemetry : IAdminTelemetrySource
@@ -205,7 +220,7 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData("GET", "")][InlineData("GET", "/1")][InlineData("POST", "")][InlineData("PUT", "/1")][InlineData("DELETE", "/1?version=test")]
+    [InlineData("GET", "")][InlineData("GET", "/1")][InlineData("POST", "")][InlineData("PUT", "/1")][InlineData("DELETE", "/1?version=test")][InlineData("GET", "/translation-status")][InlineData("POST", "/translations")]
     public async Task Notices_require_an_active_server_admin_grant(string method, string suffix)
     {
         Assert.Equal(HttpStatusCode.Unauthorized,(await SendAsync(method,"/api/v1/admin/notices"+suffix,null)).StatusCode);
@@ -235,7 +250,16 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
     {
         var response = await SendAsync(method, path, AdminOid);
         var disabled = path.StartsWith("/api/v1/admin/workspace/",StringComparison.Ordinal) && !path.EndsWith("/configuration",StringComparison.Ordinal)
-            || path == "/api/v1/admin/expenses/azure-report";
+            || path == "/api/v1/admin/expenses/azure-report" || path.StartsWith("/api/v1/admin/costs/", StringComparison.Ordinal);
+        // No translation provider in this host: translating is refused as not configured, never faked.
+        var unconfigured = path.EndsWith("/content-translation", StringComparison.Ordinal) || path.EndsWith("/answer-translation", StringComparison.Ordinal);
+        if (unconfigured)
+        {
+            Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+            Assert.Contains("translationNotConfigured", await response.Content.ReadAsStringAsync());
+            return;
+        }
+
         Assert.Equal(disabled ? HttpStatusCode.NotFound : HttpStatusCode.OK, response.StatusCode);
     }
 
@@ -448,18 +472,23 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
             }
         }
 
-        Assert.Equal(["AdminAzureCostsController", "AdminController", "AdminExpensesController", "AdminNoticesController", "AdminSupportInquiriesController", "AdminWorkspaceController"], controllers.Where(type => type.Namespace == typeof(AdminController).Namespace).Select(type => type.Name).Order().ToArray());
+        Assert.Equal(["AdminAzureCostsController", "AdminController", "AdminCostsController", "AdminExpensesController", "AdminInsightsController", "AdminNoticesController", "AdminSupportInquiriesController", "AdminWorkspaceController"], controllers.Where(type => type.Namespace == typeof(AdminController).Namespace).Select(type => type.Name).Order().ToArray());
     }
 
     private Task<HttpResponseMessage> SendAsync(string method, string path, Guid? identity, string scope = Scope)
     {
         var request = new HttpRequestMessage(new HttpMethod(method), path);
+        if (method == "POST" && path.EndsWith("/answer-translation", StringComparison.Ordinal))
+            request.Content = JsonContent.Create(new { sourceKo = "확인했습니다", language = "en" });
+        if (method == "POST" && path.EndsWith("/notices/translations", StringComparison.Ordinal))
+            request.Content = JsonContent.Create(new { title = "제목", body = "본문" });
         if (method == "POST" && path.EndsWith("/azure-report",StringComparison.Ordinal))
             request.Content = JsonContent.Create(new { scope = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/test", month = "2026-10-01" });
         if (method == "PUT")
         {
             request.Content = JsonContent.Create(
                 path.Contains("/operations/app-version/", StringComparison.Ordinal) ? new { latestBuild = 31, minimumSupportedBuild = 24, version = (string?)null }
+                : path.EndsWith("/answer-draft", StringComparison.Ordinal) ? new { sourceKo = "초안", translated = (string?)null, language = "ko" }
                 : path.EndsWith("/status", StringComparison.Ordinal) ? new { status = "InProgress" } : (object)new { answer = "Thanks" });
         }
 
@@ -600,6 +629,33 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
                 ? null
                 : new AdminUserLinkStats(userId, "QZAMQBQK", nowUtc, range, todayUtc.AddDays(-(days - 1)), todayUtc, nowUtc, 7, 1, 2, 3, 4, 2, [new AdminUserLinkDay(todayUtc, 2)]));
         }
+    }
+
+    private sealed class CannedInsightsStore : IAdminInsightsStore
+    {
+        public Task<AdminDashboardKpis> KpisAsync(DateTimeOffset nowUtc, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new AdminDashboardKpis(3, 12, 1, AdminDateRange.SeoulDate(nowUtc), "Asia/Seoul", nowUtc));
+
+        public Task<AdminMetricSeries> SeriesAsync(string metric, AdminDateRange period, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new AdminMetricSeries(metric, period.From, period.Through, "Asia/Seoul", nowUtc, [new AdminMetricPoint(period.Through, 12)], "definition"));
+
+        public Task<AdminUserDirectoryPage> UsersAsync(AdminUserDirectoryQuery query, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new AdminUserDirectoryPage([], query.Page, query.PageSize, 0, []));
+
+        public Task<AdminUserLinkHistory?> UserLinkHistoryAsync(long userId, bool monthly, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) =>
+            Task.FromResult<AdminUserLinkHistory?>(new AdminUserLinkHistory(userId, "K7MP4Q8N", null, nowUtc, AdminDateRange.SeoulDate(nowUtc), AdminDateRange.SeoulDate(nowUtc), "day", 0, 0, [], "Asia/Seoul", nowUtc));
+    }
+
+    private sealed class AcceptingWorkflowStore : IAdminInquiryWorkflowStore
+    {
+        public Task<string?> GetContentAsync(long inquiryId, CancellationToken cancellationToken = default) => Task.FromResult<string?>("content");
+
+        public Task<bool> RecordContentTranslationAsync(long inquiryId, string? detectedLanguage, string translationKo, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => Task.FromResult(true);
+
+        public Task<bool> SaveDraftAsync(long inquiryId, string? sourceKo, string? translated, string? language, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => Task.FromResult(true);
+
+        public Task<AdminInquiryAnswerOutcome> SendAnswerAsync(long inquiryId, string delivered, string sourceKo, string language, DateTimeOffset? expectedUpdatedAtUtc, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) =>
+            Task.FromResult(AdminInquiryAnswerOutcome.Answered);
     }
 
     private sealed class RecordingAdminService : IAdminService

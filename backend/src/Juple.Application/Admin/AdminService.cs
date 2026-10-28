@@ -68,17 +68,19 @@ public sealed class AdminService(
     public Task<AdminInquiryPage> ListInquiriesAsync(string? status, long? cursor, int? limit, CancellationToken cancellationToken = default)
     {
         SupportInquiryStatus? filter = null;
-        if (!string.IsNullOrWhiteSpace(status))
+        // "Open" = 미답변: 접수 and 처리중 together (the Admin Web's default list).
+        var openOnly = string.Equals(status, "Open", StringComparison.Ordinal);
+        if (!string.IsNullOrWhiteSpace(status) && !openOnly)
         {
             if (!TryParseStatusName(status, out var parsed))
             {
-                throw new InvalidAdminRequestException("status", "status must be Pending, InProgress or Answered.");
+                throw new InvalidAdminRequestException("status", "status must be Open, Pending, InProgress or Answered.");
             }
 
             filter = parsed;
         }
 
-        return inquiryStore.ListAsync(filter, cursor, ResolvePageSize(limit), cancellationToken);
+        return inquiryStore.ListAsync(filter, cursor, ResolvePageSize(limit), openOnly, cancellationToken);
     }
 
     public async Task<AdminInquiryDetail> GetInquiryAsync(long inquiryId, CancellationToken cancellationToken = default) =>

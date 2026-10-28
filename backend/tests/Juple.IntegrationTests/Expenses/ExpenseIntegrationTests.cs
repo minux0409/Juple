@@ -191,6 +191,30 @@ public sealed class ExpenseIntegrationTests : IAsyncLifetime
         Assert.Equal("azureScopeOverlap",error.Code);
         Assert.Equal(1,await db.Expenses.CountAsync(x=>x.SubscriptionId==subscription.Split('/')[2] && x.OccurredOn==Day));
     }
+    [Fact] public async Task Monthly_history_sums_each_synced_month_per_currency_and_keeps_unsynced_months_unknown()
+    {
+        var subscription="/subscriptions/"+Guid.NewGuid().ToString(); var rg=subscription+"/resourceGroups/"+_marker;
+        _scopes.Add(rg);
+        await using var db=Db(); var store=Store(db); var time=DateTimeOffset.UtcNow;
+        var scope=new ExpenseAzureScope(rg,"TEST");
+        var october=(await store.AcquireSyncAsync(scope,new(2026,10,1),time,Ct))!;
+        await store.ApplySyncAsync(october,[new(Day,"SQL Database","KRW",100m,"100"),new(Day,"Storage","KRW",20m,"20"),new(Day,"Bandwidth","USD",1.5m,"1.5")],time,Ct);
+        var august=(await store.AcquireSyncAsync(scope,new(2026,8,1),time,Ct))!;
+        await store.ApplySyncAsync(august,[new(new(2026,8,3),"SQL Database","KRW",70m,"70")],time,Ct);
+        _ids.AddRange(await db.Expenses.Where(x=>x.ResourceGroup==_marker).Select(x=>x.Id).ToListAsync());
+
+        var history=await new AzureCostReportStore(db).MonthlyAsync(scope,new(2026,8,1),Day,Ct);
+
+        Assert.Equal([new DateOnly(2026,8,1),new(2026,9,1),new(2026,10,1)],history.Months.Select(x=>x.Month).ToArray());
+        var aug=history.Months[0]; var sep=history.Months[1]; var oct=history.Months[2];
+        Assert.True(aug.Synced); Assert.Equal(70m,Assert.Single(aug.Amounts).Amount);
+        // September was never imported: unknown (no amounts, not synced) - never a zero cost.
+        Assert.False(sep.Synced); Assert.Empty(sep.Amounts); Assert.Equal("Never",sep.SyncStatus);
+        Assert.True(oct.IsCurrent); Assert.True(oct.Synced);
+        Assert.Equal([("KRW",120m),("USD",1.5m)],oct.Amounts.Select(x=>(x.Currency,x.Amount)).ToArray());
+        // "all" starts at the first month that has data or a sync run.
+        Assert.Equal(new DateOnly(2026,8,1),(await new AzureCostReportStore(db).MonthlyAsync(scope,null,Day,Ct)).Months[0].Month);
+    }
     [Fact] public async Task Literal_search_custom_category_and_both_cursor_orders_are_consistent()
     {
         var a=await Save(Values() with {Name="%_"+_marker,Category=ExpenseCategory.Other,CustomCategory="Legal"});

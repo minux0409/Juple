@@ -71,9 +71,25 @@ public sealed record AdminInquiryListItem(
     string? Platform,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset? UpdatedAtUtc,
-    DateTimeOffset? AnsweredAtUtc);
+    DateTimeOffset? AnsweredAtUtc)
+{
+    /// <summary>The device locale the inquiry was written with (diagnostics).</summary>
+    public string? Locale { get; init; }
+
+    /// <summary>The detected language, once the inquiry has been translated.</summary>
+    public string? ContentLanguage { get; init; }
+}
 
 public sealed record AdminInquiryPage(IReadOnlyList<AdminInquiryListItem> Items, long? NextCursor);
+
+/// <summary>A Korean machine translation of what the person wrote; Language is the detected language of the original.</summary>
+public sealed record AdminInquiryContentTranslation(string? Language, string TextKo, DateTimeOffset TranslatedAtUtc);
+
+/// <summary>The admin's unsent answer: the Korean text, its translation and the language it is for.</summary>
+public sealed record AdminInquiryAnswerDraft(string? SourceKo, string? Translated, string? Language, DateTimeOffset SavedAtUtc);
+
+/// <summary>Whether inquiries can be machine-translated: a provider exists (Configured) AND sending user text to it is allowed.</summary>
+public sealed record AdminInquiryTranslationState(string Provider, bool Configured, bool Allowed);
 
 /// <summary>What the person sent from the app when they wrote the inquiry (the existing diagnostics; nothing new is collected).</summary>
 public sealed record AdminInquiryDiagnostics(
@@ -97,7 +113,29 @@ public sealed record AdminInquiryDetail(
     DateTimeOffset? UpdatedAtUtc,
     DateTimeOffset? AnsweredAtUtc,
     AdminInquiryDiagnostics Diagnostics,
-    IReadOnlyList<AdminAuditEntry> History);
+    IReadOnlyList<AdminAuditEntry> History)
+{
+    public AdminInquiryContentTranslation? ContentTranslation { get; init; }
+
+    /// <summary>The Korean original of the answer the person received (null for answers sent before this existed).</summary>
+    public string? AnswerSourceKo { get; init; }
+
+    /// <summary>The language of Answer as sent (null for answers sent before this existed).</summary>
+    public string? AnswerLanguage { get; init; }
+
+    public AdminInquiryAnswerDraft? AnswerDraft { get; init; }
+
+    /// <summary>The language to answer in: the detected language, else the inquiry's device locale, else the account's locale, else ko.</summary>
+    public string SuggestedLanguage { get; init; } = "ko";
+
+    public AdminInquiryTranslationState? Translation { get; init; }
+
+    /// <summary>
+    /// The inquiry's concurrency token for a send: its last support change, or its creation for an untouched one. The Admin Web
+    /// sends it back unchanged; a different current value means someone changed the inquiry since it was loaded.
+    /// </summary>
+    public DateTimeOffset ChangeToken => UpdatedAtUtc ?? CreatedAtUtc;
+}
 
 /// <summary>The inquiry does not exist.</summary>
 public sealed class AdminInquiryNotFoundException : Exception;
@@ -113,7 +151,8 @@ public sealed class InvalidAdminRequestException(string field, string message) :
 
 public interface IAdminSupportInquiryStore
 {
-    Task<AdminInquiryPage> ListAsync(Juple.Domain.Support.SupportInquiryStatus? status, long? cursor, int limit, CancellationToken cancellationToken = default);
+    /// <summary>openOnly = 접수 and 처리중 together (the 미답변 list); ignored when status is given.</summary>
+    Task<AdminInquiryPage> ListAsync(Juple.Domain.Support.SupportInquiryStatus? status, long? cursor, int limit, bool openOnly, CancellationToken cancellationToken = default);
 
     Task<AdminInquiryDetail?> GetAsync(long inquiryId, CancellationToken cancellationToken = default);
 
@@ -125,4 +164,24 @@ public interface IAdminSupportInquiryStore
 
     /// <summary>Records (or replaces) the answer - status 답변완료 - and the audit record in ONE save. False when it does not exist.</summary>
     Task<bool> AnswerAsync(long inquiryId, string answer, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
+}
+
+public enum AdminInquiryAnswerOutcome { NotFound, Changed, Unchanged, Answered }
+
+/// <summary>The translation workflow's writes on the existing inquiry row (AdminSupportInquiryStore implements both interfaces).</summary>
+public interface IAdminInquiryWorkflowStore
+{
+    /// <summary>The person's text, read only to translate it; null when the inquiry does not exist.</summary>
+    Task<string?> GetContentAsync(long inquiryId, CancellationToken cancellationToken = default);
+
+    Task<bool> RecordContentTranslationAsync(long inquiryId, string? detectedLanguage, string translationKo, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
+
+    Task<bool> SaveDraftAsync(long inquiryId, string? sourceKo, string? translated, string? language, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sends the answer: the delivered text, its Korean source and language, status 답변완료 and the audit record in ONE save -
+    /// unless the inquiry changed since expectedUpdatedAtUtc (Changed) or exactly this answer was already sent (Unchanged: nothing written).
+    /// </summary>
+    Task<AdminInquiryAnswerOutcome> SendAnswerAsync(long inquiryId, string delivered, string sourceKo, string language, DateTimeOffset? expectedUpdatedAtUtc,
+        long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
 }

@@ -64,15 +64,21 @@ public sealed class NoticeStore(JupleDbContext db) : INoticeStore
             throw new NoticeNotFoundException();
         }
     }
-    private static AdminNotice Admin(Notice n) => new(n.Id, n.Status.ToString(), n.IsImportant, n.IsPinned, (int)n.Platforms,
-        n.StartsAtUtc, n.EndsAtUtc, n.OfficialUrl, n.Translations.Select(t => new NoticeText(t.Language, t.Title, t.Body)).ToList(),
-        Convert.ToBase64String(n.Version), n.CreatedAtUtc, n.UpdatedAtUtc, n.ReadVersion);
+    private static AdminNotice Admin(Notice n)
+    {
+        var korean = n.Translations.FirstOrDefault(t => t.Language == "ko");
+        return new(n.Id, n.Status.ToString(), n.IsImportant, n.IsPinned, (int)n.Platforms,
+            n.StartsAtUtc, n.EndsAtUtc, n.OfficialUrl,
+            n.Translations.Select(t => new NoticeText(t.Language, t.Title, t.Body, t.Origin ?? (t.Language == "ko" ? NoticeTranslation.OriginSource : NoticeTranslation.OriginManual), t.SourceFingerprint, t.TranslatedAtUtc)).ToList(),
+            Convert.ToBase64String(n.Version), n.CreatedAtUtc, n.UpdatedAtUtc, n.ReadVersion)
+        { SourceFingerprint = korean is null ? null : NoticeService.SourceFingerprint(korean.Title, korean.Body) };
+    }
     public async Task<AdminNoticePage> AdminListAsync(string? search, NoticeStatus? status, long? cursor, int limit, CancellationToken ct) {
         var q = db.Notices.AsNoTracking().Where(n => n.DeletedAtUtc == null);
         if (status is not null) q = q.Where(n => n.Status == status);
         if (!string.IsNullOrWhiteSpace(search)) q = q.Where(n => n.Translations.Any(t => t.Title.Contains(search)));
         if (cursor is not null) q = q.Where(n => n.Id < cursor);
-        var rows = await q.OrderByDescending(n => n.Id).Take(limit + 1).Select(n => new AdminNoticeRow(n.Id, n.Translations.Where(t => t.Language == "ko").Select(t => t.Title).First(), n.Status.ToString(), n.IsImportant, n.IsPinned, n.StartsAtUtc, n.EndsAtUtc, n.CreatedAtUtc)).ToListAsync(ct);
+        var rows = await q.OrderByDescending(n => n.Id).Take(limit + 1).Select(n => new AdminNoticeRow(n.Id, n.Translations.Where(t => t.Language == "ko").Select(t => t.Title).First(), n.Status.ToString(), n.IsImportant, n.IsPinned, n.StartsAtUtc, n.EndsAtUtc, n.CreatedAtUtc) { LanguageCount = n.Translations.Count }).ToListAsync(ct);
         var more = rows.Count > limit; rows = rows.Take(limit).ToList();
         return new(rows, more ? rows.Last().Id.ToString(CultureInfo.InvariantCulture) : null);
     }
@@ -96,7 +102,11 @@ public sealed class NoticeStore(JupleDbContext db) : INoticeStore
         foreach (var text in write.Translations) {
             var translation = n.Translations.SingleOrDefault(t => t.Language == text.Language);
             if (translation is null) { translation = new NoticeTranslation { Language = text.Language }; n.Translations.Add(translation); }
-            translation.Title = text.Title; translation.Body = text.Body;
+            var origin = text.Language == "ko" ? NoticeTranslation.OriginSource : text.Origin ?? NoticeTranslation.OriginManual;
+            if (translation.Title != text.Title || translation.Body != text.Body || translation.Origin != origin || translation.SourceFingerprint != text.SourceFingerprint)
+                translation.TranslatedAtUtc = now;
+            translation.Title = text.Title; translation.Body = text.Body; translation.Origin = origin;
+            translation.SourceFingerprint = text.Language == "ko" ? null : text.SourceFingerprint;
         }
         if (id is null) db.Notices.Add(n);
         else db.Entry(n).Property(x => x.UpdatedAtUtc).IsModified = true; // Translation-only edits must advance the aggregate rowversion, even at the same clock tick.

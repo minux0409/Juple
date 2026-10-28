@@ -73,9 +73,20 @@ public sealed record AzureMonthCost(string Currency, decimal? Current, decimal? 
 public sealed record AzureCostReport(string Scope, DateOnly Month, DateOnly Through, DateTimeOffset? LastSyncAtUtc,
     string SyncStatus, string? FailureCode, IReadOnlyList<AzureMonthCost> Totals,
     IReadOnlyList<AzureCostPoint> Services, AzureCostDetail Resources, AzureCostDetail Forecast);
+/// <summary>One amount in its original currency (no conversion, no cross-currency total).</summary>
+public sealed record AzureCurrencyAmount(string Currency, decimal Amount);
+/// <summary>
+/// One Azure billing month (UTC usage dates). Synced = the month has a successful import, so Amounts is the imported usage cost
+/// (empty = really nothing was billed); not synced = unknown, never zero. IsCurrent = the month is still running.
+/// </summary>
+public sealed record AzureMonthlyCost(DateOnly Month, bool IsCurrent, bool Synced, DateTimeOffset? LastSyncAtUtc, string SyncStatus,
+    string? FailureCode, IReadOnlyList<AzureCurrencyAmount> Amounts);
+public sealed record AzureCostHistory(string Scope, string Environment, DateOnly TodayUtc, IReadOnlyList<AzureMonthlyCost> Months);
 public interface IAzureCostReportStore
 {
     Task<AzureCostReport> ReadAsync(ExpenseAzureScope scope, DateOnly month, DateOnly todayUtc, CancellationToken ct);
+    /// <summary>The imported Azure usage cost per billing month and currency, from fromMonth through the current month.</summary>
+    Task<AzureCostHistory> MonthlyAsync(ExpenseAzureScope scope, DateOnly? fromMonth, DateOnly todayUtc, CancellationToken ct);
 }
 public interface IExpenseEvidenceScanner { Task ScanAsync(ReadOnlyMemory<byte> bytes, CancellationToken ct); }
 public interface IExpenseEvidenceFiles

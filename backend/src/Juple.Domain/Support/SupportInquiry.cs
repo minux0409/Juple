@@ -96,6 +96,29 @@ public sealed class SupportInquiry
     /// <summary>The last time support changed this inquiry (status or answer); null while untouched since it was created.</summary>
     public DateTimeOffset? UpdatedAtUtc { get; private set; }
 
+    /// <summary>The language the person wrote in, as the translation provider detected it (a Juple language code); null until translated.</summary>
+    public string? ContentLanguage { get; private set; }
+
+    /// <summary>A Korean machine translation of Content for support - Content itself is never changed.</summary>
+    public string? ContentTranslationKo { get; private set; }
+
+    public DateTimeOffset? ContentTranslatedAtUtc { get; private set; }
+
+    /// <summary>The Korean answer an admin wrote; Answer is what the person actually received (the translation, or this same text).</summary>
+    public string? AnswerSourceKo { get; private set; }
+
+    /// <summary>The language Answer is written in (a Juple language code); null for answers recorded before this existed.</summary>
+    public string? AnswerLanguage { get; private set; }
+
+    /// <summary>An unsent answer being prepared in the Admin Web (never shown to the person).</summary>
+    public string? AnswerDraftSourceKo { get; private set; }
+
+    public string? AnswerDraftTranslated { get; private set; }
+
+    public string? AnswerDraftLanguage { get; private set; }
+
+    public DateTimeOffset? AnswerDraftSavedAtUtc { get; private set; }
+
     /// <summary>Records (or replaces) the support answer; the answer time is that of the latest answer.</summary>
     public void RecordAnswer(string answer, DateTimeOffset answeredAtUtc)
     {
@@ -103,6 +126,37 @@ public sealed class SupportInquiry
         Status = SupportInquiryStatus.Answered;
         AnsweredAtUtc = answeredAtUtc;
         UpdatedAtUtc = answeredAtUtc;
+    }
+
+    /// <summary>
+    /// Records the answer the person receives (<paramref name="delivered"/>, in <paramref name="language"/>) together with the Korean
+    /// original it came from. The draft it was prepared in is cleared.
+    /// </summary>
+    public void RecordAnswer(string delivered, string sourceKo, string language, DateTimeOffset answeredAtUtc)
+    {
+        RecordAnswer(delivered, answeredAtUtc);
+        AnswerSourceKo = sourceKo;
+        AnswerLanguage = language;
+        AnswerDraftSourceKo = null;
+        AnswerDraftTranslated = null;
+        AnswerDraftLanguage = null;
+        AnswerDraftSavedAtUtc = null;
+    }
+
+    /// <summary>Keeps the admin's unsent draft. Not a support change the person can see, so UpdatedAtUtc (the concurrency check of a send) is not moved.</summary>
+    public void SaveAnswerDraft(string? sourceKo, string? translated, string? language, DateTimeOffset savedAtUtc)
+    {
+        AnswerDraftSourceKo = sourceKo;
+        AnswerDraftTranslated = translated;
+        AnswerDraftLanguage = language;
+        AnswerDraftSavedAtUtc = savedAtUtc;
+    }
+
+    public void RecordContentTranslation(string? detectedLanguage, string translationKo, DateTimeOffset translatedAtUtc)
+    {
+        ContentLanguage = detectedLanguage;
+        ContentTranslationKo = translationKo;
+        ContentTranslatedAtUtc = translatedAtUtc;
     }
 
     /// <summary>

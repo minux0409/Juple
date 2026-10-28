@@ -14,8 +14,10 @@ public sealed class NoticeConfiguration : IEntityTypeConfiguration<Notice> {
 }
 public sealed class NoticeTranslationConfiguration : IEntityTypeConfiguration<NoticeTranslation> {
     public void Configure(EntityTypeBuilder<NoticeTranslation> b) {
-        b.ToTable("NoticeTranslations", "notices"); b.HasKey(x => new { x.NoticeId, x.Language });
+        b.ToTable("NoticeTranslations", "notices", t => t.HasCheckConstraint("CK_NoticeTranslations_Origin_Valid", "[Origin] IS NULL OR [Origin] IN ('Source', 'Machine', 'Manual')"));
+        b.HasKey(x => new { x.NoticeId, x.Language });
         b.Property(x => x.Language).HasMaxLength(16).IsUnicode(false); b.Property(x => x.Title).HasMaxLength(200); b.Property(x => x.Body).HasMaxLength(20000);
+        b.Property(x => x.Origin).HasMaxLength(16).IsUnicode(false); b.Property(x => x.SourceFingerprint).HasMaxLength(64).IsUnicode(false);
     }
 }
 public sealed class NoticeReadConfiguration : IEntityTypeConfiguration<NoticeRead> {

@@ -127,9 +127,16 @@ public sealed class AdminServiceTests
     [Fact]
     public async Task TheInquiryList_FiltersOnlyByRealStatuses()
     {
-        await Assert.ThrowsAsync<InvalidAdminRequestException>(() => Service().ListInquiriesAsync("Open", null, null));
+        await Assert.ThrowsAsync<InvalidAdminRequestException>(() => Service().ListInquiriesAsync("Closed", null, null));
+        await Assert.ThrowsAsync<InvalidAdminRequestException>(() => Service().ListInquiriesAsync("open", null, null));
+
+        // "Open" (미답변) = 접수 and 처리중 together, not a stored status.
+        await Service().ListInquiriesAsync("Open", null, null);
+        Assert.Equal(((SupportInquiryStatus?)null, AdminService.DefaultPageSize), _inquiries.LastList);
+        Assert.True(_inquiries.LastOpenOnly);
 
         await Service().ListInquiriesAsync("InProgress", null, 500);
+        Assert.False(_inquiries.LastOpenOnly);
         Assert.Equal((SupportInquiryStatus.InProgress, AdminService.MaxPageSize), _inquiries.LastList);
         await Service().ListInquiriesAsync(null, null, null);
         Assert.Equal(((SupportInquiryStatus?)null, AdminService.DefaultPageSize), _inquiries.LastList);
@@ -175,9 +182,12 @@ public sealed class AdminServiceTests
 
         public (SupportInquiryStatus?, int)? LastList { get; private set; }
 
-        public Task<AdminInquiryPage> ListAsync(SupportInquiryStatus? status, long? cursor, int limit, CancellationToken cancellationToken = default)
+        public bool LastOpenOnly { get; private set; }
+
+        public Task<AdminInquiryPage> ListAsync(SupportInquiryStatus? status, long? cursor, int limit, bool openOnly, CancellationToken cancellationToken = default)
         {
             LastList = (status, limit);
+            LastOpenOnly = openOnly;
             return Task.FromResult(new AdminInquiryPage([], null));
         }
 

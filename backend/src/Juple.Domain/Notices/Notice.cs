@@ -23,10 +23,20 @@ public sealed class Notice
 }
 public sealed class NoticeTranslation
 {
+    public const string OriginSource = "Source";
+    public const string OriginMachine = "Machine";
+    public const string OriginManual = "Manual";
+
     public long NoticeId { get; set; }
     public string Language { get; set; } = "ko";
     public string Title { get; set; } = "";
     public string Body { get; set; } = "";
+    /// <summary>Source (the Korean original), Machine (an untouched machine translation) or Manual (written or edited by an admin). Null = before this was recorded: treated as Manual, never overwritten automatically.</summary>
+    public string? Origin { get; set; }
+    /// <summary>SHA-256 (hex) of the Korean title and body this translation was made from; a different current value = the original changed since.</summary>
+    public string? SourceFingerprint { get; set; }
+    /// <summary>When this language's text or origin last changed.</summary>
+    public DateTimeOffset? TranslatedAtUtc { get; set; }
 }
 public sealed class NoticeRead
 {

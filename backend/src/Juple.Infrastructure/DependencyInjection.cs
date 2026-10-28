@@ -113,14 +113,42 @@ public static class DependencyInjection
         services.AddScoped<Juple.Application.Admin.IAdminDashboardStore, Juple.Infrastructure.Admin.AdminDashboardStore>();
         services.AddScoped<Juple.Application.Admin.IAdminUserDirectoryStore, Juple.Infrastructure.Admin.AdminUserDirectoryStore>();
         services.AddScoped<Juple.Application.Admin.IAdminSupportInquiryStore, Juple.Infrastructure.Admin.AdminSupportInquiryStore>();
+        services.AddScoped<Juple.Application.Admin.IAdminInquiryWorkflowStore, Juple.Infrastructure.Admin.AdminSupportInquiryStore>();
+        services.AddScoped<Juple.Application.Admin.AdminInquiryWorkflowService>();
         // 운영 > 앱 버전: the operator-set build numbers that override the deployed MobileVersionPolicy configuration.
         services.AddScoped<Juple.Application.Admin.IMobileVersionPolicyStore, Juple.Infrastructure.Admin.MobileVersionPolicyStore>();
         services.AddScoped<Juple.Application.Admin.MobileVersionPolicyAdminService>();
+        // 대시보드 / 사용자: the three dashboard numbers with their charts, the user table and one person's saving history.
+        services.AddScoped<Juple.Application.Admin.IAdminInsightsStore, Juple.Infrastructure.Analytics.AdminInsightsStore>();
+        services.AddScoped<Juple.Application.Admin.AdminInsightsService>();
         services.AddScoped<Juple.Application.Admin.IAdminAnalyticsStore, Juple.Infrastructure.Analytics.AdminAnalyticsStore>();
         services.AddSingleton(configuration.GetSection("AdminWorkspace").Get<Juple.Application.Admin.AdminWorkspaceOptions>() ?? new());
         services.AddScoped<Juple.Application.Admin.IAdminWorkspaceStore, Juple.Infrastructure.Analytics.AdminWorkspaceStore>();
         services.AddScoped<Juple.Application.Notices.INoticeStore, Juple.Infrastructure.Notices.NoticeStore>();
         services.AddScoped<Juple.Application.Notices.NoticeService>();
+        services.AddScoped<Juple.Application.Notices.NoticeTranslationService>();
+        // Machine translation for the Admin Web (notices, inquiries). Provider "None" by default: nothing is sent anywhere.
+        var translationOptions = configuration.GetSection(Juple.Application.Translation.TranslationOptions.SectionName)
+            .Get<Juple.Application.Translation.TranslationOptions>() ?? new();
+        if (translationOptions.Validate() is { } translationProblem)
+        {
+            throw new InvalidOperationException(translationProblem);
+        }
+
+        services.AddSingleton(translationOptions);
+        if (translationOptions.IsAzure)
+        {
+            services.AddHttpClient("AzureTranslator", client => client.Timeout = TimeSpan.FromSeconds(20))
+                .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+            services.AddScoped<Juple.Application.Translation.ITextTranslator>(sp => new Juple.Infrastructure.Translation.AzureTextTranslator(
+                sp.GetRequiredService<IHttpClientFactory>().CreateClient("AzureTranslator"),
+                translationOptions.AzureTranslator,
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Juple.Infrastructure.Translation.AzureTextTranslator>>()));
+        }
+        else
+        {
+            services.AddSingleton<Juple.Application.Translation.ITextTranslator, Juple.Application.Translation.DisabledTextTranslator>();
+        }
         services.AddMemoryCache();
         // Prefer the host's Managed Identity; the standard developer chain is only a fallback
         // when no managed-identity endpoint is available locally. Reuse its token cache.

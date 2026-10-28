@@ -96,17 +96,21 @@ public sealed class AdminUserDirectoryStore(JupleDbContext dbContext) : IAdminUs
     }
 }
 
-public sealed class AdminSupportInquiryStore(JupleDbContext dbContext) : IAdminSupportInquiryStore
+public sealed class AdminSupportInquiryStore(JupleDbContext dbContext) : IAdminSupportInquiryStore, IAdminInquiryWorkflowStore
 {
     private const int PreviewLength = 120;
     private const int HistoryLimit = 50;
 
-    public async Task<AdminInquiryPage> ListAsync(SupportInquiryStatus? status, long? cursor, int limit, CancellationToken cancellationToken = default)
+    public async Task<AdminInquiryPage> ListAsync(SupportInquiryStatus? status, long? cursor, int limit, bool openOnly, CancellationToken cancellationToken = default)
     {
         var inquiries = dbContext.SupportInquiries.AsNoTracking();
         if (status is { } filter)
         {
             inquiries = inquiries.Where(inquiry => inquiry.Status == filter);
+        }
+        else if (openOnly)
+        {
+            inquiries = inquiries.Where(inquiry => inquiry.Status == SupportInquiryStatus.Pending || inquiry.Status == SupportInquiryStatus.InProgress);
         }
 
         if (cursor is { } before)
@@ -132,6 +136,8 @@ public sealed class AdminSupportInquiryStore(JupleDbContext dbContext) : IAdminS
                     inquiry.CreatedAtUtc,
                     inquiry.UpdatedAtUtc,
                     inquiry.AnsweredAtUtc,
+                    inquiry.Locale,
+                    inquiry.ContentLanguage,
                 })
             .Take(limit + 1)
             .ToListAsync(cancellationToken);
@@ -146,7 +152,11 @@ public sealed class AdminSupportInquiryStore(JupleDbContext dbContext) : IAdminS
                 row.Platform,
                 row.CreatedAtUtc,
                 row.UpdatedAtUtc,
-                row.AnsweredAtUtc))
+                row.AnsweredAtUtc)
+            {
+                Locale = row.Locale,
+                ContentLanguage = row.ContentLanguage,
+            })
             .ToList();
         return new AdminInquiryPage(page, rows.Count > limit ? page[^1].InquiryId : null);
     }
@@ -164,6 +174,7 @@ public sealed class AdminSupportInquiryStore(JupleDbContext dbContext) : IAdminS
                     UserId = owner == null ? (long?)null : owner.Id,
                     JupleId = owner == null ? null : owner.PublicCode,
                     DisplayName = owner == null ? null : owner.DisplayName,
+                    AccountLocale = owner == null ? null : owner.PreferredLocale,
                 })
             .SingleOrDefaultAsync(cancellationToken);
         if (row is null)
@@ -194,7 +205,90 @@ public sealed class AdminSupportInquiryStore(JupleDbContext dbContext) : IAdminS
             found.UpdatedAtUtc,
             found.AnsweredAtUtc,
             new AdminInquiryDiagnostics(found.AppVersion, found.BuildNumber, found.Platform, found.OsVersion, found.DeviceModel, found.Locale),
-            history);
+            history)
+        {
+            ContentTranslation = found.ContentTranslationKo is { } translated && found.ContentTranslatedAtUtc is { } translatedAt
+                ? new AdminInquiryContentTranslation(found.ContentLanguage, translated, translatedAt)
+                : null,
+            AnswerSourceKo = found.AnswerSourceKo,
+            AnswerLanguage = found.AnswerLanguage,
+            AnswerDraft = found.AnswerDraftSavedAtUtc is { } savedAt
+                ? new AdminInquiryAnswerDraft(found.AnswerDraftSourceKo, found.AnswerDraftTranslated, found.AnswerDraftLanguage, savedAt)
+                : null,
+            SuggestedLanguage = found.ContentLanguage is { } detected && Juple.Application.Translation.TranslationLanguages.IsSupported(detected)
+                ? detected
+                : Juple.Application.Translation.TranslationLanguages.FromLocale(found.Locale)
+                    ?? Juple.Application.Translation.TranslationLanguages.FromLocale(row.AccountLocale)
+                    ?? Juple.Application.Translation.TranslationLanguages.Korean,
+        };
+    }
+
+    public Task<string?> GetContentAsync(long inquiryId, CancellationToken cancellationToken = default) =>
+        dbContext.SupportInquiries.AsNoTracking().Where(inquiry => inquiry.Id == inquiryId).Select(inquiry => (string?)inquiry.Content).SingleOrDefaultAsync(cancellationToken);
+
+    public async Task<bool> RecordContentTranslationAsync(long inquiryId, string? detectedLanguage, string translationKo, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+    {
+        var inquiry = await dbContext.SupportInquiries.FirstOrDefaultAsync(entry => entry.Id == inquiryId, cancellationToken);
+        if (inquiry is null)
+        {
+            return false;
+        }
+
+        inquiry.RecordContentTranslation(detectedLanguage, translationKo, nowUtc);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> SaveDraftAsync(long inquiryId, string? sourceKo, string? translated, string? language, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+    {
+        var inquiry = await dbContext.SupportInquiries.FirstOrDefaultAsync(entry => entry.Id == inquiryId, cancellationToken);
+        if (inquiry is null)
+        {
+            return false;
+        }
+
+        inquiry.SaveAnswerDraft(sourceKo, translated, language, nowUtc);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<AdminInquiryAnswerOutcome> SendAnswerAsync(long inquiryId, string delivered, string sourceKo, string language, DateTimeOffset? expectedUpdatedAtUtc,
+        long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
+        // The row is locked for the check and the write, so two sends of the same draft cannot both pass the check.
+        var inquiry = await dbContext.SupportInquiries
+            .FromSqlInterpolated($"SELECT * FROM [support].[SupportInquiries] WITH (UPDLOCK, ROWLOCK) WHERE [Id] = {inquiryId}")
+            .FirstOrDefaultAsync(cancellationToken);
+        if (inquiry is null)
+        {
+            return AdminInquiryAnswerOutcome.NotFound;
+        }
+
+        if (inquiry.Status == SupportInquiryStatus.Answered && inquiry.Answer == delivered && inquiry.AnswerSourceKo == sourceKo && inquiry.AnswerLanguage == language)
+        {
+            return AdminInquiryAnswerOutcome.Unchanged;
+        }
+
+        // The token is UpdatedAtUtc, or CreatedAtUtc while support never touched the inquiry (AdminInquiryDetail.ChangeToken).
+        if (expectedUpdatedAtUtc is not { } expected || (inquiry.UpdatedAtUtc ?? inquiry.CreatedAtUtc) != expected)
+        {
+            return AdminInquiryAnswerOutcome.Changed;
+        }
+
+        var previous = inquiry.Status;
+        inquiry.RecordAnswer(delivered, sourceKo, language, nowUtc);
+        // The audit detail records the transition, the language and the sizes - never the answer text itself.
+        dbContext.AdminAuditLogs.Add(new AdminAuditLog(
+            adminUserId,
+            AdminAuditActions.SupportInquiryAnswered,
+            AdminAuditTargets.SupportInquiry,
+            inquiryId.ToString(CultureInfo.InvariantCulture),
+            $"{previous}->{SupportInquiryStatus.Answered} ({delivered.Length} chars, {language}; ko {sourceKo.Length} chars)",
+            nowUtc));
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return AdminInquiryAnswerOutcome.Answered;
     }
 
     public async Task<bool> ChangeStatusAsync(long inquiryId, SupportInquiryStatus status, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)

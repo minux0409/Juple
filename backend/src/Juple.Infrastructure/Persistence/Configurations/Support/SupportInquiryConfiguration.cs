@@ -75,6 +75,17 @@ public sealed class SupportInquiryConfiguration : IEntityTypeConfiguration<Suppo
         builder.Property(inquiry => inquiry.DeviceModel).HasColumnType("nvarchar(100)").HasMaxLength(100);
         builder.Property(inquiry => inquiry.Locale).HasColumnType("nvarchar(35)").HasMaxLength(35);
 
+        // Admin Web translation workflow (all nullable, on the same row so account deletion removes them with the inquiry).
+        builder.Property(inquiry => inquiry.ContentLanguage).HasColumnType("varchar(16)").HasMaxLength(16).IsUnicode(false);
+        builder.Property(inquiry => inquiry.ContentTranslationKo).HasColumnType("nvarchar(max)").HasMaxLength(8000);
+        builder.Property(inquiry => inquiry.ContentTranslatedAtUtc).HasColumnType("datetimeoffset");
+        builder.Property(inquiry => inquiry.AnswerSourceKo).HasColumnType("nvarchar(max)").HasMaxLength(8000);
+        builder.Property(inquiry => inquiry.AnswerLanguage).HasColumnType("varchar(16)").HasMaxLength(16).IsUnicode(false);
+        builder.Property(inquiry => inquiry.AnswerDraftSourceKo).HasColumnType("nvarchar(max)").HasMaxLength(8000);
+        builder.Property(inquiry => inquiry.AnswerDraftTranslated).HasColumnType("nvarchar(max)").HasMaxLength(8000);
+        builder.Property(inquiry => inquiry.AnswerDraftLanguage).HasColumnType("varchar(16)").HasMaxLength(16).IsUnicode(false);
+        builder.Property(inquiry => inquiry.AnswerDraftSavedAtUtc).HasColumnType("datetimeoffset");
+
         // A retried create returns the same row; another user's identical request id is unrelated.
         builder.HasIndex(inquiry => new { inquiry.UserId, inquiry.ClientRequestId })
             .IsUnique()

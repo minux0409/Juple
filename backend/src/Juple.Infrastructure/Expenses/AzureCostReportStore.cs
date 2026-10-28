@@ -29,4 +29,30 @@ public sealed class AzureCostReportStore(JupleDbContext db) : IAzureCostReportSt
             data.Where(x => x.OccurredOn >= month && x.OccurredOn <= through).Select(x => new AzureCostPoint(x.OccurredOn, x.ServiceName ?? "Unattributed", x.Currency, x.Amount)).ToArray(),
             new("notRequested", []), new("notRequested", []));
     }
+
+    public async Task<AzureCostHistory> MonthlyAsync(ExpenseAzureScope scope, DateOnly? fromMonth, DateOnly todayUtc, CancellationToken ct)
+    {
+        var parts = scope.Scope.Split('/'); var subscription = parts[2]; var group = parts.Length > 4 ? parts[4] : "*";
+        var current = new DateOnly(todayUtc.Year, todayUtc.Month, 1);
+        var rows = db.Expenses.AsNoTracking().Where(x => x.Source == ExpenseSource.Azure && x.SubscriptionId == subscription && x.ResourceGroup == group
+            && x.DeletedAtUtc == null && !x.NoLongerReported && x.OccurredOn < current.AddMonths(1));
+        if (fromMonth is { } from) rows = rows.Where(x => x.OccurredOn >= from);
+        // One grouped query: month x currency sums of the imported daily service snapshots (the same rows the monthly report reads).
+        var sums = await rows.GroupBy(x => new { x.OccurredOn.Year, x.OccurredOn.Month, x.Currency })
+            .Select(g => new { g.Key.Year, g.Key.Month, g.Key.Currency, Amount = g.Sum(x => x.GrossAmount) }).ToListAsync(ct);
+        var runs = await db.ExpenseSyncRuns.AsNoTracking().Where(x => x.Scope == scope.Scope && x.Month <= current && (fromMonth == null || x.Month >= fromMonth))
+            .ToListAsync(ct);
+        var first = fromMonth ?? runs.Select(x => (DateOnly?)x.Month)
+            .Concat(sums.Select(x => (DateOnly?)new DateOnly(x.Year, x.Month, 1))).Min() ?? current;
+        var months = new List<AzureMonthlyCost>();
+        for (var month = new DateOnly(first.Year, first.Month, 1); month <= current; month = month.AddMonths(1))
+        {
+            var run = runs.SingleOrDefault(x => x.Month == month);
+            var synced = run?.LastSuccessAtUtc is not null;
+            months.Add(new AzureMonthlyCost(month, month == current, synced, run?.LastSuccessAtUtc, run?.Status ?? "Never", run?.FailureCode,
+                synced ? sums.Where(x => x.Year == month.Year && x.Month == month.Month).OrderBy(x => x.Currency, StringComparer.Ordinal)
+                    .Select(x => new AzureCurrencyAmount(x.Currency, x.Amount)).ToArray() : []));
+        }
+        return new AzureCostHistory(scope.Scope, scope.Environment, todayUtc, months);
+    }
 }

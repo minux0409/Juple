@@ -1,7 +1,11 @@
 using Juple.Domain.Notices;
 namespace Juple.Application.Notices;
 
-public sealed record NoticeText(string Language, string Title, string Body);
+/// <summary>
+/// One language of a notice. Origin / SourceFingerprint are optional on write (an older Admin Web omits them = Manual); Korean is
+/// always the Source. TranslatedAtUtc is set by the server.
+/// </summary>
+public sealed record NoticeText(string Language, string Title, string Body, string? Origin = null, string? SourceFingerprint = null, DateTimeOffset? TranslatedAtUtc = null);
 public sealed record NoticeWrite(string Status, bool IsImportant, bool IsPinned, int Platforms,
     DateTimeOffset StartsAtUtc, DateTimeOffset? EndsAtUtc, string? OfficialUrl,
     IReadOnlyList<NoticeText> Translations, string? Version = null, bool ResetRead = false);
@@ -11,8 +15,21 @@ public sealed record NoticeDetail(NoticeItem Notice, string Body, string? Offici
 public sealed record NoticePage(IReadOnlyList<NoticeItem> Items, string? NextCursor);
 public sealed record AdminNotice(long Id, string Status, bool IsImportant, bool IsPinned, int Platforms,
     DateTimeOffset StartsAtUtc, DateTimeOffset? EndsAtUtc, string? OfficialUrl,
-    IReadOnlyList<NoticeText> Translations, string Version, DateTimeOffset CreatedAtUtc, DateTimeOffset UpdatedAtUtc, int ReadVersion);
-public sealed record AdminNoticeRow(long Id, string Title, string Status, bool IsImportant, bool IsPinned, DateTimeOffset StartsAtUtc, DateTimeOffset? EndsAtUtc, DateTimeOffset CreatedAtUtc);
+    IReadOnlyList<NoticeText> Translations, string Version, DateTimeOffset CreatedAtUtc, DateTimeOffset UpdatedAtUtc, int ReadVersion)
+{
+    /// <summary>The fingerprint of the CURRENT Korean title and body: a Machine translation with another fingerprint is out of date.</summary>
+    public string? SourceFingerprint { get; init; }
+}
+
+/// <summary>One language's machine translation of the Korean draft (not saved - the admin reviews it and saves the notice).</summary>
+public sealed record NoticeTranslationResult(string Language, string Status, string? Title, string? Body, string? ErrorCode);
+public sealed record NoticeTranslationBatch(string Provider, string SourceFingerprint, DateTimeOffset TranslatedAtUtc, IReadOnlyList<NoticeTranslationResult> Results);
+public sealed record NoticeTranslateRequest(string? Title, string? Body, IReadOnlyList<string>? Languages);
+public sealed record AdminNoticeRow(long Id, string Title, string Status, bool IsImportant, bool IsPinned, DateTimeOffset StartsAtUtc, DateTimeOffset? EndsAtUtc, DateTimeOffset CreatedAtUtc)
+{
+    /// <summary>How many languages the notice has (Korean included) - 대상 언어 in the list.</summary>
+    public int LanguageCount { get; init; }
+}
 public sealed record AdminNoticePage(IReadOnlyList<AdminNoticeRow> Items, string? NextCursor);
 public sealed class NoticeNotFoundException : Exception;
 public sealed class NoticeConflictException : Exception;
@@ -67,6 +84,66 @@ public sealed class NoticeService(INoticeStore store, TimeProvider time)
         foreach (var text in write.Translations) {
             if (!Languages.Contains(text.Language) || string.IsNullOrWhiteSpace(text.Title) || text.Title.Length > 200 || string.IsNullOrWhiteSpace(text.Body) || text.Body.Length > 20000)
                 throw new InvalidNoticeException("translations", "Use supported languages, title <=200 and body <=20000 characters.");
+            var knownOrigin = text.Origin is null or NoticeTranslation.OriginSource or NoticeTranslation.OriginMachine or NoticeTranslation.OriginManual;
+            var sourceIsKorean = text.Language == "ko" ? text.Origin is null or NoticeTranslation.OriginSource : text.Origin != NoticeTranslation.OriginSource;
+            var fingerprintOk = text.SourceFingerprint is null ? text.Origin != NoticeTranslation.OriginMachine : IsFingerprint(text.SourceFingerprint);
+            if (!knownOrigin || !sourceIsKorean || !fingerprintOk)
+                throw new InvalidNoticeException("translations", "Korean is the source; other languages are Machine (with the source fingerprint) or Manual.");
         }
+    }
+
+    /// <summary>The identity of a Korean original: SHA-256 (lower-case hex) of its trimmed title, a line feed and its trimmed body.</summary>
+    public static string SourceFingerprint(string title, string body) =>
+        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes($"{title.Trim()}\n{body.Trim()}"))).ToLowerInvariant();
+
+    private static bool IsFingerprint(string? value) => value is { Length: 64 } && value.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f');
+}
+
+/// <summary>
+/// 공지사항 자동 번역: the Korean draft into the chosen languages, one provider call per language (four at a time), nothing saved.
+/// A failed language says so and keeps no text; no language is ever reported as translated without the provider's answer.
+/// </summary>
+public sealed class NoticeTranslationService(Juple.Application.Translation.ITextTranslator translator, TimeProvider time)
+{
+    private static readonly SemaphoreSlim BatchSlots = new(1);
+
+    public string ProviderName => translator.ProviderName;
+
+    public bool IsConfigured => translator.IsConfigured;
+
+    public async Task<NoticeTranslationBatch> TranslateAsync(NoticeTranslateRequest request, CancellationToken ct)
+    {
+        var title = request.Title?.Trim() ?? "";
+        var body = request.Body?.Trim() ?? "";
+        if (title.Length is < 1 or > 200 || body.Length is < 1 or > 20000)
+            throw new InvalidNoticeException("translations", "Korean title (1-200) and body (1-20000) are required.");
+        var targets = (request.Languages is { Count: > 0 } chosen ? chosen : NoticeService.Languages.Where(x => x != "ko").ToArray()).ToArray();
+        if (targets.Distinct(StringComparer.Ordinal).Count() != targets.Length || targets.Any(x => x == "ko" || !NoticeService.Languages.Contains(x)))
+            throw new InvalidNoticeException("languages", "Choose distinct supported languages other than Korean.");
+        if (!translator.IsConfigured) throw new Juple.Application.Translation.TranslationUnavailableException("notConfigured");
+        if (!await BatchSlots.WaitAsync(TimeSpan.FromSeconds(1), ct)) throw new Juple.Application.Translation.TranslationUnavailableException("busy");
+        try
+        {
+            using var lanes = new SemaphoreSlim(4);
+            var results = await Task.WhenAll(targets.Select(async language =>
+            {
+                await lanes.WaitAsync(ct);
+                try
+                {
+                    var translated = await translator.TranslateAsync(new([title, body], "ko", language), ct);
+                    var (translatedTitle, translatedBody) = (translated.Texts[0].Trim(), translated.Texts[1].Trim());
+                    return translatedTitle.Length is < 1 or > 200 || translatedBody.Length is < 1 or > 20000
+                        ? new NoticeTranslationResult(language, "failed", null, null, "resultOutOfBounds")
+                        : new NoticeTranslationResult(language, "translated", translatedTitle, translatedBody, null);
+                }
+                catch (Juple.Application.Translation.TranslationUnavailableException e)
+                {
+                    return new NoticeTranslationResult(language, "failed", null, null, e.Code);
+                }
+                finally { lanes.Release(); }
+            }));
+            return new NoticeTranslationBatch(translator.ProviderName, NoticeService.SourceFingerprint(title, body), time.GetUtcNow(), results);
+        }
+        finally { BatchSlots.Release(); }
     }
 }

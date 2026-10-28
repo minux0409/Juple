@@ -2086,14 +2086,30 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20000)
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Origin")
+                        .HasMaxLength(16)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<string>("SourceFingerprint")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<DateTimeOffset?>("TranslatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
                     b.HasKey("NoticeId", "Language");
 
-                    b.ToTable("NoticeTranslations", "notices");
+                    b.ToTable("NoticeTranslations", "notices", t =>
+                        {
+                            t.HasCheckConstraint("CK_NoticeTranslations_Origin_Valid", "[Origin] IS NULL OR [Origin] IN ('Source', 'Machine', 'Manual')");
+                        });
                 });
 
             modelBuilder.Entity("Juple.Domain.Notifications.Notification", b =>
@@ -2675,6 +2691,31 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .HasMaxLength(8000)
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("AnswerDraftLanguage")
+                        .HasMaxLength(16)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<DateTimeOffset?>("AnswerDraftSavedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("AnswerDraftSourceKo")
+                        .HasMaxLength(8000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AnswerDraftTranslated")
+                        .HasMaxLength(8000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AnswerLanguage")
+                        .HasMaxLength(16)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<string>("AnswerSourceKo")
+                        .HasMaxLength(8000)
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTimeOffset?>("AnsweredAtUtc")
                         .HasColumnType("datetimeoffset");
 
@@ -2693,6 +2734,18 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("ContentLanguage")
+                        .HasMaxLength(16)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<DateTimeOffset?>("ContentTranslatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ContentTranslationKo")
+                        .HasMaxLength(8000)
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");

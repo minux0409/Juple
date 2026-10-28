@@ -10,7 +10,19 @@ namespace Juple.Api.Controllers.Admin;
 [Authorize(Policy = AuthorizationPolicies.JupleAdmin)]
 [AllowWhenSubscriptionExpired]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class AdminNoticesController(NoticeService notices) : ControllerBase {
+public sealed class AdminNoticesController(NoticeService notices, NoticeTranslationService translations) : ControllerBase {
+    /// <summary>Whether machine translation is available (provider name only - never a key or endpoint).</summary>
+    [HttpGet("translation-status")] public IActionResult TranslationStatus() => Ok(new { provider = translations.ProviderName, configured = translations.IsConfigured, languages = NoticeService.Languages });
+    /// <summary>
+    /// Machine-translates the Korean draft into the given languages (default: all others) WITHOUT saving anything. 409
+    /// translationNotConfigured when no provider is configured; a failing language is reported as failed with its code.
+    /// </summary>
+    [HttpPost("translations")] public Task<IActionResult> Translate([FromBody] NoticeTranslateRequest body, CancellationToken ct) => NoticeResults.Run(this, async () => {
+        try { return Ok(await translations.TranslateAsync(body, ct)); }
+        catch (Juple.Application.Translation.TranslationUnavailableException e) {
+            return e.Code == "busy" ? StatusCode(429, new { code = "translationBusy" }) : Conflict(new { code = e.Code == "notConfigured" ? "translationNotConfigured" : "translation_" + e.Code });
+        }
+    });
     [HttpGet] public Task<IActionResult> List([FromQuery] string? search, [FromQuery] string? status, [FromQuery] long? cursor, [FromQuery] int? limit, CancellationToken ct) =>
         NoticeResults.Run(this, async () => Ok(await notices.AdminListAsync(search, status, cursor, limit, ct)));
     [HttpGet("{id:long}")] public Task<IActionResult> Get(long id, CancellationToken ct) => NoticeResults.Run(this, async () => Ok(await notices.AdminGetAsync(id, ct)));
