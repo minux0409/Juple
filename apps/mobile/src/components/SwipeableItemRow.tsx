@@ -27,6 +27,7 @@ const DELETE_SWIPE_DISTANCE_SHARE = 0.4;
 const DELETE_SWIPE_VELOCITY = 0.5;
 /** A release that drifted more than this share of its horizontal travel vertically is a diagonal move, never a delete. */
 const DELETE_SWIPE_MAX_VERTICAL_SHARE = 0.5;
+const ACTION_ICON_SIZE = 22;
 /** The icon on a revealed action: white on the dark-grey share / red delete panels in both themes. */
 const ACTION_ICON_COLOR = '#FFFFFF';
 
@@ -155,6 +156,11 @@ export function SwipeableItemRow({
   const deleteDragLimit = rowWidth > 0 ? rowWidth : deleteDistance * 2;
   const hasStartSide = onShare !== undefined || startAction !== undefined;
   const translateX = useRef(new Animated.Value(0)).current;
+  // The drag logic works in the row's logical direction (positive: toward the start action, negative: toward delete); only what is
+  // read from and written to the screen is physical, so in RTL the swipe that uncovers the delete side is the one that asks to delete.
+  const rtlSign = I18nManager.isRTL ? -1 : 1;
+  // The trash stays in the middle of the red that is uncovered: half the drag, from the row's end edge.
+  const deleteIconShift = useRef(Animated.divide(translateX, 2)).current;
   /** Only the start side (공유 / startAction) stays open; a left swipe never rests open. */
   const openDirectionRef = useRef<'right' | null>(null);
   /** Set when this gesture already asked to delete, so one swipe never opens two confirmations. */
@@ -200,9 +206,9 @@ export function SwipeableItemRow({
 
   const openStart = useCallback(() => {
     openDirectionRef.current = 'right';
-    Animated.timing(translateX, { toValue: actionWidth, duration: 200, useNativeDriver: true }).start();
+    Animated.timing(translateX, { toValue: rtlSign * actionWidth, duration: 200, useNativeDriver: true }).start();
     notifyRowOpened(close);
-  }, [translateX, close, actionWidth]);
+  }, [translateX, close, actionWidth, rtlSign]);
 
   /**
    * Where the row goes when the finger lifts. A left swipe past the delete distance - or flung left, mostly horizontally -
@@ -211,10 +217,10 @@ export function SwipeableItemRow({
    */
   const settle = useCallback(
     (gesture: { readonly dx: number; readonly dy: number; readonly vx: number } | null) => {
-      const offset = currentOffsetRef.current;
+      const offset = rtlSign * currentOffsetRef.current;
       const horizontal = gesture !== null && Math.abs(gesture.dy) <= Math.abs(gesture.dx) * DELETE_SWIPE_MAX_VERTICAL_SHARE;
       const farEnough = offset <= -deleteDistance;
-      const flung = gesture !== null && gesture.vx <= -DELETE_SWIPE_VELOCITY && offset <= -actionWidth / 2;
+      const flung = gesture !== null && rtlSign * gesture.vx <= -DELETE_SWIPE_VELOCITY && offset <= -actionWidth / 2;
       if (onDelete && horizontal && (farEnough || flung) && !deleteRequestedRef.current) {
         deleteRequestedRef.current = true;
         close();
@@ -225,7 +231,7 @@ export function SwipeableItemRow({
         close();
       }
     },
-    [onDelete, hasStartSide, openThreshold, deleteDistance, actionWidth, openStart, close],
+    [onDelete, hasStartSide, openThreshold, deleteDistance, actionWidth, openStart, close, rtlSign],
   );
 
   // Never leave the list frozen if the row disappears mid-swipe (e.g. deleted by a refresh).
@@ -243,14 +249,14 @@ export function SwipeableItemRow({
           setSwipeScrollLock(true);
           deleteRequestedRef.current = false;
           if (openDirectionRef.current !== null) {
-            showEdge('left');
+            showEdge(rtlSign > 0 ? 'left' : 'right');
           } else {
             showEdge(gesture.dx > 0 ? 'left' : gesture.dx < 0 ? 'right' : 'both');
           }
         },
         onPanResponderMove: (_event, gesture) => {
           const base = openDirectionRef.current === 'right' ? actionWidth : 0;
-          const next = clamp(base + gesture.dx, onDelete ? -deleteDragLimit : 0, hasStartSide ? actionWidth : 0);
+          const next = rtlSign * clamp(base + rtlSign * gesture.dx, onDelete ? -deleteDragLimit : 0, hasStartSide ? actionWidth : 0);
           translateX.setValue(next);
           showEdge(next > 0 ? 'left' : next < 0 ? 'right' : revealedEdgeRef.current);
         },
@@ -268,7 +274,7 @@ export function SwipeableItemRow({
           settle(null);
         },
       }),
-    [disabled, translateX, settle, onDelete, hasStartSide, actionWidth, deleteDragLimit, showEdge],
+    [disabled, translateX, settle, onDelete, hasStartSide, actionWidth, deleteDragLimit, showEdge, rtlSign],
   );
 
   const handleContentPress = () => {
@@ -333,9 +339,9 @@ export function SwipeableItemRow({
             style={[styles.deleteUnderlay, styles.deleteAction]}
             testID={deleteTestID}
           >
-            <View style={[styles.deleteIconSlot, { width: actionWidth }]}>
-              <TrashIcon color={ACTION_ICON_COLOR} size={22} />
-            </View>
+            <Animated.View style={[styles.deleteIconSlot, { transform: [{ translateX: deleteIconShift }] }]}>
+              <TrashIcon color={ACTION_ICON_COLOR} size={ACTION_ICON_SIZE} />
+            </Animated.View>
           </View>
           ) : null}
         </View>
@@ -415,17 +421,17 @@ const styles = themedStyles(() => ({
   shareSlot: {
     start: 0,
   },
-  // The whole row behind the content, so however far the card is dragged the uncovered part is one red surface; the
-  // icon stays at the end edge, where the drag first uncovers it.
+  // The whole row behind the content, so however far the card is dragged the uncovered part is one red surface.
   deleteUnderlay: {
     ...StyleSheet.absoluteFill,
-    alignItems: 'flex-end',
     justifyContent: 'center',
   },
+  // Centred on the row's end edge at rest (half hidden, and the content covers it); deleteIconShift moves it with the drag.
   deleteIconSlot: {
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    justifyContent: 'center',
+    end: -ACTION_ICON_SIZE / 2,
+    height: ACTION_ICON_SIZE,
+    position: 'absolute',
+    width: ACTION_ICON_SIZE,
   },
   actionButton: {
     alignItems: 'center',

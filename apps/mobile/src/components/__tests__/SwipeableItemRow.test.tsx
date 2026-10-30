@@ -1,5 +1,7 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Text, View } from 'react-native';
+import { I18nManager, StyleSheet, Text, View } from 'react-native';
+import { TrashIcon } from '../../icons/TrashIcon';
+import { colors } from '../../theme/tokens';
 import i18n from '../../i18n';
 import { SwipeableItemRow } from '../SwipeableItemRow';
 import { closeOpenRow, useSwipeAwareScrollEnabled } from '../swipeableRowCoordinator';
@@ -518,5 +520,63 @@ describe('SwipeableItemRow vs. the list\'s vertical scroll (a horizontal swipe k
     });
 
     expect(findByAccessibilityLabel(renderer, i18n.t('common.share'))).toBeDefined();
+  });
+});
+
+describe('SwipeableItemRow - the red underlay while swiping toward delete', () => {
+  afterEach(() => {
+    closeOpenRow();
+  });
+
+  async function renderDeletable(onDelete: () => void = jest.fn(), onShare: () => void = jest.fn()) {
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <SwipeableItemRow deleteTestID="under" onDelete={onDelete} onPress={jest.fn()} onShare={onShare}>
+          <Text>Row</Text>
+        </SwipeableItemRow>,
+      );
+    });
+    return renderer;
+  }
+
+  it('shows the destructive red with a white trash centred vertically, moving with the drag, and it is not a button', async () => {
+    const renderer = await renderDeletable();
+    await revealRow(renderer);
+    const under = renderer.root.findAll(node => node.props.testID === 'under' && node.props.pointerEvents === 'none')[0];
+    expect(StyleSheet.flatten(under.props.style)).toEqual(expect.objectContaining({ backgroundColor: colors.destructive, justifyContent: 'center' }));
+    expect(under.findByType(TrashIcon).props.color).toBe('#FFFFFF');
+    const slot = under.findAll(node => typeof node.type === 'string' && StyleSheet.flatten(node.props.style)?.width === 22)[0];
+    expect(StyleSheet.flatten(slot.props.style)).toEqual(expect.objectContaining({ end: -11, width: 22, height: 22 }));
+    expect(renderer.root.findAll(node => node.props.testID === 'under' && typeof node.props.onPress === 'function')).toHaveLength(0);
+  });
+
+  describe('RTL', () => {
+    const original = I18nManager.isRTL;
+    beforeAll(() => {
+      Object.defineProperty(I18nManager, 'isRTL', { configurable: true, value: true });
+    });
+    afterAll(() => {
+      Object.defineProperty(I18nManager, 'isRTL', { configurable: true, value: original });
+    });
+
+    it('the delete side is the physical left edge: a right swipe asks to delete, a left swipe opens 공유 and deletes nothing', async () => {
+      const onDelete = jest.fn();
+      const renderer = await renderDeletable(onDelete);
+      const swipe = async (dx: number) => {
+        const layer = contentLayerOf(renderer);
+        await act(async () => {
+          layer.props.onResponderGrant(FAKE_RESPONDER_EVENT);
+          layer.props.onResponderMove(touchesMoved(dx));
+          layer.props.onResponderRelease(touchesMoved(dx));
+        });
+      };
+      await swipe(-200);
+      expect(onDelete).not.toHaveBeenCalled();
+      expect(findByAccessibilityLabel(renderer, '공유')).toBeDefined();
+      await act(async () => closeOpenRow());
+      await swipe(200);
+      expect(onDelete).toHaveBeenCalledTimes(1);
+    });
   });
 });
