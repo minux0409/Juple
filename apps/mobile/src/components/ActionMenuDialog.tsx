@@ -1,10 +1,12 @@
 import type { ComponentType, ReactNode } from 'react';
-import { Modal, StyleSheet, Text, View } from 'react-native';
+import { Modal, Platform, StyleSheet, Text, View } from 'react-native';
 import { Pressable } from './Pressable';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { KeyboardFieldScope } from './keyboardToolbar';
 
 const ICON_SIZE = 20;
+/** 취소's minimum height: the platform's touch target (iOS 44pt, Android 48dp). */
+const CANCEL_MIN_HEIGHT = Platform.OS === 'android' ? 48 : minTouchTarget;
 
 export interface ActionMenuDialogAction {
   readonly label: string;
@@ -39,7 +41,7 @@ export function ActionMenuDialog({ visible, title, header, actions, cancelLabel,
       {title ? <Text style={styles.title}>{title}</Text> : null}
       {header ? <View style={actions.length > 0 ? styles.header : undefined}>{header}</View> : null}
       {actions.map(action => {
-        const color = action.destructive ? colors.dangerText : colors.textPrimary;
+        const color = action.destructive ? colors.destructiveText : colors.textPrimary;
         const Icon = action.icon;
         return <Pressable
           accessibilityLabel={action.label}
@@ -78,7 +80,8 @@ const styles = themedStyles(() => ({
   pressed: { backgroundColor: colors.surfaceMuted },
   icon: { alignItems: 'center', flexShrink: 0, height: ICON_SIZE + 2, justifyContent: 'center', width: ICON_SIZE + 2 },
   cancelArea: { borderTopColor: colors.divider, borderTopWidth: 1, marginTop: spacing.sm, paddingTop: spacing.xs },
-  cancel: { borderRadius: radii.md, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md, paddingVertical: spacing.md },
+  // A little tighter than an action row, but never under the platform's touch target (44pt iOS, 48dp Android).
+  cancel: { borderRadius: radii.md, justifyContent: 'center', minHeight: CANCEL_MIN_HEIGHT, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   label: { color: colors.textPrimary, fontSize: 16, fontWeight: '600', textAlign: 'center' },
   labelWithIcon: { flex: 1, flexShrink: 1, textAlign: 'auto' },
 }));

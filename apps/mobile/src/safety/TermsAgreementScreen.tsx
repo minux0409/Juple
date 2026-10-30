@@ -222,6 +222,9 @@ function PrivacyDetail() {
   );
 }
 
+/** The leading inset of every agreement row (the 전체동의 card's padding too) - see allRow / rowMain. */
+const CHECK_ROW_INSET = spacing.md;
+
 const styles = themedStyles(() => ({
   screen: { backgroundColor: colors.surface, flex: 1 },
   scroll: { flex: 1 },
@@ -230,8 +233,10 @@ const styles = themedStyles(() => ({
   title: { color: colors.textPrimary, fontSize: 28, fontWeight: '800', marginTop: spacing.lg },
   subtitle: { color: colors.textSecondary, fontSize: 15, lineHeight: 22, marginBottom: spacing.xl, marginTop: spacing.sm },
   row: { alignItems: 'center', flexDirection: 'row', minHeight: minTouchTarget + 8 },
-  allRow: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, paddingHorizontal: spacing.md },
-  rowMain: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: spacing.sm, minHeight: minTouchTarget + 8 },
+  // The 전체동의 card's inner padding and the single rows' leading inset are ONE value, so every check box sits on the same vertical
+  // line (same centre X) and every label starts at the same X - the card's grey fill no longer shifts its box inwards.
+  allRow: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, paddingHorizontal: CHECK_ROW_INSET },
+  rowMain: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: spacing.sm, minHeight: minTouchTarget + 8, paddingStart: CHECK_ROW_INSET },
   rowLabel: { color: colors.textPrimary, flexShrink: 1, fontSize: 15, lineHeight: 21 },
   allLabel: { color: colors.textPrimary, flexShrink: 1, fontSize: 16, fontWeight: '700', marginStart: spacing.sm },
   divider: { backgroundColor: colors.divider, height: 1, marginVertical: spacing.md },

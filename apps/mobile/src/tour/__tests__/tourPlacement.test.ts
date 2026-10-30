@@ -1,4 +1,4 @@
-import { placeCard, sameRect, spotlightFor, TOUR_EDGE, TOUR_GAP, TOUR_SPOTLIGHT_PADDING } from '../tourPlacement';
+import { placeCard, sameRect, spotlightFor, spotlightRadius as cornerRadiusFor, TOUR_EDGE, TOUR_GAP, TOUR_SPOTLIGHT_PADDING } from '../tourPlacement';
 
 const SCREEN = { width: 400, height: 800 };
 const CARD = { width: 320, height: 180 };
@@ -148,5 +148,23 @@ describe('cornerWedges - the dimmed area follows the rounded spotlight', () => {
     expect(wedges).toHaveLength(4);
     expect(wedges[0].box.width).toBe(20);
     expect(wedges[0].ring.size).toBe(80);
+  });
+});
+
+describe('spotlightFor - a target can declare its own padding', () => {
+  const container = { width: 400, height: 900 };
+  const tab = { x: 100, y: 820, width: 100, height: 56 };
+
+  it('a bottom tab (padding 0) is ringed exactly on its own edges - never past it into the neighbours or above the bar', () => {
+    expect(spotlightFor(tab, container, 0)).toEqual(tab);
+  });
+
+  it('every other target keeps the default margin', () => {
+    expect(spotlightFor(tab, container)).toEqual({ x: 100 - TOUR_SPOTLIGHT_PADDING, y: 820 - TOUR_SPOTLIGHT_PADDING, width: 100 + 2 * TOUR_SPOTLIGHT_PADDING, height: 56 + 2 * TOUR_SPOTLIGHT_PADDING });
+  });
+
+  it('the ring\'s corner follows the same padding', () => {
+    expect(cornerRadiusFor(12, { width: 100, height: 56 }, 0)).toBe(12);
+    expect(cornerRadiusFor(12, { width: 100, height: 56 })).toBe(12 + TOUR_SPOTLIGHT_PADDING);
   });
 });

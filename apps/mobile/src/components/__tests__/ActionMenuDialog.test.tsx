@@ -20,12 +20,12 @@ const render = (props: Partial<React.ComponentProps<typeof ActionMenuDialog>> = 
 };
 
 describe('ActionMenuDialog', () => {
-  it('취소 is a full row like an action - padding above AND below its label, at least the 44pt target - and shows its press', () => {
+  it('취소 is a compact centred row - small padding above AND below its label, never under the 44pt target - and shows its press', () => {
     const onCancel = jest.fn();
     const renderer = render({ onCancel });
     const cancel = renderer.root.findAll(node => node.props.testID === 'action-menu-cancel' && typeof node.props.style === 'function')[0];
     const style = StyleSheet.flatten(cancel.props.style({ pressed: false }));
-    expect(style).toEqual(expect.objectContaining({ minHeight: minTouchTarget, paddingVertical: spacing.md, justifyContent: 'center' }));
+    expect(style).toEqual(expect.objectContaining({ minHeight: minTouchTarget, paddingVertical: spacing.sm, justifyContent: 'center' }));
     expect(StyleSheet.flatten(cancel.props.style({ pressed: true })).backgroundColor).toBeDefined();
     act(() => cancel.props.onPress());
     expect(onCancel).toHaveBeenCalledTimes(1);

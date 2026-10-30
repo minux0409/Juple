@@ -408,31 +408,25 @@ describe('SharePasswordCard - the app leaving the foreground', () => {
 });
 
 describe('SharePasswordCard - 복사', () => {
-  it('copies the real password while it is still masked - no need to show it first - and on iOS says 복사되었습니다 in the card', async () => {
+  it('copies the real password while it is still masked - no need to show it first - and on iOS shows the 복사되었습니다 toast', async () => {
     jest.mocked(getSharePasswordStatus).mockResolvedValue(on);
     jest.mocked(revealSharePassword).mockResolvedValue('trip-2026');
     const renderer = await renderCard();
     expect(displayedValue(renderer)).toBe('•'.repeat('trip-2026'.length));
 
-    jest.useFakeTimers();
     await press(renderer, 'share-password-copy');
     expect(displayedValue(renderer)).toBe('•'.repeat('trip-2026'.length)); // still masked
 
     expect(Clipboard.setString).toHaveBeenCalledTimes(1);
     expect(jest.mocked(Clipboard.setString).mock.calls[0][0] === 'trip-2026').toBe(true);
     expect(revealSharePassword).toHaveBeenCalledTimes(1);
-    // iOS says nothing about a copy itself: the card does - inside the card (this screen is a sheet on iOS, the app-wide toast
-    // would sit behind it), never with the password in it.
-    expect(toastMessages(renderer)).toEqual([]);
-    expect(renderer.root.findByProps({ testID: 'share-password-copied' }).props.children).toBe('복사되었습니다');
+    // iOS says nothing about a copy itself: the app's toast does (a popup, not a line in the card), never with the password in it.
+    expect(toastMessages(renderer)).toEqual(['복사되었습니다']);
     expect(allText(renderer)).not.toContain('trip-2026');
     expect(has(renderer, 'share-password-error')).toBe(false);
-    // It goes again by itself.
-    act(() => {
-      jest.advanceTimersByTime(2100);
-    });
-    jest.useRealTimers();
-    expect(has(renderer, 'share-password-copied')).toBe(false);
+    // Copying again replaces the toast - never a stack of them.
+    await press(renderer, 'share-password-copy');
+    expect(toastMessages(renderer)).toEqual(['복사되었습니다']);
   });
 
   describe.each([
@@ -460,9 +454,8 @@ describe('SharePasswordCard - 복사', () => {
       await press(renderer, 'share-password-copy');
 
       expect(Clipboard.setString).toHaveBeenCalledTimes(1);
-      expect(has(renderer, 'share-password-copied')).toBe(showsOwnNotice);
+      expect(toastMessages(renderer)).toEqual(showsOwnNotice ? ['복사되었습니다'] : []);
       expect(announce).toHaveBeenCalledTimes(showsOwnNotice ? 1 : 0);
-      expect(toastMessages(renderer)).toEqual([]);
       announce.mockRestore();
     });
   });
@@ -480,8 +473,7 @@ describe('SharePasswordCard - 복사', () => {
     expect(renderer.root.findByProps({ testID: 'share-password-error' }).props.children).toBe(i18n.t('collections.sharePasswordCopyFailed'));
     expect(i18n.t('collections.sharePasswordCopyFailed')).toBe('복사하지 못했어요. 다시 시도해 주세요.');
     expect(toastMessages(renderer)).toEqual([]);
-    // Never "copied" for a copy that did not happen.
-    expect(has(renderer, 'share-password-copied')).toBe(false);
+    // Never "copied" for a copy that did not happen (no toast above).
     // Never shown without the eye: still one dot per character, not selectable, nothing in plain text.
     expect(displayedValue(renderer)).toBe('•'.repeat('trip-2026'.length));
     expect(valueText(renderer)!.props.selectable).toBe(false);

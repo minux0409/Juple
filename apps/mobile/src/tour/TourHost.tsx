@@ -7,7 +7,7 @@ import { navigationRef } from '../navigation/navigationRef';
 import { cardShadow, colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { cancelTour, endTour, getActiveTour, goToTourStep, subscribeTour, type ActiveTour } from './tourController';
 import { cornerWedges, placeCard, sameRect, spotlightFor, spotlightRadius, TOUR_EDGE, type TourRect, type TourSize } from './tourPlacement';
-import { getTourTargetRadius, measureTourTarget, subscribeTourTargetLayout } from './tourTargets';
+import { getTourTargetPadding, getTourTargetRadius, measureTourTarget, subscribeTourTargetLayout } from './tourTargets';
 
 const CARD_MAX_WIDTH = 360;
 const FIND_ATTEMPTS = 20;
@@ -170,9 +170,10 @@ function TourOverlay({ tour }: { readonly tour: ActiveTour }) {
   }, [body, progress, title]);
 
   const waitingForTarget = step.targetId !== undefined && rect === null && !missing;
-  const spotlight = container && rect ? spotlightFor({ ...rect, x: rect.x - container.originX, y: rect.y - container.originY }, container) : null;
+  const targetPadding = step.targetId ? getTourTargetPadding(step.targetId) : undefined;
+  const spotlight = container && rect ? spotlightFor({ ...rect, x: rect.x - container.originX, y: rect.y - container.originY }, container, targetPadding) : null;
   // ONE radius for the ring and the dimmed area's corners (the target's own radius + the padding, clamped to a pill).
-  const spotlightCornerRadius = spotlight ? spotlightRadius(step.targetId ? getTourTargetRadius(step.targetId) : undefined, spotlight) : 0;
+  const spotlightCornerRadius = spotlight ? spotlightRadius(step.targetId ? getTourTargetRadius(step.targetId) : undefined, spotlight, targetPadding) : 0;
   const cardWidth = Math.min(CARD_MAX_WIDTH, Math.max(0, (container?.width ?? windowWidth) - 2 * TOUR_EDGE));
   const placement = container && cardSize ? placeCard(spotlight, container, cardSize) : null;
 

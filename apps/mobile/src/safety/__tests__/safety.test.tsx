@@ -2,7 +2,7 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { ApiError } from '../../api/ApiError';
 import i18n from '../../i18n';
 import { ReportModal } from '../ReportModal';
-import { Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import { AppModal } from '../../components/AppModal';
 import { TermsAgreementScreen } from '../TermsAgreementScreen';
 import { useTermsOnboarding } from '../useTermsOnboarding';
@@ -164,6 +164,21 @@ describe('Terms onboarding (the Agreement screen)', () => {
     });
     return renderer;
   }
+
+  it('lines up every check box: 전체동의 and each single agreement start their box at the same inset (one vertical line)', async () => {
+    jest.mocked(getTermsStatus).mockResolvedValue(status(false));
+    const renderer = await mount();
+    const leading = (testID: string) => {
+      const node = renderer.root.findAll(candidate => candidate.props.testID === testID && typeof candidate.type === 'string')[0];
+      const style = StyleSheet.flatten(node.props.style);
+      return style.paddingStart ?? style.paddingHorizontal ?? style.paddingLeft ?? 0;
+    };
+    const all = leading('agreement-all');
+    expect(all).toBeGreaterThan(0);
+    for (const testID of ['agreement-terms', 'agreement-privacy', 'agreement-age']) {
+      expect(leading(testID)).toBe(all);
+    }
+  });
 
   it('shows the Agreement before anything else for an account that has not accepted, with 다음 disabled', async () => {
     jest.mocked(getTermsStatus).mockResolvedValue(status(false));

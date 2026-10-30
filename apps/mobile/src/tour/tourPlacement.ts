@@ -31,9 +31,9 @@ export const DEFAULT_TOUR_TARGET_RADIUS = 8;
  * The corner radius of the spotlight ring: the target's own radius grown by the padding the ring reaches beyond it (an outer
  * rounded rectangle is R + P where the inner one is R), never more than a pill of the ring's own size.
  */
-export function spotlightRadius(targetRadius: number | undefined, spotlight: TourSize): number {
+export function spotlightRadius(targetRadius: number | undefined, spotlight: TourSize, padding: number = TOUR_SPOTLIGHT_PADDING): number {
   const base = targetRadius !== undefined && Number.isFinite(targetRadius) && targetRadius >= 0 ? targetRadius : DEFAULT_TOUR_TARGET_RADIUS;
-  return Math.min(base + TOUR_SPOTLIGHT_PADDING, Math.min(spotlight.width, spotlight.height) / 2);
+  return Math.min(base + padding, Math.min(spotlight.width, spotlight.height) / 2);
 }
 
 export type TourCorner = 'tl' | 'tr' | 'bl' | 'br';
@@ -68,11 +68,12 @@ export function cornerWedges(spotlight: TourRect, radius: number): readonly Tour
 }
 
 /** The target grown by the spotlight padding and kept inside the container. */
-export function spotlightFor(target: TourRect, container: TourSize): TourRect {
-  const x = Math.max(0, target.x - TOUR_SPOTLIGHT_PADDING);
-  const y = Math.max(0, target.y - TOUR_SPOTLIGHT_PADDING);
-  const right = Math.min(container.width, target.x + target.width + TOUR_SPOTLIGHT_PADDING);
-  const bottom = Math.min(container.height, target.y + target.height + TOUR_SPOTLIGHT_PADDING);
+/** `padding`: how far the ring stands off the target (the target's own, else TOUR_SPOTLIGHT_PADDING). */
+export function spotlightFor(target: TourRect, container: TourSize, padding: number = TOUR_SPOTLIGHT_PADDING): TourRect {
+  const x = Math.max(0, target.x - padding);
+  const y = Math.max(0, target.y - padding);
+  const right = Math.min(container.width, target.x + target.width + padding);
+  const bottom = Math.min(container.height, target.y + target.height + padding);
   return { x, y, width: Math.max(0, right - x), height: Math.max(0, bottom - y) };
 }
 

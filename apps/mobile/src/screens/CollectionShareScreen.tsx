@@ -47,7 +47,9 @@ import { runWithConcurrency } from '../collections/runWithConcurrency';
 import { FriendPickerModal, type FriendUnavailableReason } from '../friends/FriendPickerModal';
 import type { Friend } from '../friends/api/friendsApi';
 import { ActionMenuDialog, type ActionMenuDialogAction } from '../components/ActionMenuDialog';
-import { useAppToast } from '../components/AppToast';
+import { AppToastProvider, useAppToast } from '../components/AppToast';
+import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { InfoCallout } from '../components/InfoCallout';
@@ -451,8 +453,22 @@ function SectionCard({
  * focus, on returning to the app and when an invitation is answered (Push). Opening this screen
  * never changes anything by itself.
  */
-export function CollectionShareScreen({ route }: Props) {
+/**
+ * The Share screen with a toast host of its own: on iOS this screen is a sheet presented over the app, so the app-wide toast (drawn
+ * at the app's root) would sit BEHIND it and never be seen - its messages ("복사되었습니다", a permission notice) show inside the
+ * sheet instead, the same toast as everywhere else, above the sheet's bottom safe area.
+ */
+export function CollectionShareScreen(props: Props) {
+  return (
+    <AppToastProvider>
+      <CollectionShareScreenContent {...props} />
+    </AppToastProvider>
+  );
+}
+
+function CollectionShareScreenContent({ route }: Props) {
   const { collectionId } = route.params;
+  useToastBottomAnchor(useSafeAreaInsets().bottom);
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const { showNotificationToast } = useAppToast();
@@ -1584,7 +1600,7 @@ const styles = themedStyles(() => ({
     paddingHorizontal: spacing.md,
   },
   primaryLabel: { color: colors.onBrand, fontSize: 15, fontWeight: '700', textAlign: 'center' },
-  removeLabel: { color: colors.dangerText, fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  removeLabel: { color: colors.destructiveText, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   secondaryButton: {
     alignItems: 'center',
     borderColor: colors.border,
