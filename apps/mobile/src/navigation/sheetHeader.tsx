@@ -13,7 +13,7 @@ function HeaderBackButton({ color, onPress }: { readonly color: string; readonly
     <Pressable
       accessibilityLabel={t('common.back')}
       accessibilityRole="button"
-      hitSlop={{ top: 10, bottom: 10, left: 16, right: 16 }}
+      hitSlop={ARROW_HIT_SLOP}
       onPress={onPress}
       style={styles.arrow}
       testID="header-back"
@@ -51,6 +51,14 @@ export function iosHeaderBackOptions(goBack: () => void): NativeStackNavigationO
 const IOS_BAR_LEADING_INSET = 24;
 const ARROW_SIZE = 24;
 const ARROW_TO_TITLE_GAP = 32;
+/**
+ * The arrow's control is a minTouchTarget square centred on the glyph (so its press shows as a circle around the arrow, like the
+ * other icon buttons); this pulls it back by the extra width on each side, so the glyph, the title after it and the touch area
+ * (with ARROW_HIT_SLOP) stay exactly where they were with a glyph-wide control.
+ */
+const ARROW_SQUARE_INSET = (minTouchTarget - ARROW_SIZE) / 2;
+/** The same touch area as before: 16pt beyond the glyph on each side, 10pt above and below. */
+const ARROW_HIT_SLOP = { top: 10, bottom: 10, left: 16 - ARROW_SQUARE_INSET, right: 16 - ARROW_SQUARE_INSET };
 
 /** iOS: the back arrow and the screen's title together as the bar's leading item - left-aligned like Android, never centered. */
 function HeaderBackAndTitle({ canGoBack, color, title }: { readonly canGoBack: boolean; readonly color: string; readonly title: ReactElement }) {
@@ -64,7 +72,7 @@ function HeaderBackAndTitle({ canGoBack, color, title }: { readonly canGoBack: b
         <Pressable
           accessibilityLabel={t('common.back')}
           accessibilityRole="button"
-          hitSlop={{ top: 10, bottom: 10, left: 16, right: 16 }}
+          hitSlop={ARROW_HIT_SLOP}
           onPress={() => navigation.goBack()}
           style={styles.arrow}
           testID="header-back"
@@ -98,8 +106,15 @@ export function iosLeadingTitleOptions(title: ReactElement): NativeStackNavigati
 
 const styles = themedStyles(() => ({
   leading: { alignItems: 'center', flexDirection: 'row', minHeight: minTouchTarget },
-  // No side padding: the glyph starts exactly on the bar's leading inset (the content edge).
-  arrow: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', width: ARROW_SIZE },
+  // The glyph starts exactly on the bar's leading inset (the content edge): the square control reaches ARROW_SQUARE_INSET past it.
+  arrow: {
+    alignItems: 'center',
+    height: minTouchTarget,
+    justifyContent: 'center',
+    marginEnd: -ARROW_SQUARE_INSET,
+    marginStart: -ARROW_SQUARE_INSET,
+    width: minTouchTarget,
+  },
   title: { flexShrink: 1, minWidth: 0 },
   titleAfterArrow: { marginStart: ARROW_TO_TITLE_GAP },
 }));

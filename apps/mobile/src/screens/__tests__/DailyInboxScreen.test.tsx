@@ -284,6 +284,17 @@ describe('DailyInboxScreen controls', () => {
     expect(noGroupingSelector(renderer)).toBe(true);
     expect(renderer.root.findAllByType(ViewModeToggle)).toHaveLength(1);
   });
+
+  it('the save button inside the URL field has the field\'s inner end corners, so its press follows the field\'s rounded edge', async () => {
+    setUpItems([]);
+    const renderer = await renderScreen();
+    const save = renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('common.save') && typeof node.props.onPress === 'function')[0];
+    const field = renderer.root.findAll(node => typeof node.type === 'string' && node.findAll(inner => inner === save).length > 0 && StyleSheet.flatten(node.props.style)?.borderWidth === 1)[0];
+    const fieldStyle = StyleSheet.flatten(field.props.style);
+    const saveStyle = StyleSheet.flatten(save.props.style);
+    expect(saveStyle.borderTopEndRadius).toBe(fieldStyle.borderRadius - fieldStyle.borderWidth);
+    expect(saveStyle.borderBottomEndRadius).toBe(fieldStyle.borderRadius - fieldStyle.borderWidth);
+  });
 });
 
 describe('DailyInboxScreen swipe actions', () => {

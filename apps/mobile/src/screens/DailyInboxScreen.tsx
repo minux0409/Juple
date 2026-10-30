@@ -716,9 +716,13 @@ const styles = themedStyles(() => ({
     textAlign: 'left',
     textAlignVertical: 'center',
   },
+  // The field's own end corners (its radius inside the 1pt border): the button's press layer follows the field's rounded edge
+  // instead of a square patch past it. The wrapper cannot clip (overflow hidden would drop its iOS shadow).
   saveIconButton: {
     alignItems: 'center',
     alignSelf: 'stretch',
+    borderBottomEndRadius: radii.lg - 1,
+    borderTopEndRadius: radii.lg - 1,
     flexShrink: 0,
     justifyContent: 'center',
     minHeight: minTouchTarget,

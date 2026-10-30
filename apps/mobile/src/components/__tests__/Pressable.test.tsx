@@ -68,6 +68,26 @@ describe('the app Pressable - a press feedback only while a control is held', ()
     expect(circleOf(root).props.pointerEvents).toBe('none');
   });
 
+  it('a filled icon button (a coloured rounded square, e.g. the "+") gets the layer in its own radius - no circle inside it', () => {
+    const { inner } = render({ accessibilityRole: 'button', accessibilityLabel: '새 컬렉션', onPress: jest.fn(), style: { backgroundColor: '#6751FC', borderRadius: 14, height: 44, width: 44 } }, <Icon />);
+    laidOut(inner, 44, 44);
+    const root = drawn(inner, true);
+    expect(circleOf(root)).toBeUndefined();
+    expect(StyleSheet.flatten(layerOf(root).props.style)).toMatchObject({ borderRadius: 14, backgroundColor: colors.pressedOverlayStrong });
+  });
+
+  it('a transparent background still counts as no fill (an icon button keeps its circle)', () => {
+    const { inner } = render({ accessibilityRole: 'button', onPress: jest.fn(), style: { backgroundColor: 'transparent', height: 44, width: 44 } }, <Icon />);
+    laidOut(inner, 44, 44);
+    expect(circleOf(drawn(inner, true))).toBeDefined();
+  });
+
+  it('a button built into a rounded field follows the field\'s end corners', () => {
+    const { inner } = render({ accessibilityRole: 'button', onPress: jest.fn(), style: { borderTopEndRadius: 15, borderBottomEndRadius: 15, width: 44 } }, <Icon />);
+    laidOut(inner, 44, 58);
+    expect(StyleSheet.flatten(layerOf(drawn(inner, true)).props.style)).toMatchObject({ borderTopEndRadius: 15, borderBottomEndRadius: 15 });
+  });
+
   it('a wide row or card without words of its own is not a circle - it gets the row-shaped layer', () => {
     const { inner } = render({ accessibilityRole: 'button', onPress: jest.fn(), style: { borderRadius: 12 } }, <Icon />);
     laidOut(inner, 360, 72);

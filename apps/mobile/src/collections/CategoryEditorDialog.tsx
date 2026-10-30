@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { Pressable } from '../components/Pressable';
 import { ThemedTextInput } from '../components/ThemedTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -76,6 +76,25 @@ export function CategoryEditorDialog({
   const [imageError, setImageError] = useState<string | null>(null);
   // The photo just picked, being fitted to the tile (the same crop screen as a profile photo, with the tile's rounded square).
   const [crop, setCrop] = useState<PickedImageAsset | null>(null);
+  // The room the card may use (the overlay minus its padding, minus the keyboard while it is up) and the card's own height
+  // while nothing constrains it - see cardPlacementWithKeyboard.
+  const [area, setArea] = useState<DialogArea>({ width: 0, resting: 0, current: 0 });
+  const [cardHeight, setCardHeight] = useState(0);
+  const placement = cardPlacementWithKeyboard(area, cardHeight);
+  const onAreaLayout = (event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    setArea(previous => {
+      // The keyboard only ever takes height away; the full (resting) height is re-learned when the width changes (rotation).
+      const resting = previous.width === width ? Math.max(previous.resting, height) : height;
+      return previous.width === width && previous.resting === resting && previous.current === height ? previous : { width, resting, current: height };
+    });
+  };
+  const onCardLayout = (event: LayoutChangeEvent) => {
+    if (placement === null) {
+      const height = event.nativeEvent.layout.height;
+      setCardHeight(previous => (previous === height ? previous : height));
+    }
+  };
 
   useEffect(() => {
     if (visible) {
@@ -130,7 +149,7 @@ export function CategoryEditorDialog({
       <KeyboardSafeView
         style={[
           styles.overlay,
-          { paddingTop: DIALOG_TOP_CLEARANCE + insets.top, paddingBottom: spacing.xl + insets.bottom },
+          { paddingTop: spacing.xl + insets.top, paddingBottom: spacing.xl + insets.bottom },
         ]}
       >
         <Pressable
@@ -139,7 +158,13 @@ export function CategoryEditorDialog({
           onPress={isSubmitting ? undefined : onCancel}
           style={StyleSheet.absoluteFill}
         />
-        <View accessibilityViewIsModal style={styles.card}>
+        <View onLayout={onAreaLayout} pointerEvents="box-none" style={[styles.area, placement !== null && styles.areaWithKeyboard]} testID="collection-editor-area">
+        <View
+          accessibilityViewIsModal
+          onLayout={onCardLayout}
+          style={[styles.card, placement !== null && { marginTop: placement.top, maxHeight: placement.maxHeight }]}
+          testID="collection-editor-card"
+        >
           <Text style={styles.title}>{mode === 'create' ? t('collections.create') : t('collections.editTitle')}</Text>
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <View style={styles.previewRow}>
@@ -206,6 +231,7 @@ export function CategoryEditorDialog({
             />
           </View>
         </View>
+        </View>
       </KeyboardSafeView>
       {crop !== null ? (
         <PhotoCropper
@@ -224,23 +250,51 @@ export function CategoryEditorDialog({
   );
 }
 
+/** The smallest card that still shows the title, the name field, a row of the form and the buttons (the rest scrolls inside). */
+const MIN_CARD_HEIGHT_WITH_KEYBOARD = 280;
+
+export interface DialogArea {
+  readonly width: number;
+  /** The area's height with nothing taking space from it (no keyboard). */
+  readonly resting: number;
+  /** Its height now (smaller while the keyboard is up). */
+  readonly current: number;
+}
+
 /**
- * How far below the safe area the card may rise when space runs short (the keyboard is up): clear of the screen's title row.
- * With only a small margin the card rose into that row and its rounded corner left a sliver of the controls there showing (the
- * Collections screen's purple "+"), looking like part of the dialog. Without the keyboard the card stays centred; with it, the card
- * shrinks into the room that is left and its content scrolls inside.
+ * Where the card goes while the keyboard takes part of the screen - null when nothing does (the card is simply centred).
+ * The card keeps the top it had centred in the full area and only gets shorter (its form scrolls inside), so it never rises into
+ * the screen's header behind the dialog (the Collections screen's "+" used to sit right on its top edge). Only when the room left
+ * under that top would be smaller than a usable card does it move up - and then no further than it must.
  */
-const DIALOG_TOP_CLEARANCE = 64;
+export function cardPlacementWithKeyboard(
+  area: DialogArea,
+  cardHeight: number,
+  minCardHeight: number = MIN_CARD_HEIGHT_WITH_KEYBOARD,
+): { readonly top: number; readonly maxHeight: number } | null {
+  if (area.resting <= 0 || cardHeight <= 0 || area.current >= area.resting) {
+    return null;
+  }
+  const restingTop = Math.max(0, (area.resting - Math.min(cardHeight, area.resting)) / 2);
+  const top = Math.min(restingTop, Math.max(0, area.current - minCardHeight));
+  return { top, maxHeight: Math.max(0, area.current - top) };
+}
 
 const styles = themedStyles(() => ({
-  // The theme's scrim (darker in Dark): with the keyboard up the card rises into the screen's header, and the screen's purple "+"
-  // under a light scrim showed around the card's rounded corner as if a purple corner stuck out of the dialog.
+  // The theme's scrim (darker in Dark) dims and blocks everything behind the dialog.
   overlay: {
-    alignItems: 'center',
     backgroundColor: colors.scrim,
     flex: 1,
-    justifyContent: 'center',
     paddingHorizontal: spacing.xl,
+  },
+  // The measured room for the card: centred while nothing takes space; top-anchored (cardPlacementWithKeyboard) with the keyboard.
+  area: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  areaWithKeyboard: {
+    justifyContent: 'flex-start',
   },
   // A thin edge in the theme's border colour makes the card's own corner unmistakable over whatever is behind it; overflow
   // hidden keeps every child (and Android's drawing) inside the rounded corners however the keyboard resizes the window.

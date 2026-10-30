@@ -3,7 +3,7 @@ import { Image, StyleSheet, TextInput } from 'react-native';
 import { colors } from '../../theme/tokens';
 import { launchImageLibrary } from 'react-native-image-picker';
 import i18n from '../../i18n';
-import { CategoryEditorDialog } from '../CategoryEditorDialog';
+import { CategoryEditorDialog, cardPlacementWithKeyboard } from '../CategoryEditorDialog';
 import { PhotoCropper } from '../../images/PhotoCropper';
 
 jest.mock('react-native-image-picker', () => ({ launchImageLibrary: jest.fn() }));
@@ -216,13 +216,45 @@ describe('CategoryEditorDialog - opening and the icon grid', () => {
   });
 });
 
-describe('CategoryEditorDialog - never rises into the screen title row', () => {
-  it('keeps 64pt below the safe area free, so the controls of the screen behind (its "+") stay covered by the scrim, not beside the card', async () => {
+describe('CategoryEditorDialog - with the keyboard up the card keeps its place and gets shorter', () => {
+  const layout = (width: number, height: number) => ({ nativeEvent: { layout: { x: 0, y: 0, width, height } } });
+  const host = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
+    renderer.root.findAll(node => node.props.testID === testID && typeof node.type === 'string')[0];
+
+  it('places the card: centred without the keyboard; with it, the same top and only the room above the keyboard', () => {
+    // No keyboard (or nothing measured yet): centred, nothing set.
+    expect(cardPlacementWithKeyboard({ width: 400, resting: 800, current: 800 }, 500)).toBeNull();
+    expect(cardPlacementWithKeyboard({ width: 400, resting: 0, current: 0 }, 500)).toBeNull();
+    // Keyboard: the resting top ((800 - 500) / 2 = 150) is kept and the card ends above the keyboard.
+    expect(cardPlacementWithKeyboard({ width: 400, resting: 800, current: 520 }, 500)).toEqual({ top: 150, maxHeight: 370 });
+    // Too little room under that top for a usable card: it rises only as far as it must.
+    expect(cardPlacementWithKeyboard({ width: 400, resting: 800, current: 400 }, 500, 280)).toEqual({ top: 120, maxHeight: 280 });
+    // Never above the area's own top.
+    expect(cardPlacementWithKeyboard({ width: 400, resting: 800, current: 200 }, 500, 280)).toEqual({ top: 0, maxHeight: 200 });
+  });
+
+  it('the dialog applies it from its measured area: same top as before the keyboard, height capped, nothing moves up', async () => {
     const { renderer } = await renderDialog();
-    const paddings = renderer.root
-      .findAll(node => StyleSheet.flatten(node.props.style)?.backgroundColor === colors.scrim)
-      .map(node => StyleSheet.flatten(node.props.style).paddingTop)
-      .filter((value): value is number => typeof value === 'number');
-    expect(Math.max(...paddings)).toBeGreaterThanOrEqual(64);
+    act(() => host(renderer, 'collection-editor-area').props.onLayout(layout(360, 800)));
+    act(() => host(renderer, 'collection-editor-card').props.onLayout(layout(360, 500)));
+    expect(StyleSheet.flatten(host(renderer, 'collection-editor-area').props.style).justifyContent).toBe('center');
+    expect(StyleSheet.flatten(host(renderer, 'collection-editor-card').props.style).marginTop).toBeUndefined();
+
+    // The keyboard takes 280 of the 800.
+    act(() => host(renderer, 'collection-editor-area').props.onLayout(layout(360, 520)));
+    expect(StyleSheet.flatten(host(renderer, 'collection-editor-area').props.style).justifyContent).toBe('flex-start');
+    expect(StyleSheet.flatten(host(renderer, 'collection-editor-card').props.style)).toEqual(expect.objectContaining({ marginTop: 150, maxHeight: 370 }));
+    // Measured again while capped: the card's own (unconstrained) height is not overwritten by the capped one.
+    act(() => host(renderer, 'collection-editor-card').props.onLayout(layout(360, 370)));
+    expect(StyleSheet.flatten(host(renderer, 'collection-editor-card').props.style).marginTop).toBe(150);
+
+    // The keyboard closes: centred again.
+    act(() => host(renderer, 'collection-editor-area').props.onLayout(layout(360, 800)));
+    expect(StyleSheet.flatten(host(renderer, 'collection-editor-card').props.style).marginTop).toBeUndefined();
+  });
+
+  it('the area lets taps beside the card reach the backdrop, which closes the dialog', async () => {
+    const { renderer } = await renderDialog();
+    expect(host(renderer, 'collection-editor-area').props.pointerEvents).toBe('box-none');
   });
 });

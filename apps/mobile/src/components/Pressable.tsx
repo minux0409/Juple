@@ -57,9 +57,11 @@ function containsText(node: ReactNode, depth = 0): boolean {
  * alike (iOS Pressable shows nothing by itself; Juple uses no Android ripple anywhere, so nothing doubles up). While a control is
  * held a translucent state layer is drawn over it - inside its own bounds, never changing its size or layout - and it is gone the
  * moment the finger lifts:
- * - an icon-only control (no words inside, about square, at most 64pt) gets a round layer, like a circle behind the icon;
- * - anything else (a text button, a row, a card, a tab) gets a layer in its own shape (its corner radii), stronger on a filled
- *   button so it still shows on the colour.
+ * - an icon-only control with no fill of its own (no words inside, about square, at most 64pt) gets a round layer, like a
+ *   circle behind the icon;
+ * - anything else (a filled button - icon-only or not -, a text button, a row, a card, a tab) gets a layer in its own shape (its
+ *   corner radii), stronger on a filled button so it still shows on the colour. A control built into a larger rounded shape (a
+ *   button inside a text field) gives itself that shape's corner radii so the layer follows it.
  * Applied only where it means something:
  * - to an interactive control (a button / link / tab / radio / checkbox / switch / menu item role) that has an onPress or
  *   onLongPress - so a backdrop, a sheet's touch-blocking wrapper or a plain container never shows a press;
@@ -98,7 +100,9 @@ export const Pressable = forwardRef<ComponentRef<typeof NativePressable>, Pressa
         return content;
       }
       const measured = size.current;
+      const isFilled = flatStyle.backgroundColor !== undefined && flatStyle.backgroundColor !== 'transparent';
       const isIconButton =
+        !isFilled &&
         measured !== null &&
         Math.max(measured.width, measured.height) <= ICON_BUTTON_MAX_SIZE &&
         Math.abs(measured.width - measured.height) <= ICON_BUTTON_SQUARE_TOLERANCE &&
@@ -123,7 +127,7 @@ export const Pressable = forwardRef<ComponentRef<typeof NativePressable>, Pressa
               style={[
                 StyleSheet.absoluteFill,
                 Object.fromEntries(RADIUS_KEYS.filter(key => flatStyle[key] !== undefined).map(key => [key, flatStyle[key]])),
-                { backgroundColor: flatStyle.backgroundColor ? colors.pressedOverlayStrong : colors.pressedOverlay },
+                { backgroundColor: isFilled ? colors.pressedOverlayStrong : colors.pressedOverlay },
               ]}
               testID="press-feedback-layer"
             />
