@@ -54,7 +54,7 @@ describe('entraAuthClient', () => {
     });
   });
 
-  it('a re-authentication passes prompt=login and max_age=0 as additionalParameters, and nothing else changes', async () => {
+  it('a re-authentication passes prompt=login and max_age as additionalParameters, and nothing else changes', async () => {
     jest.mocked(authorize).mockResolvedValue({ accessToken: 'token' } as never);
 
     await authorizeWithEntra(REAUTHENTICATION_PARAMETERS);
@@ -65,7 +65,7 @@ describe('entraAuthClient', () => {
         scopes: [...entraDevAuthConfig.scopes],
         usePKCE: true,
         useNonce: true,
-        additionalParameters: { prompt: 'login', max_age: '0' },
+        additionalParameters: { prompt: 'login', max_age: '300' },
       }),
     );
     // A copy - the shared constant is never handed to (and mutated by) the native side.
@@ -87,7 +87,7 @@ describe('entraAuthClient', () => {
   it('the sign-in never offers an account tile, and stays distinct from the re-authentication set', () => {
     expect(SIGN_IN_PARAMETERS).toEqual({ prompt: 'login' });
     expect(SIGN_IN_PARAMETERS.prompt).not.toBe('select_account');
-    expect(REAUTHENTICATION_PARAMETERS).toEqual({ prompt: 'login', max_age: '0' });
+    expect(REAUTHENTICATION_PARAMETERS).toEqual({ prompt: 'login', max_age: '300' });
   });
 
   it('refreshEntraSession calls react-native-app-auth.refresh with the selected config, unchanged shape', async () => {

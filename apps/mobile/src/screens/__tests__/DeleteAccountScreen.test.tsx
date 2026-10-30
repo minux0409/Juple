@@ -125,6 +125,17 @@ describe('DeleteAccountScreen', () => {
     expect(has(renderer, 'delete-account-final')).toBe(false);
   });
 
+  it('a sign-in that really failed is said as a failure with its step - not as "not completed" - and never reaches the final step', async () => {
+    jest.mocked(reauthenticateSameAccount).mockRejectedValue({ name: 'EntraAuthError', message: 'x', cause: { code: 'authentication_failed', message: 'ID Token expired' } });
+    const renderer = await renderScreen();
+    await press(renderer, 'delete-account-continue');
+    await press(renderer, 'delete-account-sign-in');
+
+    expect(has(renderer, 'delete-account-final')).toBe(false);
+    expect(JSON.stringify(renderer.toJSON())).toContain('id_token_expired');
+    expect(JSON.stringify(renderer.toJSON())).not.toContain(i18n.t('settings.collectionLockSignInCancelled'));
+  });
+
   it('after signing in, the delete button stays disabled until the exact Juple ID is typed', async () => {
     const renderer = await reachConfirmStep();
 

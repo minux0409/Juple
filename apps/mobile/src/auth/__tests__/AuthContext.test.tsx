@@ -381,7 +381,7 @@ describe('AuthProvider - an identity without a Juple account never gets one from
     expect(bootstrapCurrentUser).toHaveBeenCalledTimes(1);
   });
 
-  it('sign-in that is answered "sign in again" asks for the credentials (prompt=login, max_age=0) and then creates the account', async () => {
+  it('sign-in that is answered "sign in again" asks for the credentials (prompt=login, max_age) and then creates the account', async () => {
     jest.mocked(getValidAccessToken).mockRejectedValue(new Error('sessionUnavailable'));
     jest.mocked(validateBackendSession).mockResolvedValue('valid');
     jest.mocked(authorize)
@@ -404,7 +404,7 @@ describe('AuthProvider - an identity without a Juple account never gets one from
     });
 
     expect(jest.mocked(authorize).mock.calls[0][0].additionalParameters).toEqual({ prompt: 'login' });
-    expect(jest.mocked(authorize).mock.calls[1][0].additionalParameters).toMatchObject({ prompt: 'login', max_age: '0' });
+    expect(jest.mocked(authorize).mock.calls[1][0].additionalParameters).toMatchObject({ prompt: 'login', max_age: '300' });
     expect(bootstrapCurrentUser).toHaveBeenLastCalledWith('fresh-token', expect.anything());
     expect(saveAuthorizedSession).toHaveBeenLastCalledWith(expect.objectContaining({ accessToken: 'fresh-token' }));
   });

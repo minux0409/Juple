@@ -5,7 +5,7 @@ import { ActivityIndicator, Platform, ScrollView, Text, View } from 'react-nativ
 import { Pressable } from '../components/Pressable';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { reauthenticateSameAccount } from '../auth/reauthentication';
-import { isUserCancelledSignIn, signInFailureCode } from '../auth/signInErrors';
+import { reauthenticationFailureNotice } from '../auth/signInErrors';
 import {
   getCollectionLockPasswordStatus,
   type CollectionLockPasswordStatus,
@@ -100,9 +100,9 @@ export function CollectionLockSettingsScreen() {
     } catch (caughtError) {
       // Closing or dismissing the sign-in page is a choice - quietly back to this screen. Anything else is a failed sign-in, and is
       // said - with the step's short code when there is one (see signInFailureCode), so a real-device failure can be pinned down.
-      if (!isUserCancelledSignIn(caughtError)) {
-        const code = signInFailureCode(caughtError);
-        setNotice(code ? t('settings.collectionLockSignInFailed', { code }) : t('auth.failed'));
+      const failure = reauthenticationFailureNotice(caughtError, t);
+      if (failure !== null) {
+        setNotice(failure);
       }
     } finally {
       setIsSigningIn(false);

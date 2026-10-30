@@ -37,6 +37,18 @@ export function isUserCancelledSignIn(caughtError: unknown): boolean {
   });
 }
 
+/**
+ * The sentence for a re-authentication that threw - every screen that asks for one says the same thing. Null for a cancel (each
+ * screen decides whether a cancel is quiet); a real failure names its step, and is never reported as "not completed".
+ */
+export function reauthenticationFailureNotice(caughtError: unknown, t: (key: string, options?: Record<string, unknown>) => string): string | null {
+  if (isUserCancelledSignIn(caughtError)) {
+    return null;
+  }
+  const code = signInFailureCode(caughtError);
+  return code ? t('settings.collectionLockSignInFailed', { code }) : t('auth.failed');
+}
+
 /** AppAuth's own descriptions of a rejected ID token (iOS and Android), as fixed labels. */
 const ID_TOKEN_CHECKS: readonly (readonly [RegExp, string])[] = [
   [/issuer mismatch/i, 'id_token_issuer'],

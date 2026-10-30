@@ -77,7 +77,7 @@ export function loginHintFromIdToken(idToken: string | null | undefined): string
 }
 
 /**
- * prompt=login / max_age=0, plus login_hint when (and only when) the current user's e-mail is known
+ * prompt=login / max_age, plus login_hint when (and only when) the current user's e-mail is known
  * with confidence. Without a hint, External ID may show an account-type chooser from which the
  * organizational option fails with AADSTS700056 for a local account; with it, the sign-in page opens
  * straight on the local account's password. No hint -> exactly the previous parameters.
@@ -93,7 +93,7 @@ export function buildReauthenticationParameters(
 }
 
 /**
- * Runs an interactive prompt=login / max_age=0 sign-in (with the current user's e-mail as login_hint
+ * Runs an interactive prompt=login / max_age sign-in (with the current user's e-mail as login_hint
  * when known). The current session is replaced only when the new sign-in is provably the same
  * account; otherwise nothing is saved and the existing session stays exactly as it was. A cancelled
  * or failed sign-in rejects (EntraAuthError).

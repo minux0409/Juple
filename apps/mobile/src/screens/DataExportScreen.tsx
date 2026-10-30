@@ -5,6 +5,7 @@ import { Pressable } from '../components/Pressable';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { reauthenticateSameAccount } from '../auth/reauthentication';
+import { reauthenticationFailureNotice } from '../auth/signInErrors';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import {
@@ -127,6 +128,10 @@ export function DataExportScreen() {
       const done = await createLinks();
       if (!done && isMounted.current) {
         setNotice(t('dataExport.failed'));
+      }
+    } catch (caughtError) {
+      if (isMounted.current) {
+        setNotice(reauthenticationFailureNotice(caughtError, t) ?? t('settings.collectionLockSignInCancelled'));
       }
     } finally {
       if (isMounted.current) {

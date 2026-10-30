@@ -8,6 +8,7 @@ import { getMyProfile, resolveSignInMethod, type SignInMethod, type UserProfile 
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
 import { reauthenticateSameAccount } from '../auth/reauthentication';
+import { reauthenticationFailureNotice } from '../auth/signInErrors';
 import { AppModal } from '../components/AppModal';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
@@ -92,8 +93,12 @@ export function AccountManagementScreen() {
         // Not a cancellation: the current session was deliberately kept, and the person should know why.
         setNotice(t('settings.collectionLockDifferentAccount'));
       }
-    } catch {
-      // Cancelled or abandoned sign-in - quietly back to this screen.
+    } catch (caughtError) {
+      // Cancelled or abandoned sign-in - quietly back to this screen; a real failure says so.
+      const failure = reauthenticationFailureNotice(caughtError, t);
+      if (failure !== null) {
+        setNotice(failure);
+      }
     } finally {
       setIsSigningIn(false);
     }

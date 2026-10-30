@@ -27,7 +27,7 @@ The picker entry itself lives in the Microsoft-hosted page and the browser's coo
    Missing `auth_time` claim = not gated (today's behavior; PROD and DEV API registrations both emit `auth_time` - **verified**).
    Refusal = `403 recentAuthenticationRequired`.
 2. **Mobile:** a refused restore signs out and drops the stale session (no silent re-provisioning); a refused sign-in re-asks for credentials
-   (`prompt=login`, `max_age=0`) once and then creates the account - the explicit re-sign-up; cancel leaves no session.
+   (`prompt=login`, `max_age=300`) once and then creates the account - the explicit re-sign-up; cancel leaves no session.
 3. **Web:** same, once per tab (marker in session storage), then local sign-out; no redirect loop.
 4. **Mobile deletion ends the Entra browser session** (`logout` with `id_token_hint`, post-logout redirect = the already-registered
    `com.juple.app.auth://oauthredirect`), best effort, only after the account is deleted and the app is signed out. Ordinary sign-out is unchanged
@@ -43,6 +43,14 @@ and is the stricter privacy reading of "delete my account". Cost: the same email
 no longer recognises a returning person and a deleted-and-re-created account gets a fresh 30-day trial. Options: (a) keep as is (current);
 (b) delete the Entra user and accept trial reset; (c) delete the Entra user and key the ledger by verified email hash (privacy review needed).
 Not implemented.
+
+### Re-authentication request: why `max_age=300`, not 0
+
+Every re-authentication (collection lock, account deletion, data export, password reset return, re-sign-up) is `prompt=login` + `max_age=300`.
+With `max_age=0` a real sign-in failed with `authentication_failed · id_token_expired` (observed on iOS, new and existing accounts), while the
+ordinary sign-in (`prompt=login`, no `max_age`) succeeded through the same AppAuth validation. Other projects report that Entra caps the ID token's
+`exp` at `auth_time + max_age`; this is **not** confirmed by Microsoft documentation and the token itself was not inspected here. Credentials are
+still forced by `prompt=login`, AppAuth's expiry validation is untouched, and the server's 5-minute `auth_time` check remains the only proof.
 
 ## 2. Password change -> sign in again elsewhere
 

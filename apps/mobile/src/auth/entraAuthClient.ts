@@ -34,13 +34,15 @@ export function isEntraSessionInvalidError(error: unknown): boolean {
 
 /**
  * Forces a genuinely interactive sign-in: prompt=login makes Entra ignore any existing browser SSO
- * session, and max_age=0 asks it to treat any previous authentication as too old. Whether the
- * resulting access token's auth_time really moves is exactly what the DEV observer measures - the
- * app itself never treats a completed re-authentication as proof of anything.
+ * session. max_age asks for an authentication no older than the API's own recent-sign-in window
+ * (RecentAuthentication.MaxAge, 5 minutes). It must not be 0: Entra is reported to cap the ID token's
+ * exp at auth_time + max_age, so max_age=0 yields a token already expired on arrival, which AppAuth
+ * correctly refuses ("ID Token expired") - see docs/auth-session-lifecycle.md. The server's auth_time
+ * check stays the only proof; the app never treats a completed re-authentication as proof of anything.
  */
 export const REAUTHENTICATION_PARAMETERS: Readonly<Record<string, string>> = {
   prompt: 'login',
-  max_age: '0',
+  max_age: '300',
 };
 
 /**
@@ -49,7 +51,7 @@ export const REAUTHENTICATION_PARAMETERS: Readonly<Record<string, string>> = {
  * account that was deleted or whose password was just reset sends Entra into consent screens and ends in a failed
  * sign-in, so no tile is ever offered. Someone who wants another account simply types its e-mail. Deliberately no
  * login_hint (it would pre-select one account) and no max_age; the same-account re-authentication above keeps its own
- * prompt=login / max_age=0 / login_hint.
+ * prompt=login / max_age / login_hint.
  */
 export const SIGN_IN_PARAMETERS: Readonly<Record<string, string>> = {
   prompt: 'login',

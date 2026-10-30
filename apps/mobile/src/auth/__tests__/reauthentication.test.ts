@@ -9,7 +9,7 @@ import {
 
 jest.mock('../entraAuthClient', () => ({
   authorizeWithEntra: jest.fn(),
-  REAUTHENTICATION_PARAMETERS: { prompt: 'login', max_age: '0' },
+  REAUTHENTICATION_PARAMETERS: { prompt: 'login', max_age: '300' },
 }));
 jest.mock('../session/authSessionManager', () => ({
   // Pass-throughs: an interactive sign-in only runs its callback (see authSessionManager.runInteractiveSignIn).
@@ -68,11 +68,11 @@ describe('loginHintFromIdToken / buildReauthenticationParameters', () => {
   const withEmail = idToken({ tid: 'tenant-1', oid: 'object-1', email: 'jupleinfo+prodtest@gmail.com' });
   const withPreferredUsername = idToken({ tid: 'tenant-1', oid: 'object-1', preferred_username: 'person@example.com' });
 
-  it('uses the e-mail claim of the held ID token as login_hint, keeping prompt=login and max_age=0', () => {
+  it('uses the e-mail claim of the held ID token as login_hint, keeping prompt=login and max_age', () => {
     expect(loginHintFromIdToken(withEmail)).toBe('jupleinfo+prodtest@gmail.com');
     expect(buildReauthenticationParameters(withEmail)).toEqual({
       prompt: 'login',
-      max_age: '0',
+      max_age: '300',
       login_hint: 'jupleinfo+prodtest@gmail.com',
     });
   });
@@ -80,7 +80,7 @@ describe('loginHintFromIdToken / buildReauthenticationParameters', () => {
   it('falls back to preferred_username when it is e-mail shaped', () => {
     expect(buildReauthenticationParameters(withPreferredUsername)).toEqual({
       prompt: 'login',
-      max_age: '0',
+      max_age: '300',
       login_hint: 'person@example.com',
     });
   });
@@ -92,7 +92,7 @@ describe('loginHintFromIdToken / buildReauthenticationParameters', () => {
 
   it('omits login_hint when there is no ID token or no e-mail claim', () => {
     for (const token of [null, undefined, '', 'garbage', me, idToken({})]) {
-      expect(buildReauthenticationParameters(token)).toEqual({ prompt: 'login', max_age: '0' });
+      expect(buildReauthenticationParameters(token)).toEqual({ prompt: 'login', max_age: '300' });
     }
   });
 
@@ -110,7 +110,7 @@ describe('loginHintFromIdToken / buildReauthenticationParameters', () => {
   ])('omits login_hint for a malformed value (%j)', value => {
     const token = idToken({ tid: 'tenant-1', oid: 'object-1', email: value, preferred_username: value });
     expect(loginHintFromIdToken(token)).toBeNull();
-    expect(buildReauthenticationParameters(token)).toEqual({ prompt: 'login', max_age: '0' });
+    expect(buildReauthenticationParameters(token)).toEqual({ prompt: 'login', max_age: '300' });
   });
 
   it('ignores non-string claims and the workforce-only upn claim', () => {
@@ -120,7 +120,7 @@ describe('loginHintFromIdToken / buildReauthenticationParameters', () => {
 });
 
 describe('reauthenticateSameAccount', () => {
-  it('passes the current user e-mail as login_hint, keeping prompt=login and max_age=0', async () => {
+  it('passes the current user e-mail as login_hint, keeping prompt=login and max_age', async () => {
     const current = idToken({ tid: 'tenant-1', oid: 'object-1', sub: 'sub-1', iss: 'issuer', email: 'person@example.com' });
     jest.mocked(getCachedIdToken).mockReturnValue(current);
     jest.mocked(authorizeWithEntra).mockResolvedValue({ ...newSession, idToken: meAgain } as never);
@@ -129,7 +129,7 @@ describe('reauthenticateSameAccount', () => {
 
     expect(authorizeWithEntra).toHaveBeenCalledWith({
       prompt: 'login',
-      max_age: '0',
+      max_age: '300',
       login_hint: 'person@example.com',
     });
   });
@@ -140,16 +140,16 @@ describe('reauthenticateSameAccount', () => {
 
     await reauthenticateSameAccount();
 
-    expect(authorizeWithEntra).toHaveBeenCalledWith({ prompt: 'login', max_age: '0' });
+    expect(authorizeWithEntra).toHaveBeenCalledWith({ prompt: 'login', max_age: '300' });
   });
 
-  it('asks Entra for prompt=login / max_age=0 and replaces the session only for the same account', async () => {
+  it('asks Entra for prompt=login / max_age and replaces the session only for the same account', async () => {
     jest.mocked(getCachedIdToken).mockReturnValue(me);
     jest.mocked(authorizeWithEntra).mockResolvedValue({ ...newSession, idToken: meAgain } as never);
 
     await expect(reauthenticateSameAccount()).resolves.toBe('reauthenticated');
 
-    expect(authorizeWithEntra).toHaveBeenCalledWith({ prompt: 'login', max_age: '0' });
+    expect(authorizeWithEntra).toHaveBeenCalledWith({ prompt: 'login', max_age: '300' });
     expect(saveAuthorizedSession).toHaveBeenCalledWith({ ...newSession, idToken: meAgain });
   });
 

@@ -10,6 +10,7 @@ import { getMyProfile } from '../api/profileApi';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
 import { reauthenticateSameAccount } from '../auth/reauthentication';
+import { reauthenticationFailureNotice } from '../auth/signInErrors';
 import { formatJupleId } from '../collections/api/collaborationApi';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { RECENT_AUTHENTICATION_REQUIRED_CODE } from '../settings/CollectionLockPasswordDialog';
@@ -88,8 +89,8 @@ export function DeleteAccountScreen() {
       } else {
         setNotice(t(outcome === 'differentAccount' ? 'settings.collectionLockDifferentAccount' : 'settings.collectionLockSignInCancelled'));
       }
-    } catch {
-      setNotice(t('settings.collectionLockSignInCancelled'));
+    } catch (caughtError) {
+      setNotice(reauthenticationFailureNotice(caughtError, t) ?? t('settings.collectionLockSignInCancelled'));
     } finally {
       setIsBusy(false);
     }
