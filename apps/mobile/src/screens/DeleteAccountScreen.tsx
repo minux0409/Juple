@@ -201,7 +201,7 @@ export function DeleteAccountScreen() {
               style={[styles.dangerButton, (!isConfirmed || isBusy) && styles.disabled]}
               testID="delete-account-final"
             >
-              {isBusy ? <ActivityIndicator color={colors.onBadge} /> : <Text style={styles.dangerLabel}>{t('deleteAccount.deleteNow')}</Text>}
+              {isBusy ? <ActivityIndicator color={colors.onDestructive} /> : <Text style={styles.dangerLabel}>{t('deleteAccount.deleteNow')}</Text>}
             </Pressable>
           </View>
         ) : null}
@@ -256,7 +256,7 @@ const styles = themedStyles(() => ({
   primaryLabel: { color: colors.onBrand, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   dangerOutlineButton: {
     alignItems: 'center',
-    borderColor: colors.dangerBorder,
+    borderColor: colors.destructiveText,
     borderRadius: radii.xl,
     borderWidth: 1,
     justifyContent: 'center',
@@ -264,18 +264,18 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget + 4,
     paddingHorizontal: spacing.lg,
   },
-  dangerOutlineLabel: { color: colors.dangerText, fontSize: 16, fontWeight: '700', textAlign: 'center' },
-  // The app's one destructive look (see DialogActions): the logo's J red with a white bold label.
+  dangerOutlineLabel: { color: colors.destructiveText, fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  // The app's one destructive look (see DialogActions): the destructive red with a white bold label.
   dangerButton: {
     alignItems: 'center',
-    backgroundColor: colors.badge,
+    backgroundColor: colors.destructive,
     borderRadius: radii.xl,
     justifyContent: 'center',
     marginTop: spacing.lg,
     minHeight: minTouchTarget + 4,
     paddingHorizontal: spacing.lg,
   },
-  dangerLabel: { color: colors.onBadge, fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  dangerLabel: { color: colors.onDestructive, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   disabled: { opacity: 0.45 },
   notice: { color: colors.dangerText, fontSize: 14, marginTop: spacing.md },
   cancelButton: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.md, minHeight: minTouchTarget },

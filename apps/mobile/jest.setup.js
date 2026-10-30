@@ -34,9 +34,9 @@ afterEach(async () => {
 // eslint-disable-next-line no-undef -- Jest's own global in a setupFilesAfterEnv file
 afterEach(() => { require('./src/images/stableImageUri').clearStableImageUris(); });
 
-// The app's Pressable (src/components/Pressable.tsx) is React Native's Pressable plus a pressed-state fade. In screen and component
+// The app's Pressable (src/components/Pressable.tsx) is React Native's Pressable plus a pressed-state layer. In screen and component
 // tests it IS React Native's own, so their trees and queries stay what they were (the wrapper would add a second element carrying
 // the same testID / onPress to every button). Its own behaviour is tested against the real file (components/__tests__/Pressable.test.tsx,
 // via jest.requireActual).
 // eslint-disable-next-line no-undef -- Jest's own global in a setupFilesAfterEnv file
-jest.mock('./src/components/Pressable', () => ({ Pressable: require('react-native').Pressable, PRESSED_OPACITY: 0.6 }));
+jest.mock('./src/components/Pressable', () => ({ Pressable: require('react-native').Pressable }));

@@ -53,6 +53,7 @@ import { CategoryPickerModal } from '../../collections/CategoryPickerModal';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { UndoToast } from '../../components/UndoToast';
 import { AppToastProvider } from '../../components/AppToast';
+import { swipeRowToDelete } from '../../testing/swipeRowDriver';
 
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
@@ -424,11 +425,7 @@ describe('CollectionDetailsScreen', () => {
       const renderer = await renderScreen();
 
       const row = getRowElement(renderer, item);
-      revealRow(row);
-      const removeAction = row.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.removeFromCollection'))[0];
-      await act(async () => {
-        removeAction.props.onPress();
-      });
+      await swipeRowToDelete(row.root);
       expect(removeItemFromCollection).not.toHaveBeenCalled();
 
       await act(async () => {
@@ -458,9 +455,7 @@ describe('CollectionDetailsScreen', () => {
 
     async function unlinkViaSwipe(renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) {
       const row = getRowElement(renderer, item);
-      revealRow(row);
-      const removeAction = row.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.removeFromCollection'))[0];
-      await act(async () => removeAction.props.onPress());
+      await swipeRowToDelete(row.root);
       await act(async () => {
         const confirmButton = renderer.root.findAll(
           node => node.props.accessibilityLabel === i18n.t('collections.removeFromCollection'),
@@ -601,7 +596,7 @@ describe('CollectionDetailsScreen', () => {
         const row = menu!.findAll(node => node.props.accessibilityLabel === menu!.props.actions[index].label && typeof node.props.onPress === 'function')[0];
         expect(row.findAllByType(icon)).toHaveLength(1);
       }
-      expect(menu!.findByType(TrashIcon).props.color).toBe(colors.dangerText);
+      expect(menu!.findByType(TrashIcon).props.color).toBe(colors.destructiveText);
       expect(menu!.findByType(EditIcon).props.color).toBe(colors.textPrimary);
 
       await act(async () => menu?.props.actions.at(-1).onPress());
@@ -1070,10 +1065,7 @@ describe('CollectionDetailsScreen', () => {
       const callsBefore = jest.mocked(getCollectionItems).mock.calls.length;
 
       const row = getRowElement(renderer, makeItemEntry({ itemId: 2 }));
-      revealRow(row);
-      await act(async () => {
-        row.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.removeFromCollection'))[0].props.onPress();
-      });
+      await swipeRowToDelete(row.root);
       await act(async () => {
         renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.removeFromCollection'))[0].props.onPress();
       });

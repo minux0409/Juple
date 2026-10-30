@@ -30,6 +30,7 @@ import { emitSocialPushEvent } from '../../push/pushEvents';
 import { markCollectionSubmissionRequestsRead } from '../../notifications/notificationsApi';
 import { getUnreadCount, resetNotificationState } from '../../notifications/notificationState';
 import { dragSheet, settleSheet } from '../../testing/sheetGestureDriver';
+import { swipeRowToDelete } from '../../testing/swipeRowDriver';
 
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
@@ -62,7 +63,9 @@ const FAKE_RESPONDER_EVENT = {
 const swipeRows = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByType(SwipeableItemRow);
 const swipeRowOf = (renderer: ReactTestRenderer.ReactTestRenderer, id: number) =>
   swipeRows(renderer).find(row => row.props.deleteTestID === `submission-cancel-${id}`)!;
-/** Swipes the request card left: reveals the red cancel action (it does not cancel anything). */
+/** A full left swipe of the request card: it only asks (the confirmation opens; nothing is cancelled yet). */
+const swipeToCancel = (renderer: ReactTestRenderer.ReactTestRenderer, id: number) => swipeRowToDelete(swipeRowOf(renderer, id));
+/** Starts dragging the request card left: shows the red cancel underlay (it does not cancel or ask anything). */
 const reveal = async (renderer: ReactTestRenderer.ReactTestRenderer, id: number) => {
   const layer = swipeRowOf(renderer, id).findAll(node => Array.isArray(node.props.accessibilityActions))[0];
   await act(async () => {
@@ -409,8 +412,7 @@ describe('ApprovalSubmissionSheet - public-link requests of mine (a revoked link
     expect(row.findAll(node => typeof node.props.onPress === 'function' && node.props.testID !== 'submission-open-14')).toHaveLength(0);
     expect(swipeRowOf(renderer, 14)).toBeDefined();
 
-    await reveal(renderer, 14);
-    await press(renderer, 'submission-cancel-14');
+    await swipeToCancel(renderer, 14);
     const confirm = renderer.root.findAllByType(ConfirmDialog).find(dialog => dialog.props.title === '승인 요청을 취소할까요?')!;
     await act(async () => {
       confirm.props.onConfirm();
@@ -495,12 +497,11 @@ describe('ApprovalSubmissionSheet - compact card, open action and header close',
     expect(swipeRowOf(renderer, 13)).toBeDefined();
   });
 
-  it('the swipe action (not a permanent icon) is what asks first - nothing is cancelled by the swipe or the tap itself', async () => {
+  it('the full swipe (not a permanent icon) is what asks first - nothing is cancelled by the swipe itself', async () => {
     jest.mocked(getMyPendingSubmissionsAcrossCollections).mockResolvedValue({ items: [mine(13, 'A')], nextCursor: null, totalCount: 1 });
     const { renderer } = await renderSheet({ variant: 'mine', collectionId: null });
 
-    await reveal(renderer, 13);
-    await press2(renderer, 'submission-cancel-13');
+    await swipeToCancel(renderer, 13);
 
     expect(cancelMySubmission).not.toHaveBeenCalled();
     expect(renderer.root.findAllByType(ConfirmDialog).find(dialog => dialog.props.title === '승인 요청을 취소할까요?')!.props.visible).toBe(true);
@@ -790,7 +791,7 @@ describe('ApprovalSubmissionSheet - 요청 취소 (cancel my own pending request
     renderer.root.findAllByType(ConfirmDialog).find(dialog => dialog.props.title === title)!;
   const cancelConfirm = (renderer: ReactTestRenderer.ReactTestRenderer) => confirmDialog(renderer, '승인 요청을 취소할까요?');
 
-  it('every pending row of mine shows ONLY the external-link icon (no always-visible trash); cancelling is a left swipe revealing a red icon-only action with the cancellation label - and the Owner\'s rows have neither', async () => {
+  it('every pending row of mine shows ONLY the external-link icon (no always-visible trash); cancelling is a full left swipe over a red icon-only underlay, labelled for accessibility as the cancellation - and the Owner\'s rows have neither', async () => {
     twoOfMine();
     const { renderer } = await renderSheet({ variant: 'mine', collectionId: null });
 
@@ -815,12 +816,14 @@ describe('ApprovalSubmissionSheet - 요청 취소 (cancel my own pending request
       expect(swipe.props.deleteLabel).toContain('승인 요청 취소');
       expect(swipe.props.deleteLabel).not.toContain('삭제');
       await reveal(renderer, id);
-      const action = renderer.root.find(node => node.props.testID === `submission-cancel-${id}` && typeof node.props.onPress === 'function');
+      // An underlay only (the full swipe asks); the cancellation wording is the row's accessibility action.
+      expect(renderer.root.findAll(node => node.props.testID === `submission-cancel-${id}` && typeof node.props.onPress === 'function')).toHaveLength(0);
+      const action = renderer.root.find(node => node.props.testID === `submission-cancel-${id}` && node.props.pointerEvents === 'none');
       expect(action.findAllByType(TrashIcon)).toHaveLength(1);
       expect(action.findAllByType(Text)).toHaveLength(0);
-      expect(action.props.accessibilityLabel).toContain('승인 요청 취소');
-      expect(StyleSheet.flatten(action.props.style)).toMatchObject({ minHeight: 44 });
-      // Swiping alone cancelled nothing and asked nothing.
+      const layer = swipe.findAll(node => Array.isArray(node.props.accessibilityActions))[0];
+      expect(layer.props.accessibilityActions.find((entry: { name: string }) => entry.name === 'delete').label).toContain('승인 요청 취소');
+      // Starting the drag alone cancelled nothing and asked nothing.
       expect(cancelMySubmission).not.toHaveBeenCalled();
       expect(renderer.root.findAllByType(ConfirmDialog).some(dialog => dialog.props.visible)).toBe(false);
     }
@@ -838,8 +841,7 @@ describe('ApprovalSubmissionSheet - 요청 취소 (cancel my own pending request
     twoOfMine();
     const { renderer } = await renderSheet({ variant: 'mine', collectionId: null });
 
-    await reveal(renderer, 13);
-    await press(renderer, 'submission-cancel-13');
+    await swipeToCancel(renderer, 13);
 
     expect(cancelConfirm(renderer).props.visible).toBe(true);
     expect(cancelConfirm(renderer).props.confirmLabel).toBe('요청 취소');
@@ -859,8 +861,7 @@ describe('ApprovalSubmissionSheet - 요청 취소 (cancel my own pending request
     const onChanged = jest.fn();
     const { renderer, onClose } = await renderSheet({ variant: 'mine', collectionId: null, onChanged });
 
-    await reveal(renderer, 13);
-    await press(renderer, 'submission-cancel-13');
+    await swipeToCancel(renderer, 13);
     await act(async () => {
       cancelConfirm(renderer).props.onConfirm();
     });
@@ -871,8 +872,7 @@ describe('ApprovalSubmissionSheet - 요청 취소 (cancel my own pending request
     expect(exists(renderer, 'my-submission-12')).toBe(true);
     expect(onChanged).toHaveBeenCalledTimes(1);
 
-    await reveal(renderer, 12);
-    await press(renderer, 'submission-cancel-12');
+    await swipeToCancel(renderer, 12);
     await act(async () => {
       cancelConfirm(renderer).props.onConfirm();
     });
@@ -886,8 +886,7 @@ describe('ApprovalSubmissionSheet - 요청 취소 (cancel my own pending request
     jest.mocked(cancelMySubmission).mockRejectedValueOnce(new Error('offline'));
     const { renderer } = await renderSheet({ variant: 'mine', collectionId: null });
 
-    await reveal(renderer, 13);
-    await press(renderer, 'submission-cancel-13');
+    await swipeToCancel(renderer, 13);
     await act(async () => {
       cancelConfirm(renderer).props.onConfirm();
     });
@@ -911,8 +910,7 @@ describe('ApprovalSubmissionSheet - 요청 취소 (cancel my own pending request
     jest.mocked(cancelMySubmission).mockReturnValue(new Promise<void>(resolve => { finish = resolve; }));
     const { renderer } = await renderSheet({ variant: 'mine', collectionId: null });
 
-    await reveal(renderer, 13);
-    await press(renderer, 'submission-cancel-13');
+    await swipeToCancel(renderer, 13);
     await act(async () => {
       cancelConfirm(renderer).props.onConfirm();
     });
@@ -937,8 +935,7 @@ describe('ApprovalSubmissionSheet - 요청 취소 (cancel my own pending request
     const onChanged = jest.fn();
     const { renderer } = await renderSheet({ variant: 'mine', collectionId: null, onChanged });
 
-    await reveal(renderer, 13);
-    await press(renderer, 'submission-cancel-13');
+    await swipeToCancel(renderer, 13);
     await act(async () => {
       cancelConfirm(renderer).props.onConfirm();
     });

@@ -30,6 +30,7 @@ export const radii = {
  *  background / surface (card) / surfaceMuted / surfaceRaised (modal, sheet)   textPrimary / textSecondary / textMuted / textInverse
  *  border (icon stroke, outlines) / inputBorder / divider                       brand / brandSoft / onBrand
  *  danger / dangerSubtle / warning / warningText / success                      scrim / overlay / inputBackground / placeholder
+ *  destructive / onDestructive / destructiveText (delete actions only)          neutralAction (the swipe 공유 fill)
  *
  * `surface` doubles as the label colour on a filled brand / danger control: it is white in Light and the dark card colour in Dark, where
  * the brand and danger fills are the lighter variants - both pairings keep text contrast above 4.5:1.
@@ -49,6 +50,12 @@ export type ColorRole =
   | 'dangerSubtle'
   | 'badge'
   | 'onBadge'
+  | 'destructive'
+  | 'onDestructive'
+  | 'destructiveText'
+  | 'neutralAction'
+  | 'pressedOverlay'
+  | 'pressedOverlayStrong'
   | 'warning'
   | 'warningText'
   | 'success'
@@ -82,6 +89,12 @@ const BRAND_DANGER = '#FF8A8A';
  * 2.9:1, the old light coral 2.3:1). Used by the notification count badges and the swipe-to-delete panel, with white on top.
  */
 const BRAND_BADGE = '#FB5D72';
+/**
+ * Delete / destructive ACTIONS only (delete buttons, menu entries, icons, the swipe-to-delete underlay) - a clear red, deliberately
+ * not the coral/J red of errors and badges, so a delete never reads as pink. White on it is 4.8:1 (a normal-size label passes AA);
+ * the same fill in Light and Dark, where it still stands well apart from the dark card.
+ */
+const DESTRUCTIVE_FILL = '#D92D20';
 const ON_DANGER = '#2B0A0A';
 
 export const lightColors: Palette = {
@@ -108,6 +121,17 @@ export const lightColors: Palette = {
   /** Notification count badges and the swipe-to-delete panel: the wordmark's J red (BRAND_BADGE), white on top. */
   badge: BRAND_BADGE,
   onBadge: '#FFFFFF',
+  /** Filled delete control (see DESTRUCTIVE_FILL), with `onDestructive` on top. */
+  destructive: DESTRUCTIVE_FILL,
+  onDestructive: '#FFFFFF',
+  /** A delete action as TEXT / icon / outline on a normal surface: 4.8:1 on white. */
+  destructiveText: DESTRUCTIVE_FILL,
+  /** The swipe 공유 fill: a dark grey (white on it 9.6:1) - a quiet action next to the red delete, never the brand violet. */
+  neutralAction: '#3F4652',
+  /** The held-down state layer of a control (shared Pressable): rows, cards, text buttons. */
+  pressedOverlay: 'rgba(16,24,40,0.08)',
+  /** The same, for the round layer behind an icon button and over a filled button. */
+  pressedOverlayStrong: 'rgba(16,24,40,0.14)',
   warning: '#F5A623',
   /** A warning as TEXT or a thin icon on white (신고): a darker amber that stays readable, unlike the fill-only `warning`. */
   warningText: '#9A5B00',
@@ -147,6 +171,14 @@ export const darkColors: Palette = {
   dangerSubtle: '#3A1F22',
   badge: BRAND_BADGE,
   onBadge: '#FFFFFF',
+  destructive: DESTRUCTIVE_FILL,
+  onDestructive: '#FFFFFF',
+  /** The fill red is too dark as text on the dark surfaces: a lighter, still clearly red tone (>= 6:1 on every Dark surface). */
+  destructiveText: '#FF6B6B',
+  /** Lifted above the dark card so the panel still reads as a panel; white on it 7.6:1. */
+  neutralAction: '#4A5261',
+  pressedOverlay: 'rgba(255,255,255,0.10)',
+  pressedOverlayStrong: 'rgba(255,255,255,0.18)',
   warning: '#F5A623',
   warningText: '#F5C26B',
   success: '#4CC38A',

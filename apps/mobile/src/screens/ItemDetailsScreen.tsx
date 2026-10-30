@@ -1235,14 +1235,14 @@ const styles = themedStyles(() => ({
   },
   deleteActionButton: {
     alignItems: 'center',
-    borderColor: colors.dangerBorder,
+    borderColor: colors.destructiveText,
     borderRadius: radii.md + 4,
     borderWidth: 1.5,
     flex: 1,
     justifyContent: 'center',
     minHeight: minTouchTarget,
   },
-  deleteActionLabel: { color: colors.dangerText, fontSize: 15, fontWeight: '700', paddingHorizontal: spacing.xs, textAlign: 'center' },
+  deleteActionLabel: { color: colors.destructiveText, fontSize: 15, fontWeight: '700', paddingHorizontal: spacing.xs, textAlign: 'center' },
   saveActionButton: {
     alignItems: 'center',
     backgroundColor: colors.brand,

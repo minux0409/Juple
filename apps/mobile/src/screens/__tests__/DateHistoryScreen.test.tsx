@@ -19,6 +19,7 @@ import {
   type ItemHistoryEntry,
 } from '../../items/api/itemsApi';
 import { buildFlatRows, DateHistoryScreen, type FlatRow } from '../DateHistoryScreen';
+import { swipeRowToDelete } from '../../testing/swipeRowDriver';
 
 // The Archive: one flat list of every link, always newest first, a page at a time - and a search over it.
 
@@ -114,19 +115,9 @@ const header = (renderer: ReactTestRenderer.ReactTestRenderer) => renderPart(get
 const renderRow = (renderer: ReactTestRenderer.ReactTestRenderer, row: FlatRow) => renderPart(getList(renderer).props.renderItem({ item: row, index: 0 }));
 const historyCalls = () => jest.mocked(getItemHistory).mock.calls.map(([, options]) => options ?? {});
 
-const FAKE_RESPONDER_EVENT = {
-  touchHistory: { touchBank: [], numberActiveTouches: 0, indexOfSingleActiveTouch: -1, mostRecentTimeStamp: 0 },
-  nativeEvent: {},
-};
 async function deleteViaSwipe(renderer: ReactTestRenderer.ReactTestRenderer, itemId: number) {
   const row = renderRow(renderer, rows(renderer).find(candidate => candidate.kind === 'flatItem' && candidate.item.id === itemId)!);
-  const contentLayer = row.root.findAll(node => Array.isArray(node.props.accessibilityActions))[0];
-  ReactTestRenderer.act(() => {
-    contentLayer.props.onResponderGrant(FAKE_RESPONDER_EVENT);
-  });
-  await act(async () => {
-    row.root.findAll(node => node.props.accessibilityLabel === '삭제')[0].props.onPress();
-  });
+  await swipeRowToDelete(row.root);
   await act(async () => {
     renderer.root.findByType(Modal).findAll(node => node.props.accessibilityLabel === '삭제')[0].props.onPress();
   });

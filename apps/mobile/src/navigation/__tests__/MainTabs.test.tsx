@@ -9,6 +9,8 @@ import { ArchiveIcon } from '../../icons/ArchiveIcon';
 import { FolderIcon } from '../../icons/FolderIcon';
 import { UserIcon } from '../../icons/UserIcon';
 import { colors } from '../../theme/tokens';
+import { getTourTargetPadding, getTourTargetRadius } from '../../tour/tourTargets';
+import { TOUR_TARGETS } from '../../tour/tourGuides';
 
 // A true smoke test - no existing precedent in this repo for testing a Tab.Navigator, so this
 // only asserts the navigator + all 4 tabBarIcon renderers mount without throwing. Each screen is
@@ -66,4 +68,41 @@ test('the selected tab is the solid brand-coloured icon with no background behin
   // No grey selected background anywhere in the tab bar any more.
   const greyed = renderer.root.findAll(node => typeof node.type === 'string' && StyleSheet.flatten(node.props.style)?.backgroundColor === colors.surfaceMuted);
   expect(greyed).toHaveLength(0);
+});
+
+test('the tour spotlights a tab exactly on its own cell (no extra margin around it)', async () => {
+  await act(async () => {
+    ReactTestRenderer.create(
+      <SafeAreaProvider initialMetrics={initialMetrics}>
+        <NavigationContainer>
+          <MainTabs />
+        </NavigationContainer>
+      </SafeAreaProvider>,
+    );
+  });
+  for (const id of [TOUR_TARGETS.tabHistory, TOUR_TARGETS.tabCollections, TOUR_TARGETS.tabMyPage]) {
+    expect(getTourTargetRadius(id)).toBeDefined();
+    expect(getTourTargetPadding(id)).toBe(0);
+  }
+});
+
+test('all four tabs are the app Pressable (one press feedback for every tab) and none carries the navigator\'s Android ripple', async () => {
+  let renderer!: ReactTestRenderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = ReactTestRenderer.create(
+      <SafeAreaProvider initialMetrics={initialMetrics}>
+        <NavigationContainer>
+          <MainTabs />
+        </NavigationContainer>
+      </SafeAreaProvider>,
+    );
+  });
+  // Every element a tab's props reach. The navigator's own button (PlatformPressable) would receive its pressOpacity / android_ripple;
+  // ours drop both before the app Pressable.
+  const tabs = renderer.root.findAll(node => node.props['aria-selected'] !== undefined && typeof node.props.onPress === 'function' && node.props.tourId === undefined);
+  expect(new Set(tabs.map(node => node.props.testID ?? node.props['aria-label'])).size).toBe(4);
+  for (const tab of tabs) {
+    expect(tab.props.android_ripple).toBeUndefined();
+    expect(tab.props.pressOpacity).toBeUndefined();
+  }
 });

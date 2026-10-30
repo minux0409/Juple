@@ -8,6 +8,7 @@ import { cancelMyPublicSubmission, getMyPublicSubmissions } from '../../collecti
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { SwipeableItemRow } from '../../components/SwipeableItemRow';
 import { ApiError } from '../../api/ApiError';
+import { swipeRowToDelete } from '../../testing/swipeRowDriver';
 
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (callback: () => void | (() => void)) => {
@@ -93,19 +94,9 @@ describe('MyCollectionSubmissionsScreen (a public-link submitter\'s 내 승인 �
     jest.mocked(cancelMyPublicSubmission).mockResolvedValue(undefined);
     const renderer = await renderScreen();
 
-    // Swipe the card left: that only reveals the action ...
+    // A full left swipe of the card only asks; nothing is cancelled yet.
     const swipe = renderer.root.findAllByType(SwipeableItemRow).find(row => row.props.deleteTestID === 'submission-cancel-11')!;
-    await act(async () => {
-      swipe.findAll(node => Array.isArray(node.props.accessibilityActions))[0].props.onResponderGrant({
-        touchHistory: { touchBank: [], numberActiveTouches: 0, indexOfSingleActiveTouch: -1, mostRecentTimeStamp: 0 },
-        nativeEvent: {},
-      });
-    });
-    expect(cancelMyPublicSubmission).not.toHaveBeenCalled();
-    // ... tapping it asks; nothing is cancelled yet.
-    await act(async () => {
-      renderer.root.find(node => node.props.testID === 'submission-cancel-11' && typeof node.props.onPress === 'function').props.onPress();
-    });
+    await swipeRowToDelete(swipe);
     expect(cancelMyPublicSubmission).not.toHaveBeenCalled();
     const confirm = renderer.root.findAllByType(ConfirmDialog).find(dialog => dialog.props.title === '승인 요청을 취소할까요?')!;
     expect(confirm.props.visible).toBe(true);

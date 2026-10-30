@@ -101,23 +101,23 @@ const styles = themedStyles(() => ({
 }));
 
 /**
- * The label on a filled button: white on brand, white (bold) on the J-red delete fill, the card colour on the neutral
- * (text-colour) fill. White on #FB5D72 is 3.04:1 - the deepest band of the logo's J, enough for this bold 16pt label.
+ * The label on a filled button: white on brand, white (bold) on the red delete fill (`destructive`, 4.8:1), the card colour on
+ * the neutral (text-colour) fill.
  */
 const labelToneStyles = themedStyles(() => ({
-  destructive: { color: colors.onBadge, fontWeight: '700' },
+  destructive: { color: colors.onDestructive, fontWeight: '700' },
   neutral: { color: colors.surface },
   brand: { color: colors.onBrand },
   secondary: { color: colors.textPrimary },
 }));
 
 function labelToneColor(tone: DialogActionTone): string {
-  return tone === 'destructive' ? colors.onBadge : tone === 'brand' ? colors.onBrand : colors.surface;
+  return tone === 'destructive' ? colors.onDestructive : tone === 'brand' ? colors.onBrand : colors.surface;
 }
 
 const toneStyles = themedStyles(() => ({
-  // Delete: the red of the J in the Juple logo - the same colour as the swipe-to-delete panel.
-  destructive: { backgroundColor: colors.badge },
+  // Delete: the destructive red - the same colour as the swipe-to-delete underlay.
+  destructive: { backgroundColor: colors.destructive },
   neutral: { backgroundColor: colors.textPrimary },
   brand: { backgroundColor: colors.brand },
 }));

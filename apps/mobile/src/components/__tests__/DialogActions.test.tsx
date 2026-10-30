@@ -84,7 +84,7 @@ describe('DialogActions', () => {
     expect(flat(row(renderer).props.style).flexDirection).toBe('row');
   });
 
-  it('colors: 삭제 is the logo\'s J red (#FB5D72) with a white bold label, 취소 a light grey fill with dark text - same size and shape; disabled/busy actions cannot be pressed', async () => {
+  it('colors: 삭제 is the clear destructive red (#D92D20, never the badge coral) with a white bold label, 취소 a light grey fill with dark text - same size and shape; disabled/busy actions cannot be pressed', async () => {
     const onPress = jest.fn();
     const renderer = await render([
       { label: 'Cancel', onPress, tone: 'secondary', disabled: true },
@@ -92,8 +92,9 @@ describe('DialogActions', () => {
     ]);
     const [cancel, confirm] = buttons(renderer);
 
-    expect(flat(confirm.props.style).backgroundColor).toBe('#FB5D72');
-    expect(flat(confirm.props.style).backgroundColor).toBe(colors.badge);
+    expect(flat(confirm.props.style).backgroundColor).toBe('#D92D20');
+    expect(flat(confirm.props.style).backgroundColor).toBe(colors.destructive);
+    expect(colors.destructive).not.toBe(colors.badge);
     expect(flat(cancel.props.style).backgroundColor).toBe(colors.surfaceMuted);
     expect(flat(cancel.props.style).borderWidth).toBeUndefined();
     for (const key of ['minHeight', 'paddingVertical', 'paddingHorizontal', 'borderRadius'] as const) {

@@ -202,7 +202,7 @@ export function CollectionLockDialog({ visible, collectionId, mode, forMember = 
               testID={mode === 'remove' ? 'lock-remove' : isNotConfigured ? 'lock-open-settings' : 'lock-save'}
             >
               {isSubmitting ? (
-                <ActivityIndicator color={mode === 'remove' ? colors.onBadge : colors.onBrand} size="small" />
+                <ActivityIndicator color={mode === 'remove' ? colors.onDestructive : colors.onBrand} size="small" />
               ) : (
                 <Text numberOfLines={2} style={[styles.confirmLabel, mode === 'remove' && styles.destructiveLabel]}>{confirmLabel}</Text>
               )}
@@ -261,12 +261,12 @@ const styles = themedStyles(() => ({
     fontSize: 14,
     marginTop: spacing.md,
   },
-  // The app's one destructive look (see DialogActions): the logo's J red with a white bold label.
+  // The app's one destructive look (see DialogActions): the destructive red with a white bold label.
   destructiveButton: {
-    backgroundColor: colors.badge,
+    backgroundColor: colors.destructive,
   },
   destructiveLabel: {
-    color: colors.onBadge,
+    color: colors.onDestructive,
     fontWeight: '700',
   },
   buttonDisabled: {

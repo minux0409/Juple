@@ -59,13 +59,21 @@ function renderMyPageIcon({ focused }: { focused: boolean }) {
 
 // A tab that a guided tour can spotlight: the target is the whole tab button (the bar's cells are navigator-owned, so the button
 // is wrapped rather than measured).
-function TourTabButton({ tourId, href: _href, pressOpacity: _pressOpacity, hoverEffect: _hoverEffect, ...props }: BottomTabBarButtonProps & { readonly tourId: string }) {
-  const target = useTourTarget(tourId, { radius: radii.md });
+function TourTabButton({ tourId, href: _href, pressOpacity: _pressOpacity, hoverEffect: _hoverEffect, android_ripple: _ripple, ...props }: BottomTabBarButtonProps & { readonly tourId: string }) {
+  // No extra margin around a tab: it fills its cell, so the ring sits exactly on the tab's edges (its 2pt stroke drawn inside).
+  const target = useTourTarget(tourId, { radius: radii.md, padding: 0 });
   return (
     <View {...target} style={styles.tabTarget}>
       <Pressable {...props} />
     </View>
   );
+}
+
+// Home has no tour target, but it is pressed like the others: the app Pressable's state layer (not the navigator's own button,
+// whose Android ripple and iOS fade would differ from the other three tabs). The navigator's android_ripple is dropped on every tab
+// so Android never shows a ripple on top of the state layer.
+function renderHomeButton({ href: _href, pressOpacity: _pressOpacity, hoverEffect: _hoverEffect, android_ripple: _ripple, ...props }: BottomTabBarButtonProps) {
+  return <Pressable {...props} />;
 }
 
 function renderHistoryButton(props: BottomTabBarButtonProps) {
@@ -123,7 +131,7 @@ export function MainTabs() {
       <Tab.Screen
         component={themedScreen(DailyInboxScreen)}
         name="Home"
-        options={{ tabBarLabel: t('tabs.home'), tabBarIcon: renderHomeIcon, tabBarBadge: badge(counts.home) }}
+        options={{ tabBarLabel: t('tabs.home'), tabBarIcon: renderHomeIcon, tabBarButton: renderHomeButton, tabBarBadge: badge(counts.home) }}
       />
       <Tab.Screen
         component={themedScreen(DateHistoryScreen)}

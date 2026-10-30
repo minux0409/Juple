@@ -24,6 +24,7 @@ import { deleteItem, getItemHistory, getItemHistoryCount, restoreItem, type GetI
 import { shareItem } from '../../items/shareItem';
 import { resolveUrlMetadata } from '../../urlMetadata/api/urlMetadataApi';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
+import { swipeRowToDelete } from '../../testing/swipeRowDriver';
 
 // A module-level mock (not a fresh jest.fn() returned from the factory on every call) so tests
 // can assert on it directly - matches the pattern already used elsewhere for route-prop screens
@@ -335,13 +336,11 @@ describe('DailyInboxScreen swipe actions', () => {
     const renderer = await renderScreen();
 
     const row = getRowElement(renderer, item);
-    revealRow(row);
-    const deleteAction = row.root.findAll(node => node.props.accessibilityLabel === '삭제')[0];
-    await act(async () => {
-      deleteAction.props.onPress();
-    });
+    await swipeRowToDelete(row.root);
 
+    // The full swipe only asked: nothing is deleted before the confirmation.
     expect(deleteItem).not.toHaveBeenCalled();
+    expect(getConfirmDialogButton(renderer, '삭제')).toBeTruthy();
 
     await act(async () => {
       getConfirmDialogButton(renderer, '삭제').props.onPress();
@@ -356,11 +355,7 @@ describe('DailyInboxScreen swipe actions', () => {
     const renderer = await renderScreen();
 
     const row = getRowElement(renderer, item);
-    revealRow(row);
-    const deleteAction = row.root.findAll(node => node.props.accessibilityLabel === '삭제')[0];
-    await act(async () => {
-      deleteAction.props.onPress();
-    });
+    await swipeRowToDelete(row.root);
 
     await act(async () => {
       getConfirmDialogButton(renderer, '취소').props.onPress();
@@ -377,11 +372,7 @@ describe('DailyInboxScreen delete undo', () => {
 
   async function deleteViaSwipe(renderer: ReactTestRenderer.ReactTestRenderer, item: ItemHistoryEntry) {
     const row = getRowElement(renderer, item);
-    revealRow(row);
-    const deleteAction = row.root.findAll(node => node.props.accessibilityLabel === '삭제')[0];
-    await act(async () => {
-      deleteAction.props.onPress();
-    });
+    await swipeRowToDelete(row.root);
     await act(async () => {
       getConfirmDialogButton(renderer, '삭제').props.onPress();
     });

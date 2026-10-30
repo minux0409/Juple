@@ -21,6 +21,7 @@ import {
   type ItemHistoryEntry,
   type ItemTrashEntry,
 } from '../../items/api/itemsApi';
+import { swipeRowToDelete } from '../../testing/swipeRowDriver';
 
 const mockSetOptions = jest.fn();
 const mockNavigation = { setOptions: mockSetOptions };
@@ -708,7 +709,7 @@ describe('TrashScreen gestures, titleless popup and icon-only empty button', () 
     expect(menuOf(renderer).props.title).toBeUndefined();
   });
 
-  it('List: swiping reveals 복구 and 영구 삭제 but executes neither; each still asks for confirmation', async () => {
+  it('List: swiping reveals 복구 (a button) and the 영구 삭제 underlay (not a button) but executes neither; 복구 still asks for confirmation', async () => {
     jest.mocked(getTrashItems).mockResolvedValue([makeEntry({ id: 1, title: 'First' })]);
     mockPrefs.set('juple.trashViewMode', 'list');
     const renderer = await renderScreen();
@@ -717,13 +718,13 @@ describe('TrashScreen gestures, titleless popup and icon-only empty button', () 
     expect(restoreItem).not.toHaveBeenCalled();
     expect(permanentlyDeleteItem).not.toHaveBeenCalled();
     const restore = renderer.root.find(node => node.props.testID === 'trash-restore-1' && typeof node.props.onPress === 'function');
-    const del = renderer.root.find(node => node.props.testID === 'trash-delete-1' && typeof node.props.onPress === 'function');
     expect(restore.props.accessibilityLabel).toBe(i18n.t('trash.restoreA11y'));
-    expect(del.props.accessibilityLabel).toBe(i18n.t('trash.permanentDeleteA11y'));
-    // Swipe panes are icon-only everywhere (List and Grid); the full wording stays in the accessibility label.
+    // The delete side is only an underlay: the full left swipe itself asks; its wording is the row's accessibility action.
+    expect(renderer.root.findAll(node => node.props.testID === 'trash-delete-1' && typeof node.props.onPress === 'function')).toHaveLength(0);
+    const del = renderer.root.find(node => node.props.testID === 'trash-delete-1' && node.props.pointerEvents === 'none');
     expect(del.findAllByType(Text)).toHaveLength(0);
-    // Swipe panes are icon-only everywhere (List and Grid); the full wording stays in the accessibility label.
-    expect(del.findAllByType(Text)).toHaveLength(0);
+    const layer = renderer.root.findAll(node => Array.isArray(node.props.accessibilityActions))[0];
+    expect(layer.props.accessibilityActions).toContainEqual({ name: 'delete', label: i18n.t('trash.permanentDeleteA11y') });
 
     await act(async () => {
       restore.props.onPress();
@@ -732,19 +733,16 @@ describe('TrashScreen gestures, titleless popup and icon-only empty button', () 
     expect(restoreItem).not.toHaveBeenCalled();
   });
 
-  it('List: the swipe-revealed 영구 삭제 is confirmed before anything is deleted', async () => {
+  it('List: the full left swipe asks for 영구 삭제 confirmation before anything is deleted', async () => {
     jest.mocked(getTrashItems).mockResolvedValue([makeEntry({ id: 1, title: 'First' })]);
     mockPrefs.set('juple.trashViewMode', 'list');
     const renderer = await renderScreen();
-    await reveal(renderer);
-    await act(async () => {
-      renderer.root.find(node => node.props.testID === 'trash-delete-1' && typeof node.props.onPress === 'function').props.onPress();
-    });
+    await swipeRowToDelete(renderer.root);
     expect(permanentlyDeleteItem).not.toHaveBeenCalled();
     expect(getConfirmDialogButton(renderer, i18n.t('common.delete'))).toBeDefined();
   });
 
-  it('Grid: the same swipe row - right reveals 복구, left reveals 영구 삭제 (compact: icon over a short visible label); swiping executes nothing, the actions ask first', async () => {
+  it('Grid: the same swipe row - right reveals 복구, left shows the 영구 삭제 underlay (icon only); swiping far enough asks first', async () => {
     jest.mocked(getTrashItems).mockResolvedValue([makeEntry({ id: 1, title: 'First' })]);
     mockPrefs.set('juple.trashViewMode', 'grid');
     const renderer = await renderScreen();
@@ -755,7 +753,7 @@ describe('TrashScreen gestures, titleless popup and icon-only empty button', () 
     expect(restoreItem).not.toHaveBeenCalled();
     expect(permanentlyDeleteItem).not.toHaveBeenCalled();
     const restore = renderer.root.find(node => node.props.testID === 'trash-restore-1' && typeof node.props.onPress === 'function');
-    const del = renderer.root.find(node => node.props.testID === 'trash-delete-1' && typeof node.props.onPress === 'function');
+    const del = renderer.root.find(node => node.props.testID === 'trash-delete-1' && node.props.pointerEvents === 'none');
     // Icon only in the narrow tile too - no visible text; the accessibility labels carry the wording.
     expect(restore.findAllByType(Text)).toHaveLength(0);
     expect(del.findAllByType(Text)).toHaveLength(0);
@@ -763,12 +761,9 @@ describe('TrashScreen gestures, titleless popup and icon-only empty button', () 
     expect(restore.findAllByType(RestoreIcon)).toHaveLength(1);
     expect(del.findAllByType(TrashIcon)).toHaveLength(1);
     expect(restore.props.accessibilityLabel).toBe(i18n.t('trash.restoreA11y'));
-    expect(del.props.accessibilityLabel).toBe(i18n.t('trash.permanentDeleteA11y'));
     expect(renderer.root.findAll(node => String(node.props.testID ?? '').startsWith('trash-more-'))).toHaveLength(0);
 
-    await act(async () => {
-      del.props.onPress();
-    });
+    await swipeRowToDelete(renderer.root);
     expect(permanentlyDeleteItem).not.toHaveBeenCalled();
     expect(getConfirmDialogButton(renderer, i18n.t('common.delete'))).toBeDefined();
   });
@@ -801,6 +796,6 @@ describe('TrashScreen gestures, titleless popup and icon-only empty button', () 
     // A distinct clear-all bin (with sweep lines), never the same glyph as deleting a single item; no text child.
     expect(button.props.children.type).toBe(EmptyTrashIcon);
     expect(button.props.children.type).not.toBe(TrashIcon);
-    expect(button.props.children.props.color).toBe(colors.dangerText);
+    expect(button.props.children.props.color).toBe(colors.destructiveText);
   });
 });

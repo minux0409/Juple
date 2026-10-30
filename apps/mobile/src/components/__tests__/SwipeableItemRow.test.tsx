@@ -29,17 +29,39 @@ const FAKE_RESPONDER_EVENT = {
   nativeEvent: {},
 };
 
-/** A fake touch history moved `dx` px from the start, so PanResponder computes gesture.dx = dx. */
-function touchesMoved(dx: number) {
+/** A fake touch history moved (dx, dy) px from the start at time `at` ms, so PanResponder computes gesture.dx/dy (and vx from the previous move). */
+function touchesMoved(dx: number, dy = 0, at = 1, previous: readonly [number, number, number] = [0, 0, 0]) {
   return {
     touchHistory: {
-      touchBank: [{ touchActive: true, startPageX: 0, startPageY: 0, startTimeStamp: 0, currentPageX: dx, currentPageY: 0, currentTimeStamp: 1, previousPageX: 0, previousPageY: 0, previousTimeStamp: 0 }],
+      touchBank: [{ touchActive: true, startPageX: 0, startPageY: 0, startTimeStamp: 0, currentPageX: dx, currentPageY: dy, currentTimeStamp: at, previousPageX: previous[0], previousPageY: previous[1], previousTimeStamp: previous[2] }],
       numberActiveTouches: 1,
       indexOfSingleActiveTouch: 0,
-      mostRecentTimeStamp: 1,
+      mostRecentTimeStamp: at,
     },
     nativeEvent: {},
   };
+}
+
+function contentLayerOf(renderer: ReactTestRenderer.ReactTestRenderer) {
+  return renderer.root.findAll(node => Array.isArray(node.props.accessibilityActions))[0];
+}
+
+/**
+ * A left swipe: grant, the given moves (dx, dy, time), release. The default is one quick, long, flat swipe - past the delete
+ * distance. The row is not measured in Jest, so the delete distance is one action width (76).
+ */
+async function swipeLeft(renderer: ReactTestRenderer.ReactTestRenderer, moves: readonly (readonly [number, number, number])[] = [[-200, 0, 1]]) {
+  const layer = contentLayerOf(renderer);
+  await act(async () => {
+    layer.props.onResponderGrant(FAKE_RESPONDER_EVENT);
+    let previous: readonly [number, number, number] = [0, 0, 0];
+    for (const [dx, dy, at] of moves) {
+      layer.props.onResponderMove(touchesMoved(dx, dy, at, previous));
+      previous = [dx, dy, at];
+    }
+    const [dx, dy, at] = moves[moves.length - 1];
+    layer.props.onResponderRelease(touchesMoved(dx, dy, at));
+  });
 }
 
 /** Drags the row toward `edge`: 'start' (right, uncovers the 공유 pane) or 'end' (left, uncovers the 삭제 pane) - only that pane is mounted. */
@@ -80,19 +102,21 @@ describe('SwipeableItemRow as a card wrapper (a pending-request card: icon-only 
     return renderer;
   }
 
-  it('the revealed delete action is icon-only, keeps its accessibility label, and swiping alone deletes nothing', async () => {
+  it('dragging left shows an icon-only underlay that is not a button; the full swipe asks once, and the label stays an accessibility action', async () => {
     const onDelete = jest.fn();
     const renderer = await renderCard(onDelete);
     await revealRow(renderer);
 
-    const action = renderer.root.find(node => node.props.testID === 'card-delete' && typeof node.props.onPress === 'function');
-    expect(action.findAllByType(Text)).toHaveLength(0);
-    expect(action.props.accessibilityLabel).toBe('승인 요청 취소');
+    const underlay = renderer.root.find(node => node.props.testID === 'card-delete' && node.props.pointerEvents === 'none');
+    expect(underlay.findAllByType(Text)).toHaveLength(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'card-delete' && typeof node.props.onPress === 'function')).toHaveLength(0);
     expect(onDelete).not.toHaveBeenCalled();
     await act(async () => {
-      action.props.onPress();
+      contentLayerOf(renderer).props.onResponderRelease(touchesMoved(-40));
     });
+    // A fling: fast, and past half an action width (38).
     expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(contentLayerOf(renderer).props.accessibilityActions).toEqual([{ name: 'delete', label: '승인 요청 취소' }]);
   });
 
   it('without onPress a tap does nothing, and the content is not one accessible button (its own controls stay reachable)', async () => {
@@ -122,17 +146,12 @@ describe('SwipeableItemRow without a share action (a friend row)', () => {
     return renderer;
   }
 
-  it('reveals only 삭제 - no 공유 slot is mounted, and the accessibility actions list only delete', async () => {
+  it('swipes only toward delete - no 공유 slot is mounted, and the accessibility actions list only delete', async () => {
     const onDelete = jest.fn();
     const renderer = await renderDeleteOnly(onDelete);
-    await revealRow(renderer);
+    await swipeLeft(renderer);
 
     expect(findByAccessibilityLabel(renderer, i18n.t('common.share'))).toBeUndefined();
-    const deleteAction = findByAccessibilityLabel(renderer, i18n.t('common.delete'));
-    expect(deleteAction).toBeDefined();
-    await act(async () => {
-      deleteAction.props.onPress();
-    });
     expect(onDelete).toHaveBeenCalledTimes(1);
     const layer = renderer.root.findAll(node => Array.isArray(node.props.accessibilityActions))[0];
     // The long-press menu (renderDeleteOnly passes one) is an accessibility action too, so it never needs the gesture.
@@ -220,17 +239,65 @@ describe('SwipeableItemRow', () => {
     expect(onShare).toHaveBeenCalledTimes(1);
   });
 
-  it('calls onDelete when the revealed delete action is pressed', async () => {
+  it('a left swipe past the delete distance asks onDelete once, springs back and leaves no delete button behind', async () => {
     const onDelete = jest.fn();
-    const renderer = await renderRow({ onPress: jest.fn(), onDelete, onShare: jest.fn() });
-    await revealRow(renderer);
-
-    const deleteAction = findByAccessibilityLabel(renderer, '삭제');
-    await act(async () => {
-      deleteAction.props.onPress();
-    });
+    const onPress = jest.fn();
+    const renderer = await renderRow({ onPress, onDelete, onShare: jest.fn() });
+    // Slow (so it is the distance that counts, not a fling): -40, then -120 a second later, then held still.
+    await swipeLeft(renderer, [[-40, 0, 1], [-120, 0, 1000], [-120, 0, 2000]]);
 
     expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(findByAccessibilityLabel(renderer, '삭제')).toBeUndefined();
+    // Not left open: the next tap navigates instead of closing a revealed row.
+    const content = renderer.root.findAll(node => typeof node.props.onPress === 'function' && node.props.accessibilityLabel === undefined)[0];
+    await act(async () => content.props.onPress());
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('a short slow left drag springs back without asking', async () => {
+    const onDelete = jest.fn();
+    const renderer = await renderRow({ onPress: jest.fn(), onDelete, onShare: jest.fn() });
+    await swipeLeft(renderer, [[-30, 0, 1], [-60, 0, 1000], [-60, 0, 2000]]);
+
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it('a quick fling past half an action width asks to delete, a tiny fast one does not', async () => {
+    const flung = jest.fn();
+    await swipeLeft(await renderRow({ onPress: jest.fn(), onDelete: flung, onShare: jest.fn() }), [[-50, 0, 50]]);
+    expect(flung).toHaveBeenCalledTimes(1);
+
+    const tiny = jest.fn();
+    await swipeLeft(await renderRow({ onPress: jest.fn(), onDelete: tiny, onShare: jest.fn() }), [[-20, 0, 5]]);
+    expect(tiny).not.toHaveBeenCalled();
+  });
+
+  it('a diagonal move never deletes, however far it went', async () => {
+    const onDelete = jest.fn();
+    const renderer = await renderRow({ onPress: jest.fn(), onDelete, onShare: jest.fn() });
+    await swipeLeft(renderer, [[-200, -150, 1]]);
+
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it('a mostly vertical move is never taken as a swipe at all', async () => {
+    const renderer = await renderRow({ onPress: jest.fn(), onDelete: jest.fn(), onShare: jest.fn() });
+    const layer = contentLayerOf(renderer);
+    expect(layer.props.onMoveShouldSetResponder(touchesMoved(-12, 40))).toBe(false);
+    expect(layer.props.onMoveShouldSetResponder(touchesMoved(-4, 0))).toBe(false);
+  });
+
+  it('one swipe asks once, even if the release is reported again; the next swipe can ask again', async () => {
+    const onDelete = jest.fn();
+    const renderer = await renderRow({ onPress: jest.fn(), onDelete, onShare: jest.fn() });
+    await swipeLeft(renderer);
+    await act(async () => {
+      contentLayerOf(renderer).props.onResponderRelease(touchesMoved(-200));
+    });
+    expect(onDelete).toHaveBeenCalledTimes(1);
+
+    await swipeLeft(renderer);
+    expect(onDelete).toHaveBeenCalledTimes(2);
   });
 
   it('calls onShare when the revealed share action is pressed', async () => {
@@ -257,11 +324,8 @@ describe('SwipeableItemRow', () => {
       );
     });
 
-    await revealRow(renderer);
-    const deleteAction = findByAccessibilityLabel(renderer, '삭제');
-    expect(deleteAction.props.disabled).toBe(true);
-    // Only the pane on the dragged edge is mounted: the share pane (disabled too) appears when dragged the other way.
-    expect(findByAccessibilityLabel(renderer, '공유')).toBeUndefined();
+    // A disabled row is not taken as a swipe at all.
+    expect(contentLayerOf(renderer).props.onMoveShouldSetResponder(touchesMoved(-200))).toBe(false);
     let other!: ReactTestRenderer.ReactTestRenderer;
     await act(async () => {
       other = ReactTestRenderer.create(
@@ -317,7 +381,7 @@ describe('SwipeableItemRow', () => {
     expect(findByAccessibilityLabel(renderer, '삭제')).toBeUndefined();
     const other = await renderRow({ onPress: jest.fn(), onDelete: jest.fn(), onShare: jest.fn() });
     await revealRow(other, 'end');
-    expect(findByAccessibilityLabel(other, '삭제')).toBeDefined();
+    expect(other.root.findAll(node => node.props.pointerEvents === 'none')).not.toHaveLength(0);
     expect(findByAccessibilityLabel(other, '공유')).toBeUndefined();
   });
 
@@ -420,15 +484,39 @@ describe('SwipeableItemRow vs. the list\'s vertical scroll (a horizontal swipe k
     expect(content.props.onResponderTerminationRequest(FAKE_RESPONDER_EVENT)).toBe(false);
   });
 
-  it('an interrupted swipe past the threshold stays open (not snapped shut) and never leaves the list frozen', async () => {
-    const { renderer, content, scrollEnabled } = await renderWithProbe();
+  it('an interrupted left swipe never deletes (nobody released it) and never leaves the list frozen', async () => {
+    const onDelete = jest.fn();
+    const values: boolean[] = [];
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <View>
+          <ScrollProbe onValue={value => values.push(value)} />
+          <SwipeableItemRow onDelete={onDelete} onPress={jest.fn()} onShare={jest.fn()}>
+            <Text>Row content</Text>
+          </SwipeableItemRow>
+        </View>,
+      );
+    });
+    const content = contentLayerOf(renderer);
     await act(async () => {
       content.props.onResponderGrant(FAKE_RESPONDER_EVENT);
       content.props.onResponderMove(touchesMoved(-200));
       content.props.onResponderTerminate(touchesMoved(-200));
     });
 
-    expect(scrollEnabled()).toBe(true);
-    expect(findByAccessibilityLabel(renderer, i18n.t('common.delete'))).toBeDefined();
+    expect(values[values.length - 1]).toBe(true);
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it('an interrupted swipe past the share threshold stays open (not snapped shut)', async () => {
+    const { renderer, content } = await renderWithProbe();
+    await act(async () => {
+      content.props.onResponderGrant(FAKE_RESPONDER_EVENT);
+      content.props.onResponderMove(touchesMoved(200));
+      content.props.onResponderTerminate(touchesMoved(200));
+    });
+
+    expect(findByAccessibilityLabel(renderer, i18n.t('common.share'))).toBeDefined();
   });
 });

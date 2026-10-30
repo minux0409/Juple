@@ -174,6 +174,23 @@ describe('semantic tokens', () => {
     expect(Object.keys(colors).sort()).toEqual(Object.keys(lightColors).sort());
   });
 
+  it('delete actions have their own clear red, readable in Light and Dark, apart from errors and badges', () => {
+    for (const palette of [lightColors, darkColors]) {
+      expect(contrast(palette.onDestructive, palette.destructive)).toBeGreaterThanOrEqual(4.5);
+      for (const surface of [palette.surface, palette.background, palette.surfaceRaised]) {
+        expect(contrast(palette.destructiveText, surface)).toBeGreaterThanOrEqual(4.5);
+        // The swipe 공유 panel is a visible panel on the card, with a white icon.
+        expect(contrast(palette.neutralAction, surface)).toBeGreaterThan(1.3);
+      }
+      expect(contrast('#FFFFFF', palette.neutralAction)).toBeGreaterThanOrEqual(4.5);
+      // A red, not the badge coral, the error coral or the brand violet.
+      expect([palette.badge, palette.danger, palette.dangerText, palette.brand]).not.toContain(palette.destructive);
+      const red = parseInt(palette.destructive.slice(1, 3), 16);
+      const green = parseInt(palette.destructive.slice(3, 5), 16);
+      expect(red).toBeGreaterThan(green * 3);
+    }
+  });
+
   it('themedStyles re-evaluates its factory for the theme in force (and not on every read)', () => {
     let runs = 0;
     const styles = themedStyles(() => {

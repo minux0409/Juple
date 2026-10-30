@@ -276,9 +276,9 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onOpe
             style={[styles.actionButton, styles.removeButton, isBusy && !isRemoving && styles.disabled]}
             testID="friend-remove"
           >
-            {isRemoving ? <ActivityIndicator color={colors.dangerText} size="small" /> : (
+            {isRemoving ? <ActivityIndicator color={colors.destructiveText} size="small" /> : (
               <>
-                <UserMinusIcon color={colors.dangerText} size={ACTION_ICON_SIZE} />
+                <UserMinusIcon color={colors.destructiveText} size={ACTION_ICON_SIZE} />
                 <Text numberOfLines={2} style={[styles.actionLabel, styles.removeLabel]}>{t('friends.remove')}</Text>
               </>
             )}
@@ -341,7 +341,7 @@ const styles = themedStyles(() => ({
   primaryButton: { backgroundColor: colors.brand, borderColor: colors.brandText, marginTop: spacing.md },
   primaryLabel: { color: colors.onBrand },
   disabled: { opacity: 0.45 },
-  removeButton: { borderColor: colors.dangerBorder },
+  removeButton: { borderColor: colors.destructiveText },
   sharedState: { marginTop: spacing.sm },
   sharedEmpty: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.sm },
   // One explicit title-to-list inset on both platforms; keep the row's bottom and tile spacing.
@@ -351,5 +351,5 @@ const styles = themedStyles(() => ({
   sharedMore: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget },
   sharedMoreLabel: { color: colors.brandText, flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   sharedName: { color: colors.textPrimary, fontSize: 13, fontWeight: '600', textAlign: 'center' },
-  removeLabel: { color: colors.dangerText },
+  removeLabel: { color: colors.destructiveText },
 }));

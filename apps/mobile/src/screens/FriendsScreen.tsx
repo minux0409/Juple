@@ -741,7 +741,7 @@ function RequestRow({ request, isBusy, onAccept, onDecline, onCancel, onOpenPers
           style={[styles.iconAction, isBusy && styles.disabled]}
           testID={`friends-cancel-${request.requestId}`}
         >
-          <TrashIcon color={colors.dangerText} size={20} />
+          <TrashIcon color={colors.destructiveText} size={20} />
         </Pressable>
       )}
     </View>

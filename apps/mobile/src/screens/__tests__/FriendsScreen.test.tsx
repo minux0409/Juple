@@ -1049,7 +1049,7 @@ describe('FriendsScreen - a friend', () => {
     expect(shape(save).minHeight).toBeGreaterThanOrEqual(44);
     // Blue default action vs red destructive outline.
     expect(StyleSheet.flatten(save.props.style).backgroundColor).toBe(colors.brand);
-    expect(StyleSheet.flatten(remove.props.style).borderColor).toBe(colors.dangerBorder);
+    expect(StyleSheet.flatten(remove.props.style).borderColor).toBe(colors.destructiveText);
   });
 
   it('메모 / 친구 삭제 each carry a meaningful icon AND keep their word - and 신고 / 차단 are no longer friend actions', async () => {
@@ -1060,7 +1060,7 @@ describe('FriendsScreen - a friend', () => {
     expect(renderer.root.findAllByType(EditIcon)).toHaveLength(1);
     expect(renderer.root.findByType(EditIcon).props.color).toBe(colors.textPrimary);
     expect(texts(renderer.root.findByType(EditIcon).parent!)).toEqual(['메모']);
-    expect(remove.findByType(UserMinusIcon).props.color).toBe(colors.dangerText);
+    expect(remove.findByType(UserMinusIcon).props.color).toBe(colors.destructiveText);
     expect(texts(remove)).toEqual(['친구 삭제']);
     expect(StyleSheet.flatten(remove.props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' });
     expect(remove.findAllByType(Text)[0].props.numberOfLines).toBe(2);
