@@ -218,6 +218,63 @@ describe('CollectionLockSettingsScreen (설정 > 컬렉션 잠금)', () => {
     );
   });
 
+  describe('iOS sign-in sheet outcomes (as react-native-app-auth reports them: authentication_failed + the underlying error)', () => {
+    const appAuthError = (message: string, underlying?: { domain: string; code: string }) => ({
+      name: 'EntraAuthError',
+      message: 'Microsoft Entra authorization failed.',
+      cause: { code: 'authentication_failed', domain: 'org.openid.appauth.general', message, ...(underlying ? { userInfo: { NSUnderlyingError: underlying } } : {}) },
+    });
+    const SESSION_DOMAIN = 'com.apple.AuthenticationServices.WebAuthenticationSession';
+    const notice = (renderer: Renderer) => renderer.root.findAll(node => node.props.testID === 'lock-settings-notice')[0]?.props.children;
+
+    it('취소 on the system prompt / closing the sheet: quiet, and the next attempt can start', async () => {
+      jest.mocked(reauthenticateSameAccount).mockRejectedValueOnce(appAuthError('The operation couldn’t be completed.', { domain: SESSION_DOMAIN, code: '1' }));
+      const renderer = await renderScreen();
+      await press(renderer, 'lock-settings-forgot');
+      await confirmSignIn(renderer);
+      expect(notice(renderer)).toBeUndefined();
+      expect(renderer.root.findByProps({ testID: 'lock-settings-forgot' }).props.disabled).toBe(false);
+
+      await press(renderer, 'lock-settings-forgot');
+      await confirmSignIn(renderer);
+      expect(reauthenticateSameAccount).toHaveBeenCalledTimes(2);
+    });
+
+    it('a sheet that could not be presented is a failure, named web_auth_presentation', async () => {
+      jest.mocked(reauthenticateSameAccount).mockRejectedValueOnce(appAuthError('The operation couldn’t be completed.', { domain: SESSION_DOMAIN, code: '2' }));
+      const renderer = await renderScreen();
+      await press(renderer, 'lock-settings-forgot');
+      await confirmSignIn(renderer);
+      expect(notice(renderer)).toBe(i18n.t('settings.collectionLockSignInFailed', { code: 'authentication_failed · web_auth_presentation' }));
+    });
+
+    it('an ID token AppAuth refused as expired is a failure (never treated as a cancel) and nothing is reset', async () => {
+      jest.mocked(reauthenticateSameAccount).mockRejectedValueOnce(appAuthError('ID Token expired'));
+      const renderer = await renderScreen();
+      await press(renderer, 'lock-settings-forgot');
+      await confirmSignIn(renderer);
+      expect(notice(renderer)).toBe(i18n.t('settings.collectionLockSignInFailed', { code: 'authentication_failed · id_token_expired' }));
+      expect(renderer.root.findAllByType(CollectionLockPasswordDialog).every(dialog => dialog.props.visible === false)).toBe(true);
+      expect(resetCollectionLockPassword).not.toHaveBeenCalled();
+    });
+
+    it('while one sign-in is running nothing can start a second one', async () => {
+      let finish!: () => void;
+      jest.mocked(reauthenticateSameAccount).mockReturnValueOnce(new Promise(resolve => { finish = () => resolve('incomplete'); }));
+      const renderer = await renderScreen();
+      await press(renderer, 'lock-settings-forgot');
+      await confirmSignIn(renderer);
+      expect(renderer.root.findByProps({ testID: 'lock-settings-forgot' }).props.disabled).toBe(true);
+      // A late second dismissal of the (already closed) confirmation starts nothing either.
+      await act(async () => {
+        await renderer.root.findByType(ConfirmDialog).props.onDismiss?.();
+      });
+      expect(reauthenticateSameAccount).toHaveBeenCalledTimes(1);
+      await act(async () => finish());
+      expect(renderer.root.findByProps({ testID: 'lock-settings-forgot' }).props.disabled).toBe(false);
+    });
+  });
+
   it('a failure with nothing recognisable keeps the plain message', async () => {
     jest.mocked(reauthenticateSameAccount).mockRejectedValueOnce(new Error('???'));
     const renderer = await renderScreen();
