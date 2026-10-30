@@ -130,7 +130,7 @@ export function CategoryEditorDialog({
       <KeyboardSafeView
         style={[
           styles.overlay,
-          { paddingTop: spacing.xl + insets.top, paddingBottom: spacing.xl + insets.bottom },
+          { paddingTop: DIALOG_TOP_CLEARANCE + insets.top, paddingBottom: spacing.xl + insets.bottom },
         ]}
       >
         <Pressable
@@ -144,8 +144,9 @@ export function CategoryEditorDialog({
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <View style={styles.previewRow}>
               <CategoryIconTile collectionId={0} color={color} icon={icon} imageUrl={imageUri} size={44} />
+              {/* No autoFocus: the dialog appears first, centred and still; the keyboard opens when the person taps the name (as on
+                  Android). Focusing at once made iOS raise the keyboard mid-appearance and the card jump. */}
               <ThemedTextInput
-                autoFocus
                 editable={!isSubmitting}
                 onChangeText={setName}
                 placeholder={t('collections.namePlaceholder')}
@@ -222,6 +223,14 @@ export function CategoryEditorDialog({
     </Modal>
   );
 }
+
+/**
+ * How far below the safe area the card may rise when space runs short (the keyboard is up): clear of the screen's title row.
+ * With only a small margin the card rose into that row and its rounded corner left a sliver of the controls there showing (the
+ * Collections screen's purple "+"), looking like part of the dialog. Without the keyboard the card stays centred; with it, the card
+ * shrinks into the room that is left and its content scrolls inside.
+ */
+const DIALOG_TOP_CLEARANCE = 64;
 
 const styles = themedStyles(() => ({
   // The theme's scrim (darker in Dark): with the keyboard up the card rises into the screen's header, and the screen's purple "+"

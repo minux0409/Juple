@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, type ScrollViewInstance } from 'react-native';
 import { Pressable } from '../components/Pressable';
@@ -27,13 +27,32 @@ interface CollectionIconPickerProps {
 }
 
 /** A fixed 10-icon grid (see collectionIcons.ts) for choosing a Collection's decorative icon at create/edit time - shown below the name field wherever a Collection's name can be entered. */
+/** Each tile's side as a share of the grid's width - five to a row with the gaps between them. */
+const TILE_SHARE = 0.18;
+/** Rows shown before the grid scrolls. */
+const VISIBLE_ROWS = 2;
+const GRID_VERTICAL_PADDING = 2;
+
 export function CollectionIconPicker({ selected, onSelect, tile, disabled, isVisible = true }: CollectionIconPickerProps) {
   const { t } = useTranslation();
   const scrollRef = useRef<ScrollViewInstance>(null);
   useEffect(() => { if (isVisible) scrollRef.current?.scrollTo({ animated: false, y: 0 }); }, [isVisible]);
+  // Square tiles, five to a row: each side is 18% of the grid's measured width (the rest is the gaps), never under the touch target.
+  // The grid shows two rows at a time and scrolls for the rest - its height follows the tile size, so the two rows always fit exactly.
+  const [gridWidth, setGridWidth] = useState(0);
+  const tileSize = Math.max(minTouchTarget, Math.floor(gridWidth * TILE_SHARE));
+  const visibleHeight = tileSize * VISIBLE_ROWS + spacing.sm * (VISIBLE_ROWS - 1) + GRID_VERTICAL_PADDING * 2;
 
   return (
-    <ScrollView contentContainerStyle={styles.grid} nestedScrollEnabled ref={scrollRef} showsVerticalScrollIndicator style={styles.scroll}>
+    <ScrollView
+      contentContainerStyle={styles.grid}
+      nestedScrollEnabled
+      onLayout={event => setGridWidth(event.nativeEvent.layout.width)}
+      ref={scrollRef}
+      showsVerticalScrollIndicator
+      style={{ maxHeight: visibleHeight }}
+      testID="collection-icon-grid"
+    >
       {COLLECTION_ICON_KEYS.map(icon => {
         const IconComponent = resolveCollectionIconComponent(icon);
         const isSelected = icon === selected;
@@ -49,7 +68,7 @@ export function CollectionIconPicker({ selected, onSelect, tile, disabled, isVis
             testID={`collection-icon-option-${icon}`}
             style={[
               styles.cell,
-              { backgroundColor: tile.background },
+              { backgroundColor: tile.background, height: tileSize, width: tileSize },
               isSelected && styles.cellSelected,
               disabled && styles.cellDisabled,
             ]}
@@ -67,16 +86,16 @@ const styles = themedStyles(() => ({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    paddingVertical: 2,
+    paddingVertical: GRID_VERTICAL_PADDING,
     rowGap: spacing.sm,
   },
-  scroll: { maxHeight: minTouchTarget * 2 + spacing.sm + 4 },
+  // Square, like the Collection's own icon tile beside the name (width and height are set from the measured grid). The selected
+  // border is drawn inside the tile, so it is never clipped and never overlaps a neighbour.
   cell: {
     alignItems: 'center',
+    aspectRatio: 1,
     borderRadius: radii.md + 6,
-    height: minTouchTarget,
     justifyContent: 'center',
-    width: '18%',
   },
   cellSelected: {
     borderColor: colors.brandText,

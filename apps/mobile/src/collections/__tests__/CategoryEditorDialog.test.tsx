@@ -186,3 +186,43 @@ describe('CategoryEditorDialog - nothing of the screen behind looks like part of
     expect(renderer.root.findAll(node => typeof node.type === 'string' && StyleSheet.flatten(node.props.style)?.backgroundColor === 'rgba(0, 0, 0, 0.4)')).toHaveLength(0);
   });
 });
+
+describe('CategoryEditorDialog - opening and the icon grid', () => {
+  it('opens without focusing the name field - the keyboard comes only when the person taps it', async () => {
+    const { renderer } = await renderDialog();
+    expect(renderer.root.findByType(TextInput).props.autoFocus).toBeFalsy();
+  });
+
+  it('every built-in icon is a square tile (as wide as it is tall, sized from the grid), two rows shown at a time', async () => {
+    const { renderer } = await renderDialog();
+    const grid = renderer.root.findAll(node => node.props.testID === 'collection-icon-grid' && typeof node.props.onLayout === 'function')[0];
+    act(() => grid.props.onLayout({ nativeEvent: { layout: { width: 320, height: 200, x: 0, y: 0 } } }));
+    const byId = new Map<string, ReactTestRenderer.ReactTestInstance>();
+    for (const node of renderer.root.findAll(candidate => /^collection-icon-option-\w+$/.test(String(candidate.props.testID ?? '')) && typeof candidate.type === 'string')) {
+      if (!byId.has(node.props.testID)) {
+        byId.set(node.props.testID, node);
+      }
+    }
+    expect(byId.size).toBeGreaterThanOrEqual(10);
+    for (const cell of byId.values()) {
+      const style = StyleSheet.flatten(cell.props.style);
+      expect(style.width).toBe(style.height);
+      expect(style.width).toBe(Math.floor(320 * 0.18));
+      expect(style.width).toBeGreaterThanOrEqual(44);
+    }
+    // Exactly two rows of those tiles are visible (the rest scroll).
+    const gridHost = renderer.root.findAll(node => node.props.testID === 'collection-icon-grid' && typeof node.type === 'string')[0];
+    expect(StyleSheet.flatten(gridHost.props.style).maxHeight).toBe(Math.floor(320 * 0.18) * 2 + 8 + 4);
+  });
+});
+
+describe('CategoryEditorDialog - never rises into the screen title row', () => {
+  it('keeps 64pt below the safe area free, so the controls of the screen behind (its "+") stay covered by the scrim, not beside the card', async () => {
+    const { renderer } = await renderDialog();
+    const paddings = renderer.root
+      .findAll(node => StyleSheet.flatten(node.props.style)?.backgroundColor === colors.scrim)
+      .map(node => StyleSheet.flatten(node.props.style).paddingTop)
+      .filter((value): value is number => typeof value === 'number');
+    expect(Math.max(...paddings)).toBeGreaterThanOrEqual(64);
+  });
+});
