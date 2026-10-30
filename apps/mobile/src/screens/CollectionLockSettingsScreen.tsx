@@ -1,11 +1,11 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, Text, View } from 'react-native';
 import { Pressable } from '../components/Pressable';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { reauthenticateSameAccount } from '../auth/reauthentication';
-import { isUserCancelledSignIn } from '../auth/signInErrors';
+import { isUserCancelledSignIn, signInFailureCode } from '../auth/signInErrors';
 import {
   getCollectionLockPasswordStatus,
   type CollectionLockPasswordStatus,
@@ -61,11 +61,32 @@ export function CollectionLockSettingsScreen() {
     }, [load]),
   );
 
-  const signInAgain = async () => {
+  // iOS: the sign-in sheet is presented only once the confirmation dialog has finished going away (its Modal's onDismiss) - iOS
+  // cannot present the system sign-in UI while another view controller is still being dismissed. Android starts at once.
+  const pendingSignInRef = useRef<SignInPurpose | null>(null);
+  const confirmSignIn = () => {
     const purpose = signInPurpose;
+    if (purpose === null) {
+      return;
+    }
     setSignInPurpose(null);
     setNotice(null);
     setIsSigningIn(true);
+    if (Platform.OS === 'ios') {
+      pendingSignInRef.current = purpose;
+    } else {
+      signInAgain(purpose).catch(() => undefined);
+    }
+  };
+  const onConfirmDialogDismissed = () => {
+    const purpose = pendingSignInRef.current;
+    pendingSignInRef.current = null;
+    if (purpose !== null) {
+      signInAgain(purpose).catch(() => undefined);
+    }
+  };
+
+  const signInAgain = async (purpose: SignInPurpose) => {
     try {
       const outcome = await reauthenticateSameAccount();
       if (outcome === 'reauthenticated') {
@@ -77,9 +98,11 @@ export function CollectionLockSettingsScreen() {
       }
       // 'incomplete' (the page closed without tokens) stays quiet, like a cancel.
     } catch (caughtError) {
-      // Closing or dismissing the sign-in page is a choice - quietly back to this screen. Anything else is a failed sign-in, and is said.
+      // Closing or dismissing the sign-in page is a choice - quietly back to this screen. Anything else is a failed sign-in, and is
+      // said - with the step's short code when there is one (see signInFailureCode), so a real-device failure can be pinned down.
       if (!isUserCancelledSignIn(caughtError)) {
-        setNotice(t('auth.failed'));
+        const code = signInFailureCode(caughtError);
+        setNotice(code ? t('settings.collectionLockSignInFailed', { code }) : t('auth.failed'));
       }
     } finally {
       setIsSigningIn(false);
@@ -173,7 +196,8 @@ export function CollectionLockSettingsScreen() {
             : t('settings.collectionLockSignInToConfirm')
         }
         onCancel={() => setSignInPurpose(null)}
-        onConfirm={signInAgain}
+        onConfirm={confirmSignIn}
+        onDismiss={onConfirmDialogDismissed}
         title={signInPurpose === 'forgot' ? t('settings.collectionLockForgot') : t('settings.collectionLockSetPassword')}
         visible={signInPurpose !== null}
       />

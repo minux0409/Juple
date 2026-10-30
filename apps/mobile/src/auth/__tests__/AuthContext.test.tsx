@@ -17,6 +17,9 @@ jest.mock('react-native-app-auth', () => ({
 }));
 
 jest.mock('../session/authSessionManager', () => ({
+  // Pass-throughs: an interactive sign-in only runs its callback (see authSessionManager.runInteractiveSignIn).
+  runInteractiveSignIn: jest.fn((signIn: () => Promise<unknown>) => signIn()),
+  isInteractiveSignInInProgress: jest.fn(() => false),
   getValidAccessToken: jest.fn(),
   getCachedIdToken: jest.fn(() => null),
   onSessionInvalidated: jest.fn(() => jest.fn()),

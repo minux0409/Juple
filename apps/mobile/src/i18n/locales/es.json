@@ -475,6 +475,7 @@
     "collectionLockNewPassword": "Nueva contraseña de bloqueo",
     "collectionLockConfirmPassword": "Confirma la nueva contraseña de bloqueo",
     "collectionLockSignInExpired": "La confirmación ha caducado. Vuelve a iniciar sesión.",
+    "collectionLockSignInFailed": "No se pudo iniciar sesión. Inténtalo de nuevo en un momento. (Error: {{code}})",
     "collectionLockDifferentAccount": "Iniciaste sesión con otra cuenta, así que no se cambió nada.",
     "collectionLockSignInCancelled": "No se completó el inicio de sesión, así que no se cambió nada.",
     "collectionLockSaved": "Contraseña de bloqueo guardada.",

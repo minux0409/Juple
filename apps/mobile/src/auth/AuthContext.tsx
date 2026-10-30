@@ -22,7 +22,9 @@ import {
   clearSession,
   getCachedIdToken,
   getValidAccessToken,
+  isInteractiveSignInInProgress,
   onSessionInvalidated,
+  runInteractiveSignIn,
   saveAuthorizedSession,
 } from './session/authSessionManager';
 import {
@@ -236,7 +238,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   // While signed in: ask Entra again (a forced refresh) when the app returns to the foreground and every few minutes while it stays
   // there, so a revoked sign-in is noticed before the in-memory access token expires. See session/sessionValidator.ts.
-  const [validator] = useState(() => createSessionValidator({ validate: () => getValidAccessToken({ forceRefresh: true }) }));
+  // Not while an interactive sign-in is on screen: that sign-in is about to replace the session (see runInteractiveSignIn).
+  const [validator] = useState(() => createSessionValidator({ validate: () => (isInteractiveSignInInProgress() ? Promise.resolve() : getValidAccessToken({ forceRefresh: true })) }));
   const isSignedIn = state.isAuthenticated && !state.isInitializing;
   useEffect(() => {
     if (!isSignedIn) {
@@ -296,7 +299,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     );
 
     try {
-      const result = await authorizeWithEntra(SIGN_IN_PARAMETERS);
+      const result = await runInteractiveSignIn(() => authorizeWithEntra(SIGN_IN_PARAMETERS));
       if (!result.accessToken) {
         throw new Error(
           'Entra authorization completed without an access token.',
@@ -348,7 +351,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           // account (e.g. it was just deleted). Creating one is an explicit act: ask for the credentials again. A cancel
           // leaves the app signed out - the old session is dropped first, so nothing stale is kept.
           await clearSession();
-          const confirmed = await authorizeWithEntra(REAUTHENTICATION_PARAMETERS);
+          const confirmed = await runInteractiveSignIn(() => authorizeWithEntra(REAUTHENTICATION_PARAMETERS));
           if (!confirmed.accessToken || !confirmed.refreshToken) {
             throw new Error('Entra re-authentication completed without the tokens required for a session.');
           }

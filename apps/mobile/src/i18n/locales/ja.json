@@ -475,6 +475,7 @@
     "collectionLockNewPassword": "新しいロックパスワード",
     "collectionLockConfirmPassword": "新しいロックパスワード（確認）",
     "collectionLockSignInExpired": "ご本人確認の有効期限が切れました。もう一度ログインしてください。",
+    "collectionLockSignInFailed": "ログインに失敗しました。しばらくしてからもう一度お試しください。(エラー: {{code}})",
     "collectionLockDifferentAccount": "現在とは別のアカウントでログインしたため、変更していません。",
     "collectionLockSignInCancelled": "ログインが完了しなかったため、変更していません。",
     "collectionLockSaved": "ロックパスワードを保存しました。",

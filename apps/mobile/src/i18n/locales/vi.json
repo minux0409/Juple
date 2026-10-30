@@ -475,6 +475,7 @@
     "collectionLockNewPassword": "Mật khẩu khóa mới",
     "collectionLockConfirmPassword": "Xác nhận mật khẩu khóa mới",
     "collectionLockSignInExpired": "Thời gian xác nhận đã hết. Vui lòng đăng nhập lại.",
+    "collectionLockSignInFailed": "Đăng nhập không thành công. Vui lòng thử lại sau giây lát. (Lỗi: {{code}})",
     "collectionLockDifferentAccount": "Bạn đã đăng nhập bằng tài khoản khác nên không có gì thay đổi.",
     "collectionLockSignInCancelled": "Chưa hoàn tất đăng nhập nên không có gì thay đổi.",
     "collectionLockSaved": "Đã lưu mật khẩu khóa.",

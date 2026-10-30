@@ -12,6 +12,9 @@ jest.mock('../entraAuthClient', () => ({
   REAUTHENTICATION_PARAMETERS: { prompt: 'login', max_age: '0' },
 }));
 jest.mock('../session/authSessionManager', () => ({
+  // Pass-throughs: an interactive sign-in only runs its callback (see authSessionManager.runInteractiveSignIn).
+  runInteractiveSignIn: jest.fn((signIn: () => Promise<unknown>) => signIn()),
+  isInteractiveSignInInProgress: jest.fn(() => false),
   getCachedIdToken: jest.fn(),
   saveAuthorizedSession: jest.fn().mockResolvedValue(undefined),
 }));

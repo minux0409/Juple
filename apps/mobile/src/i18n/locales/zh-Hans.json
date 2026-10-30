@@ -475,6 +475,7 @@
     "collectionLockNewPassword": "新锁定密码",
     "collectionLockConfirmPassword": "确认新锁定密码",
     "collectionLockSignInExpired": "身份确认已过期，请重新登录。",
+    "collectionLockSignInFailed": "登录失败。请稍后再试。(错误：{{code}})",
     "collectionLockDifferentAccount": "你登录的是其他账号，因此未做任何更改。",
     "collectionLockSignInCancelled": "登录未完成，因此未做任何更改。",
     "collectionLockSaved": "锁定密码已保存。",

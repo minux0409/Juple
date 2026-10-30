@@ -475,6 +475,7 @@
     "collectionLockNewPassword": "Kata sandi kunci baru",
     "collectionLockConfirmPassword": "Konfirmasi kata sandi kunci baru",
     "collectionLockSignInExpired": "Waktu konfirmasi telah habis. Silakan masuk lagi.",
+    "collectionLockSignInFailed": "Gagal masuk. Silakan coba lagi sebentar lagi. (Kesalahan: {{code}})",
     "collectionLockDifferentAccount": "Anda masuk dengan akun lain, jadi tidak ada yang diubah.",
     "collectionLockSignInCancelled": "Proses masuk tidak selesai, jadi tidak ada yang diubah.",
     "collectionLockSaved": "Kata sandi kunci disimpan.",

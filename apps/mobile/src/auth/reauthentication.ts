@@ -1,6 +1,6 @@
 import { authorizeWithEntra, REAUTHENTICATION_PARAMETERS } from './entraAuthClient';
 import { decodeIdTokenClaims } from './idTokenClaims';
-import { getCachedIdToken, saveAuthorizedSession } from './session/authSessionManager';
+import { getCachedIdToken, runInteractiveSignIn, saveAuthorizedSession } from './session/authSessionManager';
 
 /**
  * "Sign in again to confirm it's you" for security-sensitive actions (Settings > 컬렉션 잠금's
@@ -100,18 +100,23 @@ export function buildReauthenticationParameters(
  */
 export async function reauthenticateSameAccount(): Promise<ReauthenticationOutcome> {
   const previousIdToken = getCachedIdToken();
-  const result = await authorizeWithEntra(buildReauthenticationParameters(previousIdToken));
+  const result = await runInteractiveSignIn(() => authorizeWithEntra(buildReauthenticationParameters(previousIdToken)));
   if (!result.accessToken || !result.refreshToken) {
     return 'incomplete';
   }
   if (!isSameAccount(previousIdToken, result.idToken)) {
     return 'differentAccount';
   }
-  await saveAuthorizedSession({
-    accessToken: result.accessToken,
-    accessTokenExpirationDate: result.accessTokenExpirationDate,
-    refreshToken: result.refreshToken,
-    idToken: result.idToken,
-  });
+  try {
+    await saveAuthorizedSession({
+      accessToken: result.accessToken,
+      accessTokenExpirationDate: result.accessTokenExpirationDate,
+      refreshToken: result.refreshToken,
+      idToken: result.idToken,
+    });
+  } catch (cause) {
+    // The sign-in itself succeeded; storing it did not - said apart from a failed sign-in (signInFailureCode 'session_save').
+    throw Object.assign(new Error('The re-authenticated session could not be stored.'), { code: 'session_save', cause });
+  }
   return 'reauthenticated';
 }

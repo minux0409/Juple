@@ -475,6 +475,7 @@
     "collectionLockNewPassword": "Новый пароль блокировки",
     "collectionLockConfirmPassword": "Подтвердите новый пароль блокировки",
     "collectionLockSignInExpired": "Время подтверждения истекло. Войдите снова.",
+    "collectionLockSignInFailed": "Не удалось войти. Повторите попытку чуть позже. (Ошибка: {{code}})",
     "collectionLockDifferentAccount": "Вы вошли в другой аккаунт, поэтому ничего не изменилось.",
     "collectionLockSignInCancelled": "Вход не был завершён, поэтому ничего не изменилось.",
     "collectionLockSaved": "Пароль блокировки сохранён.",

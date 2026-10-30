@@ -48,6 +48,8 @@ let refreshInFlight: Promise<string> | null = null;
  * server kept answering "sign in again" for the lock password, again and again.
  */
 let sessionGeneration = 0;
+/** Interactive sign-ins (the Entra sheet) currently on screen - see runInteractiveSignIn. */
+let interactiveSignIns = 0;
 const sessionInvalidatedListeners = new Set<() => void>();
 
 function isAccessTokenUsable(expirationDate: string | null): boolean {
@@ -109,6 +111,26 @@ export async function saveAuthorizedSession(
     refreshToken: session.refreshToken,
     idToken: session.idToken,
   });
+}
+
+/**
+ * Runs an interactive sign-in (the Entra sign-in sheet) and marks it as in progress until it settles, success or not. While one is
+ * on screen nothing else should start token work for the session it is about to replace: on iOS the sheet's own system prompt
+ * makes the app inactive and active again, which used to start the foreground session check's forced refresh in the middle of the
+ * sign-in (see isInteractiveSignInInProgress, AuthContext's session validator).
+ */
+export async function runInteractiveSignIn<T>(signIn: () => Promise<T>): Promise<T> {
+  interactiveSignIns += 1;
+  try {
+    return await signIn();
+  } finally {
+    interactiveSignIns -= 1;
+  }
+}
+
+/** An interactive sign-in is on screen right now (see runInteractiveSignIn). */
+export function isInteractiveSignInInProgress(): boolean {
+  return interactiveSignIns > 0;
 }
 
 /** Clears the secure session and the in-memory access token (logout). */

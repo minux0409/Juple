@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Text, TextInput } from 'react-native';
+import { Platform, Text, TextInput } from 'react-native';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { CollectionLockSettingsScreen } from '../CollectionLockSettingsScreen';
@@ -41,9 +41,13 @@ const press = async (renderer: Renderer, testID: string) => {
     await renderer.root.findByProps({ testID }).props.onPress();
   });
 };
+/** 계속, then - as React Native's Modal does on iOS once the dialog has finished going away - its onDismiss. */
 const confirmSignIn = async (renderer: Renderer) => {
   await act(async () => {
     await renderer.root.findByType(ConfirmDialog).props.onConfirm();
+  });
+  await act(async () => {
+    await renderer.root.findByType(ConfirmDialog).props.onDismiss?.();
   });
 };
 const type = async (renderer: Renderer, values: Record<string, string>) => {
@@ -201,15 +205,66 @@ describe('CollectionLockSettingsScreen (설정 > 컬렉션 잠금)', () => {
     expect(JSON.stringify(texts(renderer))).not.toContain('로그인이 완료되지 않아');
   });
 
-  it('a sign-in that fails (not a cancel) says so instead of silently offering the same button again', async () => {
-    jest.mocked(reauthenticateSameAccount).mockRejectedValueOnce(new Error('Network request failed'));
+  it('a sign-in that fails (not a cancel) says so - with the failing step\'s safe code - instead of silently offering the button again', async () => {
+    jest.mocked(reauthenticateSameAccount).mockRejectedValueOnce({ name: 'EntraAuthError', message: 'Microsoft Entra authorization failed.', cause: { code: 'invalid_grant', message: 'AADSTS54005: OAuth2 Authorization code was already redeemed.' } });
     const renderer = await renderScreen();
 
     await press(renderer, 'lock-settings-forgot');
     await confirmSignIn(renderer);
 
     expect(resetCollectionLockPassword).not.toHaveBeenCalled();
+    expect(renderer.root.findByProps({ testID: 'lock-settings-notice' }).props.children).toBe(
+      i18n.t('settings.collectionLockSignInFailed', { code: 'invalid_grant · AADSTS54005' }),
+    );
+  });
+
+  it('a failure with nothing recognisable keeps the plain message', async () => {
+    jest.mocked(reauthenticateSameAccount).mockRejectedValueOnce(new Error('???'));
+    const renderer = await renderScreen();
+    await press(renderer, 'lock-settings-forgot');
+    await confirmSignIn(renderer);
     expect(renderer.root.findByProps({ testID: 'lock-settings-notice' }).props.children).toBe(i18n.t('auth.failed'));
+  });
+
+  it('iOS: the sign-in sheet starts only after the confirmation has finished going away - never over a dismissing dialog', async () => {
+    jest.mocked(reauthenticateSameAccount).mockResolvedValueOnce('reauthenticated');
+    const renderer = await renderScreen();
+    await press(renderer, 'lock-settings-forgot');
+
+    await act(async () => {
+      await renderer.root.findByType(ConfirmDialog).props.onConfirm();
+    });
+    expect(renderer.root.findByType(ConfirmDialog).props.visible).toBe(false);
+    expect(reauthenticateSameAccount).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await renderer.root.findByType(ConfirmDialog).props.onDismiss();
+    });
+    expect(reauthenticateSameAccount).toHaveBeenCalledTimes(1);
+    // Success leads straight into the new-password form.
+    expect(lockDialog(renderer, 'new').props).toEqual(expect.objectContaining({ visible: true, presentation: 'inline' }));
+    // A stray second dismissal starts nothing more.
+    await act(async () => {
+      await renderer.root.findByType(ConfirmDialog).props.onDismiss();
+    });
+    expect(reauthenticateSameAccount).toHaveBeenCalledTimes(1);
+  });
+
+  it('Android: the sign-in starts at once on 계속 (there is no dismissal step to wait for)', async () => {
+    const originalOS = Platform.OS;
+    Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
+    try {
+      jest.mocked(reauthenticateSameAccount).mockResolvedValueOnce('reauthenticated');
+      const renderer = await renderScreen();
+      await press(renderer, 'lock-settings-forgot');
+      await act(async () => {
+        await renderer.root.findByType(ConfirmDialog).props.onConfirm();
+      });
+      expect(reauthenticateSameAccount).toHaveBeenCalledTimes(1);
+      expect(lockDialog(renderer, 'new').props.visible).toBe(true);
+    } finally {
+      Object.defineProperty(Platform, 'OS', { value: originalOS, configurable: true });
+    }
   });
 
   it('a different account is not a cancellation: it says the current session was kept', async () => {

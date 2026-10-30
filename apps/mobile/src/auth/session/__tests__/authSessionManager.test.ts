@@ -109,3 +109,18 @@ describe('authSessionManager - a refresh of the old session never undoes a newer
     expect(manager.getCachedIdToken()).toBeNull();
   });
 });
+
+describe('authSessionManager - an interactive sign-in is marked while it is on screen', () => {
+  it('is in progress exactly while the sign-in runs, success or failure', async () => {
+    expect(manager.isInteractiveSignInInProgress()).toBe(false);
+    let finish!: () => void;
+    const running = manager.runInteractiveSignIn(() => new Promise<string>(resolve => { finish = () => resolve('done'); }));
+    expect(manager.isInteractiveSignInInProgress()).toBe(true);
+    finish();
+    await expect(running).resolves.toBe('done');
+    expect(manager.isInteractiveSignInInProgress()).toBe(false);
+
+    await expect(manager.runInteractiveSignIn(() => Promise.reject(new Error('cancelled')))).rejects.toThrow('cancelled');
+    expect(manager.isInteractiveSignInInProgress()).toBe(false);
+  });
+});

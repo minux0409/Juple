@@ -475,6 +475,7 @@
     "collectionLockNewPassword": "Yeni kilit şifresi",
     "collectionLockConfirmPassword": "Yeni kilit şifresini onaylayın",
     "collectionLockSignInExpired": "Doğrulamanın süresi doldu. Lütfen tekrar giriş yapın.",
+    "collectionLockSignInFailed": "Giriş yapılamadı. Lütfen birazdan tekrar deneyin. (Hata: {{code}})",
     "collectionLockDifferentAccount": "Farklı bir hesapla giriş yaptığınız için hiçbir şey değiştirilmedi.",
     "collectionLockSignInCancelled": "Giriş tamamlanmadığı için hiçbir şey değiştirilmedi.",
     "collectionLockSaved": "Kilit şifresi kaydedildi.",

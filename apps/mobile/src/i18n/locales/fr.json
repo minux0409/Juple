@@ -475,6 +475,7 @@
     "collectionLockNewPassword": "Nouveau mot de passe de verrouillage",
     "collectionLockConfirmPassword": "Confirmez le nouveau mot de passe de verrouillage",
     "collectionLockSignInExpired": "La confirmation a expiré. Reconnectez-vous.",
+    "collectionLockSignInFailed": "La connexion a échoué. Réessayez dans un instant. (Erreur : {{code}})",
     "collectionLockDifferentAccount": "Vous vous êtes connecté avec un autre compte : rien n’a été modifié.",
     "collectionLockSignInCancelled": "La connexion n’a pas abouti : rien n’a été modifié.",
     "collectionLockSaved": "Mot de passe de verrouillage enregistré.",

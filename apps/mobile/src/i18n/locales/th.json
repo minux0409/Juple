@@ -475,6 +475,7 @@
     "collectionLockNewPassword": "รหัสผ่านล็อกใหม่",
     "collectionLockConfirmPassword": "ยืนยันรหัสผ่านล็อกใหม่",
     "collectionLockSignInExpired": "การยืนยันตัวตนหมดเวลาแล้ว โปรดเข้าสู่ระบบอีกครั้ง",
+    "collectionLockSignInFailed": "เข้าสู่ระบบไม่สำเร็จ โปรดลองอีกครั้งในอีกสักครู่ (ข้อผิดพลาด: {{code}})",
     "collectionLockDifferentAccount": "คุณเข้าสู่ระบบด้วยบัญชีอื่น จึงไม่มีการเปลี่ยนแปลงใด ๆ",
     "collectionLockSignInCancelled": "การเข้าสู่ระบบไม่สำเร็จ จึงไม่มีการเปลี่ยนแปลงใด ๆ",
     "collectionLockSaved": "บันทึกรหัสผ่านล็อกแล้ว",

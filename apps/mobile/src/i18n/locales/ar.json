@@ -475,6 +475,7 @@
     "collectionLockNewPassword": "كلمة مرور القفل الجديدة",
     "collectionLockConfirmPassword": "تأكيد كلمة مرور القفل الجديدة",
     "collectionLockSignInExpired": "انتهت مهلة التأكيد. يُرجى تسجيل الدخول مرة أخرى.",
+    "collectionLockSignInFailed": "فشل تسجيل الدخول. يُرجى المحاولة مرة أخرى بعد قليل. (الخطأ: {{code}})",
     "collectionLockDifferentAccount": "سجّلت الدخول بحساب مختلف، لذا لم يتم تغيير أي شيء.",
     "collectionLockSignInCancelled": "لم يكتمل تسجيل الدخول، لذا لم يتم تغيير أي شيء.",
     "collectionLockSaved": "تم حفظ كلمة مرور القفل.",

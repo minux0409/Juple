@@ -25,6 +25,11 @@ interface ConfirmDialogProps {
    * outside tap then do NOTHING - the dialog stays, and no action (such as opening a store) is started by a stray gesture.
    */
   readonly dismissable?: boolean;
+  /**
+   * iOS: the dialog has finished going away (React Native's Modal onDismiss). For an action that presents system UI of its own (the
+   * sign-in sheet), which iOS cannot present while this dialog's own view controller is still being dismissed.
+   */
+  readonly onDismiss?: () => void;
 }
 
 /**
@@ -50,6 +55,7 @@ export function ConfirmDialog({
   destructive = true,
   children,
   dismissable = true,
+  onDismiss,
 }: ConfirmDialogProps) {
   const dismiss = dismissable && !busy ? (onCancel ?? onConfirm) : ignoreDismissRequest;
 
@@ -67,7 +73,7 @@ export function ConfirmDialog({
   }, [isEmptyNotice]);
 
   return (
-    <Modal animationType="fade" onRequestClose={dismiss} transparent visible={isShown}>
+    <Modal animationType="fade" onDismiss={onDismiss} onRequestClose={dismiss} transparent visible={isShown}>
       <KeyboardFieldScope>
       <View style={styles.overlay}>
         <Pressable

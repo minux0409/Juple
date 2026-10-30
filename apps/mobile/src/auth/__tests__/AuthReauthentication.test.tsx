@@ -4,7 +4,7 @@ import '../../i18n';
 import i18n from '../../i18n';
 import { AuthProvider, useAuth } from '../AuthContext';
 import { EntraAuthError } from '../entraAuthClient';
-import { clearSession, getValidAccessToken, onSessionInvalidated } from '../session/authSessionManager';
+import { clearSession, getValidAccessToken, isInteractiveSignInInProgress, onSessionInvalidated } from '../session/authSessionManager';
 import { validateBackendSession } from '../authSessionApi';
 import { bootstrapCurrentUser } from '../userBootstrapApi';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -16,6 +16,9 @@ jest.mock('react-native-app-auth', () => ({
 }));
 
 jest.mock('../session/authSessionManager', () => ({
+  // Pass-throughs: an interactive sign-in only runs its callback (see authSessionManager.runInteractiveSignIn).
+  runInteractiveSignIn: jest.fn((signIn: () => Promise<unknown>) => signIn()),
+  isInteractiveSignInInProgress: jest.fn(() => false),
   getValidAccessToken: jest.fn(),
   getCachedIdToken: jest.fn(() => null),
   onSessionInvalidated: jest.fn(() => jest.fn()),
@@ -132,6 +135,15 @@ describe('AuthProvider - revoked sign-in sessions', () => {
     expect(forcedRefreshCalls()).toBe(1);
     expect(dialogs(renderer)).toHaveLength(0);
     expect(probe(renderer)).toBe('true:valid');
+  });
+
+  it('coming back to the foreground WHILE an interactive sign-in is on screen (iOS: its system prompt) starts no refresh of the old session', async () => {
+    const renderer = await renderSignedIn();
+    jest.mocked(isInteractiveSignInInProgress).mockReturnValue(true);
+    await comeToForeground();
+    expect(forcedRefreshCalls()).toBe(0);
+    expect(dialogs(renderer)).toHaveLength(0);
+    jest.mocked(isInteractiveSignInInProgress).mockReturnValue(false);
   });
 
   it('is throttled: a second foreground within a minute does not ask Entra again', async () => {

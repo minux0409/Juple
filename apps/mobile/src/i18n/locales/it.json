@@ -475,6 +475,7 @@
     "collectionLockNewPassword": "Nuova password di blocco",
     "collectionLockConfirmPassword": "Conferma la nuova password di blocco",
     "collectionLockSignInExpired": "La conferma è scaduta. Accedi di nuovo.",
+    "collectionLockSignInFailed": "Accesso non riuscito. Riprova tra poco. (Errore: {{code}})",
     "collectionLockDifferentAccount": "Hai effettuato l’accesso con un altro account, quindi non è stato modificato nulla.",
     "collectionLockSignInCancelled": "L’accesso non è stato completato, quindi non è stato modificato nulla.",
     "collectionLockSaved": "Password di blocco salvata.",

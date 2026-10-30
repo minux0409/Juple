@@ -475,6 +475,7 @@
     "collectionLockNewPassword": "Neues Sperrpasswort",
     "collectionLockConfirmPassword": "Neues Sperrpasswort bestätigen",
     "collectionLockSignInExpired": "Die Bestätigung ist abgelaufen. Bitte melde dich erneut an.",
+    "collectionLockSignInFailed": "Anmeldung fehlgeschlagen. Bitte versuche es gleich noch einmal. (Fehler: {{code}})",
     "collectionLockDifferentAccount": "Du hast dich mit einem anderen Konto angemeldet, daher wurde nichts geändert.",
     "collectionLockSignInCancelled": "Die Anmeldung wurde nicht abgeschlossen, daher wurde nichts geändert.",
     "collectionLockSaved": "Sperrpasswort gespeichert.",

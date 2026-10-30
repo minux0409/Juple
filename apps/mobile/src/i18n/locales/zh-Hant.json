@@ -475,6 +475,7 @@
     "collectionLockNewPassword": "新的鎖定密碼",
     "collectionLockConfirmPassword": "確認新的鎖定密碼",
     "collectionLockSignInExpired": "身分確認已逾時，請重新登入。",
+    "collectionLockSignInFailed": "登入失敗。請稍後再試。(錯誤：{{code}})",
     "collectionLockDifferentAccount": "你登入的是其他帳號，因此未做任何變更。",
     "collectionLockSignInCancelled": "登入未完成，因此未做任何變更。",
     "collectionLockSaved": "鎖定密碼已儲存。",

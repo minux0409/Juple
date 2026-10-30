@@ -475,6 +475,7 @@
     "collectionLockNewPassword": "새 잠금 비밀번호",
     "collectionLockConfirmPassword": "새 잠금 비밀번호 확인",
     "collectionLockSignInExpired": "본인 확인 시간이 만료되었습니다. 다시 로그인해 주세요.",
+    "collectionLockSignInFailed": "로그인에 실패했습니다. 잠시 후 다시 시도해 주세요. (오류: {{code}})",
     "collectionLockDifferentAccount": "지금 사용 중인 계정과 다른 계정으로 로그인되어 진행하지 않았어요.",
     "collectionLockSignInCancelled": "로그인이 완료되지 않아 진행하지 않았어요.",
     "collectionLockSaved": "잠금 비밀번호를 저장했어요.",

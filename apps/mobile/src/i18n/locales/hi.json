@@ -475,6 +475,7 @@
     "collectionLockNewPassword": "नया लॉक पासवर्ड",
     "collectionLockConfirmPassword": "नए लॉक पासवर्ड की पुष्टि करें",
     "collectionLockSignInExpired": "पुष्टि का समय समाप्त हो गया। कृपया फिर से साइन इन करें।",
+    "collectionLockSignInFailed": "साइन इन विफल रहा। कृपया थोड़ी देर बाद फिर से कोशिश करें। (त्रुटि: {{code}})",
     "collectionLockDifferentAccount": "आपने किसी दूसरे खाते से साइन इन किया, इसलिए कुछ नहीं बदला गया।",
     "collectionLockSignInCancelled": "साइन इन पूरा नहीं हुआ, इसलिए कुछ नहीं बदला गया।",
     "collectionLockSaved": "लॉक पासवर्ड सहेजा गया।",
