@@ -23,7 +23,7 @@ import { TourHost } from '../tour/TourHost';
 import { SubscriptionRequiredPrompt } from '../billing/SubscriptionRequiredPrompt';
 import { MyCollectionSubmissionsScreen } from '../screens/MyCollectionSubmissionsScreen';
 import { headerTitleWithIcon, screenIcons } from './screenIcons';
-import { iosHeaderBackOptions } from './sheetHeader';
+import { iosHeaderOptions } from './sheetHeader';
 import { TermsAgreementScreen } from '../safety/TermsAgreementScreen';
 import { TermsUnavailable } from '../safety/TermsUnavailable';
 import { useTermsOnboarding } from '../safety/useTermsOnboarding';
@@ -233,7 +233,7 @@ export function RootStack() {
   return (
     <>
       <TourBackground>
-      <Stack.Navigator screenOptions={({ navigation }) => iosHeaderBackOptions(() => navigation.goBack())}>
+      <Stack.Navigator screenOptions={iosHeaderOptions()}>
         {isReady ? (
           <Stack.Group>
             <Stack.Screen component={themedScreen(MainTabs)} name="MainTabs" options={{ headerShown: false }} />
