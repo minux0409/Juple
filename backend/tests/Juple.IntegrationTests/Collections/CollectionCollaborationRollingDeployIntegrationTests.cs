@@ -209,6 +209,24 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
                 [IsLocked] bit NOT NULL, [LockVersion] int NOT NULL, [CreatedAtUtc] datetimeoffset NOT NULL, [UpdatedAtUtc] datetimeoffset NOT NULL)
             """);
 
+        // ...and safety.ShareRestrictions (AddSharedContentModeration - the admin share restriction every card and share read filters on).
+        await ExecuteAsync("IF SCHEMA_ID(N'safety') IS NULL EXEC(N'CREATE SCHEMA [safety]')");
+        await ExecuteAsync(
+            """
+            CREATE TABLE [safety].[ShareRestrictions] (
+                [Id] bigint NOT NULL IDENTITY PRIMARY KEY, [CollectionId] bigint NOT NULL, [ItemId] bigint NULL, [ReportId] bigint NULL,
+                [RestrictedByAdminUserId] bigint NOT NULL, [RestrictedAtUtc] datetimeoffset NOT NULL,
+                [LiftedByAdminUserId] bigint NULL, [LiftedAtUtc] datetimeoffset NULL)
+            """);
+
+        // ...and safety.UserBlocks (AddUgcSafety - a card and the Collection list hide Collections of people the caller blocked).
+        await ExecuteAsync(
+            """
+            CREATE TABLE [safety].[UserBlocks] (
+                [Id] bigint NOT NULL IDENTITY PRIMARY KEY, [BlockerUserId] bigint NOT NULL, [BlockedUserId] bigint NOT NULL,
+                [CreatedAtUtc] datetimeoffset NOT NULL)
+            """);
+
         // 3-4. The previous revision stars a Collection (legacy column only) - the new revision
         // already shows it as the Owner's favorite: nothing it wrote is missed.
         await OldRevisionSetFavoriteAsync(starredLater, true);
@@ -253,6 +271,8 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
         await ExecuteAsync("DROP TABLE [collections].[CollectionLinkSubmissions]");
         await ExecuteAsync("DROP TABLE [collections].[CollectionJoinRequests]");
         await ExecuteAsync("DROP TABLE [collections].[CollectionMemberLocks]");
+        await ExecuteAsync("DROP TABLE [safety].[ShareRestrictions]");
+        await ExecuteAsync("DROP TABLE [safety].[UserBlocks]");
         await ExecuteAsync("ALTER TABLE [notifications].[Notifications] DROP COLUMN [CollectionId]");
         await MigrateToAsync(null);
         Assert.False(await HasFavoriteRowAsync(owner, unstarredLater));
