@@ -51,6 +51,9 @@ import { AppToastProvider, useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { useActionAfterMenu } from '../components/useActionAfterMenu';
+import { BlockIcon } from '../icons/BlockIcon';
+import { useBlockPersonFlow } from '../safety/useBlockPersonFlow';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { InfoCallout } from '../components/InfoCallout';
 import { CheckIcon } from '../icons/CheckIcon';
@@ -130,6 +133,8 @@ const CONTENT_MAX_WIDTH = 640;
 /** What the "⋯" menu of one row acts on: an accepted member, or a pending invitation. */
 type ManagedPerson =
   | { readonly kind: 'member'; readonly jupleId: string; readonly label: string; readonly role: InvitationRole }
+  // Anyone else's row when this person cannot manage them (the Owner's row, or any row for a member): only 사용자 차단.
+  | { readonly kind: 'blockOnly'; readonly jupleId: string; readonly label: string }
   | { readonly kind: 'pending'; readonly invitationId: number; readonly label: string; readonly role: InvitationRole };
 
 /** Canonical form of a typed Juple ID for duplicate checks (the server does the real validation). */
@@ -468,6 +473,8 @@ export function CollectionShareScreen(props: Props) {
 
 function CollectionShareScreenContent({ route }: Props) {
   const { collectionId } = route.params;
+  const { requestBlock, blockDialogs } = useBlockPersonFlow();
+  const { afterMenuCloses, onMenuDismiss } = useActionAfterMenu();
   useToastBottomAnchor(useSafeAreaInsets().bottom);
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
@@ -913,13 +920,26 @@ function CollectionShareScreenContent({ route }: Props) {
     }
     if (person.kind === 'member') {
       runAction(`role-${person.jupleId}`, () => changeCollaboratorRole(authenticatedRequest, collectionId, person.jupleId, role));
-    } else {
+    } else if (person.kind === 'pending') {
       runAction(`pending-role-${person.invitationId}`, () => changeInvitationRole(authenticatedRequest, collectionId, person.invitationId, role));
     }
   };
 
   /** The "⋯" menu of one row: switch to each other permission at or above the public link's level, then remove / cancel. */
-  const menuActions: readonly ActionMenuDialogAction[] = managed
+  const blockAction: ActionMenuDialogAction | null = managed && managed.kind !== 'pending'
+    ? {
+        label: t('safety.blockUserAction'),
+        icon: BlockIcon,
+        destructive: true,
+        onPress: () => {
+          const person = managed;
+          afterMenuCloses(() => setManaged(null), () => requestBlock({ jupleId: person.jupleId, name: person.label }));
+        },
+      }
+    : null;
+  const menuActions: readonly ActionMenuDialogAction[] = managed?.kind === 'blockOnly'
+    ? [blockAction!]
+    : managed
     ? [
         ...ROLES
           .filter(role => role !== managed.role && raiseToMinimum(role, minimumRole) === role)
@@ -932,6 +952,7 @@ function CollectionShareScreenContent({ route }: Props) {
               changeRole(person, role);
             },
           })),
+        ...(blockAction ? [blockAction] : []),
         managed.kind === 'member'
           ? {
               label: t('shareSheet.removeMember'),
@@ -1295,10 +1316,13 @@ function CollectionShareScreenContent({ route }: Props) {
                         {avatarButton({ jupleId: member.jupleId, displayName: member.displayName, profileImageUrl: member.profileImageUrl, profileImageVersion: member.profileImageVersion, isSelf: member.isMe }, `participant-avatar-${member.jupleId}`, kind === 'owner')}
                         {personText(member, label)}
                         <RoleBadge kind={kind} testID={`participant-role-${member.jupleId}`} />
-                        {kind !== 'owner' && isOwnerView
+                        {member.isMe
+                          ? null
+                          : kind !== 'owner' && isOwnerView
                           ? moreButton(personLabel(member), () =>
                               setManaged({ kind: 'member', jupleId: member.jupleId, label: personLabel(member), role: kind }), `member-actions-${member.jupleId}`)
-                          : null}
+                          : moreButton(personLabel(member), () =>
+                              setManaged({ kind: 'blockOnly', jupleId: member.jupleId, label: personLabel(member) }), `member-actions-${member.jupleId}`)}
                       </Pressable>
                     );
                   })}
@@ -1351,6 +1375,7 @@ function CollectionShareScreenContent({ route }: Props) {
         actions={menuActions}
         cancelLabel={t('common.cancel')}
         onCancel={() => setManaged(null)}
+        onDismiss={onMenuDismiss}
         visible={managed !== null}
       />
       <ConfirmDialog
@@ -1400,6 +1425,7 @@ function CollectionShareScreenContent({ route }: Props) {
         title={t('collaboration.removeConfirmTitle')}
         visible={pendingRemoval !== null}
       />
+      {blockDialogs}
     </StackScreenSafeArea>
   );
 }

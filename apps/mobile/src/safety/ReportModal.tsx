@@ -11,6 +11,8 @@ import { REPORT_DETAILS_MAX_LENGTH, REPORT_REASONS, submitReport, type ReportRea
 interface ReportModalProps {
   /** Null = closed. */
   readonly target: ReportTarget | null;
+  /** What is being reported, by name: shown so the person can see they picked the right thing. */
+  readonly targetLabel?: string | null;
   readonly onClose: () => void;
   /** The report was received (or was already open): the screen says so in its own message. */
   readonly onReported: (alreadyReported: boolean) => void;
@@ -21,7 +23,7 @@ interface ReportModalProps {
  * the server decides what may be reported and answers the same for "no such thing" and "you may not see it". A failure stays in the
  * dialog with the draft kept.
  */
-export function ReportModal({ target, onClose, onReported }: ReportModalProps) {
+export function ReportModal({ target, targetLabel, onClose, onReported }: ReportModalProps) {
   const { t } = useTranslation();
   const request = useAuthenticatedApi();
   const [reason, setReason] = useState<ReportReason | null>(null);
@@ -87,10 +89,16 @@ export function ReportModal({ target, onClose, onReported }: ReportModalProps) {
       onClose={onClose}
       size="large"
       testID="report-modal"
-      title={t('safety.report')}
+      title={t(target.type === 'Item' ? 'safety.reportLink' : target.type === 'Collection' || target.type === 'PublicShare' ? 'safety.reportCollection' : 'safety.report')}
       visible
     >
       <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        {targetLabel ? (
+          <View style={styles.target} testID="report-target">
+            <Text style={styles.targetLabel}>{t('safety.reportTargetLabel')}</Text>
+            <Text numberOfLines={2} style={styles.targetName}>{targetLabel}</Text>
+          </View>
+        ) : null}
         <Text accessibilityRole="header" style={styles.heading}>{t('safety.reportReasonTitle')}</Text>
         {REPORT_REASONS.map(candidate => {
           const selected = candidate === reason;
@@ -128,6 +136,9 @@ export function ReportModal({ target, onClose, onReported }: ReportModalProps) {
 }
 
 const styles = themedStyles(() => ({
+  target: { marginBottom: spacing.md },
+  targetLabel: { color: colors.textSecondary, fontSize: 12, marginBottom: 2 },
+  targetName: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
   heading: { color: colors.textPrimary, fontSize: 15, fontWeight: '700', marginBottom: spacing.sm },
   reason: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs + 2, minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   reasonSelected: { borderColor: colors.brandText },

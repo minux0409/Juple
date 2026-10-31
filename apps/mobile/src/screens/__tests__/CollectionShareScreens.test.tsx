@@ -1329,14 +1329,14 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       const menu = renderer.root.findByType(ActionMenuDialog);
       expect(menu.props.title).toBeUndefined();
       const actions = menu.props.actions as { label: string; icon?: unknown; destructive?: boolean }[];
-      expect(actions.map(action => action.label)).toEqual([i18n.t('shareSheet.changeToSubmit'), i18n.t('shareSheet.changeToWrite'), i18n.t('shareSheet.removeMember')]);
+      expect(actions.map(action => action.label)).toEqual([i18n.t('shareSheet.changeToSubmit'), i18n.t('shareSheet.changeToWrite'), i18n.t('safety.blockUserAction'), i18n.t('shareSheet.removeMember')]);
       expect(actions.every(action => action.icon !== undefined)).toBe(true);
       expect(actions[0].icon).toBe(CheckIcon);
       expect(actions[1].icon).toBe(PlusIcon);
-      expect(actions[2].icon).toBe(UserMinusIcon);
+      expect(actions[3].icon).toBe(UserMinusIcon);
       expect(actions[2].destructive).toBe(true);
       expect(texts(menu)).not.toContain('피카츄');
-      expect(texts(menu)).toEqual([i18n.t('shareSheet.changeToSubmit'), i18n.t('shareSheet.changeToWrite'), i18n.t('shareSheet.removeMember'), i18n.t('common.cancel')]);
+      expect(texts(menu)).toEqual([i18n.t('shareSheet.changeToSubmit'), i18n.t('shareSheet.changeToWrite'), i18n.t('safety.blockUserAction'), i18n.t('shareSheet.removeMember'), i18n.t('common.cancel')]);
       // A read-only member's permission icon is the eye; both flows still work from the popup.
       await act(async () => {
         menu.props.onCancel();
@@ -1431,7 +1431,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       await press(renderer, 'member-actions-WRTR2345');
       const labels = renderer.root.findByType(ActionMenuDialog).props.actions.map((action: { label: string }) => action.label);
       expect(labels).not.toContain(i18n.t('shareSheet.changeToRead'));
-      expect(labels).toEqual([i18n.t('shareSheet.removeMember')]);
+      expect(labels).toEqual([i18n.t('safety.blockUserAction'), i18n.t('shareSheet.removeMember')]);
 
       expect(changeCollaboratorRole).not.toHaveBeenCalled();
       expect(changeInvitationRole).not.toHaveBeenCalled();

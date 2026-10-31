@@ -28,6 +28,8 @@ export interface Collection {
    * isLocked is then true for them too, so every gate already treats it as locked. Never reported to the Owner or other members.
    */
   readonly isMemberLocked?: boolean;
+  /** Owner view only: an operator restricted sharing of this Collection (nothing deleted; members and the public link are shut out until it is lifted). */
+  readonly isShareRestricted?: boolean;
   /** Owner view only: the Collection has at least one Contributor. */
   readonly hasCollaborators?: boolean;
   /** Owner view only: its 모든 사용자 (public) link is on. */

@@ -1065,11 +1065,11 @@ describe('FriendsScreen - a friend', () => {
     expect(StyleSheet.flatten(remove.props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' });
     expect(remove.findAllByType(Text)[0].props.numberOfLines).toBe(2);
 
-    // No new report / block entry point in a friend's detail (existing blocks are released in the 차단한 사용자 tab).
+    // No report / block entry point in a friend's detail (the screen's one BlockIcon is the row that opens 차단한 사용자).
     expect(exists(renderer, 'friend-report')).toBe(false);
     expect(exists(renderer, 'friend-block')).toBe(false);
     expect(renderer.root.findAllByType(FlagIcon)).toHaveLength(0);
-    expect(renderer.root.findAllByType(BlockIcon)).toHaveLength(0);
+    expect(detail(renderer).findAllByType(BlockIcon)).toHaveLength(0);
     const detailTexts = texts(detail(renderer));
     expect(detailTexts).not.toContain(i18n.t('safety.report'));
     expect(detailTexts).not.toContain(i18n.t('safety.block'));
@@ -1220,15 +1220,16 @@ describe('FriendsScreen - List / Grid', () => {
   });
 });
 
-describe('FriendsScreen - no 차단한 사용자 tab', () => {
-  it('Friends has no blocked tab, never reads the blocked list, and shows nothing about blocking', async () => {
+describe('FriendsScreen - 차단한 사용자 is a row, not a tab', () => {
+  it('Friends has no blocked tab and does not read the blocked list; the row opens the screen that does', async () => {
     const renderer = await renderScreen();
     expect(exists(renderer, 'friends-tab-blocked')).toBe(false);
     await press(renderer, 'friends-tab-incoming');
     await press(renderer, 'friends-tab-outgoing');
     expect(listBlockedUsers).not.toHaveBeenCalled();
     expect(exists(renderer, 'blocked-users-empty')).toBe(false);
-    expect(texts(renderer)).not.toContain(i18n.t('safety.blockedUsers'));
+    expect(texts(renderer)).toContain(i18n.t('safety.blockedUsers'));
+    expect(exists(renderer, 'friends-blocked-users')).toBe(true);
   });
 });
 

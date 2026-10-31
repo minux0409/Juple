@@ -61,6 +61,9 @@ import { getCollectionParticipants, leaveCollection, type CollectionParticipants
 import { ApprovalSubmissionSheet } from '../collections/ApprovalSubmissionSheet';
 import { JoinRequestsSheet } from '../collections/JoinRequestsSheet';
 import { CollectionParticipantsSheet } from '../collections/CollectionParticipantsSheet';
+import { FlagIcon } from '../icons/FlagIcon';
+import { ReportModal } from '../safety/ReportModal';
+import type { ReportTarget } from '../safety/safetyApi';
 import { CollectionUnlockModal } from '../collections/CollectionUnlockModal';
 import { CollectionUnlockPanel } from '../collections/CollectionUnlockPanel';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
@@ -341,6 +344,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
 
   const [isParticipantsSheetVisible, setIsParticipantsSheetVisible] = useState(false);
+  const [reporting, setReporting] = useState<{ readonly target: ReportTarget; readonly label: string } | null>(null);
   const [isOwnerApprovalSheetVisible, setIsOwnerApprovalSheetVisible] = useState(false);
   // 참여 요청 (people waiting to join): a bottom sheet of its own, opened from its row or from a 참여 요청 notification.
   const [isJoinRequestsSheetVisible, setIsJoinRequestsSheetVisible] = useState(false);
@@ -1548,8 +1552,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     { label: t('item.copyLink'), icon: CopyIcon, onPress: () => { setIsItemActionMenuVisible(false); setActionMenuItem(null); showNotificationToast(t(copySavedLinkUrl(menuItem.url) ? 'item.linkCopied' : 'item.linkCopyFailed')); } },
     ...(menuItem.isMine === false
       ? [
-        // Somebody else's link: 링크 저장 only (no report action here - reporting stays on comments and people).
+        // Somebody else's link: 링크 저장, and it can be reported (mine cannot; a personal Collection never has anyone else's link).
         { label: t('item.saveDialogTitle'), icon: ArchiveIcon, onPress: openSaveLink },
+        { label: t('safety.reportLink'), icon: FlagIcon, onPress: () => afterItemMenu(() => setReporting({ target: { type: 'Item', itemId: menuItem.itemId, collectionId }, label: menuItem.title ?? menuItem.url })) },
       ]
       : [
         { label: t('common.edit'), icon: EditIcon, onPress: () => { setIsItemActionMenuVisible(false); setActionMenuItem(null); openCollectionItem(menuItem); } },
@@ -1594,6 +1599,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         collection.isMemberLocked
           ? { label: t('collections.lockRemoveAction'), icon: UnlockIcon, onPress: closeCollectionMenuThen(() => setLockDialogMode('remove')) }
           : { label: t('collections.lockSetTitle'), icon: LockIcon, onPress: closeCollectionMenuThen(() => setLockDialogMode('lock')) },
+        { label: t('safety.reportCollection'), icon: FlagIcon, onPress: closeCollectionMenuThen(() => setReporting({ target: { type: 'Collection', collectionId }, label: collection.name })) },
         // An active member can always leave on their own (the Owner cannot - they delete instead).
         { label: t('collections.leaveAction'), destructive: true, icon: LogoutIcon, onPress: closeCollectionMenuThen(() => setIsLeaveConfirmVisible(true)) },
       ];
@@ -1612,6 +1618,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
               </View>
             ) : null}
           </View>
+          {collection.isShareRestricted ? <Text style={styles.shareRestricted} testID="collection-share-restricted">{t('safety.shareRestrictedNotice')}</Text> : null}
           {/* One row: who is in it on the start side (the whole stack opens the participant list), the actions on the end side. No
               link count - the list below shows the links. */}
           <View style={styles.headerMetaRow}>
@@ -2165,6 +2172,15 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         variant="mine"
         visible={isMyApprovalSheetVisible && pendingUnlockAction === null}
       />
+      <ReportModal
+        onClose={() => setReporting(null)}
+        onReported={alreadyReported => {
+          setReporting(null);
+          setNotice(t(alreadyReported ? 'safety.reportAlready' : 'safety.reportReceived'));
+        }}
+        target={reporting?.target ?? null}
+        targetLabel={reporting?.label}
+      />
       <CollectionParticipantsSheet
         authenticatedRequest={authenticatedRequest}
         collectionId={collectionId}
@@ -2233,6 +2249,7 @@ const styles = themedStyles(() => ({
     marginEnd: spacing.sm + 2,
   },
   // The lock sits on the first line's centre too (a box as tall as that line).
+  shareRestricted: { color: colors.dangerText, fontSize: 13, marginTop: spacing.xs },
   headerLock: { height: HEADER_ICON_SIZE, justifyContent: 'center', marginStart: spacing.xs },
   // At most two lines, then "…" (numberOfLines/ellipsizeMode on the Text) - even a name with no
   // spaces at all; flexShrink/minWidth keep it from pushing the icon or the lock out of the row.

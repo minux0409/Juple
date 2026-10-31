@@ -8,7 +8,12 @@ import { CloseButton } from '../components/CloseButton';
 import { ImportantState } from '../components/ImportantState';
 import { RefreshFailureNotice } from '../components/RefreshFailureNotice';
 import { UserAvatar } from '../components/UserAvatar';
+import { ActionMenuDialog } from '../components/ActionMenuDialog';
+import { useActionAfterMenu } from '../components/useActionAfterMenu';
 import { usePersonProfile } from '../friends/PersonProfileModal';
+import { BlockIcon } from '../icons/BlockIcon';
+import { MoreIcon } from '../icons/MoreIcon';
+import { useBlockPersonFlow, type BlockSubject } from '../safety/useBlockPersonFlow';
 import { OwnerCrown } from './OwnerCrown';
 import { ParticipantGrid, type ParticipantTileData } from './ParticipantGrid';
 import { ViewModeToggle } from '../components/ViewModeToggle';
@@ -56,6 +61,11 @@ export function CollectionParticipantsSheet({
   const [error, setError] = useState<string | null>(null);
   // An avatar tap inspects the person (self / friend / non-friend, resolved before anything opens).
   const { openProfile, profileModal } = usePersonProfile();
+  // A participant's "⋯" (never on my own row): 사용자 차단. Blocking changes nobody's membership, so the list stays as it is.
+  const [menuPerson, setMenuPerson] = useState<BlockSubject | null>(null);
+  const { requestBlock, blockDialogs } = useBlockPersonFlow();
+  const { afterMenuCloses, onMenuDismiss } = useActionAfterMenu();
+  const moreLabel = (name: string) => t('shareSheet.memberActionsA11y', { name });
 
   // The caller's list can arrive after this component mounted (it is mounted with the screen).
   useEffect(() => {
@@ -102,6 +112,8 @@ export function CollectionParticipantsSheet({
     detail: t(participantRoleLabelKey(participant.role)),
     onAvatarPress: () => openProfile({ jupleId: participant.jupleId, displayName: participant.displayName, profileImageUrl: participant.profileImageUrl, profileImageVersion: participant.profileImageVersion, isSelf: participant.isMe }),
     avatarAccessibilityLabel: `${personLabel(participant)}, ${t('friends.personTitle')}`,
+    onMore: participant.isMe ? undefined : () => setMenuPerson({ jupleId: participant.jupleId, name: personLabel(participant) }),
+    moreAccessibilityLabel: moreLabel(personLabel(participant)),
     accessibilityLabel: `${participant.isMe ? t('collections.participantMe', { name: personLabel(participant) }) : personLabel(participant)}, ${t(participantRoleLabelKey(participant.role))}`,
     testID: `participants-sheet-${participant.jupleId}`,
   }));
@@ -132,7 +144,28 @@ export function CollectionParticipantsSheet({
       }
       headerRowStyle={styles.titleRow}
       headerTitle={<Text style={styles.title}>{t('collections.participantsTitle')}</Text>}
-      modalExtras={profileModal}
+      modalExtras={
+        <>
+          {profileModal}
+          <ActionMenuDialog
+            actions={[{
+              label: t('safety.blockUserAction'),
+              destructive: true,
+              icon: BlockIcon,
+              onPress: () => {
+                const person = menuPerson;
+                afterMenuCloses(() => setMenuPerson(null), () => { if (person) { requestBlock(person); } });
+              },
+            }]}
+            cancelLabel={t('common.cancel')}
+            onCancel={() => setMenuPerson(null)}
+            onDismiss={onMenuDismiss}
+            title={menuPerson?.name}
+            visible={menuPerson !== null}
+          />
+          {blockDialogs}
+        </>
+      }
       onClose={onClose}
       testID="participants-sheet"
       visible={visible}
@@ -179,6 +212,17 @@ export function CollectionParticipantsSheet({
                     {formatJupleId(participant.jupleId)}
                   </Text>
                 </View>
+                {participant.isMe ? null : (
+                  <Pressable
+                    accessibilityLabel={moreLabel(personLabel(participant))}
+                    accessibilityRole="button"
+                    onPress={() => setMenuPerson({ jupleId: participant.jupleId, name: personLabel(participant) })}
+                    style={styles.more}
+                    testID={`participants-sheet-more-${participant.jupleId}`}
+                  >
+                    <MoreIcon color={colors.textSecondary} size={20} />
+                  </Pressable>
+                )}
               </Pressable>
             )) : null}
             {viewMode === 'list' && canManage && data && data.pendingInvitations.length > 0 ? (
@@ -221,6 +265,7 @@ export { OwnerCrown };
 
 const styles = themedStyles(() => ({
   nameText: { flexShrink: 1 },
+  more: { alignItems: 'center', flexShrink: 0, justifyContent: 'center', minHeight: minTouchTarget, minWidth: minTouchTarget },
   titleRow: { marginBottom: spacing.sm },
   title: { color: colors.textPrimary, flexShrink: 1, fontSize: 17, fontWeight: '700' },
   list: { flexGrow: 0 },

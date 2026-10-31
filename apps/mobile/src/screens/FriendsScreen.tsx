@@ -39,7 +39,9 @@ import {
   type Friend,
   type FriendRequest,
 } from '../friends/api/friendsApi';
+import { BlockIcon } from '../icons/BlockIcon';
 import { CheckIcon } from '../icons/CheckIcon';
+import { ChevronIcon } from '../icons/ChevronIcon';
 import { CloseIcon } from '../icons/CloseIcon';
 import { CopyIcon } from '../icons/CopyIcon';
 import { PlusIcon } from '../icons/PlusIcon';
@@ -446,6 +448,11 @@ export function FriendsScreen() {
 
   return (
     <StackScreenSafeArea style={styles.safeArea}>
+      <Pressable accessibilityRole="button" onPress={() => navigation.navigate('BlockedUsers')} style={styles.blockedUsersRow} testID="friends-blocked-users">
+        <BlockIcon color={colors.textSecondary} size={18} />
+        <Text numberOfLines={2} style={styles.blockedUsersLabel}>{t('safety.blockedUsers')}</Text>
+        <ChevronIcon color={colors.textSecondary} direction="right" size={18} />
+      </Pressable>
       <View {...tabsTarget} accessibilityRole="tablist" style={styles.tabBar} testID="friends-tabs">
         {tabs.map(entry => {
           const isSelected = tab === entry.key;
@@ -750,6 +757,8 @@ function RequestRow({ request, isBusy, onAccept, onDecline, onCancel, onOpenPers
 
 const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
+  blockedUsersRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginHorizontal: spacing.xl, marginTop: spacing.sm, minHeight: minTouchTarget },
+  blockedUsersLabel: { color: colors.textSecondary, flex: 1, fontSize: 14, fontWeight: '600' },
   headerButton: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
   // The same segmented look as the Share screen's tabs.
   tabBar: {

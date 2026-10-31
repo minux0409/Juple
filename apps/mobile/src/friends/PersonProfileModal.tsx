@@ -16,6 +16,7 @@ import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } fr
 import { FriendDetailModal } from './FriendDetailModal';
 import { getFriendRequestErrorMessage } from './AddFriendModal';
 import { getFriendRequests, getFriends, sendFriendRequest, type Friend } from './api/friendsApi';
+import { formatJupleId } from '../collections/api/collaborationApi';
 import { atJupleId, friendPrimaryLabel } from './friendIdentity';
 
 /** A person met somewhere in a shared Collection (an adder, a participant): only what the DTOs already carry. */
@@ -224,7 +225,7 @@ export function PersonProfileModal({ person, relationship, onClose, onRequestSen
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('safety.block')}
-        message={t('safety.blockMessage')}
+        message={t('safety.blockConfirmMessage', { name: person.displayName ?? formatJupleId(person.jupleId) })}
         onCancel={() => setIsBlockConfirmVisible(false)}
         onConfirm={() => { block().catch(() => undefined); }}
         title={t('safety.blockTitle')}

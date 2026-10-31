@@ -52,7 +52,7 @@ export function isTermsRequiredError(error: unknown): boolean {
 
 // ---- reporting ----
 
-export const REPORT_REASONS = ['Spam', 'Harassment', 'HateOrAbuse', 'SexualOrInappropriate', 'Illegal', 'ScamOrMaliciousLink', 'IntellectualProperty', 'Other'] as const;
+export const REPORT_REASONS = ['Spam', 'SexualOrInappropriate', 'Harassment', 'IntellectualProperty', 'Other'] as const;
 export type ReportReason = (typeof REPORT_REASONS)[number];
 export const REPORT_DETAILS_MAX_LENGTH = 1000;
 
@@ -60,7 +60,9 @@ export type ReportTarget =
   | { readonly type: 'User'; readonly jupleId: string }
   | { readonly type: 'Collection'; readonly collectionId: number }
   | { readonly type: 'Item'; readonly itemId: number; readonly collectionId: number }
-  | { readonly type: 'Comment'; readonly commentId: number };
+  | { readonly type: 'Comment'; readonly commentId: number }
+  // A public link seen by someone who is not a member: the link is all they hold, and it stands for its Collection.
+  | { readonly type: 'PublicShare'; readonly publicId: string };
 
 export function reportBody(target: ReportTarget, reason: ReportReason, details: string): Record<string, unknown> {
   const trimmed = details.trim();
@@ -74,6 +76,8 @@ export function reportBody(target: ReportTarget, reason: ReportReason, details: 
       return { targetType: 'Item', targetId: String(target.itemId), collectionId: target.collectionId, ...base };
     case 'Comment':
       return { targetType: 'Comment', targetId: String(target.commentId), ...base };
+    case 'PublicShare':
+      return base;
   }
 }
 
@@ -84,7 +88,8 @@ export async function submitReport(
   reason: ReportReason,
   details: string,
 ): Promise<{ readonly alreadyReported: boolean }> {
-  const response = await request<{ alreadyReported?: boolean }>({ method: 'POST', path: '/api/v1/reports', body: reportBody(target, reason, details) });
+  const path = target.type === 'PublicShare' ? `/api/v1/public-shares/${encodeURIComponent(target.publicId)}/reports` : '/api/v1/reports';
+  const response = await request<{ alreadyReported?: boolean }>({ method: 'POST', path, body: reportBody(target, reason, details) });
   return { alreadyReported: response.body?.alreadyReported === true };
 }
 
@@ -96,6 +101,18 @@ export interface BlockedUser {
   readonly blockedAtUtc: string;
   readonly profileImageUrl: string | null;
   readonly profileImageVersion: string | null;
+  /** Collections I am a member of that this person owns: out of my lists because of the block, still mine to open or leave. */
+  readonly hiddenCollections: readonly { readonly id: number; readonly name: string }[];
+}
+
+function parseHiddenCollections(raw: unknown): BlockedUser['hiddenCollections'] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.flatMap(entry => {
+    const value = (entry ?? {}) as { id?: unknown; name?: unknown };
+    return typeof value.id === 'number' && typeof value.name === 'string' ? [{ id: value.id, name: value.name }] : [];
+  });
 }
 
 const blockPath = (jupleId: string) => `/api/v1/users/${encodeURIComponent(jupleId)}/block`;
@@ -128,6 +145,7 @@ export function parseBlockedUsers(raw: unknown): readonly BlockedUser[] {
       blockedAtUtc: typeof value.blockedAtUtc === 'string' ? value.blockedAtUtc : '',
       profileImageUrl: typeof value.profileImageUrl === 'string' ? value.profileImageUrl : null,
       profileImageVersion: typeof value.profileImageVersion === 'string' ? value.profileImageVersion : null,
+      hiddenCollections: parseHiddenCollections(value.hiddenCollections),
     });
   }
   return result;

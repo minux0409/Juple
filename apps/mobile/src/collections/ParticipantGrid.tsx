@@ -1,6 +1,7 @@
 import { Text, View } from 'react-native';
 import { Pressable } from '../components/Pressable';
 import { UserAvatar } from '../components/UserAvatar';
+import { MoreIcon } from '../icons/MoreIcon';
 import { OwnerCrown } from './OwnerCrown';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
@@ -20,6 +21,9 @@ export interface ParticipantTileData {
   /** Tapping the AVATAR: inspect the person (profile / friend). Never a management action. */
   readonly onAvatarPress?: () => void;
   readonly avatarAccessibilityLabel?: string;
+  /** The tile's "⋯": the person's menu (the same the List row has). */
+  readonly onMore?: () => void;
+  readonly moreAccessibilityLabel?: string;
   readonly accessibilityLabel: string;
   readonly testID?: string;
 }
@@ -61,6 +65,17 @@ export function ParticipantGrid({ tiles, testID }: { readonly tiles: readonly Pa
               ) : avatar}
               <Text accessibilityLabel={tile.accessibilityLabel} numberOfLines={1} style={styles.name}>{tile.name}</Text>
               {tile.detail ? <Text numberOfLines={1} style={styles.detail}>{tile.detail}</Text> : null}
+              {tile.onMore ? (
+                <Pressable
+                  accessibilityLabel={tile.moreAccessibilityLabel}
+                  accessibilityRole="button"
+                  onPress={tile.onMore}
+                  style={styles.more}
+                  testID={tile.testID ? `${tile.testID}-more` : undefined}
+                >
+                  <MoreIcon color={colors.textSecondary} size={18} />
+                </Pressable>
+              ) : null}
             </View>
           </View>
         );
@@ -73,6 +88,7 @@ const styles = themedStyles(() => ({
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -spacing.xs },
   cell: { flexBasis: `${100 / PARTICIPANT_GRID_COLUMNS}%`, maxWidth: `${100 / PARTICIPANT_GRID_COLUMNS}%`, padding: spacing.xs },
   tile: { alignItems: 'center', borderRadius: radii.md, minHeight: minTouchTarget + 36, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
+  more: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, minWidth: minTouchTarget },
   pressed: { opacity: 0.6 },
   avatarWrap: { alignItems: 'center', justifyContent: 'center' },
   name: { color: colors.textPrimary, fontSize: 13, fontWeight: '600', marginTop: spacing.xs, maxWidth: '100%', textAlign: 'center' },

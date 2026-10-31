@@ -314,7 +314,7 @@ describe('CollectionDetailsScreen - Viewer (보기 전용)', () => {
     }
     // [★] [🔔] [⋯]: their own 새 링크 알림 is the bell; the ⋯ holds only copying into their own Collection.
     expect(headerButtonIds(top)).toEqual(['collection-details-favorite', 'collection-details-notifications', 'collection-details-more']);
-    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine'), i18n.t('collections.lockSetTitle'), i18n.t('collections.leaveAction')]);
+    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine'), i18n.t('collections.lockSetTitle'), i18n.t('safety.reportCollection'), i18n.t('collections.leaveAction')]);
     const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
     expect(menu.findAllByType(BellIcon)).toHaveLength(0);
     expect(menu.findAllByType(CopyIcon)).toHaveLength(1);
@@ -533,7 +533,7 @@ describe('CollectionDetailsScreen - shared with me: 새 링크 알림 and 내 �
     // Nothing to copy yet, so the ⋯ holds only 컬렉션에서 나가기 (a member can always leave) - their own bell is still there.
     const top = header(renderer);
     expect(headerButtonIds(top)).toEqual(['collection-details-favorite', 'collection-details-notifications', 'collection-details-more']);
-    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.lockSetTitle'), i18n.t('collections.leaveAction')]);
+    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.lockSetTitle'), i18n.t('safety.reportCollection'), i18n.t('collections.leaveAction')]);
   });
 });
 
@@ -816,7 +816,7 @@ describe('CollectionDetailsScreen - emoji reactions to the links of a shared Col
       await openMenu(renderer, other);
 
       expect(bar(renderer)).toHaveLength(1);
-      expect(visibleMenu(renderer)!.props.actions.map((action: { label: string }) => action.label)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('item.saveDialogTitle')]);
+      expect(visibleMenu(renderer)!.props.actions.map((action: { label: string }) => action.label)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('item.saveDialogTitle'), i18n.t('safety.reportLink')]);
     });
 
     it('and for my own link in someone else\'s Collection - 복제 and 이동 stay as they were', async () => {
@@ -1194,7 +1194,7 @@ describe('CollectionDetailsScreen - Contributor', () => {
     }
     // Their own bell in the header; the ⋯ holds only copying into their own Collection.
     expect(headerButtonIds(top)).toContain('collection-details-notifications');
-    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine'), i18n.t('collections.lockSetTitle'), i18n.t('collections.leaveAction')]);
+    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine'), i18n.t('collections.lockSetTitle'), i18n.t('safety.reportCollection'), i18n.t('collections.leaveAction')]);
     expect(hasLabel(top, i18n.t('collections.addFavorite'))).toBe(true);
     expect(top.root.findAllByType(Switch)).toHaveLength(0);
     // Share management is never even queried for a Contributor.
@@ -1274,7 +1274,7 @@ describe('CollectionDetailsScreen - Owner viewing a Contributor\'s link', () => 
       return (renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)?.props.actions ?? [])
         .map((action: { label: string }) => action.label);
     };
-    expect(await menuOf(theirs)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('item.saveDialogTitle'), i18n.t('collections.removeFromCollection')]);
+    expect(await menuOf(theirs)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('item.saveDialogTitle'), i18n.t('safety.reportLink'), i18n.t('collections.removeFromCollection')]);
   });
 
   it('offers no report action for any link in the Collection menu (another member\'s or my own) - reporting stays on comments and people', async () => {
@@ -1453,7 +1453,7 @@ describe('CollectionDetailsScreen - long press on a link: 내 컬렉션으로 �
     const renderer = await renderScreen();
 
     expect(await longPress(renderer, othersLink)).toBe(true);
-    expect(visibleMenuLabels(renderer)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('item.saveDialogTitle')]);
+    expect(visibleMenuLabels(renderer)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('item.saveDialogTitle'), i18n.t('safety.reportLink')]);
     expect(visibleMenuLabels(renderer)).not.toContain(i18n.t('collections.moveToOther'));
 
     const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;

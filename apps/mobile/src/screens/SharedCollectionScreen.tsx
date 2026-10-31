@@ -25,6 +25,7 @@ import { cancelMyJoinRequest, listMyJoinRequests } from '../collections/api/coll
 import { CategoryIconTile } from '../collections/CategoryIconTile';
 import { shareEntryTileKey } from '../collections/shareEntryTileKey';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ReportModal } from '../safety/ReportModal';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 import { useMessageDialog } from '../components/useMessageDialog';
 import type { RootStackParamList } from '../navigation/RootStack';
@@ -52,6 +53,7 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
   const [collection, setCollection] = useState<PublicCollection | null>(null);
   const [isLoadingCollection, setIsLoadingCollection] = useState(true);
   const [isUnavailable, setIsUnavailable] = useState(false);
+  const [isReporting, setIsReporting] = useState(false);
 
   // A protected link's grant after its password was verified: memory only (never stored, never in a URL), bound to this link, and it
   // grants no membership and no identity. The password itself lives only in the field while it is typed.
@@ -398,9 +400,12 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
           onCancel={() => { if (!isBusy) { cancel(); } }}
           onConfirm={() => { save().catch(() => undefined); }}
           title={t('sharedCollection.addTitle')}
-          visible
+          visible={!isReporting}
         >
           {profile(false)}
+          <Pressable accessibilityRole="button" disabled={isBusy} onPress={() => setIsReporting(true)} style={styles.reportButton} testID="shared-collection-report">
+            <Text style={styles.reportLabel}>{t('safety.reportCollection')}</Text>
+          </Pressable>
         </ConfirmDialog>
       ) : (
         <ConfirmDialog
@@ -421,6 +426,15 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
         confirmLabel={t('submissions.cancelRequest')} busy={isBusy}
         onCancel={() => { if (!isBusyRef.current) setConfirmWithdrawal(false); }}
         onConfirm={() => { withdraw().catch(() => undefined); }} />
+      <ReportModal
+        onClose={() => setIsReporting(false)}
+        onReported={alreadyReported => {
+          setIsReporting(false);
+          showMessage(t(alreadyReported ? 'safety.reportAlready' : 'safety.reportReceived'));
+        }}
+        target={isReporting ? { type: 'PublicShare', publicId } : null}
+        targetLabel={collection.name}
+      />
       {messageDialog}
     </SafeAreaView>
   );
@@ -436,6 +450,8 @@ const styles = themedStyles(() => ({
     justifyContent: 'center',
     padding: 24,
   },
+  reportButton: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
+  reportLabel: { color: colors.textSecondary, fontSize: 14, textAlign: 'center', textDecorationLine: 'underline' },
   profile: {
     alignItems: 'center',
     gap: spacing.sm,

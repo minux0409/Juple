@@ -66,10 +66,9 @@ describe('the safety API module', () => {
 
   it('builds the report body: Juple ID for a person, ids for the rest, an item through its Collection; blank details are omitted', () => {
     expect(reportBody({ type: 'User', jupleId: 'ABCD2345' }, 'Spam', '  ')).toEqual({ targetType: 'User', targetId: 'ABCD2345', reason: 'Spam' });
-    expect(reportBody({ type: 'Collection', collectionId: 4 }, 'Illegal', ' why ')).toEqual({ targetType: 'Collection', targetId: '4', reason: 'Illegal', details: 'why' });
+    expect(reportBody({ type: 'Collection', collectionId: 4 }, 'Spam', ' why ')).toEqual({ targetType: 'Collection', targetId: '4', reason: 'Spam', details: 'why' });
     expect(reportBody({ type: 'Item', itemId: 9, collectionId: 4 }, 'Other', '')).toEqual({ targetType: 'Item', targetId: '9', collectionId: 4, reason: 'Other' });
-    expect(reportBody({ type: 'Comment', commentId: 7 }, 'HateOrAbuse', '')).toEqual({ targetType: 'Comment', targetId: '7', reason: 'HateOrAbuse' });
-    expect(REPORT_REASONS).toEqual(['Spam', 'Harassment', 'HateOrAbuse', 'SexualOrInappropriate', 'Illegal', 'ScamOrMaliciousLink', 'IntellectualProperty', 'Other']);
+    expect(reportBody({ type: 'Comment', commentId: 7 }, 'Harassment', '')).toEqual({ targetType: 'Comment', targetId: '7', reason: 'Harassment' });
   });
 
   it('words a block-refused interaction, and nothing else', () => {
@@ -100,13 +99,13 @@ describe('ReportModal', () => {
     }
     expect(byId(renderer, 'report-submit').props.disabled).toBe(true);
 
-    await press(renderer, 'report-reason-ScamOrMaliciousLink');
+    await press(renderer, 'report-reason-Other');
     await act(async () => {
       renderer.root.find(node => node.props.testID === 'report-details' && typeof node.props.onChangeText === 'function').props.onChangeText('a bad link');
     });
     await press(renderer, 'report-submit');
 
-    expect(submitReport).toHaveBeenCalledWith(expect.any(Function), { type: 'Comment', commentId: 7 }, 'ScamOrMaliciousLink', 'a bad link');
+    expect(submitReport).toHaveBeenCalledWith(expect.any(Function), { type: 'Comment', commentId: 7 }, 'Other', 'a bad link');
     expect(onReported).toHaveBeenCalledWith(false);
   });
 
@@ -317,5 +316,40 @@ describe('Terms onboarding (the Agreement screen)', () => {
     expect(exists(renderer, 'agreement-error')).toBe(true);
     expect(exists(renderer, 'terms-agreement-screen')).toBe(true);
     expect(exists(renderer, 'home')).toBe(false);
+  });
+});
+
+describe('shared Collection reports and the blocked list', () => {
+  it('offers the five reasons of the policy, each with a label in every language', () => {
+    expect(REPORT_REASONS).toEqual(['Spam', 'SexualOrInappropriate', 'Harassment', 'IntellectualProperty', 'Other']);
+  });
+
+  it('a public link is reported through the link: no internal id travels, the path carries the encoded public id', async () => {
+    const request = jest.fn().mockResolvedValue({ body: { alreadyReported: false } });
+    const { submitReport: actualSubmit } = jest.requireActual<typeof import('../safetyApi')>('../safetyApi');
+    await actualSubmit(request as never, { type: 'PublicShare', publicId: 'a/b' }, 'Spam', ' why ');
+    expect(request).toHaveBeenCalledWith({ method: 'POST', path: '/api/v1/public-shares/a%2Fb/reports', body: { reason: 'Spam', details: 'why' } });
+  });
+
+  it('a blocked person carries the hidden Collections I can still open; a malformed entry is dropped', () => {
+    const [person] = parseBlockedUsers({ items: [{ jupleId: 'ABC', hiddenCollections: [{ id: 7, name: 'Trip' }, { id: 'x', name: 'bad' }, null] }] });
+    expect(person.hiddenCollections).toEqual([{ id: 7, name: 'Trip' }]);
+    expect(parseBlockedUsers({ items: [{ jupleId: 'ABC' }] })[0].hiddenCollections).toEqual([]);
+  });
+
+  it('every language has every new string, and the block question keeps its name placeholder', () => {
+    const locales = ['ar', 'de', 'en', 'es', 'fr', 'hi', 'id', 'it', 'ja', 'ko', 'pt-BR', 'ru', 'th', 'tr', 'vi', 'zh-Hans', 'zh-Hant'];
+    for (const locale of locales) {
+      const safety = require(`../../i18n/locales/${locale}.json`).safety as Record<string, string>;
+      for (const key of ['reportCollection', 'reportLink', 'reportTargetLabel', 'blockUserAction', 'unblockMessage', 'hiddenCollectionsTitle', 'shareRestrictedNotice']) {
+        expect(safety[key]?.length).toBeGreaterThan(0);
+      }
+      expect(safety.blockConfirmMessage).toContain('{{name}}');
+      expect(safety.unblockTitle).toContain('{{name}}');
+      expect(safety.blockedAt).toContain('{{date}}');
+      for (const reason of REPORT_REASONS) {
+        expect(safety[`reason${reason}`]?.length).toBeGreaterThan(0);
+      }
+    }
   });
 });
