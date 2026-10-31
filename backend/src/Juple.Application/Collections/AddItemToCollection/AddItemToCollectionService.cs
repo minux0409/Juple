@@ -9,7 +9,8 @@ public sealed class AddItemToCollectionService(
     ICollectionItemStore collectionItemStore,
     TimeProvider timeProvider,
     ISocialNotificationPublisher? notifications = null,
-    ICollectionLinkSubmissionStore? submissions = null) : IAddItemToCollectionService
+    ICollectionLinkSubmissionStore? submissions = null,
+    Juple.Application.Safety.ISharedContentReviewFlagger? reviewFlagger = null) : IAddItemToCollectionService
 {
     /// <summary>
     /// Owner or Contributor (AddItem) adds directly; a Submitter (승인 후 추가) proposes it instead - it
@@ -58,6 +59,11 @@ public sealed class AddItemToCollectionService(
         }
 
         await outbox.CommitAsync(cancellationToken);
+        if (added && reviewFlagger is not null)
+        {
+            await reviewFlagger.FlagLinkAsync(collectionId, itemId, cancellationToken);
+        }
+
         return CollectionLinkAddOutcome.Added;
     }
 }

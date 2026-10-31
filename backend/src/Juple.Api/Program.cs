@@ -198,7 +198,9 @@ builder.Services.AddSingleton(new Juple.Application.Safety.TermsOptions
     EnforceAcceptance = builder.Configuration.GetValue("Terms:EnforceAcceptance", true),
 });
 builder.Services.AddScoped<Juple.Application.Safety.ITermsConsentService, Juple.Application.Safety.TermsConsentService>();
+builder.Services.AddScoped<Juple.Application.Admin.AdminReportService>();
 builder.Services.AddScoped<Juple.Application.Safety.IReportService, Juple.Application.Safety.ReportService>();
+builder.Services.AddScoped<Juple.Application.Safety.ISharedContentReviewFlagger, Juple.Infrastructure.Safety.SharedContentReviewFlagger>();
 builder.Services.AddScoped<Juple.Application.Safety.IUserBlockService, Juple.Application.Safety.UserBlockService>();
 builder.Services.AddScoped<Juple.Application.Safety.IUserBlockPolicy, Juple.Application.Safety.UserBlockPolicy>();
 builder.Services.AddScoped<Juple.Application.Items.GetItemDetail.IItemCollectionContextGate, Juple.Application.Items.GetItemDetail.ItemCollectionContextGate>();

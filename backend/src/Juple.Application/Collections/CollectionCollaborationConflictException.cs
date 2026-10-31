@@ -14,6 +14,7 @@ public sealed class CollectionCollaborationConflictException(string code) : Exce
     public const string PublicShareActive = "publicShareActive";
     public const string CollaborationActive = "collaborationActive";
     public const string PublicSharePermissionMismatch = "publicSharePermissionMismatch";
+    public const string ContentRestricted = "contentRestricted";
     public const string AlreadyCollaborator = "alreadyCollaborator";
     public const string InvitationPending = "invitationPending";
     public const string InvitationNotPending = "invitationNotPending";

@@ -44,7 +44,8 @@ public sealed class CollectionJoinStore(
 
         // The link as it is now, under the lock - never a value read before it.
         var isPublic = await dbContext.CollectionShares.AsNoTracking()
-            .Where(candidate => candidate.CollectionId == collectionId.Value && candidate.IsActive && candidate.PublicId == publicId)
+            .Where(candidate => candidate.CollectionId == collectionId.Value && candidate.IsActive && candidate.PublicId == publicId
+                && !dbContext.ShareRestrictions.Any(restriction => restriction.CollectionId == candidate.CollectionId && restriction.ItemId == null && restriction.LiftedAtUtc == null))
             .Select(candidate => (bool?)candidate.IsPublic)
             .FirstOrDefaultAsync(cancellationToken);
         if (isPublic is null)
@@ -120,7 +121,8 @@ public sealed class CollectionJoinStore(
 
         // The link as it is now, under the lock: still this link, still active - and still PUBLIC.
         var isPublic = await dbContext.CollectionShares.AsNoTracking()
-            .Where(candidate => candidate.CollectionId == collectionId.Value && candidate.IsActive && candidate.PublicId == publicId)
+            .Where(candidate => candidate.CollectionId == collectionId.Value && candidate.IsActive && candidate.PublicId == publicId
+                && !dbContext.ShareRestrictions.Any(restriction => restriction.CollectionId == candidate.CollectionId && restriction.ItemId == null && restriction.LiftedAtUtc == null))
             .Select(candidate => (bool?)candidate.IsPublic)
             .FirstOrDefaultAsync(cancellationToken);
         if (isPublic is null)

@@ -111,8 +111,19 @@ public sealed class SafetyStore(JupleDbContext dbContext, IUserProfileImageStora
             return null;
         }
 
-        if (collection.UserId == reporterUserId
-            || await dbContext.CollectionCollaborators.AsNoTracking().AnyAsync(member => member.CollectionId == collectionId && member.UserId == reporterUserId, cancellationToken))
+        if (collection.UserId == reporterUserId)
+        {
+            return collection.UserId;
+        }
+
+        // Under an operator's restriction a member no longer sees it: the same answer as a Collection they never had.
+        if (await dbContext.ShareRestrictions.AsNoTracking().AnyAsync(
+                restriction => restriction.CollectionId == collectionId && restriction.ItemId == null && restriction.LiftedAtUtc == null, cancellationToken))
+        {
+            return null;
+        }
+
+        if (await dbContext.CollectionCollaborators.AsNoTracking().AnyAsync(member => member.CollectionId == collectionId && member.UserId == reporterUserId, cancellationToken))
         {
             return collection.UserId;
         }
@@ -127,9 +138,72 @@ public sealed class SafetyStore(JupleDbContext dbContext, IUserProfileImageStora
             return ReportTargetResolution.NotFound;
         }
 
-        return ownerUserId == reporterUserId
+        if (ownerUserId == reporterUserId)
+        {
+            return ReportTargetResolution.Own;
+        }
+
+        var name = await dbContext.Collections.AsNoTracking().Where(collection => collection.Id == collectionId).Select(collection => collection.Name).FirstAsync(cancellationToken);
+        return new ReportTargetResolution(ReportTargetOutcome.Found, collectionId, ownerUserId, collectionId, name);
+    }
+
+    public async Task<ReportTargetResolution> ResolvePublicShareTargetAsync(long reporterUserId, string publicId, CancellationToken cancellationToken = default)
+    {
+        var target = await (
+            from share in dbContext.CollectionShares.AsNoTracking()
+            where share.PublicId == publicId && share.IsActive && share.IsPublic
+            join collection in dbContext.Collections.AsNoTracking().Where(collection => collection.DeletedAtUtc == null) on share.CollectionId equals collection.Id
+            where !dbContext.ShareRestrictions.Any(restriction => restriction.CollectionId == collection.Id && restriction.ItemId == null && restriction.LiftedAtUtc == null)
+            select new { collection.Id, collection.UserId, collection.Name })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (target is null)
+        {
+            return ReportTargetResolution.NotFound;
+        }
+
+        return target.UserId == reporterUserId
             ? ReportTargetResolution.Own
-            : new ReportTargetResolution(ReportTargetOutcome.Found, collectionId, ownerUserId, collectionId);
+            : new ReportTargetResolution(ReportTargetOutcome.Found, target.Id, target.UserId, target.Id, target.Name);
+    }
+
+    public async Task<(string Name, long OwnerUserId)?> GetSharedCollectionAsync(long collectionId, CancellationToken cancellationToken = default)
+    {
+        var row = await dbContext.Collections.AsNoTracking()
+            .Where(collection => collection.Id == collectionId && collection.DeletedAtUtc == null
+                && (dbContext.CollectionCollaborators.Any(member => member.CollectionId == collection.Id)
+                    || dbContext.CollectionShares.Any(share => share.CollectionId == collection.Id && share.IsActive && share.IsPublic)))
+            .Select(collection => new { collection.Name, collection.UserId })
+            .FirstOrDefaultAsync(cancellationToken);
+        return row is null ? null : (row.Name, row.UserId);
+    }
+
+    public async Task<(string? Title, string Url, long OwnerUserId)?> GetSharedLinkAsync(long collectionId, long itemId, CancellationToken cancellationToken = default)
+    {
+        if (await GetSharedCollectionAsync(collectionId, cancellationToken) is null)
+        {
+            return null;
+        }
+
+        var row = await dbContext.Items.AsNoTracking()
+            .Where(item => item.Id == itemId && item.DeletedAtUtc == null
+                && dbContext.CollectionItems.Any(membership => membership.CollectionId == collectionId && membership.ItemId == itemId))
+            .Select(item => new { item.Title, item.Url, item.UserId })
+            .FirstOrDefaultAsync(cancellationToken);
+        return row is null ? null : (row.Title, row.Url, row.UserId);
+    }
+
+    public async Task AddAutoFilterReportAsync(ContentReport report, CancellationToken cancellationToken = default)
+    {
+        if (await dbContext.ContentReports.AsNoTracking().AnyAsync(
+                candidate => candidate.Source == ReportSource.AutoFilter && candidate.TargetType == report.TargetType && candidate.TargetId == report.TargetId
+                    && (candidate.Status == ReportStatus.Pending || candidate.Status == ReportStatus.InReview),
+                cancellationToken))
+        {
+            return;
+        }
+
+        dbContext.ContentReports.Add(report);
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     /// <summary>An Item is reported through a Collection the reporter can see and that really holds it - never by a bare id.</summary>
@@ -144,7 +218,7 @@ public sealed class SafetyStore(JupleDbContext dbContext, IUserProfileImageStora
         var item = await dbContext.Items.AsNoTracking()
             .Where(candidate => candidate.Id == itemId && candidate.DeletedAtUtc == null
                 && dbContext.CollectionItems.Any(membership => membership.CollectionId == viaCollection && membership.ItemId == itemId))
-            .Select(candidate => new { candidate.UserId })
+            .Select(candidate => new { candidate.UserId, candidate.Title, candidate.Url })
             .FirstOrDefaultAsync(cancellationToken);
         if (item is null)
         {
@@ -153,14 +227,14 @@ public sealed class SafetyStore(JupleDbContext dbContext, IUserProfileImageStora
 
         return item.UserId == reporterUserId
             ? ReportTargetResolution.Own
-            : new ReportTargetResolution(ReportTargetOutcome.Found, itemId, item.UserId, viaCollection);
+            : new ReportTargetResolution(ReportTargetOutcome.Found, itemId, item.UserId, viaCollection, item.Title, item.Url);
     }
 
     private async Task<ReportTargetResolution> ResolveCommentAsync(long reporterUserId, long commentId, CancellationToken cancellationToken)
     {
         var comment = await dbContext.CollectionItemComments.AsNoTracking()
             .Where(candidate => candidate.Id == commentId && candidate.DeletedAtUtc == null && candidate.UserId != null)
-            .Select(candidate => new { candidate.CollectionId, candidate.UserId })
+            .Select(candidate => new { candidate.CollectionId, candidate.UserId, candidate.Body })
             .FirstOrDefaultAsync(cancellationToken);
         if (comment is null || await VisibleCollectionOwnerAsync(reporterUserId, comment.CollectionId, cancellationToken) is null)
         {
@@ -169,14 +243,15 @@ public sealed class SafetyStore(JupleDbContext dbContext, IUserProfileImageStora
 
         return comment.UserId == reporterUserId
             ? ReportTargetResolution.Own
-            : new ReportTargetResolution(ReportTargetOutcome.Found, commentId, comment.UserId, comment.CollectionId);
+            : new ReportTargetResolution(ReportTargetOutcome.Found, commentId, comment.UserId, comment.CollectionId, comment.Body);
     }
 
     public async Task<bool> TryCreateReportAsync(ContentReport report, CancellationToken cancellationToken = default)
     {
         var existing = await dbContext.ContentReports.AsNoTracking().AnyAsync(
             candidate => candidate.ReporterUserId == report.ReporterUserId && candidate.TargetType == report.TargetType
-                && candidate.TargetId == report.TargetId && candidate.Status == ReportStatus.Pending,
+                && candidate.TargetId == report.TargetId
+                && (candidate.Status == ReportStatus.Pending || candidate.Status == ReportStatus.InReview),
             cancellationToken);
         if (existing)
         {
@@ -246,11 +321,23 @@ public sealed class SafetyStore(JupleDbContext dbContext, IUserProfileImageStora
             select new { block.CreatedAtUtc, user.Id, user.PublicCode, user.DisplayName, user.ProfileImageBlobName })
             .Take(limit)
             .ToListAsync(cancellationToken);
+        var ownerIds = rows.Select(row => row.Id).ToList();
+        var hidden = await (
+            from member in dbContext.CollectionCollaborators.AsNoTracking()
+            where member.UserId == blockerUserId
+            join collection in dbContext.Collections.AsNoTracking().Where(collection => collection.DeletedAtUtc == null) on member.CollectionId equals collection.Id
+            where ownerIds.Contains(collection.UserId)
+                && !dbContext.ShareRestrictions.Any(restriction => restriction.CollectionId == collection.Id && restriction.ItemId == null && restriction.LiftedAtUtc == null)
+            select new { collection.Id, collection.Name, OwnerUserId = collection.UserId })
+            .ToListAsync(cancellationToken);
         var result = new List<BlockedUserDto>(rows.Count);
         foreach (var row in rows)
         {
             var image = await profileImageStorage.ResolveProfileImageAsync(row.Id, row.ProfileImageBlobName, cancellationToken);
-            result.Add(new BlockedUserDto(row.PublicCode, row.DisplayName, row.CreatedAtUtc, image.Url, image.Version));
+            result.Add(new BlockedUserDto(row.PublicCode, row.DisplayName, row.CreatedAtUtc, image.Url, image.Version)
+            {
+                HiddenCollections = hidden.Where(collection => collection.OwnerUserId == row.Id).Select(collection => new BlockedUserHiddenCollectionDto(collection.Id, collection.Name)).ToList(),
+            });
         }
 
         return result;

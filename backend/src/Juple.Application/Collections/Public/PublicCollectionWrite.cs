@@ -114,7 +114,8 @@ public sealed class PublicCollectionWriteService(
     TimeProvider timeProvider,
     ISocialNotificationPublisher? notifications = null,
     ICollectionLinkSubmissionStore? submissions = null,
-    ICollectionLinkSubmissionService? submissionService = null) : IPublicCollectionWriteService
+    ICollectionLinkSubmissionService? submissionService = null,
+    Juple.Application.Safety.ISharedContentReviewFlagger? reviewFlagger = null) : IPublicCollectionWriteService
 {
     public const int MaxProposalPageSize = 50;
 
@@ -213,6 +214,11 @@ public sealed class PublicCollectionWriteService(
         }
 
         await outbox.CommitAsync(cancellationToken);
+        if (added.Value && reviewFlagger is not null)
+        {
+            await reviewFlagger.FlagLinkAsync(state.CollectionId, itemId, cancellationToken);
+        }
+
         return CollectionLinkAddOutcome.Added;
     }
 }

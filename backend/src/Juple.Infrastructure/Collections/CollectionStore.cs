@@ -229,7 +229,12 @@ public sealed class CollectionStore(
     /// within one scope it is still listed once. Each half is index-backed (Collections by UserId;
     /// CollectionCollaborators by UserId / CollectionId; CollectionShares by CollectionId).
     /// </summary>
-    private IQueryable<Collection> AccessibleCollections(long userId, CollectionListScope scope)
+    /// <remarks>
+    /// Two safety rules narrow the shared half. A Collection an operator restricted is gone for its members (only its Owner keeps it). A
+    /// Collection owned by someone the caller blocked leaves the caller's LISTS, but the membership stays: opening it directly still works
+    /// (<paramref name="includeBlockedOwners"/>), so the person can read, leave it, or see it return after unblocking.
+    /// </remarks>
+    private IQueryable<Collection> AccessibleCollections(long userId, CollectionListScope scope, bool includeBlockedOwners = false)
     {
         var owned = dbContext.Collections
             .AsNoTracking()
@@ -239,6 +244,8 @@ public sealed class CollectionStore(
             where collaborator.UserId == userId
             join collection in dbContext.Collections.AsNoTracking().Where(collection => collection.DeletedAtUtc == null)
                 on collaborator.CollectionId equals collection.Id
+            where !dbContext.ShareRestrictions.Any(restriction => restriction.CollectionId == collection.Id && restriction.ItemId == null && restriction.LiftedAtUtc == null)
+                && (includeBlockedOwners || !dbContext.UserBlocks.Any(block => block.BlockerUserId == userId && block.BlockedUserId == collection.UserId))
             select collection;
 
         var query = scope switch
@@ -412,6 +419,10 @@ public sealed class CollectionStore(
                 join membership in dbContext.CollectionItems.AsNoTracking() on collection.Id equals membership.CollectionId
                 join item in dbContext.Items.AsNoTracking() on membership.ItemId equals item.Id
                 where item.DeletedAtUtc == null
+                    && (collection.UserId == userId
+                        || membership.AddedByUserId == userId
+                        || !dbContext.ShareRestrictions.Any(restriction =>
+                            restriction.CollectionId == membership.CollectionId && restriction.ItemId == membership.ItemId && restriction.LiftedAtUtc == null))
                     && (EF.Functions.Like(item.Url, contains, escape)
                         || (item.Title != null && EF.Functions.Like(item.Title, contains, escape)))
                 let rank = item.Title != null && EF.Functions.Like(item.Title, prefix, escape)
@@ -471,13 +482,18 @@ public sealed class CollectionStore(
             // filter, so the displayed count never disagrees with the list it describes.
             ItemCount = dbContext.CollectionItems
                 .Where(membership => membership.CollectionId == collection.Id)
-                .Count(membership => dbContext.Items.Any(
-                    item => item.Id == membership.ItemId && item.DeletedAtUtc == null)),
+                .Count(membership => dbContext.Items.Any(item => item.Id == membership.ItemId && item.DeletedAtUtc == null)
+                    && (collection.UserId == userId
+                        || membership.AddedByUserId == userId
+                        || !dbContext.ShareRestrictions.Any(restriction =>
+                            restriction.CollectionId == membership.CollectionId && restriction.ItemId == membership.ItemId && restriction.LiftedAtUtc == null))),
             CreatedAtUtc = collection.CreatedAtUtc,
             UpdatedAtUtc = collection.UpdatedAtUtc,
             Icon = collection.Icon,
             Color = collection.Color,
             IsLocked = collection.IsLocked,
+            IsShareRestricted = dbContext.ShareRestrictions.Any(restriction =>
+                restriction.CollectionId == collection.Id && restriction.ItemId == null && restriction.LiftedAtUtc == null),
             MemberLocked = dbContext.CollectionMemberLocks.Any(
                 memberLock => memberLock.CollectionId == collection.Id && memberLock.UserId == userId && memberLock.IsLocked),
             SharePasswordMode = dbContext.CollectionSharePasswords
@@ -662,7 +678,8 @@ public sealed class CollectionStore(
                 AttentionCount: (isOwner ? row.PendingSubmissionCount + row.PendingJoinRequestCount : 0) + row.UnreadNewLinkCount,
                 MyPendingSubmissionCount: isOwner ? 0 : row.MyPendingSubmissionCount,
                 PendingJoinRequestCount: isOwner ? row.PendingJoinRequestCount : 0,
-                IsMemberLocked: !isOwner && row.MemberLocked);
+                IsMemberLocked: !isOwner && row.MemberLocked,
+                IsShareRestricted: isOwner && row.IsShareRestricted);
         }).ToList();
     }
 
@@ -687,6 +704,8 @@ public sealed class CollectionStore(
         public bool IsLocked { get; init; }
 
         public bool MemberLocked { get; init; }
+
+        public bool IsShareRestricted { get; init; }
 
         public CollectionSharePasswordMode? SharePasswordMode { get; init; }
 
@@ -757,7 +776,7 @@ public sealed class CollectionStore(
         // non-existent id.
         var row = await ProjectRows(
                 userId,
-                AccessibleCollections(userId, CollectionListScope.All).Where(collection => collection.Id == collectionId))
+                AccessibleCollections(userId, CollectionListScope.All, includeBlockedOwners: true).Where(collection => collection.Id == collectionId))
             .FirstOrDefaultAsync(cancellationToken)
             ?? throw new CollectionNotFoundException();
 
@@ -806,7 +825,7 @@ public sealed class CollectionStore(
     {
         // Fails closed on its own too (like every other store method): no mark on a Collection the
         // caller cannot access, whatever the caller above checked.
-        var ownerUserId = await AccessibleCollections(userId, CollectionListScope.All)
+        var ownerUserId = await AccessibleCollections(userId, CollectionListScope.All, includeBlockedOwners: true)
                 .Where(collection => collection.Id == collectionId)
                 .Select(collection => (long?)collection.UserId)
                 .FirstOrDefaultAsync(cancellationToken)
@@ -1073,10 +1092,15 @@ public sealed class CollectionStore(
                     FROM [collections].[CollectionItems] AS m
                     INNER JOIN [items].[Items] AS i ON i.[Id] = m.[ItemId]
                     WHERE m.[CollectionId] = @collectionId AND i.[DeletedAtUtc] IS NULL
+                        AND (m.[AddedByUserId] = @userId
+                            OR EXISTS (SELECT 1 FROM [collections].[Collections] AS c WHERE c.[Id] = m.[CollectionId] AND c.[UserId] = @userId)
+                            OR NOT EXISTS (SELECT 1 FROM [safety].[ShareRestrictions] AS r
+                                WHERE r.[CollectionId] = m.[CollectionId] AND r.[ItemId] = m.[ItemId] AND r.[LiftedAtUtc] IS NULL))
                         AND m.[AddedAtUtc] >= w.[FromUtc] AND m.[AddedAtUtc] < w.[ToUtc]) AS [Count]
                 FROM OPENJSON(@windows) WITH ([Idx] int '$.i', [FromUtc] datetimeoffset '$.f', [ToUtc] datetimeoffset '$.t') AS w
                 """,
                 new SqlParameter("@collectionId", collectionId),
+                new SqlParameter("@userId", userId),
                 new SqlParameter("@windows", windows))
             .ToListAsync(cancellationToken);
 
@@ -1119,6 +1143,14 @@ public sealed class CollectionStore(
         var membershipQuery = dbContext.CollectionItems
             .AsNoTracking()
             .Where(membership => membership.CollectionId == collectionId);
+
+        // A link an operator restricted stays with the Collection's Owner and the person who added it; the other members no longer get it.
+        if (!await dbContext.Collections.AsNoTracking().AnyAsync(collection => collection.Id == collectionId && collection.UserId == userId, cancellationToken))
+        {
+            membershipQuery = membershipQuery.Where(membership => membership.AddedByUserId == userId
+                || !dbContext.ShareRestrictions.Any(restriction =>
+                    restriction.CollectionId == membership.CollectionId && restriction.ItemId == membership.ItemId && restriction.LiftedAtUtc == null));
+        }
 
         if (window is { } range)
         {
@@ -1352,6 +1384,10 @@ public sealed class CollectionStore(
         var row = await (
             from membership in dbContext.CollectionItems.AsNoTracking()
             where membership.CollectionId == collectionId && membership.ItemId == itemId
+                && (membership.AddedByUserId == userId
+                    || dbContext.Collections.Any(collection => collection.Id == collectionId && collection.UserId == userId)
+                    || !dbContext.ShareRestrictions.Any(restriction =>
+                        restriction.CollectionId == collectionId && restriction.ItemId == itemId && restriction.LiftedAtUtc == null))
             join item in dbContext.Items.AsNoTracking().Where(item => item.DeletedAtUtc == null)
                 on membership.ItemId equals item.Id
             select new

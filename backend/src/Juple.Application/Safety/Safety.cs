@@ -69,7 +69,8 @@ public enum ReportTargetOutcome
 }
 
 /// <summary>What the store resolved a report target to (internal ids only, never leaving the Application layer).</summary>
-public sealed record ReportTargetResolution(ReportTargetOutcome Outcome, long TargetId = 0, long? TargetUserId = null, long? CollectionId = null)
+public sealed record ReportTargetResolution(
+    ReportTargetOutcome Outcome, long TargetId = 0, long? TargetUserId = null, long? CollectionId = null, string? SnapshotTitle = null, string? SnapshotUrl = null)
 {
     public static ReportTargetResolution NotFound { get; } = new(ReportTargetOutcome.NotFound);
 
@@ -79,12 +80,22 @@ public sealed record ReportTargetResolution(ReportTargetOutcome Outcome, long Ta
 public interface IReportService
 {
     Task<ReportReceiptDto> CreateAsync(long reporterUserId, CreateReportCommand command, CancellationToken cancellationToken = default);
+
+    /// <summary>Reports the Collection behind a public link, for a signed-in visitor who is not a member. The link is the only thing they hold.</summary>
+    Task<ReportReceiptDto> CreateForPublicShareAsync(long reporterUserId, string? publicId, string? reason, string? details, CancellationToken cancellationToken = default);
 }
 
 // ---- Blocking ------------------------------------------------------------------------------------------------------------------------
 
 /// <summary>A person the caller blocked, as the caller sees them: public Juple ID, the chosen display name, the photo. Never an internal id.</summary>
-public sealed record BlockedUserDto(string JupleId, string? DisplayName, DateTimeOffset BlockedAtUtc, string? ProfileImageUrl = null, string? ProfileImageVersion = null);
+public sealed record BlockedUserDto(string JupleId, string? DisplayName, DateTimeOffset BlockedAtUtc, string? ProfileImageUrl = null, string? ProfileImageVersion = null)
+{
+    /// <summary>The caller's own memberships in Collections this person owns: hidden from the caller's lists, still open from here (read, leave).</summary>
+    public IReadOnlyList<BlockedUserHiddenCollectionDto> HiddenCollections { get; init; } = [];
+}
+
+/// <summary>A Collection the caller is a member of and that a block hides from their lists.</summary>
+public sealed record BlockedUserHiddenCollectionDto(long Id, string Name);
 
 public sealed class InvalidBlockException(string message) : Exception(message);
 
@@ -135,6 +146,18 @@ public interface ISafetyStore
 
     /// <summary>Finds what a report names and checks the reporter may see it (see ReportService). collectionId is the context for an Item.</summary>
     Task<ReportTargetResolution> ResolveReportTargetAsync(long reporterUserId, ReportTargetType type, string targetId, long? collectionId, CancellationToken cancellationToken = default);
+
+    /// <summary>Finds the Collection behind an active, public, unrestricted link. The reporter need not be a member.</summary>
+    Task<ReportTargetResolution> ResolvePublicShareTargetAsync(long reporterUserId, string publicId, CancellationToken cancellationToken = default);
+
+    /// <summary>What the automatic check looks at: the shared Collection's name and owner; null when the Collection is not shared with anyone.</summary>
+    Task<(string Name, long OwnerUserId)?> GetSharedCollectionAsync(long collectionId, CancellationToken cancellationToken = default);
+
+    /// <summary>A link of a shared Collection (title, address, who owns it); null when it is not one.</summary>
+    Task<(string? Title, string Url, long OwnerUserId)?> GetSharedLinkAsync(long collectionId, long itemId, CancellationToken cancellationToken = default);
+
+    /// <summary>Adds the automatic check's report unless one is already open for the same target.</summary>
+    Task AddAutoFilterReportAsync(ContentReport report, CancellationToken cancellationToken = default);
 
     /// <summary>Adds the report unless the reporter already has an OPEN one for the same target; AlreadyOpen then.</summary>
     Task<bool> TryCreateReportAsync(ContentReport report, CancellationToken cancellationToken = default);

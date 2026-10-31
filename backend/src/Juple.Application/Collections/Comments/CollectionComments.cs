@@ -198,7 +198,8 @@ public sealed class CollectionItemCommentService(
     ICollectionAccessService accessService,
     ICollectionItemCommentStore store,
     TimeProvider timeProvider,
-    ISocialNotificationPublisher? notifications = null) : ICollectionItemCommentService
+    ISocialNotificationPublisher? notifications = null,
+    Juple.Application.Safety.ISharedContentReviewFlagger? reviewFlagger = null) : ICollectionItemCommentService
 {
     public const int DefaultPageSize = 30;
     public const int MaxPageSize = 100;
@@ -256,6 +257,11 @@ public sealed class CollectionItemCommentService(
         }
 
         await outbox.CommitAsync(cancellationToken);
+        if (reviewFlagger is not null)
+        {
+            await reviewFlagger.FlagCommentAsync(userId, collectionId, created.Comment.Id, normalized, cancellationToken);
+        }
+
         return created.Comment;
     }
 

@@ -112,6 +112,7 @@ public static class DependencyInjection
         services.AddScoped<Juple.Application.Admin.IAdminAccessStore, Juple.Infrastructure.Admin.AdminAccessStore>();
         services.AddScoped<Juple.Application.Admin.IAdminDashboardStore, Juple.Infrastructure.Admin.AdminDashboardStore>();
         services.AddScoped<Juple.Application.Admin.IAdminUserDirectoryStore, Juple.Infrastructure.Admin.AdminUserDirectoryStore>();
+        services.AddScoped<Juple.Application.Admin.IAdminReportStore, Juple.Infrastructure.Admin.AdminReportStore>();
         services.AddScoped<Juple.Application.Admin.IAdminSupportInquiryStore, Juple.Infrastructure.Admin.AdminSupportInquiryStore>();
         services.AddScoped<Juple.Application.Admin.IAdminInquiryWorkflowStore, Juple.Infrastructure.Admin.AdminSupportInquiryStore>();
         services.AddScoped<Juple.Application.Admin.AdminInquiryWorkflowService>();

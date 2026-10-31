@@ -19,7 +19,13 @@ public sealed class PublicShareMembershipStore(JupleDbContext dbContext) : IPubl
             where share.PublicId == publicId && share.IsActive
             join collection in dbContext.Collections.AsNoTracking().Where(collection => collection.DeletedAtUtc == null)
                 on share.CollectionId equals collection.Id
-            select new { collection.Id, OwnerUserId = collection.UserId, share.IsPublic })
+            select new
+            {
+                collection.Id,
+                OwnerUserId = collection.UserId,
+                share.IsPublic,
+                IsRestricted = dbContext.ShareRestrictions.Any(restriction => restriction.CollectionId == collection.Id && restriction.ItemId == null && restriction.LiftedAtUtc == null),
+            })
             .FirstOrDefaultAsync(cancellationToken);
         if (target is null)
         {
@@ -29,6 +35,12 @@ public sealed class PublicShareMembershipStore(JupleDbContext dbContext) : IPubl
         if (target.OwnerUserId == userId)
         {
             return new PublicShareMembershipDto(true, target.Id, "owner");
+        }
+
+        // Under an operator's restriction the link answers like one that does not exist, member or not.
+        if (target.IsRestricted)
+        {
+            return null;
         }
 
         var role = await dbContext.CollectionCollaborators.AsNoTracking()

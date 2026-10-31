@@ -412,7 +412,7 @@ public sealed class ExpiredWriteAllowlistTests
         // blocking must always work.
         Assert.Equal(
             [
-                "AccountController", "AdminAzureCostsController", "AdminController", "AdminCostsController", "AdminExpensesController", "AdminInsightsController", "AdminNoticesController", "AdminSupportInquiriesController", "AdminWorkspaceController", "AuthSessionController", "CollectionLockSettingsController", "CollectionNotificationPreferencesController",
+                "AccountController", "AdminAzureCostsController", "AdminController", "AdminCostsController", "AdminExpensesController", "AdminInsightsController", "AdminNoticesController", "AdminReportsController", "AdminSupportInquiriesController", "AdminWorkspaceController", "AuthSessionController", "CollectionLockSettingsController", "CollectionNotificationPreferencesController",
                 "CurrentUserBootstrapController", "DataExportController", "GoogleBillingController", "NoticesController", "NotificationsController", "PushDevicesController",
                 "RecentlyOpenedLinksController", "SafetyController", "SupportInquiriesController", "UrlMetadataController", "UserProfileController",
             ],

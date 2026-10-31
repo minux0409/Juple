@@ -138,7 +138,16 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext, TimeProvider?
                 .ExecuteUpdateAsync(setters => setters.SetProperty(report => report.ReporterUserId, (long?)null), cancellationToken);
             await dbContext.ContentReports
                 .Where(report => report.TargetUserId == userId)
-                .ExecuteUpdateAsync(setters => setters.SetProperty(report => report.TargetUserId, (long?)null), cancellationToken);
+                // The snapshot is that person's own words, title or address: it goes with them; the report itself stays.
+                .ExecuteUpdateAsync(
+                    setters => setters
+                        .SetProperty(report => report.TargetUserId, (long?)null)
+                        .SetProperty(report => report.SnapshotTitle, (string?)null)
+                        .SetProperty(report => report.SnapshotUrl, (string?)null),
+                    cancellationToken);
+            await dbContext.ContentReports
+                .Where(report => report.ReviewedByAdminUserId == userId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(report => report.ReviewedByAdminUserId, (long?)null), cancellationToken);
 
             // Billing. Deleting a Juple account does NOT cancel a store subscription, so its store purchases are DETACHED, not
             // deleted: UserId becomes null and DetachedAtUtc records when, keeping only the minimal identity (the token hash and its

@@ -2603,6 +2603,24 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("ReviewedAtUtc")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<long?>("ReviewedByAdminUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SnapshotTitle")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("SnapshotUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasDefaultValue("User");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -2633,7 +2651,10 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.HasIndex("ReporterUserId", "TargetType", "TargetId")
                         .IsUnique()
                         .HasDatabaseName("UX_ContentReports_OpenPerReporterTarget")
-                        .HasFilter("[Status] = 'Pending' AND [ReporterUserId] IS NOT NULL");
+                        .HasFilter("[Status] IN ('Pending', 'InReview') AND [ReporterUserId] IS NOT NULL");
+
+                    b.HasIndex("TargetType", "TargetId", "Id")
+                        .HasDatabaseName("IX_ContentReports_Target");
 
                     b.ToTable("ContentReports", "safety", t =>
                         {
@@ -2641,10 +2662,56 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_ContentReports_Review_Consistent", "([Status] = 'Pending' AND [ReviewedAtUtc] IS NULL) OR ([Status] <> 'Pending' AND [ReviewedAtUtc] IS NOT NULL)");
 
-                            t.HasCheckConstraint("CK_ContentReports_Status_Valid", "[Status] IN ('Pending', 'Reviewed', 'Dismissed', 'Actioned')");
+                            t.HasCheckConstraint("CK_ContentReports_Source_Valid", "[Source] IN ('User', 'AutoFilter')");
+
+                            t.HasCheckConstraint("CK_ContentReports_Status_Valid", "[Status] IN ('Pending', 'InReview', 'Reviewed', 'Dismissed', 'Actioned')");
 
                             t.HasCheckConstraint("CK_ContentReports_TargetType_Valid", "[TargetType] IN ('User', 'Collection', 'Item', 'Comment')");
                         });
+                });
+
+            modelBuilder.Entity("Juple.Domain.Safety.ShareRestriction", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CollectionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ItemId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("LiftedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long?>("LiftedByAdminUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ReportId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("RestrictedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("RestrictedByAdminUserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CollectionId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ShareRestrictions_ActiveCollection")
+                        .HasFilter("[LiftedAtUtc] IS NULL AND [ItemId] IS NULL");
+
+                    b.HasIndex("CollectionId", "ItemId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ShareRestrictions_ActiveItem")
+                        .HasFilter("[LiftedAtUtc] IS NULL AND [ItemId] IS NOT NULL");
+
+                    b.ToTable("ShareRestrictions", "safety");
                 });
 
             modelBuilder.Entity("Juple.Domain.Safety.UserBlock", b =>

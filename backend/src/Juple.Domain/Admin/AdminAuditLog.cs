@@ -53,6 +53,9 @@ public static class AdminAuditActions
     public const string SupportInquiryStatusChanged = "support.inquiry.status_changed";
     public const string SupportInquiryAnswered = "support.inquiry.answered";
     public const string MobileVersionPolicyUpdated = "operations.app_version.updated";
+    public const string ReportStatusChanged = "safety.report.status_changed";
+    public const string ShareRestricted = "safety.share.restricted";
+    public const string ShareRestrictionLifted = "safety.share.restriction_lifted";
 }
 
 public static class AdminAuditTargets
@@ -60,4 +63,5 @@ public static class AdminAuditTargets
     public const string MobileVersionPolicy = "MobileVersionPolicy";
     public const string Notice = "Notice";
     public const string SupportInquiry = "SupportInquiry";
+    public const string ContentReport = "ContentReport";
 }

@@ -29,6 +29,8 @@ public sealed class PublicCollectionStore(JupleDbContext dbContext) : IPublicCol
             join collection in dbContext.Collections.AsNoTracking()
                 on share.CollectionId equals collection.Id
             where collection.DeletedAtUtc == null
+                // Restricted by an operator: the same answer as a link that does not exist.
+                && !dbContext.ShareRestrictions.Any(restriction => restriction.CollectionId == collection.Id && restriction.ItemId == null && restriction.LiftedAtUtc == null)
             let sharePassword = dbContext.CollectionSharePasswords
                 .Where(candidate => candidate.CollectionId == collection.Id)
                 .Select(candidate => new { candidate.Mode, candidate.PasswordVersion })
@@ -63,6 +65,7 @@ public sealed class PublicCollectionStore(JupleDbContext dbContext) : IPublicCol
             where share.PublicId == publicId && share.IsActive && share.IsPublic
             join collection in dbContext.Collections.AsNoTracking().Where(collection => collection.DeletedAtUtc == null)
                 on share.CollectionId equals collection.Id
+            where !dbContext.ShareRestrictions.Any(restriction => restriction.CollectionId == collection.Id && restriction.ItemId == null && restriction.LiftedAtUtc == null)
             select new { share.CollectionId, OwnerUserId = collection.UserId })
             .FirstOrDefaultAsync(cancellationToken);
         if (activeShare is null)
@@ -89,7 +92,9 @@ public sealed class PublicCollectionStore(JupleDbContext dbContext) : IPublicCol
             from membership in membershipQuery
             join item in dbContext.Items.AsNoTracking().Where(item => item.DeletedAtUtc == null)
                 on membership.ItemId equals item.Id
-            where item.UserId == activeShare.OwnerUserId || membership.AddedViaPublicShare
+            where (item.UserId == activeShare.OwnerUserId || membership.AddedViaPublicShare)
+                && !dbContext.ShareRestrictions.Any(restriction =>
+                    restriction.CollectionId == membership.CollectionId && restriction.ItemId == membership.ItemId && restriction.LiftedAtUtc == null)
             orderby membership.SortOrder ascending, membership.ItemId ascending
             select new { item.Title, item.Url, item.PreviewImageUrl, membership.SortOrder, membership.ItemId };
 

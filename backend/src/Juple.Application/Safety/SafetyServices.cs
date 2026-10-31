@@ -84,8 +84,41 @@ public sealed class ReportService(ISafetyStore store, TimeProvider timeProvider)
                 throw new ReportOwnContentException();
         }
 
+        return await SaveAsync(reporterUserId, targetType, resolution, reason, details, cancellationToken);
+    }
+
+    public async Task<ReportReceiptDto> CreateForPublicShareAsync(long reporterUserId, string? publicId, string? reason, string? details, CancellationToken cancellationToken = default)
+    {
+        if (!TryParse<ReportReason>(reason, out var parsedReason))
+        {
+            throw new InvalidReportException("reason", "reason must be one of the supported reasons.");
+        }
+
+        var normalizedDetails = NormalizeDetails(details);
+        var trimmed = publicId?.Trim();
+        if (string.IsNullOrEmpty(trimmed) || trimmed.Length > 64)
+        {
+            throw new ReportTargetNotFoundException();
+        }
+
+        var resolution = await store.ResolvePublicShareTargetAsync(reporterUserId, trimmed, cancellationToken);
+        switch (resolution.Outcome)
+        {
+            case ReportTargetOutcome.NotFound:
+                throw new ReportTargetNotFoundException();
+            case ReportTargetOutcome.Own:
+                throw new ReportOwnContentException();
+        }
+
+        return await SaveAsync(reporterUserId, ReportTargetType.Collection, resolution, parsedReason, normalizedDetails, cancellationToken);
+    }
+
+    private async Task<ReportReceiptDto> SaveAsync(
+        long reporterUserId, ReportTargetType targetType, ReportTargetResolution resolution, ReportReason reason, string? details, CancellationToken cancellationToken)
+    {
         var report = new ContentReport(
-            reporterUserId, targetType, resolution.TargetId, resolution.TargetUserId, resolution.CollectionId, reason, details, timeProvider.GetUtcNow());
+            reporterUserId, targetType, resolution.TargetId, resolution.TargetUserId, resolution.CollectionId, reason, details, timeProvider.GetUtcNow(),
+            resolution.SnapshotTitle, resolution.SnapshotUrl);
         var created = await store.TryCreateReportAsync(report, cancellationToken);
         return new ReportReceiptDto(AlreadyReported: !created);
     }

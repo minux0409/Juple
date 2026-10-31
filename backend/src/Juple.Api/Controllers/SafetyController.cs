@@ -14,8 +14,8 @@ namespace Juple.Api.Controllers;
 /// <summary>
 /// Safety: accepting the Terms of Service, reporting content or a person, and blocking / unblocking a person. Every one of these always
 /// works - also for an account whose subscription expired, and (for reporting and blocking) before the Terms were accepted. The acting
-/// person is always the internal user taken from the authenticated principal; a request never carries a user id. There is deliberately NO
-/// route to read or change reports: Juple has no operator authorization yet (see docs/ugc-moderation.md).
+/// person is always the internal user taken from the authenticated principal; a request never carries a user id. Reading and handling reports is the
+/// Admin's (AdminReportsController); nothing here ever shows a report back.
 /// </summary>
 [ApiController]
 [Route("api/v1")]
@@ -48,6 +48,15 @@ public sealed class SafetyController(
     public Task<IActionResult> CreateReportAsync([FromBody] CreateReportRequest request, CancellationToken cancellationToken) =>
         ExecuteAsync(
             userId => reportService.CreateAsync(userId, new CreateReportCommand(request.TargetType, request.TargetId, request.CollectionId, request.Reason, request.Details), cancellationToken),
+            receipt => receipt.AlreadyReported ? Ok(receipt) : StatusCode(StatusCodes.Status201Created, receipt),
+            cancellationToken);
+
+    /// <summary>A signed-in visitor of a public link reports the Collection behind it; the public view carries no internal id.</summary>
+    [HttpPost("public-shares/{publicId}/reports")]
+    [EnableRateLimiting(RateLimitPolicies.ReportCreate)]
+    public Task<IActionResult> ReportPublicShareAsync(string publicId, [FromBody] ReportPublicShareRequest request, CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => reportService.CreateForPublicShareAsync(userId, publicId, request.Reason, request.Details, cancellationToken),
             receipt => receipt.AlreadyReported ? Ok(receipt) : StatusCode(StatusCodes.Status201Created, receipt),
             cancellationToken);
 
@@ -111,6 +120,8 @@ public sealed class SafetyController(
 
     /// <summary>TargetType: User | Collection | Item | Comment. TargetId: the Juple ID of a user, otherwise the numeric id. CollectionId is required for an Item (the Collection it is seen through).</summary>
     public sealed record CreateReportRequest(string? TargetType, string? TargetId, long? CollectionId, string? Reason, string? Details);
+
+    public sealed record ReportPublicShareRequest(string? Reason, string? Details);
 
     public sealed record BlockedUsersResponse(IReadOnlyList<BlockedUserDto> Items);
 }

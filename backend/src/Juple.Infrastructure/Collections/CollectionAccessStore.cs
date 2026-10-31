@@ -31,6 +31,9 @@ public sealed class CollectionAccessStore(JupleDbContext dbContext) : ICollectio
                     .Select(sharePassword => new { sharePassword.Mode, sharePassword.PasswordVersion })
                     .FirstOrDefault(),
                 // The caller's OWN lock on this Collection (a member only; the Owner has the Collection lock instead).
+                // An operator's share restriction closes the Collection to everyone but its Owner (who keeps managing it).
+                IsShareRestricted = dbContext.ShareRestrictions.Any(restriction =>
+                    restriction.CollectionId == collection.Id && restriction.ItemId == null && restriction.LiftedAtUtc == null),
                 MemberLock = dbContext.CollectionMemberLocks
                     .Where(memberLock => memberLock.CollectionId == collection.Id && memberLock.UserId == userId)
                     .Select(memberLock => new { memberLock.IsLocked, memberLock.LockVersion })
@@ -38,7 +41,7 @@ public sealed class CollectionAccessStore(JupleDbContext dbContext) : ICollectio
             })
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (row is null)
+        if (row is null || (row.IsShareRestricted && !row.IsOwner))
         {
             return null;
         }

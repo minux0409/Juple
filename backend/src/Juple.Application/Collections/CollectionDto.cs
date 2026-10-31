@@ -60,7 +60,9 @@ public sealed record CollectionDto(
     int PendingJoinRequestCount = 0,
     // A recipient's view only: the caller put THEIR OWN lock on this Collection (a personal choice, opened with their own lock password;
     // IsLocked is then true for them too, so every client already treats it as locked). Never reported to the Owner or other members.
-    bool IsMemberLocked = false);
+    bool IsMemberLocked = false,
+    // The Owner's view only: an operator restricted sharing of this Collection (nothing is deleted; members and the public link have no access until it is lifted).
+    bool IsShareRestricted = false);
 
 /// <summary>
 /// A member of a collaborative Collection as other members see them: public Juple ID and the
