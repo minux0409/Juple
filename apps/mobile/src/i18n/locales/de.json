@@ -837,6 +837,7 @@
     "note": "Notiz",
     "noteInvalid": "Verwende höchstens 200 Zeichen in einer Zeile.",
     "remove": "Freund entfernen",
+    "blockFriend": "Freund blockieren",
     "removeConfirmTitle": "Diesen Freund entfernen?",
     "removeConfirmMessage": "Deine Notiz wird ebenfalls gelöscht. Gemeinsame Sammlungen bleiben unverändert.",
     "friendJupleIdPlaceholder": "Juple-ID deines Freundes",

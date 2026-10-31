@@ -837,6 +837,7 @@
     "note": "Nota",
     "noteInvalid": "Usa al massimo 200 caratteri su una sola riga.",
     "remove": "Rimuovi amico",
+    "blockFriend": "Blocca amico",
     "removeConfirmTitle": "Rimuovere questo amico?",
     "removeConfirmMessage": "Anche la tua nota verrà eliminata. Le raccolte condivise restano invariate.",
     "friendJupleIdPlaceholder": "ID Juple dell'amico",

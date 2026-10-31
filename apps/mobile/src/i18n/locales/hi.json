@@ -837,6 +837,7 @@
     "note": "नोट",
     "noteInvalid": "एक ही पंक्ति में अधिकतम 200 वर्ण उपयोग करें।",
     "remove": "मित्र हटाएँ",
+    "blockFriend": "मित्र को ब्लॉक करें",
     "removeConfirmTitle": "इस मित्र को हटाएँ?",
     "removeConfirmMessage": "आपका नोट भी हट जाएगा। साझा संग्रह वैसे ही रहेंगे।",
     "friendJupleIdPlaceholder": "मित्र की Juple ID",

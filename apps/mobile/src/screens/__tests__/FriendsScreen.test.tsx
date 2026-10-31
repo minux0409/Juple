@@ -1054,7 +1054,7 @@ describe('FriendsScreen - a friend', () => {
     expect(StyleSheet.flatten(remove.props.style).borderColor).toBe(colors.destructiveText);
   });
 
-  it('메모 / 친구 삭제 each carry a meaningful icon AND keep their word - and 신고 / 차단 are no longer friend actions', async () => {
+  it('메모 / 친구 삭제 each carry a meaningful icon AND keep their word - and 신고 is not a friend action (친구 차단 is - see its own tests)', async () => {
     const renderer = await openPikachu();
     const remove = byId(renderer, 'friend-remove');
 
@@ -1067,11 +1067,11 @@ describe('FriendsScreen - a friend', () => {
     expect(StyleSheet.flatten(remove.props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' });
     expect(remove.findAllByType(Text)[0].props.numberOfLines).toBe(2);
 
-    // No report / block entry point in a friend's detail (the screen's one BlockIcon is the row that opens 차단한 사용자).
+    // No report entry point in a friend's detail; 친구 차단 (one BlockIcon, under 친구 삭제) is the only safety action there.
     expect(exists(renderer, 'friend-report')).toBe(false);
-    expect(exists(renderer, 'friend-block')).toBe(false);
+    expect(exists(renderer, 'friend-block')).toBe(true);
     expect(renderer.root.findAllByType(FlagIcon)).toHaveLength(0);
-    expect(detail(renderer).findAllByType(BlockIcon)).toHaveLength(0);
+    expect(detail(renderer).findAllByType(BlockIcon)).toHaveLength(1);
     const detailTexts = texts(detail(renderer));
     expect(detailTexts).not.toContain(i18n.t('safety.report'));
     expect(detailTexts).not.toContain(i18n.t('safety.block'));
@@ -1296,6 +1296,69 @@ describe('FriendsScreen - 사용자 차단 from the friend menu', () => {
     await chooseBlock(renderer);
 
     await act(async () => confirmDialog(renderer).props.onConfirm());
+    expect(exists(renderer, 'friend-7')).toBe(true);
+  });
+});
+
+describe('FriendsScreen - 친구 차단 in the friend detail popup', () => {
+  const detail = (renderer: Renderer) => renderer.root.findAllByType(AppModal).find(modal => modal.props.testID === 'friend-detail');
+  const confirmDialog = (renderer: Renderer) => renderer.root.findAll(node => node.props.visible === true && typeof node.props.onConfirm === 'function' && node.props.confirmLabel === i18n.t('safety.block'))[0];
+
+  it('shows 친구 차단 right under 친구 삭제, as the same red-outline button; the rest of the popup is as before', async () => {
+    const renderer = await renderScreen();
+    await press(renderer, 'friend-7');
+
+    const remove = byId(renderer, 'friend-remove');
+    const block = byId(renderer, 'friend-block');
+    const shape = (node: { props: Record<string, unknown> }) => {
+      const { minHeight, borderRadius, borderWidth, borderColor } = StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;
+      return { minHeight, borderRadius, borderWidth, borderColor };
+    };
+    expect(shape(block)).toEqual(shape(remove));
+    expect(StyleSheet.flatten(block.props.style).marginTop).toBe(spacing.sm);
+    const labels = texts(detail(renderer)!);
+    expect(labels.indexOf('친구 차단')).toBe(labels.indexOf('친구 삭제') + 1);
+    expect(labels).toEqual(expect.arrayContaining(['메모', '메모 저장']));
+  });
+
+  it('asks the short question first: 취소 changes nothing and keeps the popup', async () => {
+    const renderer = await renderScreen();
+    await press(renderer, 'friend-7');
+    await press(renderer, 'friend-block');
+
+    const dialog = confirmDialog(renderer);
+    expect(dialog.props.title).toBe('이 사용자를 차단하시겠습니까?');
+    expect(dialog.props.message).toBe(i18n.t('safety.blockConfirmMessage'));
+    expect(blockUser).not.toHaveBeenCalled();
+
+    await act(async () => dialog.props.onCancel());
+    expect(blockUser).not.toHaveBeenCalled();
+    expect(detail(renderer)).toBeDefined();
+    expect(exists(renderer, 'friend-7')).toBe(true);
+  });
+
+  it('차단 calls the block API once, closes the popup and drops the friend from the list', async () => {
+    jest.mocked(blockUser).mockResolvedValue(undefined);
+    const renderer = await renderScreen();
+    await press(renderer, 'friend-7');
+    await press(renderer, 'friend-block');
+
+    await act(async () => confirmDialog(renderer).props.onConfirm());
+    expect(blockUser).toHaveBeenCalledTimes(1);
+    expect(blockUser).toHaveBeenCalledWith(expect.any(Function), 'K7MP4Q8N');
+    expect(detail(renderer)).toBeUndefined();
+    expect(exists(renderer, 'friend-7')).toBe(false);
+    expect(removeFriend).not.toHaveBeenCalled();
+  });
+
+  it('a failed block keeps the popup and the friend', async () => {
+    jest.mocked(blockUser).mockRejectedValue(new Error('down'));
+    const renderer = await renderScreen();
+    await press(renderer, 'friend-7');
+    await press(renderer, 'friend-block');
+
+    await act(async () => confirmDialog(renderer).props.onConfirm());
+    expect(detail(renderer)).toBeDefined();
     expect(exists(renderer, 'friend-7')).toBe(true);
   });
 });

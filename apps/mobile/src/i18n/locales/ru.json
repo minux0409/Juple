@@ -837,6 +837,7 @@
     "note": "Заметка",
     "noteInvalid": "Не более 200 символов в одну строку.",
     "remove": "Удалить из друзей",
+    "blockFriend": "Заблокировать друга",
     "removeConfirmTitle": "Удалить из друзей?",
     "removeConfirmMessage": "Ваша заметка тоже удалится. Общие коллекции останутся без изменений.",
     "friendJupleIdPlaceholder": "Juple ID друга",

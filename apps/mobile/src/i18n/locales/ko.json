@@ -837,6 +837,7 @@
     "note": "메모",
     "noteInvalid": "한 줄로 200자 이내로 입력해 주세요.",
     "remove": "친구 삭제",
+    "blockFriend": "친구 차단",
     "removeConfirmTitle": "이 친구를 삭제할까요?",
     "removeConfirmMessage": "내 메모도 함께 삭제돼요. 함께 쓰는 컬렉션은 그대로 유지돼요.",
     "friendJupleIdPlaceholder": "친구의 Juple ID",

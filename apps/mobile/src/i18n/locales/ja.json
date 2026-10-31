@@ -837,6 +837,7 @@
     "note": "メモ",
     "noteInvalid": "1行・200文字以内で入力してください。",
     "remove": "友だちを削除",
+    "blockFriend": "友だちをブロック",
     "removeConfirmTitle": "この友だちを削除しますか？",
     "removeConfirmMessage": "自分用メモも削除されます。一緒に使っているコレクションはそのままです。",
     "friendJupleIdPlaceholder": "友だちのJuple ID",

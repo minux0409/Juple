@@ -837,6 +837,7 @@
     "note": "备注",
     "noteInvalid": "请在一行内输入不超过 200 个字符。",
     "remove": "删除好友",
+    "blockFriend": "屏蔽好友",
     "removeConfirmTitle": "删除此好友？",
     "removeConfirmMessage": "你的备注也会被删除。共享的合集保持不变。",
     "friendJupleIdPlaceholder": "好友的 Juple ID",

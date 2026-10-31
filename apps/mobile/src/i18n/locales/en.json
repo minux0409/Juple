@@ -837,6 +837,7 @@
     "note": "Memo",
     "noteInvalid": "Use up to 200 characters on a single line.",
     "remove": "Remove friend",
+    "blockFriend": "Block friend",
     "removeConfirmTitle": "Remove this friend?",
     "removeConfirmMessage": "Your note is deleted too. Collections you share stay as they are.",
     "friendJupleIdPlaceholder": "Friend's Juple ID",

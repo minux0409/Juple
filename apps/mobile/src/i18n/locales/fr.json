@@ -837,6 +837,7 @@
     "note": "Note",
     "noteInvalid": "Utilisez jusqu'à 200 caractères sur une seule ligne.",
     "remove": "Retirer l'ami",
+    "blockFriend": "Bloquer l'ami",
     "removeConfirmTitle": "Retirer cet ami ?",
     "removeConfirmMessage": "Votre note sera aussi supprimée. Les collections partagées restent inchangées.",
     "friendJupleIdPlaceholder": "Identifiant Juple de l'ami",

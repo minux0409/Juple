@@ -837,6 +837,7 @@
     "note": "Not",
     "noteInvalid": "Tek satırda en fazla 200 karakter kullanın.",
     "remove": "Arkadaşı kaldır",
+    "blockFriend": "Arkadaşı engelle",
     "removeConfirmTitle": "Bu arkadaş kaldırılsın mı?",
     "removeConfirmMessage": "Notunuz da silinir. Paylaşılan koleksiyonlar olduğu gibi kalır.",
     "friendJupleIdPlaceholder": "Arkadaşının Juple ID'si",

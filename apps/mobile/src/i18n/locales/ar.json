@@ -837,6 +837,7 @@
     "note": "ملاحظة",
     "noteInvalid": "استخدم 200 حرف كحد أقصى في سطر واحد.",
     "remove": "إزالة الصديق",
+    "blockFriend": "حظر الصديق",
     "removeConfirmTitle": "إزالة هذا الصديق؟",
     "removeConfirmMessage": "ستُحذف ملاحظتك أيضًا. تبقى المجموعات المشتركة كما هي.",
     "friendJupleIdPlaceholder": "معرّف Juple الخاص بصديقك",

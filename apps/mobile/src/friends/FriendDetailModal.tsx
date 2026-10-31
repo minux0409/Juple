@@ -12,6 +12,7 @@ import { UserAvatar } from '../components/UserAvatar';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
 import type { Collection } from '../collections/api/collectionsApi';
 import { isCollectionLocked } from '../collections/collectionAccess';
+import { BlockIcon } from '../icons/BlockIcon';
 import { LockIcon } from '../icons/LockIcon';
 import { CheckIcon } from '../icons/CheckIcon';
 import { EditIcon } from '../icons/EditIcon';
@@ -26,7 +27,11 @@ interface FriendDetailModalProps {
   /** The server's updated friend after a saved note - the list shows it at once. */
   readonly onChanged: (friend: Friend) => void;
   readonly onRemoved: (friendshipId: number) => void;
-  /** The person was blocked from here (the friendship ended with it): the list refreshes. */
+  /**
+   * 친구 차단: asks the host to start the shared block flow (useBlockPersonFlow - the one confirmation and API Collection participants use).
+   * The host drops the friend and closes this modal once the server accepted the block. Without it the button is not offered.
+   */
+  readonly onBlock?: (friend: Friend) => void;
   /**
    * Opens a Collection of the shared list. Given only where the host can navigate (the Friends screen); without it the section is not
    * offered at all - nothing is fetched for a modal that could not open what it lists.
@@ -45,7 +50,7 @@ type SharedState =
  * then 친구 삭제 behind a confirmation. While saving, removing or confirming it cannot be dismissed by
  * accident; a failed save keeps both the typed text and the note the list still shows.
  */
-export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onOpenCollection }: FriendDetailModalProps) {
+export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onBlock, onOpenCollection }: FriendDetailModalProps) {
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const [note, setNote] = useState('');
@@ -284,6 +289,21 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onOpe
             )}
           </Pressable>
 
+          {/* 친구 차단: directly under 친구 삭제, the same red-outline button (size, radius, text); the shared confirmation follows. */}
+          {onBlock ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isBusy }}
+              disabled={isBusy}
+              onPress={() => onBlock(friend)}
+              style={[styles.actionButton, styles.removeButton, styles.blockButton, isBusy && styles.disabled]}
+              testID="friend-block"
+            >
+              <BlockIcon color={colors.destructiveText} size={ACTION_ICON_SIZE} />
+              <Text numberOfLines={2} style={[styles.actionLabel, styles.removeLabel]}>{t('friends.blockFriend')}</Text>
+            </Pressable>
+          ) : null}
+
         </ScrollView>
       </AppModal>
       <ConfirmDialog
@@ -342,6 +362,7 @@ const styles = themedStyles(() => ({
   primaryLabel: { color: colors.onBrand },
   disabled: { opacity: 0.45 },
   removeButton: { borderColor: colors.destructiveText },
+  blockButton: { marginTop: spacing.sm },
   sharedState: { marginTop: spacing.sm },
   sharedEmpty: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.sm },
   // One explicit title-to-list inset on both platforms; keep the row's bottom and tile spacing.

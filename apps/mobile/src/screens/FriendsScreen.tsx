@@ -498,6 +498,7 @@ export function FriendsScreen() {
           setFriends(previous => previous.map(friend => (friend.friendshipId === updated.friendshipId ? updated : friend)));
           setSelected(updated);
         }}
+        onBlock={friend => requestBlock({ jupleId: friend.jupleId, name: friendPrimaryLabel(friend) })}
         onClose={() => setSelected(null)}
         onRemoved={friendshipId => {
           setFriends(previous => previous.filter(friend => friend.friendshipId !== friendshipId));

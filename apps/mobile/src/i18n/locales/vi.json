@@ -837,6 +837,7 @@
     "note": "Ghi chú",
     "noteInvalid": "Dùng tối đa 200 ký tự trên một dòng.",
     "remove": "Xóa bạn",
+    "blockFriend": "Chặn bạn bè",
     "removeConfirmTitle": "Xóa người bạn này?",
     "removeConfirmMessage": "Ghi chú của bạn cũng bị xóa. Bộ sưu tập dùng chung vẫn giữ nguyên.",
     "friendJupleIdPlaceholder": "Juple ID của bạn bè",

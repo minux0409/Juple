@@ -837,6 +837,7 @@
     "note": "บันทึก",
     "noteInvalid": "ใช้ได้ไม่เกิน 200 ตัวอักษรในบรรทัดเดียว",
     "remove": "ลบเพื่อน",
+    "blockFriend": "บล็อกเพื่อน",
     "removeConfirmTitle": "ลบเพื่อนคนนี้หรือไม่",
     "removeConfirmMessage": "บันทึกของคุณจะถูกลบด้วย คอลเลกชันที่ใช้ร่วมกันจะยังคงอยู่",
     "friendJupleIdPlaceholder": "Juple ID ของเพื่อน",

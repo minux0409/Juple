@@ -837,6 +837,7 @@
     "note": "Catatan",
     "noteInvalid": "Gunakan maksimal 200 karakter dalam satu baris.",
     "remove": "Hapus teman",
+    "blockFriend": "Blokir teman",
     "removeConfirmTitle": "Hapus teman ini?",
     "removeConfirmMessage": "Catatan Anda juga dihapus. Koleksi bersama tetap seperti semula.",
     "friendJupleIdPlaceholder": "ID Juple teman",
