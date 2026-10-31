@@ -26,7 +26,7 @@ import { SearchIcon } from '../../icons/SearchIcon';
 import { CopyIcon } from '../../icons/CopyIcon';
 import { ActionMenuDialog } from '../../components/ActionMenuDialog';
 import { SwipeableItemRow } from '../../components/SwipeableItemRow';
-import { colors, radii, spacing, getActiveColorScheme, setActiveColorScheme } from '../../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, getActiveColorScheme, setActiveColorScheme } from '../../theme/tokens';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { emitSocialPushEvent } from '../../push/pushEvents';
 import { listBlockedUsers } from '../../safety/safetyApi';
@@ -1106,8 +1106,10 @@ describe('FriendsScreen - narrow screens and accessibility', () => {
 
     for (const testID of ['friends-tab-friends', 'friends-tab-incoming', 'friends-tab-outgoing', 'friends-blocked-users']) {
       const button = byId(renderer, testID);
-      // Four equal cells, two per row (a 2x2 menu), each 56dp tall.
-      expect(StyleSheet.flatten(button.props.style)).toEqual(expect.objectContaining({ flexBasis: '45%', flexGrow: 1, minHeight: 56, minWidth: 0 }));
+      // Four equal cells, two per row (a 2x2 menu), with the Collections filter button's own height / padding / radius / border.
+      expect(StyleSheet.flatten(button.props.style)).toEqual(expect.objectContaining({
+        borderRadius: radii.md + 2, borderWidth: 1, flexBasis: '45%', flexGrow: 1, minHeight: minTouchTarget - 4, minWidth: 0, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs,
+      }));
       expect(button.findAllByType(Text)[0].props.numberOfLines).toBe(2);
     }
   });

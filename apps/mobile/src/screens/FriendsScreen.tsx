@@ -48,7 +48,7 @@ import { UserMinusIcon } from '../icons/UserMinusIcon';
 import { UserIcon } from '../icons/UserIcon';
 import { useFocusedPolling, useLiveRefresh } from '../push/useLiveRefresh';
 import { useTheme } from '../theme/ThemeContext';
-import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
+import { collectionFilterColors, colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { TOUR_TARGETS } from '../tour/tourGuides';
 import { useTourTarget } from '../tour/tourTargets';
 import { columnBasis, gridListKey, useSavedLinkColumns } from '../layout/responsiveGrid';
@@ -769,10 +769,12 @@ const styles = themedStyles(() => ({
     marginHorizontal: spacing.xl,
     marginTop: spacing.md,
   },
+  // The same cell as the Collections screen's filter buttons (CollectionsScreen filterCell / filterLabel): height, padding, radius,
+  // border and the selected / unselected colors are those values, so the two screens' buttons are identical.
   tab: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderColor: 'transparent',
+    backgroundColor: collectionFilterColors.unselectedBackground,
+    borderColor: collectionFilterColors.unselectedBorder,
     borderRadius: radii.md + 2,
     borderWidth: 1,
     flexBasis: '45%',
@@ -780,13 +782,14 @@ const styles = themedStyles(() => ({
     flexGrow: 1,
     gap: spacing.xs,
     justifyContent: 'center',
-    minHeight: 56,
+    minHeight: minTouchTarget - 4,
     minWidth: 0,
     paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
-  tabSelected: { backgroundColor: colors.surface, borderColor: colors.brandText, borderWidth: 1 },
-  tabLabel: { color: colors.textSecondary, flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },
-  tabLabelSelected: { color: colors.brandText, fontWeight: '700' },
+  tabSelected: { backgroundColor: collectionFilterColors.selectedBackground, borderColor: collectionFilterColors.selectedBorder },
+  tabLabel: { color: collectionFilterColors.unselectedText, flexShrink: 1, fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  tabLabelSelected: { color: collectionFilterColors.selectedText, fontWeight: '700' },
   tabBadge: { alignItems: 'center', borderRadius: 10, flexShrink: 0, justifyContent: 'center', minWidth: 20, paddingHorizontal: 5 },
   tabBadgeEmphasized: { backgroundColor: colors.brand },
   tabBadgeMuted: { backgroundColor: colors.border },

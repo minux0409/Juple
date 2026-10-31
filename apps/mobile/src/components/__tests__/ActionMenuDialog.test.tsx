@@ -30,6 +30,23 @@ describe('ActionMenuDialog', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
+  it('the 취소 area is exactly the button: nothing between the divider and the 48dp button, and only a small card padding below it', () => {
+    const renderer = render();
+    const cancel = renderer.root.findAll(node => node.props.testID === 'action-menu-cancel' && typeof node.props.style === 'function')[0];
+    const area = StyleSheet.flatten(cancel.parent!.props.style);
+    expect(area.marginTop ?? 0).toBe(0);
+    expect(area.marginBottom ?? 0).toBe(0);
+    expect(area.paddingTop ?? 0).toBe(0);
+    expect(area.paddingBottom ?? 0).toBe(0);
+    expect(area.paddingVertical ?? 0).toBe(0);
+    const button = StyleSheet.flatten(cancel.props.style({ pressed: false }));
+    expect(button.marginVertical ?? 0).toBe(0);
+    expect(button.paddingVertical).toBe(0);
+    expect(button.minHeight).toBe(48);
+    const card = renderer.root.findAll(node => node.props.accessibilityViewIsModal === true)[0];
+    expect(StyleSheet.flatten(card.props.style).paddingBottom).toBe(4);
+  });
+
   it('without a header it is exactly what it was: the actions and 취소', () => {
     const renderer = render();
 

@@ -58,8 +58,7 @@ export function ActionMenuDialog({ visible, title, header, actions, cancelLabel,
           <Text style={[styles.label, hasIcons && styles.labelWithIcon, { color }]}>{action.label}</Text>
         </Pressable>;
       })}
-      {/* 취소: its own row under a divider, as tall as an action row (padding above AND below the label) - never pressed against the
-          card's bottom edge. */}
+      {/* 취소: its own row under a divider; the area is exactly the 48dp pressed rectangle, with nothing above or below it. */}
       <View style={styles.cancelArea}>
         <Pressable accessibilityRole="button" onPress={onCancel} style={({ pressed }) => [styles.cancel, pressed && styles.pressed]} testID="action-menu-cancel">
           <Text style={styles.label}>{cancelLabel}</Text>
@@ -72,14 +71,16 @@ export function ActionMenuDialog({ visible, title, header, actions, cancelLabel,
 
 const styles = themedStyles(() => ({
   overlay: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)', flex: 1, justifyContent: 'center', padding: spacing.xl },
-  card: { backgroundColor: colors.surface, borderRadius: radii.lg, minWidth: 260, padding: spacing.md, width: '100%' },
+  // The bottom padding is small on purpose: 취소 is the last row, so its pressed background (48dp) is the only space under the divider.
+  card: { backgroundColor: colors.surface, borderRadius: radii.lg, minWidth: 260, paddingBottom: spacing.xs, paddingHorizontal: spacing.md, paddingTop: spacing.md, width: '100%' },
   title: { color: colors.textPrimary, fontSize: 17, fontWeight: '700', marginBottom: spacing.sm },
   action: { borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: spacing.md },
   actionWithIcon: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: minTouchTarget },
   header: { borderBottomColor: colors.divider, borderBottomWidth: 1, marginBottom: spacing.xs, paddingBottom: spacing.xs },
   pressed: { backgroundColor: colors.surfaceMuted },
   icon: { alignItems: 'center', flexShrink: 0, height: ICON_SIZE + 2, justifyContent: 'center', width: ICON_SIZE + 2 },
-  cancelArea: { borderTopColor: colors.divider, borderTopWidth: 1, marginTop: spacing.xs, paddingTop: spacing.xs },
+  // The divider, then the button itself: no margin or padding between them, so the area is exactly the button's height.
+  cancelArea: { borderTopColor: colors.divider, borderTopWidth: 1 },
   // Exactly the touch-target height, no extra vertical padding: the pressed background is the button, not the button plus padding.
   cancel: { borderRadius: radii.md, justifyContent: 'center', minHeight: CANCEL_MIN_HEIGHT, paddingHorizontal: spacing.md, paddingVertical: 0 },
   label: { color: colors.textPrimary, fontSize: 16, fontWeight: '600', textAlign: 'center' },
