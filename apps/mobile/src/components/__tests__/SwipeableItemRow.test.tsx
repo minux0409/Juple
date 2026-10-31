@@ -50,7 +50,7 @@ function contentLayerOf(renderer: ReactTestRenderer.ReactTestRenderer) {
 
 /**
  * A left swipe: grant, the given moves (dx, dy, time), release. The default is one quick, long, flat swipe - past the delete
- * distance. The row is not measured in Jest, so the delete distance is one action width (76).
+ * distance. The row is not measured in Jest, so the delete distance is the fixed 48.
  */
 async function swipeLeft(renderer: ReactTestRenderer.ReactTestRenderer, moves: readonly (readonly [number, number, number])[] = [[-200, 0, 1]]) {
   const layer = contentLayerOf(renderer);
@@ -259,7 +259,7 @@ describe('SwipeableItemRow', () => {
   it('a short slow left drag springs back without asking', async () => {
     const onDelete = jest.fn();
     const renderer = await renderRow({ onPress: jest.fn(), onDelete, onShare: jest.fn() });
-    await swipeLeft(renderer, [[-30, 0, 1], [-60, 0, 1000], [-60, 0, 2000]]);
+    await swipeLeft(renderer, [[-20, 0, 1], [-40, 0, 1000], [-40, 0, 2000]]);
 
     expect(onDelete).not.toHaveBeenCalled();
   });
@@ -578,5 +578,77 @@ describe('SwipeableItemRow - the red underlay while swiping toward delete', () =
       await swipe(200);
       expect(onDelete).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe('SwipeableItemRow - a List row asks at once, a Grid / Image tile only opens the button', () => {
+  afterEach(() => {
+    closeOpenRow();
+  });
+
+  async function renderBehavior(deleteBehavior: 'confirm' | 'reveal', onDelete: () => void) {
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <SwipeableItemRow deleteBehavior={deleteBehavior} deleteTestID="del" onDelete={onDelete} onPress={jest.fn()} onShare={jest.fn()}>
+          <Text>Row</Text>
+        </SwipeableItemRow>,
+      );
+    });
+    return renderer;
+  }
+  const button = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAll(node => node.props.testID === 'del' && typeof node.props.onPress === 'function')[0];
+
+  it('confirm: a swipe from anywhere on the row with room for only 50pt (a thumbnail at its left edge) still asks', async () => {
+    const onDelete = jest.fn();
+    await swipeLeft(await renderBehavior('confirm', onDelete), [[-25, 0, 1], [-50, 0, 1000], [-50, 0, 2000]]);
+    expect(onDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it('reveal: the full swipe asks nothing and leaves the red button; only pressing it asks; it is a real, labelled button', async () => {
+    const onDelete = jest.fn();
+    const renderer = await renderBehavior('reveal', onDelete);
+    await swipeLeft(renderer);
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(button(renderer).props.accessibilityLabel).toBe('삭제');
+    expect(StyleSheet.flatten(button(renderer).props.style).backgroundColor).toBe(colors.destructive);
+    await act(async () => button(renderer).props.onPress());
+    expect(onDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it('reveal: a short drag closes again, and a tap on the open row only closes it', async () => {
+    const onPress = jest.fn();
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <SwipeableItemRow deleteBehavior="reveal" deleteTestID="del" onDelete={jest.fn()} onPress={onPress} testID="row"><Text>Row</Text></SwipeableItemRow>,
+      );
+    });
+    await swipeLeft(renderer);
+    const content = renderer.root.findAll(node => node.props.testID === 'row' && typeof node.props.onPress === 'function' && node.type !== SwipeableItemRow)[0];
+    await act(async () => content.props.onPress());
+    expect(onPress).not.toHaveBeenCalled();
+    await act(async () => content.props.onPress());
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('opening another row closes the open one', async () => {
+    const first = await renderBehavior('reveal', jest.fn());
+    await swipeLeft(first);
+    expect(button(first)).toBeDefined();
+    const second = await renderBehavior('reveal', jest.fn());
+    await swipeLeft(second);
+    await act(async () => closeOpenRow());
+    expect(button(second)).toBeDefined();
+  });
+
+  it.each(['confirm', 'reveal'] as const)('%s: a horizontal move is captured from whatever inside holds the touch; a tap-sized or vertical one is not', async behavior => {
+    const renderer = await renderBehavior(behavior, jest.fn());
+    const layer = contentLayerOf(renderer);
+    expect(layer.props.onMoveShouldSetResponderCapture(touchesMoved(-30))).toBe(true);
+    const other = await renderBehavior(behavior, jest.fn());
+    expect(contentLayerOf(other).props.onMoveShouldSetResponderCapture(touchesMoved(-4))).toBe(false);
+    const vertical = await renderBehavior(behavior, jest.fn());
+    expect(contentLayerOf(vertical).props.onMoveShouldSetResponderCapture(touchesMoved(-12, 60))).toBe(false);
   });
 });

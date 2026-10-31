@@ -25,6 +25,7 @@ import { shareItem } from '../../items/shareItem';
 import { resolveUrlMetadata } from '../../urlMetadata/api/urlMetadataApi';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
 import { swipeRowToDelete } from '../../testing/swipeRowDriver';
+import { SwipeableItemRow } from '../../components/SwipeableItemRow';
 
 // A module-level mock (not a fresh jest.fn() returned from the factory on every call) so tests
 // can assert on it directly - matches the pattern already used elsewhere for route-prop screens
@@ -841,7 +842,7 @@ describe('DailyInboxScreen image view', () => {
     return part;
   };
   const tilesOf = (part: ReactTestRenderer.ReactTestRenderer) =>
-    part.root.findAll(node => String(node.props.testID).startsWith('saved-link-image-tile') && typeof node.props.onPress === 'function');
+    part.root.findAll(node => String(node.props.testID).startsWith('saved-link-image-tile') && typeof node.props.onPress === 'function' && node.type !== SwipeableItemRow);
 
   it('offers List, Grid and Image', async () => {
     setUpItems([makeItem({ id: 1 })]);

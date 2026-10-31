@@ -22,7 +22,8 @@ import { RefreshFailureNotice } from '../components/RefreshFailureNotice';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SavedLinkRow } from '../components/SavedLinkRow';
-import { SavedLinkImageRow } from '../components/SavedLinkImageTile';
+import { SavedLinkImageRow,
+  type SavedLinkImageSwipeActions } from '../components/SavedLinkImageTile';
 import { SavedLinkGridCell, useSavedLinkGridCellStyle } from '../components/SavedLinkGridCard';
 import { useSavedLinkColumns, type SavedLinkColumns } from '../layout/responsiveGrid';
 import { ViewModeToggle } from '../components/ViewModeToggle';
@@ -166,6 +167,13 @@ export function DateHistoryScreen() {
   const itemCardOpenRef = useRef(itemCardOpen);
   itemCardOpenRef.current = itemCardOpen;
   const openItem = useCallback((item: ItemHistoryEntry) => { itemCardOpenRef.current.open(item).catch(() => undefined); }, []);
+  // The image tiles' swipe (memoized tiles: one stable object, the handlers of the latest render behind it).
+  const imageSwipeHandlersRef = useRef({ confirmDelete, runShare });
+  imageSwipeHandlersRef.current = { confirmDelete, runShare };
+  const imageSwipeActions = useMemo<SavedLinkImageSwipeActions>(() => ({
+    onDelete: item => imageSwipeHandlersRef.current.confirmDelete(item.id),
+    onShare: item => { imageSwipeHandlersRef.current.runShare(item).catch(() => undefined); },
+  }), []);
 
   // The server's pages in the server's order (newest first), packed for the chosen view. Re-packing for another view never
   // asks the server again.
@@ -251,7 +259,7 @@ export function DateHistoryScreen() {
           </View>
         );
       case 'flatImageRow':
-        return <SavedLinkImageRow items={row.items} onLongPress={linkActions.openMenu} onPress={openItem} testID={`history-flat-image-row-${row.key}`} />;
+        return <SavedLinkImageRow items={row.items} onLongPress={linkActions.openMenu} onPress={openItem} swipeActions={imageSwipeActions} swipeDisabled={actionInFlightItemId !== null} testID={`history-flat-image-row-${row.key}`} />;
       case 'searchStatus':
         return row.status === 'loading' ? (
           <ActivityIndicator style={styles.searchStatus} testID="history-search-loading" />

@@ -206,6 +206,7 @@ describe('image-only view (Home): the same link menu', () => {
     return parts.flatMap(part => part.root.findAll(node =>
       String(node.props.testID).startsWith('saved-link-image-tile')
       && typeof node.props.onPress === 'function'
+      && node.type !== SwipeableItemRow
       && node.parent?.props.testID !== node.props.testID));
   }
 
@@ -242,7 +243,9 @@ describe('image-only view (Home): the same link menu', () => {
     const renderer = await renderImageView([item({ id: 1 }), item({ id: 3, isCollectionLocked: true, url: '', title: null })]);
     const [open, locked] = tilesOf(renderer);
 
-    expect(open.props.accessibilityActions).toEqual([{ name: 'options', label: i18n.t('collections.linkActionsA11y') }]);
+    const swipe = renderer.root.findAllByType(SwipeableItemRow).find(row => row.props.testID === 'saved-link-image-tile')!;
+    const layer = swipe.findAll(node => Array.isArray(node.props.accessibilityActions))[0];
+    expect(layer.props.accessibilityActions).toContainEqual({ name: 'options', label: i18n.t('collections.linkActionsA11y') });
     await act(async () => open.props.onPress());
     expect(mockNavigate).toHaveBeenCalledWith('ItemDetails', expect.objectContaining({ itemId: 1 }));
     expect(renderer.root.findAllByType(ActionMenuDialog)).toHaveLength(0);

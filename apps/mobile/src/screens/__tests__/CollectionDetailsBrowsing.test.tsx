@@ -13,6 +13,7 @@ import {
   type Collection,
   type CollectionItemEntry,
 } from '../../collections/api/collectionsApi';
+import { SwipeableItemRow } from '../../components/SwipeableItemRow';
 
 // Collection Details browsing: one flat list, always newest first, as List / Grid / Image - and its search.
 
@@ -170,7 +171,7 @@ const renderRow = (renderer: ReactTestRenderer.ReactTestRenderer, row: AnyRow) =
   return part;
 };
 const tilesOf = (part: ReactTestRenderer.ReactTestRenderer) =>
-  part.root.findAll(node => String(node.props.testID).startsWith('saved-link-image-tile') && typeof node.props.onPress === 'function');
+  part.root.findAll(node => String(node.props.testID).startsWith('saved-link-image-tile') && typeof node.props.onPress === 'function' && node.type !== SwipeableItemRow);
 async function setView(renderer: ReactTestRenderer.ReactTestRenderer, mode: 'list' | 'grid' | 'image') {
   const toggle = header(renderer).root.findByType(ViewModeToggle);
   await act(async () => {
@@ -313,7 +314,7 @@ describe('Collection Details - Image tiles', () => {
     expect(views.map(view => tilesOf(view).length)).toEqual(shape);
     for (const view of views) {
       expect(view.root.findAllByType(Text)).toHaveLength(0);
-      expect(StyleSheet.flatten(tilesOf(view)[0].props.style)).toMatchObject({ aspectRatio: 1 });
+      expect(StyleSheet.flatten(view.root.findAllByType(SwipeableItemRow)[0].props.containerStyle)).toMatchObject({ aspectRatio: 1 });
       expect(JSON.stringify(view.toJSON()).replace(/"accessibilityLabel":"[^"]*"/g, '')).not.toMatch(/memo \d|site\d|example/);
     }
   });

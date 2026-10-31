@@ -13,6 +13,7 @@ import {
   SavedLinkImageRowSkeleton,
   SavedLinkImageTile,
 } from '../SavedLinkImageTile';
+import { SwipeableItemRow } from '../SwipeableItemRow';
 
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
@@ -199,5 +200,38 @@ describe('chunkIntoImageLines', () => {
   it('lines of three in order, the last one short', () => {
     expect(chunkIntoImageLines([1, 2, 3, 4, 5, 6, 7])).toEqual([[1, 2, 3], [4, 5, 6], [7]]);
     expect(chunkIntoImageLines([])).toEqual([]);
+  });
+});
+
+describe('SavedLinkImageTile - swipe (the 3-column view behaves like the 2-column one)', () => {
+  const swipeRow = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByType(SwipeableItemRow)[0];
+  const render = (props: Partial<React.ComponentProps<typeof SavedLinkImageTile>>, entry = makeItem()) => {
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = ReactTestRenderer.create(<SavedLinkImageTile item={entry} onPress={jest.fn()} {...props} />);
+    });
+    return renderer;
+  };
+  const actions = { onDelete: jest.fn(), onShare: jest.fn() };
+
+  it('opens the delete button instead of asking, and acts on its own link', () => {
+    const entry = makeItem({ id: 7 });
+    const renderer = render({ swipeActions: actions }, entry);
+    expect(swipeRow(renderer).props.deleteBehavior).toBe('reveal');
+    act(() => swipeRow(renderer).props.onDelete());
+    expect(actions.onDelete).toHaveBeenCalledWith(entry);
+    act(() => swipeRow(renderer).props.onShare());
+    expect(actions.onShare).toHaveBeenCalledWith(entry);
+  });
+
+  it('a link this person may not remove has no delete side; share stays', () => {
+    const swipe = swipeRow(render({ swipeActions: { ...actions, canDelete: () => false } }));
+    expect(swipe.props.onDelete).toBeUndefined();
+    expect(swipe.props.onShare).toEqual(expect.any(Function));
+  });
+
+  it('a locked tile and a tile without swipe actions never swipe', () => {
+    expect(render({ swipeActions: actions }, makeItem({ isCollectionLocked: true })).root.findAllByType(SwipeableItemRow)).toHaveLength(0);
+    expect(render({}).root.findAllByType(SwipeableItemRow)).toHaveLength(0);
   });
 });

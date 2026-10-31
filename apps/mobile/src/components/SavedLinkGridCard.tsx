@@ -108,7 +108,7 @@ export function SavedLinkGridCell({ column, disabled, onPress, onDelete, onShare
   const cellStyle = useSavedLinkGridCellStyle();
   const { grid } = useSavedLinkColumns();
   return <View style={column === undefined ? cellStyle : [cellStyle, edgeAlignedCellPadding(column, grid)]}>
-    <SwipeableItemRow containerStyle={savedLinkGridLayout.swipeContainer} disabled={disabled} onOpenOriginal={cardProps.onOpenOriginal} onDelete={onDelete} onLongPress={onLongPress} onPress={onPress} onShare={onShare}>
+    <SwipeableItemRow containerStyle={savedLinkGridLayout.swipeContainer} deleteBehavior="reveal" disabled={disabled} onOpenOriginal={cardProps.onOpenOriginal} onDelete={onDelete} onLongPress={onLongPress} onPress={onPress} onShare={onShare}>
       <SavedLinkGridCard {...cardProps} />
     </SwipeableItemRow>
   </View>;

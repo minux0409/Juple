@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { StyleSheet, Text, View, type PressableProps } from 'react-native';
 import { colors } from '../../theme/tokens';
@@ -50,6 +50,29 @@ describe('the app Pressable - a press feedback only while a control is held', ()
     expect(StyleSheet.flatten(layer.props.style)).toMatchObject({ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 10, backgroundColor: colors.pressedOverlay });
     expect(layer.props.pointerEvents).toBe('none');
     expect(circleOf(drawn(inner, true))).toBeUndefined();
+  });
+
+  it('pressing never rebuilds the content: the native view under the finger survives, so a swipe that starts on it keeps its touch', () => {
+    let mounts = 0;
+    const Child = () => {
+      useEffect(() => {
+        mounts += 1;
+      }, []);
+      return <Text>Title</Text>;
+    };
+    let tree!: ReactTestRenderer.ReactTestRenderer;
+    const element = (pressed: boolean, inner: ReactTestRenderer.ReactTestInstance | null) => {
+      const draw = inner?.props.children;
+      return <View>{typeof draw === 'function' ? draw({ pressed, hovered: false }) : <Child />}</View>;
+    };
+    const { inner } = render({ accessibilityRole: 'button', onPress: jest.fn() }, <Child />);
+    mounts = 0;
+    act(() => {
+      tree = ReactTestRenderer.create(element(false, inner));
+    });
+    act(() => tree.update(element(true, inner)));
+    act(() => tree.update(element(false, inner)));
+    expect(mounts).toBe(1);
   });
 
   it('a filled button gets the stronger layer, so the press still shows on its colour', () => {

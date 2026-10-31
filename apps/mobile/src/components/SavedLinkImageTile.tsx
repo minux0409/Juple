@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { Image, View } from 'react-native';
 import { Pressable } from './Pressable';
+import { SwipeableItemRow } from './SwipeableItemRow';
 import { useTranslation } from 'react-i18next';
 import { LinkIcon } from '../icons/LinkIcon';
 import { LockIcon } from '../icons/LockIcon';
@@ -33,6 +34,17 @@ export function chunkIntoImageLines<T>(items: readonly T[], columns: number = SA
   return lines;
 }
 
+/**
+ * A tile's swipe actions, the same a Grid card has: right opens 공유, left opens the red 삭제 button (it asks only when pressed).
+ * Pass STABLE callbacks (the tile is memoized). `canDelete` absent: every tile may be deleted.
+ */
+export interface SavedLinkImageSwipeActions {
+  readonly onDelete: (item: ItemHistoryEntry) => void;
+  readonly onShare: (item: ItemHistoryEntry) => void;
+  readonly canDelete?: (item: ItemHistoryEntry) => boolean;
+  readonly deleteLabel?: string;
+}
+
 interface SavedLinkImageTileProps {
   readonly item: ItemHistoryEntry;
   readonly onPress: (item: ItemHistoryEntry) => void;
@@ -41,6 +53,9 @@ interface SavedLinkImageTileProps {
    * Pass a STABLE callback (the tile is memoized). A locked Collection's redacted tile never has one.
    */
   readonly onLongPress?: (item: ItemHistoryEntry) => void;
+  /** Absent: the tile has no swipe (a locked tile never has one either). */
+  readonly swipeActions?: SavedLinkImageSwipeActions;
+  readonly swipeDisabled?: boolean;
 }
 
 /**
@@ -50,7 +65,7 @@ interface SavedLinkImageTileProps {
  * plain link glyph, on a neutral square. A locked Collection's link (redacted by the server) is a lock on
  * a neutral square - never its thumbnail, site or text, in the accessibility label either.
  */
-function SavedLinkImageTileView({ item, onPress, onLongPress }: SavedLinkImageTileProps) {
+function SavedLinkImageTileView({ item, onPress, onLongPress, swipeActions, swipeDisabled }: SavedLinkImageTileProps) {
   const { t } = useTranslation();
   useTheme(); // memoized: it would not follow its parent's re-render, so it reads the theme itself
   // The URL that failed, not a flag: a refresh brings a fresh signed URL that deserves its own attempt.
@@ -68,6 +83,32 @@ function SavedLinkImageTileView({ item, onPress, onLongPress }: SavedLinkImageTi
 
   const showImage = imageUrl !== null;
   const siteId = resolveSiteInfo(item.url).id;
+  const picture = showImage ? (
+    <Image onError={onError} resizeMode="cover" source={{ uri: imageUrl }} style={styles.picture} testID="saved-link-image-tile-picture" />
+  ) : (
+    <View style={styles.fallback} testID="saved-link-image-tile-fallback">
+      {siteId !== null ? <SiteIcon siteId={siteId} size={48} /> : <LinkIcon color={colors.textSecondary} size={30} />}
+    </View>
+  );
+  if (swipeActions) {
+    return (
+      <SwipeableItemRow
+        accessibilityLabel={resolveSavedLinkDisplayTitle(item.title, item.url, t).text}
+        compact
+        containerStyle={styles.tile}
+        deleteBehavior="reveal"
+        deleteLabel={swipeActions.deleteLabel}
+        disabled={swipeDisabled}
+        onDelete={swipeActions.canDelete?.(item) === false ? undefined : () => swipeActions.onDelete(item)}
+        onLongPress={onLongPress ? () => onLongPress(item) : undefined}
+        onPress={() => onPress(item)}
+        onShare={() => swipeActions.onShare(item)}
+        testID="saved-link-image-tile"
+      >
+        <View style={styles.swipeContent}>{picture}</View>
+      </SwipeableItemRow>
+    );
+  }
   return (
     <Pressable
       accessibilityActions={onLongPress ? [{ name: 'options', label: t('collections.linkActionsA11y') }] : undefined}
@@ -80,13 +121,7 @@ function SavedLinkImageTileView({ item, onPress, onLongPress }: SavedLinkImageTi
       style={styles.tile}
       testID="saved-link-image-tile"
     >
-      {showImage ? (
-        <Image onError={onError} resizeMode="cover" source={{ uri: imageUrl }} style={styles.picture} testID="saved-link-image-tile-picture" />
-      ) : (
-        <View style={styles.fallback} testID="saved-link-image-tile-fallback">
-          {siteId !== null ? <SiteIcon siteId={siteId} size={48} /> : <LinkIcon color={colors.textSecondary} size={30} />}
-        </View>
-      )}
+      {picture}
     </Pressable>
   );
 }
@@ -97,6 +132,8 @@ interface SavedLinkImageRowProps {
   readonly items: readonly ItemHistoryEntry[];
   readonly onPress: (item: ItemHistoryEntry) => void;
   readonly onLongPress?: (item: ItemHistoryEntry) => void;
+  readonly swipeActions?: SavedLinkImageSwipeActions;
+  readonly swipeDisabled?: boolean;
   readonly testID?: string;
 }
 
@@ -105,13 +142,13 @@ interface SavedLinkImageRowProps {
  * below the line. A short last line keeps the same square size (empty slots hold the width), and the
  * whole grid is just such lines inside the screen's ONE virtualized list.
  */
-export function SavedLinkImageRow({ items, onPress, onLongPress, testID }: SavedLinkImageRowProps) {
+export function SavedLinkImageRow({ items, onPress, onLongPress, swipeActions, swipeDisabled, testID }: SavedLinkImageRowProps) {
   const { image: columns } = useSavedLinkColumns();
   return (
     <View style={styles.row} testID={testID}>
       {Array.from({ length: columns }, (_, index) => {
         const item = items[index];
-        return item ? <SavedLinkImageTile item={item} key={item.id} onLongPress={onLongPress} onPress={onPress} /> : <View key={`empty-${index}`} style={styles.slot} />;
+        return item ? <SavedLinkImageTile item={item} key={item.id} onLongPress={onLongPress} onPress={onPress} swipeActions={swipeActions} swipeDisabled={swipeDisabled} /> : <View key={`empty-${index}`} style={styles.slot} />;
       })}
     </View>
   );
@@ -131,6 +168,7 @@ const styles = themedStyles(() => ({
   // width 100%: the tiles are flex:1 squares, so a line with no width of its own (e.g. a row-direction parent shrink-wrapping it) collapses to 0.
   row: { columnGap: SAVED_LINK_IMAGE_GUTTER, flexDirection: 'row', marginBottom: SAVED_LINK_IMAGE_GUTTER, width: '100%' },
   tile: { aspectRatio: 1, flex: 1, overflow: 'hidden' },
+  swipeContent: { aspectRatio: 1, width: '100%' },
   slot: { aspectRatio: 1, flex: 1 },
   picture: { backgroundColor: colors.surfaceMuted, height: '100%', width: '100%' },
   fallback: { alignItems: 'center', backgroundColor: colors.surfaceMuted, flex: 1, justifyContent: 'center' },

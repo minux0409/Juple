@@ -128,3 +128,13 @@ describe('SavedLinkGridCell', () => {
     expect(swipeRow.findAllByType(SavedLinkGridCard)).toHaveLength(1);
   });
 });
+
+describe('SavedLinkGridCell - the Grid swipe', () => {
+  it('opens the delete button; it never asks by itself', () => {
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = ReactTestRenderer.create(<SavedLinkGridCell isActionInFlight={false} item={item()} onDelete={jest.fn()} onPress={jest.fn()} onShare={jest.fn()} preferEffectiveThumbnail />);
+    });
+    expect(renderer.root.findByType(SwipeableItemRow).props.deleteBehavior).toBe('reveal');
+  });
+});

@@ -21,8 +21,11 @@ const ACTION_WIDTH = 76;
 const COMPACT_ACTION_WIDTH = 72;
 /** Below this horizontal movement, a touch is treated as a tap/vertical scroll, not a swipe. */
 const HORIZONTAL_INTENT_THRESHOLD = 8;
-/** A left swipe asks to delete once it has travelled this share of the row's width (never less than one action width). */
-const DELETE_SWIPE_DISTANCE_SHARE = 0.4;
+/**
+ * A left swipe asks to delete once it has travelled this far (pt) - a fixed distance, not a share of the row: a drag that starts on a
+ * thumbnail at the row's left has only that little room before the screen's edge, and every part of a card must work the same.
+ */
+const DELETE_SWIPE_DISTANCE = 48;
 /** ...or once it is flung left this fast (px/ms, PanResponder's vx) after at least half an action width. */
 const DELETE_SWIPE_VELOCITY = 0.5;
 /** A release that drifted more than this share of its horizontal travel vertically is a diagonal move, never a delete. */
@@ -36,6 +39,12 @@ type RevealedEdge = 'left' | 'right' | 'both' | null;
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
+
+/**
+ * What a swipe toward delete does. 'confirm' (a List row): past the threshold the row springs back and onDelete runs at once.
+ * 'reveal' (a Grid or Image tile, too small for a long swipe): the swipe opens the red 삭제 button, and only pressing it runs onDelete.
+ */
+export type SwipeDeleteBehavior = 'confirm' | 'reveal';
 
 export interface SwipeableStartAction {
   readonly label: string;
@@ -71,13 +80,14 @@ interface SwipeableItemRowProps {
   readonly deleteIconOnly?: boolean;
   /** Narrow tiles (Grid): a slimmer pane with the icon stacked over a short one-line label. */
   readonly compact?: boolean;
-  /** testID of the delete underlay shown while the row is dragged left. */
+  /** testID of the delete underlay shown while the row is dragged left (the 삭제 button with deleteBehavior 'reveal'). */
   readonly deleteTestID?: string;
+  /** See SwipeDeleteBehavior. Default 'confirm'. */
+  readonly deleteBehavior?: SwipeDeleteBehavior;
   /**
-   * Asked once when the row is swiped left past the delete threshold (distance or a fling): the row springs back and this
-   * runs - the caller shows its own confirmation. There is no intermediate revealed delete button. Omit it when the viewer
-   * may not delete/remove this row (e.g. a Contributor in a shared Category, or another member's link) - then the row
-   * cannot be swiped left at all.
+   * The row's delete, run according to deleteBehavior - the caller shows its own confirmation. Omit it when the viewer may not
+   * delete/remove this row (e.g. a Contributor in a shared Category, or another member's link) - then the row cannot be swiped
+   * left at all.
    */
   readonly onDelete?: () => void;
   /**
@@ -134,6 +144,7 @@ export function SwipeableItemRow({
   deleteLabel,
   compact = false,
   deleteTestID,
+  deleteBehavior = 'confirm',
   contentAccessible = true,
   startAction,
   onShare,
@@ -151,9 +162,9 @@ export function SwipeableItemRow({
   const preferredWidth = compact ? COMPACT_ACTION_WIDTH : ACTION_WIDTH;
   const actionWidth = rowWidth > 0 ? Math.min(preferredWidth, Math.floor(rowWidth / 2)) : preferredWidth;
   const openThreshold = actionWidth / 2;
-  const deleteDistance = Math.max(actionWidth, Math.round(rowWidth * DELETE_SWIPE_DISTANCE_SHARE));
-  // How far the content may follow the finger left: the whole row once it is measured.
-  const deleteDragLimit = rowWidth > 0 ? rowWidth : deleteDistance * 2;
+  const revealsDelete = deleteBehavior === 'reveal';
+  // How far the content may follow the finger left: to the button, or the whole row once it is measured.
+  const deleteDragLimit = revealsDelete ? actionWidth : rowWidth > 0 ? rowWidth : DELETE_SWIPE_DISTANCE * 2;
   const hasStartSide = onShare !== undefined || startAction !== undefined;
   const translateX = useRef(new Animated.Value(0)).current;
   // The drag logic works in the row's logical direction (positive: toward the start action, negative: toward delete); only what is
@@ -161,8 +172,8 @@ export function SwipeableItemRow({
   const rtlSign = I18nManager.isRTL ? -1 : 1;
   // The trash stays in the middle of the red that is uncovered: half the drag, from the row's end edge.
   const deleteIconShift = useRef(Animated.divide(translateX, 2)).current;
-  /** Only the start side (공유 / startAction) stays open; a left swipe never rests open. */
-  const openDirectionRef = useRef<'right' | null>(null);
+  /** The side resting open: 'right' the start action, 'left' the 삭제 button ('reveal' only). */
+  const openDirectionRef = useRef<'left' | 'right' | null>(null);
   /** Set when this gesture already asked to delete, so one swipe never opens two confirmations. */
   const deleteRequestedRef = useRef(false);
   const currentOffsetRef = useRef(0);
@@ -204,11 +215,15 @@ export function SwipeableItemRow({
   // (e.g. the item was just deleted) - never leaves a stale close callback registered.
   useEffect(() => () => notifyRowClosed(close), [close]);
 
-  const openStart = useCallback(() => {
-    openDirectionRef.current = 'right';
-    Animated.timing(translateX, { toValue: rtlSign * actionWidth, duration: 200, useNativeDriver: true }).start();
-    notifyRowOpened(close);
-  }, [translateX, close, actionWidth, rtlSign]);
+  const openTo = useCallback(
+    (direction: 'left' | 'right') => {
+      openDirectionRef.current = direction;
+      const logical = direction === 'right' ? actionWidth : -actionWidth;
+      Animated.timing(translateX, { toValue: rtlSign * logical, duration: 200, useNativeDriver: true }).start();
+      notifyRowOpened(close);
+    },
+    [translateX, close, actionWidth, rtlSign],
+  );
 
   /**
    * Where the row goes when the finger lifts. A left swipe past the delete distance - or flung left, mostly horizontally -
@@ -219,43 +234,52 @@ export function SwipeableItemRow({
     (gesture: { readonly dx: number; readonly dy: number; readonly vx: number } | null) => {
       const offset = rtlSign * currentOffsetRef.current;
       const horizontal = gesture !== null && Math.abs(gesture.dy) <= Math.abs(gesture.dx) * DELETE_SWIPE_MAX_VERTICAL_SHARE;
-      const farEnough = offset <= -deleteDistance;
+      if (revealsDelete && onDelete && offset <= -openThreshold) {
+        openTo('left');
+        return;
+      }
+      const farEnough = offset <= -DELETE_SWIPE_DISTANCE;
       const flung = gesture !== null && rtlSign * gesture.vx <= -DELETE_SWIPE_VELOCITY && offset <= -actionWidth / 2;
-      if (onDelete && horizontal && (farEnough || flung) && !deleteRequestedRef.current) {
+      if (!revealsDelete && onDelete && horizontal && (farEnough || flung) && !deleteRequestedRef.current) {
         deleteRequestedRef.current = true;
         close();
         onDelete();
       } else if (hasStartSide && offset >= openThreshold) {
-        openStart();
+        openTo('right');
       } else {
         close();
       }
     },
-    [onDelete, hasStartSide, openThreshold, deleteDistance, actionWidth, openStart, close, rtlSign],
+    [onDelete, hasStartSide, openThreshold, revealsDelete, actionWidth, openTo, close, rtlSign],
   );
 
   // Never leave the list frozen if the row disappears mid-swipe (e.g. deleted by a refresh).
   useEffect(() => () => setSwipeScrollLock(false), []);
 
   const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_event, gesture) =>
-          !disabled &&
-          Math.abs(gesture.dx) > HORIZONTAL_INTENT_THRESHOLD &&
-          Math.abs(gesture.dx) > Math.abs(gesture.dy),
+    () => {
+      const isHorizontalSwipe = (gesture: { readonly dx: number; readonly dy: number }) =>
+        !disabled &&
+        Math.abs(gesture.dx) > HORIZONTAL_INTENT_THRESHOLD &&
+        Math.abs(gesture.dx) > Math.abs(gesture.dy);
+      return PanResponder.create({
+        // Capture as well: a swipe starting on anything inside the card (a thumbnail, a title, a link or reaction button) belongs to
+        // the row as soon as it is clearly horizontal, whatever holds the touch; a tap never moves that far and stays with the button.
+        onMoveShouldSetPanResponderCapture: (_event, gesture) => isHorizontalSwipe(gesture),
+        onMoveShouldSetPanResponder: (_event, gesture) => isHorizontalSwipe(gesture),
         onPanResponderGrant: (_event, gesture) => {
           // A horizontal swipe from here on: the list stops scrolling until the finger lifts (see setSwipeScrollLock).
           setSwipeScrollLock(true);
           deleteRequestedRef.current = false;
           if (openDirectionRef.current !== null) {
-            showEdge(rtlSign > 0 ? 'left' : 'right');
+            const startEdgeNow = rtlSign > 0 ? 'left' : 'right';
+            showEdge(openDirectionRef.current === 'right' ? startEdgeNow : rtlSign > 0 ? 'right' : 'left');
           } else {
             showEdge(gesture.dx > 0 ? 'left' : gesture.dx < 0 ? 'right' : 'both');
           }
         },
         onPanResponderMove: (_event, gesture) => {
-          const base = openDirectionRef.current === 'right' ? actionWidth : 0;
+          const base = openDirectionRef.current === 'right' ? actionWidth : openDirectionRef.current === 'left' ? -actionWidth : 0;
           const next = rtlSign * clamp(base + rtlSign * gesture.dx, onDelete ? -deleteDragLimit : 0, hasStartSide ? actionWidth : 0);
           translateX.setValue(next);
           showEdge(next > 0 ? 'left' : next < 0 ? 'right' : revealedEdgeRef.current);
@@ -273,7 +297,8 @@ export function SwipeableItemRow({
           setSwipeScrollLock(false);
           settle(null);
         },
-      }),
+      });
+    },
     [disabled, translateX, settle, onDelete, hasStartSide, actionWidth, deleteDragLimit, showEdge, rtlSign],
   );
 
@@ -329,7 +354,23 @@ export function SwipeableItemRow({
             </Pressable>
           </View>
           ) : null}
-          {showDeletePane && onDelete ? (
+          {showDeletePane && onDelete && revealsDelete ? (
+          <View style={[styles.actionSlot, styles.deleteSlot, { width: actionWidth }]}>
+            <Pressable
+              accessibilityLabel={deleteActionLabel}
+              accessibilityRole="button"
+              disabled={disabled}
+              onPress={() => {
+                close();
+                onDelete();
+              }}
+              style={[styles.actionButton, styles.deleteAction]}
+              testID={deleteTestID}
+            >
+              <TrashIcon color={ACTION_ICON_COLOR} size={ACTION_ICON_SIZE} />
+            </Pressable>
+          </View>
+          ) : showDeletePane && onDelete ? (
           // Only an underlay that says what the swipe will do - not a button: the delete is asked by the swipe itself
           // (see settle), and screen readers use the row's delete accessibility action.
           <View
@@ -420,6 +461,9 @@ const styles = themedStyles(() => ({
   // swipe direction reveals which action in RTL, with no gesture-logic changes needed at all.
   shareSlot: {
     start: 0,
+  },
+  deleteSlot: {
+    end: 0,
   },
   // The whole row behind the content, so however far the card is dragged the uncovered part is one red surface.
   deleteUnderlay: {

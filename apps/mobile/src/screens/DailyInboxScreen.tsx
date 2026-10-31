@@ -32,6 +32,7 @@ import {
   SAVED_LINK_IMAGE_FIRST_PAGE_SKELETON_LINES,
   SAVED_LINK_IMAGE_NEXT_PAGE_SKELETON_LINES,
   SavedLinkImageRow,
+  type SavedLinkImageSwipeActions,
   SavedLinkImageRowSkeleton,
 } from '../components/SavedLinkImageTile';
 import { ViewModeToggle } from '../components/ViewModeToggle';
@@ -482,6 +483,13 @@ export function DailyInboxScreen() {
   const itemCardOpenRef = useRef(itemCardOpen);
   itemCardOpenRef.current = itemCardOpen;
   const openItem = useCallback((item: ItemHistoryEntry) => { itemCardOpenRef.current.open(item).catch(() => undefined); }, []);
+  // The image tiles' swipe (memoized tiles: one stable object, the handlers of the latest render behind it).
+  const imageSwipeHandlersRef = useRef({ confirmDelete, runShare });
+  imageSwipeHandlersRef.current = { confirmDelete, runShare };
+  const imageSwipeActions = useMemo<SavedLinkImageSwipeActions>(() => ({
+    onDelete: item => imageSwipeHandlersRef.current.confirmDelete(item.id),
+    onShare: item => { imageSwipeHandlersRef.current.runShare(item).catch(() => undefined); },
+  }), []);
 
   // Where links are about to appear - only while that request is actually on its way.
   const renderSkeletons = (count: number, testID: string) =>
@@ -596,7 +604,7 @@ export function DailyInboxScreen() {
           ) : isLoading ? renderSkeletons(HOME_FIRST_PAGE_SKELETON_ROWS, 'home-first-page-loading') : <CenteredEmptyState message={t('inbox.empty')} />
         }
         renderItem={({ item, index }) => isImageLine(item) ? (
-          <SavedLinkImageRow items={item.items} onLongPress={linkActions.openMenu} onPress={openItem} testID={`home-image-line-${item.lineKey}`} />
+          <SavedLinkImageRow items={item.items} onLongPress={linkActions.openMenu} onPress={openItem} swipeActions={imageSwipeActions} swipeDisabled={actionInFlightItemId !== null || isRefreshing} testID={`home-image-line-${item.lineKey}`} />
         ) : viewMode === 'grid' ? (
           <SavedLinkGridCell
             column={index % columns.grid}

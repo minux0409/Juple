@@ -96,42 +96,12 @@ export const Pressable = forwardRef<ComponentRef<typeof NativePressable>, Pressa
     const flatStyle = (StyleSheet.flatten(style as StyleProp<ViewStyle>) ?? {}) as ViewStyle;
     const renderChildren = (state: PressableStateCallbackType) => {
       const content = typeof children === 'function' ? children(state) : children;
-      if (!state.pressed) {
-        return content;
-      }
-      const measured = size.current;
-      const isFilled = flatStyle.backgroundColor !== undefined && flatStyle.backgroundColor !== 'transparent';
-      const isIconButton =
-        !isFilled &&
-        measured !== null &&
-        Math.max(measured.width, measured.height) <= ICON_BUTTON_MAX_SIZE &&
-        Math.abs(measured.width - measured.height) <= ICON_BUTTON_SQUARE_TOLERANCE &&
-        !containsText(content);
+      // The same shape pressed or not: a different root element here would make React rebuild the content on every press, and the
+      // native view under the finger (a title, a thumbnail) would vanish with its touch - a swipe starting on it then never arrives.
       return (
         <>
           {content}
-          {isIconButton ? (
-            <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.centered]} testID="press-feedback-circle">
-              <View
-                style={{
-                  backgroundColor: colors.pressedOverlayStrong,
-                  borderRadius: Math.min(measured.width, measured.height) / 2,
-                  height: Math.min(measured.width, measured.height),
-                  width: Math.min(measured.width, measured.height),
-                }}
-              />
-            </View>
-          ) : (
-            <View
-              pointerEvents="none"
-              style={[
-                StyleSheet.absoluteFill,
-                Object.fromEntries(RADIUS_KEYS.filter(key => flatStyle[key] !== undefined).map(key => [key, flatStyle[key]])),
-                { backgroundColor: isFilled ? colors.pressedOverlayStrong : colors.pressedOverlay },
-              ]}
-              testID="press-feedback-layer"
-            />
-          )}
+          {state.pressed ? <PressedLayer flatStyle={flatStyle} isIconOnly={!containsText(content)} measured={size.current} /> : null}
         </>
       );
     };
@@ -142,5 +112,34 @@ export const Pressable = forwardRef<ComponentRef<typeof NativePressable>, Pressa
     );
   },
 );
+
+function PressedLayer({ flatStyle, isIconOnly, measured }: { readonly flatStyle: ViewStyle; readonly isIconOnly: boolean; readonly measured: { readonly width: number; readonly height: number } | null }) {
+  const isFilled = flatStyle.backgroundColor !== undefined && flatStyle.backgroundColor !== 'transparent';
+  if (
+    !isFilled &&
+    isIconOnly &&
+    measured !== null &&
+    Math.max(measured.width, measured.height) <= ICON_BUTTON_MAX_SIZE &&
+    Math.abs(measured.width - measured.height) <= ICON_BUTTON_SQUARE_TOLERANCE
+  ) {
+    const diameter = Math.min(measured.width, measured.height);
+    return (
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.centered]} testID="press-feedback-circle">
+        <View style={{ backgroundColor: colors.pressedOverlayStrong, borderRadius: diameter / 2, height: diameter, width: diameter }} />
+      </View>
+    );
+  }
+  return (
+    <View
+      pointerEvents="none"
+      style={[
+        StyleSheet.absoluteFill,
+        Object.fromEntries(RADIUS_KEYS.filter(key => flatStyle[key] !== undefined).map(key => [key, flatStyle[key]])),
+        { backgroundColor: isFilled ? colors.pressedOverlayStrong : colors.pressedOverlay },
+      ]}
+      testID="press-feedback-layer"
+    />
+  );
+}
 
 const styles = StyleSheet.create({ centered: { alignItems: 'center', justifyContent: 'center' } });

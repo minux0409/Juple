@@ -461,6 +461,17 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       openImageTileMenuRef.current(entry);
     }
   }, []);
+  // The image tiles' swipe (set below, where the Collection is known): 컬렉션에서 제거 for what this person may remove, 공유.
+  const imageSwipeHandlersRef = useRef<{ unlink: (itemId: number) => void; share: (item: CollectionItemEntry) => void }>({ unlink: () => undefined, share: () => undefined });
+  const baseImageSwipeActions = useMemo(() => ({
+    onDelete: (rowItem: ItemHistoryEntry) => imageSwipeHandlersRef.current.unlink(rowItem.id),
+    onShare: (rowItem: ItemHistoryEntry) => {
+      const entry = entryByRowItem.get(rowItem);
+      if (entry) {
+        imageSwipeHandlersRef.current.share(entry);
+      }
+    },
+  }), []);
   // Who added each link - only where more than one person can add (see shouldShowItemAdders).
   const showItemAdders = shouldShowItemAdders(collection, items);
 
@@ -545,6 +556,13 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // Owner-only control below is hidden for a Contributor, and the server independently refuses
   // them (403) regardless.
   const isOwner = collection !== null && !isSharedWithMe(collection);
+  const removeFromCollectionLabel = t('collections.removeFromCollection');
+  const imageSwipeActions = useMemo(() => ({
+    ...baseImageSwipeActions,
+    deleteLabel: removeFromCollectionLabel,
+    // The same rule as a card: the Owner any link, a member only what they added (the server enforces it too).
+    canDelete: (rowItem: ItemHistoryEntry) => isOwner || entryByRowItem.get(rowItem)?.isMine !== false,
+  }), [baseImageSwipeActions, isOwner, removeFromCollectionLabel]);
   // Whatever this screen learns about the Collection (opened, renamed, locked, role changed) also keeps its app shortcut
   // right - a renamed one gets the new label, a locked or read-only one is removed - with no request of its own.
   useEffect(() => {
@@ -1418,6 +1436,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
   };
 
+  imageSwipeHandlersRef.current = { unlink: confirmUnlinkItem, share: item => { shareItemAction(item).catch(() => undefined); } };
+
   // `column`: the item's column in a Grid row on the screen's content edge (see edgeAlignedCellPadding).
   const renderCollectionItem = (item: CollectionItemEntry, containerStyle?: StyleProp<ViewStyle>, column?: number) => {
     // Another member's link: opened as the read-only shared view (the owner-only ItemDetails
@@ -1481,6 +1501,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     return inCell(
       <SwipeableItemRow
         containerStyle={frameStyle}
+        deleteBehavior={layoutMode === 'grid' ? 'reveal' : 'confirm'}
         disabled={itemActionInFlightId !== null || isRefreshing}
         onOpenOriginal={isContentLocked ? undefined : openOriginal}
         // 컬렉션에서 제거 (never deletes anyone's Item): the Owner any link; a member only the links
@@ -1774,7 +1795,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           </View>
         );
       case 'flatImageRow':
-        return <SavedLinkImageRow items={row.items.map(toSavedLinkRowItem)} onLongPress={openImageTileMenu} onPress={openImageTile} testID={`collection-flat-image-row-${row.key}`} />;
+        return <SavedLinkImageRow items={row.items.map(toSavedLinkRowItem)} onLongPress={openImageTileMenu} onPress={openImageTile} swipeActions={imageSwipeActions} swipeDisabled={itemActionInFlightId !== null || isRefreshing} testID={`collection-flat-image-row-${row.key}`} />;
     }
   };
 
