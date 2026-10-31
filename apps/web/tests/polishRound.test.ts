@@ -53,11 +53,12 @@ describe('Collection merge picker: List | Grid', () => {
   });
 });
 
-describe('Collection report is gone from the Collection menu', () => {
-  it('no 신고 for a whole Collection; the view no longer reaches the safety provider', () => {
-    assert.doesNotMatch(detail, /key: 'report'/);
-    assert.doesNotMatch(detail, /type: 'Collection'/);
-    assert.doesNotMatch(detail, /useSafety|dictionary\.safetyReport/);
+describe('Collection report on the shared branch of the Collection menu', () => {
+  it('the report sits only on the member branch, before leaving; the lock/delete branch has none', () => {
+    const memberBranch = detail.slice(detail.indexOf("key: 'report'"), detail.indexOf("key: 'leave'"));
+    assert.match(memberBranch, /dictionary\.safetyReportCollection/);
+    assert.ok(detail.indexOf("key: 'report'") < detail.indexOf("key: 'delete'"));
+    assert.equal((detail.match(/key: 'report'/g) ?? []).length, 1);
   });
 
   it('comment reports still exist', () => {

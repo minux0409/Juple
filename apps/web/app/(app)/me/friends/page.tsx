@@ -190,6 +190,12 @@ export default function FriendsPage() {
 
   return (
     <SettingsPage backHref={null} icon="People" title={dictionary.friendsTitle} width="medium">
+      <p>
+        <Link className={styles.settingsAction} data-blocked-users href="/me/blocked-users">
+          <Glyph name="Block" size={16} />
+          {dictionary.safetyBlockedUsers}
+        </Link>
+      </p>
       <AddFriend
         friends={friends.kind === 'loaded' ? friends.items : []}
         onSent={request => {

@@ -18,6 +18,8 @@ export interface CollectionSummary {
   readonly isLocked?: boolean;
   /** A member's view: the caller put THEIR OWN lock on this Collection (isLocked is then true for them too). Never reported to the Owner or other members. */
   readonly isMemberLocked?: boolean;
+  /** Owner view only: an operator restricted sharing of this Collection (nothing deleted; lifted by an operator). */
+  readonly isShareRestricted?: boolean;
   readonly accessRole?: 'owner' | 'contributor' | 'viewer' | 'submitter';
   readonly hasCollaborators?: boolean;
   readonly isPublicShareActive?: boolean;

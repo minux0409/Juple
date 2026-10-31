@@ -16,6 +16,7 @@ interface Dictionary {
   readonly loading: string;
   readonly emptyState: string;
   readonly footerNote: string;
+  readonly reportCollection: string;
   readonly notFoundTitle: string;
   readonly notFoundMessage: string;
   readonly installCtaText: string;
@@ -60,6 +61,7 @@ const dictionaries: Record<Locale, Dictionary> = {
     loading: 'Loading…',
     emptyState: 'This shared collection has no saved links yet.',
     footerNote: 'Saved and organized with Juple.',
+    reportCollection: 'Report collection (sign-in required)',
     notFoundTitle: "This link isn't available.",
     notFoundMessage: 'It may have been unshared, or the link may be incorrect.',
     installCtaText: 'Manage this more easily in the Juple app.',
@@ -102,6 +104,7 @@ const dictionaries: Record<Locale, Dictionary> = {
     loading: '불러오는 중…',
     emptyState: '이 공유 컬렉션에 저장된 링크가 아직 없습니다.',
     footerNote: 'Juple로 저장하고 관리하세요.',
+    reportCollection: '컬렉션 신고하기 (로그인 필요)',
     notFoundTitle: '더 이상 사용할 수 없는 링크입니다.',
     notFoundMessage: '공유가 해제되었거나 링크가 올바르지 않을 수 있습니다.',
     installCtaText: 'Juple 앱에서 더 편하게 관리하세요.',

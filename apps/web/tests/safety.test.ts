@@ -14,6 +14,7 @@ import {
   parseTermsStatus,
   REPORT_REASONS,
   reportBody,
+  reportPath,
   reportReasonLabel,
 } from '../lib/safety.ts';
 
@@ -60,8 +61,8 @@ describe('Terms of Service acceptance', () => {
 });
 
 describe('reporting (the mobile reasons, the same API)', () => {
-  it('has exactly the server\'s eight reasons, each with words in every language', () => {
-    assert.deepEqual([...REPORT_REASONS], ['Spam', 'Harassment', 'HateOrAbuse', 'SexualOrInappropriate', 'Illegal', 'ScamOrMaliciousLink', 'IntellectualProperty', 'Other']);
+  it('offers the policy\'s five reasons, each with words in every language', () => {
+    assert.deepEqual([...REPORT_REASONS], ['Spam', 'SexualOrInappropriate', 'Harassment', 'IntellectualProperty', 'Other']);
     for (const language of APP_LANGUAGES) {
       const words = getAppDictionary(language);
       for (const reason of REPORT_REASONS) {
@@ -72,9 +73,9 @@ describe('reporting (the mobile reasons, the same API)', () => {
 
   it('builds the body: a person by Juple ID, the rest by id, an item through its Collection; blank details are left out', () => {
     assert.deepEqual(reportBody({ type: 'User', jupleId: 'ABCD2345' }, 'Spam', '   '), { targetType: 'User', targetId: 'ABCD2345', reason: 'Spam' });
-    assert.deepEqual(reportBody({ type: 'Collection', collectionId: 4 }, 'Illegal', ' why '), { targetType: 'Collection', targetId: '4', reason: 'Illegal', details: 'why' });
+    assert.deepEqual(reportBody({ type: 'Collection', collectionId: 4 }, 'Spam', ' why '), { targetType: 'Collection', targetId: '4', reason: 'Spam', details: 'why' });
     assert.deepEqual(reportBody({ type: 'Item', itemId: 9, collectionId: 4 }, 'Other', ''), { targetType: 'Item', targetId: '9', collectionId: 4, reason: 'Other' });
-    assert.deepEqual(reportBody({ type: 'Comment', commentId: 7 }, 'HateOrAbuse', ''), { targetType: 'Comment', targetId: '7', reason: 'HateOrAbuse' });
+    assert.deepEqual(reportBody({ type: 'Comment', commentId: 7 }, 'Harassment', ''), { targetType: 'Comment', targetId: '7', reason: 'Harassment' });
   });
 
   it('reads the receipt', () => {
@@ -92,8 +93,7 @@ describe('reporting (the mobile reasons, the same API)', () => {
     assert.doesNotMatch(provider, /dangerouslySetInnerHTML/);
   });
 
-  it("is offered on somebody else's comment, never on one's own, and no longer on a whole Collection (a friend has no 신고 / 차단 either)", () => {
-    assert.doesNotMatch(source('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx'), /key: 'report'|type: 'Collection'/);
+  it("is offered on somebody else's comment, never on one's own (a friend has no 신고 / 차단 either)", () => {
     assert.match(source('app/(app)/ItemCollaboration.tsx'), /onReport && !author\.isMe/);
     assert.doesNotMatch(source('app/(app)/me/friends/page.tsx'), /safety\.(report|block)\(/);
   });
@@ -135,18 +135,18 @@ describe('blocking', () => {
 
   it('asks before blocking, then blocks through the API; the list lives in settings with 차단 해제', () => {
     const provider = source('app/(app)/SafetyProvider.tsx');
-    assert.match(provider, /<ConfirmDialog[\s\S]*destructive[\s\S]*dictionary\.safetyBlockMessage/);
+    assert.match(provider, /<ConfirmDialog[\s\S]*destructive[\s\S]*dictionary\.safetyBlockConfirmMessage/);
     assert.match(provider, /method: 'POST', path: blockPath\(subject\.jupleId\)/);
-    // Product decision: Friends no longer shows a 차단한 사용자 tab (data and API stay on the server); the old address lands on Friends.
+    // Not a settings entry of its own and not a Friends tab: a link at the top of Friends opens the page, which lists and unblocks through the API.
     assert.doesNotMatch(source('lib/settingsNav.ts'), /blockedUsers/);
-    assert.ok(source('app/(app)/me/blocked-users/page.tsx').includes("redirect('/me/friends')"));
-    assert.doesNotMatch(source('app/(app)/me/friends/page.tsx'), /blocked|Blocked/);
+    assert.match(source('app/(app)/me/friends/page.tsx'), /href="\/me\/blocked-users"/);
+    assert.match(source('app/(app)/me/blocked-users/page.tsx'), /method: 'DELETE', path: blockPath\(pending\.jupleId\)/);
   });
 
   it('every safety string exists in every language', () => {
     for (const language of APP_LANGUAGES) {
       const words = getAppDictionary(language);
-      for (const key of ['agreementTitle', 'agreementAgreeAll', 'agreementNext', 'agreementPrivacyItemsBody', 'safetyReport', 'safetyReportSubmit', 'safetyReportReceived', 'safetyReportAlready', 'safetyBlock', 'safetyBlockTitle', 'safetyBlockMessage', 'safetyUnblock', 'safetyBlockedUsers', 'safetyBlockedUsersEmpty'] as const) {
+      for (const key of ['agreementTitle', 'agreementAgreeAll', 'agreementNext', 'agreementPrivacyItemsBody', 'safetyReport', 'safetyReportSubmit', 'safetyReportReceived', 'safetyReportAlready', 'safetyBlock', 'safetyBlockTitle', 'safetyBlockConfirmMessage', 'safetyUnblock', 'safetyBlockedUsers', 'safetyBlockedUsersEmpty'] as const) {
         assert.ok(String(words[key]).length > 0, `${language}.${key}`);
       }
     }
@@ -174,5 +174,32 @@ describe('the published Terms and Privacy Policy describe the safety features', 
       assert.ok(privacy.includes(word), word);
     }
     assert.doesNotMatch(privacy, /REVIEW REQUIRED|TODO/);
+  });
+});
+
+describe('shared Collection reports, blocks and restriction on the Web', () => {
+  it('a public link is reported through the link, with no internal id', () => {
+    assert.equal(reportPath({ type: 'PublicShare', publicId: 'a/b' }), '/api/v1/public-shares/a%2Fb/reports');
+    assert.equal(reportPath({ type: 'Collection', collectionId: 1 }), '/api/v1/reports');
+    assert.deepEqual(reportBody({ type: 'PublicShare', publicId: 'x' }, 'Spam', ' why '), { reason: 'Spam', details: 'why' });
+  });
+
+  it('offers the policy\'s five reasons', () => {
+    assert.deepEqual([...REPORT_REASONS], ['Spam', 'SexualOrInappropriate', 'Harassment', 'IntellectualProperty', 'Other']);
+  });
+
+  it('the anonymous page only leads to the signed-in entry; the entry reports, only for a public link', () => {
+    assert.match(source('app/c/[publicId]/page.tsx'), /href=\{`\/shared\/\$\{encodeURIComponent\(publicId\)\}`\}/);
+    assert.match(source('app/(app)/shared/[publicId]/SharedCollectionEntry.tsx'), /entry\.kind === 'publicAdd' \? \([\s\S]*type: 'PublicShare'/);
+  });
+
+  it('a link is reportable only when it is not mine; a participant can be blocked, never myself', () => {
+    assert.match(source('app/(app)/collections/[collectionId]/items/[itemId]/SharedItemContent.tsx'), /!item\.isMine && collectionId !== null/);
+    assert.match(source('app/(app)/collections/[collectionId]/CollectionSharing.tsx'), /person\.isMe \? undefined : <BlockPersonButton/);
+  });
+
+  it('a blocked person carries the hidden Collections still open to me', () => {
+    const [person] = parseBlockedUsers({ items: [{ jupleId: 'AAAA2222', hiddenCollections: [{ id: 3, name: 'T' }, { id: 'x' }] }] });
+    assert.deepEqual(person.hiddenCollections, [{ id: 3, name: 'T' }]);
   });
 });

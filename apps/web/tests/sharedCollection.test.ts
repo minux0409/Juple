@@ -272,6 +272,7 @@ describe('/c is the anonymous landing, /shared the signed-in entry - a link past
 
   it('the anonymous /c page is unchanged: it never asks for membership or signs anyone in', () => {
     const page = read('app/c/[publicId]/page.tsx');
-    assert.doesNotMatch(page, /membership|msal|loginRedirect|\/shared\//);
+    // Its one way into the signed-in app is the plain link to report: following it is what asks for a sign-in.
+    assert.doesNotMatch(page, /membership|msal|loginRedirect/);
   });
 });

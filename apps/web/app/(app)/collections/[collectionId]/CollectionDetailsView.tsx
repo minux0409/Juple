@@ -51,6 +51,7 @@ import {
   type LinkViewMode,
 } from '../../../../lib/savedLinks';
 import { useSignedInApp } from '../../AppRoot';
+import { useSafety } from '../../SafetyProvider';
 import { useAttention } from '../../useAttention';
 import { DateSections } from '../../DateSections';
 import { Glyph } from '../../Glyph';
@@ -80,6 +81,7 @@ type HeaderState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | 
  */
 export function CollectionDetailsView({ collectionIdParam }: { readonly collectionIdParam: string }) {
   const { api, dictionary, locale, onSessionLost } = useSignedInApp();
+  const safety = useSafety();
   const { store: attentionStore } = useAttention();
   const collectionId = parseRouteId(collectionIdParam);
   const [header, setHeader] = useState<HeaderState>(collectionId === null ? { kind: 'notFound' } : { kind: 'loading' });
@@ -408,6 +410,7 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
                     icon: 'Lock' as const,
                     onSelect: () => setManagementMode(collection.isMemberLocked ? 'remove' : 'lock'),
                   },
+                  { key: 'report', label: dictionary.safetyReportCollection, icon: 'Flag' as const, onSelect: () => safety.report({ type: 'Collection', collectionId: collection.id }) },
                   { key: 'leave', label: dictionary.collectionLeaveAction, icon: 'Logout' as const, destructive: true, onSelect: () => setManagementMode('leave') },
                 ]
               : [
@@ -665,6 +668,7 @@ function CollectionHeader({
           </Link>
         ) : null}
         <ActionMenu actions={menuActions} label={dictionary.manageAction} />
+        {collection.isShareRestricted ? <p className={styles.fieldError} data-share-restricted role="status">{dictionary.safetyShareRestrictedNotice}</p> : null}
       </div>
     </div>
   );

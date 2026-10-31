@@ -197,7 +197,7 @@ describe('Product polish 1: friend actions have icons and keep their labels', ()
     assert.doesNotMatch(friends, /useSafety|onBlocked/);
   });
 
-  it('Friends manages friends only: there is no 차단한 사용자 tab and no way to block from it', () => {
-    assert.doesNotMatch(friends, /blocked|Blocked|safetyBlock/);
+  it('Friends itself blocks nobody: it only links to the 차단한 사용자 page', () => {
+    assert.doesNotMatch(friends, /safetyBlock\b|safety\.block|useSafety/);
   });
 });

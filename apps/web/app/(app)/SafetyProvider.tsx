@@ -1,13 +1,14 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { formatMessage } from '../../lib/appI18n';
 import { isSessionLost } from '../../lib/authSession';
 import {
   blockPath,
   parseReportReceipt,
   REPORT_DETAILS_MAX_LENGTH,
   REPORT_REASONS,
-  REPORTS_PATH,
+  reportPath,
   reportBody,
   reportErrorMessage,
   reportReasonLabel,
@@ -96,11 +97,11 @@ export function SafetyProvider({ children }: { readonly children: React.ReactNod
         cancelLabel={dictionary.cancel}
         confirmLabel={dictionary.safetyBlock}
         destructive
-        message={dictionary.safetyBlockMessage}
+        message={formatMessage(dictionary.safetyBlockConfirmMessage, { name: blocking?.subject.name ?? '' })}
         onCancel={() => setBlocking(null)}
         onConfirm={confirmBlock}
         open={blocking !== null}
-        title={blocking ? `${dictionary.safetyBlockTitle} (${blocking.subject.name})` : dictionary.safetyBlockTitle}
+        title={dictionary.safetyBlockTitle}
       />
     </SafetyContext.Provider>
   );
@@ -133,7 +134,7 @@ function ReportDialog({ target, onClose }: { readonly target: ReportTarget; read
     sending.current = true;
     setBusy(true);
     setFailed(false);
-    api<unknown>({ method: 'POST', path: REPORTS_PATH, body: reportBody(target, reason, details) }).then(
+    api<unknown>({ method: 'POST', path: reportPath(target), body: reportBody(target, reason, details) }).then(
       raw => {
         toast.showNotice(parseReportReceipt(raw).alreadyReported ? dictionary.safetyReportAlready : dictionary.safetyReportReceived);
         onClose();

@@ -55,6 +55,7 @@ import { lookupFailure, normalizeTypedJupleId, type JupleIdLookup } from '../../
 import { useSignedInApp } from '../../AppRoot';
 import { Avatar } from '../../Avatar';
 import { ConfirmDialog } from '../../ConfirmDialog';
+import { useSafety } from '../../SafetyProvider';
 import { Glyph } from '../../Glyph';
 import { PillListbox } from '../../Popover';
 import { SettingsRowSkeleton } from '../../Skeletons';
@@ -92,6 +93,26 @@ export function ParticipantStack({
           +{hiddenCount}
         </span>
       ) : null}
+    </button>
+  );
+}
+
+
+/** 사용자 차단 of one participant: asks first (SafetyProvider says what it does); memberships and links are untouched, so nothing here reloads. */
+function BlockPersonButton({ person }: { readonly person: { readonly jupleId: string; readonly displayName?: string | null; readonly role: string; readonly isMe?: boolean } }) {
+  const { dictionary } = useSignedInApp();
+  const safety = useSafety();
+  const name = participantName(person, dictionary);
+  return (
+    <button
+      aria-label={`${dictionary.safetyBlockUserAction} ${name}`}
+      className={styles.rowDanger}
+      data-block-person
+      onClick={() => safety.block({ jupleId: person.jupleId, name })}
+      title={dictionary.safetyBlockUserAction}
+      type="button"
+    >
+      <Glyph name="Block" size={18} />
     </button>
   );
 }
@@ -162,7 +183,7 @@ export function ParticipantsPanel({
       <ul className={styles.personList}>
         {data.participants.map(person => (
           <li className={styles.personRow} key={person.jupleId}>
-            <ParticipantIdentity dictionary={dictionary} person={person} />
+            <ParticipantIdentity dictionary={dictionary} person={person} trailing={person.isMe ? undefined : <BlockPersonButton person={person} />} />
           </li>
         ))}
       </ul>
@@ -755,6 +776,7 @@ export function SharePanel({
                       trailing={
                         editable ? (
                           <span className={styles.personCardActions}>
+                            <BlockPersonButton person={person} />
                             <RoleSelect
                               busy={busy}
                               changing={busy && roleChange?.key === key}
@@ -776,7 +798,11 @@ export function SharePanel({
                               <Glyph name="Trash" size={18} />
                             </button>
                           </span>
-                        ) : undefined
+                        ) : person.isMe ? undefined : (
+                          <span className={styles.personCardActions}>
+                            <BlockPersonButton person={person} />
+                          </span>
+                        )
                       }
                     />
                   </li>

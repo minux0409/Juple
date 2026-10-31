@@ -16,6 +16,7 @@ import { unlockHeaders } from '../../../../../../lib/collectionUnlock';
 import { openReview } from '../../../../../../lib/newLink';
 import { adderViewOf, displayTitleOf, isSafeHttpUrl, parseRouteId, siteIdOf, siteOf } from '../../../../../../lib/savedLinks';
 import { useSignedInApp } from '../../../../AppRoot';
+import { useSafety } from '../../../../SafetyProvider';
 import { Avatar } from '../../../../Avatar';
 import { SavedAtValue } from '../../../../SavedAtValue';
 import { Glyph } from '../../../../Glyph';
@@ -96,6 +97,17 @@ export function useSaveSharedLink(item: SharedCollectionItem | null) {
   const actions: readonly MenuAction[] =
     item && url
       ? [{ key: 'saveLink', label: dictionary.copyToMine, icon: 'Archive', onSelect: () => openReview(url, href => router.push(href), { title: item.title, image: isSafeHttpUrl(item.previewImageUrl) ? item.previewImageUrl : null }) }]
+      : [];
+  return { actions } as const;
+}
+
+/** 링크 신고하기 for someone else's link in a shared Collection: never on my own (the server refuses that too). */
+export function useReportSharedLink(item: SharedCollectionItem | null, collectionId: number | null, itemId: number | null) {
+  const { dictionary } = useSignedInApp();
+  const safety = useSafety();
+  const actions: readonly MenuAction[] =
+    item && !item.isMine && collectionId !== null && itemId !== null
+      ? [{ key: 'reportLink', label: dictionary.safetyReportLink, icon: 'Flag', onSelect: () => safety.report({ type: 'Item', itemId, collectionId }) }]
       : [];
   return { actions } as const;
 }
@@ -206,6 +218,7 @@ export function SharedItemQuickContent({ collectionIdParam, itemIdParam }: { rea
   const { dictionary, locale } = useSignedInApp();
   const { collectionId, state, reload } = useSharedItem(collectionIdParam, itemIdParam);
   const save = useSaveSharedLink(state.kind === 'loaded' ? state.item : null);
+  const reportLink = useReportSharedLink(state.kind === 'loaded' ? state.item : null, collectionId, parseRouteId(itemIdParam));
   const router = useRouter();
   // Removed from the Collection: the sheet closes (back to the Collection, which already lost the link and one from its count).
   const removal = useRemoveFromCollection(collectionId, parseRouteId(itemIdParam), () => router.back());
@@ -261,7 +274,7 @@ export function SharedItemQuickContent({ collectionIdParam, itemIdParam }: { rea
           ) : null}
           {isSafeHttpUrl(item.url) ? <CopyLinkButton url={item.url} /> : null}
           {/* Not mine: never moved or edited here - only 링크 저장 (a new link of my own). */}
-          <ActionMenu actions={[...save.actions, ...removal.actions]} className={styles.quickActionButton} label={dictionary.linkActionsLabel} />
+          <ActionMenu actions={[...save.actions, ...reportLink.actions, ...removal.actions]} className={styles.quickActionButton} label={dictionary.linkActionsLabel} />
         </div>
       </div>
 

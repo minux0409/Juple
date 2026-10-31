@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { getAppDictionary } from '../lib/appDictionary.ts';
 import { APP_LANGUAGES, formatMessage } from '../lib/appI18n.ts';
@@ -7,21 +7,20 @@ import { APP_LANGUAGES, formatMessage } from '../lib/appI18n.ts';
 const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const friends = source('app/(app)/me/friends/page.tsx');
 
-describe('Friends: three tabs - 친구, 받은 요청, 보낸 요청 (no 차단한 사용자)', () => {
-  it('has exactly the three tabs; no blocked tab, panel, query or fetch is left in the Friends UI', () => {
+describe('Friends: three tabs - 친구, 받은 요청, 보낸 요청 (차단한 사용자 is a link, not a tab)', () => {
+  it('has exactly the three tabs; the blocked list is another page, and Friends never fetches it', () => {
     assert.ok(friends.includes("type Tab = 'friends' | 'incoming' | 'outgoing';"));
     for (const key of ['friends', 'incoming', 'outgoing']) {
       assert.ok(friends.includes(`['${key}', dictionary.`), key);
     }
-    assert.doesNotMatch(friends, /blocked|Blocked|BLOCKED_USERS_PATH|safetyBlockedUsers/);
+    assert.doesNotMatch(friends, /BLOCKED_USERS_PATH/);
+    assert.match(friends, /href="\/me\/blocked-users"/);
     assert.ok(friends.includes("searchParams.get('requests') === 'incoming'"));
     assert.ok(friends.includes("tab === 'incoming' || tab === 'outgoing'"));
   });
 
-  it('the old /me/blocked-users address lands on the ordinary Friends screen (no tab query), and the panel is gone', () => {
-    assert.ok(source('app/(app)/me/blocked-users/page.tsx').includes("redirect('/me/friends')"));
-    assert.doesNotMatch(source('app/(app)/me/blocked-users/page.tsx'), /tab=/);
-    assert.ok(!existsSync(new URL('../app/(app)/me/blocked-users/BlockedUsers.tsx', import.meta.url)), 'the blocked-users panel is deleted');
+  it('/me/blocked-users is the list with 차단 해제, and it is no settings entry of its own', () => {
+    assert.match(source('app/(app)/me/blocked-users/page.tsx'), /BLOCKED_USERS_PATH[\s\S]*dictionary\.safetyUnblock/);
     assert.doesNotMatch(source('lib/settingsNav.ts'), /blocked/i);
   });
 });

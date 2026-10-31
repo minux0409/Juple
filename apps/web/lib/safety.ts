@@ -41,7 +41,7 @@ export function isTermsRequired(error: unknown): boolean {
 // ---- reporting ----
 
 /** The server's reasons, in the order they are shown. The values are the API's names - the words come from the dictionary. */
-export const REPORT_REASONS = ['Spam', 'Harassment', 'HateOrAbuse', 'SexualOrInappropriate', 'Illegal', 'ScamOrMaliciousLink', 'IntellectualProperty', 'Other'] as const;
+export const REPORT_REASONS = ['Spam', 'SexualOrInappropriate', 'Harassment', 'IntellectualProperty', 'Other'] as const;
 export type ReportReason = (typeof REPORT_REASONS)[number];
 
 export const REPORT_DETAILS_MAX_LENGTH = 1000;
@@ -51,7 +51,13 @@ export type ReportTarget =
   | { readonly type: 'User'; readonly jupleId: string }
   | { readonly type: 'Collection'; readonly collectionId: number }
   | { readonly type: 'Item'; readonly itemId: number; readonly collectionId: number }
-  | { readonly type: 'Comment'; readonly commentId: number };
+  | { readonly type: 'Comment'; readonly commentId: number }
+  // A public link seen by someone who is not a member: the link is all they hold, and it stands for its Collection.
+  | { readonly type: 'PublicShare'; readonly publicId: string };
+
+export function reportPath(target: ReportTarget): string {
+  return target.type === 'PublicShare' ? `/api/v1/public-shares/${encodeURIComponent(target.publicId)}/reports` : REPORTS_PATH;
+}
 
 export function reportBody(target: ReportTarget, reason: ReportReason, details: string): Record<string, unknown> {
   const trimmed = details.trim();
@@ -65,6 +71,8 @@ export function reportBody(target: ReportTarget, reason: ReportReason, details: 
       return { targetType: 'Item', targetId: String(target.itemId), collectionId: target.collectionId, ...base };
     case 'Comment':
       return { targetType: 'Comment', targetId: String(target.commentId), ...base };
+    case 'PublicShare':
+      return base;
   }
 }
 
@@ -74,14 +82,8 @@ export function reportReasonLabel(reason: ReportReason, dictionary: AppDictionar
       return dictionary.safetyReasonSpam;
     case 'Harassment':
       return dictionary.safetyReasonHarassment;
-    case 'HateOrAbuse':
-      return dictionary.safetyReasonHateOrAbuse;
     case 'SexualOrInappropriate':
       return dictionary.safetyReasonSexualOrInappropriate;
-    case 'Illegal':
-      return dictionary.safetyReasonIllegal;
-    case 'ScamOrMaliciousLink':
-      return dictionary.safetyReasonScamOrMaliciousLink;
     case 'IntellectualProperty':
       return dictionary.safetyReasonIntellectualProperty;
     case 'Other':
@@ -106,6 +108,18 @@ export interface BlockedUser {
   readonly displayName: string | null;
   readonly blockedAtUtc: string;
   readonly profileImageUrl: string | null;
+  /** Collections I am a member of that this person owns: out of my lists because of the block, still mine to open or leave. */
+  readonly hiddenCollections: readonly { readonly id: number; readonly name: string }[];
+}
+
+function parseHiddenCollections(raw: unknown): BlockedUser['hiddenCollections'] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.flatMap(entry => {
+    const value = (entry ?? {}) as { id?: unknown; name?: unknown };
+    return typeof value.id === 'number' && typeof value.name === 'string' ? [{ id: value.id, name: value.name }] : [];
+  });
 }
 
 export function blockPath(jupleId: string): string {
@@ -122,7 +136,7 @@ export function parseBlockedUsers(raw: unknown): readonly BlockedUser[] {
     if (!entry || typeof entry !== 'object') {
       continue;
     }
-    const value = entry as { jupleId?: unknown; displayName?: unknown; blockedAtUtc?: unknown; profileImageUrl?: unknown };
+    const value = entry as { jupleId?: unknown; displayName?: unknown; blockedAtUtc?: unknown; profileImageUrl?: unknown; hiddenCollections?: unknown };
     if (typeof value.jupleId !== 'string' || value.jupleId.length === 0) {
       continue;
     }
@@ -131,6 +145,7 @@ export function parseBlockedUsers(raw: unknown): readonly BlockedUser[] {
       displayName: typeof value.displayName === 'string' && value.displayName.trim() ? value.displayName : null,
       blockedAtUtc: typeof value.blockedAtUtc === 'string' ? value.blockedAtUtc : '',
       profileImageUrl: typeof value.profileImageUrl === 'string' ? value.profileImageUrl : null,
+      hiddenCollections: parseHiddenCollections(value.hiddenCollections),
     });
   }
   return result;

@@ -70,8 +70,8 @@ describe('Collection owner management parity', () => {
     const dialogs = source('app/(app)/collections/[collectionId]/CollectionManagementDialogs.tsx');
     assert.match(detail, /isSharedWithMe\(collection\)[\s\S]*: \[[\s\S]*key: 'lock'[\s\S]*key: 'delete'/);
     assert.match(detail, /key: 'leave'[\s\S]*setManagementMode\('leave'\)/);
-    // Reporting a whole Collection is no longer offered (a link and a comment still can be).
-    assert.doesNotMatch(detail, /key: 'report'|type: 'Collection'|useSafety/);
+    // A member of a shared Collection can report it; its Owner has nothing to report.
+    assert.match(detail, /isSharedWithMe\(collection\)[\s\S]*key: 'report'[\s\S]*type: 'Collection'[\s\S]*key: 'leave'/);
     assert.match(dialogs, /collectionDeletePath\(collectionId\)[\s\S]*headers: unlockHeaders\(collectionId\)/);
     assert.match(dialogs, /collectionLeavePath\(collectionId\)[\s\S]*headers: unlockHeaders\(collectionId\)/);
     assert.match(detail, /router\.push\('\/collections'\);\s*router\.refresh\(\)/);
