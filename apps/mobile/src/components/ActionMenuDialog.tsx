@@ -1,12 +1,12 @@
 import type { ComponentType, ReactNode } from 'react';
-import { Modal, Platform, StyleSheet, Text, View } from 'react-native';
+import { Modal, StyleSheet, Text, View } from 'react-native';
 import { Pressable } from './Pressable';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { KeyboardFieldScope } from './keyboardToolbar';
 
 const ICON_SIZE = 20;
-/** 취소's minimum height: the platform's touch target (iOS 44pt, Android 48dp). */
-const CANCEL_MIN_HEIGHT = Platform.OS === 'android' ? 48 : minTouchTarget;
+/** 취소's height: 48 on both platforms (never under the touch target - iOS 44pt, Android 48dp). */
+const CANCEL_MIN_HEIGHT = Math.max(48, minTouchTarget);
 
 export interface ActionMenuDialogAction {
   readonly label: string;
@@ -79,9 +79,9 @@ const styles = themedStyles(() => ({
   header: { borderBottomColor: colors.divider, borderBottomWidth: 1, marginBottom: spacing.xs, paddingBottom: spacing.xs },
   pressed: { backgroundColor: colors.surfaceMuted },
   icon: { alignItems: 'center', flexShrink: 0, height: ICON_SIZE + 2, justifyContent: 'center', width: ICON_SIZE + 2 },
-  cancelArea: { borderTopColor: colors.divider, borderTopWidth: 1, marginTop: spacing.sm, paddingTop: spacing.xs },
-  // A little tighter than an action row, but never under the platform's touch target (44pt iOS, 48dp Android).
-  cancel: { borderRadius: radii.md, justifyContent: 'center', minHeight: CANCEL_MIN_HEIGHT, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  cancelArea: { borderTopColor: colors.divider, borderTopWidth: 1, marginTop: spacing.xs, paddingTop: spacing.xs },
+  // Exactly the touch-target height, no extra vertical padding: the pressed background is the button, not the button plus padding.
+  cancel: { borderRadius: radii.md, justifyContent: 'center', minHeight: CANCEL_MIN_HEIGHT, paddingHorizontal: spacing.md, paddingVertical: 0 },
   label: { color: colors.textPrimary, fontSize: 16, fontWeight: '600', textAlign: 'center' },
   labelWithIcon: { flex: 1, flexShrink: 1, textAlign: 'auto' },
 }));

@@ -1,6 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { StyleSheet, Text } from 'react-native';
-import { minTouchTarget, spacing } from '../../theme/tokens';
 import { ActionMenuDialog } from '../ActionMenuDialog';
 
 const render = (props: Partial<React.ComponentProps<typeof ActionMenuDialog>> = {}) => {
@@ -25,7 +24,7 @@ describe('ActionMenuDialog', () => {
     const renderer = render({ onCancel });
     const cancel = renderer.root.findAll(node => node.props.testID === 'action-menu-cancel' && typeof node.props.style === 'function')[0];
     const style = StyleSheet.flatten(cancel.props.style({ pressed: false }));
-    expect(style).toEqual(expect.objectContaining({ minHeight: minTouchTarget, paddingVertical: spacing.sm, justifyContent: 'center' }));
+    expect(style).toEqual(expect.objectContaining({ minHeight: 48, paddingVertical: 0, justifyContent: 'center' }));
     expect(StyleSheet.flatten(cancel.props.style({ pressed: true })).backgroundColor).toBeDefined();
     act(() => cancel.props.onPress());
     expect(onCancel).toHaveBeenCalledTimes(1);

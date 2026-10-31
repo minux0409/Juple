@@ -39,9 +39,7 @@ import {
   type Friend,
   type FriendRequest,
 } from '../friends/api/friendsApi';
-import { BlockIcon } from '../icons/BlockIcon';
 import { CheckIcon } from '../icons/CheckIcon';
-import { ChevronIcon } from '../icons/ChevronIcon';
 import { CloseIcon } from '../icons/CloseIcon';
 import { CopyIcon } from '../icons/CopyIcon';
 import { PlusIcon } from '../icons/PlusIcon';
@@ -448,11 +446,6 @@ export function FriendsScreen() {
 
   return (
     <StackScreenSafeArea style={styles.safeArea}>
-      <Pressable accessibilityRole="button" onPress={() => navigation.navigate('BlockedUsers')} style={styles.blockedUsersRow} testID="friends-blocked-users">
-        <BlockIcon color={colors.textSecondary} size={18} />
-        <Text numberOfLines={2} style={styles.blockedUsersLabel}>{t('safety.blockedUsers')}</Text>
-        <ChevronIcon color={colors.textSecondary} direction="right" size={18} />
-      </Pressable>
       <View {...tabsTarget} accessibilityRole="tablist" style={styles.tabBar} testID="friends-tabs">
         {tabs.map(entry => {
           const isSelected = tab === entry.key;
@@ -481,6 +474,16 @@ export function FriendsScreen() {
             </Pressable>
           );
         })}
+        {/* 차단한 사용자: the fourth cell of the 2x2 menu. It opens the blocked-users screen (it is not a tab of this list). */}
+        <Pressable
+          accessibilityLabel={t('safety.blockedUsers')}
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('BlockedUsers')}
+          style={styles.tab}
+          testID="friends-blocked-users"
+        >
+          <Text numberOfLines={2} style={styles.tabLabel}>{t('safety.blockedUsers')}</Text>
+        </Pressable>
       </View>
 
       {tab === 'friends' ? friendsList : tab === 'incoming' ? requestList('incoming', incoming) : requestList('outgoing', outgoing)}
@@ -757,29 +760,29 @@ function RequestRow({ request, isBusy, onAccept, onDecline, onCancel, onOpenPers
 
 const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
-  blockedUsersRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginHorizontal: spacing.xl, marginTop: spacing.sm, minHeight: minTouchTarget },
-  blockedUsersLabel: { color: colors.textSecondary, flex: 1, fontSize: 14, fontWeight: '600' },
   headerButton: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
-  // The same segmented look as the Share screen's tabs.
+  // A 2x2 menu (친구 | 받은 요청 / 보낸 요청 | 차단한 사용자): four equal cells, two per row.
   tabBar: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radii.md + 2,
     flexDirection: 'row',
-    gap: 2,
+    flexWrap: 'wrap',
+    gap: spacing.sm,
     marginHorizontal: spacing.xl,
     marginTop: spacing.md,
-    padding: 2,
   },
   tab: {
     alignItems: 'center',
-    borderRadius: radii.md,
-    flex: 1,
+    backgroundColor: colors.surfaceMuted,
+    borderColor: 'transparent',
+    borderRadius: radii.md + 2,
+    borderWidth: 1,
+    flexBasis: '45%',
     flexDirection: 'row',
+    flexGrow: 1,
     gap: spacing.xs,
     justifyContent: 'center',
-    minHeight: minTouchTarget,
+    minHeight: 56,
     minWidth: 0,
-    paddingHorizontal: spacing.xs,
+    paddingHorizontal: spacing.sm,
   },
   tabSelected: { backgroundColor: colors.surface, borderColor: colors.brandText, borderWidth: 1 },
   tabLabel: { color: colors.textSecondary, flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },

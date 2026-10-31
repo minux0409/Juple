@@ -190,7 +190,9 @@ describe('FriendsScreen - tabs', () => {
     expect(tabs.map(tab => tab.props.testID)).toEqual(['friends-tab-friends', 'friends-tab-incoming', 'friends-tab-outgoing']);
     expect(byId(renderer, 'friends-tab-friends').props.accessibilityState).toEqual({ selected: true });
     expect(texts(byId(renderer, 'friends-tabs'))).toEqual(expect.arrayContaining([i18n.t('friends.title'), '받은 요청', '보낸 요청']));
-    expect(texts(byId(renderer, 'friends-tabs'))).not.toContain(i18n.t('safety.blockedUsers'));
+    // 차단한 사용자 is the fourth cell of the same 2x2 menu (a button to its own screen, not a tab of this list).
+    expect(texts(byId(renderer, 'friends-tabs'))).toContain(i18n.t('safety.blockedUsers'));
+    expect(byId(renderer, 'friends-blocked-users').props.accessibilityRole).toBe('button');
     expect(byId(renderer, 'friends-tab-incoming-count').props.children).toBe('1');
     expect(byId(renderer, 'friends-tab-outgoing-count').props.children).toBe('1');
     expect(exists(renderer, 'friend-7')).toBe(true);
@@ -1102,9 +1104,10 @@ describe('FriendsScreen - narrow screens and accessibility', () => {
   it('tab labels may wrap to two lines rather than be cut, and each tab is a full touch target', async () => {
     const renderer = await renderScreen();
 
-    for (const tab of ['friends', 'incoming', 'outgoing']) {
-      const button = byId(renderer, `friends-tab-${tab}`);
-      expect(StyleSheet.flatten(button.props.style)).toEqual(expect.objectContaining({ flex: 1, minHeight: 44, minWidth: 0 }));
+    for (const testID of ['friends-tab-friends', 'friends-tab-incoming', 'friends-tab-outgoing', 'friends-blocked-users']) {
+      const button = byId(renderer, testID);
+      // Four equal cells, two per row (a 2x2 menu), each 56dp tall.
+      expect(StyleSheet.flatten(button.props.style)).toEqual(expect.objectContaining({ flexBasis: '45%', flexGrow: 1, minHeight: 56, minWidth: 0 }));
       expect(button.findAllByType(Text)[0].props.numberOfLines).toBe(2);
     }
   });

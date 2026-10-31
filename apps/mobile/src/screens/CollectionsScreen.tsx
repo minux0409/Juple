@@ -1122,10 +1122,15 @@ function CollectionTile({
         onAccessibilityAction={event => { if (event.nativeEvent.actionName === 'options') { onLongPress(); } }}
         onLongPress={onLongPress}
         onPress={onPress}
+        pressFeedback={false}
         style={styles.tilePressable}
       >
+        {({ pressed }) => <>
         <View style={styles.tileIconSlot}>
           <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} imageVersion={collection.iconImageVersion} size={56} />
+          {/* The press shows on the icon tile only (its own 56pt shape), never on the name. The root stays the same element pressed or
+              not, so nothing is rebuilt under the finger. */}
+          {pressed ? <View pointerEvents="none" style={styles.tilePressedLayer} testID="collection-tile-pressed-layer" /> : null}
           <CollectionStatusBadges isLocked={isCollectionLocked(collection)} isShared={isCollaborative(collection)} />
           {/* Approvals waiting + unread 새 링크 - the free bottom-end corner (the star holds the top end). */}
           <CountBadge count={collection.attentionCount ?? 0} style={styles.tileAttention} testID={`collection-attention-${collection.id}`} />
@@ -1149,6 +1154,7 @@ function CollectionTile({
           </Pressable>
         </View>
         <CollectionNameLabel name={collection.name} style={styles.tileNameRow} textStyle={styles.tileLabel} />
+        </>}
       </Pressable>
     </View>
   );
@@ -1352,6 +1358,8 @@ const styles = themedStyles(() => ({
   tileIconSlot: {
     position: 'relative',
   },
+  // Same 56pt size and corner radius as CategoryIconTile (radii.md + size / 8) - the press layer is exactly the icon tile.
+  tilePressedLayer: { backgroundColor: colors.pressedOverlay, borderRadius: radii.md + 7, height: 56, left: 0, position: 'absolute', top: 0, width: 56 },
   // A small floating badge at the icon tile's corner - nested inside the tile's own Pressable (see
   // CollectionTile's own remarks on why that's still safe for touch handling), positioned against
   // tileIconSlot (sized exactly to the icon itself) rather than the full grid cell, so it lands on
