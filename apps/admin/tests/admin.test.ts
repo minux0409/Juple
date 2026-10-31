@@ -435,6 +435,7 @@ describe('admin pages and model', () => {
     const puts = sourceFiles().filter(file => /method: 'PUT'/.test(readFileSync(file, 'utf8')));
     assert.deepEqual(puts.map(file => file.replace(/\\/g, '/').replace(/^.*\/app\//, 'app/')).sort(), [
       'app/(admin)/inquiries/[inquiryId]/page.tsx',
+      'app/(admin)/inquiries/reports/[reportId]/page.tsx',
       'app/(admin)/operations/app-version/page.tsx',
     ]);
   });

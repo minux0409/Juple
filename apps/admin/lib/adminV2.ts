@@ -375,6 +375,100 @@ export function translationErrorLabel(code: string | null | undefined): string {
   return TRANSLATION_ERROR_LABELS[code] ?? TRANSLATION_ERROR_LABELS[code.replace(/^translation_/, '')] ?? `번역하지 못했습니다 (${code}).`;
 }
 
+// ---- reports (신고 관리: a tab of 문의 관리, its own data) --------------------------------------------------------------------
+
+/** 미처리 first by default, then the rest. There is deliberately no mixed "all": what is still open is never buried among handled reports. */
+export const REPORT_FILTERS = [
+  { filter: 'Open', label: '미처리' },
+  { filter: 'InReview', label: '검토 중' },
+  { filter: 'Dismissed', label: '조치 없음' },
+  { filter: 'Actioned', label: '처리 완료' },
+] as const;
+export type ReportFilter = (typeof REPORT_FILTERS)[number]['filter'];
+
+export function parseReportFilter(value: string | null): ReportFilter {
+  return REPORT_FILTERS.find(entry => entry.filter === value)?.filter ?? 'Open';
+}
+
+const REPORT_STATUS_LABELS: Readonly<Record<string, string>> = { Pending: '접수', InReview: '검토 중', Reviewed: '검토됨', Dismissed: '조치 없음', Actioned: '처리 완료' };
+const REPORT_TARGET_LABELS: Readonly<Record<string, string>> = { Collection: '컬렉션', Item: '링크', Comment: '댓글', User: '사용자' };
+const REPORT_REASON_LABELS: Readonly<Record<string, string>> = {
+  Spam: '스팸·광고',
+  SexualOrInappropriate: '부적절한 콘텐츠',
+  Harassment: '괴롭힘·악용',
+  IntellectualProperty: '저작권 침해 의심',
+  Other: '기타',
+  HateOrAbuse: '혐오 또는 악용',
+  Illegal: '불법 콘텐츠',
+  ScamOrMaliciousLink: '사기 또는 악성 링크',
+};
+
+export const reportStatusLabel = (status: string): string => REPORT_STATUS_LABELS[status] ?? status;
+export const reportTargetLabel = (type: string): string => REPORT_TARGET_LABELS[type] ?? type;
+export const reportReasonLabel = (reason: string): string => REPORT_REASON_LABELS[reason] ?? reason;
+
+export interface ReportPerson {
+  readonly userId: number;
+  readonly jupleId: string;
+  readonly displayName: string | null;
+}
+
+export interface ReportRow {
+  readonly reportId: number;
+  readonly createdAtUtc: string;
+  readonly targetType: string;
+  readonly targetId: number;
+  readonly collectionId: number | null;
+  readonly snapshotTitle: string | null;
+  readonly reason: string;
+  readonly status: string;
+  readonly source: string;
+  readonly reporter: ReportPerson | null;
+  readonly adminActionTaken: boolean;
+}
+
+export interface ReportDetail {
+  readonly reportId: number;
+  readonly createdAtUtc: string;
+  readonly targetType: string;
+  readonly targetId: number;
+  readonly collectionId: number | null;
+  readonly reason: string;
+  readonly details: string | null;
+  readonly status: string;
+  readonly source: string;
+  readonly reporter: ReportPerson | null;
+  readonly targetUser: ReportPerson | null;
+  readonly snapshotTitle: string | null;
+  readonly snapshotUrl: string | null;
+  readonly currentTitle: string | null;
+  readonly currentUrl: string | null;
+  readonly targetExists: boolean;
+  readonly canRestrict: boolean;
+  readonly isRestricted: boolean;
+  readonly restrictedAtUtc: string | null;
+  readonly reviewedAtUtc: string | null;
+  readonly reviewedBy: ReportPerson | null;
+  readonly note: string | null;
+  readonly priorReports: readonly { readonly reportId: number; readonly createdAtUtc: string; readonly reason: string; readonly status: string; readonly source: string }[];
+  readonly history: readonly { readonly adminUserId: number; readonly adminJupleId: string | null; readonly action: string; readonly detail: string | null; readonly createdAtUtc: string }[];
+}
+
+/** Who reported, for an operator: a person, the automatic check, or an account since deleted. */
+export function reportReporterLabel(row: { readonly source: string; readonly reporter: ReportPerson | null }): string {
+  if (row.source === 'AutoFilter') {
+    return '자동 검사';
+  }
+  return row.reporter ? atJupleId(row.reporter.jupleId) : '탈퇴한 사용자';
+}
+
+export function reportFailureMessage(code: string | null | undefined): string | null {
+  if (code === 'reportRestrictionActive') {
+    return '공유 제한이 적용 중입니다. 먼저 제한을 해제해 주세요.';
+  }
+  return code === 'reportNotRestrictable' ? '컬렉션 또는 링크 신고만 공유를 제한할 수 있습니다.' : null;
+}
+
 // ---- inquiries ---------------------------------------------------------------------------------------------------------------
 
 export interface InquiryTranslationState {
@@ -609,6 +703,17 @@ export const v2Paths = {
     return `/api/v1/admin/support/inquiries${query ? `?${query}` : ''}`;
   },
   inquiry: (id: number) => `/api/v1/admin/support/inquiries/${encodeURIComponent(String(id))}`,
+  reports: (filter: ReportFilter, cursor: string | null) => {
+    const params = new URLSearchParams({ status: filter });
+    if (cursor) {
+      params.set('cursor', cursor);
+    }
+    return `/api/v1/admin/reports?${params}`;
+  },
+  report: (id: number) => `/api/v1/admin/reports/${encodeURIComponent(String(id))}`,
+  reportStatus: (id: number) => `/api/v1/admin/reports/${encodeURIComponent(String(id))}/status`,
+  reportRestriction: (id: number) => `/api/v1/admin/reports/${encodeURIComponent(String(id))}/restriction`,
+  reportRestrictionLift: (id: number) => `/api/v1/admin/reports/${encodeURIComponent(String(id))}/restriction/lift`,
   inquiryContentTranslation: (id: number) => `/api/v1/admin/support/inquiries/${encodeURIComponent(String(id))}/content-translation`,
   inquiryDraft: (id: number) => `/api/v1/admin/support/inquiries/${encodeURIComponent(String(id))}/answer-draft`,
   inquiryAnswerTranslation: (id: number) => `/api/v1/admin/support/inquiries/${encodeURIComponent(String(id))}/answer-translation`,

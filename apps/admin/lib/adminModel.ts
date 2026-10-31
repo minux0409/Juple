@@ -211,6 +211,9 @@ export function validateAnswer(text: string): 'empty' | 'tooLong' | null {
 
 const AUDIT_ACTION_LABELS: Readonly<Record<string, string>> = {
   'support.inquiry.status_changed': '상태 변경',
+  'safety.report.status_changed': '신고 상태 변경',
+  'safety.share.restricted': '공유 제한',
+  'safety.share.restriction_lifted': '공유 제한 해제',
   'support.inquiry.answered': '답변 저장',
   'operations.app_version.updated': '앱 버전 변경',
 };

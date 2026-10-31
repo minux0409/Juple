@@ -1200,6 +1200,22 @@ a.v2-button.primary {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.v2-segmented a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 9px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.v2-segmented a[aria-current='page'] {
+  background: var(--surface, transparent);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
 .v2-segmented button {
   min-height: 32px;
   padding: 0 12px;

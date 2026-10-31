@@ -3,6 +3,10 @@ import { existsSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import {
   LANGUAGES,
+  REPORT_FILTERS,
+  parseReportFilter,
+  reportFailureMessage,
+  reportReporterLabel,
   answerBlocker,
   answerSendBody,
   applyTranslation,
@@ -265,5 +269,32 @@ describe('charts', () => {
     assert.ok(many.length <= 7);
     assert.equal(compactNumber(1234), '1,234');
     assert.equal(compactNumber(25_000), '2.5만');
+  });
+});
+
+describe('신고 관리', () => {
+  it('opens on what is still open, and an unknown filter falls back to it', () => {
+    assert.equal(parseReportFilter(null), 'Open');
+    assert.equal(parseReportFilter('nonsense'), 'Open');
+    assert.equal(parseReportFilter('Actioned'), 'Actioned');
+    assert.equal(REPORT_FILTERS[0].filter, 'Open');
+  });
+
+  it('asks the reports API, never the inquiry API, and encodes ids', () => {
+    assert.equal(v2Paths.reports('Open', null), '/api/v1/admin/reports?status=Open');
+    assert.equal(v2Paths.reports('Actioned', '5'), '/api/v1/admin/reports?status=Actioned&cursor=5');
+    assert.equal(v2Paths.reportRestrictionLift(3), '/api/v1/admin/reports/3/restriction/lift');
+  });
+
+  it('names who reported: a person, the automatic check, or a deleted account', () => {
+    assert.equal(reportReporterLabel({ source: 'AutoFilter', reporter: null }), '자동 검사');
+    assert.equal(reportReporterLabel({ source: 'User', reporter: null }), '탈퇴한 사용자');
+    assert.equal(reportReporterLabel({ source: 'User', reporter: { userId: 1, jupleId: 'ABC', displayName: null } }), '@ABC');
+  });
+
+  it('explains the two refusals by their stable code', () => {
+    assert.match(reportFailureMessage('reportRestrictionActive') ?? '', /해제/);
+    assert.match(reportFailureMessage('reportNotRestrictable') ?? '', /제한/);
+    assert.equal(reportFailureMessage('other'), null);
   });
 });

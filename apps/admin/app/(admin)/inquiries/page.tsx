@@ -9,6 +9,7 @@ import { strings } from '../../../lib/strings';
 import { PageState } from '../AdminRoot';
 import { usePagedList } from '../usePagedList';
 import { LoadState, PageTitle, Panel } from '../v2/ui';
+import { InquiryTabs } from './InquiryTabs';
 
 export default function InquiriesPage() {
   return (
@@ -31,6 +32,7 @@ function InquiryList() {
         eyebrow="문의 관리"
         title="문의 관리"
       />
+      <InquiryTabs active="inquiries" />
       <Panel>
         <div aria-label="처리 상태" className="v2-segmented" role="tablist">
           {INQUIRY_FILTERS_V2.map(entry => (
