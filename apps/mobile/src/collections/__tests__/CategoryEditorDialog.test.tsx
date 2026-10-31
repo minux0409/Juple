@@ -1,9 +1,9 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Image, StyleSheet, TextInput } from 'react-native';
-import { colors } from '../../theme/tokens';
+import { Image, Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, TextInput } from 'react-native';
+import { colors, spacing } from '../../theme/tokens';
 import { launchImageLibrary } from 'react-native-image-picker';
 import i18n from '../../i18n';
-import { CategoryEditorDialog, cardPlacementWithKeyboard } from '../CategoryEditorDialog';
+import { CategoryEditorDialog, restingDialogFrame } from '../CategoryEditorDialog';
 import { PhotoCropper } from '../../images/PhotoCropper';
 
 jest.mock('react-native-image-picker', () => ({ launchImageLibrary: jest.fn() }));
@@ -216,41 +216,95 @@ describe('CategoryEditorDialog - opening and the icon grid', () => {
   });
 });
 
-describe('CategoryEditorDialog - with the keyboard up the card keeps its place and gets shorter', () => {
+describe('CategoryEditorDialog - the card stays put while the keyboard comes and goes', () => {
   const layout = (width: number, height: number) => ({ nativeEvent: { layout: { x: 0, y: 0, width, height } } });
   const host = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
     renderer.root.findAll(node => node.props.testID === testID && typeof node.type === 'string')[0];
+  /** Where the card sits in the window (what the keyboard's overlap is measured from). */
+  const placeCardInWindow = (renderer: ReactTestRenderer.ReactTestRenderer, y: number) => {
+    const card = renderer.root.findAll(node => node.props.testID === 'collection-editor-card' && typeof node.type !== 'string' && node.instance?.measureInWindow)[0];
+    card.instance.measureInWindow = (callback: (x: number, windowY: number) => void) => callback(20, y);
+  };
+  const cardStyle = (renderer: ReactTestRenderer.ReactTestRenderer) => StyleSheet.flatten(host(renderer, 'collection-editor-card').props.style);
 
-  it('places the card: centred without the keyboard; with it, the same top and only the room above the keyboard', () => {
-    // No keyboard (or nothing measured yet): centred, nothing set.
-    expect(cardPlacementWithKeyboard({ width: 400, resting: 800, current: 800 }, 500)).toBeNull();
-    expect(cardPlacementWithKeyboard({ width: 400, resting: 0, current: 0 }, 500)).toBeNull();
-    // Keyboard: the resting top ((800 - 500) / 2 = 150) is kept and the card ends above the keyboard.
-    expect(cardPlacementWithKeyboard({ width: 400, resting: 800, current: 520 }, 500)).toEqual({ top: 150, maxHeight: 370 });
-    // Too little room under that top for a usable card: it rises only as far as it must.
-    expect(cardPlacementWithKeyboard({ width: 400, resting: 800, current: 400 }, 500, 280)).toEqual({ top: 120, maxHeight: 280 });
-    // Never above the area's own top.
-    expect(cardPlacementWithKeyboard({ width: 400, resting: 800, current: 200 }, 500, 280)).toEqual({ top: 0, maxHeight: 200 });
-  });
+  function captureKeyboard() {
+    const handlers = new Map<string, (event: unknown) => void>();
+    const spy = jest.spyOn(Keyboard, 'addListener').mockImplementation(((name: string, handler: (event: unknown) => void) => {
+      handlers.set(name, handler);
+      return { remove: jest.fn() };
+    }) as never);
+    return { handlers, spy };
+  }
 
-  it('the dialog applies it from its measured area: same top as before the keyboard, height capped, nothing moves up', async () => {
+  async function renderPlaced() {
+    const { handlers, spy } = captureKeyboard();
     const { renderer } = await renderDialog();
     act(() => host(renderer, 'collection-editor-area').props.onLayout(layout(360, 800)));
     act(() => host(renderer, 'collection-editor-card').props.onLayout(layout(360, 500)));
-    expect(StyleSheet.flatten(host(renderer, 'collection-editor-area').props.style).justifyContent).toBe('center');
-    expect(StyleSheet.flatten(host(renderer, 'collection-editor-card').props.style).marginTop).toBeUndefined();
+    return { renderer, handlers, spy };
+  }
 
-    // The keyboard takes 280 of the 800.
-    act(() => host(renderer, 'collection-editor-area').props.onLayout(layout(360, 520)));
-    expect(StyleSheet.flatten(host(renderer, 'collection-editor-area').props.style).justifyContent).toBe('flex-start');
-    expect(StyleSheet.flatten(host(renderer, 'collection-editor-card').props.style)).toEqual(expect.objectContaining({ marginTop: 150, maxHeight: 370 }));
-    // Measured again while capped: the card's own (unconstrained) height is not overwritten by the capped one.
-    act(() => host(renderer, 'collection-editor-card').props.onLayout(layout(360, 370)));
-    expect(StyleSheet.flatten(host(renderer, 'collection-editor-card').props.style).marginTop).toBe(150);
+  it('rests centred and never taller than the area', () => {
+    expect(restingDialogFrame(800, 500)).toEqual({ top: 150, maxHeight: 800 });
+    expect(restingDialogFrame(400, 500)).toEqual({ top: 0, maxHeight: 400 });
+  });
 
-    // The keyboard closes: centred again.
-    act(() => host(renderer, 'collection-editor-area').props.onLayout(layout(360, 800)));
-    expect(StyleSheet.flatten(host(renderer, 'collection-editor-card').props.style).marginTop).toBeUndefined();
+  it('a tap on an icon with the keyboard up selects it the first time (the grid does not spend it on closing the keyboard)', async () => {
+    const { renderer } = await renderDialog();
+    const grid = renderer.root.findAll(node => node.props.testID === 'collection-icon-grid' && node.props.keyboardShouldPersistTaps !== undefined)[0];
+    expect(grid.props.keyboardShouldPersistTaps).toBe('handled');
+  });
+
+  it('uses no keyboard-avoiding container: nothing resizes with the keyboard', async () => {
+    const { renderer, spy } = await renderPlaced();
+    expect(renderer.root.findAllByType(KeyboardAvoidingView)).toHaveLength(0);
+    spy.mockRestore();
+  });
+
+  it('with the keyboard: the same top, no maxHeight change and only room added at the end of the form; the buttons scroll with it', async () => {
+    const { renderer, handlers, spy } = await renderPlaced();
+    const before = cardStyle(renderer);
+    expect(before).toEqual(expect.objectContaining({ marginTop: 150, maxHeight: 800 }));
+    // The card ends at 750 in the window; the keyboard starts at 560: 190 covered.
+    placeCardInWindow(renderer, 250);
+    act(() => handlers.get('keyboardWillShow')!({ endCoordinates: { screenY: 560 } }));
+
+    expect(cardStyle(renderer)).toEqual(expect.objectContaining({ marginTop: 150, maxHeight: 800, height: 500 }));
+    expect(StyleSheet.flatten(host(renderer, 'collection-editor-keyboard-room').props.style).height).toBe(190 + spacing.md);
+    const scroll = renderer.root.findByType(ScrollView);
+    expect(scroll.findAll(node => node.props.testID === 'collection-editor-keyboard-room').length).toBeGreaterThan(0);
+    expect(scroll.findAll(node => node.props.accessibilityLabel === i18n.t('common.cancel')).length).toBeGreaterThan(0);
+
+    // A drag on the icon grid moves the form, so the buttons can be reached from anywhere.
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-icon-grid' && node.props.scrollEnabled === false).length).toBeGreaterThan(0);
+
+    // Measurements while it is up (a window that resized, a capped card) change nothing.
+    act(() => host(renderer, 'collection-editor-area').props.onLayout(layout(360, 400)));
+    act(() => host(renderer, 'collection-editor-card').props.onLayout(layout(360, 200)));
+    expect(cardStyle(renderer)).toEqual(expect.objectContaining({ marginTop: 150, maxHeight: 800, height: 500 }));
+
+    act(() => handlers.get('keyboardWillHide')!({}));
+    expect(cardStyle(renderer).marginTop).toBe(150);
+    expect(cardStyle(renderer).height).toBeUndefined();
+    expect(host(renderer, 'collection-editor-keyboard-room')).toBeUndefined();
+    spy.mockRestore();
+  });
+
+  it('a keyboard that covers nothing of the card adds nothing', async () => {
+    const { renderer, handlers, spy } = await renderPlaced();
+    placeCardInWindow(renderer, 100);
+    act(() => handlers.get('keyboardWillShow')!({ endCoordinates: { screenY: 700 } }));
+    expect(host(renderer, 'collection-editor-keyboard-room')).toBeUndefined();
+    spy.mockRestore();
+  });
+
+  it('what was typed survives the keyboard', async () => {
+    const { renderer, handlers, spy } = await renderPlaced();
+    act(() => renderer.root.findByType(TextInput).props.onChangeText('이름'));
+    act(() => handlers.get('keyboardWillShow')!({ endCoordinates: { screenY: 560 } }));
+    act(() => handlers.get('keyboardWillHide')!({}));
+    expect(renderer.root.findByType(TextInput).props.value).toBe('이름');
+    spy.mockRestore();
   });
 
   it('the area lets taps beside the card reach the backdrop, which closes the dialog', async () => {

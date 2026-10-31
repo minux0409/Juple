@@ -24,6 +24,7 @@ const SRC = path.resolve(__dirname, '../..');
 
 /** Inputs that are safe without a container of their own, and why. */
 const HOSTED_OR_TOP_OF_SCREEN: Readonly<Record<string, string>> = {
+  'collections/CategoryEditorDialog.tsx': 'holds its card still and adds room at the end of its own form (useStableDialogFrame): a resizing container made the centred card jump and collapse',
   'collections/CollectionUnlockPanel.tsx': 'rendered only inside KeyboardSafeView hosts (CollectionUnlockDialog, the Collection screen gate, SharePasswordCard)',
   'comments/CommentComposer.tsx': 'rendered by CollectionSharedItemScreen (inside a KeyboardSafeView) and ItemDetailsScreen (whose sheet moves for whichever editor is focused - see below)',
   'components/ContentPreviewCard.tsx': 'rendered by CollectionSharedItemScreen, which holds it in a KeyboardSafeView',

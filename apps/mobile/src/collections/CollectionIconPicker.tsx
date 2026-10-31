@@ -24,6 +24,8 @@ interface CollectionIconPickerProps {
   readonly disabled?: boolean;
   /** Modal visibility resets ScrollView's retained offset on each fresh open. */
   readonly isVisible?: boolean;
+  /** False: the grid does not scroll by itself, so a drag on it moves the form around it (the keyboard is up; see CategoryEditorDialog). */
+  readonly scrollEnabled?: boolean;
 }
 
 /** A fixed 10-icon grid (see collectionIcons.ts) for choosing a Collection's decorative icon at create/edit time - shown below the name field wherever a Collection's name can be entered. */
@@ -33,7 +35,7 @@ const TILE_SHARE = 0.18;
 const VISIBLE_ROWS = 2;
 const GRID_VERTICAL_PADDING = 2;
 
-export function CollectionIconPicker({ selected, onSelect, tile, disabled, isVisible = true }: CollectionIconPickerProps) {
+export function CollectionIconPicker({ selected, onSelect, tile, disabled, isVisible = true, scrollEnabled = true }: CollectionIconPickerProps) {
   const { t } = useTranslation();
   const scrollRef = useRef<ScrollViewInstance>(null);
   useEffect(() => { if (isVisible) scrollRef.current?.scrollTo({ animated: false, y: 0 }); }, [isVisible]);
@@ -46,9 +48,11 @@ export function CollectionIconPicker({ selected, onSelect, tile, disabled, isVis
   return (
     <ScrollView
       contentContainerStyle={styles.grid}
+      keyboardShouldPersistTaps="handled"
       nestedScrollEnabled
       onLayout={event => setGridWidth(event.nativeEvent.layout.width)}
       ref={scrollRef}
+      scrollEnabled={scrollEnabled}
       showsVerticalScrollIndicator
       style={{ maxHeight: visibleHeight }}
       testID="collection-icon-grid"

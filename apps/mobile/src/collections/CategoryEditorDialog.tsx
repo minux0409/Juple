@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { Keyboard, Modal, Platform, ScrollView, StyleSheet, Text, View, type KeyboardEvent, type LayoutChangeEvent } from 'react-native';
 import { Pressable } from '../components/Pressable';
 import { ThemedTextInput } from '../components/ThemedTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,7 +13,6 @@ import { type CollectionIconKey } from './collectionIcons';
 import { DialogActions } from '../components/DialogActions';
 import { ImageIcon } from '../icons/ImageIcon';
 import { colors, radii, spacing, themedStyles } from '../theme/tokens';
-import { KeyboardSafeView } from '../components/KeyboardSafeView';
 import { KeyboardFieldScope } from '../components/keyboardToolbar';
 import { PhotoCropper } from '../images/PhotoCropper';
 
@@ -76,25 +75,7 @@ export function CategoryEditorDialog({
   const [imageError, setImageError] = useState<string | null>(null);
   // The photo just picked, being fitted to the tile (the same crop screen as a profile photo, with the tile's rounded square).
   const [crop, setCrop] = useState<PickedImageAsset | null>(null);
-  // The room the card may use (the overlay minus its padding, minus the keyboard while it is up) and the card's own height
-  // while nothing constrains it - see cardPlacementWithKeyboard.
-  const [area, setArea] = useState<DialogArea>({ width: 0, resting: 0, current: 0 });
-  const [cardHeight, setCardHeight] = useState(0);
-  const placement = cardPlacementWithKeyboard(area, cardHeight);
-  const onAreaLayout = (event: LayoutChangeEvent) => {
-    const { width, height } = event.nativeEvent.layout;
-    setArea(previous => {
-      // The keyboard only ever takes height away; the full (resting) height is re-learned when the width changes (rotation).
-      const resting = previous.width === width ? Math.max(previous.resting, height) : height;
-      return previous.width === width && previous.resting === resting && previous.current === height ? previous : { width, resting, current: height };
-    });
-  };
-  const onCardLayout = (event: LayoutChangeEvent) => {
-    if (placement === null) {
-      const height = event.nativeEvent.layout.height;
-      setCardHeight(previous => (previous === height ? previous : height));
-    }
-  };
+  const { cardRef, cardFrame, keyboardRoom, onAreaLayout, onCardLayout } = useStableDialogFrame(visible);
 
   useEffect(() => {
     if (visible) {
@@ -146,23 +127,19 @@ export function CategoryEditorDialog({
   return (
     <Modal animationType="fade" onRequestClose={onCancel} transparent visible={visible}>
       <KeyboardFieldScope>
-      <KeyboardSafeView
-        style={[
-          styles.overlay,
-          { paddingTop: spacing.xl + insets.top, paddingBottom: spacing.xl + insets.bottom },
-        ]}
-      >
+      <View style={[styles.overlay, { paddingTop: spacing.xl + insets.top, paddingBottom: spacing.xl + insets.bottom }]}>
         <Pressable
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
           onPress={isSubmitting ? undefined : onCancel}
           style={StyleSheet.absoluteFill}
         />
-        <View onLayout={onAreaLayout} pointerEvents="box-none" style={[styles.area, placement !== null && styles.areaWithKeyboard]} testID="collection-editor-area">
+        <View onLayout={onAreaLayout} pointerEvents="box-none" style={[styles.area, cardFrame !== null && styles.areaPlaced]} testID="collection-editor-area">
         <View
           accessibilityViewIsModal
           onLayout={onCardLayout}
-          style={[styles.card, placement !== null && { marginTop: placement.top, maxHeight: placement.maxHeight }]}
+          ref={cardRef}
+          style={[styles.card, cardFrame !== null && { marginTop: cardFrame.top, maxHeight: cardFrame.maxHeight }, cardFrame?.height !== undefined && { height: cardFrame.height }]}
           testID="collection-editor-card"
         >
           <Text style={styles.title}>{mode === 'create' ? t('collections.create') : t('collections.editTitle')}</Text>
@@ -208,31 +185,33 @@ export function CategoryEditorDialog({
               ) : null}
             </View>
             {imageError ? <Text style={styles.error}>{imageError}</Text> : null}
-            <CollectionIconPicker disabled={isSubmitting} isVisible={visible} onSelect={selectIcon} selected={icon} tile={tile} />
+            <CollectionIconPicker disabled={isSubmitting} isVisible={visible} onSelect={selectIcon} scrollEnabled={keyboardRoom === 0} selected={icon} tile={tile} />
 
             <Text style={styles.sectionTitle}>{t('collections.colorSectionTitle')}</Text>
             <CollectionColorPicker disabled={isSubmitting} onSelect={setColor} selected={color} />
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
-          </ScrollView>
 
-          <View style={styles.buttonRow}>
-            <DialogActions
-              actions={[
-                { label: t('common.cancel'), onPress: onCancel, tone: 'secondary', disabled: isSubmitting },
-                {
-                  label: mode === 'create' ? t('collections.createAction') : t('common.save'),
-                  onPress: handleSubmit,
-                  tone: 'brand',
-                  disabled: isSubmitDisabled,
-                  busy: isSubmitting,
-                },
-              ]}
-            />
-          </View>
+            {/* In the scrolling form, so they can always be reached above the keyboard without moving or resizing the card. */}
+            <View style={styles.buttonRow}>
+              <DialogActions
+                actions={[
+                  { label: t('common.cancel'), onPress: onCancel, tone: 'secondary', disabled: isSubmitting },
+                  {
+                    label: mode === 'create' ? t('collections.createAction') : t('common.save'),
+                    onPress: handleSubmit,
+                    tone: 'brand',
+                    disabled: isSubmitDisabled,
+                    busy: isSubmitting,
+                  },
+                ]}
+              />
+            </View>
+            {keyboardRoom > 0 ? <View style={{ height: keyboardRoom }} testID="collection-editor-keyboard-room" /> : null}
+          </ScrollView>
         </View>
         </View>
-      </KeyboardSafeView>
+      </View>
       {crop !== null ? (
         <PhotoCropper
           knownSize={crop}
@@ -250,34 +229,94 @@ export function CategoryEditorDialog({
   );
 }
 
-/** The smallest card that still shows the title, the name field, a row of the form and the buttons (the rest scrolls inside). */
-const MIN_CARD_HEIGHT_WITH_KEYBOARD = 280;
+/** Room left under the buttons when the form is scrolled to its end above the keyboard. */
+const KEYBOARD_ROOM_MARGIN = spacing.md;
 
-export interface DialogArea {
-  readonly width: number;
-  /** The area's height with nothing taking space from it (no keyboard). */
-  readonly resting: number;
-  /** Its height now (smaller while the keyboard is up). */
-  readonly current: number;
+export interface DialogFrame {
+  readonly top: number;
+  readonly maxHeight: number;
+  /** Set while the keyboard is up: the card's height at that moment, so the room added to the form cannot grow it. */
+  readonly height?: number;
+}
+
+/** Where the card rests: centred in the area, and never taller than it. */
+export function restingDialogFrame(areaHeight: number, cardHeight: number): DialogFrame {
+  return { top: Math.max(0, (areaHeight - Math.min(cardHeight, areaHeight)) / 2), maxHeight: areaHeight };
 }
 
 /**
- * Where the card goes while the keyboard takes part of the screen - null when nothing does (the card is simply centred).
- * The card keeps the top it had centred in the full area and only gets shorter (its form scrolls inside), so it never rises into
- * the screen's header behind the dialog (the Collections screen's "+" used to sit right on its top edge). Only when the room left
- * under that top would be smaller than a usable card does it move up - and then no further than it must.
+ * Holds the card still while the keyboard comes and goes. The keyboard simply covers the lower part of the screen: the card keeps
+ * its position and size, and only the END of its scrolling form gets `keyboardRoom`, once per keyboard change, past what is on
+ * screen - so nothing visible moves, and everything can be scrolled above the keyboard.
+ *
+ * Deliberately no KeyboardAvoidingView (the app's usual KeyboardSafeView) here: it resizes the container with the keyboard, animated
+ * on iOS, and a centred card then jumped up and was squeezed until its icons disappeared. A window that resizes anyway (Android,
+ * where it depends on the version) is ignored the same way: while the keyboard is up, no measurement changes the card.
  */
-export function cardPlacementWithKeyboard(
-  area: DialogArea,
-  cardHeight: number,
-  minCardHeight: number = MIN_CARD_HEIGHT_WITH_KEYBOARD,
-): { readonly top: number; readonly maxHeight: number } | null {
-  if (area.resting <= 0 || cardHeight <= 0 || area.current >= area.resting) {
-    return null;
-  }
-  const restingTop = Math.max(0, (area.resting - Math.min(cardHeight, area.resting)) / 2);
-  const top = Math.min(restingTop, Math.max(0, area.current - minCardHeight));
-  return { top, maxHeight: Math.max(0, area.current - top) };
+function useStableDialogFrame(visible: boolean) {
+  const cardRef = useRef<ComponentRef<typeof View>>(null);
+  const area = useRef({ width: 0, height: 0 });
+  const cardHeight = useRef(0);
+  const isKeyboardUp = useRef(false);
+  const [restingFrame, setRestingFrame] = useState<DialogFrame | null>(null);
+  const [heldHeight, setHeldHeight] = useState<number | undefined>(undefined);
+  const [keyboardRoom, setKeyboardRoom] = useState(0);
+
+  const place = () => {
+    if (area.current.height > 0 && cardHeight.current > 0) {
+      const next = restingDialogFrame(area.current.height, cardHeight.current);
+      setRestingFrame(previous => (previous?.top === next.top && previous.maxHeight === next.maxHeight ? previous : next));
+    }
+  };
+
+  const onAreaLayout = (event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    // Only a real change of the screen (a rotation, or the keyboard gone again) - never a window shrinking for the keyboard.
+    if (isKeyboardUp.current || (width === area.current.width && height < area.current.height)) {
+      return;
+    }
+    area.current = { width, height };
+    place();
+  };
+
+  const onCardLayout = (event: LayoutChangeEvent) => {
+    if (!isKeyboardUp.current) {
+      cardHeight.current = event.nativeEvent.layout.height;
+      place();
+    }
+  };
+
+  useEffect(() => {
+    if (!visible) {
+      return undefined;
+    }
+    const onShow = (event: KeyboardEvent) => {
+      isKeyboardUp.current = true;
+      setHeldHeight(cardHeight.current > 0 ? cardHeight.current : undefined);
+      cardRef.current?.measureInWindow((_x, y) => {
+        const covered = y + cardHeight.current - event.endCoordinates.screenY;
+        setKeyboardRoom(covered > 0 ? Math.ceil(covered) + KEYBOARD_ROOM_MARGIN : 0);
+      });
+    };
+    const onHide = () => {
+      isKeyboardUp.current = false;
+      setKeyboardRoom(0);
+      setHeldHeight(undefined);
+    };
+    // iOS announces the keyboard before it moves; Android only once it is up.
+    const subscriptions = Platform.OS === 'ios'
+      ? [Keyboard.addListener('keyboardWillShow', onShow), Keyboard.addListener('keyboardWillHide', onHide)]
+      : [Keyboard.addListener('keyboardDidShow', onShow), Keyboard.addListener('keyboardDidHide', onHide)];
+    return () => {
+      subscriptions.forEach(subscription => subscription.remove());
+      isKeyboardUp.current = false;
+      setKeyboardRoom(0);
+      setHeldHeight(undefined);
+    };
+  }, [visible]);
+
+  const cardFrame: DialogFrame | null = restingFrame === null ? null : { ...restingFrame, height: heldHeight };
+  return { cardRef, cardFrame, keyboardRoom, onAreaLayout, onCardLayout };
 }
 
 const styles = themedStyles(() => ({
@@ -287,13 +326,13 @@ const styles = themedStyles(() => ({
     flex: 1,
     paddingHorizontal: spacing.xl,
   },
-  // The measured room for the card: centred while nothing takes space; top-anchored (cardPlacementWithKeyboard) with the keyboard.
+  // The room for the card: centred on the first layout, then held at that same place by useStableDialogFrame.
   area: {
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
   },
-  areaWithKeyboard: {
+  areaPlaced: {
     justifyContent: 'flex-start',
   },
   // A thin edge in the theme's border colour makes the card's own corner unmistakable over whatever is behind it; overflow
