@@ -2,6 +2,7 @@ import { ActionMenuDialog } from '../../components/ActionMenuDialog';
 import { ReportModal } from '../../safety/ReportModal';
 import { BellIcon } from '../../icons/BellIcon';
 import { CopyIcon } from '../../icons/CopyIcon';
+import { FlagIcon } from '../../icons/FlagIcon';
 import { colors, radii } from '../../theme/tokens';
 import { PendingActionRow } from '../../components/PendingActionRow';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -317,6 +318,13 @@ describe('CollectionDetailsScreen - Viewer (보기 전용)', () => {
     expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine'), i18n.t('collections.lockSetTitle'), i18n.t('safety.reportCollection'), i18n.t('collections.leaveAction')]);
     const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
     expect(menu.findAllByType(BellIcon)).toHaveLength(0);
+    // 컬렉션 신고하기 is red like the other risky entries; the neutral entries keep the normal color.
+    const menuActions = menu.props.actions as readonly { label: string; destructive?: boolean; icon?: unknown }[];
+    const reportEntry = menuActions.find(action => action.label === i18n.t('safety.reportCollection'))!;
+    expect(reportEntry.destructive).toBe(true);
+    expect(reportEntry.icon).toBe(FlagIcon);
+    expect(menuActions.find(action => action.label === i18n.t('collections.copyToMine'))!.destructive).toBeFalsy();
+    expect(menuActions.find(action => action.label === i18n.t('collections.lockSetTitle'))!.destructive).toBeFalsy();
     expect(menu.findAllByType(CopyIcon)).toHaveLength(1);
     expect(hasLabel(top, i18n.t('collections.addFavorite'))).toBe(true);
     expect(getCollectionShare).not.toHaveBeenCalled();
@@ -817,6 +825,23 @@ describe('CollectionDetailsScreen - emoji reactions to the links of a shared Col
 
       expect(bar(renderer)).toHaveLength(1);
       expect(visibleMenu(renderer)!.props.actions.map((action: { label: string }) => action.label)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('item.saveDialogTitle'), i18n.t('safety.reportLink')]);
+    });
+
+    it('링크 신고하기 is the red (destructive) entry with its flag icon; 열기 / 복사 / 저장 keep the normal color', async () => {
+      const other = link(2);
+      jest.mocked(getCollection).mockResolvedValue(sharedWithMe());
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [other], nextCursor: null });
+      const renderer = await renderScreen();
+
+      await openMenu(renderer, other);
+
+      const actions = visibleMenu(renderer)!.props.actions as readonly { label: string; destructive?: boolean; icon?: unknown }[];
+      const byLabel = (label: string) => actions.find(action => action.label === label)!;
+      expect(byLabel(i18n.t('safety.reportLink')).destructive).toBe(true);
+      expect(byLabel(i18n.t('safety.reportLink')).icon).toBe(FlagIcon);
+      for (const label of [i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('item.saveDialogTitle')]) {
+        expect(byLabel(label).destructive).toBeFalsy();
+      }
     });
 
     it('and for my own link in someone else\'s Collection - 복제 and 이동 stay as they were', async () => {

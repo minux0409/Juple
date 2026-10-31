@@ -1554,7 +1554,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       ? [
         // Somebody else's link: 링크 저장, and it can be reported (mine cannot; a personal Collection never has anyone else's link).
         { label: t('item.saveDialogTitle'), icon: ArchiveIcon, onPress: openSaveLink },
-        { label: t('safety.reportLink'), icon: FlagIcon, onPress: () => afterItemMenu(() => setReporting({ target: { type: 'Item', itemId: menuItem.itemId, collectionId }, label: menuItem.title ?? menuItem.url })) },
+        { label: t('safety.reportLink'), destructive: true, icon: FlagIcon, onPress: () => afterItemMenu(() => setReporting({ target: { type: 'Item', itemId: menuItem.itemId, collectionId }, label: menuItem.title ?? menuItem.url })) },
       ]
       : [
         { label: t('common.edit'), icon: EditIcon, onPress: () => { setIsItemActionMenuVisible(false); setActionMenuItem(null); openCollectionItem(menuItem); } },
@@ -1599,7 +1599,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         collection.isMemberLocked
           ? { label: t('collections.lockRemoveAction'), icon: UnlockIcon, onPress: closeCollectionMenuThen(() => setLockDialogMode('remove')) }
           : { label: t('collections.lockSetTitle'), icon: LockIcon, onPress: closeCollectionMenuThen(() => setLockDialogMode('lock')) },
-        { label: t('safety.reportCollection'), icon: FlagIcon, onPress: closeCollectionMenuThen(() => setReporting({ target: { type: 'Collection', collectionId }, label: collection.name })) },
+        { label: t('safety.reportCollection'), destructive: true, icon: FlagIcon, onPress: closeCollectionMenuThen(() => setReporting({ target: { type: 'Collection', collectionId }, label: collection.name })) },
         // An active member can always leave on their own (the Owner cannot - they delete instead).
         { label: t('collections.leaveAction'), destructive: true, icon: LogoutIcon, onPress: closeCollectionMenuThen(() => setIsLeaveConfirmVisible(true)) },
       ];
