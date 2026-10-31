@@ -163,7 +163,7 @@ async function press(renderer: Renderer, testID: string) {
   });
 }
 
-async function openTab(renderer: Renderer, tab: 'friends' | 'incoming' | 'outgoing') {
+async function openTab(renderer: Renderer, tab: 'friends' | 'incoming' | 'outgoing' | 'blocked') {
   await press(renderer, `friends-tab-${tab}`);
 }
 
@@ -187,12 +187,11 @@ describe('FriendsScreen - tabs', () => {
     const renderer = await renderScreen();
 
     const tabs = renderer.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'tab');
-    expect(tabs.map(tab => tab.props.testID)).toEqual(['friends-tab-friends', 'friends-tab-incoming', 'friends-tab-outgoing']);
+    expect(tabs.map(tab => tab.props.testID)).toEqual(['friends-tab-friends', 'friends-tab-incoming', 'friends-tab-outgoing', 'friends-tab-blocked']);
     expect(byId(renderer, 'friends-tab-friends').props.accessibilityState).toEqual({ selected: true });
     expect(texts(byId(renderer, 'friends-tabs'))).toEqual(expect.arrayContaining([i18n.t('friends.title'), '받은 요청', '보낸 요청']));
-    // 차단한 사용자 is the fourth cell of the same 2x2 menu (a button to its own screen, not a tab of this list).
+    // 차단한 사용자 is the fourth tab of the same 2x2 menu.
     expect(texts(byId(renderer, 'friends-tabs'))).toContain(i18n.t('safety.blockedUsers'));
-    expect(byId(renderer, 'friends-blocked-users').props.accessibilityRole).toBe('button');
     expect(byId(renderer, 'friends-tab-incoming-count').props.children).toBe('1');
     expect(byId(renderer, 'friends-tab-outgoing-count').props.children).toBe('1');
     expect(exists(renderer, 'friend-7')).toBe(true);
@@ -1104,7 +1103,7 @@ describe('FriendsScreen - narrow screens and accessibility', () => {
   it('tab labels may wrap to two lines rather than be cut, and each tab is a full touch target', async () => {
     const renderer = await renderScreen();
 
-    for (const testID of ['friends-tab-friends', 'friends-tab-incoming', 'friends-tab-outgoing', 'friends-blocked-users']) {
+    for (const testID of ['friends-tab-friends', 'friends-tab-incoming', 'friends-tab-outgoing', 'friends-tab-blocked']) {
       const button = byId(renderer, testID);
       // Four equal cells, two per row (a 2x2 menu), with the Collections filter button's own height / padding / radius / border.
       expect(StyleSheet.flatten(button.props.style)).toEqual(expect.objectContaining({
@@ -1225,16 +1224,28 @@ describe('FriendsScreen - List / Grid', () => {
   });
 });
 
-describe('FriendsScreen - 차단한 사용자 is a row, not a tab', () => {
-  it('Friends has no blocked tab and does not read the blocked list; the row opens the screen that does', async () => {
+describe('FriendsScreen - 차단한 사용자 is the fourth tab', () => {
+  it('selecting it swaps only the content below: no navigation, the header and the 2x2 menu stay, and it is read only then', async () => {
     const renderer = await renderScreen();
-    expect(exists(renderer, 'friends-tab-blocked')).toBe(false);
-    await press(renderer, 'friends-tab-incoming');
-    await press(renderer, 'friends-tab-outgoing');
     expect(listBlockedUsers).not.toHaveBeenCalled();
     expect(exists(renderer, 'blocked-users-empty')).toBe(false);
-    expect(texts(renderer)).toContain(i18n.t('safety.blockedUsers'));
-    expect(exists(renderer, 'friends-blocked-users')).toBe(true);
+
+    await openTab(renderer, 'blocked');
+    expect(mockNavigation.navigate).not.toHaveBeenCalled();
+    expect(listBlockedUsers).toHaveBeenCalledTimes(1);
+    expect(exists(renderer, 'blocked-users-empty')).toBe(true);
+    expect(byId(renderer, 'friends-tab-blocked').props.accessibilityState).toEqual({ selected: true });
+    expect(byId(renderer, 'friends-tab-friends').props.accessibilityState).toEqual({ selected: false });
+    expect(exists(renderer, 'friends-tabs')).toBe(true);
+    // The friends tab's own list is not shown on this tab.
+    expect(exists(renderer, 'friend-7')).toBe(false);
+
+    await openTab(renderer, 'incoming');
+    expect(exists(renderer, 'blocked-users-empty')).toBe(false);
+    expect(exists(renderer, 'friends-incoming-1')).toBe(true);
+    await openTab(renderer, 'friends');
+    expect(exists(renderer, 'friend-7')).toBe(true);
+    expect(mockNavigation.navigate).not.toHaveBeenCalled();
   });
 });
 

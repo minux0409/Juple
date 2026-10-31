@@ -7,21 +7,21 @@ import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ImportantState } from '../components/ImportantState';
 import { Pressable } from '../components/Pressable';
-import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { UserAvatar } from '../components/UserAvatar';
 import { useMessageDialog } from '../components/useMessageDialog';
 import { formatJupleId } from '../collections/api/collaborationApi';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { listBlockedUsers, unblockUser, type BlockedUser } from '../safety/safetyApi';
+import { listBlockedUsers, unblockUser, type BlockedUser } from './safetyApi';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 const nameOf = (person: BlockedUser) => person.displayName ?? formatJupleId(person.jupleId);
 
 /**
- * 차단한 사용자 (내 페이지 > 친구 관리): the people I blocked, when, and 차단 해제 behind a confirmation. Stored on the server, so it is the same on
- * every device. A Collection of theirs that I am still a member of is out of my lists: it is listed here, so opening or leaving it stays possible.
+ * 차단한 사용자 (내 페이지 > 친구 관리, the fourth tab of that screen - not a screen of its own): the people I blocked, when, and 차단 해제
+ * behind a confirmation. Stored on the server, so it is the same on every device. A Collection of theirs that I am still a member of is out
+ * of my lists: it is listed here, so opening or leaving it stays possible.
  */
-export function BlockedUsersScreen() {
+export function BlockedUsersPanel() {
   const { t, i18n } = useTranslation();
   const request = useAuthenticatedApi();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -70,7 +70,7 @@ export function BlockedUsersScreen() {
   };
 
   return (
-    <StackScreenSafeArea style={styles.safeArea}>
+    <View style={styles.root}>
       {people === null ? (
         failed ? <ImportantState onRetry={load} testID="blocked-users-error" /> : <ActivityIndicator style={styles.loading} testID="blocked-users-loading" />
       ) : (
@@ -125,14 +125,14 @@ export function BlockedUsersScreen() {
         visible={pending !== null}
       />
       {messageDialog}
-    </StackScreenSafeArea>
+    </View>
   );
 }
 
 const styles = themedStyles(() => ({
-  safeArea: { backgroundColor: colors.background, flex: 1 },
+  root: { flex: 1 },
   loading: { marginTop: spacing.xl },
-  list: { flexGrow: 1, gap: spacing.sm, padding: spacing.xl },
+  list: { flexGrow: 1, gap: spacing.sm, paddingBottom: spacing.xl, paddingHorizontal: spacing.xl, paddingTop: spacing.md },
   empty: { color: colors.textSecondary, fontSize: 15, marginTop: spacing.xl, textAlign: 'center' },
   card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, padding: spacing.md },
   row: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },

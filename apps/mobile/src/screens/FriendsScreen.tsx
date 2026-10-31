@@ -48,6 +48,7 @@ import { UserMinusIcon } from '../icons/UserMinusIcon';
 import { UserIcon } from '../icons/UserIcon';
 import { useFocusedPolling, useLiveRefresh } from '../push/useLiveRefresh';
 import { useTheme } from '../theme/ThemeContext';
+import { BlockedUsersPanel } from '../safety/BlockedUsersPanel';
 import { collectionFilterColors, colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { TOUR_TARGETS } from '../tour/tourGuides';
 import { useTourTarget } from '../tour/tourTargets';
@@ -65,7 +66,7 @@ export const OUTGOING_POLL_INTERVAL_MS = 10_000;
 /** Per visit - after that, Push / focus / returning to the app refresh it. */
 export const OUTGOING_POLL_MAX_MS = 10 * 60_000;
 
-export type FriendsTab = 'friends' | 'incoming' | 'outgoing';
+export type FriendsTab = 'friends' | 'incoming' | 'outgoing' | 'blocked';
 
 /**
  * 친구: an address book of Juple users added by exact Juple ID and mutual consent. Being friends
@@ -442,6 +443,7 @@ export function FriendsScreen() {
     { key: 'friends', label: t('friends.title') },
     { key: 'incoming', label: t('friends.tabIncoming'), count: incoming.length, emphasized: true },
     { key: 'outgoing', label: t('friends.tabOutgoing'), count: outgoing.length },
+    { key: 'blocked', label: t('safety.blockedUsers') },
   ];
 
   return (
@@ -474,19 +476,9 @@ export function FriendsScreen() {
             </Pressable>
           );
         })}
-        {/* 차단한 사용자: the fourth cell of the 2x2 menu. It opens the blocked-users screen (it is not a tab of this list). */}
-        <Pressable
-          accessibilityLabel={t('safety.blockedUsers')}
-          accessibilityRole="button"
-          onPress={() => navigation.navigate('BlockedUsers')}
-          style={styles.tab}
-          testID="friends-blocked-users"
-        >
-          <Text numberOfLines={2} style={styles.tabLabel}>{t('safety.blockedUsers')}</Text>
-        </Pressable>
       </View>
 
-      {tab === 'friends' ? friendsList : tab === 'incoming' ? requestList('incoming', incoming) : requestList('outgoing', outgoing)}
+      {tab === 'friends' ? friendsList : tab === 'incoming' ? requestList('incoming', incoming) : tab === 'outgoing' ? requestList('outgoing', outgoing) : <BlockedUsersPanel />}
 
       <FriendDetailModal
         friend={selected}

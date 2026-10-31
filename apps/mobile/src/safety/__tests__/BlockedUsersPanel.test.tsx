@@ -1,5 +1,5 @@
-import ReactTestRenderer, { act } from 'react-test-renderer';
-import { BlockedUsersScreen } from '../BlockedUsersScreen';
+﻿import ReactTestRenderer, { act } from 'react-test-renderer';
+import { BlockedUsersPanel } from '../BlockedUsersPanel';
 
 const mockRequest = jest.fn();
 const mockNavigate = jest.fn();
@@ -27,14 +27,14 @@ const person = {
 async function renderScreen() {
   let renderer!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
-    renderer = ReactTestRenderer.create(<BlockedUsersScreen />);
+    renderer = ReactTestRenderer.create(<BlockedUsersPanel />);
   });
   return renderer;
 }
 const byId = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
   renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onPress === 'function')[0];
 
-describe('BlockedUsersScreen', () => {
+describe('BlockedUsersPanel', () => {
   beforeEach(() => {
     mockRequest.mockReset();
     mockNavigate.mockReset();

@@ -27,7 +27,6 @@ import { iosHeaderOptions } from './sheetHeader';
 import { TermsAgreementScreen } from '../safety/TermsAgreementScreen';
 import { TermsUnavailable } from '../safety/TermsUnavailable';
 import { useTermsOnboarding } from '../safety/useTermsOnboarding';
-import { BlockedUsersScreen } from '../screens/BlockedUsersScreen';
 import { FriendsScreen } from '../screens/FriendsScreen';
 import { DataExportScreen } from '../screens/DataExportScreen';
 import { DeleteAccountScreen } from '../screens/DeleteAccountScreen';
@@ -126,7 +125,6 @@ export type RootStackParamList = {
   MyCollectionSubmissions: { publicId: string };
   /** 친구: friends, friend requests and the signed-in user's private notes. Grants no Collection access. */
   Friends: { readonly openRequests?: true; readonly refreshToken?: number } | undefined;
-  BlockedUsers: undefined;
   /** 알림: the signed-in user's Notification Inbox, newest first. */
   Notifications: undefined;
   /**
@@ -274,11 +272,6 @@ export function RootStack() {
               component={themedScreen(FriendsScreen)}
               name="Friends"
               options={{ title: t('friends.title'), ...headerTitleWithIcon(screenIcons.friends, t('friends.title')) }}
-            />
-            <Stack.Screen
-              component={themedScreen(BlockedUsersScreen)}
-              name="BlockedUsers"
-              options={{ title: t('safety.blockedUsers'), ...headerTitleWithIcon(screenIcons.friends, t('safety.blockedUsers')) }}
             />
             <Stack.Screen
               component={themedScreen(NotificationsScreen)}
