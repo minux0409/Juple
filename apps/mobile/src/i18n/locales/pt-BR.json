@@ -1245,7 +1245,7 @@
     "reportLink": "Denunciar link",
     "reportTargetLabel": "Denúncia sobre",
     "blockUserAction": "Bloquear usuário",
-    "blockConfirmMessage": "Ao bloquear {{name}}, a amizade termina e nenhum dos dois poderá enviar ao outro solicitações de amizade, convites para coleções ou pedidos de participação. Os comentários dessa pessoa e as coleções compartilhadas que ela possui ficam ocultos na sua tela. Links já compartilhados e participações continuam como estão, e ela não é notificada. Você pode desfazer em Minha página > Gerenciar amigos > Usuários bloqueados.",
+    "blockConfirmMessage": "Você pode desfazer em Minha página > Gerenciar amigos > Usuários bloqueados.",
     "unblockTitle": "Desbloquear {{name}}?",
     "unblockMessage": "Desbloquear não restaura amizades, convites cancelados ou participações removidas. As coleções de que você participa voltam às suas listas.",
     "blockedAt": "Bloqueado em {{date}}",

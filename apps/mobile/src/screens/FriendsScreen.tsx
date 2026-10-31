@@ -39,6 +39,7 @@ import {
   type Friend,
   type FriendRequest,
 } from '../friends/api/friendsApi';
+import { BlockIcon } from '../icons/BlockIcon';
 import { CheckIcon } from '../icons/CheckIcon';
 import { CloseIcon } from '../icons/CloseIcon';
 import { CopyIcon } from '../icons/CopyIcon';
@@ -49,6 +50,7 @@ import { UserIcon } from '../icons/UserIcon';
 import { useFocusedPolling, useLiveRefresh } from '../push/useLiveRefresh';
 import { useTheme } from '../theme/ThemeContext';
 import { BlockedUsersPanel } from '../safety/BlockedUsersPanel';
+import { useBlockPersonFlow } from '../safety/useBlockPersonFlow';
 import { collectionFilterColors, colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { TOUR_TARGETS } from '../tour/tourGuides';
 import { useTourTarget } from '../tour/tourTargets';
@@ -125,6 +127,12 @@ export function FriendsScreen() {
   // A received request whose X was tapped: rejecting only happens after the confirmation's 거절.
   const [pendingDecline, setPendingDecline] = useState<FriendRequest | null>(null);
   const { afterMenuCloses, onMenuDismiss } = useActionAfterMenu();
+  // 사용자 차단 from a friend's menu: the same confirmation and API as a Collection participant's. Blocking ends the friendship on the server,
+  // so the person leaves this list at once; the 차단한 사용자 tab reads the server's list when it is opened.
+  const { requestBlock, blockDialogs } = useBlockPersonFlow(blocked => {
+    setFriends(previous => previous.filter(friend => friend.jupleId !== blocked.jupleId));
+    setSelected(current => (current?.jupleId === blocked.jupleId ? null : current));
+  });
   const [isAddOpen, setIsAddOpen] = useState(false);
   // A request row's person (the whole identity area is the tap target): the same person/friend info as everywhere.
   const { openProfile, profileModal } = usePersonProfile();
@@ -515,6 +523,15 @@ export function FriendsScreen() {
               afterMenuCloses(() => setMenuFriend(null), () => setPendingRemoval(friend));
             },
           },
+          {
+            label: t('safety.blockUserAction'),
+            icon: BlockIcon,
+            destructive: true,
+            onPress: () => {
+              const friend = menuFriend;
+              afterMenuCloses(() => setMenuFriend(null), () => requestBlock({ jupleId: friend.jupleId, name: friendPrimaryLabel(friend) }));
+            },
+          },
         ] : []}
         cancelLabel={t('common.cancel')}
         onCancel={() => setMenuFriend(null)}
@@ -523,6 +540,7 @@ export function FriendsScreen() {
         visible={menuFriend !== null}
       />
       {messageDialog}
+      {blockDialogs}
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('friends.remove')}

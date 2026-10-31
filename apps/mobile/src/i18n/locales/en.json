@@ -1245,7 +1245,7 @@
     "reportLink": "Report link",
     "reportTargetLabel": "Reporting",
     "blockUserAction": "Block user",
-    "blockConfirmMessage": "Blocking {{name}} ends your friendship, and neither of you can send friend requests, Collection invitations or join requests to the other. Their comments and the shared Collections they own are hidden on your screen. Links already shared and Collection memberships stay as they are, and they are not notified. You can undo this in My Page > Manage friends > Blocked users.",
+    "blockConfirmMessage": "You can undo this in My Page > Manage friends > Blocked users.",
     "unblockTitle": "Unblock {{name}}?",
     "unblockMessage": "Unblocking does not restore a friendship, cancelled invitations or removed memberships. Collections you are in appear in your lists again.",
     "blockedAt": "Blocked on {{date}}",

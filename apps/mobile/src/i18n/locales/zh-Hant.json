@@ -1245,7 +1245,7 @@
     "reportLink": "檢舉連結",
     "reportTargetLabel": "檢舉對象",
     "blockUserAction": "封鎖使用者",
-    "blockConfirmMessage": "封鎖 {{name}} 後,好友關係將解除,雙方都無法再向對方傳送好友邀請、收藏集邀請或加入要求。此使用者的留言和其擁有的共享收藏集將在你的畫面上隱藏。已分享的連結和收藏集成員身分維持不變,對方不會收到通知。可在「我的頁面 > 好友管理 > 已封鎖的使用者」中解除。",
+    "blockConfirmMessage": "可在「我的頁面 > 好友管理 > 已封鎖的使用者」中解除。",
     "unblockTitle": "要解除封鎖 {{name}} 嗎?",
     "unblockMessage": "解除封鎖不會恢復好友關係、已取消的邀請或已移除的成員身分。你參與的收藏集會重新顯示在清單中。",
     "blockedAt": "封鎖日期 {{date}}",

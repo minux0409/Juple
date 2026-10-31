@@ -1245,7 +1245,7 @@
     "reportLink": "Bağlantıyı bildir",
     "reportTargetLabel": "Bildirilen",
     "blockUserAction": "Kullanıcıyı engelle",
-    "blockConfirmMessage": "{{name}} engellendiğinde arkadaşlık sona erer ve birbirinize arkadaşlık isteği, koleksiyon daveti veya katılım isteği gönderemezsiniz. Yorumları ve sahip olduğu paylaşılan koleksiyonlar ekranınızda gizlenir. Daha önce paylaşılan bağlantılar ve koleksiyon üyelikleri olduğu gibi kalır, kendisine bildirim gitmez. Sayfam > Arkadaşları yönet > Engellenen kullanıcılar bölümünden geri alabilirsiniz.",
+    "blockConfirmMessage": "Sayfam > Arkadaşları yönet > Engellenen kullanıcılar bölümünden geri alabilirsiniz.",
     "unblockTitle": "{{name}} engeli kaldırılsın mı?",
     "unblockMessage": "Engeli kaldırmak arkadaşlığı, iptal edilen davetleri veya kaldırılan üyelikleri geri getirmez. Üye olduğunuz koleksiyonlar listelerinizde yeniden görünür.",
     "blockedAt": "Engellenme tarihi {{date}}",

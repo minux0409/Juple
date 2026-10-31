@@ -11,10 +11,11 @@ export interface BlockSubject {
 }
 
 /**
- * 사용자 차단: the question naming the person and what it does, then the block. The same flow wherever a participant's menu offers it; the
- * server decides what a block stops. Links and memberships stay, which is why the message says so and nothing here reloads a member list.
+ * 사용자 차단: the short question (title, and where to undo it), then the block. The same flow and the same dialog wherever a person's menu
+ * offers it (a Collection's participants, the friends list); the server decides what a block stops. `onBlocked` runs once the server accepted
+ * the block, for a screen that lists the person (the friends list drops them: blocking ends the friendship).
  */
-export function useBlockPersonFlow() {
+export function useBlockPersonFlow(onBlocked?: (person: BlockSubject) => void) {
   const { t } = useTranslation();
   const request = useAuthenticatedApi();
   const { showMessage, messageDialog } = useMessageDialog();
@@ -28,7 +29,9 @@ export function useBlockPersonFlow() {
     setIsBlocking(true);
     try {
       await blockUser(request, subject.jupleId);
+      const blocked = subject;
       setSubject(null);
+      onBlocked?.(blocked);
       showMessage(t('safety.blockedDone'));
     } catch {
       setSubject(null);
@@ -46,7 +49,7 @@ export function useBlockPersonFlow() {
         busy={isBlocking}
         cancelLabel={t('common.cancel')}
         confirmLabel={t('safety.block')}
-        message={t('safety.blockConfirmMessage', { name: subject?.name ?? '' })}
+        message={t('safety.blockConfirmMessage')}
         onCancel={() => { if (!isBlocking) { setSubject(null); } }}
         onConfirm={() => { confirm().catch(() => undefined); }}
         title={t('safety.blockTitle')}

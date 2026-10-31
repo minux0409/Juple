@@ -29,7 +29,7 @@ import { SwipeableItemRow } from '../../components/SwipeableItemRow';
 import { colors, minTouchTarget, radii, spacing, getActiveColorScheme, setActiveColorScheme } from '../../theme/tokens';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { emitSocialPushEvent } from '../../push/pushEvents';
-import { listBlockedUsers } from '../../safety/safetyApi';
+import { blockUser, listBlockedUsers } from '../../safety/safetyApi';
 import { jupleIdForLookup } from '../../friends/friendIdentity';
 import {
   acceptFriendRequest,
@@ -79,6 +79,7 @@ jest.mock('../../safety/safetyApi', () => ({
   ...jest.requireActual('../../safety/safetyApi'),
   listBlockedUsers: jest.fn(),
   unblockUser: jest.fn(),
+  blockUser: jest.fn(),
 }));
 jest.mock('../../friends/api/friendsApi', () => ({
   ...jest.requireActual('../../friends/api/friendsApi'),
@@ -420,7 +421,7 @@ describe('FriendsScreen - a friend row', () => {
       });
 
       const open = menu(renderer)!;
-      expect(open.props.actions.map((action: { label: string }) => action.label)).toEqual(['Juple ID 복사', '친구 삭제']);
+      expect(open.props.actions.map((action: { label: string }) => action.label)).toEqual(['Juple ID 복사', '친구 삭제', '사용자 차단']);
       expect(open.props.actions[0].icon).toBe(CopyIcon);
       expect(open.props.actions[1].destructive).toBe(true);
       // A long press never opened the detail.
@@ -467,7 +468,7 @@ describe('FriendsScreen - a friend row', () => {
       await act(async () => {
         byId(renderer, 'friend-7').props.onLongPress();
       });
-      expect(menu(renderer)!.props.actions.map((action: { label: string }) => action.label)).toEqual(['Juple ID 복사', '친구 삭제']);
+      expect(menu(renderer)!.props.actions.map((action: { label: string }) => action.label)).toEqual(['Juple ID 복사', '친구 삭제', '사용자 차단']);
       await act(async () => {
         menu(renderer)!.props.onCancel();
       });
@@ -1246,6 +1247,56 @@ describe('FriendsScreen - 차단한 사용자 is the fourth tab', () => {
     await openTab(renderer, 'friends');
     expect(exists(renderer, 'friend-7')).toBe(true);
     expect(mockNavigation.navigate).not.toHaveBeenCalled();
+  });
+});
+
+describe('FriendsScreen - 사용자 차단 from the friend menu', () => {
+  const menu = (renderer: Renderer) => renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible);
+  const confirmDialog = (renderer: Renderer) => renderer.root.findAll(node => node.props.visible === true && typeof node.props.onConfirm === 'function' && node.props.confirmLabel === i18n.t('safety.block'))[0];
+
+  async function chooseBlock(renderer: Renderer) {
+    await act(async () => { byId(renderer, 'friend-7').props.onLongPress(); });
+    await act(async () => { menu(renderer)!.props.actions[2].onPress(); });
+    // (iOS waits for the menu to finish closing - its onDismiss - before acting; Android acts at once.)
+    await act(async () => { renderer.root.findByType(ActionMenuDialog).props.onDismiss(); });
+  }
+
+  it('asks the short question first; nothing is blocked before 차단, and 취소 changes nothing', async () => {
+    const renderer = await renderScreen();
+    await chooseBlock(renderer);
+
+    const dialog = confirmDialog(renderer);
+    expect(dialog.props.title).toBe('이 사용자를 차단하시겠습니까?');
+    expect(dialog.props.message).toBe(i18n.t('safety.blockConfirmMessage'));
+    expect(dialog.props.message).not.toContain('친구 관계');
+    expect(blockUser).not.toHaveBeenCalled();
+
+    await act(async () => dialog.props.onCancel());
+    expect(blockUser).not.toHaveBeenCalled();
+    expect(confirmDialog(renderer)).toBeUndefined();
+    expect(exists(renderer, 'friend-7')).toBe(true);
+  });
+
+  it('차단 sends the one block request, drops the friend from the list at once, and stays on this screen', async () => {
+    jest.mocked(blockUser).mockResolvedValue(undefined);
+    const renderer = await renderScreen();
+    await chooseBlock(renderer);
+
+    await act(async () => confirmDialog(renderer).props.onConfirm());
+    expect(blockUser).toHaveBeenCalledTimes(1);
+    expect(blockUser).toHaveBeenCalledWith(expect.any(Function), 'K7MP4Q8N');
+    expect(exists(renderer, 'friend-7')).toBe(false);
+    expect(mockNavigation.navigate).not.toHaveBeenCalled();
+    expect(exists(renderer, 'friends-tabs')).toBe(true);
+  });
+
+  it('a failed block keeps the friend in the list', async () => {
+    jest.mocked(blockUser).mockRejectedValue(new Error('down'));
+    const renderer = await renderScreen();
+    await chooseBlock(renderer);
+
+    await act(async () => confirmDialog(renderer).props.onConfirm());
+    expect(exists(renderer, 'friend-7')).toBe(true);
   });
 });
 

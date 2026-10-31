@@ -344,7 +344,9 @@ describe('shared Collection reports and the blocked list', () => {
       for (const key of ['reportCollection', 'reportLink', 'reportTargetLabel', 'blockUserAction', 'unblockMessage', 'hiddenCollectionsTitle', 'shareRestrictedNotice']) {
         expect(safety[key]?.length).toBeGreaterThan(0);
       }
-      expect(safety.blockConfirmMessage).toContain('{{name}}');
+      // The short question: no placeholder, no long list of effects - only where to undo the block.
+      expect(safety.blockConfirmMessage).not.toContain('{{name}}');
+      expect(safety.blockConfirmMessage.length).toBeLessThan(140);
       expect(safety.unblockTitle).toContain('{{name}}');
       expect(safety.blockedAt).toContain('{{date}}');
       for (const reason of REPORT_REASONS) {

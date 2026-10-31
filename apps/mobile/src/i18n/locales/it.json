@@ -1245,7 +1245,7 @@
     "reportLink": "Segnala link",
     "reportTargetLabel": "Oggetto della segnalazione",
     "blockUserAction": "Blocca utente",
-    "blockConfirmMessage": "Bloccando {{name}} l'amicizia termina e nessuno dei due potrà inviare all'altro richieste di amicizia, inviti a raccolte o richieste di partecipazione. I suoi commenti e le raccolte condivise di sua proprietà vengono nascosti sul tuo schermo. I link già condivisi e le partecipazioni restano invariati e non riceve alcuna notifica. Puoi annullare in La mia pagina > Gestisci amici > Utenti bloccati.",
+    "blockConfirmMessage": "Puoi annullare in La mia pagina > Gestisci amici > Utenti bloccati.",
     "unblockTitle": "Sbloccare {{name}}?",
     "unblockMessage": "Lo sblocco non ripristina amicizie, inviti annullati o partecipazioni rimosse. Le raccolte a cui partecipi tornano nei tuoi elenchi.",
     "blockedAt": "Bloccato il {{date}}",

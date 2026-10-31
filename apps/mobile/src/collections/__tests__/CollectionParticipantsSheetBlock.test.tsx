@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import '../../i18n';
+import i18n from '../../i18n';
 import { CollectionParticipantsSheet } from '../CollectionParticipantsSheet';
 
 const mockApi = jest.fn();
@@ -48,7 +48,7 @@ describe('사용자 차단 from the participant list', () => {
     });
     expect(mockApi).not.toHaveBeenCalled();
 
-    const dialog = renderer.root.findAll(node => node.props.visible === true && typeof node.props.onConfirm === 'function' && String(node.props.message).includes('Owner'))[0];
+    const dialog = renderer.root.findAll(node => node.props.visible === true && typeof node.props.onConfirm === 'function' && node.props.confirmLabel === i18n.t('safety.block'))[0];
     mockApi.mockResolvedValue({ body: undefined });
     await act(async () => dialog.props.onConfirm());
     expect(mockApi).toHaveBeenCalledTimes(1);

@@ -1245,7 +1245,7 @@
     "reportLink": "Signaler le lien",
     "reportTargetLabel": "Objet du signalement",
     "blockUserAction": "Bloquer l'utilisateur",
-    "blockConfirmMessage": "Bloquer {{name}} met fin à votre amitié, et aucun de vous ne peut envoyer à l'autre de demande d'ami, d'invitation à une collection ou de demande de participation. Ses commentaires et les collections partagées dont cette personne est propriétaire sont masqués sur votre écran. Les liens déjà partagés et les participations restent inchangés, et cette personne n'est pas prévenue. Vous pouvez annuler dans Ma page > Gérer les amis > Utilisateurs bloqués.",
+    "blockConfirmMessage": "Vous pouvez annuler dans Ma page > Gérer les amis > Utilisateurs bloqués.",
     "unblockTitle": "Débloquer {{name}} ?",
     "unblockMessage": "Le déblocage ne rétablit ni l'amitié, ni les invitations annulées, ni les participations retirées. Les collections auxquelles vous participez réapparaissent dans vos listes.",
     "blockedAt": "Bloqué le {{date}}",

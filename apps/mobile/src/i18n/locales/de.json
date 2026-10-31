@@ -1245,7 +1245,7 @@
     "reportLink": "Link melden",
     "reportTargetLabel": "Gemeldet wird",
     "blockUserAction": "Nutzer blockieren",
-    "blockConfirmMessage": "Wenn du {{name}} blockierst, endet eure Freundschaft, und ihr könnt einander keine Freundschaftsanfragen, Sammlungseinladungen oder Beitrittsanfragen mehr senden. Kommentare dieser Person und von ihr besessene geteilte Sammlungen werden auf deinem Bildschirm ausgeblendet. Bereits geteilte Links und Mitgliedschaften bleiben bestehen, und die Person wird nicht benachrichtigt. Rückgängig unter Meine Seite > Freunde verwalten > Blockierte Nutzer.",
+    "blockConfirmMessage": "Rückgängig unter Meine Seite > Freunde verwalten > Blockierte Nutzer.",
     "unblockTitle": "{{name}} entblocken?",
     "unblockMessage": "Das Entblocken stellt weder Freundschaften noch abgebrochene Einladungen oder entfernte Mitgliedschaften wieder her. Sammlungen, in denen du Mitglied bist, erscheinen wieder in deinen Listen.",
     "blockedAt": "Blockiert am {{date}}",

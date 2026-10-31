@@ -1245,7 +1245,7 @@
     "reportLink": "举报链接",
     "reportTargetLabel": "举报对象",
     "blockUserAction": "屏蔽用户",
-    "blockConfirmMessage": "屏蔽 {{name}} 后,好友关系将解除,双方都无法再向对方发送好友请求、合集邀请或加入请求。此用户的评论和其拥有的共享合集将在你的屏幕上隐藏。已共享的链接和合集成员身份保持不变,对方不会收到通知。可在“我的页面 > 好友管理 > 已屏蔽的用户”中解除。",
+    "blockConfirmMessage": "可在“我的页面 > 好友管理 > 已屏蔽的用户”中解除。",
     "unblockTitle": "要解除对 {{name}} 的屏蔽吗?",
     "unblockMessage": "解除屏蔽不会恢复好友关系、已取消的邀请或已移除的成员身份。你参与的合集会重新显示在列表中。",
     "blockedAt": "屏蔽日期 {{date}}",

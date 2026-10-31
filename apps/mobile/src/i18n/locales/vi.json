@@ -1245,7 +1245,7 @@
     "reportLink": "Báo cáo liên kết",
     "reportTargetLabel": "Nội dung báo cáo",
     "blockUserAction": "Chặn người dùng",
-    "blockConfirmMessage": "Khi chặn {{name}}, quan hệ bạn bè kết thúc và hai bên không thể gửi cho nhau lời mời kết bạn, lời mời vào bộ sưu tập hay yêu cầu tham gia. Bình luận của người này và các bộ sưu tập chia sẻ do họ sở hữu sẽ bị ẩn trên màn hình của bạn. Các liên kết đã chia sẻ và tư cách thành viên vẫn giữ nguyên, và họ không nhận được thông báo. Bạn có thể hoàn tác tại Trang của tôi > Quản lý bạn bè > Người dùng đã chặn.",
+    "blockConfirmMessage": "Bạn có thể hoàn tác tại Trang của tôi > Quản lý bạn bè > Người dùng đã chặn.",
     "unblockTitle": "Bỏ chặn {{name}}?",
     "unblockMessage": "Bỏ chặn không khôi phục quan hệ bạn bè, lời mời đã hủy hay tư cách thành viên đã xóa. Các bộ sưu tập bạn tham gia sẽ xuất hiện lại trong danh sách.",
     "blockedAt": "Đã chặn ngày {{date}}",
