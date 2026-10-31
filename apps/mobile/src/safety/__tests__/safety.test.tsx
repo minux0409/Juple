@@ -4,6 +4,7 @@ import i18n from '../../i18n';
 import { ReportModal } from '../ReportModal';
 import { StyleSheet, Text } from 'react-native';
 import { AppModal } from '../../components/AppModal';
+import { colors } from '../../theme/tokens';
 import { TermsAgreementScreen } from '../TermsAgreementScreen';
 import { useTermsOnboarding } from '../useTermsOnboarding';
 import {
@@ -124,6 +125,26 @@ describe('ReportModal', () => {
     await press(renderer, 'report-submit');
     expect(exists(renderer, 'report-error')).toBe(true);
     expect(onReported).toHaveBeenCalledTimes(1);
+  });
+
+  it('the footer takes the whole row AppModal gives it, and 취소 / 신고하기 are the confirm dialogs\' equal-halves buttons (never zero-width bars)', async () => {
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(<ReportModal onClose={jest.fn()} onReported={jest.fn()} target={{ type: 'Item', itemId: 3, collectionId: 5 }} />);
+    });
+    // AppModal lays its footer out in a row: a wrapper without flex: 1 shrinks to its content and collapses flexBasis-0 buttons to nothing.
+    const footer = renderer.root.findByType(AppModal).props.footer;
+    expect(StyleSheet.flatten(footer.props.style).flex).toBe(1);
+
+    const flat = (testID: string) => StyleSheet.flatten(byId(renderer, testID).props.style);
+    for (const testID of ['report-cancel', 'report-submit']) {
+      expect(flat(testID)).toMatchObject({ flexBasis: 0, flexGrow: 1, minWidth: 0, minHeight: 44 });
+    }
+    expect(flat('report-cancel').backgroundColor).not.toBe(flat('report-submit').backgroundColor);
+    expect(flat('report-submit').backgroundColor).toBe(colors.brand);
+    expect(renderer.root.findAll(node => node.type === Text).map(node => node.props.children)).toEqual(expect.arrayContaining([i18n.t('common.cancel'), i18n.t('safety.reportSubmit')]));
+    // The explanation field grows to a limit and then scrolls inside itself - it never pushes the buttons out.
+    expect(StyleSheet.flatten(renderer.root.find(node => node.props.testID === 'report-details' && typeof node.props.onChangeText === 'function').props.style).maxHeight).toBe(160);
   });
 
   it('draws nothing without a target', async () => {
