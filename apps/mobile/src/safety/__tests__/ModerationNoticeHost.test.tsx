@@ -52,7 +52,7 @@ describe('ModerationNoticeHost (운영팀 안내 pop-up)', () => {
     const shown = dialog(renderer)!;
     expect(shown.props.title).toBe('Juple 운영팀 안내');
     expect(shown.props.message).toBe("회원님이 공유한 '내가 올린 링크'이(가) 운영정책에 따라 삭제되었습니다.");
-    expect(shown.props.confirmLabel).toBe('확인했어요');
+    expect(shown.props.confirmLabel).toBe('확인했습니다');
     expect(shown.props.onCancel).toBeUndefined();
     expect(shown.props.dismissable).toBe(false);
     expect(texts(renderer)).toContain(i18n.t('safety.reasonSpam'));

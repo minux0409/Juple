@@ -1523,7 +1523,7 @@
     "reasonLabel": "確認した内容",
     "guidanceLabel": "運営からのご案内",
     "acknowledge": "確認しました",
-    "acknowledged": "確認済み",
+    "acknowledged": "確認しました",
     "acknowledgeFailed": "確認を保存できませんでした。もう一度お試しください。",
     "resultTitle": "通報の処理結果",
     "resultMessage": "ご報告ありがとうございます。内容の確認が完了しました。必要な対応は運営ポリシーに従って行われますが、個別の対応内容はお知らせしておりません。",

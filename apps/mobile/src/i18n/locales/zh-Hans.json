@@ -1522,7 +1522,7 @@
     "warningIntro": "我们审核了针对你内容的举报，发现使用时需要注意的事项。",
     "reasonLabel": "审核结果",
     "guidanceLabel": "运营团队的说明",
-    "acknowledge": "我已知晓",
+    "acknowledge": "已确认",
     "acknowledged": "已确认",
     "acknowledgeFailed": "无法保存你的确认，请重试。",
     "resultTitle": "举报处理结果",

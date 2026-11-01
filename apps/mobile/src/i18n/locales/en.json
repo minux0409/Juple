@@ -1522,7 +1522,7 @@
     "warningIntro": "We reviewed a report about your content and found something that needs your attention when using Juple.",
     "reasonLabel": "What we found",
     "guidanceLabel": "Guidance from the team",
-    "acknowledge": "I understand",
+    "acknowledge": "Confirmed",
     "acknowledged": "Confirmed",
     "acknowledgeFailed": "Couldn't save your confirmation. Please try again.",
     "resultTitle": "Report reviewed",

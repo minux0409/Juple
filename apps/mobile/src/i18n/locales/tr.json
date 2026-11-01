@@ -1522,7 +1522,7 @@
     "warningIntro": "İçeriğinizle ilgili bir şikâyeti inceledik ve Juple'ı kullanırken dikkat etmeniz gereken bir durum tespit ettik.",
     "reasonLabel": "Tespit ettiğimiz durum",
     "guidanceLabel": "Ekipten yönlendirme",
-    "acknowledge": "Anladım",
+    "acknowledge": "Onaylandı",
     "acknowledged": "Onaylandı",
     "acknowledgeFailed": "Onayınız kaydedilemedi. Lütfen tekrar deneyin.",
     "resultTitle": "Şikâyet sonucu",

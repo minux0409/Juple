@@ -60,6 +60,8 @@ describe('ModerationNoticeScreen', () => {
     const renderer = await render();
     expect(exists(renderer, 'moderation-notice-acknowledged')).toBe(true);
     expect(exists(renderer, 'moderation-notice-acknowledge')).toBe(false);
+    expect(texts(renderer)).toContain('확인했습니다');
+    expect(mockRequest).not.toHaveBeenCalledWith(expect.objectContaining({ method: 'POST' }));
   });
 
   it('the result of the person\'s own report carries no reason or guidance, only the generic message', async () => {
