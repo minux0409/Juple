@@ -430,13 +430,24 @@ public sealed class AdminActionNoticesIntegrationTests : IAsyncLifetime
         // The trash endpoint stays empty, the saved list / Home still has it, and only the reported Collection lost it.
         Assert.Equal((0, 1, false, true, 0), after);
 
+        // The Collection read service (what both Collection screens call): X no longer lists it, Y still does.
+        Assert.DoesNotContain(link, (await new CollectionStore(NewContext()).GetItemsAsync(owner, collectionA, null, 50)).Page.Items.Select(entry => entry.ItemId));
+        Assert.Contains(link, (await new CollectionStore(NewContext()).GetItemsAsync(author, collectionB, null, 50)).Page.Items.Select(entry => entry.ItemId));
+        Assert.Equal(1, await NewContext().AdminAuditLogs.CountAsync(log => log.Action == AdminAuditActions.ContentDeleted && log.TargetId == report.ToString()));
+
         // The person was told - the notice and its Inbox row exist.
         var notice = Assert.Single(await ActionNoticesAsync(author, ModerationActionType.ContentRemovedFromCollection));
         Assert.Single(await NewContext().Notifications.Where(entry => entry.UserId == author && entry.SubjectId == notice.Id).ToListAsync());
 
         // Putting it back, and removing it again, never routes it through the trash either.
-        await Admin().RestoreTargetAsync(admin, isOwner: true, report, null);
+        await Admin().RestoreTargetAsync(admin, isOwner: true, report, null, "다시 추가했습니다.");
         Assert.Equal((1, 1, false, true, 0), await ObserveAsync(author, link, collectionA, collectionB));
+        Assert.Contains(link, (await new CollectionStore(NewContext()).GetItemsAsync(owner, collectionA, null, 50)).Page.Items.Select(entry => entry.ItemId));
+        Assert.Equal(1, await NewContext().AdminAuditLogs.CountAsync(log => log.Action == AdminAuditActions.ContentRestored && log.TargetId == report.ToString()));
+        Assert.Single(await ActionNoticesAsync(author, ModerationActionType.ContentRestored));
+        // A second restore never creates a duplicate link.
+        await Assert.ThrowsAsync<AdminReportConflictException>(() => Admin().RestoreTargetAsync(admin, isOwner: true, report, null));
+        Assert.Equal(1, await NewContext().CollectionItems.CountAsync(entry => entry.CollectionId == collectionA && entry.ItemId == link));
         await Admin().DeleteTargetAsync(admin, isOwner: true, report, confirm: true, null);
         Assert.Equal((0, 1, false, true, 0), await ObserveAsync(author, link, collectionA, collectionB));
         Assert.Contains("DeletedAtUtc=null", await ItemRowAsync(link));
@@ -446,6 +457,31 @@ public sealed class AdminActionNoticesIntegrationTests : IAsyncLifetime
         var control = await ObserveAsync(author, link, collectionA, collectionB);
         Assert.True(control.InTrash);
         Assert.False(control.InSavedList);
+    }
+
+    [Fact]
+    public async Task ALinkReportWithoutItsCollection_IsNeverGuessedAt_NothingIsRemovedAndNobodyIsNoticed()
+    {
+        var (author, _) = await NewUserAsync();
+        var (owner, _) = await NewUserAsync();
+        var (reporter, _) = await NewUserAsync();
+        var (admin, _) = await NewUserAsync();
+        var link = await TwoCollectionLinkAsync(author, owner, reporter);
+        var (collectionA, collectionB) = _collectionPair;
+        var report = await ReportLinkAsync(reporter, link, collectionA);
+        await NewContext().ContentReports.Where(entry => entry.Id == report).ExecuteUpdateAsync(setters => setters.SetProperty(entry => entry.CollectionId, (long?)null));
+
+        var detail = await Admin().GetAsync(report);
+        Assert.False(detail.CanDeleteTarget);
+        var removal = await Assert.ThrowsAsync<AdminReportConflictException>(() => Admin().DeleteTargetAsync(admin, isOwner: true, report, confirm: true, null));
+        Assert.Equal(AdminReportConflictException.CollectionUnknown, removal.Code);
+        var restore = await Assert.ThrowsAsync<AdminReportConflictException>(() => Admin().RestoreTargetAsync(admin, isOwner: true, report, null));
+        Assert.Equal(AdminReportConflictException.CollectionUnknown, restore.Code);
+
+        Assert.Equal(1, await NewContext().CollectionItems.CountAsync(entry => entry.CollectionId == collectionA && entry.ItemId == link));
+        Assert.Equal(1, await NewContext().CollectionItems.CountAsync(entry => entry.CollectionId == collectionB && entry.ItemId == link));
+        Assert.True(await NewContext().Items.AnyAsync(item => item.Id == link && item.DeletedAtUtc == null));
+        Assert.Empty(await ActionNoticesAsync(author));
     }
 
     [Fact]

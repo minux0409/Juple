@@ -84,6 +84,7 @@ public sealed class AdminReportConflictException(string code) : Exception(code)
     public const string NotRestrictable = "reportNotRestrictable";
     public const string RestrictionActive = "reportRestrictionActive";
     public const string NotDeletable = "reportNotDeletable";
+    public const string CollectionUnknown = "reportCollectionUnknown";
     public const string NoTargetUser = "reportHasNoTargetUser";
     public const string WarningAlreadySent = "warningAlreadySent";
     public const string NotAccountRestrictable = "reportNotAccountRestrictable";

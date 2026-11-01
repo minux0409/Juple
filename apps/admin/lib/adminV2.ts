@@ -514,6 +514,8 @@ export function reportFailureMessage(code: string | null | undefined): string | 
       return '경고를 받을 사용자가 없습니다(탈퇴했거나 운영자 계정입니다).';
     case 'reportNotDeletable':
       return '링크 또는 컬렉션 신고만 삭제할 수 있습니다. 사용자 계정은 신고로 삭제되지 않습니다.';
+    case 'reportCollectionUnknown':
+      return '이 신고에는 링크가 신고된 컬렉션 정보가 없어 제거할 수 없습니다. 임의의 컬렉션에서 제거하지 않습니다.';
     case 'reportTargetNotDeleted':
       return '복구할 삭제 내역이 없습니다.';
     case 'reportNotAccountRestrictable':

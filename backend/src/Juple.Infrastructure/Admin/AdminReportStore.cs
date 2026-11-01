@@ -287,10 +287,7 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
             return false;
         }
 
-        if (!CanDelete(report))
-        {
-            throw new AdminReportConflictException(AdminReportConflictException.NotDeletable);
-        }
+        RequireDeletable(report);
 
         var changed = false;
         if (report.TargetType == ReportTargetType.Item)
@@ -344,10 +341,7 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
             return false;
         }
 
-        if (!CanDelete(report))
-        {
-            throw new AdminReportConflictException(AdminReportConflictException.NotDeletable);
-        }
+        RequireDeletable(report);
 
         var restored = false;
         long? restoredRecipientId = null;
@@ -518,6 +512,20 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
     }
 
     private const int RestoredLinkSortOrderGap = 4096;
+
+    /// <summary>A person or a comment is never deleted by a report; a link report that does not name its Collection is never guessed at.</summary>
+    private static void RequireDeletable(ContentReport report)
+    {
+        if (report.TargetType == ReportTargetType.Item && report.CollectionId is null)
+        {
+            throw new AdminReportConflictException(AdminReportConflictException.CollectionUnknown);
+        }
+
+        if (!CanDelete(report))
+        {
+            throw new AdminReportConflictException(AdminReportConflictException.NotDeletable);
+        }
+    }
 
     private sealed record ContentSnapshot(string? Title, string? Type, long? Id, string? ImageUrl, string? CollectionName);
 
