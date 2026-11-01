@@ -1526,6 +1526,20 @@
     "acknowledged": "已確認",
     "acknowledgeFailed": "無法儲存你的確認，請再試一次。",
     "resultTitle": "檢舉處理結果",
-    "resultMessage": "感謝你的檢舉。我們已完成審核。必要的處理將依據營運政策進行，具體處理內容恕不告知。"
+    "resultMessage": "感謝你的檢舉。我們已完成審核。必要的處理將依據營運政策進行，具體處理內容恕不告知。",
+    "teamTitle": "Juple 營運團隊提示",
+    "contentLabel": "相關內容",
+    "actedAtLabel": "處理時間",
+    "moreCount": "還有 {{count}} 則提示。",
+    "actionContentDeletedLink": "你分享的「{{title}}」已依營運政策刪除。",
+    "actionContentDeletedCollection": "你的合集「{{title}}」已依營運政策刪除。",
+    "actionContentRestoredLink": "你分享的「{{title}}」已復原。",
+    "actionContentRestoredCollection": "你的合集「{{title}}」已復原。",
+    "actionShareRestrictedLink": "你分享的「{{title}}」的分享已依營運政策受到限制。",
+    "actionShareRestrictedCollection": "你的合集「{{title}}」的分享已依營運政策受到限制。",
+    "actionShareRestrictionLiftedLink": "「{{title}}」的分享限制已解除。",
+    "actionShareRestrictionLiftedCollection": "合集「{{title}}」的分享限制已解除。",
+    "actionAccountRestricted": "依營運政策，你的帳號使用已受到限制。你仍可查看內容並聯絡客服。",
+    "actionAccountRestrictionLifted": "你的帳號使用限制已解除。"
   }
 }

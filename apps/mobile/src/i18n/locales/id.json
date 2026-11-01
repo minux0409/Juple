@@ -1526,6 +1526,20 @@
     "acknowledged": "Dikonfirmasi",
     "acknowledgeFailed": "Konfirmasi tidak dapat disimpan. Silakan coba lagi.",
     "resultTitle": "Hasil laporan",
-    "resultMessage": "Terima kasih atas laporan Anda. Kami telah selesai meninjaunya. Tindakan yang diperlukan diambil sesuai kebijakan; kami tidak membagikan rincian setiap tindakan."
+    "resultMessage": "Terima kasih atas laporan Anda. Kami telah selesai meninjaunya. Tindakan yang diperlukan diambil sesuai kebijakan; kami tidak membagikan rincian setiap tindakan.",
+    "teamTitle": "Pemberitahuan tim Juple",
+    "contentLabel": "Konten terkait",
+    "actedAtLabel": "Waktu tindakan",
+    "moreCount": "Masih ada {{count}} pemberitahuan lagi.",
+    "actionContentDeletedLink": "Tautan \"{{title}}\" yang Anda bagikan dihapus sesuai kebijakan kami.",
+    "actionContentDeletedCollection": "Koleksi \"{{title}}\" Anda dihapus sesuai kebijakan kami.",
+    "actionContentRestoredLink": "Tautan \"{{title}}\" yang Anda bagikan telah dipulihkan.",
+    "actionContentRestoredCollection": "Koleksi \"{{title}}\" Anda telah dipulihkan.",
+    "actionShareRestrictedLink": "Berbagi tautan \"{{title}}\" dibatasi sesuai kebijakan kami.",
+    "actionShareRestrictedCollection": "Berbagi koleksi \"{{title}}\" Anda dibatasi sesuai kebijakan kami.",
+    "actionShareRestrictionLiftedLink": "Pembatasan berbagi tautan \"{{title}}\" telah dicabut.",
+    "actionShareRestrictionLiftedCollection": "Pembatasan berbagi koleksi \"{{title}}\" telah dicabut.",
+    "actionAccountRestricted": "Penggunaan akun Anda dibatasi sesuai kebijakan kami. Anda masih dapat melihat konten dan menghubungi dukungan.",
+    "actionAccountRestrictionLifted": "Pembatasan penggunaan akun Anda telah dicabut."
   }
 }

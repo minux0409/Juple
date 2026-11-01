@@ -21,7 +21,6 @@ import {
 } from '../../../../lib/sharedCollectionEntry';
 import { useSignedInApp } from '../../AppRoot';
 import { Glyph } from '../../Glyph';
-import { useSafety } from '../../SafetyProvider';
 import { PendingJoinDialog } from '../../collections/PendingJoinDialog';
 import { CollectionTileView } from '../../collections/CollectionsView';
 import { readShareProfile, unlockShare } from './actions';
@@ -36,7 +35,6 @@ import styles from '../../app.module.css';
  */
 export function SharedCollectionEntry({ publicId }: { readonly publicId: string }) {
   const { api, dictionary, onSessionLost } = useSignedInApp();
-  const safety = useSafety();
   const router = useRouter();
   // undefined = still being read; null = no answer about me (unknown / revoked link, or a failed lookup - the link itself decides then).
   const [membership, setMembership] = useState<ShareMembership | null | undefined>(undefined);
@@ -314,11 +312,6 @@ export function SharedCollectionEntry({ publicId }: { readonly publicId: string 
           <p className={styles.fieldError} role="alert">
             {message}
           </p>
-        ) : null}
-        {entry.kind === 'publicAdd' ? (
-          <button className={styles.settingsAction} data-share-report disabled={isBusy} onClick={() => safety.report({ type: 'PublicShare', publicId })} type="button">
-            {dictionary.safetyReportCollection}
-          </button>
         ) : null}
         <div className={styles.shareEntryActions}>
             <>

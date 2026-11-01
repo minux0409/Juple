@@ -1526,6 +1526,20 @@
     "acknowledged": "تم التأكيد",
     "acknowledgeFailed": "تعذّر حفظ تأكيدك. يرجى المحاولة مرة أخرى.",
     "resultTitle": "نتيجة البلاغ",
-    "resultMessage": "شكرًا على بلاغك. أنهينا مراجعته. تُتَّخذ الإجراءات اللازمة وفق سياساتنا، ولا نشارك تفاصيل الإجراءات الفردية."
+    "resultMessage": "شكرًا على بلاغك. أنهينا مراجعته. تُتَّخذ الإجراءات اللازمة وفق سياساتنا، ولا نشارك تفاصيل الإجراءات الفردية.",
+    "teamTitle": "إشعار من فريق Juple",
+    "contentLabel": "المحتوى المعني",
+    "actedAtLabel": "وقت الإجراء",
+    "moreCount": "يوجد {{count}} إشعار آخر.",
+    "actionContentDeletedLink": "تم حذف الرابط \"{{title}}\" الذي شاركته وفق سياساتنا.",
+    "actionContentDeletedCollection": "تم حذف مجموعتك \"{{title}}\" وفق سياساتنا.",
+    "actionContentRestoredLink": "تمت استعادة الرابط \"{{title}}\" الذي شاركته.",
+    "actionContentRestoredCollection": "تمت استعادة مجموعتك \"{{title}}\".",
+    "actionShareRestrictedLink": "تم تقييد مشاركة الرابط \"{{title}}\" وفق سياساتنا.",
+    "actionShareRestrictedCollection": "تم تقييد مشاركة مجموعتك \"{{title}}\" وفق سياساتنا.",
+    "actionShareRestrictionLiftedLink": "تم رفع قيد المشاركة عن الرابط \"{{title}}\".",
+    "actionShareRestrictionLiftedCollection": "تم رفع قيد المشاركة عن مجموعتك \"{{title}}\".",
+    "actionAccountRestricted": "تم تقييد استخدام حسابك وفق سياساتنا. لا يزال بإمكانك عرض محتواك والتواصل مع الدعم.",
+    "actionAccountRestrictionLifted": "تم رفع قيد استخدام حسابك."
   }
 }

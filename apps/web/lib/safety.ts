@@ -154,12 +154,22 @@ export function parseBlockedUsers(raw: unknown): readonly BlockedUser[] {
 }
 
 /** An operator message (GET /api/v1/moderation-notices/{id}): an 이용 안내, or the generic result of the person's own report. */
+export const MODERATION_ACTION_TYPES = ['contentDeleted', 'contentRestored', 'shareRestricted', 'shareRestrictionLifted', 'accountRestricted', 'accountRestrictionLifted'] as const;
+export type ModerationActionType = (typeof MODERATION_ACTION_TYPES)[number];
+
 export interface ModerationNotice {
   readonly id: number;
-  readonly kind: 'warning' | 'reportResult';
+  readonly kind: 'warning' | 'action' | 'reportResult';
   readonly reason: string | null;
   readonly guidance: string | null;
+  readonly createdAtUtc: string | null;
   readonly acknowledgedAtUtc: string | null;
+  /** kind = action only: what was done. */
+  readonly actionType: ModerationActionType | null;
+  /** The content's title as it was when the notice was made - readable after the content is gone. */
+  readonly contentTitle: string | null;
+  readonly contentType: 'Item' | 'Collection' | null;
+  readonly reasonCode: string | null;
 }
 
 /** Untrusted input: anything that is not a recognizable notice is null. */
@@ -168,7 +178,11 @@ export function parseModerationNotice(raw: unknown): ModerationNotice | null {
     return null;
   }
   const value = raw as Record<string, unknown>;
-  if (typeof value.id !== 'number' || (value.kind !== 'warning' && value.kind !== 'reportResult')) {
+  if (typeof value.id !== 'number' || (value.kind !== 'warning' && value.kind !== 'action' && value.kind !== 'reportResult')) {
+    return null;
+  }
+  const actionType = (MODERATION_ACTION_TYPES as readonly unknown[]).includes(value.actionType) ? (value.actionType as ModerationActionType) : null;
+  if (value.kind === 'action' && actionType === null) {
     return null;
   }
   return {
@@ -176,7 +190,12 @@ export function parseModerationNotice(raw: unknown): ModerationNotice | null {
     kind: value.kind,
     reason: typeof value.reason === 'string' ? value.reason : null,
     guidance: typeof value.guidance === 'string' ? value.guidance : null,
+    createdAtUtc: typeof value.createdAtUtc === 'string' ? value.createdAtUtc : null,
     acknowledgedAtUtc: typeof value.acknowledgedAtUtc === 'string' ? value.acknowledgedAtUtc : null,
+    actionType,
+    contentTitle: typeof value.contentTitle === 'string' ? value.contentTitle : null,
+    contentType: value.contentType === 'Item' || value.contentType === 'Collection' ? value.contentType : null,
+    reasonCode: typeof value.reasonCode === 'string' ? value.reasonCode : null,
   };
 }
 

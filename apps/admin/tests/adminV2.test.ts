@@ -7,6 +7,7 @@ import {
   parseReportFilter,
   reportFailureMessage,
   warningDraft,
+  reportNoticeLabel,
   reportReporterLabel,
   answerBlocker,
   answerSendBody,
@@ -311,5 +312,13 @@ describe('신고 관리', () => {
     assert.ok(draft.reason.length > 0 && draft.guidance.length > 0);
     assert.doesNotMatch(draft.reason + draft.guidance, /신고자|@/);
     assert.equal(warningDraft('Unknown').reason, '');
+  });
+
+  it('names each operator message the person was sent, for the operator history', () => {
+    assert.equal(reportNoticeLabel({ kind: 'warning', actionType: null }), '경고');
+    assert.equal(reportNoticeLabel({ kind: 'action', actionType: 'ContentDeleted' }), '삭제 안내');
+    assert.equal(reportNoticeLabel({ kind: 'action', actionType: 'AccountRestrictionLifted' }), '계정 이용 제한 해제 안내');
+    assert.equal(reportNoticeLabel({ kind: 'action', actionType: 'Unknown' }), '운영 안내');
+    assert.match(reportFailureMessage('actionAlreadyApplied') ?? '', /다른 관리자/);
   });
 });

@@ -11,6 +11,7 @@ import {
   reportFailureMessage,
   reportReasonLabel,
   reportReporterLabel,
+  reportNoticeLabel,
   reportStatusLabel,
   reportTargetLabel,
   v2Paths,
@@ -42,6 +43,8 @@ export default function ReportDetailPage() {
   const [pending, setPending] = useState<'warning' | 'delete' | 'restrict' | null>(null);
   const [warnReason, setWarnReason] = useState('');
   const [warnGuidance, setWarnGuidance] = useState('');
+  // The words that reach the PERSON (an operator action notifies them): reviewed here, separate from the internal note above.
+  const [userMessage, setUserMessage] = useState('');
   const detail = updated && updated.reportId === id ? updated : query.data;
 
   if (!id) {
@@ -57,6 +60,7 @@ export default function ReportDetailPage() {
     try {
       setUpdated(await request());
       setNote('');
+      setUserMessage('');
       setPending(null);
     } catch (caught) {
       reportFailure(caught);
@@ -65,7 +69,7 @@ export default function ReportDetailPage() {
       setBusy(false);
     }
   };
-  const body = { note: note.trim() || null };
+  const body = { note: note.trim() || null, message: userMessage.trim() || null };
   const changeStatus = (status: string) => run(() => api<ReportDetail>({ method: 'PUT', path: v2Paths.reportStatus(detail.reportId), body: { status, ...body } }));
 
   return (
@@ -87,6 +91,8 @@ export default function ReportDetailPage() {
             <div><dt>경고</dt><dd>{detail.warningSentAtUtc ? `발송됨 (${formatSeoulInstant(detail.warningSentAtUtc)}) · ${detail.warningAcknowledged ? '확인함' : '미확인'}` : '없음'}</dd></div>
             <div><dt>계정 이용 제한</dt><dd>{detail.targetAccountRestricted ? '적용 중' : '없음'}</dd></div>
             {detail.canDeleteTarget ? <div><dt>삭제 상태</dt><dd>{detail.targetDeleted ? '삭제됨 (복구 가능)' : '삭제되지 않음'}</dd></div> : null}
+            {detail.collectionName ? <div><dt>컬렉션</dt><dd dir="auto">{detail.collectionName}{detail.collectionDeleted ? ' (삭제됨)' : ''}</dd></div> : null}
+            <div><dt>사용자 통지</dt><dd>{detail.notices.length === 0 ? '없음' : `${detail.notices.length}건`}</dd></div>
             <div><dt>공유 제한</dt><dd>{detail.isRestricted ? `적용 중 (${detail.restrictedAtUtc ? formatSeoulInstant(detail.restrictedAtUtc) : ''})` : '없음'}</dd></div>
           </dl>
         </Panel>
@@ -106,6 +112,11 @@ export default function ReportDetailPage() {
             관리자 메모 (대상자에게 공개되지 않음)
             <textarea maxLength={1000} onChange={event => setNote(event.target.value)} value={note} />
           </label>
+          <label>
+            대상자에게 보낼 안내 문구 (삭제·복구·공유 제한·계정 제한 조치는 작성자에게 알림으로 전달돼요. 비워두면 조치 내용만 안내해요)
+            <textarea maxLength={1000} onChange={event => setUserMessage(event.target.value)} value={userMessage} />
+          </label>
+          <p className="v2-muted">신고자의 이름·연락처·신고 설명은 안내 문구에 넣지 마세요.</p>
           {detail.note ? <p className="v2-user-text" dir="auto">현재 메모: {detail.note}</p> : null}
           <div className="v2-actions">
             <button disabled={busy} onClick={() => void changeStatus('InReview')} type="button">검토 중</button>
@@ -143,7 +154,7 @@ export default function ReportDetailPage() {
           {pending === 'warning' ? (
             <div className="v2-confirm" role="group" aria-label="경고 발송 확인">
               <h3>경고 메시지 검토</h3>
-              <p className="v2-muted">아래 내용이 그대로 대상 사용자에게 알림으로 전달됩니다. 신고자의 이름·연락처·신고 설명은 포함하지 마세요. 한 신고에 한 번만 보낼 수 있습니다.</p>
+              <p className="v2-muted">아래 내용이 그대로 대상 사용자에게 알림으로 전달됩니다(앱 안내창 + 푸시). 신고자의 이름·연락처·신고 설명은 포함하지 마세요. 한 신고에 한 번만 보낼 수 있습니다.</p>
               <label>
                 신고 내용 (검토한 사유)
                 <textarea maxLength={500} onChange={event => setWarnReason(event.target.value)} value={warnReason} />
@@ -169,7 +180,7 @@ export default function ReportDetailPage() {
               <h3>{detail.targetType === 'Collection' ? '컬렉션' : '링크'}을 삭제할까요?</h3>
               <p className="v2-muted">휴지통으로 이동합니다(소유자의 삭제 이력). 데이터는 완전히 지워지지 않으며 &quot;삭제 복구&quot;로 되돌릴 수 있습니다. Owner 권한이 필요하고 감사 로그가 남습니다.</p>
               <div className="v2-actions">
-                <button disabled={busy} onClick={() => void run(() => api<ReportDetail>({ method: 'POST', path: v2Paths.reportTargetDelete(detail.reportId), body: { confirm: true, ...body } }))} type="button">삭제 확인</button>
+                <button disabled={busy} onClick={() => void run(() => api<ReportDetail>({ method: 'POST', path: v2Paths.reportTargetDelete(detail.reportId), body: { confirm: true, ...body } }))} type="button">삭제하고 작성자에게 안내 발송</button>
                 <button disabled={busy} onClick={() => setPending(null)} type="button">취소</button>
               </div>
             </div>
@@ -187,6 +198,16 @@ export default function ReportDetailPage() {
           {error ? <p className="v2-state" role="alert">{error}</p> : null}
         </Panel>
         <Panel>
+          <h2>사용자 통지 이력</h2>
+          {detail.notices.length === 0 ? <p className="v2-muted">아직 대상자에게 보낸 안내가 없습니다. 삭제·공유 제한·계정 제한 조치를 하면 자동으로 알림이 생성됩니다.</p> : (
+            <ul>
+              {detail.notices.map(notice => (
+                <li key={notice.noticeId}>
+                  {formatSeoulInstant(notice.createdAtUtc)} · {reportNoticeLabel(notice)} · {notice.acknowledgedAtUtc ? `확인함 (${formatSeoulInstant(notice.acknowledgedAtUtc)})` : '미확인'}
+                </li>
+              ))}
+            </ul>
+          )}
           <h2>이전 신고 이력</h2>
           {detail.priorReports.length === 0 ? <p className="v2-muted">없음</p> : (
             <ul>

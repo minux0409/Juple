@@ -38,12 +38,12 @@ public sealed class AdminReportsController(AdminReportService reports) : Control
     /// <summary>공유 제한 of the reported Collection or link (409 reportNotRestrictable for a person or a comment). Idempotent.</summary>
     [HttpPost("{reportId:long}/restriction")]
     public Task<IActionResult> RestrictAsync(long reportId, [FromBody] ReportNoteRequest? request, CancellationToken cancellationToken) =>
-        Run(async () => Ok(await reports.RestrictAsync(AdminRequestContext.GetRequired(HttpContext).UserId, reportId, request?.Note, cancellationToken)));
+        Run(async () => Ok(await reports.RestrictAsync(AdminRequestContext.GetRequired(HttpContext).UserId, reportId, request?.Note, request?.Message, cancellationToken)));
 
     /// <summary>공유 제한 해제. Idempotent.</summary>
     [HttpPost("{reportId:long}/restriction/lift")]
     public Task<IActionResult> LiftRestrictionAsync(long reportId, [FromBody] ReportNoteRequest? request, CancellationToken cancellationToken) =>
-        Run(async () => Ok(await reports.LiftRestrictionAsync(AdminRequestContext.GetRequired(HttpContext).UserId, reportId, request?.Note, cancellationToken)));
+        Run(async () => Ok(await reports.LiftRestrictionAsync(AdminRequestContext.GetRequired(HttpContext).UserId, reportId, request?.Note, request?.Message, cancellationToken)));
 
     /// <summary>
     /// 경고: the operator's REVIEWED words (신고 내용 + 관리자 안내) go to the person behind the content as an Inbox message and a push. Once per report
@@ -59,7 +59,7 @@ public sealed class AdminReportsController(AdminReportService reports) : Control
         Run(async () =>
         {
             var admin = AdminRequestContext.GetRequired(HttpContext);
-            return Ok(await reports.DeleteTargetAsync(admin.UserId, admin.Role == AdminRole.Owner, reportId, request.Confirm, request.Note, cancellationToken));
+            return Ok(await reports.DeleteTargetAsync(admin.UserId, admin.Role == AdminRole.Owner, reportId, request.Confirm, request.Note, request.Message, cancellationToken));
         });
 
     [HttpPost("{reportId:long}/target/restore")]
@@ -67,7 +67,7 @@ public sealed class AdminReportsController(AdminReportService reports) : Control
         Run(async () =>
         {
             var admin = AdminRequestContext.GetRequired(HttpContext);
-            return Ok(await reports.RestoreTargetAsync(admin.UserId, admin.Role == AdminRole.Owner, reportId, request?.Note, cancellationToken));
+            return Ok(await reports.RestoreTargetAsync(admin.UserId, admin.Role == AdminRole.Owner, reportId, request?.Note, request?.Message, cancellationToken));
         });
 
     /// <summary>계정 이용 제한 (read-only use) of the person behind the content. Owner role only, confirm = true to set it; never an operator's account.</summary>
@@ -76,7 +76,7 @@ public sealed class AdminReportsController(AdminReportService reports) : Control
         Run(async () =>
         {
             var admin = AdminRequestContext.GetRequired(HttpContext);
-            return Ok(await reports.SetAccountRestrictionAsync(admin.UserId, admin.Role == AdminRole.Owner, reportId, restricted: true, request.Confirm, request.Note, cancellationToken));
+            return Ok(await reports.SetAccountRestrictionAsync(admin.UserId, admin.Role == AdminRole.Owner, reportId, restricted: true, request.Confirm, request.Note, request.Message, cancellationToken));
         });
 
     [HttpPost("{reportId:long}/account-restriction/lift")]
@@ -84,7 +84,7 @@ public sealed class AdminReportsController(AdminReportService reports) : Control
         Run(async () =>
         {
             var admin = AdminRequestContext.GetRequired(HttpContext);
-            return Ok(await reports.SetAccountRestrictionAsync(admin.UserId, admin.Role == AdminRole.Owner, reportId, restricted: false, confirm: true, request?.Note, cancellationToken));
+            return Ok(await reports.SetAccountRestrictionAsync(admin.UserId, admin.Role == AdminRole.Owner, reportId, restricted: false, confirm: true, request?.Note, request?.Message, cancellationToken));
         });
 
     private Task<IActionResult> Run(Func<Task<IActionResult>> action) =>
@@ -110,9 +110,10 @@ public sealed class AdminReportsController(AdminReportService reports) : Control
 
     public sealed record ChangeReportStatusRequest(string? Status, string? Note);
 
-    public sealed record ReportNoteRequest(string? Note);
+    /// <summary>Note = the operator's internal note (never leaves Admin); Message = the words that reach the person, reviewed by the operator.</summary>
+    public sealed record ReportNoteRequest(string? Note, string? Message = null);
 
     public sealed record WarnRequest(string? Reason, string? Guidance);
 
-    public sealed record ConfirmedRequest(bool Confirm, string? Note);
+    public sealed record ConfirmedRequest(bool Confirm, string? Note, string? Message = null);
 }

@@ -1526,6 +1526,20 @@
     "acknowledged": "確認済み",
     "acknowledgeFailed": "確認を保存できませんでした。もう一度お試しください。",
     "resultTitle": "通報の処理結果",
-    "resultMessage": "ご報告ありがとうございます。内容の確認が完了しました。必要な対応は運営ポリシーに従って行われますが、個別の対応内容はお知らせしておりません。"
+    "resultMessage": "ご報告ありがとうございます。内容の確認が完了しました。必要な対応は運営ポリシーに従って行われますが、個別の対応内容はお知らせしておりません。",
+    "teamTitle": "Juple 運営チームからのご案内",
+    "contentLabel": "対象コンテンツ",
+    "actedAtLabel": "対応日時",
+    "moreCount": "他に{{count}}件のご案内があります。",
+    "actionContentDeletedLink": "共有された「{{title}}」は運営ポリシーにより削除されました。",
+    "actionContentDeletedCollection": "コレクション「{{title}}」は運営ポリシーにより削除されました。",
+    "actionContentRestoredLink": "共有された「{{title}}」が復元されました。",
+    "actionContentRestoredCollection": "コレクション「{{title}}」が復元されました。",
+    "actionShareRestrictedLink": "共有された「{{title}}」の共有が運営ポリシーにより制限されました。",
+    "actionShareRestrictedCollection": "コレクション「{{title}}」の共有が運営ポリシーにより制限されました。",
+    "actionShareRestrictionLiftedLink": "「{{title}}」の共有制限が解除されました。",
+    "actionShareRestrictionLiftedCollection": "コレクション「{{title}}」の共有制限が解除されました。",
+    "actionAccountRestricted": "アカウントの利用が運営ポリシーにより制限されました。閲覧とお問い合わせは引き続きご利用いただけます。",
+    "actionAccountRestrictionLifted": "アカウントの利用制限が解除されました。"
   }
 }

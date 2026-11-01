@@ -62,7 +62,7 @@ import { ApprovalSubmissionSheet } from '../collections/ApprovalSubmissionSheet'
 import { JoinRequestsSheet } from '../collections/JoinRequestsSheet';
 import { CollectionParticipantsSheet } from '../collections/CollectionParticipantsSheet';
 import { FlagIcon } from '../icons/FlagIcon';
-import { ReportModal } from '../safety/ReportModal';
+import { ReportModal, type ReportTargetPreview } from '../safety/ReportModal';
 import type { ReportTarget } from '../safety/safetyApi';
 import { CollectionUnlockModal } from '../collections/CollectionUnlockModal';
 import { CollectionUnlockPanel } from '../collections/CollectionUnlockPanel';
@@ -347,7 +347,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
 
   const [isParticipantsSheetVisible, setIsParticipantsSheetVisible] = useState(false);
-  const [reporting, setReporting] = useState<{ readonly target: ReportTarget; readonly label: string } | null>(null);
+  const [reporting, setReporting] = useState<{ readonly target: ReportTarget; readonly label: string; readonly preview?: ReportTargetPreview } | null>(null);
   const [isOwnerApprovalSheetVisible, setIsOwnerApprovalSheetVisible] = useState(false);
   // 참여 요청 (people waiting to join): a bottom sheet of its own, opened from its row or from a 참여 요청 notification.
   const [isJoinRequestsSheetVisible, setIsJoinRequestsSheetVisible] = useState(false);
@@ -1557,7 +1557,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       ? [
         // Somebody else's link: 링크 저장, and it can be reported (mine cannot; a personal Collection never has anyone else's link).
         { label: t('item.saveDialogTitle'), icon: ArchiveIcon, onPress: openSaveLink },
-        { label: t('safety.reportLink'), destructive: true, icon: FlagIcon, onPress: () => afterItemMenu(() => setReporting({ target: { type: 'Item', itemId: menuItem.itemId, collectionId }, label: menuItem.title ?? menuItem.url })) },
+        { label: t('safety.reportLink'), destructive: true, icon: FlagIcon, onPress: () => afterItemMenu(() => setReporting({ target: { type: 'Item', itemId: menuItem.itemId, collectionId }, label: menuItem.title ?? menuItem.url, preview: { title: menuItem.title, url: menuItem.url, imageUrl: menuItem.previewImageUrl } })) },
       ]
       : [
         { label: t('common.edit'), icon: EditIcon, onPress: () => { setIsItemActionMenuVisible(false); setActionMenuItem(null); openCollectionItem(menuItem); } },
@@ -1602,7 +1602,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         collection.isMemberLocked
           ? { label: t('collections.lockRemoveAction'), icon: UnlockIcon, onPress: closeCollectionMenuThen(() => setLockDialogMode('remove')) }
           : { label: t('collections.lockSetTitle'), icon: LockIcon, onPress: closeCollectionMenuThen(() => setLockDialogMode('lock')) },
-        { label: t('safety.reportCollection'), destructive: true, icon: FlagIcon, onPress: closeCollectionMenuThen(() => setReporting({ target: { type: 'Collection', collectionId }, label: collection.name })) },
         // An active member can always leave on their own (the Owner cannot - they delete instead).
         { label: t('collections.leaveAction'), destructive: true, icon: LogoutIcon, onPress: closeCollectionMenuThen(() => setIsLeaveConfirmVisible(true)) },
       ];
@@ -2183,6 +2182,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         }}
         target={reporting?.target ?? null}
         targetLabel={reporting?.label}
+        targetPreview={reporting?.preview}
       />
       <CollectionParticipantsSheet
         authenticatedRequest={authenticatedRequest}

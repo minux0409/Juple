@@ -1526,6 +1526,20 @@
     "acknowledged": "已确认",
     "acknowledgeFailed": "无法保存你的确认，请重试。",
     "resultTitle": "举报处理结果",
-    "resultMessage": "感谢你的举报。我们已完成审核。必要的处理将依据运营政策进行，具体处理内容恕不告知。"
+    "resultMessage": "感谢你的举报。我们已完成审核。必要的处理将依据运营政策进行，具体处理内容恕不告知。",
+    "teamTitle": "Juple 运营团队提示",
+    "contentLabel": "相关内容",
+    "actedAtLabel": "处理时间",
+    "moreCount": "还有 {{count}} 条提示。",
+    "actionContentDeletedLink": "你分享的“{{title}}”已根据运营政策被删除。",
+    "actionContentDeletedCollection": "你的合集“{{title}}”已根据运营政策被删除。",
+    "actionContentRestoredLink": "你分享的“{{title}}”已恢复。",
+    "actionContentRestoredCollection": "你的合集“{{title}}”已恢复。",
+    "actionShareRestrictedLink": "你分享的“{{title}}”的分享已根据运营政策受到限制。",
+    "actionShareRestrictedCollection": "你的合集“{{title}}”的分享已根据运营政策受到限制。",
+    "actionShareRestrictionLiftedLink": "“{{title}}”的分享限制已解除。",
+    "actionShareRestrictionLiftedCollection": "合集“{{title}}”的分享限制已解除。",
+    "actionAccountRestricted": "根据运营政策，你的账号使用已受到限制。你仍可查看内容并联系客服。",
+    "actionAccountRestrictionLifted": "你的账号使用限制已解除。"
   }
 }

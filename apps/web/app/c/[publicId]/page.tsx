@@ -155,10 +155,7 @@ export default async function PublicCollectionPage({ params, searchParams }: Pag
         openLabel={dict.open}
         publicId={publicId}
       />
-      {/* Reporting needs a signed-in Juple user: the app's entry for this same link asks for a sign-in first, and sends the report there. */}
-      <p className="footerNote">
-        <a href={`/shared/${encodeURIComponent(publicId)}`} rel="nofollow">{dict.reportCollection}</a>
-      </p>
+      {/* A whole Collection can no longer be reported (its links and people can, inside the signed-in app). */}
       <p className="footerNote">{dict.footerNote}</p>
       {autoOpen}
     </main>

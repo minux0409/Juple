@@ -290,7 +290,7 @@ public static class SocialPushText
     // 이용 안내 / 신고 처리 결과: the push only says that there is a message - the operator's words are read in the app, never put on a lock screen.
     private static readonly Dictionary<string, ModerationText> ModerationByLocale = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["ko"] = new("Juple 이용 안내", "운영팀의 이용 안내가 도착했어요. 앱에서 확인해 주세요.", "신고 처리 결과", "신고하신 내용의 검토가 끝났어요."),
+        ["ko"] = new("Juple 운영팀 안내", "운영팀의 안내가 도착했어요. 앱에서 확인해 주세요.", "신고 처리 결과", "신고하신 내용의 검토가 끝났어요."),
         ["en"] = new("Juple notice", "You have a message from the Juple team. Open the app to read it.", "Report reviewed", "The report you sent has been reviewed."),
         ["ja"] = new("Juple のご案内", "運営チームからのご案内があります。アプリで確認してください。", "通報の処理結果", "ご報告いただいた内容の確認が完了しました。"),
         ["zh-Hans"] = new("Juple 使用提示", "你收到一条来自运营团队的提示，请在应用中查看。", "举报处理结果", "你提交的举报已审核完毕。"),

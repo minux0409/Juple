@@ -2681,11 +2681,26 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("AcknowledgedAtUtc")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<byte?>("ActionType")
+                        .HasColumnType("tinyint");
+
+                    b.Property<string>("ContentTitle")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("ContentType")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
                     b.Property<long?>("CreatedByAdminUserId")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("DedupKey")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
 
                     b.Property<string>("Guidance")
                         .HasMaxLength(1000)
@@ -2698,6 +2713,10 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<string>("ReasonCode")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
                     b.Property<long>("RecipientUserId")
                         .HasColumnType("bigint");
 
@@ -2706,13 +2725,18 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("DedupKey")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ModerationNotices_DedupKey")
+                        .HasFilter("[DedupKey] IS NOT NULL");
+
                     b.HasIndex("RecipientUserId")
                         .HasDatabaseName("IX_ModerationNotices_RecipientUserId");
 
                     b.HasIndex("ReportId", "RecipientUserId", "Kind")
                         .IsUnique()
                         .HasDatabaseName("UX_ModerationNotices_Report_Recipient_Kind")
-                        .HasFilter("[ReportId] IS NOT NULL");
+                        .HasFilter("[ReportId] IS NOT NULL AND [Kind] IN (1, 2)");
 
                     b.ToTable("ModerationNotices", "safety");
                 });

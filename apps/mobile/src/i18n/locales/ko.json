@@ -1526,6 +1526,20 @@
     "acknowledged": "확인함",
     "acknowledgeFailed": "확인 처리를 하지 못했어요. 다시 시도해 주세요.",
     "resultTitle": "신고 처리 결과",
-    "resultMessage": "신고해 주셔서 감사합니다. 접수하신 내용의 검토가 완료되었습니다. 운영 정책에 따라 필요한 조치가 이루어지며, 개별 조치 내용은 안내해 드리지 않습니다."
+    "resultMessage": "신고해 주셔서 감사합니다. 접수하신 내용의 검토가 완료되었습니다. 운영 정책에 따라 필요한 조치가 이루어지며, 개별 조치 내용은 안내해 드리지 않습니다.",
+    "teamTitle": "Juple 운영팀 안내",
+    "contentLabel": "대상 콘텐츠",
+    "actedAtLabel": "조치 일시",
+    "moreCount": "외 {{count}}건의 안내가 더 있어요.",
+    "actionContentDeletedLink": "회원님이 공유한 '{{title}}'이(가) 운영정책에 따라 삭제되었습니다.",
+    "actionContentDeletedCollection": "회원님의 컬렉션 '{{title}}'이(가) 운영정책에 따라 삭제되었습니다.",
+    "actionContentRestoredLink": "회원님이 공유한 '{{title}}'이(가) 복구되었습니다.",
+    "actionContentRestoredCollection": "회원님의 컬렉션 '{{title}}'이(가) 복구되었습니다.",
+    "actionShareRestrictedLink": "회원님이 공유한 '{{title}}'의 공유가 운영정책에 따라 제한되었습니다.",
+    "actionShareRestrictedCollection": "회원님의 컬렉션 '{{title}}'의 공유가 운영정책에 따라 제한되었습니다.",
+    "actionShareRestrictionLiftedLink": "회원님이 공유한 '{{title}}'의 공유 제한이 해제되었습니다.",
+    "actionShareRestrictionLiftedCollection": "회원님의 컬렉션 '{{title}}'의 공유 제한이 해제되었습니다.",
+    "actionAccountRestricted": "회원님 계정의 이용이 운영정책에 따라 제한되었습니다. 내용 보기와 문의는 계속 할 수 있습니다.",
+    "actionAccountRestrictionLifted": "회원님 계정의 이용 제한이 해제되었습니다."
   }
 }

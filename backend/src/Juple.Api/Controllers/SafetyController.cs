@@ -93,6 +93,10 @@ public sealed class SafetyController(
         {
             return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]> { [exception.Field] = [exception.Message] }));
         }
+        catch (ReportTypeNotAcceptedException)
+        {
+            return SafetyProblems.Create(StatusCodes.Status400BadRequest, "A whole Collection can no longer be reported. Report a link or a person instead.", "reportTypeNotAccepted");
+        }
         catch (ReportOwnContentException)
         {
             return SafetyProblems.Create(StatusCodes.Status400BadRequest, "You cannot report your own content.", "cannotReportOwnContent");

@@ -89,6 +89,19 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
         var targetIsOperator = targetUserId is { } operatorCheck && await dbContext.AdminUsers.AsNoTracking().AnyAsync(admin => admin.UserId == operatorCheck && admin.IsActive, cancellationToken);
         var targetRestricted = targetUserId is { } restrictedCheck && await dbContext.Users.AsNoTracking().AnyAsync(user => user.Id == restrictedCheck && user.UsageRestrictedAtUtc != null, cancellationToken);
         var targetDeleted = CanDelete(report) && !exists;
+        var noticeRows = await dbContext.ModerationNotices.AsNoTracking()
+            .Where(notice => notice.ReportId == report.Id && notice.RecipientUserId == targetUserId && notice.Kind != ModerationNoticeKind.ReportResult)
+            .OrderBy(notice => notice.Id)
+            .Select(notice => new { notice.Id, notice.Kind, notice.ActionType, notice.CreatedAtUtc, notice.AcknowledgedAtUtc, notice.Guidance })
+            .ToListAsync(cancellationToken);
+        var notices = noticeRows
+            .Select(row => new AdminReportNoticeEntry(
+                row.Id, row.Kind == ModerationNoticeKind.Warning ? "warning" : "action", row.ActionType?.ToString(), row.CreatedAtUtc, row.AcknowledgedAtUtc, row.Guidance))
+            .ToList();
+        var collection = report.CollectionId is { } collectionId
+            ? await dbContext.Collections.AsNoTracking().Where(candidate => candidate.Id == collectionId)
+                .Select(candidate => new { candidate.Name, Deleted = candidate.DeletedAtUtc != null }).FirstOrDefaultAsync(cancellationToken)
+            : null;
 
         return new AdminReportDetail(
             report.Id, report.CreatedAtUtc, report.TargetType.ToString(), report.TargetId, report.CollectionId, report.Reason.ToString(), report.Details,
@@ -110,6 +123,9 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
             TargetDeleted = targetDeleted,
             CanRestrictAccount = targetUserId is not null && !targetIsOperator,
             TargetAccountRestricted = targetRestricted,
+            Notices = notices,
+            CollectionName = collection?.Name,
+            CollectionDeleted = collection?.Deleted ?? false,
         };
     }
 
@@ -151,8 +167,9 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
         return true;
     }
 
-    public async Task<bool> RestrictAsync(long reportId, string? note, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+    public async Task<bool> RestrictAsync(long reportId, string? note, string? userMessage, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
     {
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
         var report = await dbContext.ContentReports.FirstOrDefaultAsync(candidate => candidate.Id == reportId, cancellationToken);
         if (report is null)
         {
@@ -179,15 +196,21 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
         }
         catch (DbUpdateException exception) when (SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception))
         {
-            // A concurrent restriction of the same thing won: the state asked for is in place.
+            // A concurrent restriction of the same thing won: the state asked for is in place (and it noticed the person).
             dbContext.ChangeTracker.Clear();
+            await transaction.RollbackAsync(cancellationToken);
+            return true;
         }
 
+        // The person hears of it in the same transaction as the restriction: no notice without the action, no action without its notice.
+        await NotifyActionAsync(report, ModerationActionType.ShareRestricted, userMessage, adminUserId, nowUtc, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return true;
     }
 
-    public async Task<bool> LiftRestrictionAsync(long reportId, string? note, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+    public async Task<bool> LiftRestrictionAsync(long reportId, string? note, string? userMessage, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
     {
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
         var report = await dbContext.ContentReports.FirstOrDefaultAsync(candidate => candidate.Id == reportId, cancellationToken);
         if (report is null)
         {
@@ -204,6 +227,8 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
         report.Review(report.Status == ReportStatus.Pending ? ReportStatus.InReview : report.Status, adminUserId, note, nowUtc);
         Audit(adminUserId, AdminAuditActions.ShareRestrictionLifted, reportId, $"{report.TargetType} {report.TargetId}", nowUtc);
         await SaveAsync(cancellationToken);
+        await NotifyActionAsync(report, ModerationActionType.ShareRestrictionLifted, userMessage, adminUserId, nowUtc, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return true;
     }
 
@@ -248,7 +273,7 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
         return true;
     }
 
-    public async Task<bool> DeleteTargetAsync(long reportId, string? note, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+    public async Task<bool> DeleteTargetAsync(long reportId, string? note, string? userMessage, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
     {
         await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
         var report = await dbContext.ContentReports.FirstOrDefaultAsync(candidate => candidate.Id == reportId, cancellationToken);
@@ -262,11 +287,16 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
             throw new AdminReportConflictException(AdminReportConflictException.NotDeletable);
         }
 
+        var changed = false;
         if (report.TargetType == ReportTargetType.Item)
         {
             // Into the owner's trash (the existing soft delete): every Collection stops showing it, and it can be restored.
             var item = await dbContext.Items.FirstOrDefaultAsync(candidate => candidate.Id == report.TargetId, cancellationToken);
-            item?.SoftDelete(nowUtc);
+            if (item is { DeletedAtUtc: null })
+            {
+                item.SoftDelete(nowUtc);
+                changed = true;
+            }
         }
         else
         {
@@ -274,6 +304,7 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
             if (collection is { DeletedAtUtc: null })
             {
                 collection.SoftDelete(nowUtc);
+                changed = true;
                 await Juple.Infrastructure.Collections.JoinRequestHousekeeping.ObsoleteAllPendingAsync(dbContext, collection.Id, nowUtc, cancellationToken);
             }
         }
@@ -281,11 +312,17 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
         report.Review(report.Status == ReportStatus.Pending ? ReportStatus.InReview : report.Status, adminUserId, note, nowUtc);
         Audit(adminUserId, AdminAuditActions.ContentDeleted, reportId, $"{report.TargetType} {report.TargetId}", nowUtc);
         await SaveAsync(cancellationToken);
+        if (changed)
+        {
+            // Only a delete that really changed something is noticed: repeating it (a second click, a reopened report) tells the person nothing new.
+            await NotifyActionAsync(report, ModerationActionType.ContentDeleted, userMessage, adminUserId, nowUtc, cancellationToken);
+        }
+
         await transaction.CommitAsync(cancellationToken);
         return true;
     }
 
-    public async Task<bool> RestoreTargetAsync(long reportId, string? note, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+    public async Task<bool> RestoreTargetAsync(long reportId, string? note, string? userMessage, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
     {
         await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
         var report = await dbContext.ContentReports.FirstOrDefaultAsync(candidate => candidate.Id == reportId, cancellationToken);
@@ -326,11 +363,12 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
 
         Audit(adminUserId, AdminAuditActions.ContentRestored, reportId, $"{report.TargetType} {report.TargetId}", nowUtc);
         await SaveAsync(cancellationToken);
+        await NotifyActionAsync(report, ModerationActionType.ContentRestored, userMessage, adminUserId, nowUtc, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return true;
     }
 
-    public async Task<bool> SetAccountRestrictionAsync(long reportId, bool restricted, string? note, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+    public async Task<bool> SetAccountRestrictionAsync(long reportId, bool restricted, string? note, string? userMessage, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
     {
         await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
         var report = await dbContext.ContentReports.FirstOrDefaultAsync(candidate => candidate.Id == reportId, cancellationToken);
@@ -367,9 +405,72 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
         report.Review(report.Status == ReportStatus.Pending ? ReportStatus.InReview : report.Status, adminUserId, note, nowUtc);
         Audit(adminUserId, restricted ? AdminAuditActions.AccountRestricted : AdminAuditActions.AccountRestrictionLifted, reportId, $"{report.TargetType} {report.TargetId}", nowUtc);
         await SaveAsync(cancellationToken);
+        await NotifyActionAsync(
+            report, restricted ? ModerationActionType.AccountRestricted : ModerationActionType.AccountRestrictionLifted, userMessage, adminUserId, nowUtc, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return true;
     }
+
+    /// <summary>
+    /// The notice for an operator ACTION that really changed something of the person behind the content (the Item's owner, the Collection's owner, the
+    /// account itself), with its Inbox row for the push dispatcher. A snapshot of what it was about (title, type, reason code) and the operator's
+    /// reviewed message; nothing of the report's author or text. Guarded by a per-report, per-action sequence key, so two operators acting at the same
+    /// moment, or a retry, can never notice the same action twice (the second gets the unique violation and the whole action rolls back).
+    /// </summary>
+    private async Task NotifyActionAsync(ContentReport report, ModerationActionType action, string? userMessage, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken)
+    {
+        if (report.TargetUserId is not { } recipientId
+            || !await dbContext.Users.AsNoTracking().AnyAsync(user => user.Id == recipientId, cancellationToken)
+            || await dbContext.AdminUsers.AsNoTracking().AnyAsync(admin => admin.UserId == recipientId && admin.IsActive, cancellationToken))
+        {
+            return;
+        }
+
+        var (title, contentType) = await ContentTitleAsync(report, cancellationToken);
+        var sequence = await dbContext.ModerationNotices.CountAsync(
+            notice => notice.ReportId == report.Id && notice.Kind == ModerationNoticeKind.Action && notice.ActionType == action, cancellationToken) + 1;
+        var notice = new ModerationNotice(
+            recipientId, ModerationNoticeKind.Action, report.Id, null, userMessage, adminUserId, nowUtc, action, title, contentType,
+            report.Reason.ToString(), $"{report.Id}:{(byte)action}:{sequence}");
+        dbContext.ModerationNotices.Add(notice);
+        try
+        {
+            await SaveAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception))
+        {
+            // Another operator applied the same action at the same moment: it is applied (and noticed) once - this whole request rolls back.
+            dbContext.ChangeTracker.Clear();
+            throw new AdminReportConflictException(AdminReportConflictException.ActionAlreadyApplied);
+        }
+
+        dbContext.Notifications.Add(Notification.Social(recipientId, NotificationType.AdminWarning, null, null, notice.Id, $"moderation:{notice.Id}", nowUtc));
+        await SaveAsync(cancellationToken);
+    }
+
+    /// <summary>What the person knows the content as: the current title (also while it is in the trash), else the one the report kept, else the address's host.</summary>
+    private async Task<(string? Title, string? Type)> ContentTitleAsync(ContentReport report, CancellationToken cancellationToken)
+    {
+        if (report.TargetType == ReportTargetType.Item)
+        {
+            var item = await dbContext.Items.AsNoTracking().Where(candidate => candidate.Id == report.TargetId)
+                .Select(candidate => new { candidate.Title, candidate.Url }).FirstOrDefaultAsync(cancellationToken);
+            var title = !string.IsNullOrWhiteSpace(item?.Title) ? item!.Title : report.SnapshotTitle;
+            return (!string.IsNullOrWhiteSpace(title) ? title : HostOf(item?.Url ?? report.SnapshotUrl), "Item");
+        }
+
+        if (report.TargetType == ReportTargetType.Collection)
+        {
+            var name = await dbContext.Collections.AsNoTracking().Where(candidate => candidate.Id == report.TargetId)
+                .Select(candidate => candidate.Name).FirstOrDefaultAsync(cancellationToken);
+            return (!string.IsNullOrWhiteSpace(name) ? name : report.SnapshotTitle, "Collection");
+        }
+
+        return (null, null);
+    }
+
+    private static string? HostOf(string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.Host : null;
 
     /// <summary>The notice and its one Inbox Notification row (the push dispatcher sends it; DB first, a failed push never loses it).</summary>
     private async Task AddNoticeAsync(
@@ -430,5 +531,17 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
     private void Audit(long adminUserId, string action, long reportId, string detail, DateTimeOffset nowUtc) =>
         dbContext.AdminAuditLogs.Add(new AdminAuditLog(adminUserId, action, AdminAuditTargets.ContentReport, reportId.ToString(CultureInfo.InvariantCulture), detail, nowUtc));
 
-    private Task SaveAsync(CancellationToken cancellationToken) => dbContext.SaveChangesAsync(cancellationToken);
+    private async Task SaveAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Another operator changed the same thing between this request's read and its write (the row version moved): it is applied once; this request rolls back.
+            dbContext.ChangeTracker.Clear();
+            throw new AdminReportConflictException(AdminReportConflictException.ActionAlreadyApplied);
+        }
+    }
 }

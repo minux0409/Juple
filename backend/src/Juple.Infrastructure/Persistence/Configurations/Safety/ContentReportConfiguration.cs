@@ -134,12 +134,22 @@ public sealed class ModerationNoticeConfiguration : IEntityTypeConfiguration<Mod
         builder.Property(notice => notice.CreatedByAdminUserId).HasColumnType("bigint");
         builder.Property(notice => notice.CreatedAtUtc).HasColumnType("datetimeoffset").IsRequired();
         builder.Property(notice => notice.AcknowledgedAtUtc).HasColumnType("datetimeoffset");
+        builder.Property(notice => notice.ActionType).HasConversion<byte?>().HasColumnType("tinyint");
+        builder.Property(notice => notice.ContentTitle).HasColumnType("nvarchar(300)").HasMaxLength(ModerationNotice.ContentTitleMaxLength);
+        builder.Property(notice => notice.ContentType).HasColumnType("nvarchar(16)").HasMaxLength(16);
+        builder.Property(notice => notice.ReasonCode).HasColumnType("nvarchar(32)").HasMaxLength(32);
+        builder.Property(notice => notice.DedupKey).HasColumnType("nvarchar(120)").HasMaxLength(120);
 
         // One notice of a kind per report and recipient: the duplicate-send guard (a second warning for the same report is a conflict).
+        // (Only a warning and a result are "once per report"; an action notice may repeat per report - deleted, then restored - and is guarded by its DedupKey.)
         builder.HasIndex(notice => new { notice.ReportId, notice.RecipientUserId, notice.Kind })
             .IsUnique()
-            .HasFilter("[ReportId] IS NOT NULL")
+            .HasFilter("[ReportId] IS NOT NULL AND [Kind] IN (1, 2)")
             .HasDatabaseName("UX_ModerationNotices_Report_Recipient_Kind");
+        builder.HasIndex(notice => notice.DedupKey)
+            .IsUnique()
+            .HasFilter("[DedupKey] IS NOT NULL")
+            .HasDatabaseName("UX_ModerationNotices_DedupKey");
         builder.HasIndex(notice => notice.RecipientUserId).HasDatabaseName("IX_ModerationNotices_RecipientUserId");
     }
 }

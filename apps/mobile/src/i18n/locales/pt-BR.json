@@ -1526,6 +1526,20 @@
     "acknowledged": "Confirmado",
     "acknowledgeFailed": "Não foi possível salvar sua confirmação. Tente novamente.",
     "resultTitle": "Resultado da sua denúncia",
-    "resultMessage": "Obrigado pela sua denúncia. Concluímos a análise. As medidas necessárias são tomadas conforme nossas políticas; não compartilhamos os detalhes de cada medida."
+    "resultMessage": "Obrigado pela sua denúncia. Concluímos a análise. As medidas necessárias são tomadas conforme nossas políticas; não compartilhamos os detalhes de cada medida.",
+    "teamTitle": "Aviso da equipe do Juple",
+    "contentLabel": "Conteúdo",
+    "actedAtLabel": "Data da medida",
+    "moreCount": "Há mais {{count}} aviso(s).",
+    "actionContentDeletedLink": "O link \"{{title}}\" que você compartilhou foi excluído conforme nossas políticas.",
+    "actionContentDeletedCollection": "Sua coleção \"{{title}}\" foi excluída conforme nossas políticas.",
+    "actionContentRestoredLink": "O link \"{{title}}\" que você compartilhou foi restaurado.",
+    "actionContentRestoredCollection": "Sua coleção \"{{title}}\" foi restaurada.",
+    "actionShareRestrictedLink": "O compartilhamento do link \"{{title}}\" foi restringido conforme nossas políticas.",
+    "actionShareRestrictedCollection": "O compartilhamento da sua coleção \"{{title}}\" foi restringido conforme nossas políticas.",
+    "actionShareRestrictionLiftedLink": "A restrição de compartilhamento do link \"{{title}}\" foi removida.",
+    "actionShareRestrictionLiftedCollection": "A restrição de compartilhamento da sua coleção \"{{title}}\" foi removida.",
+    "actionAccountRestricted": "O uso da sua conta foi restringido conforme nossas políticas. Você ainda pode ver seu conteúdo e falar com o suporte.",
+    "actionAccountRestrictionLifted": "A restrição de uso da sua conta foi removida."
   }
 }

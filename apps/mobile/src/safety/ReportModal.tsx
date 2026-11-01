@@ -7,13 +7,37 @@ import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { AppModal } from '../components/AppModal';
 import { DialogActions } from '../components/DialogActions';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
+import { LinkIcon } from '../icons/LinkIcon';
+import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
+import { usablePreviewImageUrl } from '../items/usablePreviewImageUrl';
 import { REPORT_DETAILS_MAX_LENGTH, REPORT_REASONS, submitReport, type ReportReason, type ReportTarget } from './safetyApi';
+
+/** The reported link as the person knows it: its title and picture - never its long address (the server keeps the address as the report's evidence). */
+export interface ReportTargetPreview {
+  readonly title: string | null;
+  readonly url: string | null;
+  readonly imageUrl: string | null;
+}
+
+/** The address's host without a leading "www." - the one small line under the title; null when there is no usable address. */
+function hostOf(url: string | null): string | null {
+  if (!url) {
+    return null;
+  }
+  try {
+    return new URL(url).hostname.replace(/^www\./i, '') || null;
+  } catch {
+    return null;
+  }
+}
 
 interface ReportModalProps {
   /** Null = closed. */
   readonly target: ReportTarget | null;
   /** What is being reported, by name: shown so the person can see they picked the right thing. */
   readonly targetLabel?: string | null;
+  /** A reported link: shown as [thumbnail] title (+ host) instead of the label. */
+  readonly targetPreview?: ReportTargetPreview | null;
   readonly onClose: () => void;
   /** The report was received (or was already open): the screen says so in its own message. */
   readonly onReported: (alreadyReported: boolean) => void;
@@ -24,7 +48,7 @@ interface ReportModalProps {
  * the server decides what may be reported and answers the same for "no such thing" and "you may not see it". A failure stays in the
  * dialog with the draft kept.
  */
-export function ReportModal({ target, targetLabel, onClose, onReported }: ReportModalProps) {
+export function ReportModal({ target, targetLabel, targetPreview, onClose, onReported }: ReportModalProps) {
   const { t } = useTranslation();
   const request = useAuthenticatedApi();
   const [reason, setReason] = useState<ReportReason | null>(null);
@@ -90,7 +114,21 @@ export function ReportModal({ target, targetLabel, onClose, onReported }: Report
       visible
     >
       <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        {targetLabel ? (
+        {targetPreview ? (
+          <View style={styles.target} testID="report-target">
+            <Text style={styles.targetLabel}>{t('safety.reportTargetLabel')}</Text>
+            <View style={styles.preview}>
+              <ItemRepresentativeThumbnail
+                fallback={<LinkIcon color={colors.textSecondary} size={22} />}
+                imageUrl={usablePreviewImageUrl(targetPreview.imageUrl)}
+              />
+              <View style={styles.previewText}>
+                <Text numberOfLines={2} style={styles.targetName} testID="report-target-title">{targetPreview.title?.trim() || hostOf(targetPreview.url) || targetLabel || ''}</Text>
+                {targetPreview.title?.trim() && hostOf(targetPreview.url) ? <Text numberOfLines={1} style={styles.targetHost} testID="report-target-host">{hostOf(targetPreview.url)}</Text> : null}
+              </View>
+            </View>
+          </View>
+        ) : targetLabel ? (
           <View style={styles.target} testID="report-target">
             <Text style={styles.targetLabel}>{t('safety.reportTargetLabel')}</Text>
             <Text numberOfLines={2} style={styles.targetName}>{targetLabel}</Text>
@@ -135,6 +173,9 @@ export function ReportModal({ target, targetLabel, onClose, onReported }: Report
 const styles = themedStyles(() => ({
   target: { marginBottom: spacing.sm },
   targetLabel: { color: colors.textSecondary, fontSize: 12, marginBottom: 2 },
+  preview: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minWidth: 0 },
+  previewText: { flex: 1, flexShrink: 1, minWidth: 0 },
+  targetHost: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
   targetName: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
   heading: { color: colors.textPrimary, fontSize: 15, fontWeight: '700', marginBottom: spacing.sm },
   reason: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs + 2, minHeight: minTouchTarget, paddingHorizontal: spacing.md },

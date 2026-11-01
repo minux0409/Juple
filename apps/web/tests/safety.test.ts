@@ -190,9 +190,10 @@ describe('shared Collection reports, blocks and restriction on the Web', () => {
     assert.deepEqual([...REPORT_REASONS], ['Spam', 'SexualOrInappropriate', 'Harassment', 'IntellectualProperty', 'Other']);
   });
 
-  it('the anonymous page only leads to the signed-in entry; the entry reports, only for a public link', () => {
-    assert.match(source('app/c/[publicId]/page.tsx'), /href=\{`\/shared\/\$\{encodeURIComponent\(publicId\)\}`\}/);
-    assert.match(source('app/(app)/shared/[publicId]/SharedCollectionEntry.tsx'), /entry\.kind === 'publicAdd' \? \([\s\S]*type: 'PublicShare'/);
+  it('no page offers a report of the whole Collection: the anonymous page has no report link and the entry no report button', () => {
+    assert.doesNotMatch(source('app/c/[publicId]/page.tsx'), /reportCollection|\/shared\/\$\{encodeURIComponent\(publicId\)\}`\} rel="nofollow"/);
+    assert.doesNotMatch(source('app/(app)/shared/[publicId]/SharedCollectionEntry.tsx'), /type: 'PublicShare'|data-share-report/);
+    assert.doesNotMatch(source('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx'), /type: 'Collection'/);
   });
 
   it('a link is reportable only when it is not mine; a participant can be blocked, never myself', () => {
@@ -220,7 +221,11 @@ describe('shared Collection reports, blocks and restriction on the Web', () => {
 
 describe('operator notices (이용 안내 / 신고 처리 결과) on the Web', () => {
   it('reads a notice from the server answer and ignores anything else', () => {
-    assert.deepEqual(parseModerationNotice({ id: 3, kind: 'warning', reason: 'r', guidance: 'g', acknowledgedAtUtc: null }), { id: 3, kind: 'warning', reason: 'r', guidance: 'g', acknowledgedAtUtc: null });
+    assert.deepEqual(parseModerationNotice({ id: 3, kind: 'warning', reason: 'r', guidance: 'g', acknowledgedAtUtc: null }), {
+      id: 3, kind: 'warning', reason: 'r', guidance: 'g', createdAtUtc: null, acknowledgedAtUtc: null, actionType: null, contentTitle: null, contentType: null, reasonCode: null,
+    });
+    assert.equal(parseModerationNotice({ id: 8, kind: 'action', actionType: 'contentDeleted', contentTitle: '제목', contentType: 'Item', reasonCode: 'Spam' })?.contentTitle, '제목');
+    assert.equal(parseModerationNotice({ id: 9, kind: 'action', actionType: 'somethingNew' }), null);
     assert.equal(parseModerationNotice({ id: 4, kind: 'reportResult' })?.reason, null);
     assert.equal(parseModerationNotice({ id: 5, kind: 'other' }), null);
     assert.equal(parseModerationNotice(null), null);
@@ -236,5 +241,27 @@ describe('operator notices (이용 안내 / 신고 처리 결과) on the Web', (
   it('a restricted account is told the cause of a refused write', () => {
     assert.equal(ACCOUNT_RESTRICTED_CODE, 'accountRestricted');
     assert.match(source('lib/safety.ts'), /ACCOUNT_RESTRICTED_CODE\) \{\s*return dictionary\.safetyAccountRestricted/);
+  });
+});
+
+describe('operator ACTION notices on the Web', () => {
+  it('words an action from its snapshot, in the person\'s language - and an account action without any content', async () => {
+    const { moderationActionSentence, moderationReasonWords } = await import('../lib/moderationNoticeText.ts');
+    const base = { id: 1, kind: 'action' as const, reason: null, guidance: null, createdAtUtc: null, acknowledgedAtUtc: null, reasonCode: 'Spam' };
+    assert.match(
+      moderationActionSentence({ ...base, actionType: 'contentDeleted', contentTitle: '내 링크', contentType: 'Item' }, dictionary) ?? '',
+      /'내 링크'이\(가\) 운영정책에 따라 삭제되었습니다/,
+    );
+    assert.match(moderationActionSentence({ ...base, actionType: 'shareRestricted', contentTitle: '내 컬렉션', contentType: 'Collection' }, dictionary) ?? '', /컬렉션 '내 컬렉션'/);
+    assert.equal(moderationActionSentence({ ...base, actionType: 'accountRestricted', contentTitle: null, contentType: null }, dictionary), dictionary.moderationActionAccountRestricted);
+    assert.equal(moderationActionSentence({ ...base, kind: 'warning', actionType: null, contentTitle: null, contentType: null }, dictionary), null);
+    assert.equal(moderationReasonWords('Spam', dictionary), dictionary.safetyReasonSpam);
+    assert.equal(moderationReasonWords('SomethingNew', dictionary), null);
+  });
+
+  it('the notice page needs only the notice itself - it never looks the (deleted) content up', () => {
+    const page = source('app/(app)/me/notice-from-juple/[noticeId]/page.tsx');
+    assert.doesNotMatch(page, /\/api\/v1\/items|\/api\/v1\/collections/);
+    assert.match(page, /data-notice-date/);
   });
 });

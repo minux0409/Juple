@@ -56,6 +56,11 @@ public sealed class ReportService(ISafetyStore store, TimeProvider timeProvider)
             throw new InvalidReportException("reason", "reason must be one of the supported reasons.");
         }
 
+        if (targetType == ReportTargetType.Collection)
+        {
+            throw new ReportTypeNotAcceptedException();
+        }
+
         var targetId = command.TargetId?.Trim();
         if (string.IsNullOrEmpty(targetId) || targetId.Length > 64)
         {
@@ -87,31 +92,12 @@ public sealed class ReportService(ISafetyStore store, TimeProvider timeProvider)
         return await SaveAsync(reporterUserId, targetType, resolution, reason, details, cancellationToken);
     }
 
-    public async Task<ReportReceiptDto> CreateForPublicShareAsync(long reporterUserId, string? publicId, string? reason, string? details, CancellationToken cancellationToken = default)
-    {
-        if (!TryParse<ReportReason>(reason, out var parsedReason))
-        {
-            throw new InvalidReportException("reason", "reason must be one of the supported reasons.");
-        }
-
-        var normalizedDetails = NormalizeDetails(details);
-        var trimmed = publicId?.Trim();
-        if (string.IsNullOrEmpty(trimmed) || trimmed.Length > 64)
-        {
-            throw new ReportTargetNotFoundException();
-        }
-
-        var resolution = await store.ResolvePublicShareTargetAsync(reporterUserId, trimmed, cancellationToken);
-        switch (resolution.Outcome)
-        {
-            case ReportTargetOutcome.NotFound:
-                throw new ReportTargetNotFoundException();
-            case ReportTargetOutcome.Own:
-                throw new ReportOwnContentException();
-        }
-
-        return await SaveAsync(reporterUserId, ReportTargetType.Collection, resolution, parsedReason, normalizedDetails, cancellationToken);
-    }
+    /// <summary>
+    /// A shared Collection's public link IS a Collection: it is no longer reportable (reports of its links and its people are). Reports made earlier
+    /// stay as they were. The old resolution (<c>ResolvePublicShareTargetAsync</c>) is kept in the store for them.
+    /// </summary>
+    public Task<ReportReceiptDto> CreateForPublicShareAsync(long reporterUserId, string? publicId, string? reason, string? details, CancellationToken cancellationToken = default) =>
+        throw new ReportTypeNotAcceptedException();
 
     private async Task<ReportReceiptDto> SaveAsync(
         long reporterUserId, ReportTargetType targetType, ReportTargetResolution resolution, ReportReason reason, string? details, CancellationToken cancellationToken)

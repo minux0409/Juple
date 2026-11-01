@@ -1526,6 +1526,20 @@
     "acknowledged": "Confermato",
     "acknowledgeFailed": "Impossibile salvare la conferma. Riprova.",
     "resultTitle": "Esito della segnalazione",
-    "resultMessage": "Grazie per la segnalazione. Abbiamo terminato di esaminarla. Le misure necessarie vengono prese secondo le nostre norme; non comunichiamo i dettagli delle singole misure."
+    "resultMessage": "Grazie per la segnalazione. Abbiamo terminato di esaminarla. Le misure necessarie vengono prese secondo le nostre norme; non comunichiamo i dettagli delle singole misure.",
+    "teamTitle": "Avviso del team Juple",
+    "contentLabel": "Contenuto",
+    "actedAtLabel": "Data del provvedimento",
+    "moreCount": "Ci sono altri {{count}} avvisi.",
+    "actionContentDeletedLink": "Il link «{{title}}» che hai condiviso è stato eliminato secondo le nostre norme.",
+    "actionContentDeletedCollection": "La tua raccolta «{{title}}» è stata eliminata secondo le nostre norme.",
+    "actionContentRestoredLink": "Il link «{{title}}» che hai condiviso è stato ripristinato.",
+    "actionContentRestoredCollection": "La tua raccolta «{{title}}» è stata ripristinata.",
+    "actionShareRestrictedLink": "La condivisione del link «{{title}}» è stata limitata secondo le nostre norme.",
+    "actionShareRestrictedCollection": "La condivisione della tua raccolta «{{title}}» è stata limitata secondo le nostre norme.",
+    "actionShareRestrictionLiftedLink": "La limitazione di condivisione del link «{{title}}» è stata rimossa.",
+    "actionShareRestrictionLiftedCollection": "La limitazione di condivisione della tua raccolta «{{title}}» è stata rimossa.",
+    "actionAccountRestricted": "L'uso del tuo account è stato limitato secondo le nostre norme. Puoi comunque vedere i tuoi contenuti e contattare l'assistenza.",
+    "actionAccountRestrictionLifted": "La limitazione all'uso del tuo account è stata rimossa."
   }
 }

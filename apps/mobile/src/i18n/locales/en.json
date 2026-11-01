@@ -1526,6 +1526,20 @@
     "acknowledged": "Confirmed",
     "acknowledgeFailed": "Couldn't save your confirmation. Please try again.",
     "resultTitle": "Report reviewed",
-    "resultMessage": "Thank you for your report. We've finished reviewing it. Any needed action is taken under our policies; we don't share the details of individual actions."
+    "resultMessage": "Thank you for your report. We've finished reviewing it. Any needed action is taken under our policies; we don't share the details of individual actions.",
+    "teamTitle": "Juple team notice",
+    "contentLabel": "Content",
+    "actedAtLabel": "Action taken",
+    "moreCount": "{{count}} more notice(s) waiting.",
+    "actionContentDeletedLink": "The link \"{{title}}\" you shared was deleted under our policies.",
+    "actionContentDeletedCollection": "Your collection \"{{title}}\" was deleted under our policies.",
+    "actionContentRestoredLink": "The link \"{{title}}\" you shared was restored.",
+    "actionContentRestoredCollection": "Your collection \"{{title}}\" was restored.",
+    "actionShareRestrictedLink": "Sharing of the link \"{{title}}\" you shared was restricted under our policies.",
+    "actionShareRestrictedCollection": "Sharing of your collection \"{{title}}\" was restricted under our policies.",
+    "actionShareRestrictionLiftedLink": "The sharing restriction on the link \"{{title}}\" was lifted.",
+    "actionShareRestrictionLiftedCollection": "The sharing restriction on your collection \"{{title}}\" was lifted.",
+    "actionAccountRestricted": "Your account's use was restricted under our policies. You can still view your content and contact support.",
+    "actionAccountRestrictionLifted": "The restriction on your account's use was lifted."
   }
 }

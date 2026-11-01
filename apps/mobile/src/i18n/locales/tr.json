@@ -1526,6 +1526,20 @@
     "acknowledged": "Onaylandı",
     "acknowledgeFailed": "Onayınız kaydedilemedi. Lütfen tekrar deneyin.",
     "resultTitle": "Şikâyet sonucu",
-    "resultMessage": "Şikâyetiniz için teşekkürler. İncelemeyi tamamladık. Gerekli işlemler politikalarımıza göre yapılır; tek tek işlemlerin ayrıntılarını paylaşmıyoruz."
+    "resultMessage": "Şikâyetiniz için teşekkürler. İncelemeyi tamamladık. Gerekli işlemler politikalarımıza göre yapılır; tek tek işlemlerin ayrıntılarını paylaşmıyoruz.",
+    "teamTitle": "Juple ekibinden bildirim",
+    "contentLabel": "İlgili içerik",
+    "actedAtLabel": "İşlem zamanı",
+    "moreCount": "{{count}} bildirim daha var.",
+    "actionContentDeletedLink": "Paylaştığınız \"{{title}}\" bağlantısı politikalarımız gereği silindi.",
+    "actionContentDeletedCollection": "\"{{title}}\" koleksiyonunuz politikalarımız gereği silindi.",
+    "actionContentRestoredLink": "Paylaştığınız \"{{title}}\" bağlantısı geri yüklendi.",
+    "actionContentRestoredCollection": "\"{{title}}\" koleksiyonunuz geri yüklendi.",
+    "actionShareRestrictedLink": "\"{{title}}\" bağlantısının paylaşımı politikalarımız gereği kısıtlandı.",
+    "actionShareRestrictedCollection": "\"{{title}}\" koleksiyonunuzun paylaşımı politikalarımız gereği kısıtlandı.",
+    "actionShareRestrictionLiftedLink": "\"{{title}}\" bağlantısının paylaşım kısıtlaması kaldırıldı.",
+    "actionShareRestrictionLiftedCollection": "\"{{title}}\" koleksiyonunuzun paylaşım kısıtlaması kaldırıldı.",
+    "actionAccountRestricted": "Hesabınızın kullanımı politikalarımız gereği kısıtlandı. İçeriğinizi görüntülemeye ve destekle iletişime geçmeye devam edebilirsiniz.",
+    "actionAccountRestrictionLifted": "Hesabınızın kullanım kısıtlaması kaldırıldı."
   }
 }

@@ -186,7 +186,6 @@ public sealed class SafetyIntegrationTests : IAsyncLifetime
         var item = await NewItemInAsync(me, collection);
 
         await Assert.ThrowsAsync<ReportOwnContentException>(() => Reports().CreateAsync(me, new CreateReportCommand("User", myCode, null, "Spam", null)));
-        await Assert.ThrowsAsync<ReportOwnContentException>(() => Reports().CreateAsync(me, new CreateReportCommand("Collection", collection.ToString(), null, "Spam", null)));
         await Assert.ThrowsAsync<ReportOwnContentException>(() => Reports().CreateAsync(me, new CreateReportCommand("Item", item.ToString(), collection, "Spam", null)));
     }
 
@@ -200,19 +199,17 @@ public sealed class SafetyIntegrationTests : IAsyncLifetime
         var item = await NewItemInAsync(owner, collection);
         var comment = (await new CollectionItemCommentStore(NewContext()).CreateAsync(owner, collection, item, "hello", DateTimeOffset.UtcNow))!.Comment.Id;
 
-        Assert.False((await Reports().CreateAsync(member, new CreateReportCommand("Collection", collection.ToString(), null, "Illegal", "[safety-test] c"))).AlreadyReported);
         Assert.False((await Reports().CreateAsync(member, new CreateReportCommand("Item", item.ToString(), collection, "ScamOrMaliciousLink", "[safety-test] i"))).AlreadyReported);
         Assert.False((await Reports().CreateAsync(member, new CreateReportCommand("Comment", comment.ToString(), null, "HateOrAbuse", "[safety-test] m"))).AlreadyReported);
 
         var stored = await NewContext().ContentReports.AsNoTracking().Where(report => report.ReporterUserId == member).ToListAsync();
-        Assert.Equal(3, stored.Count);
+        Assert.Equal(2, stored.Count);
         Assert.All(stored, report => Assert.Equal(owner, report.TargetUserId));
         Assert.Equal(collection, stored.Single(report => report.TargetType == ReportTargetType.Comment).CollectionId);
 
         // Somebody who cannot see the Collection gets the same "not found" for all three - ids reveal nothing.
         foreach (var command in new[]
         {
-            new CreateReportCommand("Collection", collection.ToString(), null, "Spam", null),
             new CreateReportCommand("Item", item.ToString(), collection, "Spam", null),
             new CreateReportCommand("Comment", comment.ToString(), null, "Spam", null),
         })
@@ -222,7 +219,27 @@ public sealed class SafetyIntegrationTests : IAsyncLifetime
 
         // An Item is only reported THROUGH a Collection that holds it.
         await Assert.ThrowsAsync<ReportTargetNotFoundException>(() => Reports().CreateAsync(member, new CreateReportCommand("Item", item.ToString(), null, "Spam", null)));
-        await Assert.ThrowsAsync<ReportTargetNotFoundException>(() => Reports().CreateAsync(member, new CreateReportCommand("Collection", "999999999", null, "Spam", null)));
+    }
+
+    [Fact]
+    public async Task Report_OfAWholeCollection_IsNoLongerAccepted_ButLinksAndPeopleStayReportable()
+    {
+        var (owner, ownerCode) = await NewUserAsync();
+        var (member, _) = await NewUserAsync();
+        var collection = await NewCollectionAsync(owner, member);
+        var item = await NewItemInAsync(owner, collection);
+        await _db.CollectionShares.Where(share => share.CollectionId == collection).ExecuteUpdateAsync(setters => setters.SetProperty(share => share.IsPublic, true));
+        var publicId = await _db.CollectionShares.Where(share => share.CollectionId == collection).Select(share => share.PublicId).FirstAsync();
+
+        // A Collection - by id or through its public link - is refused with its own stable error (whoever asks, owner or not); nothing is stored.
+        await Assert.ThrowsAsync<ReportTypeNotAcceptedException>(() => Reports().CreateAsync(member, new CreateReportCommand("Collection", collection.ToString(), null, "Spam", null)));
+        await Assert.ThrowsAsync<ReportTypeNotAcceptedException>(() => Reports().CreateAsync(owner, new CreateReportCommand("Collection", "999999999", null, "Spam", null)));
+        await Assert.ThrowsAsync<ReportTypeNotAcceptedException>(() => Reports().CreateForPublicShareAsync(member, publicId, "Spam", null));
+        Assert.False(await NewContext().ContentReports.AnyAsync(report => report.TargetType == ReportTargetType.Collection && report.TargetId == collection));
+
+        // A link and a person are still received.
+        Assert.False((await Reports().CreateAsync(member, new CreateReportCommand("Item", item.ToString(), collection, "Spam", null))).AlreadyReported);
+        Assert.False((await Reports().CreateAsync(member, new CreateReportCommand("User", ownerCode, null, "Spam", null))).AlreadyReported);
     }
 
     [Fact]
@@ -233,12 +250,12 @@ public sealed class SafetyIntegrationTests : IAsyncLifetime
 
         await Assert.ThrowsAsync<InvalidReportException>(() => Reports().CreateAsync(reporter, new CreateReportCommand("Nope", "1", null, "Spam", null)));
         await Assert.ThrowsAsync<InvalidReportException>(() => Reports().CreateAsync(reporter, new CreateReportCommand("collection", "1", null, "Spam", null)));
-        await Assert.ThrowsAsync<InvalidReportException>(() => Reports().CreateAsync(reporter, new CreateReportCommand("Collection", collection.ToString(), null, "spam", null)));
-        await Assert.ThrowsAsync<InvalidReportException>(() => Reports().CreateAsync(reporter, new CreateReportCommand("Collection", "abc", null, "Spam", null)));
-        await Assert.ThrowsAsync<InvalidReportException>(() => Reports().CreateAsync(reporter, new CreateReportCommand("Collection", "-4", null, "Spam", null)));
-        await Assert.ThrowsAsync<InvalidReportException>(() => Reports().CreateAsync(reporter, new CreateReportCommand("Collection", "1", null, "Spam", new string('x', ContentReport.DetailsMaxLength + 1))));
-        await Assert.ThrowsAsync<InvalidReportException>(() => Reports().CreateAsync(reporter, new CreateReportCommand("Collection", "1", null, "Spam", "bad\u0007text")));
-        await Assert.ThrowsAsync<InvalidReportException>(() => Reports().CreateAsync(reporter, new CreateReportCommand("Collection", "1", 0, "Spam", null)));
+        await Assert.ThrowsAsync<InvalidReportException>(() => Reports().CreateAsync(reporter, new CreateReportCommand("Item", collection.ToString(), null, "spam", null)));
+        await Assert.ThrowsAsync<InvalidReportException>(() => Reports().CreateAsync(reporter, new CreateReportCommand("Item", "abc", null, "Spam", null)));
+        await Assert.ThrowsAsync<InvalidReportException>(() => Reports().CreateAsync(reporter, new CreateReportCommand("Item", "-4", null, "Spam", null)));
+        await Assert.ThrowsAsync<InvalidReportException>(() => Reports().CreateAsync(reporter, new CreateReportCommand("Item", "1", null, "Spam", new string('x', ContentReport.DetailsMaxLength + 1))));
+        await Assert.ThrowsAsync<InvalidReportException>(() => Reports().CreateAsync(reporter, new CreateReportCommand("Item", "1", null, "Spam", "bad\u0007text")));
+        await Assert.ThrowsAsync<InvalidReportException>(() => Reports().CreateAsync(reporter, new CreateReportCommand("Item", "1", 0, "Spam", null)));
     }
 
     [Fact]

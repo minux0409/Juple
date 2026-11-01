@@ -1526,6 +1526,20 @@
     "acknowledged": "Confirmado",
     "acknowledgeFailed": "No se pudo guardar tu confirmación. Inténtalo de nuevo.",
     "resultTitle": "Resultado de tu denuncia",
-    "resultMessage": "Gracias por tu denuncia. Hemos terminado de revisarla. Las medidas necesarias se toman según nuestras políticas; no compartimos los detalles de cada medida."
+    "resultMessage": "Gracias por tu denuncia. Hemos terminado de revisarla. Las medidas necesarias se toman según nuestras políticas; no compartimos los detalles de cada medida.",
+    "teamTitle": "Aviso del equipo de Juple",
+    "contentLabel": "Contenido",
+    "actedAtLabel": "Fecha de la medida",
+    "moreCount": "Hay {{count}} aviso(s) más.",
+    "actionContentDeletedLink": "El enlace «{{title}}» que compartiste se eliminó según nuestras políticas.",
+    "actionContentDeletedCollection": "Tu colección «{{title}}» se eliminó según nuestras políticas.",
+    "actionContentRestoredLink": "El enlace «{{title}}» que compartiste se restauró.",
+    "actionContentRestoredCollection": "Tu colección «{{title}}» se restauró.",
+    "actionShareRestrictedLink": "Se restringió el uso compartido del enlace «{{title}}» según nuestras políticas.",
+    "actionShareRestrictedCollection": "Se restringió el uso compartido de tu colección «{{title}}» según nuestras políticas.",
+    "actionShareRestrictionLiftedLink": "Se levantó la restricción de uso compartido del enlace «{{title}}».",
+    "actionShareRestrictionLiftedCollection": "Se levantó la restricción de uso compartido de tu colección «{{title}}».",
+    "actionAccountRestricted": "El uso de tu cuenta se restringió según nuestras políticas. Aún puedes ver tu contenido y contactar con soporte.",
+    "actionAccountRestrictionLifted": "Se levantó la restricción de uso de tu cuenta."
   }
 }

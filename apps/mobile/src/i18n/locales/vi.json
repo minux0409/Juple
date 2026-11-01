@@ -1526,6 +1526,20 @@
     "acknowledged": "Đã xác nhận",
     "acknowledgeFailed": "Không thể lưu xác nhận của bạn. Vui lòng thử lại.",
     "resultTitle": "Kết quả báo cáo",
-    "resultMessage": "Cảm ơn bạn đã báo cáo. Chúng tôi đã xem xét xong. Các biện pháp cần thiết được thực hiện theo chính sách; chúng tôi không chia sẻ chi tiết từng biện pháp."
+    "resultMessage": "Cảm ơn bạn đã báo cáo. Chúng tôi đã xem xét xong. Các biện pháp cần thiết được thực hiện theo chính sách; chúng tôi không chia sẻ chi tiết từng biện pháp.",
+    "teamTitle": "Thông báo từ đội ngũ Juple",
+    "contentLabel": "Nội dung liên quan",
+    "actedAtLabel": "Thời điểm xử lý",
+    "moreCount": "Còn {{count}} thông báo nữa.",
+    "actionContentDeletedLink": "Liên kết \"{{title}}\" bạn đã chia sẻ đã bị xóa theo chính sách của chúng tôi.",
+    "actionContentDeletedCollection": "Bộ sưu tập \"{{title}}\" của bạn đã bị xóa theo chính sách của chúng tôi.",
+    "actionContentRestoredLink": "Liên kết \"{{title}}\" bạn đã chia sẻ đã được khôi phục.",
+    "actionContentRestoredCollection": "Bộ sưu tập \"{{title}}\" của bạn đã được khôi phục.",
+    "actionShareRestrictedLink": "Việc chia sẻ liên kết \"{{title}}\" đã bị hạn chế theo chính sách của chúng tôi.",
+    "actionShareRestrictedCollection": "Việc chia sẻ bộ sưu tập \"{{title}}\" của bạn đã bị hạn chế theo chính sách của chúng tôi.",
+    "actionShareRestrictionLiftedLink": "Hạn chế chia sẻ của liên kết \"{{title}}\" đã được gỡ bỏ.",
+    "actionShareRestrictionLiftedCollection": "Hạn chế chia sẻ của bộ sưu tập \"{{title}}\" đã được gỡ bỏ.",
+    "actionAccountRestricted": "Việc sử dụng tài khoản của bạn đã bị hạn chế theo chính sách. Bạn vẫn có thể xem nội dung và liên hệ hỗ trợ.",
+    "actionAccountRestrictionLifted": "Hạn chế sử dụng tài khoản của bạn đã được gỡ bỏ."
   }
 }

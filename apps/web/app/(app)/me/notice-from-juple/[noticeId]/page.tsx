@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { isSessionLost } from '../../../../../lib/authSession';
+import { moderationActionSentence, moderationReasonWords } from '../../../../../lib/moderationNoticeText';
 import { parseModerationNotice, type ModerationNotice } from '../../../../../lib/safety';
 import { useSignedInApp } from '../../../AppRoot';
 import { LoadFailed } from '../../../PageStates';
@@ -14,7 +15,7 @@ import styles from '../../../app.module.css';
  * operator's reviewed text, shown as plain text; the report itself (who reported, what they wrote) is never part of it.
  */
 export default function ModerationNoticePage() {
-  const { api, dictionary, onSessionLost } = useSignedInApp();
+  const { api, dictionary, locale, onSessionLost } = useSignedInApp();
   const raw = useParams<{ noticeId: string }>().noticeId;
   const id = /^[1-9][0-9]{0,17}$/.test(raw ?? '') ? Number(raw) : null;
   const [notice, setNotice] = useState<ModerationNotice | null>(null);
@@ -68,9 +69,11 @@ export default function ModerationNoticePage() {
     );
   };
 
-  const isWarning = notice?.kind === 'warning';
+  const isResult = notice?.kind === 'reportResult';
+  const intro = notice ? (isResult ? dictionary.moderationResultMessage : moderationActionSentence(notice, dictionary) ?? dictionary.moderationWarningIntro) : '';
+  const reasonWords = notice ? (notice.kind === 'warning' ? notice.reason : notice.reasonCode ? moderationReasonWords(notice.reasonCode, dictionary) : null) : null;
   return (
-    <SettingsPage backHref="/me" icon="Bell" title={isWarning ? dictionary.moderationWarningTitle : dictionary.moderationResultTitle} width="medium">
+    <SettingsPage backHref="/me" icon="Bell" title={isResult ? dictionary.moderationResultTitle : dictionary.moderationTeamTitle} width="medium">
       {failed || id === null ? (
         <LoadFailed
           dictionary={dictionary}
@@ -82,19 +85,24 @@ export default function ModerationNoticePage() {
       ) : null}
       {notice ? (
         <section className={styles.settingsCard} data-moderation-notice>
-          <p>{isWarning ? dictionary.moderationWarningIntro : dictionary.moderationResultMessage}</p>
-          {isWarning && notice.reason ? (
+          <p data-notice-intro>{intro}</p>
+          {!isResult && reasonWords ? (
             <p data-notice-reason dir="auto">
               <strong>{dictionary.moderationReasonLabel}</strong>
               <br />
-              {notice.reason}
+              {reasonWords}
             </p>
           ) : null}
-          {isWarning && notice.guidance ? (
+          {!isResult && notice.guidance ? (
             <p data-notice-guidance dir="auto">
               <strong>{dictionary.moderationGuidanceLabel}</strong>
               <br />
               {notice.guidance}
+            </p>
+          ) : null}
+          {!isResult && notice.createdAtUtc ? (
+            <p className={styles.profileId} data-notice-date>
+              {dictionary.moderationActedAtLabel} · {new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(notice.createdAtUtc))}
             </p>
           ) : null}
           {saveFailed ? <p className={styles.fieldError} role="alert">{dictionary.moderationAcknowledgeFailed}</p> : null}

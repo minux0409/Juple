@@ -21,6 +21,14 @@ public sealed class ModerationNoticesController(
     IExternalIdentityAccessor externalIdentityAccessor,
     TimeProvider timeProvider) : ControllerBase
 {
+    /// <summary>The operator messages (warning / action) this person has not confirmed yet, oldest first (at most 20) - what the app shows as 운영팀 안내.</summary>
+    [HttpGet("unacknowledged")]
+    public async Task<IActionResult> ListUnacknowledgedAsync(CancellationToken cancellationToken)
+    {
+        var user = await currentUserAccessor.GetRequiredAsync(externalIdentityAccessor.GetRequired(), cancellationToken);
+        return Ok(new { items = await store.ListUnacknowledgedAsync(user.UserId, 20, cancellationToken) });
+    }
+
     [HttpGet("{noticeId:long}")]
     public async Task<IActionResult> GetAsync(long noticeId, CancellationToken cancellationToken)
     {

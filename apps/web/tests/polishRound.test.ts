@@ -53,12 +53,11 @@ describe('Collection merge picker: List | Grid', () => {
   });
 });
 
-describe('Collection report on the shared branch of the Collection menu', () => {
-  it('the report sits only on the member branch, before leaving; the lock/delete branch has none', () => {
-    const memberBranch = detail.slice(detail.indexOf("key: 'report'"), detail.indexOf("key: 'leave'"));
-    assert.match(memberBranch, /dictionary\.safetyReportCollection/);
-    assert.ok(detail.indexOf("key: 'report'") < detail.indexOf("key: 'delete'"));
-    assert.equal((detail.match(/key: 'report'/g) ?? []).length, 1);
+describe('No whole-Collection report in the Collection menu (the server no longer accepts one)', () => {
+  it('neither the member branch nor the lock/delete branch has a report entry, and the member still leaves', () => {
+    assert.equal((detail.match(/key: 'report'/g) ?? []).length, 0);
+    assert.doesNotMatch(detail, /safetyReportCollection/);
+    assert.match(detail, /key: 'leave'/);
   });
 
   it('comment reports still exist', () => {

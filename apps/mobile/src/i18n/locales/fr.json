@@ -1526,6 +1526,20 @@
     "acknowledged": "Confirmé",
     "acknowledgeFailed": "Impossible d'enregistrer votre confirmation. Veuillez réessayer.",
     "resultTitle": "Résultat de votre signalement",
-    "resultMessage": "Merci pour votre signalement. Nous avons terminé son examen. Les mesures nécessaires sont prises selon nos règles ; nous ne communiquons pas le détail de chaque mesure."
+    "resultMessage": "Merci pour votre signalement. Nous avons terminé son examen. Les mesures nécessaires sont prises selon nos règles ; nous ne communiquons pas le détail de chaque mesure.",
+    "teamTitle": "Avis de l'équipe Juple",
+    "contentLabel": "Contenu concerné",
+    "actedAtLabel": "Date de la mesure",
+    "moreCount": "{{count}} autre(s) avis en attente.",
+    "actionContentDeletedLink": "Le lien « {{title}} » que vous avez partagé a été supprimé conformément à nos règles.",
+    "actionContentDeletedCollection": "Votre collection « {{title}} » a été supprimée conformément à nos règles.",
+    "actionContentRestoredLink": "Le lien « {{title}} » que vous avez partagé a été rétabli.",
+    "actionContentRestoredCollection": "Votre collection « {{title}} » a été rétablie.",
+    "actionShareRestrictedLink": "Le partage du lien « {{title}} » a été restreint conformément à nos règles.",
+    "actionShareRestrictedCollection": "Le partage de votre collection « {{title}} » a été restreint conformément à nos règles.",
+    "actionShareRestrictionLiftedLink": "La restriction de partage du lien « {{title}} » a été levée.",
+    "actionShareRestrictionLiftedCollection": "La restriction de partage de votre collection « {{title}} » a été levée.",
+    "actionAccountRestricted": "L'utilisation de votre compte a été restreinte conformément à nos règles. Vous pouvez toujours consulter votre contenu et contacter l'assistance.",
+    "actionAccountRestrictionLifted": "La restriction d'utilisation de votre compte a été levée."
   }
 }

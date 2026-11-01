@@ -100,9 +100,13 @@ public sealed class SharedContentModerationIntegrationTests : IAsyncLifetime
     private async Task<long> ReportIdAsync(long reporter, ReportTargetType type, long targetId) =>
         await NewContext().ContentReports.Where(report => report.ReporterUserId == reporter && report.TargetType == type && report.TargetId == targetId).Select(report => report.Id).FirstAsync();
 
+    /// <summary>A report of a whole Collection as it existed BEFORE they stopped being accepted (no new one can be made): seeded directly, so Admin's handling of the old ones stays covered.</summary>
     private async Task<long> ReportCollectionAsync(long reporter, long collectionId)
     {
-        await Reports().CreateAsync(reporter, new CreateReportCommand("Collection", collectionId.ToString(), null, "Spam", Marker));
+        var collection = await _db.Collections.AsNoTracking().Where(entry => entry.Id == collectionId).Select(entry => new { entry.UserId, entry.Name }).FirstAsync();
+        _db.ContentReports.Add(new ContentReport(reporter, ReportTargetType.Collection, collectionId, collection.UserId, collectionId, ReportReason.Spam, Marker, DateTimeOffset.UtcNow, collection.Name));
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
         return await ReportIdAsync(reporter, ReportTargetType.Collection, collectionId);
     }
 
@@ -118,16 +122,21 @@ public sealed class SharedContentModerationIntegrationTests : IAsyncLifetime
         var (member, _) = await NewUserAsync();
         var collection = await NewCollectionAsync(owner, member);
 
-        var first = await Reports().CreateAsync(member, new CreateReportCommand("Collection", collection.ToString(), null, "Spam", Marker));
-        Assert.False(first.AlreadyReported);
-        var id = await ReportIdAsync(member, ReportTargetType.Collection, collection);
-        var stored = await NewContext().ContentReports.SingleAsync(report => report.Id == id);
-        Assert.StartsWith("Moderation", stored.SnapshotTitle);
+        var link = await NewItemInAsync(owner, collection);
 
-        Assert.True((await Reports().CreateAsync(member, new CreateReportCommand("Collection", collection.ToString(), null, "Other", Marker))).AlreadyReported);
+        var first = await Reports().CreateAsync(member, new CreateReportCommand("Item", link.ToString(), collection, "Spam", Marker));
+        Assert.False(first.AlreadyReported);
+        var id = await ReportIdAsync(member, ReportTargetType.Item, link);
+        var stored = await NewContext().ContentReports.SingleAsync(report => report.Id == id);
+        // The evidence keeps the address even though the apps show the title and picture instead.
+        Assert.StartsWith("https://example.test/", stored.SnapshotUrl);
+        Assert.Equal(collection, stored.CollectionId);
+        Assert.Equal(owner, stored.TargetUserId);
+
+        Assert.True((await Reports().CreateAsync(member, new CreateReportCommand("Item", link.ToString(), collection, "Other", Marker))).AlreadyReported);
         await Admin().ChangeStatusAsync(owner, id, "InReview", null);
-        Assert.True((await Reports().CreateAsync(member, new CreateReportCommand("Collection", collection.ToString(), null, "Other", Marker))).AlreadyReported);
-        Assert.Equal(1, await NewContext().ContentReports.CountAsync(report => report.ReporterUserId == member && report.TargetId == collection));
+        Assert.True((await Reports().CreateAsync(member, new CreateReportCommand("Item", link.ToString(), collection, "Other", Marker))).AlreadyReported);
+        Assert.Equal(1, await NewContext().ContentReports.CountAsync(report => report.ReporterUserId == member && report.TargetId == link));
     }
 
     [Fact]
@@ -139,24 +148,25 @@ public sealed class SharedContentModerationIntegrationTests : IAsyncLifetime
         var collection = await NewCollectionAsync(owner, member);
         var mine = await NewItemInAsync(member, collection);
 
-        await Assert.ThrowsAsync<ReportOwnContentException>(() => Reports().CreateAsync(owner, new CreateReportCommand("Collection", collection.ToString(), null, "Spam", Marker)));
         await Assert.ThrowsAsync<ReportOwnContentException>(() => Reports().CreateAsync(member, new CreateReportCommand("Item", mine.ToString(), collection, "Spam", Marker)));
-        await Assert.ThrowsAsync<ReportTargetNotFoundException>(() => Reports().CreateAsync(stranger, new CreateReportCommand("Collection", collection.ToString(), null, "Spam", Marker)));
+        await Assert.ThrowsAsync<ReportTargetNotFoundException>(() => Reports().CreateAsync(stranger, new CreateReportCommand("Item", mine.ToString(), collection, "Spam", Marker)));
+        await Assert.ThrowsAsync<ReportTypeNotAcceptedException>(() => Reports().CreateAsync(owner, new CreateReportCommand("Collection", collection.ToString(), null, "Spam", Marker)));
     }
 
     [Fact]
-    public async Task PublicShareReport_NeedsAPublicLink_AndTheOwnerCannotReportTheirOwn()
+    public async Task PublicShareReport_IsNoLongerAccepted_ForAnyone()
     {
         var (owner, _) = await NewUserAsync();
         var (visitor, _) = await NewUserAsync();
         var collection = await NewCollectionAsync(owner);
         var privateId = await _db.CollectionShares.Where(share => share.CollectionId == collection).Select(share => share.PublicId).FirstAsync();
 
-        await Assert.ThrowsAsync<ReportTargetNotFoundException>(() => Reports().CreateForPublicShareAsync(visitor, privateId, "Spam", Marker));
+        await Assert.ThrowsAsync<ReportTypeNotAcceptedException>(() => Reports().CreateForPublicShareAsync(visitor, privateId, "Spam", Marker));
 
         var publicId = await MakePublicAsync(collection);
-        Assert.False((await Reports().CreateForPublicShareAsync(visitor, publicId, "Spam", Marker)).AlreadyReported);
-        await Assert.ThrowsAsync<ReportOwnContentException>(() => Reports().CreateForPublicShareAsync(owner, publicId, "Spam", Marker));
+        await Assert.ThrowsAsync<ReportTypeNotAcceptedException>(() => Reports().CreateForPublicShareAsync(visitor, publicId, "Spam", Marker));
+        await Assert.ThrowsAsync<ReportTypeNotAcceptedException>(() => Reports().CreateForPublicShareAsync(owner, publicId, "Spam", Marker));
+        Assert.False(await NewContext().ContentReports.AnyAsync(report => report.CollectionId == collection));
     }
 
     // ---------- blocks ----------

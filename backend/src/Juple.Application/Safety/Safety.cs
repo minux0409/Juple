@@ -61,6 +61,12 @@ public sealed class ReportTargetNotFoundException : Exception;
 /// <summary>400 <c>cannotReportOwnContent</c>.</summary>
 public sealed class ReportOwnContentException : Exception;
 
+/// <summary>
+/// 400 reportTypeNotAccepted: a whole Collection (or its public link) is no longer something that can be REPORTED - links and people are. Reports made
+/// before this rule stay exactly as they were (Admin still reads and acts on them).
+/// </summary>
+public sealed class ReportTypeNotAcceptedException : Exception;
+
 public enum ReportTargetOutcome
 {
     Found,

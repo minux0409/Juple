@@ -164,9 +164,9 @@ public sealed class SharedContentModerationTests
             return Task.FromResult(Exists);
         }
 
-        public Task<bool> RestrictAsync(long reportId, string? note, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => Task.FromResult(Exists);
+        public Task<bool> RestrictAsync(long reportId, string? note, string? userMessage, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => Task.FromResult(Exists);
 
-        public Task<bool> LiftRestrictionAsync(long reportId, string? note, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => Task.FromResult(Exists);
+        public Task<bool> LiftRestrictionAsync(long reportId, string? note, string? userMessage, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => Task.FromResult(Exists);
 
         public int Warnings { get; private set; }
 
@@ -181,15 +181,15 @@ public sealed class SharedContentModerationTests
             return Task.FromResult(Exists);
         }
 
-        public Task<bool> DeleteTargetAsync(long reportId, string? note, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+        public Task<bool> DeleteTargetAsync(long reportId, string? note, string? userMessage, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
         {
             Deletions++;
             return Task.FromResult(Exists);
         }
 
-        public Task<bool> RestoreTargetAsync(long reportId, string? note, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => Task.FromResult(Exists);
+        public Task<bool> RestoreTargetAsync(long reportId, string? note, string? userMessage, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => Task.FromResult(Exists);
 
-        public Task<bool> SetAccountRestrictionAsync(long reportId, bool restricted, string? note, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+        public Task<bool> SetAccountRestrictionAsync(long reportId, bool restricted, string? note, string? userMessage, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
         {
             AccountRestrictions++;
             return Task.FromResult(Exists);

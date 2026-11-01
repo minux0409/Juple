@@ -427,6 +427,29 @@ export interface ReportRow {
   readonly adminActionTaken: boolean;
 }
 
+export interface ReportNotice {
+  readonly noticeId: number;
+  readonly kind: string;
+  readonly actionType: string | null;
+  readonly createdAtUtc: string;
+  readonly acknowledgedAtUtc: string | null;
+  readonly message: string | null;
+}
+
+const NOTICE_LABELS: Readonly<Record<string, string>> = {
+  ContentDeleted: '삭제 안내',
+  ContentRestored: '복구 안내',
+  ShareRestricted: '공유 제한 안내',
+  ShareRestrictionLifted: '공유 제한 해제 안내',
+  AccountRestricted: '계정 이용 제한 안내',
+  AccountRestrictionLifted: '계정 이용 제한 해제 안내',
+};
+
+/** What a sent operator message was about, for the operator's own history. */
+export function reportNoticeLabel(notice: Pick<ReportNotice, 'kind' | 'actionType'>): string {
+  return notice.kind === 'warning' ? '경고' : (notice.actionType ? NOTICE_LABELS[notice.actionType] : null) ?? '운영 안내';
+}
+
 export interface ReportDetail {
   readonly reportId: number;
   readonly createdAtUtc: string;
@@ -460,6 +483,11 @@ export interface ReportDetail {
   /** 계정 이용 제한 (read-only use) of the person behind the content. */
   readonly canRestrictAccount: boolean;
   readonly targetAccountRestricted: boolean;
+  /** The operator messages sent to the person because of this report (warning / action): what, when, and whether they confirmed it. */
+  readonly notices: readonly ReportNotice[];
+  /** The reported link's Collection - readable by an operator who is no member of it. */
+  readonly collectionName: string | null;
+  readonly collectionDeleted: boolean;
   readonly priorReports: readonly { readonly reportId: number; readonly createdAtUtc: string; readonly reason: string; readonly status: string; readonly source: string }[];
   readonly history: readonly { readonly adminUserId: number; readonly adminJupleId: string | null; readonly action: string; readonly detail: string | null; readonly createdAtUtc: string }[];
 }
@@ -489,6 +517,8 @@ export function reportFailureMessage(code: string | null | undefined): string | 
       return '복구할 삭제 내역이 없습니다.';
     case 'reportNotAccountRestrictable':
       return '이 계정에는 이용 제한을 적용할 수 없습니다(탈퇴했거나 운영자 계정입니다).';
+    case 'actionAlreadyApplied':
+      return '다른 관리자가 같은 조치를 방금 적용했습니다. 새로고침해 현재 상태를 확인해 주세요.';
     case 'ownerRoleRequired':
       return '이 조치는 Owner 권한의 관리자만 할 수 있습니다.';
     default:

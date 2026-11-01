@@ -96,6 +96,17 @@ public sealed class AdminReportActionsIntegrationTests : IAsyncLifetime
 
     private async Task<long> ReportAsync(long reporter, string type, string targetId, long? collectionId)
     {
+        if (type == "Collection")
+        {
+            // Whole-Collection reports are no longer accepted: an old one is seeded as it was stored.
+            var id = long.Parse(targetId);
+            var collection = await _db.Collections.AsNoTracking().Where(entry => entry.Id == id).Select(entry => new { entry.UserId, entry.Name }).FirstAsync();
+            _db.ContentReports.Add(new ContentReport(reporter, ReportTargetType.Collection, id, collection.UserId, id, ReportReason.Harassment, ReporterNote, DateTimeOffset.UtcNow, collection.Name));
+            await _db.SaveChangesAsync();
+            _db.ChangeTracker.Clear();
+            return await _db.ContentReports.Where(report => report.ReporterUserId == reporter && report.TargetType == ReportTargetType.Collection && report.TargetId == id).Select(report => report.Id).FirstAsync();
+        }
+
         await Reports().CreateAsync(reporter, new CreateReportCommand(type, targetId, collectionId, "Harassment", ReporterNote));
         var targetKey = type == "User" ? await NewContext().Users.Where(user => user.PublicCode == targetId).Select(user => user.Id).FirstAsync() : long.Parse(targetId);
         return await NewContext().ContentReports
@@ -150,7 +161,7 @@ public sealed class AdminReportActionsIntegrationTests : IAsyncLifetime
         Assert.Equal(NotificationTargetKinds.ModerationNotice, target.Kind);
         Assert.Equal(notice.Id, target.NoticeId);
         var (title, body) = SocialPushText.For(NotificationType.AdminWarning, "ko-KR", string.Empty, string.Empty);
-        Assert.Equal("Juple 이용 안내", title);
+        Assert.Equal("Juple 운영팀 안내", title);
         Assert.DoesNotContain("insults", body);
         Assert.Equal("adminWarning", SocialNotificationPolicy.WireType(NotificationType.AdminWarning));
 
@@ -158,7 +169,7 @@ public sealed class AdminReportActionsIntegrationTests : IAsyncLifetime
         var contexts = await new PushDispatchStore(NewContext()).GetContextsAsync([row], DateTimeOffset.UtcNow);
         Assert.True(contexts[row.Id].IsRelevant);
         var payload = DispatchPendingPushNotificationsService.BuildPayload(row, contexts[row.Id], "ko-KR");
-        Assert.Equal("Juple 이용 안내", payload.Title);
+        Assert.Equal("Juple 운영팀 안내", payload.Title);
         Assert.Equal("adminWarning", payload.Type);
         Assert.Equal(notice.Id.ToString(), payload.Data["noticeId"]);
         Assert.DoesNotContain("insults", payload.Body);

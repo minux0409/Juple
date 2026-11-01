@@ -2,12 +2,13 @@ import { useRoute, type RouteProp, useNavigation } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text } from 'react-native';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { Pressable } from '../components/Pressable';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { ModerationNoticeBody } from '../safety/ModerationNoticeBody';
 import { acknowledgeModerationNotice, getModerationNotice, type ModerationNotice } from '../safety/moderationNoticeApi';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
@@ -75,27 +76,11 @@ export function ModerationNoticeScreen() {
     );
   }
 
-  const isWarning = notice.kind === 'warning';
   const isAcknowledged = notice.acknowledgedAtUtc !== null;
   return (
     <StackScreenSafeArea>
       <ScrollView contentContainerStyle={styles.content} testID="moderation-notice">
-        <View style={styles.card}>
-          <Text accessibilityRole="header" style={styles.title}>{t(isWarning ? 'moderation.warningTitle' : 'moderation.resultTitle')}</Text>
-          <Text style={styles.body}>{t(isWarning ? 'moderation.warningIntro' : 'moderation.resultMessage')}</Text>
-          {isWarning && notice.reason ? (
-            <View style={styles.section}>
-              <Text style={styles.label}>{t('moderation.reasonLabel')}</Text>
-              <Text style={styles.body} testID="moderation-notice-reason">{notice.reason}</Text>
-            </View>
-          ) : null}
-          {isWarning && notice.guidance ? (
-            <View style={styles.section}>
-              <Text style={styles.label}>{t('moderation.guidanceLabel')}</Text>
-              <Text style={styles.body} testID="moderation-notice-guidance">{notice.guidance}</Text>
-            </View>
-          ) : null}
-        </View>
+        <ModerationNoticeBody notice={notice} />
         {saveFailed ? <Text accessibilityLiveRegion="polite" style={styles.error}>{t('moderation.acknowledgeFailed')}</Text> : null}
         {isAcknowledged ? (
           <Text style={styles.acknowledged} testID="moderation-notice-acknowledged">{t('moderation.acknowledged')}</Text>
@@ -119,11 +104,6 @@ export function ModerationNoticeScreen() {
 const styles = themedStyles(() => ({
   loading: { marginTop: spacing.xl },
   content: { gap: spacing.lg, padding: spacing.lg },
-  card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, gap: spacing.md, padding: spacing.lg },
-  title: { color: colors.textPrimary, fontSize: 18, fontWeight: '700' },
-  section: { gap: spacing.xs },
-  label: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
-  body: { color: colors.textPrimary, fontSize: 15, lineHeight: 22 },
   error: { color: colors.dangerText, fontSize: 13, fontWeight: '600', textAlign: 'center' },
   acknowledged: { color: colors.textSecondary, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   primaryButton: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.md, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },

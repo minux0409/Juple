@@ -1526,6 +1526,20 @@
     "acknowledged": "ยืนยันแล้ว",
     "acknowledgeFailed": "ไม่สามารถบันทึกการยืนยันได้ โปรดลองอีกครั้ง",
     "resultTitle": "ผลการตรวจสอบรายงาน",
-    "resultMessage": "ขอบคุณที่แจ้งรายงาน เราตรวจสอบเสร็จแล้ว มาตรการที่จำเป็นจะดำเนินการตามนโยบาย โดยเราไม่เปิดเผยรายละเอียดของแต่ละมาตรการ"
+    "resultMessage": "ขอบคุณที่แจ้งรายงาน เราตรวจสอบเสร็จแล้ว มาตรการที่จำเป็นจะดำเนินการตามนโยบาย โดยเราไม่เปิดเผยรายละเอียดของแต่ละมาตรการ",
+    "teamTitle": "ประกาศจากทีมงาน Juple",
+    "contentLabel": "เนื้อหาที่เกี่ยวข้อง",
+    "actedAtLabel": "เวลาที่ดำเนินการ",
+    "moreCount": "ยังมีอีก {{count}} ประกาศ",
+    "actionContentDeletedLink": "ลิงก์ \"{{title}}\" ที่คุณแชร์ถูกลบตามนโยบายของเรา",
+    "actionContentDeletedCollection": "คอลเลกชัน \"{{title}}\" ของคุณถูกลบตามนโยบายของเรา",
+    "actionContentRestoredLink": "ลิงก์ \"{{title}}\" ที่คุณแชร์ได้รับการกู้คืนแล้ว",
+    "actionContentRestoredCollection": "คอลเลกชัน \"{{title}}\" ของคุณได้รับการกู้คืนแล้ว",
+    "actionShareRestrictedLink": "การแชร์ลิงก์ \"{{title}}\" ถูกจำกัดตามนโยบายของเรา",
+    "actionShareRestrictedCollection": "การแชร์คอลเลกชัน \"{{title}}\" ของคุณถูกจำกัดตามนโยบายของเรา",
+    "actionShareRestrictionLiftedLink": "ยกเลิกการจำกัดการแชร์ลิงก์ \"{{title}}\" แล้ว",
+    "actionShareRestrictionLiftedCollection": "ยกเลิกการจำกัดการแชร์คอลเลกชัน \"{{title}}\" แล้ว",
+    "actionAccountRestricted": "การใช้งานบัญชีของคุณถูกจำกัดตามนโยบายของเรา คุณยังดูเนื้อหาและติดต่อฝ่ายสนับสนุนได้",
+    "actionAccountRestrictionLifted": "ยกเลิกการจำกัดการใช้งานบัญชีของคุณแล้ว"
   }
 }

@@ -410,7 +410,6 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
                     icon: 'Lock' as const,
                     onSelect: () => setManagementMode(collection.isMemberLocked ? 'remove' : 'lock'),
                   },
-                  { key: 'report', label: dictionary.safetyReportCollection, icon: 'Flag' as const, onSelect: () => safety.report({ type: 'Collection', collectionId: collection.id }) },
                   { key: 'leave', label: dictionary.collectionLeaveAction, icon: 'Logout' as const, destructive: true, onSelect: () => setManagementMode('leave') },
                 ]
               : [

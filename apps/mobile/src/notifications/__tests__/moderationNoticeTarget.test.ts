@@ -33,7 +33,20 @@ describe('operator messages (이용 안내 / 신고 처리 결과) as a notifica
       guidance: 'g',
       createdAtUtc: '2026-11-01T00:00:00Z',
       acknowledgedAtUtc: null,
+      actionType: null,
+      contentTitle: null,
+      contentType: null,
+      reasonCode: null,
     });
+    // An action notice is a snapshot of what was done and to what; one with an unknown action is not a notice the app can word.
+    expect(parseModerationNotice({ id: 8, kind: 'action', actionType: 'contentDeleted', contentTitle: '제목', contentType: 'Item', reasonCode: 'Spam', guidance: 'g', createdAtUtc: 'x' })).toMatchObject({
+      kind: 'action',
+      actionType: 'contentDeleted',
+      contentTitle: '제목',
+      contentType: 'Item',
+      reasonCode: 'Spam',
+    });
+    expect(parseModerationNotice({ id: 9, kind: 'action', actionType: 'somethingNew', createdAtUtc: 'x' })).toBeNull();
     expect(parseModerationNotice({ id: 4, kind: 'reportResult', createdAtUtc: 'x' })?.reason).toBeNull();
     expect(parseModerationNotice({ id: 5, kind: 'other', createdAtUtc: 'x' })).toBeNull();
     expect(parseModerationNotice(null)).toBeNull();

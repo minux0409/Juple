@@ -44,7 +44,7 @@ async function render() {
 describe('ModerationNoticeScreen', () => {
   it('shows the operator\'s reviewed words as the warning, and confirms it once on the server', async () => {
     const renderer = await render();
-    expect(texts(renderer)).toContain(i18n.t('moderation.warningTitle'));
+    expect(texts(renderer)).toContain(i18n.t('moderation.teamTitle'));
     expect(texts(renderer)).toContain(i18n.t('moderation.warningIntro'));
     expect(texts(renderer)).toContain(warning.reason);
     expect(texts(renderer)).toContain(warning.guidance);
@@ -83,5 +83,34 @@ describe('ModerationNoticeScreen', () => {
     mockRequest.mockRejectedValue(new Error('network'));
     const renderer = await render();
     expect(exists(renderer, 'moderation-notice-error')).toBe(true);
+  });
+});
+
+describe('ModerationNoticeScreen - an operator ACTION', () => {
+  const action = {
+    id: 21, kind: 'action', actionType: 'contentDeleted', contentTitle: '삭제된 링크 제목', contentType: 'Item', reasonCode: 'Harassment',
+    reason: null, guidance: '운영팀 안내 문구', createdAtUtc: '2026-11-01T00:00:00Z', acknowledgedAtUtc: null,
+  };
+
+  it('says what was done to what from the snapshot - it needs the link to be gone, not alive - with the reason in the person\'s language', async () => {
+    mockParams = { noticeId: 21 };
+    mockRequest.mockResolvedValue({ body: action });
+    const renderer = await render();
+    expect(texts(renderer)).toContain('Juple 운영팀 안내');
+    expect(texts(renderer)).toContain("회원님이 공유한 '삭제된 링크 제목'이(가) 운영정책에 따라 삭제되었습니다.");
+    expect(texts(renderer)).toContain(i18n.t('safety.reasonHarassment'));
+    expect(texts(renderer)).toContain('운영팀 안내 문구');
+    // Only this one read: the screen never looks the deleted link up.
+    expect(mockRequest).toHaveBeenCalledTimes(1);
+    expect(mockRequest).toHaveBeenCalledWith({ method: 'GET', path: '/api/v1/moderation-notices/21' });
+  });
+
+  it('an account action is worded without any content, and a confirmed one stays readable', async () => {
+    mockParams = { noticeId: 22 };
+    mockRequest.mockResolvedValue({ body: { ...action, id: 22, actionType: 'accountRestricted', contentTitle: null, contentType: null, acknowledgedAtUtc: '2026-11-01T01:00:00Z' } });
+    const renderer = await render();
+    expect(texts(renderer)).toContain(i18n.t('moderation.actionAccountRestricted'));
+    expect(exists(renderer, 'moderation-notice-acknowledged')).toBe(true);
+    expect(exists(renderer, 'moderation-notice-acknowledge')).toBe(false);
   });
 });

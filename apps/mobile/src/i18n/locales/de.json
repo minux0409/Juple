@@ -1526,6 +1526,20 @@
     "acknowledged": "Bestätigt",
     "acknowledgeFailed": "Die Bestätigung konnte nicht gespeichert werden. Bitte versuche es erneut.",
     "resultTitle": "Ergebnis deiner Meldung",
-    "resultMessage": "Danke für deine Meldung. Wir haben sie geprüft. Erforderliche Maßnahmen erfolgen gemäß unseren Richtlinien; Einzelheiten zu einzelnen Maßnahmen teilen wir nicht mit."
+    "resultMessage": "Danke für deine Meldung. Wir haben sie geprüft. Erforderliche Maßnahmen erfolgen gemäß unseren Richtlinien; Einzelheiten zu einzelnen Maßnahmen teilen wir nicht mit.",
+    "teamTitle": "Hinweis des Juple-Teams",
+    "contentLabel": "Betroffener Inhalt",
+    "actedAtLabel": "Zeitpunkt der Maßnahme",
+    "moreCount": "Es warten {{count}} weitere Hinweise.",
+    "actionContentDeletedLink": "Der von dir geteilte Link „{{title}}“ wurde gemäß unseren Richtlinien gelöscht.",
+    "actionContentDeletedCollection": "Deine Sammlung „{{title}}“ wurde gemäß unseren Richtlinien gelöscht.",
+    "actionContentRestoredLink": "Der von dir geteilte Link „{{title}}“ wurde wiederhergestellt.",
+    "actionContentRestoredCollection": "Deine Sammlung „{{title}}“ wurde wiederhergestellt.",
+    "actionShareRestrictedLink": "Das Teilen des Links „{{title}}“ wurde gemäß unseren Richtlinien eingeschränkt.",
+    "actionShareRestrictedCollection": "Das Teilen deiner Sammlung „{{title}}“ wurde gemäß unseren Richtlinien eingeschränkt.",
+    "actionShareRestrictionLiftedLink": "Die Freigabebeschränkung für den Link „{{title}}“ wurde aufgehoben.",
+    "actionShareRestrictionLiftedCollection": "Die Freigabebeschränkung für deine Sammlung „{{title}}“ wurde aufgehoben.",
+    "actionAccountRestricted": "Die Nutzung deines Kontos wurde gemäß unseren Richtlinien eingeschränkt. Du kannst deine Inhalte weiterhin ansehen und den Support kontaktieren.",
+    "actionAccountRestrictionLifted": "Die Einschränkung deines Kontos wurde aufgehoben."
   }
 }
