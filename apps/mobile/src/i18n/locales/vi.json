@@ -1540,6 +1540,16 @@
     "actionShareRestrictionLiftedLink": "Hạn chế chia sẻ của liên kết \"{{title}}\" đã được gỡ bỏ.",
     "actionShareRestrictionLiftedCollection": "Hạn chế chia sẻ của bộ sưu tập \"{{title}}\" đã được gỡ bỏ.",
     "actionAccountRestricted": "Việc sử dụng tài khoản của bạn đã bị hạn chế theo chính sách. Bạn vẫn có thể xem nội dung và liên hệ hỗ trợ.",
-    "actionAccountRestrictionLifted": "Hạn chế sử dụng tài khoản của bạn đã được gỡ bỏ."
+    "actionAccountRestrictionLifted": "Hạn chế sử dụng tài khoản của bạn đã được gỡ bỏ.",
+    "reasonCodeLabel": "Lý do",
+    "actionLabel": "Biện pháp",
+    "sharedCollectionLine": "Bộ sưu tập được chia sẻ · {{name}}",
+    "actionTypeWarning": "Cảnh báo",
+    "actionTypeContentDeleted": "Đã xóa",
+    "actionTypeContentRestored": "Đã khôi phục",
+    "actionTypeShareRestricted": "Hạn chế chia sẻ",
+    "actionTypeShareRestrictionLifted": "Đã gỡ hạn chế chia sẻ",
+    "actionTypeAccountRestricted": "Hạn chế tài khoản",
+    "actionTypeAccountRestrictionLifted": "Đã gỡ hạn chế tài khoản"
   }
 }

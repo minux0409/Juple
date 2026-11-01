@@ -52,11 +52,30 @@ describe('ModerationNoticeHost (운영팀 안내 pop-up)', () => {
     const shown = dialog(renderer)!;
     expect(shown.props.title).toBe('Juple 운영팀 안내');
     expect(shown.props.message).toBe("회원님이 공유한 '내가 올린 링크'이(가) 운영정책에 따라 삭제되었습니다.");
-    expect(shown.props.confirmLabel).toBe(i18n.t('common.confirm'));
+    expect(shown.props.confirmLabel).toBe('확인했어요');
     expect(shown.props.onCancel).toBeUndefined();
     expect(shown.props.dismissable).toBe(false);
     expect(texts(renderer)).toContain(i18n.t('safety.reasonSpam'));
     expect(texts(renderer)).toContain('반복되면 이용이 제한될 수 있어요.');
+  });
+
+  it('shows which link it was - title, Collection, action and reason - from the notice alone, and the small-screen scroll keeps the button reachable', async () => {
+    unconfirmed = [{ ...deleted, collectionName: '여름 여행', contentImageUrl: 'https://img.example/a.jpg' }];
+    const renderer = await mount();
+    expect(texts(renderer)).toContain('내가 올린 링크');
+    expect(texts(renderer)).toContain('공유 컬렉션 · 여름 여행');
+    expect(texts(renderer)).toContain('삭제');
+    expect(renderer.root.findAll(node => node.props.testID === 'moderation-popup-scroll').length).toBeGreaterThan(0);
+    expect(renderer.root.findAll(node => (node.type as unknown) === 'Image' && node.props.source?.uri === 'https://img.example/a.jpg').length).toBe(1);
+  });
+
+  it('no picture: the link placeholder, and nothing invented for a missing title or Collection', async () => {
+    unconfirmed = [{ ...warning, contentType: 'Item', contentTitle: null, collectionName: null, contentImageUrl: null }];
+    const renderer = await mount();
+    expect(renderer.root.findAll(node => node.props.testID === 'saved-link-thumbnail-placeholder').length).toBeGreaterThan(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'moderation-notice-content')).toHaveLength(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'moderation-notice-collection')).toHaveLength(0);
+    expect(texts(renderer)).toContain('경고');
   });
 
   it('confirming records it on the server once and the same message is not shown again, even when the next read still lists it', async () => {

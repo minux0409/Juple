@@ -32,3 +32,26 @@ export function moderationActionSentence(notice: ModerationNotice, dictionary: A
 export function moderationReasonWords(code: string, dictionary: AppDictionary): string | null {
   return (REPORT_REASONS as readonly string[]).includes(code) ? reportReasonLabel(code as (typeof REPORT_REASONS)[number], dictionary) : null;
 }
+
+/** The short word for what the operators did (조치: 경고). */
+export function moderationActionLabel(notice: ModerationNotice, dictionary: AppDictionary): string | null {
+  if (notice.kind === 'warning') {
+    return dictionary.moderationActionTypeWarning;
+  }
+  switch (notice.actionType) {
+    case 'contentDeleted':
+      return dictionary.moderationActionTypeContentDeleted;
+    case 'contentRestored':
+      return dictionary.moderationActionTypeContentRestored;
+    case 'shareRestricted':
+      return dictionary.moderationActionTypeShareRestricted;
+    case 'shareRestrictionLifted':
+      return dictionary.moderationActionTypeShareRestrictionLifted;
+    case 'accountRestricted':
+      return dictionary.moderationActionTypeAccountRestricted;
+    case 'accountRestrictionLifted':
+      return dictionary.moderationActionTypeAccountRestrictionLifted;
+    default:
+      return null;
+  }
+}

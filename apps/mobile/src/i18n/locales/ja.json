@@ -1540,6 +1540,16 @@
     "actionShareRestrictionLiftedLink": "「{{title}}」の共有制限が解除されました。",
     "actionShareRestrictionLiftedCollection": "コレクション「{{title}}」の共有制限が解除されました。",
     "actionAccountRestricted": "アカウントの利用が運営ポリシーにより制限されました。閲覧とお問い合わせは引き続きご利用いただけます。",
-    "actionAccountRestrictionLifted": "アカウントの利用制限が解除されました。"
+    "actionAccountRestrictionLifted": "アカウントの利用制限が解除されました。",
+    "reasonCodeLabel": "理由",
+    "actionLabel": "措置",
+    "sharedCollectionLine": "共有コレクション · {{name}}",
+    "actionTypeWarning": "警告",
+    "actionTypeContentDeleted": "削除",
+    "actionTypeContentRestored": "復元",
+    "actionTypeShareRestricted": "共有の制限",
+    "actionTypeShareRestrictionLifted": "共有制限の解除",
+    "actionTypeAccountRestricted": "アカウントの制限",
+    "actionTypeAccountRestrictionLifted": "アカウント制限の解除"
   }
 }

@@ -3,11 +3,14 @@
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { isSessionLost } from '../../../../../lib/authSession';
-import { moderationActionSentence, moderationReasonWords } from '../../../../../lib/moderationNoticeText';
+import { formatMessage } from '../../../../../lib/appI18n';
+import { moderationActionLabel, moderationActionSentence, moderationReasonWords } from '../../../../../lib/moderationNoticeText';
 import { parseModerationNotice, type ModerationNotice } from '../../../../../lib/safety';
 import { useSignedInApp } from '../../../AppRoot';
 import { LoadFailed } from '../../../PageStates';
 import { SettingsPage } from '../../SettingsPage';
+import { LinkImage } from '../../../LinkImage';
+import { Glyph } from '../../../Glyph';
 import styles from '../../../app.module.css';
 
 /**
@@ -71,7 +74,8 @@ export default function ModerationNoticePage() {
 
   const isResult = notice?.kind === 'reportResult';
   const intro = notice ? (isResult ? dictionary.moderationResultMessage : moderationActionSentence(notice, dictionary) ?? dictionary.moderationWarningIntro) : '';
-  const reasonWords = notice ? (notice.kind === 'warning' ? notice.reason : notice.reasonCode ? moderationReasonWords(notice.reasonCode, dictionary) : null) : null;
+  const reasonCodeWords = notice?.reasonCode ? moderationReasonWords(notice.reasonCode, dictionary) : null;
+  const actionWords = notice ? moderationActionLabel(notice, dictionary) : null;
   return (
     <SettingsPage backHref="/me" icon="Bell" title={isResult ? dictionary.moderationResultTitle : dictionary.moderationTeamTitle} width="medium">
       {failed || id === null ? (
@@ -86,11 +90,36 @@ export default function ModerationNoticePage() {
       {notice ? (
         <section className={styles.settingsCard} data-moderation-notice>
           <p data-notice-intro>{intro}</p>
-          {!isResult && reasonWords ? (
+          {!isResult && notice.contentType && (notice.contentTitle || notice.collectionName) ? (
+            <div data-notice-target style={{ alignItems: 'center', display: 'flex', gap: 12, minWidth: 0 }}>
+              {notice.contentType === 'Item' ? <NoticeLinkImage src={notice.contentImageUrl} /> : null}
+              <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+                {notice.contentTitle ? <strong data-notice-content dir="auto">{notice.contentTitle}</strong> : null}
+                {notice.collectionName ? (
+                  <p className={styles.profileId} data-notice-collection dir="auto">{formatMessage(dictionary.moderationSharedCollectionLine, { name: notice.collectionName })}</p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+          {!isResult && actionWords ? (
+            <p data-notice-action>
+              <strong>{dictionary.moderationActionLabel}</strong>
+              <br />
+              {actionWords}
+            </p>
+          ) : null}
+          {!isResult && reasonCodeWords ? (
+            <p data-notice-reason-code>
+              <strong>{dictionary.moderationReasonCodeLabel}</strong>
+              <br />
+              {reasonCodeWords}
+            </p>
+          ) : null}
+          {!isResult && notice.reason ? (
             <p data-notice-reason dir="auto">
               <strong>{dictionary.moderationReasonLabel}</strong>
               <br />
-              {reasonWords}
+              {notice.reason}
             </p>
           ) : null}
           {!isResult && notice.guidance ? (
@@ -116,5 +145,14 @@ export default function ModerationNoticePage() {
         </section>
       ) : null}
     </SettingsPage>
+  );
+}
+
+/** The link's picture as kept in the notice; the link placeholder when there is none or it no longer loads. */
+function NoticeLinkImage({ src }: { readonly src: string | null }) {
+  return (
+    <div className={styles.thumbnail} data-notice-image>
+      <LinkImage fallback={<span className={styles.thumbnailFallback}><Glyph name="Link" size={22} /></span>} src={src} />
+    </div>
   );
 }

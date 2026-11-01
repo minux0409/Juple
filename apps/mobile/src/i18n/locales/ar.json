@@ -1540,6 +1540,16 @@
     "actionShareRestrictionLiftedLink": "تم رفع قيد المشاركة عن الرابط \"{{title}}\".",
     "actionShareRestrictionLiftedCollection": "تم رفع قيد المشاركة عن مجموعتك \"{{title}}\".",
     "actionAccountRestricted": "تم تقييد استخدام حسابك وفق سياساتنا. لا يزال بإمكانك عرض محتواك والتواصل مع الدعم.",
-    "actionAccountRestrictionLifted": "تم رفع قيد استخدام حسابك."
+    "actionAccountRestrictionLifted": "تم رفع قيد استخدام حسابك.",
+    "reasonCodeLabel": "السبب",
+    "actionLabel": "الإجراء",
+    "sharedCollectionLine": "مجموعة مشتركة · {{name}}",
+    "actionTypeWarning": "تحذير",
+    "actionTypeContentDeleted": "حذف",
+    "actionTypeContentRestored": "استعادة",
+    "actionTypeShareRestricted": "تقييد المشاركة",
+    "actionTypeShareRestrictionLifted": "رفع تقييد المشاركة",
+    "actionTypeAccountRestricted": "تقييد الحساب",
+    "actionTypeAccountRestrictionLifted": "رفع تقييد الحساب"
   }
 }

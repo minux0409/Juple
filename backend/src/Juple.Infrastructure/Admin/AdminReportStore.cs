@@ -158,7 +158,7 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
             && !await dbContext.ModerationNotices.AnyAsync(
                 notice => notice.ReportId == report.Id && notice.RecipientUserId == reporterId && notice.Kind == ModerationNoticeKind.ReportResult, cancellationToken))
         {
-            await AddNoticeAsync(reporterId, ModerationNoticeKind.ReportResult, report.Id, null, null, adminUserId, NotificationType.ReportResultNotice, nowUtc, cancellationToken);
+            await AddNoticeAsync(new ModerationNotice(reporterId, ModerationNoticeKind.ReportResult, report.Id, null, null, adminUserId, nowUtc), NotificationType.ReportResultNotice, cancellationToken);
             Audit(adminUserId, AdminAuditActions.ReportResultSent, reportId, "reporter", nowUtc);
             await SaveAsync(cancellationToken);
         }
@@ -256,7 +256,11 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
 
         try
         {
-            await AddNoticeAsync(recipientId, ModerationNoticeKind.Warning, report.Id, text.Reason, text.Guidance, adminUserId, NotificationType.AdminWarning, nowUtc, cancellationToken);
+            var content = await ContentSnapshotAsync(report, cancellationToken);
+            var warning = new ModerationNotice(
+                recipientId, ModerationNoticeKind.Warning, report.Id, text.Reason, text.Guidance, adminUserId, nowUtc, null, content.Title, content.Type,
+                report.Reason.ToString(), null, content.Id, content.ImageUrl, content.CollectionName);
+            await AddNoticeAsync(warning, NotificationType.AdminWarning, cancellationToken);
             // A warning is an operator's decision about this report: at least in review now (처리 완료 stays a separate decision).
             report.Review(report.Status == ReportStatus.Pending ? ReportStatus.InReview : report.Status, adminUserId, null, nowUtc);
             Audit(adminUserId, AdminAuditActions.ReportWarningSent, reportId, $"{report.TargetType} {report.TargetId}", nowUtc);
@@ -426,12 +430,12 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
             return;
         }
 
-        var (title, contentType) = await ContentTitleAsync(report, cancellationToken);
+        var content = await ContentSnapshotAsync(report, cancellationToken);
         var sequence = await dbContext.ModerationNotices.CountAsync(
             notice => notice.ReportId == report.Id && notice.Kind == ModerationNoticeKind.Action && notice.ActionType == action, cancellationToken) + 1;
         var notice = new ModerationNotice(
-            recipientId, ModerationNoticeKind.Action, report.Id, null, userMessage, adminUserId, nowUtc, action, title, contentType,
-            report.Reason.ToString(), $"{report.Id}:{(byte)action}:{sequence}");
+            recipientId, ModerationNoticeKind.Action, report.Id, null, userMessage, adminUserId, nowUtc, action, content.Title, content.Type,
+            report.Reason.ToString(), $"{report.Id}:{(byte)action}:{sequence}", content.Id, content.ImageUrl, content.CollectionName);
         dbContext.ModerationNotices.Add(notice);
         try
         {
@@ -448,39 +452,48 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
         await SaveAsync(cancellationToken);
     }
 
-    /// <summary>What the person knows the content as: the current title (also while it is in the trash), else the one the report kept, else the address's host.</summary>
-    private async Task<(string? Title, string? Type)> ContentTitleAsync(ContentReport report, CancellationToken cancellationToken)
+    /// <summary>
+    /// What a notice keeps of the content, taken now so it stays readable after a deletion. The title is what the person knows it as: the current one
+    /// (also while it is in the trash), else the one the report kept, else the address's host. A link also keeps its preview picture and its Collection's name.
+    /// </summary>
+    private async Task<ContentSnapshot> ContentSnapshotAsync(ContentReport report, CancellationToken cancellationToken)
     {
         if (report.TargetType == ReportTargetType.Item)
         {
             var item = await dbContext.Items.AsNoTracking().Where(candidate => candidate.Id == report.TargetId)
-                .Select(candidate => new { candidate.Title, candidate.Url }).FirstOrDefaultAsync(cancellationToken);
+                .Select(candidate => new { candidate.Title, candidate.Url, candidate.PreviewImageUrl }).FirstOrDefaultAsync(cancellationToken);
+            var collectionName = await dbContext.Collections.AsNoTracking().Where(candidate => candidate.Id == report.CollectionId)
+                .Select(candidate => candidate.Name).FirstOrDefaultAsync(cancellationToken);
             var title = !string.IsNullOrWhiteSpace(item?.Title) ? item!.Title : report.SnapshotTitle;
-            return (!string.IsNullOrWhiteSpace(title) ? title : HostOf(item?.Url ?? report.SnapshotUrl), "Item");
+            return new ContentSnapshot(
+                !string.IsNullOrWhiteSpace(title) ? title : HostOf(item?.Url ?? report.SnapshotUrl), "Item", report.TargetId,
+                WebImageUrl(item?.PreviewImageUrl), collectionName);
         }
 
         if (report.TargetType == ReportTargetType.Collection)
         {
             var name = await dbContext.Collections.AsNoTracking().Where(candidate => candidate.Id == report.TargetId)
                 .Select(candidate => candidate.Name).FirstOrDefaultAsync(cancellationToken);
-            return (!string.IsNullOrWhiteSpace(name) ? name : report.SnapshotTitle, "Collection");
+            return new ContentSnapshot(!string.IsNullOrWhiteSpace(name) ? name : report.SnapshotTitle, "Collection", report.TargetId, null, null);
         }
 
-        return (null, null);
+        return new ContentSnapshot(null, null, null, null, null);
     }
+
+    private sealed record ContentSnapshot(string? Title, string? Type, long? Id, string? ImageUrl, string? CollectionName);
+
+    private static string? WebImageUrl(string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp) ? url : null;
 
     private static string? HostOf(string? url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.Host : null;
 
     /// <summary>The notice and its one Inbox Notification row (the push dispatcher sends it; DB first, a failed push never loses it).</summary>
-    private async Task AddNoticeAsync(
-        long recipientUserId, ModerationNoticeKind kind, long reportId, string? reason, string? guidance, long adminUserId,
-        NotificationType type, DateTimeOffset nowUtc, CancellationToken cancellationToken)
+    private async Task AddNoticeAsync(ModerationNotice notice, NotificationType type, CancellationToken cancellationToken)
     {
-        var notice = new ModerationNotice(recipientUserId, kind, reportId, reason, guidance, adminUserId, nowUtc);
         dbContext.ModerationNotices.Add(notice);
         await SaveAsync(cancellationToken);
-        dbContext.Notifications.Add(Notification.Social(recipientUserId, type, null, null, notice.Id, $"moderation:{notice.Id}", nowUtc));
+        dbContext.Notifications.Add(Notification.Social(notice.RecipientUserId, type, null, null, notice.Id, $"moderation:{notice.Id}", notice.CreatedAtUtc));
     }
 
     /// <summary>Only a link or a Collection is deleted; a person's account and a comment are never deleted by a report.</summary>

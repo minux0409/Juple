@@ -1540,6 +1540,16 @@
     "actionShareRestrictionLiftedLink": "“{{title}}”的分享限制已解除。",
     "actionShareRestrictionLiftedCollection": "合集“{{title}}”的分享限制已解除。",
     "actionAccountRestricted": "根据运营政策，你的账号使用已受到限制。你仍可查看内容并联系客服。",
-    "actionAccountRestrictionLifted": "你的账号使用限制已解除。"
+    "actionAccountRestrictionLifted": "你的账号使用限制已解除。",
+    "reasonCodeLabel": "原因",
+    "actionLabel": "处理措施",
+    "sharedCollectionLine": "共享合集 · {{name}}",
+    "actionTypeWarning": "警告",
+    "actionTypeContentDeleted": "已删除",
+    "actionTypeContentRestored": "已恢复",
+    "actionTypeShareRestricted": "分享受限",
+    "actionTypeShareRestrictionLifted": "已解除分享限制",
+    "actionTypeAccountRestricted": "账号受限",
+    "actionTypeAccountRestrictionLifted": "已解除账号限制"
   }
 }

@@ -1,9 +1,12 @@
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
+import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
+import { LinkIcon } from '../icons/LinkIcon';
+import { usablePreviewImageUrl } from '../items/usablePreviewImageUrl';
 import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 import type { ModerationNotice } from './moderationNoticeApi';
-import { moderationActionSentence, moderationReasonLabel } from './moderationNoticeText';
+import { moderationActionLabel, moderationActionSentence, moderationReasonLabel } from './moderationNoticeText';
 
 /** The one sentence a notice opens with: what was done (an action), that a warning was sent, or that the person's report was reviewed. */
 export function moderationNoticeIntro(notice: ModerationNotice, t: TFunction): string {
@@ -28,21 +31,29 @@ export function ModerationNoticeDetails({ notice, compact = false }: { readonly 
   if (notice.kind === 'reportResult') {
     return null;
   }
-  const reason = notice.kind === 'warning' ? notice.reason : moderationReasonLabel(notice, t);
+  const actionLabel = moderationActionLabel(notice, t);
+  const reasonCode = moderationReasonLabel(notice, t);
   const actedAt = new Date(notice.createdAtUtc);
   const hasDate = !Number.isNaN(actedAt.getTime());
   return (
     <View style={compact ? styles.compact : styles.details} testID="moderation-notice-details">
-      {notice.kind === 'warning' && notice.contentTitle ? (
+      <ModerationNoticeContent compact={compact} notice={notice} />
+      {actionLabel ? (
         <View style={styles.section}>
-          <Text style={styles.label}>{t('moderation.contentLabel')}</Text>
-          <Text numberOfLines={compact ? 2 : undefined} style={styles.body} testID="moderation-notice-content">{notice.contentTitle}</Text>
+          <Text style={styles.label}>{t('moderation.actionLabel')}</Text>
+          <Text style={styles.body} testID="moderation-notice-action">{actionLabel}</Text>
         </View>
       ) : null}
-      {reason ? (
+      {reasonCode ? (
+        <View style={styles.section}>
+          <Text style={styles.label}>{t('moderation.reasonCodeLabel')}</Text>
+          <Text style={styles.body} testID="moderation-notice-reason-code">{reasonCode}</Text>
+        </View>
+      ) : null}
+      {notice.reason ? (
         <View style={styles.section}>
           <Text style={styles.label}>{t('moderation.reasonLabel')}</Text>
-          <Text style={styles.body} testID="moderation-notice-reason">{reason}</Text>
+          <Text style={styles.body} testID="moderation-notice-reason">{notice.reason}</Text>
         </View>
       ) : null}
       {notice.guidance ? (
@@ -56,6 +67,28 @@ export function ModerationNoticeDetails({ notice, compact = false }: { readonly 
           {t('moderation.actedAtLabel')} · {new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }).format(actedAt)}
         </Text>
       ) : null}
+    </View>
+  );
+}
+
+/** Which link or Collection it was about: the picture, title and Collection kept when the notice was made. Nothing is shown that was not kept. */
+function ModerationNoticeContent({ notice, compact }: { readonly notice: ModerationNotice; readonly compact: boolean }) {
+  const { t } = useTranslation();
+  const title = notice.contentTitle?.trim() || null;
+  if (notice.contentType === null || (title === null && notice.collectionName === null && notice.contentType !== 'Item')) {
+    return null;
+  }
+  return (
+    <View style={styles.content} testID="moderation-notice-target">
+      {notice.contentType === 'Item' ? (
+        <ItemRepresentativeThumbnail fallback={<LinkIcon color={colors.textSecondary} size={22} />} imageUrl={usablePreviewImageUrl(notice.contentImageUrl)} />
+      ) : null}
+      <View style={styles.contentText}>
+        {title ? <Text numberOfLines={compact ? 3 : undefined} style={styles.contentTitle} testID="moderation-notice-content">{title}</Text> : null}
+        {notice.collectionName ? (
+          <Text numberOfLines={compact ? 2 : undefined} style={styles.contentMeta} testID="moderation-notice-collection">{t('moderation.sharedCollectionLine', { name: notice.collectionName })}</Text>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -77,6 +110,10 @@ const styles = themedStyles(() => ({
   details: { gap: spacing.md },
   compact: { gap: spacing.sm, marginTop: spacing.sm },
   title: { color: colors.textPrimary, fontSize: 18, fontWeight: '700' },
+  content: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: radii.md, flexDirection: 'row', gap: spacing.md, minWidth: 0, padding: spacing.sm },
+  contentText: { flex: 1, flexShrink: 1, gap: spacing.xs, minWidth: 0 },
+  contentTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
+  contentMeta: { color: colors.textSecondary, fontSize: 13 },
   section: { gap: spacing.xs },
   label: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
   body: { color: colors.textPrimary, fontSize: 15, lineHeight: 22 },

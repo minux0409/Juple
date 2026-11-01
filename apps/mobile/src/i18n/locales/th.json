@@ -1540,6 +1540,16 @@
     "actionShareRestrictionLiftedLink": "ยกเลิกการจำกัดการแชร์ลิงก์ \"{{title}}\" แล้ว",
     "actionShareRestrictionLiftedCollection": "ยกเลิกการจำกัดการแชร์คอลเลกชัน \"{{title}}\" แล้ว",
     "actionAccountRestricted": "การใช้งานบัญชีของคุณถูกจำกัดตามนโยบายของเรา คุณยังดูเนื้อหาและติดต่อฝ่ายสนับสนุนได้",
-    "actionAccountRestrictionLifted": "ยกเลิกการจำกัดการใช้งานบัญชีของคุณแล้ว"
+    "actionAccountRestrictionLifted": "ยกเลิกการจำกัดการใช้งานบัญชีของคุณแล้ว",
+    "reasonCodeLabel": "เหตุผล",
+    "actionLabel": "การดำเนินการ",
+    "sharedCollectionLine": "คอลเลกชันที่แชร์ · {{name}}",
+    "actionTypeWarning": "คำเตือน",
+    "actionTypeContentDeleted": "ลบแล้ว",
+    "actionTypeContentRestored": "กู้คืนแล้ว",
+    "actionTypeShareRestricted": "จำกัดการแชร์",
+    "actionTypeShareRestrictionLifted": "ยกเลิกการจำกัดการแชร์",
+    "actionTypeAccountRestricted": "จำกัดบัญชี",
+    "actionTypeAccountRestrictionLifted": "ยกเลิกการจำกัดบัญชี"
   }
 }

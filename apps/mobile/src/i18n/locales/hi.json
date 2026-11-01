@@ -1540,6 +1540,16 @@
     "actionShareRestrictionLiftedLink": "लिंक \"{{title}}\" पर शेयरिंग की सीमा हटा दी गई है।",
     "actionShareRestrictionLiftedCollection": "आपके संग्रह \"{{title}}\" पर शेयरिंग की सीमा हटा दी गई है।",
     "actionAccountRestricted": "हमारी नीतियों के अनुसार आपके खाते का उपयोग सीमित कर दिया गया है। आप अब भी अपनी सामग्री देख सकते हैं और सहायता से संपर्क कर सकते हैं।",
-    "actionAccountRestrictionLifted": "आपके खाते के उपयोग की सीमा हटा दी गई है।"
+    "actionAccountRestrictionLifted": "आपके खाते के उपयोग की सीमा हटा दी गई है।",
+    "reasonCodeLabel": "कारण",
+    "actionLabel": "कार्रवाई",
+    "sharedCollectionLine": "साझा संग्रह · {{name}}",
+    "actionTypeWarning": "चेतावनी",
+    "actionTypeContentDeleted": "हटाया गया",
+    "actionTypeContentRestored": "बहाल किया गया",
+    "actionTypeShareRestricted": "साझाकरण प्रतिबंधित",
+    "actionTypeShareRestrictionLifted": "साझाकरण प्रतिबंध हटाया गया",
+    "actionTypeAccountRestricted": "खाता प्रतिबंधित",
+    "actionTypeAccountRestrictionLifted": "खाता प्रतिबंध हटाया गया"
   }
 }

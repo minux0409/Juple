@@ -182,6 +182,57 @@ public sealed class AdminActionNoticesIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ANotice_KeepsThePictureTitleAndCollection_AfterTheLinkIsGone_ForTheRecipientOnly_WithoutTheReporter()
+    {
+        var (author, _) = await NewUserAsync();
+        var (reporter, _) = await NewUserAsync();
+        var (admin, _) = await NewUserAsync();
+        var collection = await NewCollectionAsync(author, reporter);
+        var link = await NewLinkAsync(author, collection);
+        await using (var db = NewContext())
+        {
+            var item = await db.Items.SingleAsync(candidate => candidate.Id == link);
+            item.UpdateDetails("신고된 링크 제목", null);
+            item.SetPreviewImageUrl("https://img.example.test/a.jpg");
+            await db.SaveChangesAsync();
+        }
+
+        var collectionName = await NewContext().Collections.Where(candidate => candidate.Id == collection).Select(candidate => candidate.Name).SingleAsync();
+        var report = await ReportLinkAsync(reporter, link, collection);
+
+        await Admin().WarnAsync(admin, report, "확인된 내용", "주의해 주세요.");
+        var warningId = await NewContext().ModerationNotices.Where(notice => notice.RecipientUserId == author && notice.Kind == ModerationNoticeKind.Warning).Select(notice => notice.Id).SingleAsync();
+        await Admin().DeleteTargetAsync(admin, isOwner: true, report, confirm: true, null, "삭제했습니다.");
+        var actionId = Assert.Single(await ActionNoticesAsync(author)).Id;
+
+        // Even when the content is gone for good: the notice never reads it.
+        await NewContext().CollectionItems.Where(entry => entry.ItemId == link).ExecuteDeleteAsync();
+        await NewContext().Items.Where(item => item.Id == link).ExecuteDeleteAsync();
+        await NewContext().Collections.Where(candidate => candidate.Id == collection).ExecuteUpdateAsync(setters => setters.SetProperty(candidate => candidate.Name, "바뀐 이름"));
+
+        foreach (var id in new[] { warningId, actionId })
+        {
+            var read = (await Notices().GetAsync(author, id))!;
+            Assert.Equal("신고된 링크 제목", read.ContentTitle);
+            Assert.Equal("https://img.example.test/a.jpg", read.ContentImageUrl);
+            Assert.Equal(collectionName, read.CollectionName);
+            Assert.Equal("Item", read.ContentType);
+            Assert.Equal("Harassment", read.ReasonCode);
+            Assert.DoesNotContain(ReporterNote, read.Reason + read.Guidance + read.ContentTitle);
+            Assert.Null(await Notices().GetAsync(reporter, id));
+            Assert.True(await Notices().AcknowledgeAsync(author, id, DateTimeOffset.UtcNow));
+            Assert.Equal("신고된 링크 제목", (await Notices().GetAsync(author, id))!.ContentTitle);
+        }
+
+        // The reporter's generic result says nothing about the content.
+        await Admin().ChangeStatusAsync(admin, report, nameof(ReportStatus.Actioned), null);
+        var result = await NewContext().ModerationNotices.SingleAsync(notice => notice.RecipientUserId == reporter && notice.Kind == ModerationNoticeKind.ReportResult);
+        Assert.Null(result.ContentTitle);
+        Assert.Null(result.ContentImageUrl);
+        Assert.Null(result.CollectionName);
+    }
+
+    [Fact]
     public async Task ShareRestrictionAndItsLifting_AreNoticed_AndRepeatingThemIsNot()
     {
         var (author, _) = await NewUserAsync();

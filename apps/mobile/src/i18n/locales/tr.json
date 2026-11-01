@@ -1540,6 +1540,16 @@
     "actionShareRestrictionLiftedLink": "\"{{title}}\" bağlantısının paylaşım kısıtlaması kaldırıldı.",
     "actionShareRestrictionLiftedCollection": "\"{{title}}\" koleksiyonunuzun paylaşım kısıtlaması kaldırıldı.",
     "actionAccountRestricted": "Hesabınızın kullanımı politikalarımız gereği kısıtlandı. İçeriğinizi görüntülemeye ve destekle iletişime geçmeye devam edebilirsiniz.",
-    "actionAccountRestrictionLifted": "Hesabınızın kullanım kısıtlaması kaldırıldı."
+    "actionAccountRestrictionLifted": "Hesabınızın kullanım kısıtlaması kaldırıldı.",
+    "reasonCodeLabel": "Neden",
+    "actionLabel": "İşlem",
+    "sharedCollectionLine": "Paylaşılan koleksiyon · {{name}}",
+    "actionTypeWarning": "Uyarı",
+    "actionTypeContentDeleted": "Silindi",
+    "actionTypeContentRestored": "Geri yüklendi",
+    "actionTypeShareRestricted": "Paylaşım kısıtlandı",
+    "actionTypeShareRestrictionLifted": "Paylaşım kısıtlaması kaldırıldı",
+    "actionTypeAccountRestricted": "Hesap kısıtlandı",
+    "actionTypeAccountRestrictionLifted": "Hesap kısıtlaması kaldırıldı"
   }
 }

@@ -1540,6 +1540,16 @@
     "actionShareRestrictionLiftedLink": "Ограничение общего доступа к ссылке «{{title}}» снято.",
     "actionShareRestrictionLiftedCollection": "Ограничение общего доступа к вашей коллекции «{{title}}» снято.",
     "actionAccountRestricted": "Использование вашего аккаунта ограничено в соответствии с нашими правилами. Вы по-прежнему можете просматривать контент и обращаться в поддержку.",
-    "actionAccountRestrictionLifted": "Ограничение использования вашего аккаунта снято."
+    "actionAccountRestrictionLifted": "Ограничение использования вашего аккаунта снято.",
+    "reasonCodeLabel": "Причина",
+    "actionLabel": "Мера",
+    "sharedCollectionLine": "Общая коллекция · {{name}}",
+    "actionTypeWarning": "Предупреждение",
+    "actionTypeContentDeleted": "Удалено",
+    "actionTypeContentRestored": "Восстановлено",
+    "actionTypeShareRestricted": "Доступ к общему использованию ограничен",
+    "actionTypeShareRestrictionLifted": "Ограничение общего доступа снято",
+    "actionTypeAccountRestricted": "Аккаунт ограничен",
+    "actionTypeAccountRestrictionLifted": "Ограничение аккаунта снято"
   }
 }

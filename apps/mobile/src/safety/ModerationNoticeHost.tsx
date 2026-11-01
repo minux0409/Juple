@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AppState, Text } from 'react-native';
+import { AppState, ScrollView, Text, useWindowDimensions } from 'react-native';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { navigationRef } from '../navigation/navigationRef';
@@ -21,6 +21,7 @@ const FOREGROUND_REFRESH_MS = 30_000;
  */
 export function ModerationNoticeHost() {
   const { t } = useTranslation();
+  const { height: windowHeight } = useWindowDimensions();
   const request = useAuthenticatedApi();
   const requestRef = useRef(request);
   requestRef.current = request;
@@ -102,7 +103,7 @@ export function ModerationNoticeHost() {
   return (
     <ConfirmDialog
       busy={isSaving}
-      confirmLabel={t('common.confirm')}
+      confirmLabel={t('moderation.acknowledge')}
       destructive={false}
       dismissable={false}
       message={moderationNoticeIntro(current, t)}
@@ -110,7 +111,10 @@ export function ModerationNoticeHost() {
       title={t('moderation.teamTitle')}
       visible
     >
-      <ModerationNoticeDetails compact notice={current} />
+      {/* A long title or message scrolls here; the button stays on screen, however small the window. */}
+      <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: windowHeight * 0.5 }} testID="moderation-popup-scroll">
+        <ModerationNoticeDetails compact notice={current} />
+      </ScrollView>
       {more > 0 ? <Text style={styles.more} testID="moderation-popup-more">{t('moderation.moreCount', { count: more })}</Text> : null}
     </ConfirmDialog>
   );

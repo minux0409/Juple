@@ -170,6 +170,9 @@ export interface ModerationNotice {
   readonly contentTitle: string | null;
   readonly contentType: 'Item' | 'Collection' | null;
   readonly reasonCode: string | null;
+  /** A link's preview picture and its shared Collection's name, as they were when the notice was made. */
+  readonly contentImageUrl: string | null;
+  readonly collectionName: string | null;
 }
 
 /** Untrusted input: anything that is not a recognizable notice is null. */
@@ -196,6 +199,8 @@ export function parseModerationNotice(raw: unknown): ModerationNotice | null {
     contentTitle: typeof value.contentTitle === 'string' ? value.contentTitle : null,
     contentType: value.contentType === 'Item' || value.contentType === 'Collection' ? value.contentType : null,
     reasonCode: typeof value.reasonCode === 'string' ? value.reasonCode : null,
+    contentImageUrl: typeof value.contentImageUrl === 'string' && /^https?:\/\//i.test(value.contentImageUrl) ? value.contentImageUrl : null,
+    collectionName: typeof value.collectionName === 'string' ? value.collectionName : null,
   };
 }
 

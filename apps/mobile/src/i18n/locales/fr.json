@@ -1540,6 +1540,16 @@
     "actionShareRestrictionLiftedLink": "La restriction de partage du lien « {{title}} » a été levée.",
     "actionShareRestrictionLiftedCollection": "La restriction de partage de votre collection « {{title}} » a été levée.",
     "actionAccountRestricted": "L'utilisation de votre compte a été restreinte conformément à nos règles. Vous pouvez toujours consulter votre contenu et contacter l'assistance.",
-    "actionAccountRestrictionLifted": "La restriction d'utilisation de votre compte a été levée."
+    "actionAccountRestrictionLifted": "La restriction d'utilisation de votre compte a été levée.",
+    "reasonCodeLabel": "Motif",
+    "actionLabel": "Mesure",
+    "sharedCollectionLine": "Collection partagée · {{name}}",
+    "actionTypeWarning": "Avertissement",
+    "actionTypeContentDeleted": "Supprimé",
+    "actionTypeContentRestored": "Restauré",
+    "actionTypeShareRestricted": "Partage restreint",
+    "actionTypeShareRestrictionLifted": "Restriction de partage levée",
+    "actionTypeAccountRestricted": "Compte restreint",
+    "actionTypeAccountRestrictionLifted": "Restriction du compte levée"
   }
 }

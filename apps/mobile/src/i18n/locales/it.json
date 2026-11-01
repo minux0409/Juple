@@ -1540,6 +1540,16 @@
     "actionShareRestrictionLiftedLink": "La limitazione di condivisione del link «{{title}}» è stata rimossa.",
     "actionShareRestrictionLiftedCollection": "La limitazione di condivisione della tua raccolta «{{title}}» è stata rimossa.",
     "actionAccountRestricted": "L'uso del tuo account è stato limitato secondo le nostre norme. Puoi comunque vedere i tuoi contenuti e contattare l'assistenza.",
-    "actionAccountRestrictionLifted": "La limitazione all'uso del tuo account è stata rimossa."
+    "actionAccountRestrictionLifted": "La limitazione all'uso del tuo account è stata rimossa.",
+    "reasonCodeLabel": "Motivo",
+    "actionLabel": "Provvedimento",
+    "sharedCollectionLine": "Raccolta condivisa · {{name}}",
+    "actionTypeWarning": "Avvertimento",
+    "actionTypeContentDeleted": "Eliminato",
+    "actionTypeContentRestored": "Ripristinato",
+    "actionTypeShareRestricted": "Condivisione limitata",
+    "actionTypeShareRestrictionLifted": "Limitazione della condivisione rimossa",
+    "actionTypeAccountRestricted": "Account limitato",
+    "actionTypeAccountRestrictionLifted": "Limitazione dell'account rimossa"
   }
 }

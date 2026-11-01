@@ -1540,6 +1540,16 @@
     "actionShareRestrictionLiftedLink": "Die Freigabebeschränkung für den Link „{{title}}“ wurde aufgehoben.",
     "actionShareRestrictionLiftedCollection": "Die Freigabebeschränkung für deine Sammlung „{{title}}“ wurde aufgehoben.",
     "actionAccountRestricted": "Die Nutzung deines Kontos wurde gemäß unseren Richtlinien eingeschränkt. Du kannst deine Inhalte weiterhin ansehen und den Support kontaktieren.",
-    "actionAccountRestrictionLifted": "Die Einschränkung deines Kontos wurde aufgehoben."
+    "actionAccountRestrictionLifted": "Die Einschränkung deines Kontos wurde aufgehoben.",
+    "reasonCodeLabel": "Grund",
+    "actionLabel": "Maßnahme",
+    "sharedCollectionLine": "Geteilte Sammlung · {{name}}",
+    "actionTypeWarning": "Verwarnung",
+    "actionTypeContentDeleted": "Gelöscht",
+    "actionTypeContentRestored": "Wiederhergestellt",
+    "actionTypeShareRestricted": "Teilen eingeschränkt",
+    "actionTypeShareRestrictionLifted": "Einschränkung beim Teilen aufgehoben",
+    "actionTypeAccountRestricted": "Konto eingeschränkt",
+    "actionTypeAccountRestrictionLifted": "Kontoeinschränkung aufgehoben"
   }
 }

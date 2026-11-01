@@ -17,6 +17,12 @@ public sealed record ModerationNoticeDto(long Id, string Kind, string? Reason, s
 
     /// <summary>The report's reason code (Spam, Harassment...), for the app to word in the person's language.</summary>
     public string? ReasonCode { get; init; }
+
+    /// <summary>A link's preview picture as it was at that moment; null when it had none.</summary>
+    public string? ContentImageUrl { get; init; }
+
+    /// <summary>The shared Collection a link was in, as it was named at that moment.</summary>
+    public string? CollectionName { get; init; }
 }
 
 public interface IModerationNoticeStore

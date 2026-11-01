@@ -222,9 +222,11 @@ describe('shared Collection reports, blocks and restriction on the Web', () => {
 describe('operator notices (이용 안내 / 신고 처리 결과) on the Web', () => {
   it('reads a notice from the server answer and ignores anything else', () => {
     assert.deepEqual(parseModerationNotice({ id: 3, kind: 'warning', reason: 'r', guidance: 'g', acknowledgedAtUtc: null }), {
-      id: 3, kind: 'warning', reason: 'r', guidance: 'g', createdAtUtc: null, acknowledgedAtUtc: null, actionType: null, contentTitle: null, contentType: null, reasonCode: null,
+      id: 3, kind: 'warning', reason: 'r', guidance: 'g', createdAtUtc: null, acknowledgedAtUtc: null, actionType: null, contentTitle: null, contentType: null, reasonCode: null, contentImageUrl: null, collectionName: null,
     });
     assert.equal(parseModerationNotice({ id: 8, kind: 'action', actionType: 'contentDeleted', contentTitle: '제목', contentType: 'Item', reasonCode: 'Spam' })?.contentTitle, '제목');
+    assert.equal(parseModerationNotice({ id: 10, kind: 'warning', contentImageUrl: 'javascript:alert(1)', collectionName: '여행' })?.contentImageUrl, null);
+    assert.equal(parseModerationNotice({ id: 10, kind: 'warning', contentImageUrl: 'https://img.example/a.jpg', collectionName: '여행' })?.collectionName, '여행');
     assert.equal(parseModerationNotice({ id: 9, kind: 'action', actionType: 'somethingNew' }), null);
     assert.equal(parseModerationNotice({ id: 4, kind: 'reportResult' })?.reason, null);
     assert.equal(parseModerationNotice({ id: 5, kind: 'other' }), null);
@@ -247,7 +249,7 @@ describe('operator notices (이용 안내 / 신고 처리 결과) on the Web', (
 describe('operator ACTION notices on the Web', () => {
   it('words an action from its snapshot, in the person\'s language - and an account action without any content', async () => {
     const { moderationActionSentence, moderationReasonWords } = await import('../lib/moderationNoticeText.ts');
-    const base = { id: 1, kind: 'action' as const, reason: null, guidance: null, createdAtUtc: null, acknowledgedAtUtc: null, reasonCode: 'Spam' };
+    const base = { id: 1, kind: 'action' as const, reason: null, guidance: null, createdAtUtc: null, acknowledgedAtUtc: null, reasonCode: 'Spam', contentImageUrl: null, collectionName: null };
     assert.match(
       moderationActionSentence({ ...base, actionType: 'contentDeleted', contentTitle: '내 링크', contentType: 'Item' }, dictionary) ?? '',
       /'내 링크'이\(가\) 운영정책에 따라 삭제되었습니다/,

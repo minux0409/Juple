@@ -1540,6 +1540,16 @@
     "actionShareRestrictionLiftedLink": "Pembatasan berbagi tautan \"{{title}}\" telah dicabut.",
     "actionShareRestrictionLiftedCollection": "Pembatasan berbagi koleksi \"{{title}}\" telah dicabut.",
     "actionAccountRestricted": "Penggunaan akun Anda dibatasi sesuai kebijakan kami. Anda masih dapat melihat konten dan menghubungi dukungan.",
-    "actionAccountRestrictionLifted": "Pembatasan penggunaan akun Anda telah dicabut."
+    "actionAccountRestrictionLifted": "Pembatasan penggunaan akun Anda telah dicabut.",
+    "reasonCodeLabel": "Alasan",
+    "actionLabel": "Tindakan",
+    "sharedCollectionLine": "Koleksi bersama · {{name}}",
+    "actionTypeWarning": "Peringatan",
+    "actionTypeContentDeleted": "Dihapus",
+    "actionTypeContentRestored": "Dipulihkan",
+    "actionTypeShareRestricted": "Berbagi dibatasi",
+    "actionTypeShareRestrictionLifted": "Pembatasan berbagi dicabut",
+    "actionTypeAccountRestricted": "Akun dibatasi",
+    "actionTypeAccountRestrictionLifted": "Pembatasan akun dicabut"
   }
 }

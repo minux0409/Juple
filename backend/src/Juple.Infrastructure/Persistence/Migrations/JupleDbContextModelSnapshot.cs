@@ -2684,6 +2684,17 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.Property<byte?>("ActionType")
                         .HasColumnType("tinyint");
 
+                    b.Property<string>("CollectionName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long?>("ContentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ContentImageUrl")
+                        .HasMaxLength(4096)
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ContentTitle")
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");

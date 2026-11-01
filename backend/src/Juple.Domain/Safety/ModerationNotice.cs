@@ -38,6 +38,8 @@ public sealed class ModerationNotice
     public const int ReasonMaxLength = 500;
     public const int GuidanceMaxLength = 1000;
     public const int ContentTitleMaxLength = 300;
+    public const int ContentImageUrlMaxLength = 4096;
+    public const int CollectionNameMaxLength = 100;
 
     private ModerationNotice()
     {
@@ -45,7 +47,8 @@ public sealed class ModerationNotice
 
     public ModerationNotice(
         long recipientUserId, ModerationNoticeKind kind, long? reportId, string? reason, string? guidance, long? createdByAdminUserId, DateTimeOffset createdAtUtc,
-        ModerationActionType? actionType = null, string? contentTitle = null, string? contentType = null, string? reasonCode = null, string? dedupKey = null)
+        ModerationActionType? actionType = null, string? contentTitle = null, string? contentType = null, string? reasonCode = null, string? dedupKey = null,
+        long? contentId = null, string? contentImageUrl = null, string? collectionName = null)
     {
         RecipientUserId = recipientUserId;
         Kind = kind;
@@ -59,6 +62,9 @@ public sealed class ModerationNotice
         ContentType = contentType;
         ReasonCode = reasonCode;
         DedupKey = dedupKey;
+        ContentId = contentId;
+        ContentImageUrl = contentImageUrl is { Length: > ContentImageUrlMaxLength } ? null : contentImageUrl;
+        CollectionName = collectionName is { Length: > CollectionNameMaxLength } ? collectionName[..CollectionNameMaxLength] : collectionName;
     }
 
     public long Id { get; private set; }
@@ -93,6 +99,15 @@ public sealed class ModerationNotice
     public string? ReasonCode { get; private set; }
 
     public string? DedupKey { get; private set; }
+
+    /// <summary>The id of the Item or Collection it is about, for operators and support; never sent to the app and never read to build the notice.</summary>
+    public long? ContentId { get; private set; }
+
+    /// <summary>The link's automatic preview picture address when the notice was made. An uploaded photo is the person's private blob and is not kept here.</summary>
+    public string? ContentImageUrl { get; private set; }
+
+    /// <summary>The name of the shared Collection the reported link was in, as it was when the notice was made.</summary>
+    public string? CollectionName { get; private set; }
 
     public void Acknowledge(DateTimeOffset nowUtc) => AcknowledgedAtUtc ??= nowUtc;
 }

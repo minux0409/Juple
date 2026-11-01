@@ -48,6 +48,8 @@ public sealed class ModerationNoticeStore(JupleDbContext dbContext) : IModeratio
             ContentTitle = notice.ContentTitle,
             ContentType = notice.ContentType,
             ReasonCode = notice.ReasonCode,
+            ContentImageUrl = notice.ContentImageUrl,
+            CollectionName = notice.CollectionName,
         };
 
     public async Task<bool> AcknowledgeAsync(long userId, long noticeId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)

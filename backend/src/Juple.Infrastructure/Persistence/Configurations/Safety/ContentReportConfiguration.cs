@@ -139,6 +139,9 @@ public sealed class ModerationNoticeConfiguration : IEntityTypeConfiguration<Mod
         builder.Property(notice => notice.ContentType).HasColumnType("nvarchar(16)").HasMaxLength(16);
         builder.Property(notice => notice.ReasonCode).HasColumnType("nvarchar(32)").HasMaxLength(32);
         builder.Property(notice => notice.DedupKey).HasColumnType("nvarchar(120)").HasMaxLength(120);
+        builder.Property(notice => notice.ContentId).HasColumnType("bigint");
+        builder.Property(notice => notice.ContentImageUrl).HasColumnType("nvarchar(max)").HasMaxLength(ModerationNotice.ContentImageUrlMaxLength);
+        builder.Property(notice => notice.CollectionName).HasColumnType("nvarchar(100)").HasMaxLength(ModerationNotice.CollectionNameMaxLength);
 
         // One notice of a kind per report and recipient: the duplicate-send guard (a second warning for the same report is a conflict).
         // (Only a warning and a result are "once per report"; an action notice may repeat per report - deleted, then restored - and is guarded by its DedupKey.)

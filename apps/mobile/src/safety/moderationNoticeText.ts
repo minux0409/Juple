@@ -21,3 +21,14 @@ export function moderationActionSentence(notice: ModerationNotice, t: TFunction)
 export function moderationReasonLabel(notice: Pick<ModerationNotice, 'reasonCode'>, t: TFunction): string | null {
   return notice.reasonCode !== null && (REPORT_REASONS as readonly string[]).includes(notice.reasonCode) ? t(`safety.reason${notice.reasonCode}`) : null;
 }
+
+/** The short word for what the operators did (조치: 경고), in the person's language. */
+export function moderationActionLabel(notice: ModerationNotice, t: TFunction): string | null {
+  if (notice.kind === 'warning') {
+    return t('moderation.actionTypeWarning');
+  }
+  if (notice.kind !== 'action' || notice.actionType === null) {
+    return null;
+  }
+  return t(`moderation.actionType${notice.actionType.charAt(0).toUpperCase()}${notice.actionType.slice(1)}`);
+}

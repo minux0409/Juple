@@ -38,6 +38,10 @@ export interface ModerationNotice {
   readonly contentType: 'Item' | 'Collection' | null;
   /** The report's reason code (Spam, Harassment...), worded in the person's language by the app. */
   readonly reasonCode: string | null;
+  /** A link's preview picture, as it was at that moment. */
+  readonly contentImageUrl: string | null;
+  /** The shared Collection a link was in, as it was named at that moment. */
+  readonly collectionName: string | null;
 }
 
 const noticePath = (id: number) => `/api/v1/moderation-notices/${encodeURIComponent(String(id))}`;
@@ -66,6 +70,8 @@ export function parseModerationNotice(raw: unknown): ModerationNotice | null {
     contentTitle: typeof value.contentTitle === 'string' ? value.contentTitle : null,
     contentType: value.contentType === 'Item' || value.contentType === 'Collection' ? value.contentType : null,
     reasonCode: typeof value.reasonCode === 'string' ? value.reasonCode : null,
+    contentImageUrl: typeof value.contentImageUrl === 'string' ? value.contentImageUrl : null,
+    collectionName: typeof value.collectionName === 'string' ? value.collectionName : null,
   };
 }
 

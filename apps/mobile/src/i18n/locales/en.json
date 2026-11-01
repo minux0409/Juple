@@ -1540,6 +1540,16 @@
     "actionShareRestrictionLiftedLink": "The sharing restriction on the link \"{{title}}\" was lifted.",
     "actionShareRestrictionLiftedCollection": "The sharing restriction on your collection \"{{title}}\" was lifted.",
     "actionAccountRestricted": "Your account's use was restricted under our policies. You can still view your content and contact support.",
-    "actionAccountRestrictionLifted": "The restriction on your account's use was lifted."
+    "actionAccountRestrictionLifted": "The restriction on your account's use was lifted.",
+    "reasonCodeLabel": "Reason",
+    "actionLabel": "Action",
+    "sharedCollectionLine": "Shared collection · {{name}}",
+    "actionTypeWarning": "Warning",
+    "actionTypeContentDeleted": "Deleted",
+    "actionTypeContentRestored": "Restored",
+    "actionTypeShareRestricted": "Sharing restricted",
+    "actionTypeShareRestrictionLifted": "Sharing restriction lifted",
+    "actionTypeAccountRestricted": "Account restricted",
+    "actionTypeAccountRestrictionLifted": "Account restriction lifted"
   }
 }
