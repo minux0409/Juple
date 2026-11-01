@@ -185,7 +185,7 @@ export default function ReportDetailPage() {
               {detail.targetType === 'Collection' ? (
                 <p className="v2-muted">휴지통으로 이동합니다(소유자의 삭제 이력). 데이터는 완전히 지워지지 않으며 &quot;삭제 복구&quot;로 되돌릴 수 있습니다. Owner 권한이 필요하고 감사 로그가 남습니다.</p>
               ) : (
-                <p className="v2-muted">신고된 컬렉션에서만 제거됩니다. 사용자의 개인 저장 링크는 삭제되지 않고, 다른 컬렉션에도 영향이 없습니다. 링크를 추가한 사용자에게 운영팀 안내가 발송됩니다. 필요하면 &quot;컬렉션에 다시 추가&quot;로 되돌릴 수 있습니다. Owner 권한이 필요하고 감사 로그가 남습니다.</p>
+                <p className="v2-muted">신고된 컬렉션에서만 제거됩니다. 사용자의 개인 저장 링크는 그대로 유지되고 삭제 이력(휴지통)으로 이동하지 않으며, 다른 컬렉션에도 영향이 없습니다. 링크를 추가한 사용자에게 운영팀 안내가 발송됩니다. 필요하면 &quot;컬렉션에 다시 추가&quot;로 되돌릴 수 있습니다. Owner 권한이 필요하고 감사 로그가 남습니다.</p>
               )}
               <div className="v2-actions">
                 <button disabled={busy} onClick={() => void run(() => api<ReportDetail>({ method: 'POST', path: v2Paths.reportTargetDelete(detail.reportId), body: { confirm: true, ...body } }))} type="button">{detail.targetType === 'Collection' ? '삭제하고 작성자에게 안내 발송' : '제거하고 작성자에게 안내 발송'}</button>

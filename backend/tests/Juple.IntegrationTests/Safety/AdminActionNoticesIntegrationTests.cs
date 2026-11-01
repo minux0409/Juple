@@ -1,4 +1,8 @@
 using Juple.Application.Admin;
+using Juple.Application.Images;
+using Juple.Application.Items.GetItemHistory;
+using Juple.Application.Items.GetItemTrash;
+using Xunit.Abstractions;
 using Juple.Application.Notifications.Inbox;
 using Juple.Application.Safety;
 using Juple.Domain.Admin;
@@ -26,6 +30,10 @@ namespace Juple.IntegrationTests.Safety;
 public sealed class AdminActionNoticesIntegrationTests : IAsyncLifetime
 {
     private const string ReporterNote = "REPORTER-PRIVATE-EXPLANATION";
+
+    private readonly ITestOutputHelper _output;
+
+    public AdminActionNoticesIntegrationTests(ITestOutputHelper output) => _output = output;
 
     private string _connectionString = null!;
     private JupleDbContext _db = null!;
@@ -358,6 +366,86 @@ public sealed class AdminActionNoticesIntegrationTests : IAsyncLifetime
         {
             await NewContext().AdminUsers.Where(entry => entry.UserId == author).ExecuteDeleteAsync();
         }
+    }
+
+    /// <summary>The same services the Mobile app's 삭제 이력 (GET /api/v1/items/trash) and Home / archive (GET /api/v1/items/history) endpoints call.</summary>
+    private sealed class NoImages : IItemImageStorage
+    {
+        public Task DeleteItemBlobsAsync(long userId, long itemId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public string GetUserBlobPrefix(long userId) => $"items/{userId}/";
+
+        public Task<bool> DeleteBlobsByPrefixAsync(string prefix, CancellationToken cancellationToken = default) => Task.FromResult(true);
+
+        public Task<Uri?> CreateReadUrlAsync(long userId, string blobName, CancellationToken cancellationToken = default) => Task.FromResult<Uri?>(null);
+    }
+
+    private async Task<string> ItemRowAsync(long itemId)
+    {
+        var row = await NewContext().Items.AsNoTracking().Where(item => item.Id == itemId)
+            .Select(item => new { item.Id, item.UserId, item.DeletedAtUtc, item.Title, item.Url }).SingleAsync();
+        return $"ItemId={row.Id} UserId={row.UserId} DeletedAtUtc={(row.DeletedAtUtc is null ? "null" : "SET")} Url={row.Url}";
+    }
+
+    private async Task<(int A, int B, bool InTrash, bool InSavedList, int TrashCount)> ObserveAsync(long author, long link, long collectionA, long collectionB)
+    {
+        var trash = await new GetItemTrashService(new ItemStore(NewContext()), new NoImages()).GetAsync(author);
+        var saved = await new GetItemHistoryService(new ItemStore(NewContext()), new NoImages()).GetAsync(author, null, 100);
+        var db = NewContext();
+        return (
+            await db.CollectionItems.CountAsync(entry => entry.CollectionId == collectionA && entry.ItemId == link),
+            await db.CollectionItems.CountAsync(entry => entry.CollectionId == collectionB && entry.ItemId == link),
+            trash.Any(entry => entry.Id == link),
+            saved.Items.Any(entry => entry.Id == link),
+            trash.Count);
+    }
+
+    [Fact]
+    public async Task RemovingAReportedLink_NeverTouchesTheSavedLink_ItStaysInSavedAndHome_AndNeverAppearsInTheTrashEndpoint()
+    {
+        var (author, _) = await NewUserAsync();
+        var (owner, _) = await NewUserAsync();
+        var (reporter, _) = await NewUserAsync();
+        var (admin, _) = await NewUserAsync();
+        var link = await TwoCollectionLinkAsync(author, owner, reporter);
+        var (collectionA, collectionB) = _collectionPair;
+        var report = await ReportLinkAsync(reporter, link, collectionA);
+
+        var rowBefore = await ItemRowAsync(link);
+        var before = await ObserveAsync(author, link, collectionA, collectionB);
+        _output.WriteLine("BEFORE  " + rowBefore);
+        _output.WriteLine($"BEFORE  collectionA={before.A} collectionB={before.B} savedList={before.InSavedList} trash={before.TrashCount} inTrash={before.InTrash}");
+        Assert.Equal((1, 1, false, true, 0), before);
+
+        await Admin().DeleteTargetAsync(admin, isOwner: true, report, confirm: true, "internal", "신고된 컬렉션에서 제거했습니다.");
+
+        var rowAfter = await ItemRowAsync(link);
+        var after = await ObserveAsync(author, link, collectionA, collectionB);
+        _output.WriteLine("AFTER   " + rowAfter);
+        _output.WriteLine($"AFTER   collectionA={after.A} collectionB={after.B} savedList={after.InSavedList} trash={after.TrashCount} inTrash={after.InTrash}");
+
+        // The Item row is byte-for-byte what it was: no deleted flag, no deleted time, nothing else changed.
+        Assert.Equal(rowBefore, rowAfter);
+        Assert.Contains("DeletedAtUtc=null", rowAfter);
+        // The trash endpoint stays empty, the saved list / Home still has it, and only the reported Collection lost it.
+        Assert.Equal((0, 1, false, true, 0), after);
+
+        // The person was told - the notice and its Inbox row exist.
+        var notice = Assert.Single(await ActionNoticesAsync(author, ModerationActionType.ContentRemovedFromCollection));
+        Assert.Single(await NewContext().Notifications.Where(entry => entry.UserId == author && entry.SubjectId == notice.Id).ToListAsync());
+
+        // Putting it back, and removing it again, never routes it through the trash either.
+        await Admin().RestoreTargetAsync(admin, isOwner: true, report, null);
+        Assert.Equal((1, 1, false, true, 0), await ObserveAsync(author, link, collectionA, collectionB));
+        await Admin().DeleteTargetAsync(admin, isOwner: true, report, confirm: true, null);
+        Assert.Equal((0, 1, false, true, 0), await ObserveAsync(author, link, collectionA, collectionB));
+        Assert.Contains("DeletedAtUtc=null", await ItemRowAsync(link));
+
+        // Control: the person's own delete DOES put it into the trash endpoint - so this test would have caught a moderation move into the trash.
+        await new ItemStore(NewContext()).DeleteAsync(author, link, DateTimeOffset.UtcNow);
+        var control = await ObserveAsync(author, link, collectionA, collectionB);
+        Assert.True(control.InTrash);
+        Assert.False(control.InSavedList);
     }
 
     [Fact]

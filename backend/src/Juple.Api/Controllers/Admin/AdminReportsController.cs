@@ -53,7 +53,10 @@ public sealed class AdminReportsController(AdminReportService reports) : Control
     public Task<IActionResult> WarnAsync(long reportId, [FromBody] WarnRequest request, CancellationToken cancellationToken) =>
         Run(async () => Ok(await reports.WarnAsync(AdminRequestContext.GetRequired(HttpContext).UserId, reportId, request.Reason, request.Guidance, cancellationToken)));
 
-    /// <summary>링크 삭제 / 컬렉션 삭제 (soft: into the owner's trash, recoverable). Owner role only, and only with confirm = true. Idempotent.</summary>
+    /// <summary>
+    /// 컬렉션에서 제거 (a reported link: only that Collection's link to it is removed - the saved link is never deleted or trashed) / 컬렉션 삭제
+    /// (a reported Collection: soft delete, recoverable). Owner role only, and only with confirm = true. Idempotent.
+    /// </summary>
     [HttpPost("{reportId:long}/target/delete")]
     public Task<IActionResult> DeleteTargetAsync(long reportId, [FromBody] ConfirmedRequest request, CancellationToken cancellationToken) =>
         Run(async () =>
