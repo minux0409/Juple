@@ -123,8 +123,8 @@ public sealed class SharedContentModerationTests
     public async Task AdminNote_HasALimit_AndAMissingReportIsNotFound()
     {
         var service = new AdminReportService(new FakeStore(), TimeProvider.System);
-        await Assert.ThrowsAsync<InvalidAdminRequestException>(() => service.RestrictAsync(1, 2, new string('n', ContentReport.ResolutionMaxLength + 1)));
-        await Assert.ThrowsAsync<AdminReportNotFoundException>(() => new AdminReportService(new FakeStore { Exists = false }, TimeProvider.System).LiftRestrictionAsync(1, 2, null));
+        await Assert.ThrowsAsync<InvalidAdminRequestException>(() => service.ChangeStatusAsync(1, 2, "InReview", new string('n', ContentReport.ResolutionMaxLength + 1)));
+        await Assert.ThrowsAsync<AdminReportNotFoundException>(() => new AdminReportService(new FakeStore { Exists = false }, TimeProvider.System).ChangeStatusAsync(1, 2, "InReview", null));
     }
 
     [Fact]
@@ -163,10 +163,6 @@ public sealed class SharedContentModerationTests
             LastNote = note;
             return Task.FromResult(Exists);
         }
-
-        public Task<bool> RestrictAsync(long reportId, string? note, string? userMessage, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => Task.FromResult(Exists);
-
-        public Task<bool> LiftRestrictionAsync(long reportId, string? note, string? userMessage, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => Task.FromResult(Exists);
 
         public int Warnings { get; private set; }
 

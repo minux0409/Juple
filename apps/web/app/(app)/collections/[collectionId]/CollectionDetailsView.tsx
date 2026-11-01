@@ -667,7 +667,6 @@ function CollectionHeader({
           </Link>
         ) : null}
         <ActionMenu actions={menuActions} label={dictionary.manageAction} />
-        {collection.isShareRestricted ? <p className={styles.fieldError} data-share-restricted role="status">{dictionary.safetyShareRestrictedNotice}</p> : null}
       </div>
     </div>
   );

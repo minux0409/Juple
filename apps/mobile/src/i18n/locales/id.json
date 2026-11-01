@@ -1253,7 +1253,6 @@
     "unblockMessage": "Membuka blokir tidak memulihkan pertemanan, undangan yang dibatalkan, atau keanggotaan yang dihapus. Koleksi yang Anda ikuti muncul kembali di daftar.",
     "blockedAt": "Diblokir pada {{date}}",
     "hiddenCollectionsTitle": "Koleksi yang Anda ikuti, disembunyikan dari daftar (ketuk untuk membuka atau keluar)",
-    "shareRestrictedNotice": "Berbagi koleksi ini dibatasi sesuai kebijakan kami. Tidak ada yang dihapus dan Anda tetap dapat mengelolanya.",
     "accountRestricted": "Penggunaan akun ini dibatasi sesuai kebijakan kami. Anda masih dapat melihat konten dan menghubungi dukungan."
   },
   "agreement": {

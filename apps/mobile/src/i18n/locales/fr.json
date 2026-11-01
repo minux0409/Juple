@@ -1253,7 +1253,6 @@
     "unblockMessage": "Le déblocage ne rétablit ni l'amitié, ni les invitations annulées, ni les participations retirées. Les collections auxquelles vous participez réapparaissent dans vos listes.",
     "blockedAt": "Bloqué le {{date}}",
     "hiddenCollectionsTitle": "Collections rejointes, masquées de vos listes (touchez pour ouvrir ou quitter)",
-    "shareRestrictedNotice": "Le partage de cette collection a été restreint conformément à nos règles. Rien n'a été supprimé et vous pouvez toujours la gérer.",
     "accountRestricted": "L'utilisation de ce compte est restreinte conformément à nos règles. Vous pouvez toujours consulter votre contenu et contacter l'assistance."
   },
   "agreement": {

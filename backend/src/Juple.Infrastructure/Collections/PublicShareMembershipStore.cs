@@ -24,7 +24,6 @@ public sealed class PublicShareMembershipStore(JupleDbContext dbContext) : IPubl
                 collection.Id,
                 OwnerUserId = collection.UserId,
                 share.IsPublic,
-                IsRestricted = dbContext.ShareRestrictions.Any(restriction => restriction.CollectionId == collection.Id && restriction.ItemId == null && restriction.LiftedAtUtc == null),
             })
             .FirstOrDefaultAsync(cancellationToken);
         if (target is null)
@@ -49,12 +48,6 @@ public sealed class PublicShareMembershipStore(JupleDbContext dbContext) : IPubl
             return new PublicShareMembershipDto(
                 false, null, null, target.IsPublic, false, OwnerBlockedByYou: true,
                 OwnerName: string.IsNullOrWhiteSpace(blockedOwner.DisplayName) ? blockedOwner.PublicCode : blockedOwner.DisplayName);
-        }
-
-        // Under an operator's restriction the link answers like one that does not exist, member or not.
-        if (target.IsRestricted)
-        {
-            return null;
         }
 
         var role = await dbContext.CollectionCollaborators.AsNoTracking()

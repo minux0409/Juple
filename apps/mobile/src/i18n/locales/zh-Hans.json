@@ -1253,7 +1253,6 @@
     "unblockMessage": "解除屏蔽不会恢复好友关系、已取消的邀请或已移除的成员身份。你参与的合集会重新显示在列表中。",
     "blockedAt": "屏蔽日期 {{date}}",
     "hiddenCollectionsTitle": "已从列表隐藏的已加入合集(点按可打开或退出)",
-    "shareRestrictedNotice": "根据政策,此合集的共享已受限。数据未被删除,你仍可管理。",
     "accountRestricted": "根据运营政策，此账号的使用已受到限制。你仍可查看内容并联系客服。"
   },
   "agreement": {

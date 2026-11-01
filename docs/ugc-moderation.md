@@ -41,13 +41,13 @@ Reports: Collection (`컬렉션 신고하기`, members and signed-in visitors of
 
 ## Operating the queue (Admin > 문의 관리 > 신고 관리)
 
-`GET /api/v1/admin/reports`, `GET .../{id}`, `PUT .../{id}/status` (InReview = 검토 중, Dismissed = 조치 없음, Actioned = 처리 완료), `POST .../{id}/restriction` (공유 제한), `POST .../{id}/restriction/lift` (해제). JupleAdmin policy; each change is saved with an `AdminAuditLogs` record in one transaction, and the audit detail never holds the content or the note.
+`GET /api/v1/admin/reports`, `GET .../{id}`, `PUT .../{id}/status` (InReview = 검토 중, Dismissed = 조치 없음, Actioned = 처리 완료), and the operator actions below. JupleAdmin policy; each change is saved with an `AdminAuditLogs` record in one transaction, and the audit detail never holds the content or the note.
 
-**공유 제한 (`safety.ShareRestrictions`) deletes nothing.** One row per decision, so the history stays.
+**공유 제한 (share restriction) was retired.** A report that is upheld is answered by removing the reported link from the Collection it was reported in (`POST .../{id}/target/delete`, "컬렉션에서 제거"): only that `CollectionItem` link goes, for every member of that Collection; the person's saved link, their other Collections and their trash are untouched. A report alone never hides anything.
 
-* A restricted Collection: `CollectionAccessStore` answers "no access" to everyone but the Owner, so app and Web members get the same 404; the public link and its membership resolver answer like a link that does not exist; invitations and join requests are refused. Memberships are kept and come back when it is lifted. The Owner keeps managing it and sees a notice (`isShareRestricted`).
-* A restricted link: gone for other members and the public page; the Collection's Owner and whoever added it keep it. Its comment thread and hearts are closed for everyone while the restriction lasts.
-* A person or a comment cannot be restricted (409 `reportNotRestrictable`); act on those by hand as before. 조치 없음 is refused while a restriction is in force (409 `reportRestrictionActive`).
+* Nothing reads `safety.ShareRestrictions` for access any more (Collection access, lists, links, comments, invitations and join requests, the public link and its membership resolver, reporting): `isShareRestricted` is always `false` (the field stays for older clients) and the apps show no restriction notice. Block filters, memberships, Collection locks / share passwords and account restriction are separate and unchanged.
+* `POST .../{id}/restriction` and `.../restriction/lift` answer `410` with code `shareRestrictionRetired`. The Admin Web no longer offers them; 조치 없음 is no longer held back by an old restriction.
+* The table and its rows stay as history (who, when, for which report; audit entries and older notices still read). Migration `RetireActiveShareRestrictions` closes the rows that were still in force (`LiftedAtUtc` set, `LiftedByAdminUserId` NULL = ended by the retirement) and deletes nothing.
 
 ## Automatic check (limits)
 

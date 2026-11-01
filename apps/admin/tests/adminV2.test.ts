@@ -285,7 +285,6 @@ describe('신고 관리', () => {
   it('asks the reports API, never the inquiry API, and encodes ids', () => {
     assert.equal(v2Paths.reports('Open', null), '/api/v1/admin/reports?status=Open');
     assert.equal(v2Paths.reports('Actioned', '5'), '/api/v1/admin/reports?status=Actioned&cursor=5');
-    assert.equal(v2Paths.reportRestrictionLift(3), '/api/v1/admin/reports/3/restriction/lift');
   });
 
   it('names who reported: a person, the automatic check, or a deleted account', () => {
@@ -295,7 +294,7 @@ describe('신고 관리', () => {
   });
 
   it('explains the two refusals by their stable code', () => {
-    assert.match(reportFailureMessage('reportRestrictionActive') ?? '', /해제/);
+    assert.match(reportFailureMessage('shareRestrictionRetired') ?? '', /컬렉션에서 제거/);
     assert.match(reportFailureMessage('reportNotRestrictable') ?? '', /제한/);
     assert.equal(reportFailureMessage('other'), null);
   });

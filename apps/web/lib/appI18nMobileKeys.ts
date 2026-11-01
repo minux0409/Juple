@@ -616,7 +616,6 @@ export const MOBILE_STRING_KEYS = {
   safetyUnblockMessage: 'safety.unblockMessage',
   safetyBlockedAt: 'safety.blockedAt',
   safetyHiddenCollectionsTitle: 'safety.hiddenCollectionsTitle',
-  safetyShareRestrictedNotice: 'safety.shareRestrictedNotice',
   safetyBlockedDone: 'safety.blockedDone',
   safetyBlockFailed: 'safety.blockFailed',
   safetyUnblock: 'safety.unblock',

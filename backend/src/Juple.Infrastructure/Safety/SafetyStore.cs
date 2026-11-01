@@ -116,13 +116,6 @@ public sealed class SafetyStore(JupleDbContext dbContext, IUserProfileImageStora
             return collection.UserId;
         }
 
-        // Under an operator's restriction a member no longer sees it: the same answer as a Collection they never had.
-        if (await dbContext.ShareRestrictions.AsNoTracking().AnyAsync(
-                restriction => restriction.CollectionId == collectionId && restriction.ItemId == null && restriction.LiftedAtUtc == null, cancellationToken))
-        {
-            return null;
-        }
-
         if (await dbContext.CollectionCollaborators.AsNoTracking().AnyAsync(member => member.CollectionId == collectionId && member.UserId == reporterUserId, cancellationToken))
         {
             return collection.UserId;
@@ -153,7 +146,6 @@ public sealed class SafetyStore(JupleDbContext dbContext, IUserProfileImageStora
             from share in dbContext.CollectionShares.AsNoTracking()
             where share.PublicId == publicId && share.IsActive && share.IsPublic
             join collection in dbContext.Collections.AsNoTracking().Where(collection => collection.DeletedAtUtc == null) on share.CollectionId equals collection.Id
-            where !dbContext.ShareRestrictions.Any(restriction => restriction.CollectionId == collection.Id && restriction.ItemId == null && restriction.LiftedAtUtc == null)
             select new { collection.Id, collection.UserId, collection.Name })
             .FirstOrDefaultAsync(cancellationToken);
         if (target is null)
@@ -345,7 +337,6 @@ public sealed class SafetyStore(JupleDbContext dbContext, IUserProfileImageStora
             where member.UserId == blockerUserId
             join collection in dbContext.Collections.AsNoTracking().Where(collection => collection.DeletedAtUtc == null) on member.CollectionId equals collection.Id
             where ownerIds.Contains(collection.UserId)
-                && !dbContext.ShareRestrictions.Any(restriction => restriction.CollectionId == collection.Id && restriction.ItemId == null && restriction.LiftedAtUtc == null)
             select new { collection.Id, collection.Name, OwnerUserId = collection.UserId })
             .ToListAsync(cancellationToken);
         var result = new List<BlockedUserDto>(rows.Count);

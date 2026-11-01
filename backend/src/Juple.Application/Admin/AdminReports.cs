@@ -81,8 +81,6 @@ public sealed class AdminReportNotFoundException : Exception;
 /// <summary>409: the action does not fit the report's present state; Code tells the Admin Web which.</summary>
 public sealed class AdminReportConflictException(string code) : Exception(code)
 {
-    public const string NotRestrictable = "reportNotRestrictable";
-    public const string RestrictionActive = "reportRestrictionActive";
     public const string NotDeletable = "reportNotDeletable";
     public const string CollectionUnknown = "reportCollectionUnknown";
     public const string NoTargetUser = "reportHasNoTargetUser";
@@ -124,12 +122,6 @@ public interface IAdminReportStore
 
     /// <summary>The status change and its audit record are one transaction. False = no such report.</summary>
     Task<bool> ChangeStatusAsync(long reportId, ReportStatus status, string? note, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
-
-    /// <summary>The restriction of the report's Collection or link and its audit record are one transaction; repeating it changes nothing.</summary>
-    Task<bool> RestrictAsync(long reportId, string? note, string? userMessage, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
-
-    /// <summary>Lifts the restriction of the report's target, with its audit record; repeating it changes nothing.</summary>
-    Task<bool> LiftRestrictionAsync(long reportId, string? note, string? userMessage, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -157,16 +149,6 @@ public sealed class AdminReportService(IAdminReportStore store, TimeProvider tim
             _ => throw new InvalidAdminRequestException("status", "status must be InReview, Dismissed or Actioned."),
         };
         if (!await store.ChangeStatusAsync(reportId, target, Note(note), adminUserId, timeProvider.GetUtcNow(), cancellationToken))
-        {
-            throw new AdminReportNotFoundException();
-        }
-
-        return await GetAsync(reportId, cancellationToken);
-    }
-
-    public async Task<AdminReportDetail> RestrictAsync(long adminUserId, long reportId, string? note, string? message = null, CancellationToken cancellationToken = default)
-    {
-        if (!await store.RestrictAsync(reportId, Note(note), UserMessage(message), adminUserId, timeProvider.GetUtcNow(), cancellationToken))
         {
             throw new AdminReportNotFoundException();
         }
@@ -265,16 +247,6 @@ public sealed class AdminReportService(IAdminReportStore store, TimeProvider tim
         {
             throw new InvalidAdminRequestException("confirm", "This action must be confirmed explicitly.");
         }
-    }
-
-    public async Task<AdminReportDetail> LiftRestrictionAsync(long adminUserId, long reportId, string? note, string? message = null, CancellationToken cancellationToken = default)
-    {
-        if (!await store.LiftRestrictionAsync(reportId, Note(note), UserMessage(message), adminUserId, timeProvider.GetUtcNow(), cancellationToken))
-        {
-            throw new AdminReportNotFoundException();
-        }
-
-        return await GetAsync(reportId, cancellationToken);
     }
 
     private static IReadOnlyCollection<ReportStatus> ParseFilter(string? status) => status switch

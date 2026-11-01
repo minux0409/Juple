@@ -362,7 +362,7 @@ describe('shared Collection reports and the blocked list', () => {
     const locales = ['ar', 'de', 'en', 'es', 'fr', 'hi', 'id', 'it', 'ja', 'ko', 'pt-BR', 'ru', 'th', 'tr', 'vi', 'zh-Hans', 'zh-Hant'];
     for (const locale of locales) {
       const safety = require(`../../i18n/locales/${locale}.json`).safety as Record<string, string>;
-      for (const key of ['reportCollection', 'reportLink', 'reportTargetLabel', 'blockUserAction', 'unblockMessage', 'hiddenCollectionsTitle', 'shareRestrictedNotice']) {
+      for (const key of ['reportCollection', 'reportLink', 'reportTargetLabel', 'blockUserAction', 'unblockMessage', 'hiddenCollectionsTitle']) {
         expect(safety[key]?.length).toBeGreaterThan(0);
       }
       // The short question: no placeholder, no long list of effects - only where to undo the block.

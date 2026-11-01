@@ -1253,7 +1253,6 @@
     "unblockMessage": "Unblocking does not restore a friendship, cancelled invitations or removed memberships. Collections you are in appear in your lists again.",
     "blockedAt": "Blocked on {{date}}",
     "hiddenCollectionsTitle": "Collections you joined, hidden from your lists (tap to open or leave)",
-    "shareRestrictedNotice": "Sharing of this Collection has been restricted under our policies. Nothing was deleted, and you can still manage it.",
     "accountRestricted": "This account's use is restricted under our policies. You can still view your content and contact support."
   },
   "agreement": {

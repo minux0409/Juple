@@ -1253,7 +1253,6 @@
     "unblockMessage": "Lo sblocco non ripristina amicizie, inviti annullati o partecipazioni rimosse. Le raccolte a cui partecipi tornano nei tuoi elenchi.",
     "blockedAt": "Bloccato il {{date}}",
     "hiddenCollectionsTitle": "Raccolte a cui partecipi, nascoste dagli elenchi (tocca per aprire o uscire)",
-    "shareRestrictedNotice": "La condivisione di questa raccolta è stata limitata in base alle nostre norme. Non è stato eliminato nulla e puoi continuare a gestirla.",
     "accountRestricted": "L'uso di questo account è limitato in base alle nostre norme. Puoi comunque vedere i tuoi contenuti e contattare l'assistenza."
   },
   "agreement": {

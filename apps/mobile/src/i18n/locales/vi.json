@@ -1253,7 +1253,6 @@
     "unblockMessage": "Bỏ chặn không khôi phục quan hệ bạn bè, lời mời đã hủy hay tư cách thành viên đã xóa. Các bộ sưu tập bạn tham gia sẽ xuất hiện lại trong danh sách.",
     "blockedAt": "Đã chặn ngày {{date}}",
     "hiddenCollectionsTitle": "Bộ sưu tập đã tham gia, bị ẩn khỏi danh sách (chạm để mở hoặc rời)",
-    "shareRestrictedNotice": "Việc chia sẻ bộ sưu tập này đã bị hạn chế theo chính sách của chúng tôi. Không có gì bị xóa và bạn vẫn có thể quản lý.",
     "accountRestricted": "Việc sử dụng tài khoản này bị hạn chế theo chính sách của chúng tôi. Bạn vẫn có thể xem nội dung và liên hệ hỗ trợ."
   },
   "agreement": {

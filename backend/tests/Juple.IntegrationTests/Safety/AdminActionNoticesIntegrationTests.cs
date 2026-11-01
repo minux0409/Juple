@@ -536,29 +536,6 @@ public sealed class AdminActionNoticesIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ShareRestrictionAndItsLifting_AreNoticed_AndRepeatingThemIsNot()
-    {
-        var (author, _) = await NewUserAsync();
-        var (reporter, _) = await NewUserAsync();
-        var (admin, _) = await NewUserAsync();
-        var collection = await NewCollectionAsync(author, reporter);
-        var link = await NewLinkAsync(author, collection);
-        var report = await ReportLinkAsync(reporter, link, collection);
-
-        await Admin().RestrictAsync(admin, report, "note", "공유를 제한했어요.");
-        await Admin().RestrictAsync(admin, report, "note", null);
-        Assert.Single(await ActionNoticesAsync(author, ModerationActionType.ShareRestricted));
-
-        await Admin().LiftRestrictionAsync(admin, report, null, "해제했어요.");
-        await Admin().LiftRestrictionAsync(admin, report, null, null);
-        var lifted = Assert.Single(await ActionNoticesAsync(author, ModerationActionType.ShareRestrictionLifted));
-        Assert.Equal("해제했어요.", lifted.Guidance);
-        Assert.Equal(2, await NewContext().Notifications.CountAsync(entry => entry.UserId == author && entry.Type == NotificationType.AdminWarning));
-        // The link itself was never deleted by a restriction.
-        Assert.True(await NewContext().Items.AnyAsync(item => item.Id == link && item.DeletedAtUtc == null));
-    }
-
-    [Fact]
     public async Task AccountRestrictionAndWarning_AreNoticed_EachOnce_AndAFailedActionLeavesNoNotice()
     {
         var (author, _) = await NewUserAsync();
@@ -634,7 +611,7 @@ public sealed class AdminActionNoticesIntegrationTests : IAsyncLifetime
 
         await Assert.ThrowsAsync<ReportTypeNotAcceptedException>(() => reports.CreateAsync(reporter, new CreateReportCommand("Collection", collection.ToString(), null, "Spam", null)));
 
-        // A report made before the rule (seeded as it was stored) is untouched: listed, readable by an operator who is no member, restrictable, noticed.
+        // A report made before the rule (seeded as it was stored) is untouched: listed and readable by an operator who is no member.
         _db.ContentReports.Add(new ContentReport(reporter, ReportTargetType.Collection, collection, owner, collection, ReportReason.Spam, ReporterNote, DateTimeOffset.UtcNow, "Old name"));
         await _db.SaveChangesAsync();
         var old = await NewContext().ContentReports.Where(report => report.ReporterUserId == reporter && report.TargetType == ReportTargetType.Collection).Select(report => report.Id).FirstAsync();
@@ -642,10 +619,7 @@ public sealed class AdminActionNoticesIntegrationTests : IAsyncLifetime
         var detail = await Admin().GetAsync(old);
         Assert.Equal("Old name", detail.SnapshotTitle);
         Assert.NotNull(detail.CollectionName);
-        await Admin().RestrictAsync(admin, old, null, null);
-        var notice = Assert.Single(await ActionNoticesAsync(owner, ModerationActionType.ShareRestricted));
-        Assert.Equal("Collection", notice.ContentType);
-        Assert.False(string.IsNullOrWhiteSpace(notice.ContentTitle));
+        Assert.False(detail.CanRestrict);
     }
 
     [Fact]

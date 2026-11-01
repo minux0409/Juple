@@ -1253,7 +1253,6 @@
     "unblockMessage": "Desbloquear no restaura la amistad, las invitaciones canceladas ni las participaciones eliminadas. Las colecciones en las que participas vuelven a aparecer en tus listas.",
     "blockedAt": "Bloqueado el {{date}}",
     "hiddenCollectionsTitle": "Colecciones en las que participas, ocultas de tus listas (toca para abrir o salir)",
-    "shareRestrictedNotice": "El uso compartido de esta colección se ha restringido según nuestras políticas. No se ha eliminado nada y puedes seguir gestionándola.",
     "accountRestricted": "El uso de esta cuenta está restringido según nuestras políticas. Aún puedes ver tu contenido y contactar con soporte."
   },
   "agreement": {

@@ -1620,7 +1620,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
               </View>
             ) : null}
           </View>
-          {collection.isShareRestricted ? <Text style={styles.shareRestricted} testID="collection-share-restricted">{t('safety.shareRestrictedNotice')}</Text> : null}
           {/* One row: who is in it on the start side (the whole stack opens the participant list), the actions on the end side. No
               link count - the list below shows the links. */}
           <View style={styles.headerMetaRow}>
@@ -2252,7 +2251,6 @@ const styles = themedStyles(() => ({
     marginEnd: spacing.sm + 2,
   },
   // The lock sits on the first line's centre too (a box as tall as that line).
-  shareRestricted: { color: colors.dangerText, fontSize: 13, marginTop: spacing.xs },
   headerLock: { height: HEADER_ICON_SIZE, justifyContent: 'center', marginStart: spacing.xs },
   // At most two lines, then "…" (numberOfLines/ellipsizeMode on the Text) - even a name with no
   // spaces at all; flexShrink/minWidth keep it from pushing the icon or the lock out of the row.

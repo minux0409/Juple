@@ -502,8 +502,8 @@ export function reportReporterLabel(row: { readonly source: string; readonly rep
 }
 
 export function reportFailureMessage(code: string | null | undefined): string | null {
-  if (code === 'reportRestrictionActive') {
-    return '공유 제한이 적용 중입니다. 먼저 제한을 해제해 주세요.';
+  if (code === 'shareRestrictionRetired') {
+    return '공유 제한은 폐지되었습니다. 신고된 링크는 "컬렉션에서 제거"로 처리해 주세요.';
   }
   switch (code) {
     case 'reportNotRestrictable':
@@ -788,8 +788,6 @@ export const v2Paths = {
   reportTargetRestore: (id: number) => `/api/v1/admin/reports/${encodeURIComponent(String(id))}/target/restore`,
   reportAccountRestriction: (id: number) => `/api/v1/admin/reports/${encodeURIComponent(String(id))}/account-restriction`,
   reportAccountRestrictionLift: (id: number) => `/api/v1/admin/reports/${encodeURIComponent(String(id))}/account-restriction/lift`,
-  reportRestriction: (id: number) => `/api/v1/admin/reports/${encodeURIComponent(String(id))}/restriction`,
-  reportRestrictionLift: (id: number) => `/api/v1/admin/reports/${encodeURIComponent(String(id))}/restriction/lift`,
   inquiryContentTranslation: (id: number) => `/api/v1/admin/support/inquiries/${encodeURIComponent(String(id))}/content-translation`,
   inquiryDraft: (id: number) => `/api/v1/admin/support/inquiries/${encodeURIComponent(String(id))}/answer-draft`,
   inquiryAnswerTranslation: (id: number) => `/api/v1/admin/support/inquiries/${encodeURIComponent(String(id))}/answer-translation`,

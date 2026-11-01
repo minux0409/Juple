@@ -31,13 +31,6 @@ public sealed class CollectionCollaborationStore(
 
         await RequireRoleMatchesPublicShareAsync(collectionId, role, cancellationToken);
 
-        // Nobody new joins a Collection under an operator's restriction.
-        if (await dbContext.ShareRestrictions.AnyAsync(
-                restriction => restriction.CollectionId == collectionId && restriction.ItemId == null && restriction.LiftedAtUtc == null, cancellationToken))
-        {
-            throw new CollectionCollaborationConflictException(CollectionCollaborationConflictException.ContentRestricted);
-        }
-
         // Nobody is invited across a block (either direction).
         await BlockGuard.EnsureNotBlockedAsync(dbContext, ownerUserId, invitedUserId, cancellationToken);
 

@@ -213,71 +213,64 @@ public sealed class SharedContentModerationIntegrationTests : IAsyncLifetime
     // ---------- share restriction ----------
 
     [Fact]
-    public async Task Restriction_ShutsOutMembersAndThePublicLink_OwnerKeepsIt_AndLiftingRestoresAll()
+    public async Task ARetiredShareRestriction_NoLongerClosesAnything_AndTheRetirementEndsItWithoutDeletingAnyHistory()
     {
         var (owner, _) = await NewUserAsync();
         var (member, _) = await NewUserAsync();
-        var (admin, _) = await NewUserAsync();
-        var collection = await NewCollectionAsync(owner, member);
-        var link = await NewItemInAsync(owner, collection);
-        var publicId = await MakePublicAsync(collection);
-        var report = await ReportCollectionAsync(member, collection);
-
-        var detail = await Admin().RestrictAsync(admin, report, "note");
-
-        Assert.True(detail.IsRestricted);
-        Assert.Null(await AccessAsync(member, collection));
-        Assert.NotNull(await AccessAsync(owner, collection));
-        Assert.True((await new CollectionStore(NewContext()).GetAsync(owner, collection)).IsShareRestricted);
-        Assert.Null(await new PublicShareMembershipStore(NewContext()).GetAsync(publicId, member));
-        Assert.NotNull(await new PublicShareMembershipStore(NewContext()).GetAsync(publicId, owner));
-        Assert.Null(await new PublicCollectionStore(NewContext()).GetStateAsync(publicId));
-        var list = await new CollectionStore(NewContext()).ListByScopeAsync(member, CollectionListScope.Shared, null, null, null, 50);
-        Assert.DoesNotContain(list.Items, entry => entry.Id == collection);
-        Assert.True(await NewContext().Items.AnyAsync(item => item.Id == link && item.DeletedAtUtc == null));
-        Assert.True(await NewContext().CollectionCollaborators.AnyAsync(entry => entry.CollectionId == collection && entry.UserId == member));
-
-        await Assert.ThrowsAsync<AdminReportConflictException>(() => Admin().ChangeStatusAsync(admin, report, "Dismissed", null));
-
-        var lifted = await Admin().LiftRestrictionAsync(admin, report, null);
-        Assert.False(lifted.IsRestricted);
-        Assert.NotNull(await AccessAsync(member, collection));
-        Assert.NotNull(await new PublicCollectionStore(NewContext()).GetStateAsync(publicId));
-        Assert.Equal(2, await NewContext().AdminAuditLogs.CountAsync(log => log.TargetType == Juple.Domain.Admin.AdminAuditTargets.ContentReport && log.TargetId == report.ToString()));
-    }
-
-    [Fact]
-    public async Task Restriction_OfOneLink_HidesItFromOtherMembers_ButNotFromItsAdderOrTheOwner()
-    {
-        var (owner, _) = await NewUserAsync();
-        var (adder, _) = await NewUserAsync();
         var (other, _) = await NewUserAsync();
         var (admin, _) = await NewUserAsync();
-        var collection = await NewCollectionAsync(owner, adder, other);
-        var link = await NewItemInAsync(adder, collection);
+        var collection = await NewCollectionAsync(owner, member, other);
+        var link = await NewItemInAsync(member, collection);
+        var publicId = await MakePublicAsync(collection);
+        var report = await ReportCollectionAsync(other, collection);
         await Reports().CreateAsync(other, new CreateReportCommand("Item", link.ToString(), collection, "Spam", Marker));
-        var report = await ReportIdAsync(other, ReportTargetType.Item, link);
+        var linkReport = await ReportIdAsync(other, ReportTargetType.Item, link);
 
-        await Admin().RestrictAsync(admin, report, null);
+        // Rows as the old feature left them: the whole Collection and one link, both still "in force".
+        _db.ShareRestrictions.Add(new ShareRestriction(collection, null, report, admin, DateTimeOffset.UtcNow.AddDays(-1)));
+        _db.ShareRestrictions.Add(new ShareRestriction(collection, link, linkReport, admin, DateTimeOffset.UtcNow.AddDays(-1)));
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
 
-        Assert.Null(await new CollectionStore(NewContext()).GetSharedItemAsync(other, collection, link));
-        Assert.NotNull(await new CollectionStore(NewContext()).GetSharedItemAsync(adder, collection, link));
+        // Nothing reads them for access: members, the owner and the public link behave as for any Collection.
+        Assert.NotNull(await AccessAsync(member, collection));
+        Assert.NotNull(await AccessAsync(owner, collection));
+        Assert.False((await new CollectionStore(NewContext()).GetAsync(owner, collection)).IsShareRestricted);
+        Assert.NotNull(await new PublicShareMembershipStore(NewContext()).GetAsync(publicId, member));
+        Assert.NotNull(await new PublicCollectionStore(NewContext()).GetStateAsync(publicId));
+        var list = await new CollectionStore(NewContext()).ListByScopeAsync(member, CollectionListScope.Shared, null, null, null, 50);
+        Assert.Contains(list.Items, entry => entry.Id == collection);
+        Assert.NotNull(await new CollectionStore(NewContext()).GetSharedItemAsync(other, collection, link));
         Assert.NotNull(await new CollectionStore(NewContext()).GetSharedItemAsync(owner, collection, link));
-        Assert.NotNull(await AccessAsync(other, collection));
-    }
+        var page = await new CollectionStore(NewContext()).GetItemsAsync(other, collection, null, 50);
+        Assert.Contains(link, page.Page.Items.Select(entry => entry.ItemId));
+        // New links, comments and invitations work for members, whatever an old row says.
+        var newLink = await NewItemInAsync(other, collection);
+        Assert.NotNull(await new CollectionStore(NewContext()).GetSharedItemAsync(member, collection, newLink));
+        Assert.NotNull(await new CollectionItemCommentStore(NewContext()).CreateAsync(member, collection, link, "still works", DateTimeOffset.UtcNow));
+        var (invited, _) = await NewUserAsync();
+        var invitation = await new CollectionCollaborationStore(NewContext()).CreateInvitationAsync(collection, owner, invited, DateTimeOffset.UtcNow);
+        Assert.True(invitation.InvitationId > 0);
+        // A report is no longer held back by a restriction in force.
+        await Admin().ChangeStatusAsync(admin, report, "Dismissed", null);
+        // The admin never offers or accepts a new restriction.
+        Assert.False((await Admin().GetAsync(report)).CanRestrict);
+        Assert.False((await Admin().GetAsync(linkReport)).CanRestrict);
 
-    [Fact]
-    public async Task Restriction_OfAPersonIsRefused()
-    {
-        var (owner, ownerCode) = await NewUserAsync();
-        var (member, _) = await NewUserAsync();
-        var (admin, _) = await NewUserAsync();
-        await NewCollectionAsync(owner, member);
-        await Reports().CreateAsync(member, new CreateReportCommand("User", ownerCode, null, "Spam", Marker));
-        var report = await ReportIdAsync(member, ReportTargetType.User, owner);
-
-        await Assert.ThrowsAsync<AdminReportConflictException>(() => Admin().RestrictAsync(admin, report, null));
-        await _db.ContentReports.Where(entry => entry.Id == report).ExecuteDeleteAsync();
+        // The retirement closes what is still open and keeps every row, who set it, when and for which report.
+        await _db.Database.ExecuteSqlRawAsync(
+            "UPDATE [safety].[ShareRestrictions] SET [LiftedAtUtc] = TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00') WHERE [LiftedAtUtc] IS NULL AND [CollectionId] = {0};", collection);
+        var rows = await NewContext().ShareRestrictions.AsNoTracking().Where(entry => entry.CollectionId == collection).ToListAsync();
+        Assert.Equal(2, rows.Count);
+        Assert.All(rows, entry =>
+        {
+            Assert.NotNull(entry.LiftedAtUtc);
+            Assert.Null(entry.LiftedByAdminUserId);
+            Assert.Equal(admin, entry.RestrictedByAdminUserId);
+            Assert.NotNull(entry.ReportId);
+        });
+        Assert.True(await NewContext().Items.AnyAsync(item => item.Id == link && item.DeletedAtUtc == null));
+        Assert.True(await NewContext().CollectionCollaborators.AnyAsync(entry => entry.CollectionId == collection && entry.UserId == member));
     }
 
     [Fact]

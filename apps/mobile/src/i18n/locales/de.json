@@ -1253,7 +1253,6 @@
     "unblockMessage": "Das Entblocken stellt weder Freundschaften noch abgebrochene Einladungen oder entfernte Mitgliedschaften wieder her. Sammlungen, in denen du Mitglied bist, erscheinen wieder in deinen Listen.",
     "blockedAt": "Blockiert am {{date}}",
     "hiddenCollectionsTitle": "Beigetretene Sammlungen, aus deinen Listen ausgeblendet (zum Öffnen oder Verlassen tippen)",
-    "shareRestrictedNotice": "Das Teilen dieser Sammlung wurde gemäß unseren Richtlinien eingeschränkt. Es wurde nichts gelöscht, und du kannst sie weiter verwalten.",
     "accountRestricted": "Die Nutzung dieses Kontos ist gemäß unseren Richtlinien eingeschränkt. Du kannst deine Inhalte weiterhin ansehen und den Support kontaktieren."
   },
   "agreement": {

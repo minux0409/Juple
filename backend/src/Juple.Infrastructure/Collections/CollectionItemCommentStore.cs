@@ -350,9 +350,6 @@ public sealed class CollectionItemCommentStore(JupleDbContext dbContext, IUserPr
     private Task<bool> IsLinkAsync(long userId, long collectionId, long itemId, CancellationToken cancellationToken) =>
         (from membership in dbContext.CollectionItems.AsNoTracking().WhereNotHiddenByBlock(dbContext, userId)
          where membership.CollectionId == collectionId && membership.ItemId == itemId
-             // A link under an operator's restriction takes no comments or hearts, and its thread is not served, until it is lifted.
-             && !dbContext.ShareRestrictions.Any(restriction =>
-                 restriction.CollectionId == collectionId && restriction.ItemId == itemId && restriction.LiftedAtUtc == null)
          join item in dbContext.Items.AsNoTracking().Where(item => item.DeletedAtUtc == null) on membership.ItemId equals item.Id
          select membership.Id).AnyAsync(cancellationToken);
 

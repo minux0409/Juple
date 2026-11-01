@@ -1253,7 +1253,6 @@
     "unblockMessage": "解除封鎖不會恢復好友關係、已取消的邀請或已移除的成員身分。你參與的收藏集會重新顯示在清單中。",
     "blockedAt": "封鎖日期 {{date}}",
     "hiddenCollectionsTitle": "已從清單隱藏的已加入收藏集(點按可開啟或退出)",
-    "shareRestrictedNotice": "依據政策,此收藏集的分享已受限。資料未被刪除,你仍可管理。",
     "accountRestricted": "根據營運政策，此帳號的使用已受到限制。你仍可查看內容並聯絡客服。"
   },
   "agreement": {

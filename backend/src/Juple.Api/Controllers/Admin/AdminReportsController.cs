@@ -30,20 +30,29 @@ public sealed class AdminReportsController(AdminReportService reports) : Control
     public Task<IActionResult> GetAsync(long reportId, CancellationToken cancellationToken) =>
         Run(async () => Ok(await reports.GetAsync(reportId, cancellationToken)));
 
-    /// <summary>검토 중 (InReview), 조치 없음 (Dismissed; 409 reportRestrictionActive while a restriction is in force), 처리 완료 (Actioned).</summary>
+    /// <summary>검토 중 (InReview), 조치 없음 (Dismissed), 처리 완료 (Actioned).</summary>
     [HttpPut("{reportId:long}/status")]
     public Task<IActionResult> ChangeStatusAsync(long reportId, [FromBody] ChangeReportStatusRequest request, CancellationToken cancellationToken) =>
         Run(async () => Ok(await reports.ChangeStatusAsync(AdminRequestContext.GetRequired(HttpContext).UserId, reportId, request.Status, request.Note, cancellationToken)));
 
-    /// <summary>공유 제한 of the reported Collection or link (409 reportNotRestrictable for a person or a comment). Idempotent.</summary>
+    /// <summary>
+    /// 공유 제한 was retired: a report is now answered by removing the reported link from its Collection (target/delete). Creating or lifting a restriction
+    /// is refused with 410 and `shareRestrictionRetired`; restrictions from before stay in the audit history and are no longer applied anywhere.
+    /// </summary>
     [HttpPost("{reportId:long}/restriction")]
-    public Task<IActionResult> RestrictAsync(long reportId, [FromBody] ReportNoteRequest? request, CancellationToken cancellationToken) =>
-        Run(async () => Ok(await reports.RestrictAsync(AdminRequestContext.GetRequired(HttpContext).UserId, reportId, request?.Note, request?.Message, cancellationToken)));
+    public IActionResult RestrictRetired(long reportId) => ShareRestrictionRetired();
 
-    /// <summary>공유 제한 해제. Idempotent.</summary>
     [HttpPost("{reportId:long}/restriction/lift")]
-    public Task<IActionResult> LiftRestrictionAsync(long reportId, [FromBody] ReportNoteRequest? request, CancellationToken cancellationToken) =>
-        Run(async () => Ok(await reports.LiftRestrictionAsync(AdminRequestContext.GetRequired(HttpContext).UserId, reportId, request?.Note, request?.Message, cancellationToken)));
+    public IActionResult LiftRestrictionRetired(long reportId) => ShareRestrictionRetired();
+
+    private ObjectResult ShareRestrictionRetired() =>
+        StatusCode(StatusCodes.Status410Gone, new ProblemDetails
+        {
+            Title = "Share restriction was retired.",
+            Detail = "Remove the reported link from its Collection instead.",
+            Status = StatusCodes.Status410Gone,
+            Extensions = { ["code"] = "shareRestrictionRetired" },
+        });
 
     /// <summary>
     /// 경고: the operator's REVIEWED words (신고 내용 + 관리자 안내) go to the person behind the content as an Inbox message and a push. Once per report

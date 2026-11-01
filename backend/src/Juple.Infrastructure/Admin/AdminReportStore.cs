@@ -61,7 +61,6 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
         }
 
         var (exists, title, url) = await CurrentTargetAsync(report, cancellationToken);
-        var active = await ActiveRestrictionQuery(report).AsNoTracking().FirstOrDefaultAsync(cancellationToken);
         var prior = await dbContext.ContentReports.AsNoTracking()
             .Where(other => other.TargetType == report.TargetType && other.TargetId == report.TargetId && other.Id != report.Id)
             .OrderByDescending(other => other.Id)
@@ -110,7 +109,7 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
             await PersonAsync(report.ReporterUserId, cancellationToken),
             await PersonAsync(report.TargetUserId, cancellationToken),
             report.SnapshotTitle, report.SnapshotUrl, title, url, exists,
-            CanRestrict(report), active is not null, active?.RestrictedAtUtc,
+            false, false, null,
             report.ReviewedAtUtc,
             await PersonAsync(report.ReviewedByAdminUserId, cancellationToken),
             report.Resolution,
@@ -138,12 +137,6 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
             return false;
         }
 
-        // "Nothing wrong" cannot stand next to a restriction in force on the same thing: lift it first.
-        if (status == ReportStatus.Dismissed && await ActiveRestrictionQuery(report).AnyAsync(cancellationToken))
-        {
-            throw new AdminReportConflictException(AdminReportConflictException.RestrictionActive);
-        }
-
         var previous = report.Status;
         report.Review(status, adminUserId, note, nowUtc);
         Audit(adminUserId, AdminAuditActions.ReportStatusChanged, reportId, $"{previous}->{status}", nowUtc);
@@ -164,71 +157,6 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
             await SaveAsync(cancellationToken);
         }
 
-        await transaction.CommitAsync(cancellationToken);
-        return true;
-    }
-
-    public async Task<bool> RestrictAsync(long reportId, string? note, string? userMessage, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
-    {
-        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
-        var report = await dbContext.ContentReports.FirstOrDefaultAsync(candidate => candidate.Id == reportId, cancellationToken);
-        if (report is null)
-        {
-            return false;
-        }
-
-        if (!CanRestrict(report))
-        {
-            throw new AdminReportConflictException(AdminReportConflictException.NotRestrictable);
-        }
-
-        if (await ActiveRestrictionQuery(report).AnyAsync(cancellationToken))
-        {
-            return true;
-        }
-
-        dbContext.ShareRestrictions.Add(new ShareRestriction(report.CollectionId!.Value, report.TargetType == ReportTargetType.Item ? report.TargetId : null, report.Id, adminUserId, nowUtc));
-        // The report itself is at least being looked at now; 처리 완료 stays a separate decision.
-        report.Review(report.Status == ReportStatus.Pending ? ReportStatus.InReview : report.Status, adminUserId, note, nowUtc);
-        Audit(adminUserId, AdminAuditActions.ShareRestricted, reportId, $"{report.TargetType} {report.TargetId}", nowUtc);
-        try
-        {
-            await SaveAsync(cancellationToken);
-        }
-        catch (DbUpdateException exception) when (SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception))
-        {
-            // A concurrent restriction of the same thing won: the state asked for is in place (and it noticed the person).
-            dbContext.ChangeTracker.Clear();
-            await transaction.RollbackAsync(cancellationToken);
-            return true;
-        }
-
-        // The person hears of it in the same transaction as the restriction: no notice without the action, no action without its notice.
-        await NotifyActionAsync(report, ModerationActionType.ShareRestricted, userMessage, adminUserId, nowUtc, cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return true;
-    }
-
-    public async Task<bool> LiftRestrictionAsync(long reportId, string? note, string? userMessage, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
-    {
-        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
-        var report = await dbContext.ContentReports.FirstOrDefaultAsync(candidate => candidate.Id == reportId, cancellationToken);
-        if (report is null)
-        {
-            return false;
-        }
-
-        var active = await ActiveRestrictionQuery(report).FirstOrDefaultAsync(cancellationToken);
-        if (active is null)
-        {
-            return true;
-        }
-
-        active.Lift(adminUserId, nowUtc);
-        report.Review(report.Status == ReportStatus.Pending ? ReportStatus.InReview : report.Status, adminUserId, note, nowUtc);
-        Audit(adminUserId, AdminAuditActions.ShareRestrictionLifted, reportId, $"{report.TargetType} {report.TargetId}", nowUtc);
-        await SaveAsync(cancellationToken);
-        await NotifyActionAsync(report, ModerationActionType.ShareRestrictionLifted, userMessage, adminUserId, nowUtc, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return true;
     }
@@ -546,19 +474,6 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
     /// <summary>Only a link or a Collection is deleted; a person's account and a comment are never deleted by a report.</summary>
     private static bool CanDelete(ContentReport report) =>
         report.TargetType == ReportTargetType.Collection || (report.TargetType == ReportTargetType.Item && report.CollectionId is not null);
-
-    /// <summary>Only a Collection or a link in one can be restricted; a person or a comment is not a thing that is shared.</summary>
-    private static bool CanRestrict(ContentReport report) =>
-        report.CollectionId is not null && report.TargetType is ReportTargetType.Collection or ReportTargetType.Item;
-
-    private IQueryable<ShareRestriction> ActiveRestrictionQuery(ContentReport report)
-    {
-        var collectionId = report.CollectionId;
-        long? itemId = report.TargetType == ReportTargetType.Item ? report.TargetId : null;
-        return CanRestrict(report)
-            ? dbContext.ShareRestrictions.Where(restriction => restriction.CollectionId == collectionId && restriction.ItemId == itemId && restriction.LiftedAtUtc == null)
-            : dbContext.ShareRestrictions.Where(_ => false);
-    }
 
     private async Task<(bool Exists, string? Title, string? Url)> CurrentTargetAsync(ContentReport report, CancellationToken cancellationToken)
     {
