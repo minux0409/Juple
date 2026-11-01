@@ -343,4 +343,58 @@ public sealed class AdminActionNoticesIntegrationTests : IAsyncLifetime
         Assert.Equal("Collection", notice.ContentType);
         Assert.False(string.IsNullOrWhiteSpace(notice.ContentTitle));
     }
+
+    [Fact]
+    public async Task TheNoticeKeepsWhichLinkInWhichCollection_ReadsTheSameAfterTheLinkIsGone_AndOldNoticesAreRestoredOnlyFromWhatWasStored()
+    {
+        var (author, _) = await NewUserAsync();
+        var (reporter, _) = await NewUserAsync();
+        var (admin, _) = await NewUserAsync();
+        var collection = await NewCollectionAsync(author, reporter);
+        var link = await NewLinkAsync(author, collection);
+        await _db.Items.Where(item => item.Id == link).ExecuteUpdateAsync(setters => setters
+            .SetProperty(item => item.Title, "내가 올린 링크 제목")
+            .SetProperty(item => item.PreviewImageUrl, "https://img.example.test/preview.jpg"));
+        var collectionName = await _db.Collections.Where(entry => entry.Id == collection).Select(entry => entry.Name).FirstAsync();
+        var report = await ReportLinkAsync(reporter, link, collection);
+
+        await Admin().WarnAsync(admin, report, "reviewed", "be kind");
+        await Admin().DeleteTargetAsync(admin, isOwner: true, report, confirm: true, null, "삭제했어요");
+
+        var warning = await NewContext().ModerationNotices.SingleAsync(notice => notice.RecipientUserId == author && notice.Kind == ModerationNoticeKind.Warning);
+        var deleted = Assert.Single(await ActionNoticesAsync(author, ModerationActionType.ContentDeleted));
+        foreach (var notice in new[] { warning, deleted })
+        {
+            Assert.Equal("내가 올린 링크 제목", notice.ContentTitle);
+            Assert.Equal(collectionName, notice.CollectionName);
+            Assert.Equal("https://img.example.test/preview.jpg", notice.ContentImageUrl);
+            Assert.Equal(link, notice.ContentId);
+        }
+
+        // The link is deleted for good and the Collection renamed: the notice reads exactly as it was made - from itself, never from the link.
+        await _db.CollectionItems.Where(membership => membership.ItemId == link).ExecuteDeleteAsync();
+        await _db.Items.Where(item => item.Id == link).ExecuteDeleteAsync();
+        await _db.Collections.Where(entry => entry.Id == collection).ExecuteUpdateAsync(setters => setters.SetProperty(entry => entry.Name, "다른 이름"));
+        foreach (var id in new[] { warning.Id, deleted.Id })
+        {
+            var read = (await Notices().GetAsync(author, id))!;
+            Assert.Equal("내가 올린 링크 제목", read.ContentTitle);
+            Assert.Equal(collectionName, read.CollectionName);
+            Assert.Equal("https://img.example.test/preview.jpg", read.ContentImageUrl);
+            Assert.DoesNotContain(ReporterNote, string.Concat(read.ContentTitle, read.CollectionName, read.Reason, read.Guidance));
+            Assert.Null(await Notices().GetAsync(reporter, id));
+            Assert.Null(await Notices().GetAsync(admin, id));
+        }
+
+        // The pop-up list carries the same snapshot.
+        Assert.All(await Notices().ListUnacknowledgedAsync(author, 10), notice => Assert.Equal("내가 올린 링크 제목", notice.ContentTitle));
+
+        // What the reporter is told names nothing of the other person's content.
+        await Admin().ChangeStatusAsync(admin, report, "Actioned", null);
+        var result = await NewContext().ModerationNotices.SingleAsync(notice => notice.RecipientUserId == reporter);
+        Assert.Null(result.ContentTitle);
+        Assert.Null(result.CollectionName);
+        Assert.Null(result.ContentImageUrl);
+        Assert.Null(result.ContentId);
+    }
 }
