@@ -25,7 +25,7 @@ export function AttentionProvider({ children }: { readonly children: ReactNode }
     if (!ready) return;
     let active = true;
     void store.refresh();
-    const foreground = AppState.addEventListener('change', state => { if (active && state === 'active') void store.refresh(); });
+    const foreground = AppState.addEventListener('change', state => { if (active && state === 'active') void store.refresh(undefined, true); });
     const unsubscribe = subscribeSocialPushEvents(event => {
       if (!active) return;
       if (event.type.startsWith('friendRequest')) void store.refresh(['friends'], true);

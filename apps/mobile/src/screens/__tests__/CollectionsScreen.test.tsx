@@ -2366,4 +2366,23 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
     expect(panels(renderer)).toHaveLength(0);
     act(() => renderer.unmount());
   });
+
+  it('받은 승인 요청: the row follows the server on focus, with no Push and no restart, and leaves at 0', async () => {
+    let waiting = 1;
+    const request = jest.fn(async () => ({
+      body: { items: [makeCollection({ id: 11, name: 'Mine', accessRole: 'owner', hasCollaborators: true, pendingSubmissionCount: waiting, attentionCount: waiting })], nextCursor: null },
+    }));
+    const store = createMobileAttentionStore(request as never);
+    store.replace('invitations', []);
+    store.replace('collections', [makeCollection({ id: 11, name: 'Mine', accessRole: 'owner', hasCollaborators: true, pendingSubmissionCount: 0, attentionCount: 0 })]);
+    const renderer = await renderScreen(store);
+    await act(async () => {
+      renderer.root.findAll(node => node.props.testID === 'collections-filter-shared' && typeof node.props.onPress === 'function')[0].props.onPress();
+    });
+    expect(renderer.root.findAll(node => node.props.testID === 'collections-received-approvals').length).toBeGreaterThan(0);
+    waiting = 0;
+    await act(async () => { await store.readLatest('collections'); });
+    expect(renderer.root.findAll(node => node.props.testID === 'collections-received-approvals')).toHaveLength(0);
+    act(() => renderer.unmount());
+  });
 });

@@ -238,7 +238,7 @@ export async function acceptCollectionInvitation(request: AuthenticatedApiReques
   await request<void>({ method: 'POST', path: `/api/v1/collection-invitations/${invitationId}/accept` });
   const store = mobileAttentionFor(request);
   store?.removeInvitation(invitationId);
-  void store?.read('collections', true).catch(() => undefined);
+  void store?.readLatest('collections').catch(() => undefined);
 }
 
 export async function declineCollectionInvitation(request: AuthenticatedApiRequest, invitationId: number): Promise<void> {

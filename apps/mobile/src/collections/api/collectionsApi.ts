@@ -277,6 +277,15 @@ export async function getCollection(
     throw new Error('Juple API returned no Collection body.');
   }
 
+  // Details just saw a different waiting count than the Collections screen's source: that source asks the server again (this
+  // answer is not written into it - it could be older than an approval made a moment ago).
+  const store = mobileAttentionFor(request);
+  const known = store?.getSnapshot().collections?.find(row => row.id === collectionId);
+  if (known && ((known.pendingSubmissionCount ?? 0) !== (response.body.pendingSubmissionCount ?? 0)
+    || (known.pendingJoinRequestCount ?? 0) !== (response.body.pendingJoinRequestCount ?? 0))) {
+    store?.refresh(['collections'], true).catch(() => undefined);
+  }
+
   return response.body;
 }
 
@@ -873,7 +882,7 @@ export async function approveCollectionSubmission(request: AuthenticatedApiReque
     path: `/api/v1/collections/${collectionId}/submissions/${submissionId}/approve`,
     headers: storedUnlockHeaders(collectionId),
   });
-  void mobileAttentionFor(request)?.read('collections', true).catch(() => undefined);
+  void mobileAttentionFor(request)?.readLatest('collections').catch(() => undefined);
 }
 
 /** Rejects (deletes) the proposal - nothing is added. Idempotent. */
@@ -883,7 +892,7 @@ export async function rejectCollectionSubmission(request: AuthenticatedApiReques
     path: `/api/v1/collections/${collectionId}/submissions/${submissionId}`,
     headers: storedUnlockHeaders(collectionId),
   });
-  void mobileAttentionFor(request)?.read('collections', true).catch(() => undefined);
+  void mobileAttentionFor(request)?.readLatest('collections').catch(() => undefined);
 }
 
 /** DELETEs the Item from the Collection; resolves on 204 (idempotent - not-a-member succeeds too). Never deletes the Item itself. */
@@ -1223,7 +1232,7 @@ export async function approveCollectionJoinRequest(request: AuthenticatedApiRequ
     path: `/api/v1/collections/${collectionId}/join-requests/${requestId}/approve`,
     headers: storedUnlockHeaders(collectionId),
   });
-  void mobileAttentionFor(request)?.read('collections', true).catch(() => undefined);
+  void mobileAttentionFor(request)?.readLatest('collections').catch(() => undefined);
 }
 
 /** Owner only: declines it - no membership. Idempotent. */
@@ -1233,7 +1242,7 @@ export async function rejectCollectionJoinRequest(request: AuthenticatedApiReque
     path: `/api/v1/collections/${collectionId}/join-requests/${requestId}/reject`,
     headers: storedUnlockHeaders(collectionId),
   });
-  void mobileAttentionFor(request)?.read('collections', true).catch(() => undefined);
+  void mobileAttentionFor(request)?.readLatest('collections').catch(() => undefined);
 }
 
 /**

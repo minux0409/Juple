@@ -33,6 +33,20 @@ describe('Mobile attention state (same policy as Web)', () => {
     await store.read('invitations');
     expect(load).toHaveBeenCalledTimes(1);
   });
+  it('readLatest drops an answer from before a change: the older response never overwrites the newer one', async () => {
+    const answers: ((rows: typeof collections) => void)[] = [];
+    const store = createAttentionStore({ invitations: async () => [], friends: async () => [], collections: () => new Promise<typeof collections>(resolve => { answers.push(resolve); }) });
+    const old = store.read('collections', true).catch(() => undefined);
+    await Promise.resolve();
+    const latest = store.readLatest('collections');
+    for (let i = 0; i < 5 && answers.length < 2; i++) await Promise.resolve();
+    expect(answers).toHaveLength(2);
+    answers[1]([{ ...collections[0], attentionCount: 0, unreadNewLinkCount: 0 }]);
+    await latest;
+    answers[0](collections);
+    await old;
+    expect(store.getSnapshot().collections?.[0].attentionCount).toBe(0);
+  });
   it('honors 429 Retry-After without timers, keeping existing counts', async () => {
     let time = 1000;
     let fail = false;

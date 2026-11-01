@@ -379,11 +379,14 @@ export function CollectionsScreen() {
       load(current, 'refresh');
       loadReceivedInvitations();
       loadMyPendingTotal();
+      // 받은 승인 요청 and the badges read the account-wide store, not this list: it is asked again with the list, so a request
+      // that arrived or was answered elsewhere shows here without a Push or a restart.
+      attentionStore?.refresh(['collections'], true).catch(() => undefined);
       // Best-effort: brings the Collections the user pinned as app shortcuts in line with the server on every visit (a
       // Collection deleted, left or locked elsewhere leaves the launcher / share sheet) - independent of this screen's own
       // paginated state, and no request at all when nothing is pinned. A failure never affects what this screen shows.
       reconcileCollectionShortcuts(authenticatedRequest).catch(() => undefined);
-    }, [authenticatedRequest, invalidateOtherFilters, load, loadMyPendingTotal, loadReceivedInvitations]),
+    }, [attentionStore, authenticatedRequest, invalidateOtherFilters, load, loadMyPendingTotal, loadReceivedInvitations]),
   );
 
   // Refresh signaling is deliberately separate from AppToast state: revisiting this tab must

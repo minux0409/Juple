@@ -119,6 +119,14 @@ export function createAttentionStore<I extends AttentionInvitation, F extends At
     getSnapshot: () => snapshot,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
     read, replace,
+    /** After a change made here: an answer already on its way may predate it, so it is dropped and the server is asked again. */
+    readLatest: <K extends AttentionResource>(key: K) => {
+      if (disposed) return Promise.reject(new Error('Attention session ended'));
+      versions[key]++;
+      delete pending[key];
+      retryAt[key] = 0;
+      return read(key, true);
+    },
     refresh: (resources: readonly AttentionResource[] = ['invitations', 'friends', 'collections'], event = false) => Promise.allSettled(resources.map(key => {
       if (event && now() - attemptedAt[key] < ATTENTION_EVENT_MIN_MS) {
         // Keep the last event in a burst: dropping it could leave a new invitation invisible indefinitely.

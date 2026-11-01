@@ -19,7 +19,7 @@ jest.mock('../../auth/idTokenClaims', () => ({ decodeIdTokenClaims: () => ({ tid
 let store: MobileAttentionStore;
 function Probe() { store = useMobileAttention()!; return null; }
 
-it('isolates account switches/logout; foreground uses cache and rapid Push bursts retain one trailing refresh', async () => {
+it('isolates account switches/logout; foreground asks the server again and rapid Push bursts retain one trailing refresh', async () => {
   jest.useFakeTimers();
   const listener = jest.spyOn(AppState, 'addEventListener');
   let foreground!: (state: string) => void;
@@ -32,25 +32,27 @@ it('isolates account switches/logout; foreground uses cache and rapid Push burst
     expect(store.getSnapshot().counts).toMatchObject({ collections: 1, myPage: 1 });
     await act(async () => { foreground('active'); });
     expect(mockRequest).toHaveBeenCalledTimes(3);
+    await act(async () => { jest.advanceTimersByTime(2000); });
+    expect(mockRequest).toHaveBeenCalledTimes(6);
     await act(async () => {
       emitSocialPushEvent({ type: 'friendRequest', collectionId: null });
       emitSocialPushEvent({ type: 'friendRequest', collectionId: null });
       emitSocialPushEvent({ type: 'friendRequest', collectionId: null });
     });
-    expect(mockRequest).toHaveBeenCalledTimes(3);
+    expect(mockRequest).toHaveBeenCalledTimes(6);
     await act(async () => { jest.advanceTimersByTime(2000); });
-    expect(mockRequest).toHaveBeenCalledTimes(4);
+    expect(mockRequest).toHaveBeenCalledTimes(7);
     const previous = store;
     mockAccount = 'B';
     await act(async () => { renderer.update(<AttentionProvider><Probe /></AttentionProvider>); });
     expect(store).not.toBe(previous);
     expect(previous.getSnapshot().counts.collections).toBe(0);
-    expect(mockRequest).toHaveBeenCalledTimes(7);
+    expect(mockRequest).toHaveBeenCalledTimes(10);
     mockReady = false;
     await act(async () => { renderer.update(<AttentionProvider><Probe /></AttentionProvider>); });
     expect(store.getSnapshot().counts).toMatchObject({ collections: 0, myPage: 0 });
     await act(async () => { foreground('active'); emitSocialPushEvent({ type: 'friendRequest', collectionId: null }); jest.advanceTimersByTime(60_000); });
-    expect(mockRequest).toHaveBeenCalledTimes(7);
+    expect(mockRequest).toHaveBeenCalledTimes(10);
     expect(remove).toHaveBeenCalled();
   } finally {
     await act(async () => { renderer?.unmount(); });
