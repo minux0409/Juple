@@ -130,6 +130,7 @@ import { useViewModePreference, type SavedLinkViewMode } from '../settings/viewM
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
+import { useLeaveWhenCollectionLost } from '../collections/useLeaveWhenCollectionLost';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionDetails'>;
 
@@ -310,6 +311,8 @@ const COPY_SELECT_ALL_PAGE_SIZE = 100;
 export function CollectionDetailsScreen({ route, navigation }: Props) {
   const swipeScrollEnabled = useSwipeAwareScrollEnabled();
   const { collectionId } = route.params;
+  // Blocking this Collection's owner (from its participants sheet) ends my membership: the screen leaves once the server says so.
+  useLeaveWhenCollectionLost(collectionId, () => navigation.navigate('MainTabs'));
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const { showNotificationToast, showUndoToast } = useAppToast();

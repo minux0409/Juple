@@ -209,6 +209,38 @@ public sealed class BlockPolicyIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Reconciler_CleansOnlyOldBlockerToOwnerMemberships_Idempotently_AndKeepsEverythingElse()
+    {
+        // A block that was made BEFORE the rule existed: the membership is still there (the block row is inserted directly, as the old code left it).
+        var (owner, _) = await NewUserAsync();
+        var (blocker, _) = await NewUserAsync();
+        var (innocent, _) = await NewUserAsync();
+        var (otherOwner, _) = await NewUserAsync();
+        var stale = await NewCollectionAsync(owner, blocker, innocent);
+        var otherCollection = await NewCollectionAsync(otherOwner, blocker, innocent);
+        var ownedByBlocker = await NewCollectionAsync(blocker, owner);
+        var blockersLink = await NewLinkAsync(blocker, stale);
+        _db.UserBlocks.Add(new Juple.Domain.Safety.UserBlock(blocker, owner, DateTimeOffset.UtcNow));
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        var first = await BlockMembershipReconciler.RunAsync(NewContext());
+
+        Assert.True(first.MembershipsBefore >= 1 && first.MembershipsAfter == 0);
+        Assert.False(await IsMemberAsync(blocker, stale));
+        // Only that (blocker, owner) pair: others in the same Collection, the blocker's other memberships and the blocker's own Collection stay.
+        Assert.True(await IsMemberAsync(innocent, stale));
+        Assert.True(await IsMemberAsync(blocker, otherCollection));
+        Assert.True(await IsMemberAsync(owner, ownedByBlocker));
+        Assert.True(await NewContext().CollectionItems.AnyAsync(membership => membership.CollectionId == stale && membership.ItemId == blockersLink));
+        Assert.True(await NewContext().Items.AnyAsync(item => item.Id == blockersLink && item.DeletedAtUtc == null));
+
+        var second = await BlockMembershipReconciler.RunAsync(NewContext());
+        Assert.Equal(0, second.Removed);
+        Assert.True(await IsMemberAsync(innocent, stale) && await IsMemberAsync(blocker, otherCollection));
+    }
+
+    [Fact]
     public async Task OwnerBlockingTheParticipant_DoesNotMoveTheBlockedPerson()
     {
         // A owns; B participates; A blocks B (the owner blocks the participant): B stays. Only a participant blocking the OWNER ends a membership.

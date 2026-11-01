@@ -54,6 +54,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useActionAfterMenu } from '../components/useActionAfterMenu';
 import { BlockIcon } from '../icons/BlockIcon';
 import { useBlockPersonFlow } from '../safety/useBlockPersonFlow';
+import { useLeaveWhenCollectionLost } from '../collections/useLeaveWhenCollectionLost';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { InfoCallout } from '../components/InfoCallout';
 import { CheckIcon } from '../icons/CheckIcon';
@@ -471,8 +472,10 @@ export function CollectionShareScreen(props: Props) {
   );
 }
 
-function CollectionShareScreenContent({ route }: Props) {
+function CollectionShareScreenContent({ route, navigation }: Props) {
   const { collectionId } = route.params;
+  // Blocking this Collection's owner ends my membership: the screen leaves once the server says so.
+  useLeaveWhenCollectionLost(collectionId, () => navigation.navigate('MainTabs'));
   const { requestBlock, requestUnblock, isBlocked, canChangeBlock, blockDialogs } = useBlockPersonFlow();
   const { afterMenuCloses, onMenuDismiss } = useActionAfterMenu();
   useToastBottomAnchor(useSafeAreaInsets().bottom);

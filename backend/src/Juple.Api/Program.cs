@@ -92,7 +92,9 @@ var isBillingWorker = args.Contains("--run-billing-worker", StringComparer.Ordin
 var isRetentionCleanupJob = args.Contains("--run-retention-cleanup", StringComparer.Ordinal);
 var isExpenseSyncJob = args.Contains("--run-expense-sync", StringComparer.Ordinal);
 var isAzureCostSyncJob = args.Contains("--run-azure-cost-sync", StringComparer.Ordinal);
-var isOneShotJob = isPushDispatchJob || isBlobCleanupRetryJob || isInstagramMetadataRetryJob || isBillingReconcileJob || isRetentionCleanupJob || isExpenseSyncJob || isAzureCostSyncJob;
+// --run-block-membership-reconcile: one pass that applies "blocking an owner ends my membership" to blocks made before that rule (logs counts before / after; idempotent).
+var isBlockMembershipReconcileJob = args.Contains("--run-block-membership-reconcile", StringComparer.Ordinal);
+var isOneShotJob = isBlockMembershipReconcileJob || isPushDispatchJob || isBlobCleanupRetryJob || isInstagramMetadataRetryJob || isBillingReconcileJob || isRetentionCleanupJob || isExpenseSyncJob || isAzureCostSyncJob;
 // --run-notification-worker: the long-running notification worker (Service Bus consumer - see
 // NotificationWorkerService). Like the Jobs it authenticates no request and runs no controllers; it
 // serves only /health. Only it and the push-dispatch Job hold the Firebase credential.
@@ -501,6 +503,25 @@ if (isAzureCostSyncJob)
 if (isRetentionCleanupJob)
 {
     return await RunRetentionCleanupOnceAsync(app.Services);
+}
+
+if (isBlockMembershipReconcileJob)
+{
+    await using var reconcileScope = app.Services.CreateAsyncScope();
+    var reconcileLogger = reconcileScope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("BlockMembershipReconcileJob");
+    try
+    {
+        var reconciled = await Juple.Infrastructure.Safety.BlockMembershipReconciler.RunAsync(reconcileScope.ServiceProvider.GetRequiredService<Juple.Infrastructure.Persistence.JupleDbContext>());
+        reconcileLogger.LogInformation(
+            "block.membership.reconciled BlockersBefore={BlockersBefore} MembershipsBefore={MembershipsBefore} Removed={Removed} MembershipsAfter={MembershipsAfter}",
+            reconciled.BlockerCountBefore, reconciled.MembershipsBefore, reconciled.Removed, reconciled.MembershipsAfter);
+        return reconciled.MembershipsAfter == 0 ? 0 : 1;
+    }
+    catch (Exception exception)
+    {
+        reconcileLogger.LogError(exception, "Block membership reconcile failed.");
+        return 1;
+    }
 }
 
 // One-shot billing reconciliation (the Job that recovers lost wake-ups and re-checks due purchases against Google).

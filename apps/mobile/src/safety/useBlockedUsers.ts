@@ -12,7 +12,15 @@ const listeners = new Set<BlockChange>();
 
 /** Tells every open screen that the server accepted a block (true) or an unblock (false) of this person. */
 export function publishBlockChange(jupleId: string, blocked: boolean) {
-  listeners.forEach(listener => listener(jupleId, blocked));
+  [...listeners].forEach(listener => listener(jupleId, blocked));
+}
+
+/** For a screen that must react to a block / unblock the server just accepted (for example a Collection screen that may have lost its membership). */
+export function subscribeBlockChanges(listener: BlockChange): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 /**
