@@ -225,7 +225,7 @@ describe('useItemComments - answering', () => {
     });
 
     expect(sent).toBe(false);
-    expect(onFailure).toHaveBeenCalledWith('send');
+    expect(onFailure).toHaveBeenCalledWith('send', expect.anything());
     expect(holder.api!.replyTarget).toEqual(expect.objectContaining({ commentId: 1 }));
     expect(holder.api!.comments[0].replyCount).toBe(0);
   });
@@ -301,7 +301,7 @@ describe('useItemComments - hearts', () => {
     });
 
     expect(holder.api!.comments[0]).toEqual(expect.objectContaining({ viewerLiked: true, likeCount: 4 }));
-    expect(onFailure).toHaveBeenCalledWith('like');
+    expect(onFailure).toHaveBeenCalledWith('like', expect.anything());
   });
 
   it('hearts a reply inside its thread', async () => {
@@ -393,7 +393,7 @@ describe('useItemComments - deleting inside threads', () => {
     expect(holder.api!.threads[1].replies.map(entry => entry.id)).toEqual([10]);
     expect(holder.api!.comments[0].replyCount).toBe(1);
     expect(holder.api!.totalCount).toBe(2);
-    expect(onFailure).toHaveBeenCalledWith('delete');
+    expect(onFailure).toHaveBeenCalledWith('delete', expect.anything());
   });
 });
 

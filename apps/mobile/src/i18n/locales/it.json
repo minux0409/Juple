@@ -591,7 +591,9 @@
     "addTitle": "Aggiungi raccolta",
     "requestTitle": "Chiedi di partecipare",
     "requestSend": "Chiedi",
-    "signInRequired": "Accedi a Juple per aggiungere questa raccolta o chiedere di partecipare."
+    "signInRequired": "Accedi a Juple per aggiungere questa raccolta o chiedere di partecipare.",
+    "blockedOwnerTitle": "Questa è la raccolta di un utente bloccato",
+    "blockedOwnerMessage": "Il proprietario di questa raccolta, {{name}}, è un utente che hai bloccato. Non puoi accedere alla raccolta finché è bloccato."
   },
   "quickSaveComposer": {
     "titleLabel": "Titolo",
@@ -1251,7 +1253,8 @@
     "unblockMessage": "Lo sblocco non ripristina amicizie, inviti annullati o partecipazioni rimosse. Le raccolte a cui partecipi tornano nei tuoi elenchi.",
     "blockedAt": "Bloccato il {{date}}",
     "hiddenCollectionsTitle": "Raccolte a cui partecipi, nascoste dagli elenchi (tocca per aprire o uscire)",
-    "shareRestrictedNotice": "La condivisione di questa raccolta è stata limitata in base alle nostre norme. Non è stato eliminato nulla e puoi continuare a gestirla."
+    "shareRestrictedNotice": "La condivisione di questa raccolta è stata limitata in base alle nostre norme. Non è stato eliminato nulla e puoi continuare a gestirla.",
+    "accountRestricted": "L'uso di questo account è limitato in base alle nostre norme. Puoi comunque vedere i tuoi contenuti e contattare l'assistenza."
   },
   "agreement": {
     "ageConfirmation": "Ho almeno 14 anni",
@@ -1512,5 +1515,17 @@
     "previous": "Campo precedente",
     "next": "Campo successivo",
     "done": "Fine"
+  },
+  "moderation": {
+    "screenTitle": "Avviso",
+    "warningTitle": "Avviso di Juple",
+    "warningIntro": "Abbiamo esaminato una segnalazione sui tuoi contenuti e riscontrato qualcosa che richiede la tua attenzione nell'uso di Juple.",
+    "reasonLabel": "Cosa abbiamo riscontrato",
+    "guidanceLabel": "Indicazioni del team",
+    "acknowledge": "Ho capito",
+    "acknowledged": "Confermato",
+    "acknowledgeFailed": "Impossibile salvare la conferma. Riprova.",
+    "resultTitle": "Esito della segnalazione",
+    "resultMessage": "Grazie per la segnalazione. Abbiamo terminato di esaminarla. Le misure necessarie vengono prese secondo le nostre norme; non comunichiamo i dettagli delle singole misure."
   }
 }

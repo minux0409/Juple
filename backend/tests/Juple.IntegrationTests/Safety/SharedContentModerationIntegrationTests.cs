@@ -162,7 +162,7 @@ public sealed class SharedContentModerationIntegrationTests : IAsyncLifetime
     // ---------- blocks ----------
 
     [Fact]
-    public async Task Block_HidesTheOwnersCollectionFromMyLists_ButKeepsMembershipLinksAndDirectAccess()
+    public async Task Block_OfTheOwner_EndsMyMembership_ButKeepsEveryLinkAndMyOwnData()
     {
         var (owner, ownerCode) = await NewUserAsync();
         var (member, _) = await NewUserAsync();
@@ -171,19 +171,19 @@ public sealed class SharedContentModerationIntegrationTests : IAsyncLifetime
 
         await Blocks().BlockAsync(member, ownerCode);
 
+        // The participant who blocks the OWNER leaves that owner's Collection (in the same transaction as the block); nothing is deleted.
         var list = await new CollectionStore(NewContext()).ListByScopeAsync(member, CollectionListScope.Shared, null, null, null, 50);
         Assert.DoesNotContain(list.Items, entry => entry.Id == collection);
-        Assert.Equal(collection, (await new CollectionStore(NewContext()).GetAsync(member, collection)).Id);
-        Assert.True(await NewContext().CollectionCollaborators.AnyAsync(entry => entry.CollectionId == collection && entry.UserId == member));
-        Assert.NotNull(await new CollectionStore(NewContext()).GetSharedItemAsync(member, collection, ownersLink));
+        Assert.False(await NewContext().CollectionCollaborators.AnyAsync(entry => entry.CollectionId == collection && entry.UserId == member));
         Assert.NotNull(await new CollectionStore(NewContext()).GetSharedItemAsync(owner, collection, ownersLink));
+        Assert.True(await NewContext().Items.AnyAsync(item => item.Id == ownersLink && item.DeletedAtUtc == null));
+        // Nothing is left to be "hidden but still mine to open or leave".
+        Assert.Empty(Assert.Single(await Blocks().ListAsync(member)).HiddenCollections);
 
-        var blocked = await Blocks().ListAsync(member);
-        Assert.Equal(collection, Assert.Single(Assert.Single(blocked).HiddenCollections).Id);
-
+        // Unblocking never restores the membership.
         await Blocks().UnblockAsync(member, ownerCode);
         list = await new CollectionStore(NewContext()).ListByScopeAsync(member, CollectionListScope.Shared, null, null, null, 50);
-        Assert.Contains(list.Items, entry => entry.Id == collection);
+        Assert.DoesNotContain(list.Items, entry => entry.Id == collection);
     }
 
     [Fact]

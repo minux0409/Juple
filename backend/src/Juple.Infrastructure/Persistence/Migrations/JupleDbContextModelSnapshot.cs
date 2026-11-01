@@ -2191,7 +2191,7 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId", "Id")
                         .HasDatabaseName("IX_Notifications_Inbox")
-                        .HasFilter("[Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19)");
+                        .HasFilter("[Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21)");
 
                     b.HasIndex("Type", "RepeatPurchaseId", "DueDate")
                         .IsUnique()
@@ -2203,13 +2203,13 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId", "Type", "CollectionId")
                         .HasDatabaseName("IX_Notifications_Unread")
-                        .HasFilter("[ReadAtUtc] IS NULL AND [Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19)");
+                        .HasFilter("[ReadAtUtc] IS NULL AND [Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21)");
 
                     SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("UserId", "Type", "CollectionId"), new[] { "ReadAtUtc" });
 
                     b.ToTable("Notifications", "notifications", t =>
                         {
-                            t.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19)");
+                            t.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21)");
                         });
                 });
 
@@ -2670,6 +2670,53 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Juple.Domain.Safety.ModerationNotice", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset?>("AcknowledgedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long?>("CreatedByAdminUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Guidance")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<byte>("Kind")
+                        .HasColumnType("tinyint");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<long>("RecipientUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ReportId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecipientUserId")
+                        .HasDatabaseName("IX_ModerationNotices_RecipientUserId");
+
+                    b.HasIndex("ReportId", "RecipientUserId", "Kind")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ModerationNotices_Report_Recipient_Kind")
+                        .HasFilter("[ReportId] IS NOT NULL");
+
+                    b.ToTable("ModerationNotices", "safety");
+                });
+
             modelBuilder.Entity("Juple.Domain.Safety.ShareRestriction", b =>
                 {
                     b.Property<long>("Id")
@@ -3029,6 +3076,9 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .HasColumnType("datetimeoffset");
 
                     b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("UsageRestrictedAtUtc")
                         .HasColumnType("datetimeoffset");
 
                     b.HasKey("Id");

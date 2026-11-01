@@ -46,6 +46,8 @@ const INBOX_PUSH_TYPES = [
   'collectionLinkSubmission',
   'collectionLinkSubmissionApproved',
   'collectionLinkSubmissionRejected',
+  'adminWarning',
+  'reportResult',
   // A requester cancelling a proposal deletes the Owner's approval-request row; the refresh signal for the Collection re-reads the Inbox.
   'collectionContentChanged',
 ] as const;

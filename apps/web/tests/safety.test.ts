@@ -10,6 +10,8 @@ import {
   blockPath,
   isTermsRequired,
   parseBlockedUsers,
+  parseModerationNotice,
+  ACCOUNT_RESTRICTED_CODE,
   parseReportReceipt,
   parseTermsStatus,
   REPORT_REASONS,
@@ -213,5 +215,26 @@ describe('shared Collection reports, blocks and restriction on the Web', () => {
     assert.match(provider, /method: 'DELETE', path: blockPath\(subject\.jupleId\)/);
     // the 차단한 사용자 page tells the shared list after it unblocks
     assert.match(source('app/(app)/me/blocked-users/page.tsx'), /safety\.refreshBlocked\(\)/);
+  });
+});
+
+describe('operator notices (이용 안내 / 신고 처리 결과) on the Web', () => {
+  it('reads a notice from the server answer and ignores anything else', () => {
+    assert.deepEqual(parseModerationNotice({ id: 3, kind: 'warning', reason: 'r', guidance: 'g', acknowledgedAtUtc: null }), { id: 3, kind: 'warning', reason: 'r', guidance: 'g', acknowledgedAtUtc: null });
+    assert.equal(parseModerationNotice({ id: 4, kind: 'reportResult' })?.reason, null);
+    assert.equal(parseModerationNotice({ id: 5, kind: 'other' }), null);
+    assert.equal(parseModerationNotice(null), null);
+  });
+
+  it('the notice page confirms on the server and shows the operator words as plain text', () => {
+    const page = source('app/(app)/me/notice-from-juple/[noticeId]/page.tsx');
+    assert.match(page, /\/api\/v1\/moderation-notices\//);
+    assert.match(page, /acknowledge/);
+    assert.doesNotMatch(page, /dangerouslySetInnerHTML/);
+  });
+
+  it('a restricted account is told the cause of a refused write', () => {
+    assert.equal(ACCOUNT_RESTRICTED_CODE, 'accountRestricted');
+    assert.match(source('lib/safety.ts'), /ACCOUNT_RESTRICTED_CODE\) \{\s*return dictionary\.safetyAccountRestricted/);
   });
 });

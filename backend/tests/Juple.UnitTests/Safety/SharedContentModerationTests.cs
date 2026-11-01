@@ -167,5 +167,68 @@ public sealed class SharedContentModerationTests
         public Task<bool> RestrictAsync(long reportId, string? note, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => Task.FromResult(Exists);
 
         public Task<bool> LiftRestrictionAsync(long reportId, string? note, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => Task.FromResult(Exists);
+
+        public int Warnings { get; private set; }
+
+        public int Deletions { get; private set; }
+
+        public int AccountRestrictions { get; private set; }
+
+        public Task<bool> WarnAsync(long reportId, AdminWarningText text, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+        {
+            Warnings++;
+            LastNote = text.Reason;
+            return Task.FromResult(Exists);
+        }
+
+        public Task<bool> DeleteTargetAsync(long reportId, string? note, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+        {
+            Deletions++;
+            return Task.FromResult(Exists);
+        }
+
+        public Task<bool> RestoreTargetAsync(long reportId, string? note, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => Task.FromResult(Exists);
+
+        public Task<bool> SetAccountRestrictionAsync(long reportId, bool restricted, string? note, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+        {
+            AccountRestrictions++;
+            return Task.FromResult(Exists);
+        }
+    }
+
+    [Fact]
+    public async Task Warning_NeedsReviewedWords_AndTrimsThem()
+    {
+        var store = new FakeStore();
+        var service = new AdminReportService(store, TimeProvider.System);
+        await Assert.ThrowsAsync<InvalidAdminRequestException>(() => service.WarnAsync(1, 1, "  ", null));
+        await Assert.ThrowsAsync<InvalidAdminRequestException>(() => service.WarnAsync(1, 1, "ok", new string('x', 1001)));
+        Assert.Equal(0, store.Warnings);
+
+        await service.WarnAsync(1, 1, "  reviewed  ", " ");
+        Assert.Equal(1, store.Warnings);
+        Assert.Equal("reviewed", store.LastNote);
+    }
+
+    [Fact]
+    public async Task DeletingAndRestrictingAnAccount_NeedTheOwnerRole_AndAnExplicitConfirmation()
+    {
+        var store = new FakeStore();
+        var service = new AdminReportService(store, TimeProvider.System);
+
+        await Assert.ThrowsAsync<AdminReportForbiddenException>(() => service.DeleteTargetAsync(1, isOwner: false, 1, confirm: true, null));
+        await Assert.ThrowsAsync<AdminReportForbiddenException>(() => service.SetAccountRestrictionAsync(1, isOwner: false, 1, restricted: true, confirm: true, null));
+        await Assert.ThrowsAsync<InvalidAdminRequestException>(() => service.DeleteTargetAsync(1, isOwner: true, 1, confirm: false, null));
+        await Assert.ThrowsAsync<InvalidAdminRequestException>(() => service.SetAccountRestrictionAsync(1, isOwner: true, 1, restricted: true, confirm: false, null));
+        Assert.Equal(0, store.Deletions);
+        Assert.Equal(0, store.AccountRestrictions);
+
+        await service.DeleteTargetAsync(1, isOwner: true, 1, confirm: true, null);
+        await service.SetAccountRestrictionAsync(1, isOwner: true, 1, restricted: true, confirm: true, null);
+        // Lifting a restriction needs no confirmation (it only gives access back) but still the Owner role.
+        await service.SetAccountRestrictionAsync(1, isOwner: true, 1, restricted: false, confirm: false, null);
+        await Assert.ThrowsAsync<AdminReportForbiddenException>(() => service.SetAccountRestrictionAsync(1, isOwner: false, 1, restricted: false, confirm: true, null));
+        Assert.Equal(1, store.Deletions);
+        Assert.Equal(2, store.AccountRestrictions);
     }
 }

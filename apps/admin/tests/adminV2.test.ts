@@ -6,6 +6,7 @@ import {
   REPORT_FILTERS,
   parseReportFilter,
   reportFailureMessage,
+  warningDraft,
   reportReporterLabel,
   answerBlocker,
   answerSendBody,
@@ -296,5 +297,19 @@ describe('신고 관리', () => {
     assert.match(reportFailureMessage('reportRestrictionActive') ?? '', /해제/);
     assert.match(reportFailureMessage('reportNotRestrictable') ?? '', /제한/);
     assert.equal(reportFailureMessage('other'), null);
+  });
+
+  it('explains the moderation action refusals by their stable code', () => {
+    assert.match(reportFailureMessage('warningAlreadySent') ?? '', /이미 경고/);
+    assert.match(reportFailureMessage('reportNotDeletable') ?? '', /삭제/);
+    assert.match(reportFailureMessage('ownerRoleRequired') ?? '', /Owner/);
+    assert.match(reportFailureMessage('reportNotAccountRestrictable') ?? '', /제한/);
+  });
+
+  it('starts a warning from editable words that never name the reporter', () => {
+    const draft = warningDraft('Harassment');
+    assert.ok(draft.reason.length > 0 && draft.guidance.length > 0);
+    assert.doesNotMatch(draft.reason + draft.guidance, /신고자|@/);
+    assert.equal(warningDraft('Unknown').reason, '');
   });
 });

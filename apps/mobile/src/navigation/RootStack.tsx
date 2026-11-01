@@ -36,6 +36,7 @@ import { themedScreen, useTheme } from '../theme/ThemeContext';
 import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
 import { NewLinkReviewScreen } from '../screens/NewLinkReviewScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
+import { ModerationNoticeScreen } from '../screens/ModerationNoticeScreen';
 import { ProfileEditScreen } from '../screens/ProfileEditScreen';
 import { SharedCollectionEntry } from './SharedCollectionEntry';
 import { SignInScreen } from '../screens/SignInScreen';
@@ -187,6 +188,8 @@ export type RootStackParamList = {
    * Collection API - see collections/api/publicCollectionsApi.ts.
    */
   SharedCollection: { publicId: string };
+  /** 이용 안내 / 신고 처리 결과 (an operator message, by id; the server decides whose it is). */
+  ModerationNotice: { noticeId: number };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -272,6 +275,11 @@ export function RootStack() {
               component={themedScreen(FriendsScreen)}
               name="Friends"
               options={{ title: t('friends.title'), ...headerTitleWithIcon(screenIcons.friends, t('friends.title')) }}
+            />
+            <Stack.Screen
+              component={themedScreen(ModerationNoticeScreen)}
+              name="ModerationNotice"
+              options={{ title: t('moderation.screenTitle'), ...headerTitleWithIcon(screenIcons.notifications, t('moderation.screenTitle')) }}
             />
             <Stack.Screen
               component={themedScreen(NotificationsScreen)}

@@ -591,7 +591,9 @@
     "addTitle": "Koleksiyon ekle",
     "requestTitle": "Katılma isteği gönder",
     "requestSend": "İste",
-    "signInRequired": "Bu koleksiyonu eklemek veya katılma isteği göndermek için Juple'a giriş yap."
+    "signInRequired": "Bu koleksiyonu eklemek veya katılma isteği göndermek için Juple'a giriş yap.",
+    "blockedOwnerTitle": "Bu, engellediğiniz bir kullanıcının koleksiyonu",
+    "blockedOwnerMessage": "Bu koleksiyonun sahibi {{name}}, engellediğiniz bir kullanıcı. Engel devam ettiği sürece koleksiyona erişemezsiniz."
   },
   "quickSaveComposer": {
     "titleLabel": "Başlık",
@@ -1251,7 +1253,8 @@
     "unblockMessage": "Engeli kaldırmak arkadaşlığı, iptal edilen davetleri veya kaldırılan üyelikleri geri getirmez. Üye olduğunuz koleksiyonlar listelerinizde yeniden görünür.",
     "blockedAt": "Engellenme tarihi {{date}}",
     "hiddenCollectionsTitle": "Listelerinizden gizlenen katıldığınız koleksiyonlar (açmak veya ayrılmak için dokunun)",
-    "shareRestrictedNotice": "Bu koleksiyonun paylaşımı politikalarımız gereği kısıtlandı. Hiçbir şey silinmedi ve yönetmeye devam edebilirsiniz."
+    "shareRestrictedNotice": "Bu koleksiyonun paylaşımı politikalarımız gereği kısıtlandı. Hiçbir şey silinmedi ve yönetmeye devam edebilirsiniz.",
+    "accountRestricted": "Bu hesabın kullanımı politikalarımız gereği kısıtlandı. İçeriğinizi görüntülemeye ve destekle iletişime geçmeye devam edebilirsiniz."
   },
   "agreement": {
     "ageConfirmation": "En az 14 yaşındayım",
@@ -1512,5 +1515,17 @@
     "previous": "Önceki alan",
     "next": "Sonraki alan",
     "done": "Bitti"
+  },
+  "moderation": {
+    "screenTitle": "Bildirim",
+    "warningTitle": "Juple bildirimi",
+    "warningIntro": "İçeriğinizle ilgili bir şikâyeti inceledik ve Juple'ı kullanırken dikkat etmeniz gereken bir durum tespit ettik.",
+    "reasonLabel": "Tespit ettiğimiz durum",
+    "guidanceLabel": "Ekipten yönlendirme",
+    "acknowledge": "Anladım",
+    "acknowledged": "Onaylandı",
+    "acknowledgeFailed": "Onayınız kaydedilemedi. Lütfen tekrar deneyin.",
+    "resultTitle": "Şikâyet sonucu",
+    "resultMessage": "Şikâyetiniz için teşekkürler. İncelemeyi tamamladık. Gerekli işlemler politikalarımıza göre yapılır; tek tek işlemlerin ayrıntılarını paylaşmıyoruz."
   }
 }

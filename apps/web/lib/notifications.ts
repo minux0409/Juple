@@ -20,6 +20,7 @@ export type NotificationTargetKindWire =
   | 'collectionSubmissions'
   | 'collectionJoinRequests'
   | 'publicCollection'
+  | 'moderationNotice'
   | 'unavailable';
 
 export interface NotificationTargetWire {
@@ -28,6 +29,8 @@ export interface NotificationTargetWire {
   readonly itemId?: number | null;
   readonly publicId?: string | null;
   readonly focus?: string | null;
+  /** moderationNotice: the operator message (이용 안내 / 신고 처리 결과) to open. */
+  readonly noticeId?: number | null;
   readonly commentId?: number | null;
   readonly rootCommentId?: number | null;
 }
@@ -107,6 +110,7 @@ export type NotificationTarget =
   | { readonly kind: 'collectionSubmissions'; readonly collectionId: number }
   | { readonly kind: 'collectionJoinRequests'; readonly collectionId: number }
   | { readonly kind: 'publicCollection'; readonly publicId: string }
+  | { readonly kind: 'moderationNotice'; readonly noticeId: number }
   | { readonly kind: 'unavailable' };
 
 const UNAVAILABLE: NotificationTarget = { kind: 'unavailable' };
@@ -148,6 +152,10 @@ export function parseNotificationTarget(wire: NotificationTargetWire | null | un
       return collectionId !== null ? { kind: 'collectionJoinRequests', collectionId } : UNAVAILABLE;
     case 'publicCollection':
       return typeof wire.publicId === 'string' && PUBLIC_ID_PATTERN.test(wire.publicId) ? { kind: 'publicCollection', publicId: wire.publicId } : UNAVAILABLE;
+    case 'moderationNotice': {
+      const noticeId = positiveId(wire.noticeId);
+      return noticeId !== null ? { kind: 'moderationNotice', noticeId } : UNAVAILABLE;
+    }
     default:
       return UNAVAILABLE;
   }
@@ -186,6 +194,8 @@ export function webDestinationOf(target: NotificationTarget): WebDestination {
       return { kind: 'collectionLink', collectionId: target.collectionId, itemId: target.itemId, mine: target.kind === 'collectionItem' };
     case 'publicCollection':
       return { kind: 'href', href: `/shared/${encodeURIComponent(target.publicId)}` };
+    case 'moderationNotice':
+      return { kind: 'href', href: `/me/notice-from-juple/${target.noticeId}` };
     case 'unavailable':
       return { kind: 'unavailable' };
   }
@@ -246,6 +256,7 @@ export function notificationGlyphOf(type: string | null): NotificationGlyph {
       return 'SmileyPlus';
     case 'collectionItemComment':
     case 'commentReply':
+    case 'adminWarning':
       return 'Comment';
     case 'commentLike':
       return 'HeartFilled';
@@ -253,6 +264,7 @@ export function notificationGlyphOf(type: string | null): NotificationGlyph {
       return 'Folder';
     case 'collectionLinkSubmissionApproved':
     case 'joinRequestApproved':
+    case 'reportResult':
       return 'Check';
     case 'collectionLinkSubmissionRejected':
     case 'joinRequestRejected':

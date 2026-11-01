@@ -56,6 +56,12 @@ public static class AdminAuditActions
     public const string ReportStatusChanged = "safety.report.status_changed";
     public const string ShareRestricted = "safety.share.restricted";
     public const string ShareRestrictionLifted = "safety.share.restriction_lifted";
+    public const string ReportWarningSent = "safety.report.warning_sent";
+    public const string ReportResultSent = "safety.report.result_sent";
+    public const string ContentDeleted = "safety.content.deleted";
+    public const string ContentRestored = "safety.content.restored";
+    public const string AccountRestricted = "safety.account.restricted";
+    public const string AccountRestrictionLifted = "safety.account.restriction_lifted";
 }
 
 public static class AdminAuditTargets

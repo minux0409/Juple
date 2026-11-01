@@ -48,7 +48,7 @@ export interface EditTarget {
  *  - toggleLike: the heart flips at once and is settled by the server's answer; a failure flips it back. One request per comment.
  * Every request carries this Collection's visit grant (its lock / share password) when one is held.
  */
-export function useItemComments(collectionId: number, itemId: number, onFailure: (kind: CommentFailure) => void) {
+export function useItemComments(collectionId: number, itemId: number, onFailure: (kind: CommentFailure, error?: unknown) => void) {
   const { api, onSessionLost } = useSignedInApp();
   const [comments, setComments] = useState<readonly ItemComment[]>([]);
   const [threads, setThreads] = useState<Threads>({});
@@ -77,7 +77,7 @@ export function useItemComments(collectionId: number, itemId: number, onFailure:
       if (isSessionLost(error)) {
         onSessionLost();
       } else if (kind) {
-        failureRef.current(kind);
+        failureRef.current(kind, error);
       }
     },
     [onSessionLost],

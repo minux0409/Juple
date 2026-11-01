@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { formatMessage } from '../../../../lib/appI18n';
 import { isSessionLost } from '../../../../lib/authSession';
 import { ApiHttpError } from '../../../../lib/appApi';
 import { COLLECTION_UNLOCK_HEADER } from '../../../../lib/collectionUnlock';
@@ -97,7 +98,7 @@ export function SharedCollectionEntry({ publicId }: { readonly publicId: string 
   }, [publicId, unlockToken, reloadToken]);
 
   const isMember = membership?.isMember === true && typeof membership.collectionId === 'number';
-  const entry = membership === undefined ? null : isMember ? decideShareEntry(membership, 'unavailable') : profile === undefined ? null : decideShareEntry(membership, profile);
+  const entry = membership === undefined ? null : membership?.ownerBlockedByYou === true ? decideShareEntry(membership, 'unavailable') : isMember ? decideShareEntry(membership, 'unavailable') : profile === undefined ? null : decideShareEntry(membership, profile);
 
   useEffect(() => {
     if (entry?.kind === 'member') {
@@ -217,6 +218,22 @@ export function SharedCollectionEntry({ publicId }: { readonly publicId: string 
           <div className={styles.shareEntryActions}>
             <button className={styles.primaryAction} onClick={leave} type="button">
               {dictionary.confirm}
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (entry.kind === 'ownerBlocked') {
+    return (
+      <section className={styles.shareEntryPage}>
+        <div className={styles.shareEntryCard} data-owner-blocked role="alert">
+          <h1 className={styles.shareEntryTitle}>{dictionary.shareEntryBlockedOwnerTitle}</h1>
+          <p className={styles.shareEntryMessage}>{formatMessage(dictionary.shareEntryBlockedOwnerMessage, { name: entry.ownerName })}</p>
+          <div className={styles.shareEntryActions}>
+            <button className={styles.primaryAction} onClick={leave} type="button">
+              {dictionary.close}
             </button>
           </div>
         </div>

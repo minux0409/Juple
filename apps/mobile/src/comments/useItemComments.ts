@@ -72,7 +72,7 @@ export function useItemComments(
   collectionId: number,
   itemId: number,
   getUnlockToken: () => string | null,
-  onFailure: (kind: FailureKind) => void,
+  onFailure: (kind: FailureKind, error?: unknown) => void,
   /** Off: nothing is requested (the link is not in a collaborative Collection here). */
   enabled = true,
   /** A notification's thread: once the comments are here, that thread (by its root comment id) is opened. */
@@ -146,7 +146,7 @@ export function useItemComments(
       setTotalCount(page.totalCount);
       setPreviousCursor(page.previousCursor);
     } catch (caughtError) {
-      unlessRefusalHandled(caughtError, () => failureRef.current('older'));
+      unlessRefusalHandled(caughtError, () => failureRef.current('older', caughtError));
     } finally {
       isLoadingPreviousRef.current = false;
       setIsLoadingPrevious(false);
@@ -284,7 +284,7 @@ export function useItemComments(
         setEditTarget(null);
         return true;
       } catch (caughtError) {
-        unlessRefusalHandled(caughtError, () => failureRef.current('edit'));
+        unlessRefusalHandled(caughtError, () => failureRef.current('edit', caughtError));
         return false;
       } finally {
         isSendingRef.current = false;
@@ -330,7 +330,7 @@ export function useItemComments(
         setTotalCount(current => current + 1);
         return true;
       } catch (caughtError) {
-        unlessRefusalHandled(caughtError, () => failureRef.current('send'));
+        unlessRefusalHandled(caughtError, () => failureRef.current('send', caughtError));
         return false;
       } finally {
         isSendingRef.current = false;
@@ -379,7 +379,7 @@ export function useItemComments(
         setComments(snapshot.comments);
         setThreads(snapshot.threads);
         setTotalCount(snapshot.totalCount);
-        unlessRefusalHandled(caughtError, () => failureRef.current('delete'));
+        unlessRefusalHandled(caughtError, () => failureRef.current('delete', caughtError));
       } finally {
         pendingDeletesRef.current.delete(commentId);
       }
@@ -412,7 +412,7 @@ export function useItemComments(
         apply(state.liked, state.likeCount);
       } catch (caughtError) {
         apply(before.liked, before.count);
-        unlessRefusalHandled(caughtError, () => failureRef.current('like'));
+        unlessRefusalHandled(caughtError, () => failureRef.current('like', caughtError));
       } finally {
         pendingLikesRef.current.delete(target.id);
       }

@@ -44,6 +44,7 @@ function renderGlyph(type: string | null, size: number, color: string) {
       return <SmileyPlusIcon color={color} size={size} />;
     case 'collectionItemComment':
     case 'commentReply':
+    case 'adminWarning':
       return <CommentIcon color={color} size={size} />;
     case 'commentLike':
       return <HeartIcon color={color} filled size={size} />;
@@ -53,6 +54,7 @@ function renderGlyph(type: string | null, size: number, color: string) {
       return <PeopleIcon color={color} size={size} />;
     case 'collectionLinkSubmissionApproved':
     case 'joinRequestApproved':
+    case 'reportResult':
       return <CheckIcon color={color} size={size} />;
     case 'collectionLinkSubmissionRejected':
     case 'joinRequestRejected':

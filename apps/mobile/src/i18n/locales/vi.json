@@ -591,7 +591,9 @@
     "addTitle": "Thêm bộ sưu tập",
     "requestTitle": "Yêu cầu tham gia",
     "requestSend": "Yêu cầu",
-    "signInRequired": "Đăng nhập Juple để thêm bộ sưu tập này hoặc yêu cầu tham gia."
+    "signInRequired": "Đăng nhập Juple để thêm bộ sưu tập này hoặc yêu cầu tham gia.",
+    "blockedOwnerTitle": "Đây là bộ sưu tập của người dùng bị bạn chặn",
+    "blockedOwnerMessage": "Chủ sở hữu bộ sưu tập này, {{name}}, là người dùng bạn đã chặn. Bạn không thể truy cập bộ sưu tập khi họ đang bị chặn."
   },
   "quickSaveComposer": {
     "titleLabel": "Tiêu đề",
@@ -1251,7 +1253,8 @@
     "unblockMessage": "Bỏ chặn không khôi phục quan hệ bạn bè, lời mời đã hủy hay tư cách thành viên đã xóa. Các bộ sưu tập bạn tham gia sẽ xuất hiện lại trong danh sách.",
     "blockedAt": "Đã chặn ngày {{date}}",
     "hiddenCollectionsTitle": "Bộ sưu tập đã tham gia, bị ẩn khỏi danh sách (chạm để mở hoặc rời)",
-    "shareRestrictedNotice": "Việc chia sẻ bộ sưu tập này đã bị hạn chế theo chính sách của chúng tôi. Không có gì bị xóa và bạn vẫn có thể quản lý."
+    "shareRestrictedNotice": "Việc chia sẻ bộ sưu tập này đã bị hạn chế theo chính sách của chúng tôi. Không có gì bị xóa và bạn vẫn có thể quản lý.",
+    "accountRestricted": "Việc sử dụng tài khoản này bị hạn chế theo chính sách của chúng tôi. Bạn vẫn có thể xem nội dung và liên hệ hỗ trợ."
   },
   "agreement": {
     "ageConfirmation": "Tôi từ đủ 14 tuổi trở lên",
@@ -1512,5 +1515,17 @@
     "previous": "Ô trước",
     "next": "Ô tiếp theo",
     "done": "Xong"
+  },
+  "moderation": {
+    "screenTitle": "Thông báo",
+    "warningTitle": "Thông báo từ Juple",
+    "warningIntro": "Chúng tôi đã xem xét một báo cáo về nội dung của bạn và nhận thấy có điều cần lưu ý khi sử dụng Juple.",
+    "reasonLabel": "Nội dung chúng tôi ghi nhận",
+    "guidanceLabel": "Hướng dẫn từ đội ngũ",
+    "acknowledge": "Tôi đã hiểu",
+    "acknowledged": "Đã xác nhận",
+    "acknowledgeFailed": "Không thể lưu xác nhận của bạn. Vui lòng thử lại.",
+    "resultTitle": "Kết quả báo cáo",
+    "resultMessage": "Cảm ơn bạn đã báo cáo. Chúng tôi đã xem xét xong. Các biện pháp cần thiết được thực hiện theo chính sách; chúng tôi không chia sẻ chi tiết từng biện pháp."
   }
 }

@@ -99,6 +99,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
 
     public DbSet<Juple.Domain.Safety.ShareRestriction> ShareRestrictions => Set<Juple.Domain.Safety.ShareRestriction>();
 
+    public DbSet<Juple.Domain.Safety.ModerationNotice> ModerationNotices => Set<Juple.Domain.Safety.ModerationNotice>();
+
     public DbSet<Juple.Domain.Billing.TrialLedgerEntry> TrialLedger => Set<Juple.Domain.Billing.TrialLedgerEntry>();
 
     public DbSet<Juple.Domain.Billing.StorePurchase> StorePurchases => Set<Juple.Domain.Billing.StorePurchase>();

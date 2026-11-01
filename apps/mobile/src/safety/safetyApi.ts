@@ -9,6 +9,8 @@ import type { AuthenticatedApiRequest } from '../api/authenticatedApiClient';
 export const TERMS_REQUIRED_CODE = 'termsAcceptanceRequired';
 export const USER_BLOCKED_CODE = 'userBlocked';
 export const INTERACTION_NOT_ALLOWED_CODE = 'interactionNotAllowed';
+/** An operator restricted this account's use (read-only): every change is refused until they lift it. */
+export const ACCOUNT_RESTRICTED_CODE = 'accountRestricted';
 
 export interface TermsStatus {
   readonly currentVersion: string;
@@ -157,9 +159,12 @@ export async function listBlockedUsers(request: AuthenticatedApiRequest): Promis
 }
 
 /** The words for an interaction the server refused because of a block - null when the failure is something else. */
-export function blockedInteractionKey(error: unknown): 'safety.userBlockedByYou' | 'safety.interactionNotAllowed' | null {
+export function blockedInteractionKey(error: unknown): 'safety.userBlockedByYou' | 'safety.interactionNotAllowed' | 'safety.accountRestricted' | null {
   if (!(error instanceof ApiError) || error.kind !== 'forbidden') {
     return null;
+  }
+  if (error.code === ACCOUNT_RESTRICTED_CODE) {
+    return 'safety.accountRestricted';
   }
   if (error.code === USER_BLOCKED_CODE) {
     return 'safety.userBlockedByYou';

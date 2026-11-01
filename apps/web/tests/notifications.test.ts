@@ -236,10 +236,10 @@ describe('read / read-all', () => {
 describe('where a notification leads (the server\'s target -> a Web page)', () => {
   it('the Web knows exactly the backend\'s target kinds', () => {
     const backend = read('../../backend/src/Juple.Application/Notifications/Inbox/NotificationInbox.cs');
-    const kinds = [...backend.slice(backend.indexOf('public static class NotificationTargetKinds')).matchAll(/public const string \w+ = "(\w+)";/g)].map(match => match[1]).slice(0, 10);
-    assert.deepEqual(new Set(kinds), new Set(['friendRequests', 'friends', 'collectionInvitations', 'collection', 'collectionItem', 'collectionSharedItem', 'collectionSubmissions', 'collectionJoinRequests', 'publicCollection', 'unavailable']));
+    const kinds = [...backend.slice(backend.indexOf('public static class NotificationTargetKinds')).matchAll(/public const string \w+ = "(\w+)";/g)].map(match => match[1]).slice(0, 11);
+    assert.deepEqual(new Set(kinds), new Set(['friendRequests', 'friends', 'collectionInvitations', 'collection', 'collectionItem', 'collectionSharedItem', 'collectionSubmissions', 'collectionJoinRequests', 'publicCollection', 'moderationNotice', 'unavailable']));
     for (const kind of kinds) {
-      const target = parseNotificationTarget({ kind: kind!, collectionId: 5, itemId: 9, publicId: 'AbCdEfGh12345678' });
+      const target = parseNotificationTarget({ kind: kind!, collectionId: 5, itemId: 9, publicId: 'AbCdEfGh12345678', noticeId: 7 });
       assert.equal(target.kind, kind, kind);
     }
   });
@@ -256,6 +256,8 @@ describe('where a notification leads (the server\'s target -> a Web page)', () =
     assert.deepEqual(go({ kind: 'collectionItem', collectionId: 5 }), { kind: 'href', href: '/collections/5' }, 'no link id: its Collection');
     assert.deepEqual(go({ kind: 'publicCollection', publicId: 'AbCdEfGh12345678' }), { kind: 'href', href: '/shared/AbCdEfGh12345678' });
     assert.deepEqual(go({ kind: 'collectionInvitations' }), { kind: 'href', href: '/collections?tab=shared&invitations=1' });
+    assert.deepEqual(go({ kind: 'moderationNotice', noticeId: 7 }), { kind: 'href', href: '/me/notice-from-juple/7' }, 'an operator message opens its notice page');
+    assert.deepEqual(go({ kind: 'moderationNotice', noticeId: 0 }), { kind: 'unavailable' });
   });
 
   it('untrusted targets: unknown kinds and malformed ids are unavailable, never a half-built route', () => {

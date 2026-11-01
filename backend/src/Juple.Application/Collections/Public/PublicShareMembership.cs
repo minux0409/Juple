@@ -10,7 +10,14 @@ public sealed record PublicShareMembershipDto(
     long? CollectionId,
     string? Role,
     bool IsPublic = true,
-    bool JoinRequestPending = false);
+    bool JoinRequestPending = false,
+    /// <summary>
+    /// True only when the CALLER blocked this Collection's Owner: the client then shows "차단한 사용자의 컬렉션입니다" instead of anything of the
+    /// Collection (OwnerName is the Owner's nickname, or their Juple ID without one). It is never set because the Owner blocked the caller -
+    /// a block is only ever shown to the person who set it.
+    /// </summary>
+    bool OwnerBlockedByYou = false,
+    string? OwnerName = null);
 
 public interface IPublicShareMembershipStore
 {

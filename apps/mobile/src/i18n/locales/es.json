@@ -591,7 +591,9 @@
     "addTitle": "Añadir colección",
     "requestTitle": "Solicitar unirme",
     "requestSend": "Solicitar",
-    "signInRequired": "Inicia sesión en Juple para añadir esta colección o solicitar unirte."
+    "signInRequired": "Inicia sesión en Juple para añadir esta colección o solicitar unirte.",
+    "blockedOwnerTitle": "Esta es la colección de un usuario bloqueado",
+    "blockedOwnerMessage": "El propietario de esta colección, {{name}}, es un usuario que bloqueaste. No puedes acceder a la colección mientras esté bloqueado."
   },
   "quickSaveComposer": {
     "titleLabel": "Título",
@@ -1251,7 +1253,8 @@
     "unblockMessage": "Desbloquear no restaura la amistad, las invitaciones canceladas ni las participaciones eliminadas. Las colecciones en las que participas vuelven a aparecer en tus listas.",
     "blockedAt": "Bloqueado el {{date}}",
     "hiddenCollectionsTitle": "Colecciones en las que participas, ocultas de tus listas (toca para abrir o salir)",
-    "shareRestrictedNotice": "El uso compartido de esta colección se ha restringido según nuestras políticas. No se ha eliminado nada y puedes seguir gestionándola."
+    "shareRestrictedNotice": "El uso compartido de esta colección se ha restringido según nuestras políticas. No se ha eliminado nada y puedes seguir gestionándola.",
+    "accountRestricted": "El uso de esta cuenta está restringido según nuestras políticas. Aún puedes ver tu contenido y contactar con soporte."
   },
   "agreement": {
     "ageConfirmation": "Tengo al menos 14 años",
@@ -1512,5 +1515,17 @@
     "previous": "Campo anterior",
     "next": "Campo siguiente",
     "done": "Listo"
+  },
+  "moderation": {
+    "screenTitle": "Aviso",
+    "warningTitle": "Aviso de Juple",
+    "warningIntro": "Revisamos una denuncia sobre tu contenido y encontramos algo que requiere tu atención al usar Juple.",
+    "reasonLabel": "Lo que encontramos",
+    "guidanceLabel": "Indicaciones del equipo",
+    "acknowledge": "Entendido",
+    "acknowledged": "Confirmado",
+    "acknowledgeFailed": "No se pudo guardar tu confirmación. Inténtalo de nuevo.",
+    "resultTitle": "Resultado de tu denuncia",
+    "resultMessage": "Gracias por tu denuncia. Hemos terminado de revisarla. Las medidas necesarias se toman según nuestras políticas; no compartimos los detalles de cada medida."
   }
 }

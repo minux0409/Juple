@@ -76,6 +76,9 @@ export interface PublicShareMembership {
   readonly isPublic?: boolean;
   /** Non-members only: MY join request is waiting for the Owner. */
   readonly joinRequestPending?: boolean;
+  /** Non-members only: I blocked this Collection's Owner - nothing of the Collection may be shown (the server says only this and the name). */
+  readonly ownerBlockedByYou?: boolean;
+  readonly ownerName?: string | null;
 }
 
 export type PublicShareJoinOutcome = 'joined' | 'alreadyMember' | 'requested' | 'alreadyRequested';

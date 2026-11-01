@@ -283,6 +283,8 @@ public static class SocialNotificationPolicy
         NotificationType.JoinRequestReceived => "joinRequest",
         NotificationType.JoinRequestApproved => "joinRequestApproved",
         NotificationType.JoinRequestRejected => "joinRequestRejected",
+        NotificationType.AdminWarning => "adminWarning",
+        NotificationType.ReportResultNotice => "reportResult",
         _ => "unknown",
     };
 

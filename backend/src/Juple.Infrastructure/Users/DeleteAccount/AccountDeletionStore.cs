@@ -133,6 +133,11 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext, TimeProvider?
             await dbContext.UserBlocks
                 .Where(block => block.BlockerUserId == userId || block.BlockedUserId == userId)
                 .ExecuteDeleteAsync(cancellationToken);
+            // Operator messages (이용 안내 / 신고 처리 결과) are the recipient's own inbox: they go with the account. The audit trail of what an
+            // operator did stays in the admin audit log (ids only); the report keeps no words of the warning.
+            await dbContext.ModerationNotices
+                .Where(notice => notice.RecipientUserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
             await dbContext.ContentReports
                 .Where(report => report.ReporterUserId == userId)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(report => report.ReporterUserId, (long?)null), cancellationToken);

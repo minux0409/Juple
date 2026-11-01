@@ -339,18 +339,18 @@ public sealed class SafetyIntegrationTests : IAsyncLifetime
     {
         var (owner, ownerCode) = await NewUserAsync();
         var (member, memberCode) = await NewUserAsync();
-        var collection = await NewCollectionAsync(owner, member);
-        var item = await NewItemInAsync(owner, collection);
+        var (bystander, _) = await NewUserAsync();
+        var collection = await NewCollectionAsync(owner, member, bystander);
+        // A third person's link: visible to both (a block hides only what the OTHER one added), so the interaction rules themselves are what is tested.
+        var item = await NewItemInAsync(bystander, collection);
         var comments = () => new CollectionItemCommentStore(NewContext());
 
         var existing = (await comments().CreateAsync(member, collection, item, "from the member", DateTimeOffset.UtcNow))!.Comment.Id;
         await Blocks().BlockAsync(owner, memberCode);
 
-        // Neither direction may comment on, answer, heart or react to the other any more...
-        await Assert.ThrowsAsync<UserBlockedException>(() => comments().CreateAsync(member, collection, item, "top-level", DateTimeOffset.UtcNow));
+        // Neither direction may answer or heart the other any more...
         await Assert.ThrowsAsync<UserBlockedException>(() => comments().CreateAsync(owner, collection, item, "an answer", DateTimeOffset.UtcNow, existing));
         await Assert.ThrowsAsync<UserBlockedException>(() => comments().SetLikeAsync(owner, collection, item, existing, true, DateTimeOffset.UtcNow));
-        await Assert.ThrowsAsync<UserBlockedException>(() => new CollectionItemReactionStore(NewContext()).SetAsync(member, collection, item, "heart", DateTimeOffset.UtcNow));
 
         // ... taking a heart back stays possible, the member keeps their membership and their words exist.
         await comments().SetLikeAsync(owner, collection, item, existing, false, DateTimeOffset.UtcNow);
@@ -360,6 +360,7 @@ public sealed class SafetyIntegrationTests : IAsyncLifetime
         // The blocker no longer sees the blocked person's words; the blocked person (and everybody else) still do.
         Assert.Equal(0, (await comments().GetPageAsync(owner, collection, item, null, 30))!.TotalCount);
         Assert.Equal(1, (await comments().GetPageAsync(member, collection, item, null, 30))!.TotalCount);
+        Assert.Equal(1, (await comments().GetPageAsync(bystander, collection, item, null, 30))!.TotalCount);
 
         // After unblocking the interaction works again.
         await Blocks().UnblockAsync(owner, memberCode);

@@ -169,10 +169,9 @@ public sealed class CollectionStore(
                 // The same count the Collections list reports: memberships whose Item is not in the trash.
                 ItemCount = dbContext.CollectionItems
                     .Where(membership => membership.CollectionId == collection.Id)
-                    // A link the other side of a block added after the block is not counted (same rule as BlockedLinkFilter).
+                    // A link the other side of a block added is not counted (same rule as BlockedLinkFilter).
                     .Where(membership => !dbContext.UserBlocks.Any(block =>
-                        block.CreatedAtUtc <= membership.VisibleSinceUtc
-                        && ((block.BlockerUserId == userId && block.BlockedUserId == membership.AddedByUserId)
+                        ((block.BlockerUserId == userId && block.BlockedUserId == membership.AddedByUserId)
                             || (block.BlockedUserId == userId && block.BlockerUserId == membership.AddedByUserId))))
                     .Count(membership => dbContext.Items.Any(
                         item => item.Id == membership.ItemId && item.DeletedAtUtc == null)),
@@ -370,8 +369,7 @@ public sealed class CollectionStore(
                             || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked)))
                         || dbContext.CollectionMemberLocks.Any(memberLock => memberLock.CollectionId == collection.Id && memberLock.UserId == userId && memberLock.IsLocked)))
                 && dbContext.CollectionItems.Any(membership => membership.CollectionId == collection.Id
-                    && !dbContext.UserBlocks.Any(block => block.CreatedAtUtc <= membership.VisibleSinceUtc
-                        && ((block.BlockerUserId == userId && block.BlockedUserId == membership.AddedByUserId)
+                    && !dbContext.UserBlocks.Any(block => ((block.BlockerUserId == userId && block.BlockedUserId == membership.AddedByUserId)
                             || (block.BlockedUserId == userId && block.BlockerUserId == membership.AddedByUserId)))
                     && dbContext.Items.Any(item => item.Id == membership.ItemId
                         && item.DeletedAtUtc == null
@@ -491,10 +489,9 @@ public sealed class CollectionStore(
             // filter, so the displayed count never disagrees with the list it describes.
             ItemCount = dbContext.CollectionItems
                 .Where(membership => membership.CollectionId == collection.Id)
-                // A link the other side of a block added after the block is not counted (same rule as BlockedLinkFilter).
+                // A link the other side of a block added is not counted (same rule as BlockedLinkFilter).
                 .Where(membership => !dbContext.UserBlocks.Any(block =>
-                    block.CreatedAtUtc <= membership.VisibleSinceUtc
-                    && ((block.BlockerUserId == userId && block.BlockedUserId == membership.AddedByUserId)
+                    ((block.BlockerUserId == userId && block.BlockedUserId == membership.AddedByUserId)
                         || (block.BlockedUserId == userId && block.BlockerUserId == membership.AddedByUserId))))
                 .Count(membership => dbContext.Items.Any(item => item.Id == membership.ItemId && item.DeletedAtUtc == null)
                     && (collection.UserId == userId
@@ -1107,8 +1104,7 @@ public sealed class CollectionStore(
                     INNER JOIN [items].[Items] AS i ON i.[Id] = m.[ItemId]
                     WHERE m.[CollectionId] = @collectionId AND i.[DeletedAtUtc] IS NULL
                         AND NOT EXISTS (SELECT 1 FROM [safety].[UserBlocks] AS b
-                            WHERE b.[CreatedAtUtc] <= m.[VisibleSinceUtc]
-                                AND ((b.[BlockerUserId] = @userId AND b.[BlockedUserId] = m.[AddedByUserId])
+                                WHERE ((b.[BlockerUserId] = @userId AND b.[BlockedUserId] = m.[AddedByUserId])
                                     OR (b.[BlockedUserId] = @userId AND b.[BlockerUserId] = m.[AddedByUserId])))
                         AND (m.[AddedByUserId] = @userId
                             OR EXISTS (SELECT 1 FROM [collections].[Collections] AS c WHERE c.[Id] = m.[CollectionId] AND c.[UserId] = @userId)

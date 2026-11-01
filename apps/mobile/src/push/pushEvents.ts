@@ -23,7 +23,9 @@ export type SocialPushEventType =
   | 'joinRequestRejected'
   | 'collectionLinkSubmission'
   | 'collectionLinkSubmissionApproved'
-  | 'collectionLinkSubmissionRejected';
+  | 'collectionLinkSubmissionRejected'
+  | 'adminWarning'
+  | 'reportResult';
 
 export interface SocialPushEvent {
   readonly type: SocialPushEventType;
@@ -33,6 +35,8 @@ export interface SocialPushEvent {
    * (the recipient is not a member - no collectionId).
    */
   readonly publicId?: string | null;
+  /** adminWarning / reportResult: the operator message to open. */
+  readonly noticeId?: number | null;
 }
 
 const KNOWN_TYPES: ReadonlySet<string> = new Set<SocialPushEventType>([
@@ -55,6 +59,8 @@ const KNOWN_TYPES: ReadonlySet<string> = new Set<SocialPushEventType>([
   'collectionLinkSubmission',
   'collectionLinkSubmissionApproved',
   'collectionLinkSubmissionRejected',
+  'adminWarning',
+  'reportResult',
 ]);
 
 /** A public link id as the server mints it - anything else is ignored rather than navigated to. */
@@ -76,6 +82,7 @@ export function parseSocialPushEvent(data: Readonly<Record<string, unknown>> | n
     type: type as SocialPushEventType,
     collectionId: Number.isInteger(collectionId) && collectionId > 0 ? collectionId : null,
     publicId: typeof publicId === 'string' && PUBLIC_ID_PATTERN.test(publicId) ? publicId : null,
+    ...(Number.isInteger(Number(data?.noticeId)) && Number(data?.noticeId) > 0 ? { noticeId: Number(data?.noticeId) } : {}),
   };
 }
 

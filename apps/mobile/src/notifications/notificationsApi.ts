@@ -18,6 +18,7 @@ export type NotificationTargetKindWire =
   | 'collectionSubmissions'
   | 'collectionJoinRequests'
   | 'publicCollection'
+  | 'moderationNotice'
   | 'unavailable';
 
 export interface NotificationTargetWire {
@@ -29,6 +30,8 @@ export interface NotificationTargetWire {
   /** A reply / heart notification: the comment it is about and the top-level comment of its thread. */
   readonly commentId?: number | null;
   readonly rootCommentId?: number | null;
+  /** moderationNotice: the operator message (이용 안내 / 신고 처리 결과) to open. */
+  readonly noticeId?: number | null;
 }
 
 export interface NotificationActor {

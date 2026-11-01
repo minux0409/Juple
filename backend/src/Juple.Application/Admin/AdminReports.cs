@@ -44,7 +44,27 @@ public sealed record AdminReportDetail(
     AdminInquiryPerson? ReviewedBy,
     string? Note,
     IReadOnlyList<AdminReportPriorEntry> PriorReports,
-    IReadOnlyList<AdminAuditEntry> History);
+    IReadOnlyList<AdminAuditEntry> History)
+{
+    /// <summary>A report with a person behind the content: an operator may send them a reviewed warning, once per report.</summary>
+    public bool CanWarn { get; init; }
+
+    /// <summary>Set once the warning was sent: it cannot be sent twice. The words sent are never repeated back here.</summary>
+    public DateTimeOffset? WarningSentAtUtc { get; init; }
+
+    public bool WarningAcknowledged { get; init; }
+
+    /// <summary>A link or a Collection can be deleted (soft - recoverable) by an Owner-role operator; a person or a comment cannot.</summary>
+    public bool CanDeleteTarget { get; init; }
+
+    /// <summary>The reported link or Collection is in the trash (soft-deleted by an operator or by its owner); it can be restored.</summary>
+    public bool TargetDeleted { get; init; }
+
+    /// <summary>The person behind the content can have their account use restricted (read-only) - never automatic.</summary>
+    public bool CanRestrictAccount { get; init; }
+
+    public bool TargetAccountRestricted { get; init; }
+}
 
 public sealed class AdminReportNotFoundException : Exception;
 
@@ -53,12 +73,38 @@ public sealed class AdminReportConflictException(string code) : Exception(code)
 {
     public const string NotRestrictable = "reportNotRestrictable";
     public const string RestrictionActive = "reportRestrictionActive";
+    public const string NotDeletable = "reportNotDeletable";
+    public const string NoTargetUser = "reportHasNoTargetUser";
+    public const string WarningAlreadySent = "warningAlreadySent";
+    public const string NotAccountRestrictable = "reportNotAccountRestrictable";
+    public const string TargetNotDeleted = "reportTargetNotDeleted";
 
     public string Code { get; } = code;
 }
 
+/// <summary>403: this action needs the Owner role (deleting content, restricting an account).</summary>
+public sealed class AdminReportForbiddenException : Exception;
+
+/// <summary>The operator's reviewed words of a warning (신고 내용 + 관리자 안내): sent as written, after the operator saw them.</summary>
+public sealed record AdminWarningText(string Reason, string? Guidance);
+
 public interface IAdminReportStore
 {
+    /// <summary>
+    /// The warning, its Inbox notification (one Notification row for the push dispatcher: DB first, FCM after, a failed push never loses it) and the
+    /// audit record are ONE transaction. Throws AdminReportConflictException (warningAlreadySent / reportHasNoTargetUser). False = no such report.
+    /// </summary>
+    Task<bool> WarnAsync(long reportId, AdminWarningText text, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>Soft-deletes the reported link (into its owner's trash) or Collection, with its audit record. Idempotent. Conflict reportNotDeletable for a person or a comment.</summary>
+    Task<bool> DeleteTargetAsync(long reportId, string? note, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>Undoes DeleteTargetAsync. Conflict reportTargetNotDeleted when there is nothing to restore.</summary>
+    Task<bool> RestoreTargetAsync(long reportId, string? note, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>Sets or lifts the read-only use restriction of the person behind the reported content, with its audit record. Idempotent.</summary>
+    Task<bool> SetAccountRestrictionAsync(long reportId, bool restricted, string? note, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
+
     /// <summary>Newest first within the given statuses; keyset cursor.</summary>
     Task<AdminReportPage> ListAsync(IReadOnlyCollection<ReportStatus> statuses, long? cursor, int limit, CancellationToken cancellationToken = default);
 
@@ -114,6 +160,85 @@ public sealed class AdminReportService(IAdminReportStore store, TimeProvider tim
         }
 
         return await GetAsync(reportId, cancellationToken);
+    }
+
+    public async Task<AdminReportDetail> WarnAsync(long adminUserId, long reportId, string? reason, string? guidance, CancellationToken cancellationToken = default)
+    {
+        var trimmedReason = reason?.Trim();
+        if (string.IsNullOrEmpty(trimmedReason) || trimmedReason.Length > ModerationNotice.ReasonMaxLength)
+        {
+            throw new InvalidAdminRequestException("reason", $"reason is required and at most {ModerationNotice.ReasonMaxLength} characters.");
+        }
+
+        var trimmedGuidance = guidance?.Trim();
+        if (trimmedGuidance is { Length: > ModerationNotice.GuidanceMaxLength })
+        {
+            throw new InvalidAdminRequestException("guidance", $"guidance must be at most {ModerationNotice.GuidanceMaxLength} characters.");
+        }
+
+        var text = new AdminWarningText(trimmedReason, string.IsNullOrEmpty(trimmedGuidance) ? null : trimmedGuidance);
+        if (!await store.WarnAsync(reportId, text, adminUserId, timeProvider.GetUtcNow(), cancellationToken))
+        {
+            throw new AdminReportNotFoundException();
+        }
+
+        return await GetAsync(reportId, cancellationToken);
+    }
+
+    /// <summary>Deleting content needs the Owner role AND an explicit confirmation in the request.</summary>
+    public async Task<AdminReportDetail> DeleteTargetAsync(long adminUserId, bool isOwner, long reportId, bool confirm, string? note, CancellationToken cancellationToken = default)
+    {
+        RequireOwner(isOwner);
+        RequireConfirmed(confirm);
+        if (!await store.DeleteTargetAsync(reportId, Note(note), adminUserId, timeProvider.GetUtcNow(), cancellationToken))
+        {
+            throw new AdminReportNotFoundException();
+        }
+
+        return await GetAsync(reportId, cancellationToken);
+    }
+
+    public async Task<AdminReportDetail> RestoreTargetAsync(long adminUserId, bool isOwner, long reportId, string? note, CancellationToken cancellationToken = default)
+    {
+        RequireOwner(isOwner);
+        if (!await store.RestoreTargetAsync(reportId, Note(note), adminUserId, timeProvider.GetUtcNow(), cancellationToken))
+        {
+            throw new AdminReportNotFoundException();
+        }
+
+        return await GetAsync(reportId, cancellationToken);
+    }
+
+    public async Task<AdminReportDetail> SetAccountRestrictionAsync(long adminUserId, bool isOwner, long reportId, bool restricted, bool confirm, string? note, CancellationToken cancellationToken = default)
+    {
+        RequireOwner(isOwner);
+        if (restricted)
+        {
+            RequireConfirmed(confirm);
+        }
+
+        if (!await store.SetAccountRestrictionAsync(reportId, restricted, Note(note), adminUserId, timeProvider.GetUtcNow(), cancellationToken))
+        {
+            throw new AdminReportNotFoundException();
+        }
+
+        return await GetAsync(reportId, cancellationToken);
+    }
+
+    private static void RequireOwner(bool isOwner)
+    {
+        if (!isOwner)
+        {
+            throw new AdminReportForbiddenException();
+        }
+    }
+
+    private static void RequireConfirmed(bool confirm)
+    {
+        if (!confirm)
+        {
+            throw new InvalidAdminRequestException("confirm", "This action must be confirmed explicitly.");
+        }
     }
 
     public async Task<AdminReportDetail> LiftRestrictionAsync(long adminUserId, long reportId, string? note, CancellationToken cancellationToken = default)

@@ -9,6 +9,8 @@ import type { AppDictionary } from './appI18n.ts';
 
 export const TERMS_REQUIRED_CODE = 'termsAcceptanceRequired';
 export const USER_BLOCKED_CODE = 'userBlocked';
+/** An operator restricted this account's use (read-only): every change is refused until they lift it. */
+export const ACCOUNT_RESTRICTED_CODE = 'accountRestricted';
 export const INTERACTION_NOT_ALLOWED_CODE = 'interactionNotAllowed';
 
 export const TERMS_ACCEPTANCE_PATH = '/api/v1/users/me/terms-acceptance';
@@ -151,10 +153,40 @@ export function parseBlockedUsers(raw: unknown): readonly BlockedUser[] {
   return result;
 }
 
+/** An operator message (GET /api/v1/moderation-notices/{id}): an 이용 안내, or the generic result of the person's own report. */
+export interface ModerationNotice {
+  readonly id: number;
+  readonly kind: 'warning' | 'reportResult';
+  readonly reason: string | null;
+  readonly guidance: string | null;
+  readonly acknowledgedAtUtc: string | null;
+}
+
+/** Untrusted input: anything that is not a recognizable notice is null. */
+export function parseModerationNotice(raw: unknown): ModerationNotice | null {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+  const value = raw as Record<string, unknown>;
+  if (typeof value.id !== 'number' || (value.kind !== 'warning' && value.kind !== 'reportResult')) {
+    return null;
+  }
+  return {
+    id: value.id,
+    kind: value.kind,
+    reason: typeof value.reason === 'string' ? value.reason : null,
+    guidance: typeof value.guidance === 'string' ? value.guidance : null,
+    acknowledgedAtUtc: typeof value.acknowledgedAtUtc === 'string' ? value.acknowledgedAtUtc : null,
+  };
+}
+
 /** The message for an interaction the server refused because of a block (null when the failure is something else). */
 export function blockedInteractionMessage(error: unknown, dictionary: AppDictionary): string | null {
   if (!(error instanceof ApiHttpError) || error.status !== 403) {
     return null;
+  }
+  if (error.code === ACCOUNT_RESTRICTED_CODE) {
+    return dictionary.safetyAccountRestricted;
   }
   if (error.code === USER_BLOCKED_CODE) {
     return dictionary.safetyUserBlockedByYou;

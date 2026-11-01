@@ -265,6 +265,10 @@ public sealed class PushDispatchStore(JupleDbContext dbContext) : IPushDispatchS
                 case NotificationType.CollectionLinkSubmissionApproved:
                 case NotificationType.CollectionLinkSubmissionRejected:
                     return IsLive(notification.CollectionId);
+                // An operator's message (이용 안내) or the result of the recipient's own report: it stays true; the notice itself is read in the app.
+                case NotificationType.AdminWarning:
+                case NotificationType.ReportResultNotice:
+                    return notification.SubjectId is not null;
                 // Refresh signal about the recipient's own (now answered) request - nothing to re-check.
                 case NotificationType.FriendRequestAnswered:
                 // The result of the recipient's own request: it stays true (a later unfriend does not unsay it).

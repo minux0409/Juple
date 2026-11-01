@@ -395,7 +395,7 @@ describe('useItemComments - editing', () => {
     await act(async () => { saved = await holder.api!.saveEdit('lost?'); });
 
     expect(saved).toBe(false);
-    expect(onFailure).toHaveBeenCalledWith('edit');
+    expect(onFailure).toHaveBeenCalledWith('edit', expect.anything());
     expect(holder.api!.comments[0].body).toBe('first');
     expect(holder.api!.editTarget).not.toBeNull();
   });

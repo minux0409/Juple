@@ -69,6 +69,9 @@ export function navigateWithRootNavigator(action: NotificationNavigationAction):
     case 'SharedCollection':
       navigationRef.navigate('SharedCollection', action.params);
       return;
+    case 'ModerationNotice':
+      navigationRef.navigate('ModerationNotice', action.params);
+      return;
   }
 }
 

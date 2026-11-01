@@ -31,10 +31,12 @@ public static class NotificationInboxPolicy
         NotificationType.JoinRequestReceived,
         NotificationType.JoinRequestApproved,
         NotificationType.JoinRequestRejected,
+        NotificationType.AdminWarning,
+        NotificationType.ReportResultNotice,
     ];
 
     /// <summary>The same set as SQL - the filtered indexes' predicate must match it exactly.</summary>
-    public const string InboxTypesSql = "[Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19)";
+    public const string InboxTypesSql = "[Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21)";
 
     public const int DefaultPageSize = 30;
     public const int MaxPageSize = 100;
@@ -160,6 +162,13 @@ public static class NotificationInboxPolicy
                     ? new NotificationTargetDto(NotificationTargetKinds.PublicCollection, PublicId: declinedPublicId)
                     : NotificationTargetDto.Unavailable;
 
+            case NotificationType.AdminWarning:
+            case NotificationType.ReportResultNotice:
+                // The operators' message itself (read from the notice, which stays until the account is deleted).
+                return record.SubjectId is { } noticeId
+                    ? new NotificationTargetDto(NotificationTargetKinds.ModerationNotice, NoticeId: noticeId)
+                    : NotificationTargetDto.Unavailable;
+
             case NotificationType.CollectionLinkSubmissionReceived:
                 // The 승인 대기 list - only for the Owner of a Collection that still exists.
                 return record.CollectionLive && record.RecipientIsOwner
@@ -204,6 +213,9 @@ public static class NotificationTargetKinds
     /// <summary>The Owner's list of people waiting to join the Collection.</summary>
     public const string CollectionJoinRequests = "collectionJoinRequests";
     public const string PublicCollection = "publicCollection";
+
+    /// <summary>An operator's 이용 안내 or the result of the recipient's report: the notice detail (NoticeId).</summary>
+    public const string ModerationNotice = "moderationNotice";
     public const string Unavailable = "unavailable";
 }
 
@@ -224,7 +236,8 @@ public sealed record NotificationTargetDto(
     string? PublicId = null,
     string? Focus = null,
     long? CommentId = null,
-    long? RootCommentId = null)
+    long? RootCommentId = null,
+    long? NoticeId = null)
 {
     public static readonly NotificationTargetDto Unavailable = new(NotificationTargetKinds.Unavailable);
 }

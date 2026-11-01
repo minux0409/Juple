@@ -591,7 +591,9 @@
     "addTitle": "Adicionar coleção",
     "requestTitle": "Pedir para participar",
     "requestSend": "Pedir",
-    "signInRequired": "Entre no Juple para adicionar esta coleção ou pedir para participar."
+    "signInRequired": "Entre no Juple para adicionar esta coleção ou pedir para participar.",
+    "blockedOwnerTitle": "Esta é a coleção de um usuário bloqueado",
+    "blockedOwnerMessage": "O proprietário desta coleção, {{name}}, é um usuário que você bloqueou. Você não pode acessar a coleção enquanto ele estiver bloqueado."
   },
   "quickSaveComposer": {
     "titleLabel": "Título",
@@ -1251,7 +1253,8 @@
     "unblockMessage": "Desbloquear não restaura amizades, convites cancelados ou participações removidas. As coleções de que você participa voltam às suas listas.",
     "blockedAt": "Bloqueado em {{date}}",
     "hiddenCollectionsTitle": "Coleções de que você participa, ocultas das listas (toque para abrir ou sair)",
-    "shareRestrictedNotice": "O compartilhamento desta coleção foi restringido de acordo com nossas políticas. Nada foi excluído e você ainda pode gerenciá-la."
+    "shareRestrictedNotice": "O compartilhamento desta coleção foi restringido de acordo com nossas políticas. Nada foi excluído e você ainda pode gerenciá-la.",
+    "accountRestricted": "O uso desta conta está restrito de acordo com nossas políticas. Você ainda pode ver seu conteúdo e falar com o suporte."
   },
   "agreement": {
     "ageConfirmation": "Tenho pelo menos 14 anos",
@@ -1512,5 +1515,17 @@
     "previous": "Campo anterior",
     "next": "Próximo campo",
     "done": "OK"
+  },
+  "moderation": {
+    "screenTitle": "Aviso",
+    "warningTitle": "Aviso do Juple",
+    "warningIntro": "Analisamos uma denúncia sobre o seu conteúdo e encontramos algo que exige atenção ao usar o Juple.",
+    "reasonLabel": "O que encontramos",
+    "guidanceLabel": "Orientações da equipe",
+    "acknowledge": "Entendi",
+    "acknowledged": "Confirmado",
+    "acknowledgeFailed": "Não foi possível salvar sua confirmação. Tente novamente.",
+    "resultTitle": "Resultado da sua denúncia",
+    "resultMessage": "Obrigado pela sua denúncia. Concluímos a análise. As medidas necessárias são tomadas conforme nossas políticas; não compartilhamos os detalhes de cada medida."
   }
 }

@@ -86,6 +86,12 @@ public sealed class DispatchPendingPushNotificationsService(
             data["invitationId"] = invitationId.ToString(CultureInfo.InvariantCulture);
         }
 
+        if (notification.Type is NotificationType.AdminWarning or NotificationType.ReportResultNotice && notification.SubjectId is { } noticeId)
+        {
+            // Only the id of the operator message: its words are read in the app, never put on a lock screen.
+            data["noticeId"] = noticeId.ToString(CultureInfo.InvariantCulture);
+        }
+
         var type = SocialNotificationPolicy.WireType(notification.Type);
         if (SocialNotificationPolicy.IsDataOnly(notification.Type))
         {

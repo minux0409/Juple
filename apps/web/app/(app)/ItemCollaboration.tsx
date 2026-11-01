@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import type { AppDictionary } from '../../lib/appI18n';
 import { formatMessage } from '../../lib/appI18n';
 import { isSessionLost } from '../../lib/authSession';
+import { blockedInteractionMessage } from '../../lib/safety';
 import { collectionPath, type CollectionDetail } from '../../lib/collectionDetails';
 import { unlockHeaders } from '../../lib/collectionUnlock';
 import {
@@ -163,10 +164,11 @@ function CollaborationSection({
     }
   }, []);
 
-  const reactions = useItemReactions(collectionId, itemId, row, () => showNotice(dictionary.reactionError));
-  const comments = useItemComments(collectionId, itemId, (kind: CommentFailure) =>
+  const reactions = useItemReactions(collectionId, itemId, row, error => showNotice(blockedInteractionMessage(error, dictionary) ?? dictionary.reactionError));
+  const comments = useItemComments(collectionId, itemId, (kind: CommentFailure, error?: unknown) =>
     showNotice(
-      kind === 'send'
+      blockedInteractionMessage(error, dictionary) ??
+      (kind === 'send'
         ? dictionary.commentSendError
         : kind === 'delete'
           ? dictionary.commentDeleteError
@@ -174,7 +176,7 @@ function CollaborationSection({
             ? dictionary.commentLikeError
             : kind === 'edit'
               ? dictionary.commentEditError
-              : dictionary.commentsLoadError,
+              : dictionary.commentsLoadError),
     ),
   );
   const { recent, recordRecent } = useRecentReactions();
@@ -229,7 +231,7 @@ function CollaborationSection({
  * back (DELETE), any other sets or changes it (PUT) - the counts move immediately, the server's answer settles them, a failure puts the
  * previous state back. One request at a time: a tap while the previous one is on its way is ignored, so counts are never applied twice.
  */
-export function useItemReactions(collectionId: number, itemId: number, row: CollaborationRow, onFailure: () => void) {
+export function useItemReactions(collectionId: number, itemId: number, row: CollaborationRow, onFailure: (error?: unknown) => void) {
   const { api, onSessionLost } = useSignedInApp();
   // One shared value per link IN this Collection (lib/reactionStore.ts): the link card and the detail sheet over it always agree, and a
   // freshly read row (list reload, link opened) seeds the newer server truth.
@@ -268,7 +270,7 @@ export function useItemReactions(collectionId: number, itemId: number, row: Coll
           if (isSessionLost(error)) {
             onSessionLost();
           } else {
-            failureRef.current();
+            failureRef.current(error);
           }
         },
       )

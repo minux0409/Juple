@@ -136,6 +136,13 @@ describe('what the link is for me (the mobile SharedCollectionScreen decisions)'
     assert.deepEqual(decideShareEntry({ isMember: true, collectionId: 42, role: 'owner' }, 'unavailable'), { kind: 'member', collectionId: 42 }, 'a member never waits for the profile');
   });
 
+  it('an owner I blocked: only the notice - before any profile, and never an add / request - whatever the link is', () => {
+    const blocked = { isMember: false, collectionId: null, role: null, ownerBlockedByYou: true, ownerName: '꼬부기' } as const;
+    assert.deepEqual(decideShareEntry(blocked, publicProfile), { kind: 'ownerBlocked', ownerName: '꼬부기' });
+    assert.deepEqual(decideShareEntry(blocked, 'unavailable'), { kind: 'ownerBlocked', ownerName: '꼬부기' }, 'it does not wait for the profile');
+    assert.deepEqual(decideShareEntry({ ...blocked, ownerBlockedByYou: false }, publicProfile), { kind: 'publicAdd', profile: publicProfile });
+  });
+
   it('3. public + not a member: 컬렉션 추가; 4. private + not a member: 참가 요청; 5. a waiting request: 승인 대기 중', () => {
     assert.deepEqual(decideShareEntry(nonMember, publicProfile), { kind: 'publicAdd', profile: publicProfile });
     assert.deepEqual(decideShareEntry(nonMember, { ...publicProfile, isPublic: undefined }), { kind: 'publicAdd', profile: { ...publicProfile, isPublic: undefined } }, 'absent flag = public');

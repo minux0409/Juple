@@ -34,6 +34,8 @@ export type NotificationTarget =
   /** The Owner's list of people waiting to join (the 참여 요청 bottom sheet). */
   | { readonly kind: 'collectionJoinRequests'; readonly collectionId: number }
   | { readonly kind: 'publicCollection'; readonly publicId: string }
+  /** 이용 안내 / 신고 처리 결과: the operator's message, read from the server (it survives a re-login). */
+  | { readonly kind: 'moderationNotice'; readonly noticeId: number }
   | { readonly kind: 'unavailable' };
 
 export const UNAVAILABLE_TARGET: NotificationTarget = { kind: 'unavailable' };
@@ -85,6 +87,10 @@ export function parseNotificationTarget(wire: NotificationTargetWire | null | un
       return typeof wire.publicId === 'string' && PUBLIC_ID_PATTERN.test(wire.publicId)
         ? { kind: 'publicCollection', publicId: wire.publicId }
         : UNAVAILABLE_TARGET;
+    case 'moderationNotice': {
+      const noticeId = positiveId(wire.noticeId);
+      return noticeId !== null ? { kind: 'moderationNotice', noticeId } : UNAVAILABLE_TARGET;
+    }
     default:
       return UNAVAILABLE_TARGET;
   }
@@ -134,6 +140,9 @@ export function legacyPushTarget(data: Readonly<Record<string, unknown>> | null 
       return event.publicId ? { kind: 'publicCollection', publicId: event.publicId } : null;
     case 'collectionLinkShared':
       return event.publicId ? { kind: 'publicCollection', publicId: event.publicId } : null;
+    case 'adminWarning':
+    case 'reportResult':
+      return event.noticeId ? { kind: 'moderationNotice', noticeId: event.noticeId } : null;
     default:
       // Refresh-only messages have no tray notification - nothing to open.
       return null;
@@ -145,7 +154,8 @@ export type NotificationNavigationAction =
   | { readonly name: 'Friends'; readonly params?: { readonly openRequests: true; readonly refreshToken: number } }
   | { readonly name: 'MainTabs'; readonly params: { readonly screen: 'Collections'; readonly params: { readonly filter: 'shared'; readonly openShareRequests: true; readonly refreshToken: number } } }
   | { readonly name: 'CollectionDetails'; readonly params: { readonly collectionId: number; readonly refreshToken: number; readonly openItem?: { readonly itemId: number; readonly focus: 'comments' | null; readonly commentRootId?: number | null; readonly shared?: boolean }; readonly openApprovals?: true; readonly openJoinRequests?: true } }
-  | { readonly name: 'SharedCollection'; readonly params: { readonly publicId: string } };
+  | { readonly name: 'SharedCollection'; readonly params: { readonly publicId: string } }
+  | { readonly name: 'ModerationNotice'; readonly params: { readonly noticeId: number } };
 
 /** Null for 'unavailable' - the caller then stays where it is. */
 export function navigationActionFor(target: NotificationTarget, nowMs: number = Date.now()): NotificationNavigationAction | null {
@@ -184,6 +194,8 @@ export function navigationActionFor(target: NotificationTarget, nowMs: number = 
       return { name: 'CollectionDetails', params: { collectionId: target.collectionId, refreshToken: nowMs, openJoinRequests: true } };
     case 'publicCollection':
       return { name: 'SharedCollection', params: { publicId: target.publicId } };
+    case 'moderationNotice':
+      return { name: 'ModerationNotice', params: { noticeId: target.noticeId } };
     case 'unavailable':
       return null;
   }

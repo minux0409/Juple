@@ -591,7 +591,9 @@
     "addTitle": "Tambahkan koleksi",
     "requestTitle": "Minta bergabung",
     "requestSend": "Minta",
-    "signInRequired": "Masuk ke Juple untuk menambahkan koleksi ini atau meminta bergabung."
+    "signInRequired": "Masuk ke Juple untuk menambahkan koleksi ini atau meminta bergabung.",
+    "blockedOwnerTitle": "Ini adalah koleksi pengguna yang Anda blokir",
+    "blockedOwnerMessage": "Pemilik koleksi ini, {{name}}, adalah pengguna yang Anda blokir. Anda tidak dapat mengakses koleksi selama pengguna tersebut diblokir."
   },
   "quickSaveComposer": {
     "titleLabel": "Judul",
@@ -1251,7 +1253,8 @@
     "unblockMessage": "Membuka blokir tidak memulihkan pertemanan, undangan yang dibatalkan, atau keanggotaan yang dihapus. Koleksi yang Anda ikuti muncul kembali di daftar.",
     "blockedAt": "Diblokir pada {{date}}",
     "hiddenCollectionsTitle": "Koleksi yang Anda ikuti, disembunyikan dari daftar (ketuk untuk membuka atau keluar)",
-    "shareRestrictedNotice": "Berbagi koleksi ini dibatasi sesuai kebijakan kami. Tidak ada yang dihapus dan Anda tetap dapat mengelolanya."
+    "shareRestrictedNotice": "Berbagi koleksi ini dibatasi sesuai kebijakan kami. Tidak ada yang dihapus dan Anda tetap dapat mengelolanya.",
+    "accountRestricted": "Penggunaan akun ini dibatasi sesuai kebijakan kami. Anda masih dapat melihat konten dan menghubungi dukungan."
   },
   "agreement": {
     "ageConfirmation": "Saya berusia minimal 14 tahun",
@@ -1512,5 +1515,17 @@
     "previous": "Kolom sebelumnya",
     "next": "Kolom berikutnya",
     "done": "Selesai"
+  },
+  "moderation": {
+    "screenTitle": "Pemberitahuan",
+    "warningTitle": "Pemberitahuan Juple",
+    "warningIntro": "Kami meninjau laporan tentang konten Anda dan menemukan hal yang perlu diperhatikan saat menggunakan Juple.",
+    "reasonLabel": "Yang kami temukan",
+    "guidanceLabel": "Panduan dari tim",
+    "acknowledge": "Saya mengerti",
+    "acknowledged": "Dikonfirmasi",
+    "acknowledgeFailed": "Konfirmasi tidak dapat disimpan. Silakan coba lagi.",
+    "resultTitle": "Hasil laporan",
+    "resultMessage": "Terima kasih atas laporan Anda. Kami telah selesai meninjaunya. Tindakan yang diperlukan diambil sesuai kebijakan; kami tidak membagikan rincian setiap tindakan."
   }
 }

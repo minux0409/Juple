@@ -72,6 +72,8 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         // Nullable, no default: existing users simply have no photo. Same length as
         // ItemImages.BlobName / Collections.IconImageBlobName (the same naming scheme under the
         // user's own prefix). Not indexed - only ever read with the row it belongs to.
+        builder.Property(user => user.UsageRestrictedAtUtc).HasColumnType("datetimeoffset");
+
         builder.Property(user => user.ProfileImageBlobName)
             .HasColumnType("nvarchar(400)")
             .HasMaxLength(400);

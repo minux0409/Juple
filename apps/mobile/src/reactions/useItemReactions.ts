@@ -26,7 +26,7 @@ export function useItemReactions(
   authenticatedRequest: AuthenticatedApiRequest,
   collectionId: number,
   getUnlockToken: () => string | null,
-  onFailure: () => void,
+  onFailure: (error?: unknown) => void,
 ) {
   const [overrides, setOverrides] = useState<ReadonlyMap<number, Override>>(new Map());
   const inFlightRef = useRef(new Set<number>());
@@ -60,7 +60,7 @@ export function useItemReactions(
         put(toItemReactions(answer.reactions, answer.myReaction));
       } catch (caughtError) {
         put(before);
-        unlessRefusalHandled(caughtError, () => failureRef.current());
+        unlessRefusalHandled(caughtError, () => failureRef.current(caughtError));
       } finally {
         inFlightRef.current.delete(itemId);
       }

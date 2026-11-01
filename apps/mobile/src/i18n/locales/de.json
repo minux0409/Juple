@@ -591,7 +591,9 @@
     "addTitle": "Sammlung hinzufügen",
     "requestTitle": "Beitritt anfragen",
     "requestSend": "Anfragen",
-    "signInRequired": "Melde dich bei Juple an, um diese Sammlung hinzuzufügen oder den Beitritt anzufragen."
+    "signInRequired": "Melde dich bei Juple an, um diese Sammlung hinzuzufügen oder den Beitritt anzufragen.",
+    "blockedOwnerTitle": "Dies ist die Sammlung einer blockierten Person",
+    "blockedOwnerMessage": "Der Eigentümer dieser Sammlung, {{name}}, ist eine von dir blockierte Person. Solange die Person blockiert ist, kannst du nicht auf die Sammlung zugreifen."
   },
   "quickSaveComposer": {
     "titleLabel": "Titel",
@@ -1251,7 +1253,8 @@
     "unblockMessage": "Das Entblocken stellt weder Freundschaften noch abgebrochene Einladungen oder entfernte Mitgliedschaften wieder her. Sammlungen, in denen du Mitglied bist, erscheinen wieder in deinen Listen.",
     "blockedAt": "Blockiert am {{date}}",
     "hiddenCollectionsTitle": "Beigetretene Sammlungen, aus deinen Listen ausgeblendet (zum Öffnen oder Verlassen tippen)",
-    "shareRestrictedNotice": "Das Teilen dieser Sammlung wurde gemäß unseren Richtlinien eingeschränkt. Es wurde nichts gelöscht, und du kannst sie weiter verwalten."
+    "shareRestrictedNotice": "Das Teilen dieser Sammlung wurde gemäß unseren Richtlinien eingeschränkt. Es wurde nichts gelöscht, und du kannst sie weiter verwalten.",
+    "accountRestricted": "Die Nutzung dieses Kontos ist gemäß unseren Richtlinien eingeschränkt. Du kannst deine Inhalte weiterhin ansehen und den Support kontaktieren."
   },
   "agreement": {
     "ageConfirmation": "Ich bin mindestens 14 Jahre alt",
@@ -1512,5 +1515,17 @@
     "previous": "Vorheriges Feld",
     "next": "Nächstes Feld",
     "done": "Fertig"
+  },
+  "moderation": {
+    "screenTitle": "Hinweis",
+    "warningTitle": "Juple-Hinweis",
+    "warningIntro": "Wir haben eine Meldung zu deinen Inhalten geprüft und etwas festgestellt, das bei der Nutzung von Juple Beachtung erfordert.",
+    "reasonLabel": "Was wir festgestellt haben",
+    "guidanceLabel": "Hinweise des Teams",
+    "acknowledge": "Verstanden",
+    "acknowledged": "Bestätigt",
+    "acknowledgeFailed": "Die Bestätigung konnte nicht gespeichert werden. Bitte versuche es erneut.",
+    "resultTitle": "Ergebnis deiner Meldung",
+    "resultMessage": "Danke für deine Meldung. Wir haben sie geprüft. Erforderliche Maßnahmen erfolgen gemäß unseren Richtlinien; Einzelheiten zu einzelnen Maßnahmen teilen wir nicht mit."
   }
 }

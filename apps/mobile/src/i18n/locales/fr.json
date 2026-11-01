@@ -591,7 +591,9 @@
     "addTitle": "Ajouter la collection",
     "requestTitle": "Demander à participer",
     "requestSend": "Demander",
-    "signInRequired": "Connectez-vous à Juple pour ajouter cette collection ou demander à participer."
+    "signInRequired": "Connectez-vous à Juple pour ajouter cette collection ou demander à participer.",
+    "blockedOwnerTitle": "Ceci est la collection d'un utilisateur bloqué",
+    "blockedOwnerMessage": "Le propriétaire de cette collection, {{name}}, est un utilisateur que vous avez bloqué. Vous ne pouvez pas accéder à la collection tant qu'il est bloqué."
   },
   "quickSaveComposer": {
     "titleLabel": "Titre",
@@ -1251,7 +1253,8 @@
     "unblockMessage": "Le déblocage ne rétablit ni l'amitié, ni les invitations annulées, ni les participations retirées. Les collections auxquelles vous participez réapparaissent dans vos listes.",
     "blockedAt": "Bloqué le {{date}}",
     "hiddenCollectionsTitle": "Collections rejointes, masquées de vos listes (touchez pour ouvrir ou quitter)",
-    "shareRestrictedNotice": "Le partage de cette collection a été restreint conformément à nos règles. Rien n'a été supprimé et vous pouvez toujours la gérer."
+    "shareRestrictedNotice": "Le partage de cette collection a été restreint conformément à nos règles. Rien n'a été supprimé et vous pouvez toujours la gérer.",
+    "accountRestricted": "L'utilisation de ce compte est restreinte conformément à nos règles. Vous pouvez toujours consulter votre contenu et contacter l'assistance."
   },
   "agreement": {
     "ageConfirmation": "J’ai au moins 14 ans",
@@ -1512,5 +1515,17 @@
     "previous": "Champ précédent",
     "next": "Champ suivant",
     "done": "OK"
+  },
+  "moderation": {
+    "screenTitle": "Avis",
+    "warningTitle": "Avis Juple",
+    "warningIntro": "Nous avons examiné un signalement concernant votre contenu et constaté un point qui demande votre attention lors de l'utilisation de Juple.",
+    "reasonLabel": "Ce que nous avons constaté",
+    "guidanceLabel": "Consignes de l'équipe",
+    "acknowledge": "J'ai compris",
+    "acknowledged": "Confirmé",
+    "acknowledgeFailed": "Impossible d'enregistrer votre confirmation. Veuillez réessayer.",
+    "resultTitle": "Résultat de votre signalement",
+    "resultMessage": "Merci pour votre signalement. Nous avons terminé son examen. Les mesures nécessaires sont prises selon nos règles ; nous ne communiquons pas le détail de chaque mesure."
   }
 }

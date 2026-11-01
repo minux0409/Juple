@@ -274,6 +274,22 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
     );
   }
 
+  // I blocked the Owner: the server's answer (before anything of the Collection was drawn) is only this notice.
+  if (membership?.ownerBlockedByYou === true) {
+    return (
+      <SafeAreaView edges={['top']} style={styles.safeArea} testID="shared-collection-owner-blocked">
+        <ConfirmDialog
+          confirmLabel={t('common.close')}
+          destructive={false}
+          message={t('sharedCollection.blockedOwnerMessage', { name: membership.ownerName ?? '' })}
+          onConfirm={cancel}
+          title={t('sharedCollection.blockedOwnerTitle')}
+          visible
+        />
+      </SafeAreaView>
+    );
+  }
+
   if (membershipLookupFailed || isUnavailable || !collection || (collection.name === null && !collection.isLocked)) {
     return (
       <SafeAreaView edges={['top']} style={styles.centerContainer}>

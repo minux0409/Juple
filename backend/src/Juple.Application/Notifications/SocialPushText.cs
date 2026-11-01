@@ -285,11 +285,41 @@ public static class SocialPushText
         ["pt"] = "pt-BR",
     };
 
+    private sealed record ModerationText(string WarningTitle, string WarningBody, string ResultTitle, string ResultBody);
+
+    // 이용 안내 / 신고 처리 결과: the push only says that there is a message - the operator's words are read in the app, never put on a lock screen.
+    private static readonly Dictionary<string, ModerationText> ModerationByLocale = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["ko"] = new("Juple 이용 안내", "운영팀의 이용 안내가 도착했어요. 앱에서 확인해 주세요.", "신고 처리 결과", "신고하신 내용의 검토가 끝났어요."),
+        ["en"] = new("Juple notice", "You have a message from the Juple team. Open the app to read it.", "Report reviewed", "The report you sent has been reviewed."),
+        ["ja"] = new("Juple のご案内", "運営チームからのご案内があります。アプリで確認してください。", "通報の処理結果", "ご報告いただいた内容の確認が完了しました。"),
+        ["zh-Hans"] = new("Juple 使用提示", "你收到一条来自运营团队的提示，请在应用中查看。", "举报处理结果", "你提交的举报已审核完毕。"),
+        ["zh-Hant"] = new("Juple 使用提示", "你收到一則來自營運團隊的提示，請在 App 中查看。", "檢舉處理結果", "你提交的檢舉已審核完畢。"),
+        ["es"] = new("Aviso de Juple", "Tienes un mensaje del equipo de Juple. Ábrelo en la app.", "Resultado de tu denuncia", "Hemos revisado la denuncia que enviaste."),
+        ["fr"] = new("Avis Juple", "Vous avez un message de l’équipe Juple. Ouvrez l’app pour le lire.", "Résultat de votre signalement", "Le signalement que vous avez envoyé a été examiné."),
+        ["de"] = new("Juple-Hinweis", "Du hast eine Nachricht vom Juple-Team. Öffne die App, um sie zu lesen.", "Ergebnis deiner Meldung", "Die von dir gesendete Meldung wurde geprüft."),
+        ["it"] = new("Avviso di Juple", "Hai un messaggio dal team di Juple. Aprilo nell’app.", "Esito della segnalazione", "La segnalazione che hai inviato è stata esaminata."),
+        ["pt-BR"] = new("Aviso do Juple", "Você tem uma mensagem da equipe do Juple. Abra o app para ler.", "Resultado da sua denúncia", "A denúncia que você enviou foi analisada."),
+        ["vi"] = new("Thông báo từ Juple", "Bạn có thông báo từ đội ngũ Juple. Hãy mở ứng dụng để xem.", "Kết quả báo cáo", "Báo cáo bạn đã gửi đã được xem xét."),
+        ["th"] = new("ประกาศจาก Juple", "คุณมีข้อความจากทีม Juple เปิดแอปเพื่ออ่าน", "ผลการตรวจสอบรายงาน", "รายงานที่คุณส่งได้รับการตรวจสอบแล้ว"),
+        ["id"] = new("Pemberitahuan Juple", "Anda mendapat pesan dari tim Juple. Buka aplikasi untuk membacanya.", "Hasil laporan", "Laporan yang Anda kirim telah ditinjau."),
+        ["ru"] = new("Уведомление Juple", "У вас сообщение от команды Juple. Откройте приложение, чтобы прочитать.", "Результат жалобы", "Ваша жалоба рассмотрена."),
+        ["tr"] = new("Juple bildirimi", "Juple ekibinden bir mesajınız var. Okumak için uygulamayı açın.", "Şikâyet sonucu", "Gönderdiğiniz şikâyet incelendi."),
+        ["ar"] = new("إشعار من Juple", "لديك رسالة من فريق Juple. افتح التطبيق لقراءتها.", "نتيجة البلاغ", "تمت مراجعة البلاغ الذي أرسلته."),
+        ["hi"] = new("Juple सूचना", "आपको Juple टीम का संदेश मिला है। पढ़ने के लिए ऐप खोलें।", "रिपोर्ट का परिणाम", "आपके द्वारा भेजी गई रिपोर्ट की समीक्षा हो गई है।"),
+    };
+
     /// <param name="itemCount">CollectionItemsAdded only: how many links the one operation added.</param>
     /// <param name="viaPublicLink">CollectionItemsAdded only: added through the public link - the adder is never named.</param>
     public static (string Title, string Body) For(
         NotificationType type, string? locale, string actorName, string collectionName, int itemCount = 1, bool viaPublicLink = false)
     {
+        if (type is NotificationType.AdminWarning or NotificationType.ReportResultNotice)
+        {
+            var moderation = Resolve(ModerationByLocale, locale);
+            return type == NotificationType.AdminWarning ? (moderation.WarningTitle, moderation.WarningBody) : (moderation.ResultTitle, moderation.ResultBody);
+        }
+
         if (type == NotificationType.CollectionItemsAdded)
         {
             var items = Resolve(ItemsByLocale, locale);

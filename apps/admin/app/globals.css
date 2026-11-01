@@ -1013,6 +1013,22 @@ td.preview {
   color: var(--muted);
 }
 
+.v2-confirm {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--danger, #c0392b);
+  border-radius: 10px;
+}
+
+.v2-confirm h3 {
+  margin: 0 0 6px;
+}
+
+.v2-confirm textarea {
+  width: 100%;
+  min-height: 72px;
+}
+
 .v2-actions {
   display: flex;
   flex-wrap: wrap;

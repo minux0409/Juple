@@ -130,6 +130,20 @@ public sealed class User
         return previous;
     }
 
+    /// <summary>
+    /// Set by an operator after reviewing a report (계정 이용 제한): while set, the person can sign in, read, see their notices, contact support
+    /// and delete their account, but every content-changing request is refused (AccountRestrictionFilter). Lifting it clears the value. Never
+    /// set automatically by a report, and nothing of the person's data is deleted or hidden by it.
+    /// </summary>
+    public DateTimeOffset? UsageRestrictedAtUtc { get; private set; }
+
+    public void RestrictUsage(DateTimeOffset nowUtc)
+    {
+        UsageRestrictedAtUtc ??= nowUtc;
+    }
+
+    public void LiftUsageRestriction() => UsageRestrictedAtUtc = null;
+
     public void UpdateTimeZone(string timeZoneId, DateTimeOffset updatedAtUtc)
     {
         TimeZoneId = timeZoneId;

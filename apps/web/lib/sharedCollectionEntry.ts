@@ -21,6 +21,9 @@ export interface ShareMembership {
   readonly role: 'owner' | 'contributor' | 'submitter' | 'viewer' | null;
   /** Non-members only: the request I made through this link waits for the Owner. */
   readonly joinRequestPending?: boolean;
+  /** Non-members only: I blocked the Owner - nothing of the Collection is shown (the server sends only this and the name). */
+  readonly ownerBlockedByYou?: boolean;
+  readonly ownerName?: string | null;
 }
 
 /** GET /api/v1/public/collections/{publicId} - only the Collection's own profile, never its content. */
@@ -67,6 +70,7 @@ export function hasVisibleProfile<T extends { readonly name: string | null }>(pr
 export type ShareEntry =
   | { readonly kind: 'member'; readonly collectionId: number }
   | { readonly kind: 'unavailable' }
+  | { readonly kind: 'ownerBlocked'; readonly ownerName: string }
   | { readonly kind: 'locked' }
   | { readonly kind: 'pending'; readonly profile: ShareProfile }
   | { readonly kind: 'publicAdd'; readonly profile: ShareProfile }
@@ -77,6 +81,10 @@ export type ShareEntry =
  * lookup (then the link's own state decides, as on mobile); profile: the link's profile, or 'unavailable' for any failure.
  */
 export function decideShareEntry(membership: ShareMembership | null, profile: ShareProfile | 'unavailable'): ShareEntry {
+  // First of all, before any profile or content: the server says I blocked this Collection's Owner.
+  if (membership?.ownerBlockedByYou === true) {
+    return { kind: 'ownerBlocked', ownerName: membership.ownerName ?? '' };
+  }
   if (membership?.isMember && typeof membership.collectionId === 'number' && membership.collectionId > 0) {
     return { kind: 'member', collectionId: membership.collectionId };
   }

@@ -15,7 +15,7 @@ import { ReactionPickerDialog } from '../reactions/ReactionPickerDialog';
 import { useRecentReactions } from '../reactions/recentReactions';
 import type { ReactionCount } from '../reactions/reactionCatalog';
 import { useItemReactions } from '../reactions/useItemReactions';
-import type { ReportTarget } from '../safety/safetyApi';
+import { blockedInteractionKey, type ReportTarget } from '../safety/safetyApi';
 
 /** What the server sent with a link of a Collection: the counts and the caller's own reaction. */
 export interface CollaborationRow {
@@ -64,14 +64,25 @@ export function useItemCollaboration({ collectionId, itemId, isCollectionOwner, 
   // A failed EDIT is the result of something the person just did with text they typed: a centered message, not a toast.
   const { showMessage, messageDialog } = useMessageDialog();
   const unlockToken = () => getCollectionUnlockToken(collectionId);
-  const reactions = useItemReactions(authenticatedRequest, collectionId, unlockToken, () => showNotificationToast(t('reactions.error')));
+  const reactions = useItemReactions(
+    authenticatedRequest,
+    collectionId,
+    unlockToken,
+    // A refusal because of a block is said as such (never the generic failure); the server decides, the words only explain.
+    error => showNotificationToast(t(blockedInteractionKey(error) ?? 'reactions.error')),
+  );
   const { recent: recentReactions, recordRecent: recordRecentReaction } = useRecentReactions();
   const comments = useItemComments(
     authenticatedRequest,
     collectionId,
     itemId,
     unlockToken,
-    kind => {
+    (kind, error) => {
+      const blockedKey = blockedInteractionKey(error);
+      if (blockedKey !== null) {
+        showNotificationToast(t(blockedKey));
+        return;
+      }
       if (kind === 'edit') {
         showMessage(t('comments.editError'));
         return;

@@ -591,7 +591,9 @@
     "addTitle": "コレクションを追加",
     "requestTitle": "参加をリクエスト",
     "requestSend": "リクエスト",
-    "signInRequired": "コレクションを追加または参加をリクエストするにはJupleにログインしてください。"
+    "signInRequired": "コレクションを追加または参加をリクエストするにはJupleにログインしてください。",
+    "blockedOwnerTitle": "ブロックしたユーザーのコレクションです",
+    "blockedOwnerMessage": "このコレクションの所有者 {{name}} さんは、あなたがブロックしたユーザーです。ブロック中はコレクションにアクセスできません。"
   },
   "quickSaveComposer": {
     "titleLabel": "タイトル",
@@ -1251,7 +1253,8 @@
     "unblockMessage": "解除しても、友だち関係、取り消された招待、削除された参加は元に戻りません。参加中のコレクションは再び一覧に表示されます。",
     "blockedAt": "ブロック日 {{date}}",
     "hiddenCollectionsTitle": "一覧で非表示の参加コレクション(タップして開く・退出できます)",
-    "shareRestrictedNotice": "ポリシーによりこのコレクションの共有が制限されました。データは削除されておらず、引き続き管理できます。"
+    "shareRestrictedNotice": "ポリシーによりこのコレクションの共有が制限されました。データは削除されておらず、引き続き管理できます。",
+    "accountRestricted": "運営ポリシーにより、このアカウントの利用が制限されています。閲覧とお問い合わせは引き続きご利用いただけます。"
   },
   "agreement": {
     "ageConfirmation": "私は満14歳以上です",
@@ -1512,5 +1515,17 @@
     "previous": "前の項目",
     "next": "次の項目",
     "done": "完了"
+  },
+  "moderation": {
+    "screenTitle": "ご利用のご案内",
+    "warningTitle": "Juple のご案内",
+    "warningIntro": "お客様のコンテンツに関する通報を確認した結果、ご利用にあたって注意が必要な点が見つかりました。",
+    "reasonLabel": "確認した内容",
+    "guidanceLabel": "運営からのご案内",
+    "acknowledge": "確認しました",
+    "acknowledged": "確認済み",
+    "acknowledgeFailed": "確認を保存できませんでした。もう一度お試しください。",
+    "resultTitle": "通報の処理結果",
+    "resultMessage": "ご報告ありがとうございます。内容の確認が完了しました。必要な対応は運営ポリシーに従って行われますが、個別の対応内容はお知らせしておりません。"
   }
 }

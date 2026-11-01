@@ -292,7 +292,7 @@ public sealed class SafetyStore(JupleDbContext dbContext, IUserProfileImageStora
             }
         }
 
-        // A block ends a friendship and a pending friend request between the two (with both private notes); Collections are untouched.
+        // A block ends a friendship and a pending friend request between the two (with both private notes); membership changes are below.
         var low = Math.Min(blockerUserId, blockedUserId);
         var high = Math.Max(blockerUserId, blockedUserId);
         var friendshipIds = await dbContext.Friendships.Where(friendship => friendship.UserLowId == low && friendship.UserHighId == high)
@@ -301,6 +301,24 @@ public sealed class SafetyStore(JupleDbContext dbContext, IUserProfileImageStora
         {
             await dbContext.FriendshipNotes.Where(note => friendshipIds.Contains(note.FriendshipId)).ExecuteDeleteAsync(cancellationToken);
             await dbContext.Friendships.Where(friendship => friendshipIds.Contains(friendship.Id)).ExecuteDeleteAsync(cancellationToken);
+        }
+
+        // Blocking the OWNER of a Collection I belong to ends my membership there (one transaction with the block, idempotent: repeating
+        // it finds nothing left). What I added stays in the Collection (the owner's and others' view of those links is the block filter's
+        // business), my personal items stay mine, and unblocking never restores the membership. Blocking a MEMBER of my own Collection
+        // changes no membership - the two of them simply stop seeing each other's links.
+        var ownedByBlocked = await dbContext.CollectionCollaborators
+            .Where(member => member.UserId == blockerUserId
+                && dbContext.Collections.Any(collection => collection.Id == member.CollectionId && collection.UserId == blockedUserId))
+            .Select(member => member.CollectionId)
+            .ToListAsync(cancellationToken);
+        if (ownedByBlocked.Count > 0)
+        {
+            var collaboration = new Juple.Infrastructure.Collections.CollectionCollaborationStore(dbContext);
+            foreach (var collectionId in ownedByBlocked)
+            {
+                await collaboration.RemoveCollaboratorAsync(collectionId, blockerUserId, cancellationToken);
+            }
         }
 
         await transaction.CommitAsync(cancellationToken);

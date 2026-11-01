@@ -591,7 +591,9 @@
     "addTitle": "添加合集",
     "requestTitle": "申请加入",
     "requestSend": "申请",
-    "signInRequired": "请登录 Juple 以添加此合集或申请加入。"
+    "signInRequired": "请登录 Juple 以添加此合集或申请加入。",
+    "blockedOwnerTitle": "这是你已屏蔽用户的合集",
+    "blockedOwnerMessage": "此合集的所有者 {{name}} 是你已屏蔽的用户。屏蔽期间无法访问该合集。"
   },
   "quickSaveComposer": {
     "titleLabel": "标题",
@@ -1251,7 +1253,8 @@
     "unblockMessage": "解除屏蔽不会恢复好友关系、已取消的邀请或已移除的成员身份。你参与的合集会重新显示在列表中。",
     "blockedAt": "屏蔽日期 {{date}}",
     "hiddenCollectionsTitle": "已从列表隐藏的已加入合集(点按可打开或退出)",
-    "shareRestrictedNotice": "根据政策,此合集的共享已受限。数据未被删除,你仍可管理。"
+    "shareRestrictedNotice": "根据政策,此合集的共享已受限。数据未被删除,你仍可管理。",
+    "accountRestricted": "根据运营政策，此账号的使用已受到限制。你仍可查看内容并联系客服。"
   },
   "agreement": {
     "ageConfirmation": "我已年满14周岁",
@@ -1512,5 +1515,17 @@
     "previous": "上一项",
     "next": "下一项",
     "done": "完成"
+  },
+  "moderation": {
+    "screenTitle": "使用提示",
+    "warningTitle": "Juple 使用提示",
+    "warningIntro": "我们审核了针对你内容的举报，发现使用时需要注意的事项。",
+    "reasonLabel": "审核结果",
+    "guidanceLabel": "运营团队的说明",
+    "acknowledge": "我已知晓",
+    "acknowledged": "已确认",
+    "acknowledgeFailed": "无法保存你的确认，请重试。",
+    "resultTitle": "举报处理结果",
+    "resultMessage": "感谢你的举报。我们已完成审核。必要的处理将依据运营政策进行，具体处理内容恕不告知。"
   }
 }

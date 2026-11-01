@@ -199,6 +199,7 @@ builder.Services.AddSingleton(new Juple.Application.Safety.TermsOptions
 });
 builder.Services.AddScoped<Juple.Application.Safety.ITermsConsentService, Juple.Application.Safety.TermsConsentService>();
 builder.Services.AddScoped<Juple.Application.Admin.AdminReportService>();
+builder.Services.AddScoped<Juple.Application.Safety.IModerationNoticeStore, Juple.Infrastructure.Safety.ModerationNoticeStore>();
 builder.Services.AddScoped<Juple.Application.Safety.IReportService, Juple.Application.Safety.ReportService>();
 builder.Services.AddScoped<Juple.Application.Safety.ISharedContentReviewFlagger, Juple.Infrastructure.Safety.SharedContentReviewFlagger>();
 builder.Services.AddScoped<Juple.Application.Safety.IUserBlockService, Juple.Application.Safety.UserBlockService>();
@@ -341,6 +342,7 @@ builder.Services.AddControllers(options =>
     options.Filters.Add<Juple.Api.Safety.UserBlockedExceptionFilter>();
     // Every authenticated endpoint needs the current Terms (Agreement screen after sign-in); the allowlist is AllowWithoutTermsAcceptance.
     options.Filters.Add<Juple.Api.Safety.RequireTermsAcceptanceFilter>();
+    options.Filters.Add<Juple.Api.Safety.AccountRestrictionFilter>();
 });
 builder.Services.AddProblemDetails();
 var requestProtectionOptions = builder.Configuration.GetSection(RequestProtectionOptions.SectionName).Get<RequestProtectionOptions>() ?? new();

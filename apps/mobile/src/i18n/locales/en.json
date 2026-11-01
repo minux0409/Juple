@@ -591,7 +591,9 @@
     "addTitle": "Add collection",
     "requestTitle": "Request to join",
     "requestSend": "Request",
-    "signInRequired": "Sign in to Juple to add this collection or ask to join."
+    "signInRequired": "Sign in to Juple to add this collection or ask to join.",
+    "blockedOwnerTitle": "This is a blocked user's collection",
+    "blockedOwnerMessage": "This collection's owner, {{name}}, is a user you blocked. You can't access the collection while they are blocked."
   },
   "quickSaveComposer": {
     "titleLabel": "Title",
@@ -1251,7 +1253,8 @@
     "unblockMessage": "Unblocking does not restore a friendship, cancelled invitations or removed memberships. Collections you are in appear in your lists again.",
     "blockedAt": "Blocked on {{date}}",
     "hiddenCollectionsTitle": "Collections you joined, hidden from your lists (tap to open or leave)",
-    "shareRestrictedNotice": "Sharing of this Collection has been restricted under our policies. Nothing was deleted, and you can still manage it."
+    "shareRestrictedNotice": "Sharing of this Collection has been restricted under our policies. Nothing was deleted, and you can still manage it.",
+    "accountRestricted": "This account's use is restricted under our policies. You can still view your content and contact support."
   },
   "agreement": {
     "ageConfirmation": "I am at least 14 years old",
@@ -1512,5 +1515,17 @@
     "previous": "Previous field",
     "next": "Next field",
     "done": "Done"
+  },
+  "moderation": {
+    "screenTitle": "Notice",
+    "warningTitle": "Juple notice",
+    "warningIntro": "We reviewed a report about your content and found something that needs your attention when using Juple.",
+    "reasonLabel": "What we found",
+    "guidanceLabel": "Guidance from the team",
+    "acknowledge": "I understand",
+    "acknowledged": "Confirmed",
+    "acknowledgeFailed": "Couldn't save your confirmation. Please try again.",
+    "resultTitle": "Report reviewed",
+    "resultMessage": "Thank you for your report. We've finished reviewing it. Any needed action is taken under our policies; we don't share the details of individual actions."
   }
 }

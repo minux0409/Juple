@@ -688,3 +688,31 @@ it.each([false, true])('withdrawal confirmation, duplicate guard and failure pre
   } else expect(mockGoBack).toHaveBeenCalledTimes(1);
   await act(async () => renderer.unmount());
 });
+
+describe('a link to the collection of an owner I blocked', () => {
+  it('says so in a notice before anything of the collection is drawn, and has only 닫기', async () => {
+    mockRequest.mockResolvedValue({ status: 200, body: { isMember: false, collectionId: null, role: null, isPublic: true, ownerBlockedByYou: true, ownerName: '꼬부기' } });
+    const renderer = await renderScreen();
+
+    expect(exists(renderer, 'shared-collection-owner-blocked')).toBe(true);
+    const notice = dialog(renderer, i18n.t('sharedCollection.blockedOwnerTitle'));
+    expect(notice).toBeDefined();
+    expect(notice.props.message).toBe(i18n.t('sharedCollection.blockedOwnerMessage', { name: '꼬부기' }));
+    expect(notice.props.confirmLabel).toBe(i18n.t('common.close'));
+    expect(notice.props.onCancel).toBeUndefined();
+    // Nothing of the collection: no profile, no name, no save / join request.
+    expect(exists(renderer, 'shared-collection-profile')).toBe(false);
+    expect(allTexts(renderer)).not.toContain('게임');
+    expect(saveCalls()).toHaveLength(0);
+
+    await act(async () => notice.props.onConfirm());
+    expect(mockGoBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('an owner who blocked ME is never shown to me: the link behaves as before', async () => {
+    mockRequest.mockResolvedValue({ status: 200, body: notAMember(true) });
+    const renderer = await renderScreen();
+    expect(exists(renderer, 'shared-collection-owner-blocked')).toBe(false);
+    expect(anyEntryDialog(renderer)).toBeDefined();
+  });
+});

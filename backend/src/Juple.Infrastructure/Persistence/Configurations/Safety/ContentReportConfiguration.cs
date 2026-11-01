@@ -117,3 +117,29 @@ public sealed class UserBlockConfiguration : IEntityTypeConfiguration<UserBlock>
         builder.HasOne<User>().WithMany().HasForeignKey(block => block.BlockedUserId).OnDelete(DeleteBehavior.NoAction);
     }
 }
+
+public sealed class ModerationNoticeConfiguration : IEntityTypeConfiguration<ModerationNotice>
+{
+    public void Configure(EntityTypeBuilder<ModerationNotice> builder)
+    {
+        builder.ToTable("ModerationNotices", "safety");
+        builder.HasKey(notice => notice.Id);
+        builder.Property(notice => notice.Id).ValueGeneratedOnAdd().UseIdentityColumn();
+        // No foreign keys: a notice belongs to the recipient's account (removed with it, AccountDeletionStore) and must never block a deletion.
+        builder.Property(notice => notice.RecipientUserId).HasColumnType("bigint").IsRequired();
+        builder.Property(notice => notice.Kind).HasConversion<byte>().HasColumnType("tinyint").IsRequired();
+        builder.Property(notice => notice.ReportId).HasColumnType("bigint");
+        builder.Property(notice => notice.Reason).HasColumnType("nvarchar(500)").HasMaxLength(ModerationNotice.ReasonMaxLength);
+        builder.Property(notice => notice.Guidance).HasColumnType("nvarchar(1000)").HasMaxLength(ModerationNotice.GuidanceMaxLength);
+        builder.Property(notice => notice.CreatedByAdminUserId).HasColumnType("bigint");
+        builder.Property(notice => notice.CreatedAtUtc).HasColumnType("datetimeoffset").IsRequired();
+        builder.Property(notice => notice.AcknowledgedAtUtc).HasColumnType("datetimeoffset");
+
+        // One notice of a kind per report and recipient: the duplicate-send guard (a second warning for the same report is a conflict).
+        builder.HasIndex(notice => new { notice.ReportId, notice.RecipientUserId, notice.Kind })
+            .IsUnique()
+            .HasFilter("[ReportId] IS NOT NULL")
+            .HasDatabaseName("UX_ModerationNotices_Report_Recipient_Kind");
+        builder.HasIndex(notice => notice.RecipientUserId).HasDatabaseName("IX_ModerationNotices_RecipientUserId");
+    }
+}

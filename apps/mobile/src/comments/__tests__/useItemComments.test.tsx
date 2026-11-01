@@ -149,7 +149,7 @@ describe('useItemComments', () => {
     expect(sent).toBe(false);
     expect(holder.api!.comments).toHaveLength(1);
     expect(holder.api!.totalCount).toBe(1);
-    expect(onFailure).toHaveBeenCalledWith('send');
+    expect(onFailure).toHaveBeenCalledWith('send', expect.anything());
   });
 
   it('a second send while the first is on its way is ignored - never two comments from one tap', async () => {
@@ -210,7 +210,7 @@ describe('useItemComments', () => {
 
     expect(holder.api!.comments.map(entry => entry.id)).toEqual([1, 2, 3]);
     expect(holder.api!.totalCount).toBe(3);
-    expect(onFailure).toHaveBeenCalledWith('delete');
+    expect(onFailure).toHaveBeenCalledWith('delete', expect.anything());
   });
 
   it('a failed older page is reported and keeps what is loaded', async () => {
@@ -221,7 +221,7 @@ describe('useItemComments', () => {
       await holder.api!.loadPrevious();
     });
 
-    expect(onFailure).toHaveBeenCalledWith('older');
+    expect(onFailure).toHaveBeenCalledWith('older', expect.anything());
     expect(holder.api!.comments.map(entry => entry.id)).toEqual([8]);
     expect(holder.api!.hasPrevious).toBe(true);
   });

@@ -214,6 +214,12 @@ const AUDIT_ACTION_LABELS: Readonly<Record<string, string>> = {
   'safety.report.status_changed': '신고 상태 변경',
   'safety.share.restricted': '공유 제한',
   'safety.share.restriction_lifted': '공유 제한 해제',
+  'safety.report.warning_sent': '경고 발송',
+  'safety.report.result_sent': '신고자 결과 안내',
+  'safety.content.deleted': '콘텐츠 삭제',
+  'safety.content.restored': '콘텐츠 복구',
+  'safety.account.restricted': '계정 이용 제한',
+  'safety.account.restriction_lifted': '계정 이용 제한 해제',
   'support.inquiry.answered': '답변 저장',
   'operations.app_version.updated': '앱 버전 변경',
 };

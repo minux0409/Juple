@@ -450,6 +450,16 @@ export interface ReportDetail {
   readonly reviewedAtUtc: string | null;
   readonly reviewedBy: ReportPerson | null;
   readonly note: string | null;
+  /** 경고: the person behind the content can be sent a reviewed warning, once per report. */
+  readonly canWarn: boolean;
+  readonly warningSentAtUtc: string | null;
+  readonly warningAcknowledged: boolean;
+  /** 삭제 (soft, into the trash): a link or Collection report; the Owner role only (the API decides). */
+  readonly canDeleteTarget: boolean;
+  readonly targetDeleted: boolean;
+  /** 계정 이용 제한 (read-only use) of the person behind the content. */
+  readonly canRestrictAccount: boolean;
+  readonly targetAccountRestricted: boolean;
   readonly priorReports: readonly { readonly reportId: number; readonly createdAtUtc: string; readonly reason: string; readonly status: string; readonly source: string }[];
   readonly history: readonly { readonly adminUserId: number; readonly adminJupleId: string | null; readonly action: string; readonly detail: string | null; readonly createdAtUtc: string }[];
 }
@@ -466,7 +476,35 @@ export function reportFailureMessage(code: string | null | undefined): string | 
   if (code === 'reportRestrictionActive') {
     return '공유 제한이 적용 중입니다. 먼저 제한을 해제해 주세요.';
   }
-  return code === 'reportNotRestrictable' ? '컬렉션 또는 링크 신고만 공유를 제한할 수 있습니다.' : null;
+  switch (code) {
+    case 'reportNotRestrictable':
+      return '컬렉션 또는 링크 신고만 공유를 제한할 수 있습니다.';
+    case 'warningAlreadySent':
+      return '이 신고에는 이미 경고가 발송되었습니다. 같은 신고로 다시 보낼 수 없습니다.';
+    case 'reportHasNoTargetUser':
+      return '경고를 받을 사용자가 없습니다(탈퇴했거나 운영자 계정입니다).';
+    case 'reportNotDeletable':
+      return '링크 또는 컬렉션 신고만 삭제할 수 있습니다. 사용자 계정은 신고로 삭제되지 않습니다.';
+    case 'reportTargetNotDeleted':
+      return '복구할 삭제 내역이 없습니다.';
+    case 'reportNotAccountRestrictable':
+      return '이 계정에는 이용 제한을 적용할 수 없습니다(탈퇴했거나 운영자 계정입니다).';
+    case 'ownerRoleRequired':
+      return '이 조치는 Owner 권한의 관리자만 할 수 있습니다.';
+    default:
+      return null;
+  }
+}
+
+/**
+ * The editable starting point of a warning (신고 내용 + 관리자 안내). The operator reviews and rewrites it before sending; it must never contain
+ * the reporter's name, contact or their own explanation - the reviewed reason is the operator's own wording.
+ */
+export function warningDraft(reason: string): { readonly reason: string; readonly guidance: string } {
+  return {
+    reason: reportReasonLabel(reason) === reason ? '' : `${reportReasonLabel(reason)} 관련 내용이 확인되었습니다.`,
+    guidance: '다른 사용자가 불편을 느끼지 않도록 콘텐츠 이용 시 주의해 주세요. 반복될 경우 이용이 제한될 수 있습니다.',
+  };
 }
 
 // ---- inquiries ---------------------------------------------------------------------------------------------------------------
@@ -712,6 +750,11 @@ export const v2Paths = {
   },
   report: (id: number) => `/api/v1/admin/reports/${encodeURIComponent(String(id))}`,
   reportStatus: (id: number) => `/api/v1/admin/reports/${encodeURIComponent(String(id))}/status`,
+  reportWarning: (id: number) => `/api/v1/admin/reports/${encodeURIComponent(String(id))}/warning`,
+  reportTargetDelete: (id: number) => `/api/v1/admin/reports/${encodeURIComponent(String(id))}/target/delete`,
+  reportTargetRestore: (id: number) => `/api/v1/admin/reports/${encodeURIComponent(String(id))}/target/restore`,
+  reportAccountRestriction: (id: number) => `/api/v1/admin/reports/${encodeURIComponent(String(id))}/account-restriction`,
+  reportAccountRestrictionLift: (id: number) => `/api/v1/admin/reports/${encodeURIComponent(String(id))}/account-restriction/lift`,
   reportRestriction: (id: number) => `/api/v1/admin/reports/${encodeURIComponent(String(id))}/restriction`,
   reportRestrictionLift: (id: number) => `/api/v1/admin/reports/${encodeURIComponent(String(id))}/restriction/lift`,
   inquiryContentTranslation: (id: number) => `/api/v1/admin/support/inquiries/${encodeURIComponent(String(id))}/content-translation`,

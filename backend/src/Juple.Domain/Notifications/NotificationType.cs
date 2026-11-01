@@ -95,4 +95,13 @@ public enum NotificationType : byte
 
     /// <summary>Visible: the Owner declined the recipient's join request (CollectionId, SubjectId = the request id). The result of the recipient's own action.</summary>
     JoinRequestRejected = 19,
+
+    /// <summary>
+    /// Visible: an operator reviewed a report about the recipient's content and sent a warning (SubjectId = the ModerationNotice id). No actor,
+    /// no Collection; the words live in the notice (reviewed by the operator), the push says only that there is an 이용 안내.
+    /// </summary>
+    AdminWarning = 20,
+
+    /// <summary>Visible: the report the recipient made was reviewed (SubjectId = the ModerationNotice id). Says nothing about what was done.</summary>
+    ReportResultNotice = 21,
 }

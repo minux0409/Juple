@@ -37,6 +37,20 @@ public sealed class PublicShareMembershipStore(JupleDbContext dbContext) : IPubl
             return new PublicShareMembershipDto(true, target.Id, "owner");
         }
 
+        // The caller blocked the Owner: nothing of the Collection is offered (no save, no join request) - only that fact and the Owner's name.
+        var blockedOwner = await (
+            from block in dbContext.UserBlocks.AsNoTracking()
+            where block.BlockerUserId == userId && block.BlockedUserId == target.OwnerUserId
+            join owner in dbContext.Users.AsNoTracking() on block.BlockedUserId equals owner.Id
+            select new { owner.DisplayName, owner.PublicCode })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (blockedOwner is not null)
+        {
+            return new PublicShareMembershipDto(
+                false, null, null, target.IsPublic, false, OwnerBlockedByYou: true,
+                OwnerName: string.IsNullOrWhiteSpace(blockedOwner.DisplayName) ? blockedOwner.PublicCode : blockedOwner.DisplayName);
+        }
+
         // Under an operator's restriction the link answers like one that does not exist, member or not.
         if (target.IsRestricted)
         {
