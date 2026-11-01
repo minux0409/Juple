@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { Pressable } from '../components/Pressable';
+import { PressedShape } from '../components/PressedShape';
 import { resolveCollectionIconComponent } from './collectionIcons';
 import { EditIcon } from '../icons/EditIcon';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
@@ -43,8 +44,12 @@ export function CategoryField({ selectedCollections, isLoading, disabled, error,
           accessibilityState={{ disabled: Boolean(disabled) }}
           disabled={disabled}
           onPress={onPress}
+          // The whole row stays one touch target, but only the pencil button shows the press - never the chips or the empty-state text.
+          pressFeedback={false}
           style={styles.row}
         >
+          {({ pressed }) => (
+          <>
           <View style={styles.chips}>
             {selectedCollections.length === 0 ? (
               <Text style={styles.empty}>{t('collections.itemSectionEmpty')}</Text>
@@ -73,7 +78,10 @@ export function CategoryField({ selectedCollections, isLoading, disabled, error,
           </View>
           <View style={styles.iconButton}>
             <EditIcon color={colors.textPrimary} size={20} />
+            <PressedShape borderRadius={minTouchTarget / 2} pressed={pressed} strong />
           </View>
+          </>
+          )}
         </Pressable>
       )}
       {error ? <Text style={styles.error}>{error}</Text> : null}

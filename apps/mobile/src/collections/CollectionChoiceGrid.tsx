@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Pressable } from '../components/Pressable';
+import { PressedShape } from '../components/PressedShape';
 import { CategoryIconTile } from './CategoryIconTile';
 import { contentGateOf, isCollaborative, isCollectionLocked } from './collectionAccess';
 import { CollectionStatusBadges } from './CollectionStatusBadges';
@@ -25,6 +26,9 @@ import { SheetHeader, type SheetDismissGesture } from '../components/sheetDismis
 const CREATE_TILE = { kind: 'create' } as const;
 const NONE_TILE = { kind: 'none' } as const;
 type GridItem = typeof CREATE_TILE | typeof NONE_TILE | Collection;
+
+/** The 48pt icon tile's corner radius (CategoryIconTile's radii.md + size / 8, and specialTile) - the shape a grid cell's press layer takes. */
+const TILE_RADIUS = radii.md + 6;
 
 export interface CollectionChoiceGridProps {
   readonly collectionPool: readonly Collection[];
@@ -137,16 +141,23 @@ export function CollectionChoiceGrid({
         accessibilityRole="button"
         accessibilityState={isNone ? { selected: isSelected } : undefined}
         onPress={isNone ? noneTile?.onPress : onOpenCreateDialog}
+        // Grid: the whole cell stays the touch target, but only the 48pt icon tile shows the press. List: the row is the target and shows it.
+        pressFeedback={isGrid ? false : undefined}
         style={isGrid ? gridCellStyle : styles.listCell}
         testID={isNone ? 'category-picker-none' : 'category-picker-create'}
       >
-        <View style={styles.tileIconSlot}>
-          <View style={[styles.specialTile, isNone && styles.noneTile]}>
-            {isNone ? <CloseIcon color={colors.textSecondary} size={22} strokeWidth={2} /> : <FolderPlusIcon color={colors.brandText} size={24} strokeWidth={2} />}
-          </View>
-          {isSelected ? <SelectionIndicator selected style={styles.selectedBadge} testID="category-picker-selected-none" /> : null}
-        </View>
-        <Text numberOfLines={1} style={[styles.tileLabel, !isGrid && styles.listLabel]}>{label}</Text>
+        {({ pressed }) => (
+          <>
+            <View style={styles.tileIconSlot}>
+              <View style={[styles.specialTile, isNone && styles.noneTile]}>
+                {isNone ? <CloseIcon color={colors.textSecondary} size={22} strokeWidth={2} /> : <FolderPlusIcon color={colors.brandText} size={24} strokeWidth={2} />}
+              </View>
+              {isGrid ? <PressedShape borderRadius={TILE_RADIUS} pressed={pressed} /> : null}
+              {isSelected ? <SelectionIndicator selected style={styles.selectedBadge} testID="category-picker-selected-none" /> : null}
+            </View>
+            <Text numberOfLines={1} style={[styles.tileLabel, !isGrid && styles.listLabel]}>{label}</Text>
+          </>
+        )}
       </Pressable>
     );
   };
@@ -216,25 +227,33 @@ export function CollectionChoiceGrid({
                 accessibilityState={isDisabled ? { selected: isSelected, disabled: true } : { selected: isSelected }}
                 disabled={isDisabled || undefined}
                 onPress={() => onToggle(option)}
+                // Grid: the whole cell stays the touch target, but only the icon tile shows the press (the selection itself is the corner check
+                // badge, never a tint). List: the row is the target and shows it.
+                pressFeedback={isGrid ? false : undefined}
                 style={[isGrid ? gridCellStyle : styles.listCell, isDisabled && styles.disabledCell]}
                 testID={`category-picker-option-${option.id}`}
               >
-                <View style={styles.tileIconSlot}>
-                  <CategoryIconTile collectionId={option.id} color={option.color} icon={option.icon} imageUrl={option.iconImageUrl} imageVersion={option.iconImageVersion} size={48} />
-                  {/* Same start-side markers as the Categories screen, so a shared Category is recognizable here too. */}
-                  <CollectionStatusBadges isLocked={isCollectionLocked(option)} isShared={isCollaborative(option)} size={18} />
-                  {isSelected ? <SelectionIndicator selected style={styles.selectedBadge} testID={`category-picker-selected-${option.id}`} /> : null}
-                </View>
-                <View style={isGrid ? styles.gridText : styles.listText}>
-                  <Text numberOfLines={1} style={[styles.tileLabel, !isGrid && styles.listLabel]}>
-                    {option.name}
-                  </Text>
-                  {isDisabled ? (
-                    <Text numberOfLines={1} style={[styles.disabledLabel, !isGrid && styles.listLabel]} testID={`category-picker-included-${option.id}`}>
-                      {t('collections.alreadyIncluded')}
-                    </Text>
-                  ) : null}
-                </View>
+                {({ pressed }) => (
+                  <>
+                    <View style={styles.tileIconSlot}>
+                      <CategoryIconTile collectionId={option.id} color={option.color} icon={option.icon} imageUrl={option.iconImageUrl} imageVersion={option.iconImageVersion} size={48} />
+                      {isGrid ? <PressedShape borderRadius={TILE_RADIUS} pressed={pressed} /> : null}
+                      {/* Same start-side markers as the Categories screen, so a shared Category is recognizable here too. */}
+                      <CollectionStatusBadges isLocked={isCollectionLocked(option)} isShared={isCollaborative(option)} size={18} />
+                      {isSelected ? <SelectionIndicator selected style={styles.selectedBadge} testID={`category-picker-selected-${option.id}`} /> : null}
+                    </View>
+                    <View style={isGrid ? styles.gridText : styles.listText}>
+                      <Text numberOfLines={1} style={[styles.tileLabel, !isGrid && styles.listLabel]}>
+                        {option.name}
+                      </Text>
+                      {isDisabled ? (
+                        <Text numberOfLines={1} style={[styles.disabledLabel, !isGrid && styles.listLabel]} testID={`category-picker-included-${option.id}`}>
+                          {t('collections.alreadyIncluded')}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </>
+                )}
               </Pressable>
             );
           }}
