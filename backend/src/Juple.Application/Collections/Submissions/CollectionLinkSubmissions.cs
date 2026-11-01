@@ -96,7 +96,7 @@ public interface ICollectionLinkSubmissionStore
         CancellationToken cancellationToken = default);
 
     /// <summary>Oldest first (cursor = the last row's id), with each member proposer's public identity.</summary>
-    Task<CollectionLinkSubmissionPage> ListAsync(long collectionId, long? afterSubmissionId, int limit, CancellationToken cancellationToken = default);
+    Task<CollectionLinkSubmissionPage> ListAsync(long collectionId, long? afterSubmissionId, int limit, long? viewerUserId = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Only userId's own waiting proposals in this Collection, newest first (cursor = the last row's id).
@@ -200,7 +200,7 @@ public sealed class CollectionLinkSubmissionService(
         CancellationToken cancellationToken = default)
     {
         await accessService.RequireUnlockedAsync(userId, collectionId, CollectionPermission.ReviewSubmissions, unlockToken, cancellationToken);
-        return await store.ListAsync(collectionId, cursor, Math.Clamp(limit, 1, MaxPageSize), cancellationToken);
+        return await store.ListAsync(collectionId, cursor, Math.Clamp(limit, 1, MaxPageSize), userId, cancellationToken);
     }
 
     public Task<int> CountMineInSharedCollectionsAsync(long userId, CancellationToken cancellationToken = default) =>

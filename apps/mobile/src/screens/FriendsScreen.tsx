@@ -132,7 +132,7 @@ export function FriendsScreen() {
   const { requestBlock, blockDialogs } = useBlockPersonFlow(blocked => {
     setFriends(previous => previous.filter(friend => friend.jupleId !== blocked.jupleId));
     setSelected(current => (current?.jupleId === blocked.jupleId ? null : current));
-  });
+  }, { knownNotBlocked: true });
   const [isAddOpen, setIsAddOpen] = useState(false);
   // A request row's person (the whole identity area is the tap target): the same person/friend info as everywhere.
   const { openProfile, profileModal } = usePersonProfile();

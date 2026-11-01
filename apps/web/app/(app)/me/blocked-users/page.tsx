@@ -11,6 +11,7 @@ import { useSignedInApp } from '../../AppRoot';
 import { Avatar } from '../../Avatar';
 import { ConfirmDialog } from '../../ConfirmDialog';
 import { LoadFailed } from '../../PageStates';
+import { useSafety } from '../../SafetyProvider';
 import { useToast } from '../../Toaster';
 import { SettingsPage } from '../SettingsPage';
 import styles from '../../app.module.css';
@@ -24,6 +25,7 @@ const nameOf = (person: BlockedUser) => person.displayName ?? formatJupleId(pers
 export default function BlockedUsersPage() {
   const { api, dictionary, locale, onSessionLost } = useSignedInApp();
   const toast = useToast();
+  const safety = useSafety();
   const [people, setPeople] = useState<readonly BlockedUser[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
@@ -66,6 +68,7 @@ export default function BlockedUsersPage() {
         setPeople(current => current?.filter(person => person.jupleId !== pending.jupleId) ?? null);
         setPending(null);
         toast.showNotice(dictionary.safetyUnblockedDone);
+        safety.refreshBlocked();
       },
       caught => {
         setBusy(false);
@@ -77,7 +80,7 @@ export default function BlockedUsersPage() {
         setFailed(true);
       },
     );
-  }, [api, busy, dictionary.safetyUnblockedDone, onSessionLost, pending, toast]);
+  }, [api, busy, dictionary.safetyUnblockedDone, onSessionLost, pending, safety, toast]);
 
   const blockedOn = (person: BlockedUser) => {
     const date = new Date(person.blockedAtUtc);

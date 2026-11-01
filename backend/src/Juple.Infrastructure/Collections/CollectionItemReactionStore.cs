@@ -13,7 +13,7 @@ public sealed class CollectionItemReactionStore(JupleDbContext dbContext) : ICol
         long userId, long collectionId, long itemId, string key, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
     {
         var isLink = await (
-            from membership in dbContext.CollectionItems.AsNoTracking()
+            from membership in dbContext.CollectionItems.AsNoTracking().WhereNotHiddenByBlock(dbContext, userId)
             where membership.CollectionId == collectionId && membership.ItemId == itemId
             join item in dbContext.Items.AsNoTracking().Where(item => item.DeletedAtUtc == null) on membership.ItemId equals item.Id
             select membership.Id).AnyAsync(cancellationToken);
@@ -87,6 +87,8 @@ public sealed class CollectionItemReactionStore(JupleDbContext dbContext) : ICol
         // 1: the counts per link and reaction (the unique index's (CollectionId, ItemId) prefix covers the filter).
         var counts = await dbContext.CollectionItemReactions.AsNoTracking()
             .Where(reaction => reaction.CollectionId == collectionId && ids.Contains(reaction.ItemId))
+            // Hearts of somebody the viewer blocked are not counted for the viewer (never deleted - others still see them).
+            .Where(reaction => !dbContext.UserBlocks.Any(block => block.BlockerUserId == userId && block.BlockedUserId == reaction.UserId))
             .GroupBy(reaction => new { reaction.ItemId, reaction.ReactionKey })
             .Select(group => new { group.Key.ItemId, group.Key.ReactionKey, Count = group.Count() })
             .ToListAsync(cancellationToken);

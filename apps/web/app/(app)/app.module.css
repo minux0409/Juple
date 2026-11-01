@@ -6429,6 +6429,31 @@ button.reactionChipMine:hover {
   cursor: default;
 }
 
+/* 차단 해제 in a participant row: the same 36px icon button, but not destructive - neutral icon, a faint wash on hover. */
+.rowAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+}
+
+.rowAction:hover:not(:disabled),
+.rowAction:focus-visible {
+  background: var(--app-surface-muted);
+}
+
+.rowAction:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 /* ID로 초대 */
 .idInvite {
   display: flex;

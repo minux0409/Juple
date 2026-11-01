@@ -202,4 +202,16 @@ describe('shared Collection reports, blocks and restriction on the Web', () => {
     const [person] = parseBlockedUsers({ items: [{ jupleId: 'AAAA2222', hiddenCollections: [{ id: 3, name: 'T' }, { id: 'x' }] }] });
     assert.deepEqual(person.hiddenCollections, [{ id: 3, name: 'T' }]);
   });
+
+  it('an already blocked participant is offered 차단 해제, never the block question; nothing starts a block before the list arrived', () => {
+    const sharing = source('app/(app)/collections/[collectionId]/CollectionSharing.tsx');
+    assert.match(sharing, /safety\.blockedIds\?\.has\(person\.jupleId\) === true/);
+    assert.match(sharing, /blocked \? safety\.unblock\(/);
+    assert.match(sharing, /disabled=\{!known\}/);
+    const provider = source('app/(app)/SafetyProvider.tsx');
+    assert.match(provider, /path: BLOCKED_USERS_PATH/);
+    assert.match(provider, /method: 'DELETE', path: blockPath\(subject\.jupleId\)/);
+    // the 차단한 사용자 page tells the shared list after it unblocks
+    assert.match(source('app/(app)/me/blocked-users/page.tsx'), /safety\.refreshBlocked\(\)/);
+  });
 });

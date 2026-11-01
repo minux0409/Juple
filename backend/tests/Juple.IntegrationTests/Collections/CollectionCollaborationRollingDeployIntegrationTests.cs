@@ -80,6 +80,14 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
         await ExecuteAsync(
             "ALTER TABLE [collections].[CollectionItems] ADD [VisibleSinceUtc] datetimeoffset NOT NULL CONSTRAINT [DF_RollingDeploy_VisibleSinceUtc] DEFAULT SYSUTCDATETIME()");
         await ExecuteAsync("ALTER TABLE [collections].[CollectionShares] ADD [IsPublic] bit NOT NULL CONSTRAINT [DF_RollingDeploy_IsPublic] DEFAULT CAST(1 AS bit)");
+        // ...and safety.UserBlocks (AddUgcSafety): every link read hides what the other side of a block added after the block.
+        await ExecuteAsync("IF SCHEMA_ID(N'safety') IS NULL EXEC(N'CREATE SCHEMA [safety]')");
+        await ExecuteAsync(
+            """
+            CREATE TABLE [safety].[UserBlocks] (
+                [Id] bigint NOT NULL IDENTITY PRIMARY KEY, [BlockerUserId] bigint NOT NULL, [BlockedUserId] bigint NOT NULL,
+                [CreatedAtUtc] datetimeoffset NOT NULL)
+            """);
         await using (var db = NewContext())
         {
             var store = new CollectionStore(db);
@@ -96,6 +104,7 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
                 $"SELECT [AddedByUserId] AS [Value] FROM [collections].[CollectionItems] WHERE [CollectionId] = {collection} AND [ItemId] = {newItem}"));
         }
 
+        await ExecuteAsync("DROP TABLE [safety].[UserBlocks]");
         await ExecuteAsync("ALTER TABLE [collections].[CollectionShares] DROP CONSTRAINT [DF_RollingDeploy_IsPublic]; ALTER TABLE [collections].[CollectionShares] DROP COLUMN [IsPublic]");
         await ExecuteAsync(
             "ALTER TABLE [collections].[CollectionItems] DROP CONSTRAINT [DF_RollingDeploy_AddedViaPublicShare]; ALTER TABLE [collections].[CollectionItems] DROP COLUMN [AddedViaPublicShare]");
@@ -178,6 +187,9 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
         await ExecuteAsync("ALTER TABLE [users].[Users] ADD [ProfileImageBlobName] nvarchar(400) NULL");
         await ExecuteAsync("ALTER TABLE [collections].[CollectionShares] ADD [IsPublic] bit NOT NULL CONSTRAINT [DF_RollingDeploy_IsPublic] DEFAULT CAST(1 AS bit)");
         await ExecuteAsync("ALTER TABLE [notifications].[Notifications] ADD [CollectionId] bigint NULL");
+        // CollectionItems.VisibleSinceUtc (a later column): the card's link count hides what the other side of a block added after the block.
+        await ExecuteAsync(
+            "ALTER TABLE [collections].[CollectionItems] ADD [VisibleSinceUtc] datetimeoffset NOT NULL CONSTRAINT [DF_RollingDeploy_VisibleSinceUtc2] DEFAULT SYSUTCDATETIME()");
         await ExecuteAsync(
             """
             CREATE TABLE [collections].[CollectionSharePasswords] (
@@ -273,6 +285,8 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
         await ExecuteAsync("DROP TABLE [collections].[CollectionMemberLocks]");
         await ExecuteAsync("DROP TABLE [safety].[ShareRestrictions]");
         await ExecuteAsync("DROP TABLE [safety].[UserBlocks]");
+        await ExecuteAsync(
+            "ALTER TABLE [collections].[CollectionItems] DROP CONSTRAINT [DF_RollingDeploy_VisibleSinceUtc2]; ALTER TABLE [collections].[CollectionItems] DROP COLUMN [VisibleSinceUtc]");
         await ExecuteAsync("ALTER TABLE [notifications].[Notifications] DROP COLUMN [CollectionId]");
         await MigrateToAsync(null);
         Assert.False(await HasFavoriteRowAsync(owner, unstarredLater));

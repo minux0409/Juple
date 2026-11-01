@@ -4,7 +4,9 @@ import { createContext, useCallback, useContext, useEffect, useId, useMemo, useR
 import { formatMessage } from '../../lib/appI18n';
 import { isSessionLost } from '../../lib/authSession';
 import {
+  BLOCKED_USERS_PATH,
   blockPath,
+  parseBlockedUsers,
   parseReportReceipt,
   REPORT_DETAILS_MAX_LENGTH,
   REPORT_REASONS,
@@ -31,6 +33,12 @@ interface SafetyApi {
   readonly report: (target: ReportTarget) => void;
   /** Asks "block this user?" and, once confirmed, blocks. `onBlocked` runs after the server accepted it. */
   readonly block: (subject: BlockSubject, onBlocked?: () => void) => void;
+  /** Who the caller blocked, as the server says (null until it answered): a person already in it is offered 차단 해제, never 차단 again. */
+  readonly blockedIds: ReadonlySet<string> | null;
+  /** 차단 해제 (no question: it only restores access; friendships and invitations are not restored). */
+  readonly unblock: (subject: BlockSubject, onUnblocked?: () => void) => void;
+  /** Re-reads the blocked list (after a change made elsewhere, e.g. the 차단한 사용자 page). */
+  readonly refreshBlocked: () => void;
 }
 
 const SafetyContext = createContext<SafetyApi | null>(null);
@@ -54,6 +62,29 @@ export function SafetyProvider({ children }: { readonly children: React.ReactNod
   const [reporting, setReporting] = useState<ReportTarget | null>(null);
   const [blocking, setBlocking] = useState<{ readonly subject: BlockSubject; readonly onBlocked?: () => void } | null>(null);
   const [blockBusy, setBlockBusy] = useState(false);
+  const [blockedIds, setBlockedIds] = useState<ReadonlySet<string> | null>(null);
+  const [blockedReload, setBlockedReload] = useState(0);
+  const changing = useRef(false);
+
+  useEffect(() => {
+    let current = true;
+    api<unknown>({ method: 'GET', path: BLOCKED_USERS_PATH }).then(
+      raw => {
+        if (current) {
+          setBlockedIds(new Set(parseBlockedUsers(raw).map(person => person.jupleId)));
+        }
+      },
+      caught => {
+        // Unknown stays unknown (null): nothing offers a block from an unknown state.
+        if (current && isSessionLost(caught)) {
+          onSessionLost();
+        }
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [api, blockedReload, onSessionLost]);
 
   const confirmBlock = useCallback(() => {
     if (!blocking || blockBusy) {
@@ -65,6 +96,8 @@ export function SafetyProvider({ children }: { readonly children: React.ReactNod
       () => {
         setBlockBusy(false);
         setBlocking(null);
+        setBlockedIds(previous => new Set(previous ?? []).add(subject.jupleId));
+        setBlockedReload(value => value + 1);
         toast.showNotice(dictionary.safetyBlockedDone);
         onBlocked?.();
       },
@@ -80,12 +113,46 @@ export function SafetyProvider({ children }: { readonly children: React.ReactNod
     );
   }, [api, blockBusy, blocking, dictionary.safetyBlockFailed, dictionary.safetyBlockedDone, onSessionLost, toast]);
 
+  const unblock = useCallback(
+    (subject: BlockSubject, onUnblocked?: () => void) => {
+      if (changing.current) {
+        return;
+      }
+      changing.current = true;
+      api<void>({ method: 'DELETE', path: blockPath(subject.jupleId) }).then(
+        () => {
+          changing.current = false;
+          setBlockedIds(previous => {
+            const next = new Set(previous ?? []);
+            next.delete(subject.jupleId);
+            return next;
+          });
+          setBlockedReload(value => value + 1);
+          toast.showNotice(dictionary.safetyUnblockedDone);
+          onUnblocked?.();
+        },
+        caught => {
+          changing.current = false;
+          if (isSessionLost(caught)) {
+            onSessionLost();
+            return;
+          }
+          toast.showNotice(dictionary.safetyBlockFailed, 'error');
+        },
+      );
+    },
+    [api, dictionary.safetyBlockFailed, dictionary.safetyUnblockedDone, onSessionLost, toast],
+  );
+
   const value = useMemo<SafetyApi>(
     () => ({
       report: target => setReporting(target),
       block: (subject, onBlocked) => setBlocking({ subject, onBlocked }),
+      blockedIds,
+      unblock,
+      refreshBlocked: () => setBlockedReload(count => count + 1),
     }),
-    [],
+    [blockedIds, unblock],
   );
 
   return (

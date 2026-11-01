@@ -18,7 +18,7 @@ public sealed class CollectionItemCommentStore(JupleDbContext dbContext, IUserPr
     public async Task<CollectionCommentPageDto?> GetPageAsync(
         long userId, long collectionId, long itemId, long? beforeId, int limit, CancellationToken cancellationToken = default)
     {
-        if (!await IsLinkAsync(collectionId, itemId, cancellationToken))
+        if (!await IsLinkAsync(userId, collectionId, itemId, cancellationToken))
         {
             return null;
         }
@@ -64,7 +64,7 @@ public sealed class CollectionItemCommentStore(JupleDbContext dbContext, IUserPr
     public async Task<CollectionCommentReplyPageDto?> GetRepliesAsync(
         long userId, long collectionId, long itemId, long rootCommentId, long? afterId, int limit, CancellationToken cancellationToken = default)
     {
-        if (!await IsLinkAsync(collectionId, itemId, cancellationToken))
+        if (!await IsLinkAsync(userId, collectionId, itemId, cancellationToken))
         {
             return null;
         }
@@ -108,7 +108,7 @@ public sealed class CollectionItemCommentStore(JupleDbContext dbContext, IUserPr
     public async Task<CollectionCommentCreated?> CreateAsync(
         long userId, long collectionId, long itemId, string body, DateTimeOffset nowUtc, long? parentCommentId = null, CancellationToken cancellationToken = default)
     {
-        if (!await IsLinkAsync(collectionId, itemId, cancellationToken))
+        if (!await IsLinkAsync(userId, collectionId, itemId, cancellationToken))
         {
             return null;
         }
@@ -159,7 +159,7 @@ public sealed class CollectionItemCommentStore(JupleDbContext dbContext, IUserPr
     public async Task<CommentDeleteResult?> DeleteAsync(
         long userId, long collectionId, long itemId, long commentId, bool isOwner, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
     {
-        if (!await IsLinkAsync(collectionId, itemId, cancellationToken))
+        if (!await IsLinkAsync(userId, collectionId, itemId, cancellationToken))
         {
             return null;
         }
@@ -226,7 +226,7 @@ public sealed class CollectionItemCommentStore(JupleDbContext dbContext, IUserPr
     public async Task<CommentEditOutcome?> EditAsync(
         long userId, long collectionId, long itemId, long commentId, string body, CancellationToken cancellationToken = default)
     {
-        if (!await IsLinkAsync(collectionId, itemId, cancellationToken))
+        if (!await IsLinkAsync(userId, collectionId, itemId, cancellationToken))
         {
             return null;
         }
@@ -268,7 +268,7 @@ public sealed class CollectionItemCommentStore(JupleDbContext dbContext, IUserPr
     public async Task<CommentLikeOutcome?> SetLikeAsync(
         long userId, long collectionId, long itemId, long commentId, bool liked, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
     {
-        if (!await IsLinkAsync(collectionId, itemId, cancellationToken))
+        if (!await IsLinkAsync(userId, collectionId, itemId, cancellationToken))
         {
             return null;
         }
@@ -347,8 +347,8 @@ public sealed class CollectionItemCommentStore(JupleDbContext dbContext, IUserPr
         }
     }
 
-    private Task<bool> IsLinkAsync(long collectionId, long itemId, CancellationToken cancellationToken) =>
-        (from membership in dbContext.CollectionItems.AsNoTracking()
+    private Task<bool> IsLinkAsync(long userId, long collectionId, long itemId, CancellationToken cancellationToken) =>
+        (from membership in dbContext.CollectionItems.AsNoTracking().WhereNotHiddenByBlock(dbContext, userId)
          where membership.CollectionId == collectionId && membership.ItemId == itemId
              // A link under an operator's restriction takes no comments or hearts, and its thread is not served, until it is lifted.
              && !dbContext.ShareRestrictions.Any(restriction =>

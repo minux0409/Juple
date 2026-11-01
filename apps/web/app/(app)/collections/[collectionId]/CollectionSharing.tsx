@@ -103,13 +103,20 @@ function BlockPersonButton({ person }: { readonly person: { readonly jupleId: st
   const { dictionary } = useSignedInApp();
   const safety = useSafety();
   const name = participantName(person, dictionary);
+  // The server's list decides: an already blocked person gets 차단 해제 (never the block question again), and until the list has
+  // arrived nothing can start a block.
+  const known = safety.blockedIds !== null;
+  const blocked = safety.blockedIds?.has(person.jupleId) === true;
+  const label = blocked ? dictionary.safetyUnblock : dictionary.safetyBlockUserAction;
   return (
     <button
-      aria-label={`${dictionary.safetyBlockUserAction} ${name}`}
-      className={styles.rowDanger}
+      aria-label={`${label} ${name}`}
+      className={blocked ? styles.rowAction : styles.rowDanger}
       data-block-person
-      onClick={() => safety.block({ jupleId: person.jupleId, name })}
-      title={dictionary.safetyBlockUserAction}
+      data-unblock-person={blocked ? '' : undefined}
+      disabled={!known}
+      onClick={() => (blocked ? safety.unblock({ jupleId: person.jupleId, name }) : safety.block({ jupleId: person.jupleId, name }))}
+      title={label}
       type="button"
     >
       <Glyph name="Block" size={18} />

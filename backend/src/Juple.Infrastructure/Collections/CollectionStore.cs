@@ -15,6 +15,7 @@ using Juple.Domain.Notifications;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
 using Juple.Infrastructure.Persistence.Warmup;
+using Juple.Infrastructure.Safety;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -168,6 +169,11 @@ public sealed class CollectionStore(
                 // The same count the Collections list reports: memberships whose Item is not in the trash.
                 ItemCount = dbContext.CollectionItems
                     .Where(membership => membership.CollectionId == collection.Id)
+                    // A link the other side of a block added after the block is not counted (same rule as BlockedLinkFilter).
+                    .Where(membership => !dbContext.UserBlocks.Any(block =>
+                        block.CreatedAtUtc <= membership.VisibleSinceUtc
+                        && ((block.BlockerUserId == userId && block.BlockedUserId == membership.AddedByUserId)
+                            || (block.BlockedUserId == userId && block.BlockerUserId == membership.AddedByUserId))))
                     .Count(membership => dbContext.Items.Any(
                         item => item.Id == membership.ItemId && item.DeletedAtUtc == null)),
                 collection.Icon,
@@ -364,6 +370,9 @@ public sealed class CollectionStore(
                             || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked)))
                         || dbContext.CollectionMemberLocks.Any(memberLock => memberLock.CollectionId == collection.Id && memberLock.UserId == userId && memberLock.IsLocked)))
                 && dbContext.CollectionItems.Any(membership => membership.CollectionId == collection.Id
+                    && !dbContext.UserBlocks.Any(block => block.CreatedAtUtc <= membership.VisibleSinceUtc
+                        && ((block.BlockerUserId == userId && block.BlockedUserId == membership.AddedByUserId)
+                            || (block.BlockedUserId == userId && block.BlockerUserId == membership.AddedByUserId)))
                     && dbContext.Items.Any(item => item.Id == membership.ItemId
                         && item.DeletedAtUtc == null
                         && (EF.Functions.Like(item.Url, pattern, ItemSearchPattern.EscapeCharacter)
@@ -416,7 +425,7 @@ public sealed class CollectionStore(
         // list out. Still bounded in SQL.
         var candidates = await (
                 from collection in AccessibleCollections(userId, scope).Where(LinksVisibleFor(userId))
-                join membership in dbContext.CollectionItems.AsNoTracking() on collection.Id equals membership.CollectionId
+                join membership in dbContext.CollectionItems.AsNoTracking().WhereNotHiddenByBlock(dbContext, userId) on collection.Id equals membership.CollectionId
                 join item in dbContext.Items.AsNoTracking() on membership.ItemId equals item.Id
                 where item.DeletedAtUtc == null
                     && (collection.UserId == userId
@@ -482,6 +491,11 @@ public sealed class CollectionStore(
             // filter, so the displayed count never disagrees with the list it describes.
             ItemCount = dbContext.CollectionItems
                 .Where(membership => membership.CollectionId == collection.Id)
+                // A link the other side of a block added after the block is not counted (same rule as BlockedLinkFilter).
+                .Where(membership => !dbContext.UserBlocks.Any(block =>
+                    block.CreatedAtUtc <= membership.VisibleSinceUtc
+                    && ((block.BlockerUserId == userId && block.BlockedUserId == membership.AddedByUserId)
+                        || (block.BlockedUserId == userId && block.BlockerUserId == membership.AddedByUserId))))
                 .Count(membership => dbContext.Items.Any(item => item.Id == membership.ItemId && item.DeletedAtUtc == null)
                     && (collection.UserId == userId
                         || membership.AddedByUserId == userId
@@ -1053,7 +1067,7 @@ public sealed class CollectionStore(
         }
 
         return await (
-            from membership in dbContext.CollectionItems.AsNoTracking()
+            from membership in dbContext.CollectionItems.AsNoTracking().WhereNotHiddenByBlock(dbContext, userId)
             where membership.CollectionId == collectionId && membership.AddedAtUtc < beforeUtc
             join item in dbContext.Items.AsNoTracking().Where(item => item.DeletedAtUtc == null)
                 on membership.ItemId equals item.Id
@@ -1092,6 +1106,10 @@ public sealed class CollectionStore(
                     FROM [collections].[CollectionItems] AS m
                     INNER JOIN [items].[Items] AS i ON i.[Id] = m.[ItemId]
                     WHERE m.[CollectionId] = @collectionId AND i.[DeletedAtUtc] IS NULL
+                        AND NOT EXISTS (SELECT 1 FROM [safety].[UserBlocks] AS b
+                            WHERE b.[CreatedAtUtc] <= m.[VisibleSinceUtc]
+                                AND ((b.[BlockerUserId] = @userId AND b.[BlockedUserId] = m.[AddedByUserId])
+                                    OR (b.[BlockedUserId] = @userId AND b.[BlockerUserId] = m.[AddedByUserId])))
                         AND (m.[AddedByUserId] = @userId
                             OR EXISTS (SELECT 1 FROM [collections].[Collections] AS c WHERE c.[Id] = m.[CollectionId] AND c.[UserId] = @userId)
                             OR NOT EXISTS (SELECT 1 FROM [safety].[ShareRestrictions] AS r
@@ -1142,7 +1160,8 @@ public sealed class CollectionStore(
 
         var membershipQuery = dbContext.CollectionItems
             .AsNoTracking()
-            .Where(membership => membership.CollectionId == collectionId);
+            .Where(membership => membership.CollectionId == collectionId)
+            .WhereNotHiddenByBlock(dbContext, userId);
 
         // A link an operator restricted stays with the Collection's Owner and the person who added it; the other members no longer get it.
         if (!await dbContext.Collections.AsNoTracking().AnyAsync(collection => collection.Id == collectionId && collection.UserId == userId, cancellationToken))
@@ -1382,7 +1401,7 @@ public sealed class CollectionStore(
         }
 
         var row = await (
-            from membership in dbContext.CollectionItems.AsNoTracking()
+            from membership in dbContext.CollectionItems.AsNoTracking().WhereNotHiddenByBlock(dbContext, userId)
             where membership.CollectionId == collectionId && membership.ItemId == itemId
                 && (membership.AddedByUserId == userId
                     || dbContext.Collections.Any(collection => collection.Id == collectionId && collection.UserId == userId)

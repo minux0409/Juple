@@ -17,6 +17,8 @@ export interface ActionMenuDialogAction {
    */
   readonly icon?: ComponentType<{ readonly color?: string; readonly size?: number }>;
   readonly onPress: () => void;
+  /** Shown but not pressable (for example while the state the action depends on is still unknown). */
+  readonly disabled?: boolean;
 }
 
 /**
@@ -46,6 +48,8 @@ export function ActionMenuDialog({ visible, title, header, actions, cancelLabel,
         return <Pressable
           accessibilityLabel={action.label}
           accessibilityRole="button"
+          disabled={action.disabled}
+          accessibilityState={{ disabled: action.disabled === true }}
           key={action.label}
           onPress={action.onPress}
           style={({ pressed }) => [styles.action, hasIcons && styles.actionWithIcon, pressed && styles.pressed]}
@@ -55,7 +59,7 @@ export function ActionMenuDialog({ visible, title, header, actions, cancelLabel,
               {Icon ? <Icon color={color} size={ICON_SIZE} /> : null}
             </View>
           ) : null}
-          <Text style={[styles.label, hasIcons && styles.labelWithIcon, { color }]}>{action.label}</Text>
+          <Text style={[styles.label, hasIcons && styles.labelWithIcon, { color }, action.disabled && styles.disabled]}>{action.label}</Text>
         </Pressable>;
       })}
       {/* 취소: its own row under a divider; the area is exactly the 48dp pressed rectangle, with nothing above or below it. */}
@@ -77,6 +81,7 @@ const styles = themedStyles(() => ({
   action: { borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: spacing.md },
   actionWithIcon: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: minTouchTarget },
   header: { borderBottomColor: colors.divider, borderBottomWidth: 1, marginBottom: spacing.xs, paddingBottom: spacing.xs },
+  disabled: { opacity: 0.4 },
   pressed: { backgroundColor: colors.surfaceMuted },
   icon: { alignItems: 'center', flexShrink: 0, height: ICON_SIZE + 2, justifyContent: 'center', width: ICON_SIZE + 2 },
   // The divider, then the button itself: no margin or padding between them, so the area is exactly the button's height.

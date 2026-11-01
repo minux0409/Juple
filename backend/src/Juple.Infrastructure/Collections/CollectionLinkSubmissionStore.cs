@@ -7,6 +7,7 @@ using Juple.Domain.Collections;
 using Juple.Domain.Notifications;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
+using Juple.Infrastructure.Safety;
 using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Collections;
@@ -32,6 +33,9 @@ public sealed class CollectionLinkSubmissionStore(
         {
             return null;
         }
+
+        // A proposal is new content for the Owner to review: a block between the two stops it (neutral 403 for the blocked side).
+        await BlockGuard.EnsureNotBlockedAsync(dbContext, userId, ownerUserId, cancellationToken);
 
         if (requiredPublicId is not null)
         {
@@ -129,12 +133,17 @@ public sealed class CollectionLinkSubmissionStore(
         long collectionId,
         long? afterSubmissionId,
         int limit,
+        long? viewerUserId = null,
         CancellationToken cancellationToken = default)
     {
         var rows = await (
             from submission in WithCurrentLink(dbContext.CollectionLinkSubmissions.AsNoTracking()
                 .Where(submission => submission.CollectionId == collectionId
-                    && (afterSubmissionId == null || submission.Id > afterSubmissionId)))
+                    && (afterSubmissionId == null || submission.Id > afterSubmissionId)
+                    // A waiting proposal between two people who block each other is not shown to the reviewer (never deleted).
+                    && (viewerUserId == null || !dbContext.UserBlocks.Any(block =>
+                        (block.BlockerUserId == viewerUserId && block.BlockedUserId == submission.SubmittedByUserId)
+                        || (block.BlockedUserId == viewerUserId && block.BlockerUserId == submission.SubmittedByUserId)))))
             orderby submission.Submission.Id
             select new
             {
@@ -276,6 +285,9 @@ public sealed class CollectionLinkSubmissionStore(
         var submission = await dbContext.CollectionLinkSubmissions
             .FirstOrDefaultAsync(entry => entry.Id == submissionId && entry.CollectionId == collectionId, cancellationToken)
             ?? throw new CollectionLinkSubmissionNotFoundException();
+
+        // Approving would create new content between two people who block each other; the proposal stays (it is only hidden, and can be rejected).
+        await BlockGuard.EnsureNotBlockedAsync(dbContext, ownerUserId, submission.SubmittedByUserId, cancellationToken);
 
         var item = await dbContext.Items.AsNoTracking()
             .Where(entry => entry.Id == submission.ItemId && entry.UserId == submission.SubmittedByUserId && entry.DeletedAtUtc == null)

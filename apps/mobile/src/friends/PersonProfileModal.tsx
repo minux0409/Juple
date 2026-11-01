@@ -10,7 +10,8 @@ import { LoadFailureState } from '../components/LoadFailureState';
 import { UserAvatar } from '../components/UserAvatar';
 import { BlockIcon } from '../icons/BlockIcon';
 import { FlagIcon } from '../icons/FlagIcon';
-import { blockUser } from '../safety/safetyApi';
+import { blockUser, unblockUser } from '../safety/safetyApi';
+import { publishBlockChange, useBlockedUsers } from '../safety/useBlockedUsers';
 import { ReportModal } from '../safety/ReportModal';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { FriendDetailModal } from './FriendDetailModal';
@@ -136,19 +137,39 @@ export function PersonProfileModal({ person, relationship, onClose, onRequestSen
   const [isReporting, setIsReporting] = useState(false);
   const [isBlockConfirmVisible, setIsBlockConfirmVisible] = useState(false);
   const [isBlocking, setIsBlocking] = useState(false);
+  // The server's own list says whether I already blocked this person: the profile shows 차단 해제 (and no friend request) for them, and
+  // offers neither action while that is still unknown.
+  const { status: blockStatus, isBlocked } = useBlockedUsers();
+  const blocked = isBlocked(person.jupleId);
 
   const block = async () => {
     setIsBlockConfirmVisible(false);
-    if (isBlocking) {
+    if (isBlocking || blockStatus !== 'ready' || blocked) {
       return;
     }
     setIsBlocking(true);
     setMessage(null);
     try {
       await blockUser(authenticatedRequest, person.jupleId);
-      onClose();
+      publishBlockChange(person.jupleId, true);
     } catch {
       setMessage(t('safety.blockFailed'));
+    } finally {
+      setIsBlocking(false);
+    }
+  };
+
+  const unblock = async () => {
+    if (isBlocking || blockStatus !== 'ready' || !blocked) {
+      return;
+    }
+    setIsBlocking(true);
+    setMessage(null);
+    try {
+      await unblockUser(authenticatedRequest, person.jupleId);
+      publishBlockChange(person.jupleId, false);
+    } catch {
+      setMessage(t('importantState.loadFailedTitle'));
     } finally {
       setIsBlocking(false);
     }
@@ -183,7 +204,7 @@ export function PersonProfileModal({ person, relationship, onClose, onRequestSen
       </View>
       <View style={styles.actions}>
         {relationship === 'self' ? <Text style={styles.status} testID="person-profile-status-self">{t('friends.you')}</Text> : null}
-        {relationship === 'available' ? (
+        {relationship === 'available' && !blocked ? (
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ disabled: isSending, busy: isSending }}
@@ -207,10 +228,17 @@ export function PersonProfileModal({ person, relationship, onClose, onRequestSen
               <FlagIcon color={colors.warningText} size={16} />
               <Text numberOfLines={2} style={[styles.secondaryLabel, styles.warningLabel]}>{t('safety.report')}</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" disabled={isSending || isBlocking} onPress={() => setIsBlockConfirmVisible(true)} style={styles.secondaryButton} testID="person-profile-block">
-              <BlockIcon color={colors.dangerText} size={16} />
-              <Text numberOfLines={2} style={[styles.secondaryLabel, styles.dangerLabel]}>{t('safety.block')}</Text>
-            </Pressable>
+            {blocked ? (
+              <Pressable accessibilityRole="button" disabled={isBlocking || blockStatus !== 'ready'} onPress={() => { unblock().catch(() => undefined); }} style={styles.secondaryButton} testID="person-profile-unblock">
+                <BlockIcon color={colors.textPrimary} size={16} />
+                <Text numberOfLines={2} style={styles.secondaryLabel}>{t('safety.unblock')}</Text>
+              </Pressable>
+            ) : (
+              <Pressable accessibilityRole="button" disabled={isSending || isBlocking || blockStatus !== 'ready'} onPress={() => setIsBlockConfirmVisible(true)} style={styles.secondaryButton} testID="person-profile-block">
+                <BlockIcon color={colors.dangerText} size={16} />
+                <Text numberOfLines={2} style={[styles.secondaryLabel, styles.dangerLabel]}>{t('safety.block')}</Text>
+              </Pressable>
+            )}
           </>
         ) : null}
       </View>

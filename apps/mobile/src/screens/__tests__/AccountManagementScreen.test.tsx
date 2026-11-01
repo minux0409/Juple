@@ -206,4 +206,15 @@ describe('AccountManagementScreen', () => {
     });
     expect(mockNavigate).toHaveBeenCalledWith('DeleteAccount');
   });
+
+  it('draws the 계정 삭제 button across the full inner width of its card, still outlined and centered', async () => {
+    const renderer = await renderWith('email');
+
+    const style = StyleSheet.flatten(renderer.root.findByProps({ testID: 'account-delete' }).props.style);
+    expect(style.alignSelf).toBe('stretch');
+    expect(style.alignItems).toBe('center');
+    expect(style.justifyContent).toBe('center');
+    expect(style.borderWidth).toBe(1);
+    expect(style.maxWidth).toBeUndefined();
+  });
 });

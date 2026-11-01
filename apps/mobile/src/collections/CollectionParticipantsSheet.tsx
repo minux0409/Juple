@@ -63,7 +63,7 @@ export function CollectionParticipantsSheet({
   const { openProfile, profileModal } = usePersonProfile();
   // A participant's "⋯" (never on my own row): 사용자 차단. Blocking changes nobody's membership, so the list stays as it is.
   const [menuPerson, setMenuPerson] = useState<BlockSubject | null>(null);
-  const { requestBlock, blockDialogs } = useBlockPersonFlow();
+  const { requestBlock, requestUnblock, isBlocked, canChangeBlock, blockDialogs } = useBlockPersonFlow();
   const { afterMenuCloses, onMenuDismiss } = useActionAfterMenu();
   const moreLabel = (name: string) => t('shareSheet.memberActionsA11y', { name });
 
@@ -149,12 +149,18 @@ export function CollectionParticipantsSheet({
           {profileModal}
           <ActionMenuDialog
             actions={[{
-              label: t('safety.blockUserAction'),
-              destructive: true,
+              // Already blocked -> 차단 해제 (never the block question again); unknown state (still loading) -> not pressable.
+              label: menuPerson && isBlocked(menuPerson.jupleId) ? t('safety.unblock') : t('safety.blockUserAction'),
+              destructive: !(menuPerson && isBlocked(menuPerson.jupleId)),
+              disabled: !canChangeBlock,
               icon: BlockIcon,
               onPress: () => {
                 const person = menuPerson;
-                afterMenuCloses(() => setMenuPerson(null), () => { if (person) { requestBlock(person); } });
+                afterMenuCloses(() => setMenuPerson(null), () => {
+                  if (person) {
+                    if (isBlocked(person.jupleId)) { requestUnblock(person).catch(() => undefined); } else { requestBlock(person); }
+                  }
+                });
               },
             }]}
             cancelLabel={t('common.cancel')}

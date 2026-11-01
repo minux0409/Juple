@@ -239,15 +239,15 @@ const styles = themedStyles(() => ({
   },
   dangerTitle: { color: colors.destructiveText, fontSize: 15, fontWeight: '700' },
   dangerDescription: { color: colors.textSecondary, fontSize: 13, marginTop: spacing.xs },
+  // Full width of the card's inner area, like the screen's other main action buttons.
   dangerButton: {
     alignItems: 'center',
-    alignSelf: 'flex-start',
+    alignSelf: 'stretch',
     borderColor: colors.destructiveText,
     borderRadius: radii.md,
     borderWidth: 1,
     justifyContent: 'center',
     marginTop: spacing.md,
-    maxWidth: '100%',
     minHeight: minTouchTarget,
     paddingHorizontal: spacing.lg,
   },

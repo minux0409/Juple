@@ -29,8 +29,23 @@ async function renderSheet() {
 const more = (renderer: ReactTestRenderer.ReactTestRenderer, id: string) =>
   renderer.root.findAll(node => node.props.testID === `participants-sheet-more-${id}` && typeof node.props.onPress === 'function');
 
+const BLOCKED_PATH = '/api/v1/users/me/blocked-users';
+/** The server's list of people I blocked, and a generic 204 for everything else. */
+function serverBlocks(blockedIds: readonly string[]) {
+  mockApi.mockImplementation(async (request: { method: string; path: string }) =>
+    request.path === BLOCKED_PATH ? { body: { items: blockedIds.map(jupleId => ({ jupleId })) } } : { body: undefined });
+}
+const writes = () => mockApi.mock.calls.filter(([request]) => request.path !== BLOCKED_PATH);
+const openMenu = async (renderer: ReactTestRenderer.ReactTestRenderer) => {
+  await act(async () => more(renderer, 'OWNR2345')[0].props.onPress());
+  return renderer.root.findAll(node => Array.isArray(node.props.actions) && node.props.visible === true)[0];
+};
+
 describe('사용자 차단 from the participant list', () => {
-  beforeEach(() => mockApi.mockReset());
+  beforeEach(() => {
+    mockApi.mockReset();
+    serverBlocks([]);
+  });
 
   it('every other person has a "⋯" - the Owner too - and my own row has none', async () => {
     const renderer = await renderSheet();
@@ -46,12 +61,37 @@ describe('사용자 차단 from the participant list', () => {
       menu.props.actions[0].onPress();
       menu.props.onDismiss?.();
     });
-    expect(mockApi).not.toHaveBeenCalled();
+    expect(writes()).toHaveLength(0);
 
     const dialog = renderer.root.findAll(node => node.props.visible === true && typeof node.props.onConfirm === 'function' && node.props.confirmLabel === i18n.t('safety.block'))[0];
-    mockApi.mockResolvedValue({ body: undefined });
     await act(async () => dialog.props.onConfirm());
-    expect(mockApi).toHaveBeenCalledTimes(1);
-    expect(mockApi).toHaveBeenCalledWith({ method: 'POST', path: '/api/v1/users/OWNR2345/block' });
+    expect(writes()).toEqual([[{ method: 'POST', path: '/api/v1/users/OWNR2345/block' }]]);
+  });
+
+  it('an already blocked person gets 차단 해제 - no block question, and only the unblock request is sent', async () => {
+    serverBlocks(['OWNR2345']);
+    const renderer = await renderSheet();
+    const menu = await openMenu(renderer);
+    expect(menu.props.actions[0].label).toBe(i18n.t('safety.unblock'));
+    expect(menu.props.actions[0].disabled).toBe(false);
+    await act(async () => {
+      menu.props.actions[0].onPress();
+      menu.props.onDismiss?.();
+    });
+    expect(renderer.root.findAll(node => node.props.visible === true && node.props.confirmLabel === i18n.t('safety.block'))).toHaveLength(0);
+    expect(writes()).toEqual([[{ method: 'DELETE', path: '/api/v1/users/OWNR2345/block' }]]);
+  });
+
+  it('while the server has not said who is blocked the action cannot start a block', async () => {
+    mockApi.mockImplementation(() => new Promise(() => undefined));
+    const renderer = await renderSheet();
+    const menu = await openMenu(renderer);
+    expect(menu.props.actions[0].disabled).toBe(true);
+    await act(async () => {
+      menu.props.actions[0].onPress();
+      menu.props.onDismiss?.();
+    });
+    expect(renderer.root.findAll(node => node.props.visible === true && node.props.confirmLabel === i18n.t('safety.block'))).toHaveLength(0);
+    expect(writes()).toHaveLength(0);
   });
 });

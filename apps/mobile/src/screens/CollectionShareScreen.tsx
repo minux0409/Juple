@@ -473,7 +473,7 @@ export function CollectionShareScreen(props: Props) {
 
 function CollectionShareScreenContent({ route }: Props) {
   const { collectionId } = route.params;
-  const { requestBlock, blockDialogs } = useBlockPersonFlow();
+  const { requestBlock, requestUnblock, isBlocked, canChangeBlock, blockDialogs } = useBlockPersonFlow();
   const { afterMenuCloses, onMenuDismiss } = useActionAfterMenu();
   useToastBottomAnchor(useSafeAreaInsets().bottom);
   const { t } = useTranslation();
@@ -928,12 +928,17 @@ function CollectionShareScreenContent({ route }: Props) {
   /** The "⋯" menu of one row: switch to each other permission at or above the public link's level, then remove / cancel. */
   const blockAction: ActionMenuDialogAction | null = managed && managed.kind !== 'pending'
     ? {
-        label: t('safety.blockUserAction'),
+        // Already blocked -> 차단 해제 (never the block question again); unknown state (still loading) -> not pressable.
+        label: isBlocked(managed.jupleId) ? t('safety.unblock') : t('safety.blockUserAction'),
         icon: BlockIcon,
-        destructive: true,
+        destructive: !isBlocked(managed.jupleId),
+        disabled: !canChangeBlock,
         onPress: () => {
           const person = managed;
-          afterMenuCloses(() => setManaged(null), () => requestBlock({ jupleId: person.jupleId, name: person.label }));
+          afterMenuCloses(() => setManaged(null), () => {
+            const subject = { jupleId: person.jupleId, name: person.label };
+            if (isBlocked(person.jupleId)) { requestUnblock(subject).catch(() => undefined); } else { requestBlock(subject); }
+          });
         },
       }
     : null;
