@@ -438,6 +438,7 @@ export interface ReportNotice {
 
 const NOTICE_LABELS: Readonly<Record<string, string>> = {
   ContentDeleted: '삭제 안내',
+  ContentRemovedFromCollection: '컬렉션에서 제거 안내',
   ContentRestored: '복구 안내',
   ShareRestricted: '공유 제한 안내',
   ShareRestrictionLifted: '공유 제한 해제 안내',

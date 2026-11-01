@@ -254,6 +254,12 @@ describe('operator ACTION notices on the Web', () => {
       moderationActionSentence({ ...base, actionType: 'contentDeleted', contentTitle: '내 링크', contentType: 'Item' }, dictionary) ?? '',
       /'내 링크'이\(가\) 운영정책에 따라 삭제되었습니다/,
     );
+    // A link taken out of the reported Collection says so - and that the person's own saved link is untouched - never "deleted".
+    const removed = moderationActionSentence({ ...base, actionType: 'contentRemovedFromCollection', contentTitle: '내 링크', contentType: 'Item' }, dictionary) ?? '';
+    assert.match(removed, /'내 링크' 링크를 제거했습니다/);
+    assert.match(removed, /개인 저장 링크에는 영향을 주지 않습니다/);
+    assert.doesNotMatch(removed, /삭제/);
+    assert.equal(parseModerationNotice({ id: 9, kind: 'action', actionType: 'contentRemovedFromCollection', contentTitle: '제목', contentType: 'Item', reasonCode: 'Spam' })?.actionType, 'contentRemovedFromCollection');
     assert.match(moderationActionSentence({ ...base, actionType: 'shareRestricted', contentTitle: '내 컬렉션', contentType: 'Collection' }, dictionary) ?? '', /컬렉션 '내 컬렉션'/);
     assert.equal(moderationActionSentence({ ...base, actionType: 'accountRestricted', contentTitle: null, contentType: null }, dictionary), dictionary.moderationActionAccountRestricted);
     assert.equal(moderationActionSentence({ ...base, kind: 'warning', actionType: null, contentTitle: null, contentType: null }, dictionary), null);

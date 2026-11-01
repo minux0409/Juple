@@ -1,6 +1,7 @@
 using System.Globalization;
 using Juple.Application.Admin;
 using Juple.Domain.Admin;
+using Juple.Domain.Collections;
 using Juple.Domain.Notifications;
 using Juple.Domain.Safety;
 using Juple.Infrastructure.Persistence;
@@ -90,7 +91,7 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
         var targetRestricted = targetUserId is { } restrictedCheck && await dbContext.Users.AsNoTracking().AnyAsync(user => user.Id == restrictedCheck && user.UsageRestrictedAtUtc != null, cancellationToken);
         var targetDeleted = CanDelete(report) && !exists;
         var noticeRows = await dbContext.ModerationNotices.AsNoTracking()
-            .Where(notice => notice.ReportId == report.Id && notice.RecipientUserId == targetUserId && notice.Kind != ModerationNoticeKind.ReportResult)
+            .Where(notice => notice.ReportId == report.Id && notice.Kind != ModerationNoticeKind.ReportResult)
             .OrderBy(notice => notice.Id)
             .Select(notice => new { notice.Id, notice.Kind, notice.ActionType, notice.CreatedAtUtc, notice.AcknowledgedAtUtc, notice.Guidance })
             .ToListAsync(cancellationToken);
@@ -294,12 +295,20 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
         var changed = false;
         if (report.TargetType == ReportTargetType.Item)
         {
-            // Into the owner's trash (the existing soft delete): every Collection stops showing it, and it can be restored.
-            var item = await dbContext.Items.FirstOrDefaultAsync(candidate => candidate.Id == report.TargetId, cancellationToken);
-            if (item is { DeletedAtUtc: null })
+            // Only the reported Collection's link to the Item is removed: the Item itself (the person's own saved link) and its places in every other
+            // Collection are untouched. The person hears of it first (the snapshot is taken while everything is still in place), then the link goes - one transaction.
+            var link = await dbContext.CollectionItems.FirstOrDefaultAsync(
+                candidate => candidate.CollectionId == report.CollectionId && candidate.ItemId == report.TargetId, cancellationToken);
+            if (link is not null)
             {
-                item.SoftDelete(nowUtc);
-                changed = true;
+                report.Review(report.Status == ReportStatus.Pending ? ReportStatus.InReview : report.Status, adminUserId, note, nowUtc);
+                Audit(adminUserId, AdminAuditActions.ContentDeleted, reportId, $"{report.TargetType} {report.TargetId}", nowUtc);
+                await NotifyActionAsync(
+                    report, ModerationActionType.ContentRemovedFromCollection, userMessage, adminUserId, nowUtc, cancellationToken, link.AddedByUserId, allowOperatorRecipient: true);
+                dbContext.CollectionItems.Remove(link);
+                await SaveAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return true;
             }
         }
         else
@@ -341,13 +350,36 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
         }
 
         var restored = false;
+        long? restoredRecipientId = null;
         if (report.TargetType == ReportTargetType.Item)
         {
             var item = await dbContext.Items.FirstOrDefaultAsync(candidate => candidate.Id == report.TargetId && candidate.DeletedAtUtc != null, cancellationToken);
             if (item is not null)
             {
+                // A link an earlier version of this action moved into its owner's trash comes back from there.
                 item.Restore();
                 restored = true;
+            }
+            else if (report.CollectionId is { } collectionId)
+            {
+                // Otherwise the removal only took the Collection's link away: put that one link back, for the person who had added it, if everything
+                // it needs is still there (the Collection, the link, the person's ownership of it) and nothing already holds its place.
+                var adderId = await dbContext.ModerationNotices.AsNoTracking()
+                    .Where(notice => notice.ReportId == report.Id && notice.Kind == ModerationNoticeKind.Action && notice.ActionType == ModerationActionType.ContentRemovedFromCollection)
+                    .OrderByDescending(notice => notice.Id).Select(notice => (long?)notice.RecipientUserId).FirstOrDefaultAsync(cancellationToken);
+                var alreadyThere = await dbContext.CollectionItems.AnyAsync(link => link.CollectionId == collectionId && link.ItemId == report.TargetId, cancellationToken);
+                var collectionAlive = await dbContext.Collections.AsNoTracking().AnyAsync(candidate => candidate.Id == collectionId && candidate.DeletedAtUtc == null, cancellationToken);
+                var itemOwned = adderId is { } ownerId
+                    && await dbContext.Items.AsNoTracking().AnyAsync(candidate => candidate.Id == report.TargetId && candidate.UserId == ownerId && candidate.DeletedAtUtc == null, cancellationToken);
+                if (adderId is { } restoringFor && !alreadyThere && collectionAlive && itemOwned)
+                {
+                    var minSortOrder = await dbContext.CollectionItems.Where(link => link.CollectionId == collectionId)
+                        .Select(link => (int?)link.SortOrder).MinAsync(cancellationToken);
+                    dbContext.CollectionItems.Add(CollectionItem.CreateNew(
+                        collectionId, report.TargetId, restoringFor, nowUtc, minSortOrder is { } existingMin ? existingMin - RestoredLinkSortOrderGap : 0));
+                    restored = true;
+                    restoredRecipientId = restoringFor;
+                }
             }
         }
         else
@@ -367,7 +399,8 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
 
         Audit(adminUserId, AdminAuditActions.ContentRestored, reportId, $"{report.TargetType} {report.TargetId}", nowUtc);
         await SaveAsync(cancellationToken);
-        await NotifyActionAsync(report, ModerationActionType.ContentRestored, userMessage, adminUserId, nowUtc, cancellationToken);
+        await NotifyActionAsync(
+            report, ModerationActionType.ContentRestored, userMessage, adminUserId, nowUtc, cancellationToken, restoredRecipientId, allowOperatorRecipient: restoredRecipientId is not null);
         await transaction.CommitAsync(cancellationToken);
         return true;
     }
@@ -421,11 +454,15 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
     /// reviewed message; nothing of the report's author or text. Guarded by a per-report, per-action sequence key, so two operators acting at the same
     /// moment, or a retry, can never notice the same action twice (the second gets the unique violation and the whole action rolls back).
     /// </summary>
-    private async Task NotifyActionAsync(ContentReport report, ModerationActionType action, string? userMessage, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken)
+    private async Task NotifyActionAsync(
+        ContentReport report, ModerationActionType action, string? userMessage, long adminUserId, DateTimeOffset nowUtc, CancellationToken cancellationToken,
+        long? recipientOverrideId = null, bool allowOperatorRecipient = false)
     {
-        if (report.TargetUserId is not { } recipientId
+        // The person the action is about: for a link taken out of a Collection, whoever put it there (the reported link's adder), else the report's target person.
+        var resolvedRecipientId = recipientOverrideId is > 0 ? recipientOverrideId : report.TargetUserId;
+        if (resolvedRecipientId is not { } recipientId
             || !await dbContext.Users.AsNoTracking().AnyAsync(user => user.Id == recipientId, cancellationToken)
-            || await dbContext.AdminUsers.AsNoTracking().AnyAsync(admin => admin.UserId == recipientId && admin.IsActive, cancellationToken))
+            || (!allowOperatorRecipient && await dbContext.AdminUsers.AsNoTracking().AnyAsync(admin => admin.UserId == recipientId && admin.IsActive, cancellationToken)))
         {
             return;
         }
@@ -480,6 +517,8 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
         return new ContentSnapshot(null, null, null, null, null);
     }
 
+    private const int RestoredLinkSortOrderGap = 4096;
+
     private sealed record ContentSnapshot(string? Title, string? Type, long? Id, string? ImageUrl, string? CollectionName);
 
     private static string? WebImageUrl(string? url) =>
@@ -497,7 +536,8 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
     }
 
     /// <summary>Only a link or a Collection is deleted; a person's account and a comment are never deleted by a report.</summary>
-    private static bool CanDelete(ContentReport report) => report.TargetType is ReportTargetType.Item or ReportTargetType.Collection;
+    private static bool CanDelete(ContentReport report) =>
+        report.TargetType == ReportTargetType.Collection || (report.TargetType == ReportTargetType.Item && report.CollectionId is not null);
 
     /// <summary>Only a Collection or a link in one can be restricted; a person or a comment is not a thing that is shared.</summary>
     private static bool CanRestrict(ContentReport report) =>
@@ -521,9 +561,17 @@ public sealed class AdminReportStore(JupleDbContext dbContext) : IAdminReportSto
                     .Select(collection => collection.Name).FirstOrDefaultAsync(cancellationToken);
                 return (collectionName is not null, collectionName, null);
             case ReportTargetType.Item:
+                // A reported link "exists" as long as it is still in the Collection it was reported in (and not in its owner's trash).
+                var reportedCollectionId = report.CollectionId;
                 var item = await dbContext.Items.AsNoTracking().Where(candidate => candidate.Id == report.TargetId && candidate.DeletedAtUtc == null)
-                    .Select(candidate => new { candidate.Title, candidate.Url }).FirstOrDefaultAsync(cancellationToken);
-                return (item is not null, item?.Title, item?.Url);
+                    .Select(candidate => new
+                    {
+                        candidate.Title,
+                        candidate.Url,
+                        InCollection = reportedCollectionId == null
+                            || dbContext.CollectionItems.Any(link => link.CollectionId == reportedCollectionId && link.ItemId == candidate.Id),
+                    }).FirstOrDefaultAsync(cancellationToken);
+                return (item is { InCollection: true }, item?.Title, item?.Url);
             case ReportTargetType.Comment:
                 var body = await dbContext.CollectionItemComments.AsNoTracking().Where(comment => comment.Id == report.TargetId && comment.DeletedAtUtc == null)
                     .Select(comment => comment.Body).FirstOrDefaultAsync(cancellationToken);

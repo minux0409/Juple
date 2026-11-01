@@ -125,10 +125,11 @@ public sealed class AdminActionNoticesIntegrationTests : IAsyncLifetime
         var after = await Admin().DeleteTargetAsync(admin, isOwner: true, report, confirm: true, "internal note", "운영정책에 따라 삭제했습니다.");
         Assert.True(after.TargetDeleted);
 
-        // The action and its notice are one transaction: the link is in the trash AND the author has the notice and its Inbox row.
-        Assert.True(await NewContext().Items.AnyAsync(item => item.Id == link && item.DeletedAtUtc != null));
+        // The action and its notice are one transaction: the Collection's link is gone (the saved link itself is not) AND the author has the notice and its Inbox row.
+        Assert.True(await NewContext().Items.AnyAsync(item => item.Id == link && item.DeletedAtUtc == null));
+        Assert.False(await NewContext().CollectionItems.AnyAsync(entry => entry.CollectionId == collection && entry.ItemId == link));
         var notice = Assert.Single(await ActionNoticesAsync(author));
-        Assert.Equal(ModerationActionType.ContentDeleted, notice.ActionType);
+        Assert.Equal(ModerationActionType.ContentRemovedFromCollection, notice.ActionType);
         Assert.Equal("Item", notice.ContentType);
         Assert.Equal("example.test", notice.ContentTitle);
         Assert.Equal("Harassment", notice.ReasonCode);
@@ -143,7 +144,7 @@ public sealed class AdminActionNoticesIntegrationTests : IAsyncLifetime
         Assert.Equal(NotificationTargetKinds.ModerationNotice, NotificationInboxPolicy.ResolveTarget(inbox).Kind);
         var read = (await Notices().GetAsync(author, notice.Id))!;
         Assert.Equal("action", read.Kind);
-        Assert.Equal("contentDeleted", read.ActionType);
+        Assert.Equal("contentRemovedFromCollection", read.ActionType);
         Assert.Equal("example.test", read.ContentTitle);
         Assert.DoesNotContain(ReporterNote, read.Guidance + read.Reason + read.ContentTitle);
         Assert.DoesNotContain("internal note", read.Guidance);
@@ -167,18 +168,196 @@ public sealed class AdminActionNoticesIntegrationTests : IAsyncLifetime
 
         // The same action again (a reopened report, a second click) notices nothing new; a different action - the restore - is noticed on its own.
         await Admin().DeleteTargetAsync(admin, isOwner: true, report, confirm: true, null);
-        Assert.Single(await ActionNoticesAsync(author, ModerationActionType.ContentDeleted));
+        Assert.Single(await ActionNoticesAsync(author, ModerationActionType.ContentRemovedFromCollection));
         await Admin().RestoreTargetAsync(admin, isOwner: true, report, null, "복구했습니다.");
         Assert.Single(await ActionNoticesAsync(author, ModerationActionType.ContentRestored));
         await Admin().DeleteTargetAsync(admin, isOwner: true, report, confirm: true, null);
-        Assert.Equal(2, (await ActionNoticesAsync(author, ModerationActionType.ContentDeleted)).Count);
+        Assert.Equal(2, (await ActionNoticesAsync(author, ModerationActionType.ContentRemovedFromCollection)).Count);
         Assert.Equal(1, await NewContext().AdminAuditLogs.CountAsync(log => log.Action == AdminAuditActions.ContentRestored && log.TargetId == report.ToString()));
 
         // The report's own view for the operator: what was sent, when, and whether it was confirmed.
         var detail = await Admin().GetAsync(report);
         Assert.Equal(3, detail.Notices.Count); // deleted, restored, deleted again - the repeated click in between noticed nothing
-        Assert.Contains(detail.Notices, entry => entry.ActionType == nameof(ModerationActionType.ContentDeleted) && entry.AcknowledgedAtUtc != null);
+        Assert.Contains(detail.Notices, entry => entry.ActionType == nameof(ModerationActionType.ContentRemovedFromCollection) && entry.AcknowledgedAtUtc != null);
         Assert.Contains(detail.Notices, entry => entry.ActionType == nameof(ModerationActionType.ContentRestored) && entry.AcknowledgedAtUtc == null);
+    }
+
+    private async Task<long> TwoCollectionLinkAsync(long author, long owner, long reporter)
+    {
+        var collectionA = await NewCollectionAsync(owner, author, reporter);
+        var collectionB = await NewCollectionAsync(author);
+        var link = await NewLinkAsync(author, collectionA);
+        await new CollectionStore(NewContext()).AddAsync(author, collectionB, link, DateTimeOffset.UtcNow);
+        _collectionPair = (collectionA, collectionB);
+        return link;
+    }
+
+    private (long A, long B) _collectionPair;
+
+    [Fact]
+    public async Task RemovingAReportedLink_TakesOnlyTheReportedCollectionsLink_AndNeverTheSavedLinkOrItsOtherPlaces()
+    {
+        var (author, _) = await NewUserAsync();
+        var (owner, _) = await NewUserAsync();
+        var (reporter, _) = await NewUserAsync();
+        var (admin, _) = await NewUserAsync();
+        var link = await TwoCollectionLinkAsync(author, owner, reporter);
+        var (collectionA, collectionB) = _collectionPair;
+        var report = await ReportLinkAsync(reporter, link, collectionA);
+
+        await Admin().DeleteTargetAsync(admin, isOwner: true, report, confirm: true, "internal", "message");
+
+        await using var db = NewContext();
+        Assert.True(await db.Items.AnyAsync(item => item.Id == link && item.DeletedAtUtc == null));
+        Assert.Equal(author, await db.Items.Where(item => item.Id == link).Select(item => item.UserId).SingleAsync());
+        Assert.False(await db.CollectionItems.AnyAsync(entry => entry.CollectionId == collectionA && entry.ItemId == link));
+        Assert.True(await db.CollectionItems.AnyAsync(entry => entry.CollectionId == collectionB && entry.ItemId == link));
+        Assert.Contains(link, (await new CollectionStore(NewContext()).GetItemsAsync(author, collectionB, null, 50)).Page.Items.Select(entry => entry.ItemId));
+    }
+
+    [Fact]
+    public async Task RemovingAReportedLink_NoticesTheOneWhoAddedIt_WithTheSnapshotAndTheOperatorsMessage_NeverTheReporter()
+    {
+        var (author, _) = await NewUserAsync();
+        var (owner, _) = await NewUserAsync();
+        var (reporter, _) = await NewUserAsync();
+        var (admin, _) = await NewUserAsync();
+        var link = await TwoCollectionLinkAsync(author, owner, reporter);
+        var (collectionA, _) = _collectionPair;
+        await using (var db = NewContext())
+        {
+            var item = await db.Items.SingleAsync(candidate => candidate.Id == link);
+            item.UpdateDetails("신고된 링크 제목", null);
+            item.SetPreviewImageUrl("https://img.example.test/a.jpg");
+            await db.SaveChangesAsync();
+        }
+
+        var collectionName = await NewContext().Collections.Where(candidate => candidate.Id == collectionA).Select(candidate => candidate.Name).SingleAsync();
+        var report = await ReportLinkAsync(reporter, link, collectionA);
+        await Admin().DeleteTargetAsync(admin, isOwner: true, report, confirm: true, "ADMIN-INTERNAL-MEMO", "신고된 컬렉션에서 제거했습니다.");
+
+        var notice = Assert.Single(await ActionNoticesAsync(author, ModerationActionType.ContentRemovedFromCollection));
+        Assert.Equal(link, notice.ContentId);
+        Assert.Equal("신고된 링크 제목", notice.ContentTitle);
+        Assert.Equal("https://img.example.test/a.jpg", notice.ContentImageUrl);
+        Assert.Equal(collectionName, notice.CollectionName);
+        Assert.Equal("신고된 컬렉션에서 제거했습니다.", notice.Guidance);
+        var row = await NewContext().Notifications.SingleAsync(entry => entry.UserId == author && entry.SubjectId == notice.Id);
+        Assert.Equal(NotificationType.AdminWarning, row.Type);
+        Assert.Contains(row.Id, (await new PushDispatchStore(NewContext()).ListPendingAsync(1000, DateTimeOffset.UtcNow.AddMinutes(1))).Select(entry => entry.Id));
+
+        // Not the reporter, not the Collection's owner, not the operator.
+        foreach (var other in new[] { reporter, owner, admin })
+        {
+            Assert.Empty(await ActionNoticesAsync(other));
+            Assert.False(await NewContext().Notifications.AnyAsync(entry => entry.UserId == other && entry.Type == NotificationType.AdminWarning));
+        }
+
+        // The recipient's view carries neither the reporter nor the operator's memo.
+        var read = (await Notices().GetAsync(author, notice.Id))!;
+        Assert.DoesNotContain(ReporterNote, read.Guidance + read.Reason + read.ContentTitle + read.CollectionName);
+        Assert.DoesNotContain("ADMIN-INTERNAL-MEMO", read.Guidance + read.Reason + read.ContentTitle + read.CollectionName);
+        Assert.DoesNotContain(reporter.ToString(), System.Text.Json.JsonSerializer.Serialize(read));
+    }
+
+    [Fact]
+    public async Task TheNoticeOfARemovedLink_IsInTheRecipientsNotificationList_AndReadsFromItsSnapshot_OnlyForThem()
+    {
+        var (author, _) = await NewUserAsync();
+        var (owner, _) = await NewUserAsync();
+        var (reporter, _) = await NewUserAsync();
+        var (admin, _) = await NewUserAsync();
+        var (stranger, _) = await NewUserAsync();
+        var link = await TwoCollectionLinkAsync(author, owner, reporter);
+        var (collectionA, _) = _collectionPair;
+        var report = await ReportLinkAsync(reporter, link, collectionA);
+        await Admin().DeleteTargetAsync(admin, isOwner: true, report, confirm: true, null, "안내");
+
+        var notice = Assert.Single(await ActionNoticesAsync(author));
+        // The Collection's link is already gone; the list and the reading do not need it.
+        Assert.False(await NewContext().CollectionItems.AnyAsync(entry => entry.CollectionId == collectionA && entry.ItemId == link));
+        var inbox = Assert.Single(await new NotificationInboxStore(NewContext()).ListAsync(author, null, 20, DateTimeOffset.UtcNow), record => record.SubjectId == notice.Id);
+        Assert.Equal(NotificationTargetKinds.ModerationNotice, NotificationInboxPolicy.ResolveTarget(inbox).Kind);
+        Assert.Single(await Notices().ListUnacknowledgedAsync(author, 10));
+        var read = (await Notices().GetAsync(author, notice.Id))!;
+        Assert.Equal("contentRemovedFromCollection", read.ActionType);
+        Assert.Equal(notice.ContentTitle, read.ContentTitle);
+        Assert.Equal(notice.CollectionName, read.CollectionName);
+
+        // Another account cannot see, open or confirm it - and has no such list entry.
+        Assert.Null(await Notices().GetAsync(stranger, notice.Id));
+        Assert.False(await Notices().AcknowledgeAsync(stranger, notice.Id, DateTimeOffset.UtcNow));
+        Assert.Empty(await Notices().ListUnacknowledgedAsync(stranger, 10));
+        Assert.DoesNotContain(await new NotificationInboxStore(NewContext()).ListAsync(stranger, null, 20, DateTimeOffset.UtcNow), record => record.SubjectId == notice.Id);
+    }
+
+    [Fact]
+    public async Task RemovingAReportedLinkTwice_OrAfterItIsAlreadyGone_ChangesNothingAndNoticesNobodyAgain_AndARestoreFailsSafelyWhenItCannotApply()
+    {
+        var (author, _) = await NewUserAsync();
+        var (owner, _) = await NewUserAsync();
+        var (reporter, _) = await NewUserAsync();
+        var (admin, _) = await NewUserAsync();
+        var link = await TwoCollectionLinkAsync(author, owner, reporter);
+        var (collectionA, collectionB) = _collectionPair;
+        var report = await ReportLinkAsync(reporter, link, collectionA);
+
+        await Admin().DeleteTargetAsync(admin, isOwner: true, report, confirm: true, null, "안내");
+        await Admin().DeleteTargetAsync(admin, isOwner: true, report, confirm: true, null, "안내");
+        Assert.Single(await ActionNoticesAsync(author));
+        Assert.Equal(1, await NewContext().Notifications.CountAsync(entry => entry.UserId == author && entry.Type == NotificationType.AdminWarning));
+        Assert.True(await NewContext().CollectionItems.AnyAsync(entry => entry.CollectionId == collectionB && entry.ItemId == link));
+
+        // Someone else already took the link out of the Collection (the owner): the action finds nothing to remove and tells nobody.
+        var secondLink = await NewLinkAsync(author, collectionA);
+        var secondReport = await ReportLinkAsync(reporter, secondLink, collectionA);
+        await new CollectionStore(NewContext()).RemoveAsync(owner, collectionA, secondLink);
+        await Admin().DeleteTargetAsync(admin, isOwner: true, secondReport, confirm: true, null, "안내");
+        Assert.Single(await ActionNoticesAsync(author));
+
+        // Restore puts the one link back; a second restore, or one whose Collection is gone, is refused and changes nothing.
+        await Admin().RestoreTargetAsync(admin, isOwner: true, report, null, "복구");
+        Assert.True(await NewContext().CollectionItems.AnyAsync(entry => entry.CollectionId == collectionA && entry.ItemId == link));
+        var again = await Assert.ThrowsAsync<AdminReportConflictException>(() => Admin().RestoreTargetAsync(admin, isOwner: true, report, null));
+        Assert.Equal(AdminReportConflictException.TargetNotDeleted, again.Code);
+        await Admin().DeleteTargetAsync(admin, isOwner: true, report, confirm: true, null, "다시");
+        await using (var db = NewContext())
+        {
+            var collection = await db.Collections.SingleAsync(entry => entry.Id == collectionA);
+            collection.SoftDelete(DateTimeOffset.UtcNow);
+            await db.SaveChangesAsync();
+        }
+
+        var cannot = await Assert.ThrowsAsync<AdminReportConflictException>(() => Admin().RestoreTargetAsync(admin, isOwner: true, report, null));
+        Assert.Equal(AdminReportConflictException.TargetNotDeleted, cannot.Code);
+        Assert.False(await NewContext().CollectionItems.AnyAsync(entry => entry.CollectionId == collectionA && entry.ItemId == link));
+        Assert.True(await NewContext().Items.AnyAsync(item => item.Id == link && item.DeletedAtUtc == null));
+    }
+
+    [Fact]
+    public async Task ARemovedLink_NoticesItsAdderEvenWhenThatPersonIsAlsoAnOperator()
+    {
+        // An operator who also uses Juple as a person is still the owner of their own saved links: the removal is noticed to them like to anybody.
+        var (author, _) = await NewUserAsync();
+        var (owner, _) = await NewUserAsync();
+        var (reporter, _) = await NewUserAsync();
+        var (admin, _) = await NewUserAsync();
+        var link = await TwoCollectionLinkAsync(author, owner, reporter);
+        var (collectionA, _) = _collectionPair;
+        _db.AdminUsers.Add(new AdminUser(author, AdminRole.Admin, null, DateTimeOffset.UtcNow));
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+        try
+        {
+            var report = await ReportLinkAsync(reporter, link, collectionA);
+            await Admin().DeleteTargetAsync(admin, isOwner: true, report, confirm: true, null, "안내");
+            Assert.Single(await ActionNoticesAsync(author, ModerationActionType.ContentRemovedFromCollection));
+            Assert.Equal(1, await NewContext().Notifications.CountAsync(entry => entry.UserId == author && entry.Type == NotificationType.AdminWarning));
+        }
+        finally
+        {
+            await NewContext().AdminUsers.Where(entry => entry.UserId == author).ExecuteDeleteAsync();
+        }
     }
 
     [Fact]
@@ -312,11 +491,12 @@ public sealed class AdminActionNoticesIntegrationTests : IAsyncLifetime
             }
         }));
 
-        // Whoever lost the race is told it was already applied (or simply finds it done); the person is noticed once, the link is in the trash once.
+        // Whoever lost the race is told it was already applied (or simply finds it done); the person is noticed once, the Collection's link is removed once.
         Assert.All(attempts.Where(attempt => attempt is not null), attempt => Assert.Equal(AdminReportConflictException.ActionAlreadyApplied, ((AdminReportConflictException)attempt!).Code));
-        Assert.Single(await ActionNoticesAsync(author, ModerationActionType.ContentDeleted));
+        Assert.Single(await ActionNoticesAsync(author, ModerationActionType.ContentRemovedFromCollection));
         Assert.Equal(1, await NewContext().Notifications.CountAsync(entry => entry.UserId == author && entry.Type == NotificationType.AdminWarning));
-        Assert.True(await NewContext().Items.AnyAsync(item => item.Id == link && item.DeletedAtUtc != null));
+        Assert.True(await NewContext().Items.AnyAsync(item => item.Id == link && item.DeletedAtUtc == null));
+        Assert.False(await NewContext().CollectionItems.AnyAsync(entry => entry.CollectionId == collection && entry.ItemId == link));
     }
 
     [Fact]
@@ -362,7 +542,7 @@ public sealed class AdminActionNoticesIntegrationTests : IAsyncLifetime
         await Admin().DeleteTargetAsync(admin, isOwner: true, report, confirm: true, null, "삭제했어요");
 
         var warning = await NewContext().ModerationNotices.SingleAsync(notice => notice.RecipientUserId == author && notice.Kind == ModerationNoticeKind.Warning);
-        var deleted = Assert.Single(await ActionNoticesAsync(author, ModerationActionType.ContentDeleted));
+        var deleted = Assert.Single(await ActionNoticesAsync(author, ModerationActionType.ContentRemovedFromCollection));
         foreach (var notice in new[] { warning, deleted })
         {
             Assert.Equal("내가 올린 링크 제목", notice.ContentTitle);

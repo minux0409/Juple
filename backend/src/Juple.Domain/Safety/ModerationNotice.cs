@@ -23,6 +23,12 @@ public enum ModerationActionType : byte
     ShareRestrictionLifted = 4,
     AccountRestricted = 5,
     AccountRestrictionLifted = 6,
+
+    /// <summary>
+    /// A reported link taken out of the Collection it was reported in (only that Collection's link to it: the person's own saved link and its other
+    /// Collections are untouched). Separate from <see cref="ContentDeleted"/>, which older notices carry for a link moved into its owner's trash.
+    /// </summary>
+    ContentRemovedFromCollection = 7,
 }
 
 /// <summary>

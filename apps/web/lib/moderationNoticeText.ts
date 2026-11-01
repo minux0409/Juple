@@ -15,6 +15,8 @@ export function moderationActionSentence(notice: ModerationNotice, dictionary: A
   switch (notice.actionType) {
     case 'contentDeleted':
       return formatMessage(collection ? dictionary.moderationActionContentDeletedCollection : dictionary.moderationActionContentDeletedLink, { title });
+    case 'contentRemovedFromCollection':
+      return formatMessage(dictionary.moderationActionContentRemovedFromCollectionLink, { title });
     case 'contentRestored':
       return formatMessage(collection ? dictionary.moderationActionContentRestoredCollection : dictionary.moderationActionContentRestoredLink, { title });
     case 'shareRestricted':
@@ -41,6 +43,8 @@ export function moderationActionLabel(notice: ModerationNotice, dictionary: AppD
   switch (notice.actionType) {
     case 'contentDeleted':
       return dictionary.moderationActionTypeContentDeleted;
+    case 'contentRemovedFromCollection':
+      return dictionary.moderationActionTypeContentRemovedFromCollection;
     case 'contentRestored':
       return dictionary.moderationActionTypeContentRestored;
     case 'shareRestricted':

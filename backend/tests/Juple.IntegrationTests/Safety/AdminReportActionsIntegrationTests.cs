@@ -245,7 +245,7 @@ public sealed class AdminReportActionsIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DeletingAReportedLinkOrCollection_NeedsTheOwnerRoleAndConfirmation_IsSoft_AndRestorable()
+    public async Task DeletingAReportedLinkOrCollection_NeedsTheOwnerRoleAndConfirmation_RemovesOnlyTheCollectionLink_AndIsRestorable()
     {
         var (owner, _) = await NewUserAsync();
         var (author, authorCode) = await NewUserAsync();
@@ -260,13 +260,14 @@ public sealed class AdminReportActionsIntegrationTests : IAsyncLifetime
         await Assert.ThrowsAsync<AdminReportForbiddenException>(() => Admin().DeleteTargetAsync(admin, isOwner: false, itemReport, confirm: true, null));
         await Assert.ThrowsAsync<InvalidAdminRequestException>(() => Admin().DeleteTargetAsync(admin, isOwner: true, itemReport, confirm: false, null));
         Assert.True(await NewContext().Items.AnyAsync(item => item.Id == link && item.DeletedAtUtc == null));
+        Assert.True(await NewContext().CollectionItems.AnyAsync(entry => entry.CollectionId == collection && entry.ItemId == link));
 
         var deleted = await Admin().DeleteTargetAsync(admin, isOwner: true, itemReport, confirm: true, "removed");
         Assert.True(deleted.TargetDeleted);
         Assert.False(deleted.TargetExists);
-        Assert.True(await NewContext().Items.AnyAsync(item => item.Id == link && item.DeletedAtUtc != null));
-        // The row is kept (soft delete): nothing is gone for good, and the report's snapshot stays.
-        Assert.True(await NewContext().Items.AnyAsync(item => item.Id == link));
+        // Only the reported Collection's link is gone: the person's own saved link is neither deleted nor in the trash.
+        Assert.True(await NewContext().Items.AnyAsync(item => item.Id == link && item.DeletedAtUtc == null));
+        Assert.False(await NewContext().CollectionItems.AnyAsync(entry => entry.CollectionId == collection && entry.ItemId == link));
         Assert.DoesNotContain(link, (await new CollectionStore(NewContext()).GetItemsAsync(owner, collection, null, 50)).Page.Items.Select(entry => entry.ItemId));
         Assert.Equal(1, await NewContext().AdminAuditLogs.CountAsync(log => log.Action == AdminAuditActions.ContentDeleted && log.TargetId == itemReport.ToString()));
         await Admin().DeleteTargetAsync(admin, isOwner: true, itemReport, confirm: true, null); // idempotent
@@ -274,6 +275,8 @@ public sealed class AdminReportActionsIntegrationTests : IAsyncLifetime
         var restored = await Admin().RestoreTargetAsync(admin, isOwner: true, itemReport, null);
         Assert.False(restored.TargetDeleted);
         Assert.True(await NewContext().Items.AnyAsync(item => item.Id == link && item.DeletedAtUtc == null));
+        var backLink = await NewContext().CollectionItems.SingleAsync(entry => entry.CollectionId == collection && entry.ItemId == link);
+        Assert.Equal(author, backLink.AddedByUserId);
         var nothingToRestore = await Assert.ThrowsAsync<AdminReportConflictException>(() => Admin().RestoreTargetAsync(admin, isOwner: true, itemReport, null));
         Assert.Equal(AdminReportConflictException.TargetNotDeleted, nothingToRestore.Code);
 

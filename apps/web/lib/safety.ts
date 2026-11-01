@@ -154,7 +154,7 @@ export function parseBlockedUsers(raw: unknown): readonly BlockedUser[] {
 }
 
 /** An operator message (GET /api/v1/moderation-notices/{id}): an 이용 안내, or the generic result of the person's own report. */
-export const MODERATION_ACTION_TYPES = ['contentDeleted', 'contentRestored', 'shareRestricted', 'shareRestrictionLifted', 'accountRestricted', 'accountRestrictionLifted'] as const;
+export const MODERATION_ACTION_TYPES = ['contentDeleted', 'contentRemovedFromCollection', 'contentRestored', 'shareRestricted', 'shareRestrictionLifted', 'accountRestricted', 'accountRestrictionLifted'] as const;
 export type ModerationActionType = (typeof MODERATION_ACTION_TYPES)[number];
 
 export interface ModerationNotice {

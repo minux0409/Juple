@@ -81,7 +81,7 @@ export default function ReportDetailPage() {
           <p><Link href="/inquiries/reports">목록으로</Link></p>
           <dl className="v2-facts">
             <div><dt>상태</dt><dd>{reportStatusLabel(detail.status)}</dd></div>
-            <div><dt>대상</dt><dd>{reportTargetLabel(detail.targetType)} #{detail.targetId}{detail.targetExists ? '' : ' (삭제됨)'}</dd></div>
+            <div><dt>대상</dt><dd>{reportTargetLabel(detail.targetType)} #{detail.targetId}{detail.targetExists ? '' : detail.targetType === 'Item' ? ' (컬렉션에서 제거됨)' : ' (삭제됨)'}</dd></div>
             <div><dt>사유</dt><dd>{reportReasonLabel(detail.reason)}</dd></div>
             <div><dt>신고자</dt><dd className="ltr">{reportReporterLabel(detail)}</dd></div>
             <div><dt>대상 소유자</dt><dd className="ltr">{detail.targetUser ? atJupleId(detail.targetUser.jupleId) : '-'}</dd></div>
@@ -90,7 +90,11 @@ export default function ReportDetailPage() {
             {detail.reviewedBy ? <div><dt>처리 관리자</dt><dd className="ltr">{atJupleId(detail.reviewedBy.jupleId)}</dd></div> : null}
             <div><dt>경고</dt><dd>{detail.warningSentAtUtc ? `발송됨 (${formatSeoulInstant(detail.warningSentAtUtc)}) · ${detail.warningAcknowledged ? '확인함' : '미확인'}` : '없음'}</dd></div>
             <div><dt>계정 이용 제한</dt><dd>{detail.targetAccountRestricted ? '적용 중' : '없음'}</dd></div>
-            {detail.canDeleteTarget ? <div><dt>삭제 상태</dt><dd>{detail.targetDeleted ? '삭제됨 (복구 가능)' : '삭제되지 않음'}</dd></div> : null}
+            {detail.canDeleteTarget ? (
+              detail.targetType === 'Item'
+                ? <div><dt>제거 상태</dt><dd>{detail.targetDeleted ? '신고된 컬렉션에서 제거됨 (다시 추가 가능)' : '신고된 컬렉션에 있음'}</dd></div>
+                : <div><dt>삭제 상태</dt><dd>{detail.targetDeleted ? '삭제됨 (복구 가능)' : '삭제되지 않음'}</dd></div>
+            ) : null}
             {detail.collectionName ? <div><dt>컬렉션</dt><dd dir="auto">{detail.collectionName}{detail.collectionDeleted ? ' (삭제됨)' : ''}</dd></div> : null}
             <div><dt>사용자 통지</dt><dd>{detail.notices.length === 0 ? '없음' : `${detail.notices.length}건`}</dd></div>
             <div><dt>공유 제한</dt><dd>{detail.isRestricted ? `적용 중 (${detail.restrictedAtUtc ? formatSeoulInstant(detail.restrictedAtUtc) : ''})` : '없음'}</dd></div>
@@ -113,7 +117,7 @@ export default function ReportDetailPage() {
             <textarea maxLength={1000} onChange={event => setNote(event.target.value)} value={note} />
           </label>
           <label>
-            대상자에게 보낼 안내 문구 (삭제·복구·공유 제한·계정 제한 조치는 작성자에게 알림으로 전달돼요. 비워두면 조치 내용만 안내해요)
+            대상자에게 보낼 안내 문구 (삭제·제거·복구·공유 제한·계정 제한 조치는 작성자에게 알림으로 전달돼요. 비워두면 조치 내용만 안내해요)
             <textarea maxLength={1000} onChange={event => setUserMessage(event.target.value)} value={userMessage} />
           </label>
           <p className="v2-muted">신고자의 이름·연락처·신고 설명은 안내 문구에 넣지 마세요.</p>
@@ -141,9 +145,9 @@ export default function ReportDetailPage() {
                 경고
               </button>
             ) : null}
-            {detail.canDeleteTarget && !detail.targetDeleted ? <button disabled={busy} onClick={() => setPending('delete')} type="button">{detail.targetType === 'Collection' ? '컬렉션 삭제' : '링크 삭제'}</button> : null}
+            {detail.canDeleteTarget && !detail.targetDeleted ? <button disabled={busy} onClick={() => setPending('delete')} type="button">{detail.targetType === 'Collection' ? '컬렉션 삭제' : '컬렉션에서 제거'}</button> : null}
             {detail.canDeleteTarget && detail.targetDeleted ? (
-              <button disabled={busy} onClick={() => void run(() => api<ReportDetail>({ method: 'POST', path: v2Paths.reportTargetRestore(detail.reportId), body }))} type="button">삭제 복구</button>
+              <button disabled={busy} onClick={() => void run(() => api<ReportDetail>({ method: 'POST', path: v2Paths.reportTargetRestore(detail.reportId), body }))} type="button">{detail.targetType === 'Item' ? '컬렉션에 다시 추가' : '삭제 복구'}</button>
             ) : null}
             {detail.canRestrictAccount && !detail.targetAccountRestricted ? <button disabled={busy} onClick={() => setPending('restrict')} type="button">계정 이용 제한</button> : null}
             {detail.canRestrictAccount && detail.targetAccountRestricted ? (
@@ -177,10 +181,14 @@ export default function ReportDetailPage() {
           ) : null}
           {pending === 'delete' ? (
             <div className="v2-confirm" role="group" aria-label="삭제 확인">
-              <h3>{detail.targetType === 'Collection' ? '컬렉션' : '링크'}을 삭제할까요?</h3>
-              <p className="v2-muted">휴지통으로 이동합니다(소유자의 삭제 이력). 데이터는 완전히 지워지지 않으며 &quot;삭제 복구&quot;로 되돌릴 수 있습니다. Owner 권한이 필요하고 감사 로그가 남습니다.</p>
+              <h3>{detail.targetType === 'Collection' ? '컬렉션을 삭제할까요?' : '신고된 컬렉션에서 이 링크를 제거할까요?'}</h3>
+              {detail.targetType === 'Collection' ? (
+                <p className="v2-muted">휴지통으로 이동합니다(소유자의 삭제 이력). 데이터는 완전히 지워지지 않으며 &quot;삭제 복구&quot;로 되돌릴 수 있습니다. Owner 권한이 필요하고 감사 로그가 남습니다.</p>
+              ) : (
+                <p className="v2-muted">신고된 컬렉션에서만 제거됩니다. 사용자의 개인 저장 링크는 삭제되지 않고, 다른 컬렉션에도 영향이 없습니다. 링크를 추가한 사용자에게 운영팀 안내가 발송됩니다. 필요하면 &quot;컬렉션에 다시 추가&quot;로 되돌릴 수 있습니다. Owner 권한이 필요하고 감사 로그가 남습니다.</p>
+              )}
               <div className="v2-actions">
-                <button disabled={busy} onClick={() => void run(() => api<ReportDetail>({ method: 'POST', path: v2Paths.reportTargetDelete(detail.reportId), body: { confirm: true, ...body } }))} type="button">삭제하고 작성자에게 안내 발송</button>
+                <button disabled={busy} onClick={() => void run(() => api<ReportDetail>({ method: 'POST', path: v2Paths.reportTargetDelete(detail.reportId), body: { confirm: true, ...body } }))} type="button">{detail.targetType === 'Collection' ? '삭제하고 작성자에게 안내 발송' : '제거하고 작성자에게 안내 발송'}</button>
                 <button disabled={busy} onClick={() => setPending(null)} type="button">취소</button>
               </div>
             </div>
@@ -199,7 +207,7 @@ export default function ReportDetailPage() {
         </Panel>
         <Panel>
           <h2>사용자 통지 이력</h2>
-          {detail.notices.length === 0 ? <p className="v2-muted">아직 대상자에게 보낸 안내가 없습니다. 삭제·공유 제한·계정 제한 조치를 하면 자동으로 알림이 생성됩니다.</p> : (
+          {detail.notices.length === 0 ? <p className="v2-muted">아직 대상자에게 보낸 안내가 없습니다. 삭제·제거·공유 제한·계정 제한 조치를 하면 자동으로 알림이 생성됩니다.</p> : (
             <ul>
               {detail.notices.map(notice => (
                 <li key={notice.noticeId}>

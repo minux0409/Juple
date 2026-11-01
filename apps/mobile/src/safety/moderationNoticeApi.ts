@@ -8,6 +8,7 @@ import type { AuthenticatedApiRequest } from '../api/authenticatedApiClient';
  */
 export type ModerationActionType =
   | 'contentDeleted'
+  | 'contentRemovedFromCollection'
   | 'contentRestored'
   | 'shareRestricted'
   | 'shareRestrictionLifted'
@@ -16,6 +17,7 @@ export type ModerationActionType =
 
 const ACTION_TYPES: ReadonlySet<string> = new Set<ModerationActionType>([
   'contentDeleted',
+  'contentRemovedFromCollection',
   'contentRestored',
   'shareRestricted',
   'shareRestrictionLifted',

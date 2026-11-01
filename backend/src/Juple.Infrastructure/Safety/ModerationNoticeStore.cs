@@ -39,6 +39,7 @@ public sealed class ModerationNoticeStore(JupleDbContext dbContext) : IModeratio
             {
                 ModerationActionType.ContentDeleted => "contentDeleted",
                 ModerationActionType.ContentRestored => "contentRestored",
+                ModerationActionType.ContentRemovedFromCollection => "contentRemovedFromCollection",
                 ModerationActionType.ShareRestricted => "shareRestricted",
                 ModerationActionType.ShareRestrictionLifted => "shareRestrictionLifted",
                 ModerationActionType.AccountRestricted => "accountRestricted",

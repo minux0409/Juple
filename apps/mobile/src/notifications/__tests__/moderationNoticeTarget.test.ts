@@ -48,6 +48,9 @@ describe('operator messages (이용 안내 / 신고 처리 결과) as a notifica
       contentType: 'Item',
       reasonCode: 'Spam',
     });
+    expect(parseModerationNotice({ id: 7, kind: 'action', actionType: 'contentRemovedFromCollection', contentTitle: '제목', contentType: 'Item', createdAtUtc: 'x' })).toMatchObject({
+      actionType: 'contentRemovedFromCollection',
+    });
     expect(parseModerationNotice({ id: 9, kind: 'action', actionType: 'somethingNew', createdAtUtc: 'x' })).toBeNull();
     expect(parseModerationNotice({ id: 4, kind: 'reportResult', createdAtUtc: 'x' })?.reason).toBeNull();
     expect(parseModerationNotice({ id: 5, kind: 'other', createdAtUtc: 'x' })).toBeNull();
