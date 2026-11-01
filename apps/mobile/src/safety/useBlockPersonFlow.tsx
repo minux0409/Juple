@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { useActionAfterMenu } from '../components/useActionAfterMenu';
 import { useMessageDialog } from '../components/useMessageDialog';
 import { blockUser, unblockUser } from './safetyApi';
 import { publishBlockChange, useBlockedUsers } from './useBlockedUsers';
@@ -28,6 +29,8 @@ export function useBlockPersonFlow(onBlocked?: (person: BlockSubject) => void, o
   const [subject, setSubject] = useState<BlockSubject | null>(null);
   const [isBlocking, setIsBlocking] = useState(false);
   const busyRef = useRef(false);
+  // The result message follows the question: iOS cannot present it until the question has gone away.
+  const { afterMenuCloses, onMenuDismiss } = useActionAfterMenu();
 
   const confirm = async () => {
     if (subject === null || busyRef.current) {
@@ -38,13 +41,11 @@ export function useBlockPersonFlow(onBlocked?: (person: BlockSubject) => void, o
     try {
       await blockUser(request, subject.jupleId);
       const blocked = subject;
-      setSubject(null);
       publishBlockChange(blocked.jupleId, true);
       onBlocked?.(blocked);
-      showMessage(t('safety.blockedDone'));
+      afterMenuCloses(() => setSubject(null), () => showMessage(t('safety.blockedDone')));
     } catch {
-      setSubject(null);
-      showMessage(t('safety.blockFailed'));
+      afterMenuCloses(() => setSubject(null), () => showMessage(t('safety.blockFailed')));
     } finally {
       busyRef.current = false;
       setIsBlocking(false);
@@ -82,6 +83,7 @@ export function useBlockPersonFlow(onBlocked?: (person: BlockSubject) => void, o
         message={t('safety.blockConfirmMessage')}
         onCancel={() => { if (!isBlocking) { setSubject(null); } }}
         onConfirm={() => { confirm().catch(() => undefined); }}
+        onDismiss={onMenuDismiss}
         title={t('safety.blockTitle')}
         visible={subject !== null}
       />

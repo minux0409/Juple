@@ -8,6 +8,7 @@ import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { AppModal } from '../components/AppModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { CopyIconButton } from '../components/CopyIconButton';
+import { useActionAfterMenu } from '../components/useActionAfterMenu';
 import { UserAvatar } from '../components/UserAvatar';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
 import type { Collection } from '../collections/api/collectionsApi';
@@ -28,8 +29,8 @@ interface FriendDetailModalProps {
   readonly onChanged: (friend: Friend) => void;
   readonly onRemoved: (friendshipId: number) => void;
   /**
-   * 친구 차단: asks the host to start the shared block flow (useBlockPersonFlow - the one confirmation and API Collection participants use).
-   * The host drops the friend and closes this modal once the server accepted the block. Without it the button is not offered.
+   * 친구 차단: this popup closes first; once it is really gone the host clears `friend` and starts the shared block flow (useBlockPersonFlow -
+   * the one confirmation and API Collection participants use), whose dialog iOS could not present over this popup. Without it the button is not offered.
    */
   readonly onBlock?: (friend: Friend) => void;
   /**
@@ -58,6 +59,8 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onBlo
   const [isRemoving, setIsRemoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isRemoveConfirmVisible, setIsRemoveConfirmVisible] = useState(false);
+  const [isClosingToBlock, setIsClosingToBlock] = useState(false);
+  const { afterMenuCloses, onMenuDismiss } = useActionAfterMenu();
 
   const friendshipId = friend?.friendshipId;
   const [shared, setShared] = useState<SharedState>({ kind: 'loading' });
@@ -112,6 +115,7 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onBlo
   useEffect(() => {
     setNote(friend?.myNote ?? '');
     setError(null);
+    setIsClosingToBlock(false);
     // Only when another friend is opened - a saved note must not reset what is being typed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [friendshipId]);
@@ -156,156 +160,156 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onBlo
   const isBusy = isSaving || isRemoving;
 
   return (
-    <>
-      <AppModal
-        dismissible={!isBusy && !isRemoveConfirmVisible}
-        onClose={onClose}
-        testID="friend-detail"
-        title={t('friends.title')}
-        visible
-      >
-        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <View style={styles.identity}>
-            <UserAvatar
-              displayName={friend.displayName}
-              imageUrl={friend.profileImageUrl}
-              imageVersion={friend.profileImageVersion}
-              jupleId={friend.jupleId}
-              size={72}
-            />
-            {hasNickname ? <Text numberOfLines={2} style={styles.name}>{friend.displayName}</Text> : null}
-            {/* The Juple ID with its copy button right beside it. Without a nickname the ID is the name. */}
-            <View style={styles.idRow}>
-              <Text numberOfLines={1} style={[hasNickname ? styles.jupleId : styles.nameLine, styles.idText, ltrTextStyle]} testID="friend-detail-juple-id">
-                {atJupleId(friend.jupleId)}
-              </Text>
-              <CopyIconButton accessibilityLabel={t('profile.copyJupleId')} testID="friend-detail-copy-id" text={atJupleId(friend.jupleId)} />
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          {/* 메모: a neutral pencil with its word (the save button below keeps its check). */}
-          <View style={styles.sectionTitleRow}>
-            <EditIcon color={colors.textPrimary} size={ACTION_ICON_SIZE} />
-            <Text style={styles.sectionTitle}>{t('friends.note')}</Text>
-          </View>
-          <ThemedTextInput
-            accessibilityLabel={t('friends.note')}
-            editable={!isBusy}
-            maxLength={FRIEND_NOTE_MAX_STORAGE_LENGTH}
-            onChangeText={setNote}
-            style={styles.noteInput}
-            testID="friend-note-input"
-            value={note}
+    <AppModal
+      dismissible={!isBusy && !isRemoveConfirmVisible}
+      onClose={onClose}
+      onDismiss={onMenuDismiss}
+      testID="friend-detail"
+      title={t('friends.title')}
+      visible={!isClosingToBlock}
+    >
+      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <View style={styles.identity}>
+          <UserAvatar
+            displayName={friend.displayName}
+            imageUrl={friend.profileImageUrl}
+            imageVersion={friend.profileImageVersion}
+            jupleId={friend.jupleId}
+            size={72}
           />
-          {error ? <Text style={styles.error} testID="friend-detail-error">{error}</Text> : null}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled: isBusy, busy: isSaving }}
-            disabled={isBusy}
-            onPress={save}
-            style={[styles.actionButton, styles.primaryButton, isBusy && !isSaving && styles.disabled]}
-            testID="friend-note-save"
-          >
-            {isSaving ? <ActivityIndicator color={colors.onBrand} size="small" /> : (
-              <>
-                <CheckIcon color={colors.surface} size={ACTION_ICON_SIZE} />
-                <Text numberOfLines={2} style={[styles.actionLabel, styles.primaryLabel]}>{t('friends.saveNote')}</Text>
-              </>
-            )}
-          </Pressable>
+          {hasNickname ? <Text numberOfLines={2} style={styles.name}>{friend.displayName}</Text> : null}
+          {/* The Juple ID with its copy button right beside it. Without a nickname the ID is the name. */}
+          <View style={styles.idRow}>
+            <Text numberOfLines={1} style={[hasNickname ? styles.jupleId : styles.nameLine, styles.idText, ltrTextStyle]} testID="friend-detail-juple-id">
+              {atJupleId(friend.jupleId)}
+            </Text>
+            <CopyIconButton accessibilityLabel={t('profile.copyJupleId')} testID="friend-detail-copy-id" text={atJupleId(friend.jupleId)} />
+          </View>
+        </View>
 
-          {onOpenCollection ? (
+        <View style={styles.divider} />
+
+        {/* 메모: a neutral pencil with its word (the save button below keeps its check). */}
+        <View style={styles.sectionTitleRow}>
+          <EditIcon color={colors.textPrimary} size={ACTION_ICON_SIZE} />
+          <Text style={styles.sectionTitle}>{t('friends.note')}</Text>
+        </View>
+        <ThemedTextInput
+          accessibilityLabel={t('friends.note')}
+          editable={!isBusy}
+          maxLength={FRIEND_NOTE_MAX_STORAGE_LENGTH}
+          onChangeText={setNote}
+          style={styles.noteInput}
+          testID="friend-note-input"
+          value={note}
+        />
+        {error ? <Text style={styles.error} testID="friend-detail-error">{error}</Text> : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isBusy, busy: isSaving }}
+          disabled={isBusy}
+          onPress={save}
+          style={[styles.actionButton, styles.primaryButton, isBusy && !isSaving && styles.disabled]}
+          testID="friend-note-save"
+        >
+          {isSaving ? <ActivityIndicator color={colors.onBrand} size="small" /> : (
             <>
-              <View style={styles.divider} />
-              <View style={styles.sectionTitleRow}>
-                <Text style={styles.sectionTitle} testID="friend-shared-title">
-                  {shared.kind === 'ready'
-                    ? t('friends.sharedCollectionsCount', { count: `${shared.items.length}${shared.nextCursor !== null ? '+' : ''}` })
-                    : t('friends.sharedCollectionsTitle')}
-                </Text>
-              </View>
-              {shared.kind === 'loading' ? <ActivityIndicator style={styles.sharedState} /> : null}
-              {shared.kind === 'failed' ? <Text style={styles.error} testID="friend-shared-error">{t('friends.sharedCollectionsFailed')}</Text> : null}
-              {shared.kind === 'ready' && shared.items.length === 0 ? <Text style={styles.sharedEmpty} testID="friend-shared-empty">{t('friends.sharedCollectionsEmpty')}</Text> : null}
-              {shared.kind === 'ready' && shared.items.length > 0 ? (
-                // Compact vertical tiles (icon above, name below) in ONE horizontally scrolling row: a long list never grows the modal.
-                <ScrollView contentContainerStyle={styles.sharedTiles} horizontal showsHorizontalScrollIndicator={false} testID="friend-shared-list">
-                  {shared.items.map(collection => (
-                    <Pressable
-                      accessibilityLabel={collection.name}
-                      accessibilityRole="button"
-                      key={collection.id}
-                      onPress={() => onOpenCollection(collection.id)}
-                      style={styles.sharedTile}
-                      testID={`friend-shared-${collection.id}`}
-                    >
-                      <View>
-                        <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} imageVersion={collection.iconImageVersion} size={44} />
-                        {isCollectionLocked(collection) ? (
-                          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.sharedLock}>
-                            <LockIcon color={colors.textSecondary} size={12} />
-                          </View>
-                        ) : null}
-                      </View>
-                      <Text numberOfLines={2} style={styles.sharedName}>{collection.name}</Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              ) : null}
-              {shared.kind === 'ready' && shared.nextCursor !== null ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: shared.isLoadingMore, busy: shared.isLoadingMore }}
-                  disabled={shared.isLoadingMore}
-                  onPress={loadMoreShared}
-                  style={styles.sharedMore}
-                  testID="friend-shared-more"
-                >
-                  {shared.isLoadingMore ? <ActivityIndicator size="small" /> : <Text numberOfLines={2} style={styles.sharedMoreLabel}>{shared.moreFailed ? `${t('friends.sharedCollectionsFailed')} ${t('auth.retry')}` : t('friends.sharedCollectionsMore')}</Text>}
-                </Pressable>
-              ) : null}
+              <CheckIcon color={colors.surface} size={ACTION_ICON_SIZE} />
+              <Text numberOfLines={2} style={[styles.actionLabel, styles.primaryLabel]}>{t('friends.saveNote')}</Text>
             </>
-          ) : null}
+          )}
+        </Pressable>
 
-          <View style={styles.divider} />
+        {onOpenCollection ? (
+          <>
+            <View style={styles.divider} />
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.sectionTitle} testID="friend-shared-title">
+                {shared.kind === 'ready'
+                  ? t('friends.sharedCollectionsCount', { count: `${shared.items.length}${shared.nextCursor !== null ? '+' : ''}` })
+                  : t('friends.sharedCollectionsTitle')}
+              </Text>
+            </View>
+            {shared.kind === 'loading' ? <ActivityIndicator style={styles.sharedState} /> : null}
+            {shared.kind === 'failed' ? <Text style={styles.error} testID="friend-shared-error">{t('friends.sharedCollectionsFailed')}</Text> : null}
+            {shared.kind === 'ready' && shared.items.length === 0 ? <Text style={styles.sharedEmpty} testID="friend-shared-empty">{t('friends.sharedCollectionsEmpty')}</Text> : null}
+            {shared.kind === 'ready' && shared.items.length > 0 ? (
+              // Compact vertical tiles (icon above, name below) in ONE horizontally scrolling row: a long list never grows the modal.
+              <ScrollView contentContainerStyle={styles.sharedTiles} horizontal showsHorizontalScrollIndicator={false} testID="friend-shared-list">
+                {shared.items.map(collection => (
+                  <Pressable
+                    accessibilityLabel={collection.name}
+                    accessibilityRole="button"
+                    key={collection.id}
+                    onPress={() => onOpenCollection(collection.id)}
+                    style={styles.sharedTile}
+                    testID={`friend-shared-${collection.id}`}
+                  >
+                    <View>
+                      <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} imageVersion={collection.iconImageVersion} size={44} />
+                      {isCollectionLocked(collection) ? (
+                        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.sharedLock}>
+                          <LockIcon color={colors.textSecondary} size={12} />
+                        </View>
+                      ) : null}
+                    </View>
+                    <Text numberOfLines={2} style={styles.sharedName}>{collection.name}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            ) : null}
+            {shared.kind === 'ready' && shared.nextCursor !== null ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ disabled: shared.isLoadingMore, busy: shared.isLoadingMore }}
+                disabled={shared.isLoadingMore}
+                onPress={loadMoreShared}
+                style={styles.sharedMore}
+                testID="friend-shared-more"
+              >
+                {shared.isLoadingMore ? <ActivityIndicator size="small" /> : <Text numberOfLines={2} style={styles.sharedMoreLabel}>{shared.moreFailed ? `${t('friends.sharedCollectionsFailed')} ${t('auth.retry')}` : t('friends.sharedCollectionsMore')}</Text>}
+              </Pressable>
+            ) : null}
+          </>
+        ) : null}
 
-          {/* The app's secondary-destructive look (red outline, like 계정 삭제); the confirmation
-              that follows carries the filled red button. */}
+        <View style={styles.divider} />
+
+        {/* The app's secondary-destructive look (red outline, like 계정 삭제); the confirmation
+            that follows carries the filled red button. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isBusy, busy: isRemoving }}
+          disabled={isBusy}
+          onPress={() => setIsRemoveConfirmVisible(true)}
+          style={[styles.actionButton, styles.removeButton, isBusy && !isRemoving && styles.disabled]}
+          testID="friend-remove"
+        >
+          {isRemoving ? <ActivityIndicator color={colors.destructiveText} size="small" /> : (
+            <>
+              <UserMinusIcon color={colors.destructiveText} size={ACTION_ICON_SIZE} />
+              <Text numberOfLines={2} style={[styles.actionLabel, styles.removeLabel]}>{t('friends.remove')}</Text>
+            </>
+          )}
+        </Pressable>
+
+        {/* 친구 차단: directly under 친구 삭제, the same red-outline button (size, radius, text); the shared confirmation follows. */}
+        {onBlock ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityState={{ disabled: isBusy, busy: isRemoving }}
+            accessibilityState={{ disabled: isBusy }}
             disabled={isBusy}
-            onPress={() => setIsRemoveConfirmVisible(true)}
-            style={[styles.actionButton, styles.removeButton, isBusy && !isRemoving && styles.disabled]}
-            testID="friend-remove"
+            onPress={() => afterMenuCloses(() => setIsClosingToBlock(true), () => onBlock(friend))}
+            style={[styles.actionButton, styles.removeButton, styles.blockButton, isBusy && styles.disabled]}
+            testID="friend-block"
           >
-            {isRemoving ? <ActivityIndicator color={colors.destructiveText} size="small" /> : (
-              <>
-                <UserMinusIcon color={colors.destructiveText} size={ACTION_ICON_SIZE} />
-                <Text numberOfLines={2} style={[styles.actionLabel, styles.removeLabel]}>{t('friends.remove')}</Text>
-              </>
-            )}
+            <BlockIcon color={colors.destructiveText} size={ACTION_ICON_SIZE} />
+            <Text numberOfLines={2} style={[styles.actionLabel, styles.removeLabel]}>{t('friends.blockFriend')}</Text>
           </Pressable>
+        ) : null}
 
-          {/* 친구 차단: directly under 친구 삭제, the same red-outline button (size, radius, text); the shared confirmation follows. */}
-          {onBlock ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: isBusy }}
-              disabled={isBusy}
-              onPress={() => onBlock(friend)}
-              style={[styles.actionButton, styles.removeButton, styles.blockButton, isBusy && styles.disabled]}
-              testID="friend-block"
-            >
-              <BlockIcon color={colors.destructiveText} size={ACTION_ICON_SIZE} />
-              <Text numberOfLines={2} style={[styles.actionLabel, styles.removeLabel]}>{t('friends.blockFriend')}</Text>
-            </Pressable>
-          ) : null}
-
-        </ScrollView>
-      </AppModal>
+      </ScrollView>
+      {/* Inside the popup, not beside it: iOS presents a Modal from its parent's view controller, and a sibling's is already presenting this popup. */}
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('friends.remove')}
@@ -315,7 +319,7 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved, onBlo
         title={t('friends.removeConfirmTitle')}
         visible={isRemoveConfirmVisible}
       />
-    </>
+    </AppModal>
   );
 }
 

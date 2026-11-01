@@ -1321,10 +1321,19 @@ describe('FriendsScreen - 친구 차단 in the friend detail popup', () => {
     expect(labels).toEqual(expect.arrayContaining(['메모', '메모 저장']));
   });
 
-  it('asks the short question first: 취소 changes nothing and keeps the popup', async () => {
-    const renderer = await renderScreen();
+  // iOS cannot present a Modal while another is up: the popup must be going away first, and the question waits for its onDismiss.
+  const blockAndFinishClosing = async (renderer: Renderer) => {
     await press(renderer, 'friend-7');
     await press(renderer, 'friend-block');
+    expect(detail(renderer)!.props.visible).toBe(false);
+    expect(confirmDialog(renderer)).toBeUndefined();
+    await act(async () => detail(renderer)!.props.onDismiss());
+    expect(detail(renderer)).toBeUndefined();
+  };
+
+  it('closes the popup first, then asks the short question: 취소 changes nothing', async () => {
+    const renderer = await renderScreen();
+    await blockAndFinishClosing(renderer);
 
     const dialog = confirmDialog(renderer);
     expect(dialog.props.title).toBe('이 사용자를 차단하시겠습니까?');
@@ -1333,33 +1342,62 @@ describe('FriendsScreen - 친구 차단 in the friend detail popup', () => {
 
     await act(async () => dialog.props.onCancel());
     expect(blockUser).not.toHaveBeenCalled();
-    expect(detail(renderer)).toBeDefined();
+    expect(confirmDialog(renderer)).toBeUndefined();
     expect(exists(renderer, 'friend-7')).toBe(true);
   });
 
-  it('차단 calls the block API once, closes the popup and drops the friend from the list', async () => {
+  it('차단 calls the block API once and drops the friend from the list', async () => {
     jest.mocked(blockUser).mockResolvedValue(undefined);
     const renderer = await renderScreen();
-    await press(renderer, 'friend-7');
-    await press(renderer, 'friend-block');
+    await blockAndFinishClosing(renderer);
 
     await act(async () => confirmDialog(renderer).props.onConfirm());
     expect(blockUser).toHaveBeenCalledTimes(1);
     expect(blockUser).toHaveBeenCalledWith(expect.any(Function), 'K7MP4Q8N');
-    expect(detail(renderer)).toBeUndefined();
     expect(exists(renderer, 'friend-7')).toBe(false);
     expect(removeFriend).not.toHaveBeenCalled();
   });
 
-  it('a failed block keeps the popup and the friend', async () => {
+  it('a failed block keeps the friend', async () => {
     jest.mocked(blockUser).mockRejectedValue(new Error('down'));
     const renderer = await renderScreen();
-    await press(renderer, 'friend-7');
-    await press(renderer, 'friend-block');
+    await blockAndFinishClosing(renderer);
 
     await act(async () => confirmDialog(renderer).props.onConfirm());
-    expect(detail(renderer)).toBeDefined();
     expect(exists(renderer, 'friend-7')).toBe(true);
+  });
+
+  it('Android has no onDismiss: the popup closes and the question opens at once', async () => {
+    const original = Platform.OS;
+    Platform.OS = 'android';
+    try {
+      const renderer = await renderScreen();
+      await press(renderer, 'friend-7');
+      await press(renderer, 'friend-block');
+      expect(detail(renderer)).toBeUndefined();
+      expect(confirmDialog(renderer).props.title).toBe('이 사용자를 차단하시겠습니까?');
+    } finally {
+      Platform.OS = original;
+    }
+  });
+
+  it('opening the same friend again after a cancelled block shows the popup', async () => {
+    const renderer = await renderScreen();
+    await blockAndFinishClosing(renderer);
+    await act(async () => confirmDialog(renderer).props.onCancel());
+    await press(renderer, 'friend-7');
+    expect(detail(renderer)!.props.visible).toBe(true);
+  });
+
+  it('친구 삭제 asks from inside the popup: iOS could not present a dialog beside it', async () => {
+    const renderer = await renderScreen();
+    await press(renderer, 'friend-7');
+    await press(renderer, 'friend-remove');
+    const inside = detail(renderer)!.findAll(node => node.props.visible === true && node.props.confirmLabel === i18n.t('friends.remove'));
+    expect(inside.length).toBeGreaterThan(0);
+    await act(async () => inside[0].props.onCancel());
+    expect(removeFriend).not.toHaveBeenCalled();
+    expect(detail(renderer)!.props.visible).toBe(true);
   });
 });
 

@@ -23,6 +23,8 @@ interface AppModalProps {
   readonly footer?: ReactNode;
   readonly children: ReactNode;
   readonly testID?: string;
+  /** iOS only: the modal has finished going away (React Native's Modal onDismiss). See useActionAfterMenu for what waits on it. */
+  readonly onDismiss?: () => void;
 }
 
 /**
@@ -33,7 +35,7 @@ interface AppModalProps {
  * navigation bar, gesture area or home indicator, and it moves up with the keyboard (see
  * KeyboardSafeView - the one keyboard-avoidance pattern).
  */
-export function AppModal({ visible, title, onClose, dismissible = true, size = 'compact', footer, children, testID }: AppModalProps) {
+export function AppModal({ visible, title, onClose, dismissible = true, size = 'compact', footer, children, testID, onDismiss }: AppModalProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const close = dismissible ? onClose : () => undefined;
@@ -42,6 +44,7 @@ export function AppModal({ visible, title, onClose, dismissible = true, size = '
     <Modal
       animationType="fade"
       navigationBarTranslucent
+      onDismiss={onDismiss}
       onRequestClose={close}
       statusBarTranslucent
       transparent

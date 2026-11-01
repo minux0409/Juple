@@ -131,7 +131,6 @@ export function FriendsScreen() {
   // so the person leaves this list at once; the 차단한 사용자 tab reads the server's list when it is opened.
   const { requestBlock, blockDialogs } = useBlockPersonFlow(blocked => {
     setFriends(previous => previous.filter(friend => friend.jupleId !== blocked.jupleId));
-    setSelected(current => (current?.jupleId === blocked.jupleId ? null : current));
   }, { knownNotBlocked: true });
   const [isAddOpen, setIsAddOpen] = useState(false);
   // A request row's person (the whole identity area is the tap target): the same person/friend info as everywhere.
@@ -498,7 +497,10 @@ export function FriendsScreen() {
           setFriends(previous => previous.map(friend => (friend.friendshipId === updated.friendshipId ? updated : friend)));
           setSelected(updated);
         }}
-        onBlock={friend => requestBlock({ jupleId: friend.jupleId, name: friendPrimaryLabel(friend) })}
+        onBlock={friend => {
+          setSelected(null);
+          requestBlock({ jupleId: friend.jupleId, name: friendPrimaryLabel(friend) });
+        }}
         onClose={() => setSelected(null)}
         onRemoved={friendshipId => {
           setFriends(previous => previous.filter(friend => friend.friendshipId !== friendshipId));
