@@ -12,7 +12,7 @@ import { ImportantState } from '../../components/ImportantState';
 import { RefreshFailureNotice } from '../../components/RefreshFailureNotice';
 import { UserAvatar } from '../../components/UserAvatar';
 import { ChevronIcon } from '../../icons/ChevronIcon';
-import { ViewModeToggle, ViewModeToolbar } from '../../components/ViewModeToggle';
+import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { AddIconButton } from '../../components/AddIconButton';
 import { CheckIcon } from '../../icons/CheckIcon';
 import { CloseIcon } from '../../icons/CloseIcon';
@@ -356,7 +356,7 @@ describe('FriendsScreen - a friend row', () => {
     expect(frame).toEqual(expect.objectContaining({ backgroundColor: colors.surface, borderRadius: radii.lg }));
     // Cards sit closer together (8dp) than the controls sit above the first card (12dp): the section gap is the larger one.
     expect(frame.marginBottom).toBe(spacing.sm);
-    const search = byId(renderer, 'friends-list').props.ListHeaderComponent.props.children[1];
+    const search = byId(renderer, 'friends-search-row');
     const controls = StyleSheet.flatten(search.props.style);
     expect(controls.marginBottom).toBe(spacing.md);
     expect(controls.marginBottom).toBeGreaterThan(frame.marginBottom as number);
@@ -1139,24 +1139,30 @@ describe('FriendsScreen - narrow screens and accessibility', () => {
 describe('FriendsScreen - List / Grid', () => {
   beforeEach(() => mockPrefs.clear());
 
-  it('puts the shared square List/Grid controls in their own row above the full-width search', async () => {
+  it('puts the Home-sized view controls to the right of the flexible search field in one stretching row', async () => {
     const renderer = await renderScreen();
 
     const toggle = renderer.root.findByType(ViewModeToggle);
-    const toolbar = renderer.root.findByType(ViewModeToolbar);
-    const header = renderer.root.findByType(FlatList).props.ListHeaderComponent;
-    expect(header.props.children[0].type).toBe(ViewModeToolbar);
-    expect(toolbar.findAllByProps({ testID: 'friends-search' })).toHaveLength(0);
-    expect(StyleSheet.flatten((toolbar.children[0] as ReactTestRenderer.ReactTestInstance).props.style)).toMatchObject({ alignItems: 'flex-end' });
-    const search = renderer.root.findAll(node => node.props.testID === 'friends-search' && typeof node.type === 'string')[0];
-    expect(StyleSheet.flatten(search.parent!.parent!.props.style).flex).toBeUndefined();
+    const row = renderer.root.findAll(node => node.props.testID === 'friends-search-row' && typeof node.type === 'string')[0];
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ alignItems: 'stretch', flexDirection: 'row', gap: 8 });
+    expect(StyleSheet.flatten((row.children[0] as ReactTestRenderer.ReactTestInstance).props.style)).toMatchObject({ flex: 1, minWidth: 0 });
+    expect(row.findByType(ViewModeToggle)).toBe(toggle);
+    expect(toggle.props.matchSearchHeight).toBe(true);
+    expect((row.children[0] as ReactTestRenderer.ReactTestInstance).findAllByProps({ testID: 'friends-search' }).length).toBeGreaterThan(0);
     const buttons = toggle.findAll(node => node.props.accessibilityRole === 'button' && typeof node.props.onPress === 'function' && typeof node.type !== 'string');
     expect(buttons).toHaveLength(2);
     buttons.forEach(button => {
       const style = StyleSheet.flatten(button.props.style);
-      expect(style.height).toBe(style.width);
+      expect(style.height).toBe('auto');
+      expect(style.width).toBe(44);
     });
     expect(renderer.root.findByProps({ testID: 'friends-list' }).props.numColumns).toBe(1);
+    await act(async () => {
+      byId(renderer, 'friends-search').props.onChangeText('피카');
+      toggle.props.onChange('grid');
+    });
+    expect(byId(renderer, 'friends-search').props.value).toBe('피카');
+    expect(renderer.root.findByType(ViewModeToggle).props.value).toBe('grid');
   });
 
   describe('Grid tile: avatar / name / @ID / memo', () => {

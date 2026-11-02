@@ -56,7 +56,7 @@ import { shareEntryTileKey } from '../collections/shareEntryTileKey';
 import { CollectionCardSkeleton } from '../collections/CollectionCardSkeleton';
 import { applyCollectionIconImageChange, getIconImageSaveErrorMessage, type CollectionIconImageChange } from '../collections/collectionIconImage';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
-import { ViewModeToolbar } from '../components/ViewModeToggle';
+import { ViewModeToggle } from '../components/ViewModeToggle';
 import { AddIconButton } from '../components/AddIconButton';
 import { useViewModePreference } from '../settings/viewModePreference';
 import { DEFAULT_COLLECTION_COLOR, type CollectionColorValue } from '../collections/collectionColors';
@@ -951,24 +951,25 @@ export function CollectionsScreen() {
               />
             ) : null}
 
-            <View {...viewModeTarget}>
-              <ViewModeToolbar onChange={changeViewMode} testID="collections-view-controls" value={viewMode} />
-            </View>
-            {/* Search stays full-width below the filters, requests and presentation controls. */}
-            <View style={styles.searchRow}>
-              <View collapsable={false} onLayout={measureOverlay} onTouchStart={markTouchInSearch} ref={searchAnchorRef}>
-                <SearchField
-                  clearLabel={t('history.searchClear')}
-                  onBlur={() => setSearchFocused(false)}
-                  onChangeText={changeSearchText}
-                  onFocus={() => {
-                    setSearchFocused(true);
-                    setSuggestionsDismissed(false);
-                  }}
-                  placeholder={t('collections.listSearchPlaceholder')}
-                  testID="collections-search"
-                  value={searchText}
-                />
+            <View style={styles.searchSection}>
+              <View style={styles.searchRow} testID="collections-search-row">
+                <View collapsable={false} onLayout={measureOverlay} onTouchStart={markTouchInSearch} ref={searchAnchorRef} style={styles.searchField}>
+                  <SearchField
+                    clearLabel={t('history.searchClear')}
+                    onBlur={() => setSearchFocused(false)}
+                    onChangeText={changeSearchText}
+                    onFocus={() => {
+                      setSearchFocused(true);
+                      setSuggestionsDismissed(false);
+                    }}
+                    placeholder={t('collections.listSearchPlaceholder')}
+                    testID="collections-search"
+                    value={searchText}
+                  />
+                </View>
+                <View {...viewModeTarget} style={styles.viewModeControls} testID="collections-view-controls">
+                  <ViewModeToggle matchSearchHeight onChange={changeViewMode} value={viewMode} />
+                </View>
               </View>
               {/* A changed term is being read: the cards stay, a small spinner says so. */}
               {isSearching ? <ActivityIndicator size="small" style={styles.searchSpinner} testID="collections-search-loading" /> : null}
@@ -1224,7 +1225,10 @@ const styles = themedStyles(() => ({
   },
   // An invisible, touch-transparent measuring box the size of the screen's content area: the container the panel's frame is relative to.
   overlayRoot: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
-  searchRow: { marginBottom: spacing.md },
+  searchSection: { marginBottom: spacing.md },
+  searchRow: { alignItems: 'stretch', flexDirection: 'row', gap: spacing.sm },
+  searchField: { flex: 1, minWidth: 0 },
+  viewModeControls: { flexDirection: 'row' },
   searchSpinner: { marginTop: spacing.xs },
   titleRow: {
     alignItems: 'center',

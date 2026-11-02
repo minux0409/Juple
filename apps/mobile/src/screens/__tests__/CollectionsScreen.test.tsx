@@ -10,7 +10,7 @@ import { CrownIcon } from '../../icons/CrownIcon';
 import { StarIcon } from '../../icons/StarIcon';
 import { PendingActionRow } from '../../components/PendingActionRow';
 import { AddIconButton } from '../../components/AddIconButton';
-import { ViewModeToolbar } from '../../components/ViewModeToggle';
+import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { radii, spacing } from '../../theme/tokens';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Dimensions, FlatList, Image, InputAccessoryView, Linking, Platform, RefreshControl, StyleSheet, Text, TextInput } from 'react-native';
@@ -163,15 +163,18 @@ describe('CollectionsScreen - refresh spinner (iOS stuck spinner after coming ba
   });
   const nativeSpinner = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findByType(RefreshControl).props.refreshing;
 
-  it('keeps add in the title while the independent view controls precede the full-width search', async () => {
+  it('keeps add in the title and puts the stretching view controls after search in one row', async () => {
     const renderer = await renderScreen();
     const add = renderer.root.findByType(AddIconButton);
     expect(add.props.accessibilityLabel).toBe(i18n.t('collections.create'));
-    expect(add.parent!.findAllByType(ViewModeToolbar)).toHaveLength(0);
-    const controls = renderer.root.findByType(ViewModeToolbar);
-    expect(controls.findAllByProps({ testID: 'collections-search' })).toHaveLength(0);
+    expect(add.parent!.findAllByType(ViewModeToggle)).toHaveLength(0);
+    const row = renderer.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'collections-search-row')[0];
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ alignItems: 'stretch', flexDirection: 'row', gap: spacing.sm });
+    expect(StyleSheet.flatten((row.children[0] as ReactTestRenderer.ReactTestInstance).props.style)).toMatchObject({ flex: 1, minWidth: 0 });
+    const controls = row.findByType(ViewModeToggle);
+    expect(controls.props.matchSearchHeight).toBe(true);
     const order = renderer.root.findAll(node => typeof node.type === 'string' && ['collections-view-controls', 'collections-search'].includes(node.props.testID)).map(node => node.props.testID);
-    expect(order).toEqual(['collections-view-controls', 'collections-search']);
+    expect(order).toEqual(['collections-search', 'collections-view-controls']);
     act(() => controls.props.onChange('list'));
     expect(renderer.root.findByType(FlatList).props.numColumns).toBe(1);
   });

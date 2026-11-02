@@ -2,6 +2,7 @@ import i18n from '../../i18n';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { StyleSheet } from 'react-native';
 import { ViewModeToggle } from '../ViewModeToggle';
+import { setActiveColorScheme } from '../../theme/tokens';
 
 function render(props: Partial<React.ComponentProps<typeof ViewModeToggle>> = {}) {
   const onChange = jest.fn();
@@ -15,11 +16,30 @@ const option = (renderer: ReactTestRenderer.ReactTestRenderer, label: string) =>
   renderer.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0];
 
 describe('ViewModeToggle', () => {
-  it('uses square List/Grid buttons in the independent Collection/Friends controls row', () => {
+  it('preserves the default compact two-option geometry for other callers', () => {
     const { renderer } = render();
     for (const key of ['common.viewList', 'common.viewGrid']) {
       const style = StyleSheet.flatten(option(renderer, i18n.t(key)).props.style);
       expect(style.height).toBe(style.width);
+    }
+  });
+  it.each(['light', 'dark'] as const)('matches the Home/Archive geometry and theme while stretching beside search (%s)', scheme => {
+    setActiveColorScheme(scheme);
+    try {
+      const home = render({ showImage: true }).renderer;
+      const search = render({ matchSearchHeight: true }).renderer;
+      const containerStyle = (renderer: ReactTestRenderer.ReactTestRenderer) => StyleSheet.flatten((renderer.root.children[0] as ReactTestRenderer.ReactTestInstance).props.style);
+      expect(containerStyle(search)).toMatchObject({ ...containerStyle(home), alignSelf: 'stretch', flexShrink: 0 });
+      for (const key of ['common.viewList', 'common.viewGrid']) {
+        const label = i18n.t(key);
+        const homeStyle = StyleSheet.flatten(option(home, label).props.style);
+        const searchStyle = StyleSheet.flatten(option(search, label).props.style);
+        expect(searchStyle).toMatchObject({ ...homeStyle, height: 'auto', minHeight: homeStyle.height });
+        expect(searchStyle.width).toBeGreaterThan(homeStyle.height);
+        expect(option(search, label).props.hitSlop).toEqual(option(home, label).props.hitSlop);
+      }
+    } finally {
+      setActiveColorScheme('light');
     }
   });
   it('stays List / Grid everywhere that does not opt in', () => {

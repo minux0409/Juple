@@ -20,7 +20,7 @@ import { savedLinkLayout } from '../components/savedLinkLayout';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { useActionAfterMenu } from '../components/useActionAfterMenu';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
-import { ViewModeToolbar } from '../components/ViewModeToggle';
+import { ViewModeToggle } from '../components/ViewModeToggle';
 import { AddIconButton } from '../components/AddIconButton';
 import { useViewModePreference, type ViewMode } from '../settings/viewModePreference';
 import { UserAvatar } from '../components/UserAvatar';
@@ -372,8 +372,7 @@ export function FriendsScreen() {
       }
       ListHeaderComponent={
         <View>
-          <ViewModeToolbar onChange={changeViewMode} testID="friends-view-controls" value={viewMode} />
-          <View style={[styles.searchRow, viewMode === 'list' && styles.searchRowList]}>
+          <View style={[styles.searchRow, viewMode === 'list' && styles.searchRowList]} testID="friends-search-row">
             <View style={styles.searchField}>
               {/* A person glyph inside the field - decoration, not a control (a tap there reaches the input). */}
               <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.searchIcon} testID="friends-search-icon">
@@ -389,6 +388,7 @@ export function FriendsScreen() {
                 value={search}
               />
             </View>
+            <ViewModeToggle matchSearchHeight onChange={changeViewMode} value={viewMode} />
           </View>
           {/* Friends are already listed and a refresh failed: keep them, with a compact retry row (not a full failure state). */}
           {hasLoadedFriends && friendsError ? <RefreshFailureNotice onRetry={() => loadFriends(searchRef.current)} testID="friends-stale" /> : null}
@@ -803,9 +803,9 @@ const styles = themedStyles(() => ({
   tabBadgeTextEmphasized: { color: colors.onBrand },
   tabBadgeTextMuted: { color: colors.textSecondary },
   listContent: { flexGrow: 1, paddingBottom: spacing.xl, paddingHorizontal: spacing.xl, paddingTop: spacing.md },
-  searchRow: { marginBottom: spacing.xs },
+  searchRow: { alignItems: 'stretch', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs },
   searchRowList: { marginBottom: spacing.md },
-  searchField: { justifyContent: 'center', minWidth: 0 },
+  searchField: { flex: 1, justifyContent: 'center', minWidth: 0 },
   searchIcon: { alignItems: 'center', bottom: 0, justifyContent: 'center', position: 'absolute', start: spacing.md, top: 0, zIndex: 1 },
   searchInput: {
     backgroundColor: colors.surface,
