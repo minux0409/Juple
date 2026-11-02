@@ -248,16 +248,17 @@ describe('usePushMessageHandling on iOS', () => {
     expect(navigationRef.navigate).not.toHaveBeenCalled();
   });
 
-  it('foreground APNs operator notice uses the same popup signal as Android, without a second banner', async () => {
+  it.each(['adminWarning', 'reportResult'])('foreground APNs %s refreshes the Inbox without an automatic popup/banner or read receipt', async type => {
     const received = jest.fn();
     const unsubscribe = subscribeSocialPushEvents(received);
     await mount();
-    act(() => fire('foreground', JSON.stringify({ notification: { title: 'Team', body: 'Message' }, data: { type: 'adminWarning', noticeId: '11', notificationId: '77' } })));
+    act(() => fire('foreground', JSON.stringify({ notification: { title: 'Team', body: 'Message' }, data: { type, noticeId: '11', notificationId: '77' } })));
     await flush();
     unsubscribe();
-    expect(received).toHaveBeenCalledWith(expect.objectContaining({ type: 'adminWarning', noticeId: 11 }));
+    expect(received).toHaveBeenCalledWith(expect.objectContaining({ type, noticeId: 11 }));
     expect(notificationBannerQueue.current()).toBeNull();
     expect(navigationRef.navigate).not.toHaveBeenCalled();
+    expect(mockRequest.mock.calls.every(([request]) => request.path === '/api/v1/notifications/unread-count')).toBe(true);
   });
 
   it('a tap opens the target once, even when the launch tap reports the same notification again', async () => {

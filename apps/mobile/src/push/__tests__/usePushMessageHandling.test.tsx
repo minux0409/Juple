@@ -253,17 +253,28 @@ describe('usePushMessageHandling', () => {
     expect(getUnreadCount()).toBe(3);
   });
 
-  it('foreground operator notices trigger the global notice host, without a duplicate generic banner or automatic read receipt', async () => {
+  it.each(['adminWarning', 'reportResult'])('foreground %s refreshes the Inbox signal/bell without popup, banner, notice fetch or automatic read receipt', async type => {
     const received = jest.fn();
     const unsubscribe = subscribeSocialPushEvents(received);
     await mount();
-    act(() => foregroundHandler()({ data: { type: 'adminWarning', noticeId: '11', notificationId: '77' }, notification: { title: 'Team', body: 'Message' } }));
+    act(() => foregroundHandler()({ data: { type, noticeId: '11', notificationId: '77' }, notification: { title: 'Team', body: 'Message' } }));
     await flush();
     unsubscribe();
-    expect(received).toHaveBeenCalledWith(expect.objectContaining({ type: 'adminWarning', noticeId: 11 }));
+    expect(received).toHaveBeenCalledWith(expect.objectContaining({ type, noticeId: 11 }));
     expect(notificationBannerQueue.current()).toBeNull();
     expect(readCalls()).toHaveLength(0);
     expect(navigationRef.navigate).not.toHaveBeenCalled();
+    expect(mockRequest.mock.calls.every(([request]) => request.path === '/api/v1/notifications/unread-count')).toBe(true);
+    expect(getUnreadCount()).toBe(3);
+  });
+
+  it.each(['adminWarning', 'reportResult'])('a background %s Push tap still opens the validated operator notice', async type => {
+    mockDetails.set(77, { kind: 'moderationNotice', noticeId: 11 });
+    await mount();
+    act(() => tapHandler()({ data: { type, noticeId: '11', notificationId: '77' } }));
+    await flush();
+    expect(navigationRef.navigate).toHaveBeenCalledWith('ModerationNotice', { noticeId: 11 });
+    expect(readCalls().map(([request]) => request.path)).toEqual(['/api/v1/notifications/77/read']);
   });
 
   it('a tap with a notificationId opens its exact current target and marks it read', async () => {

@@ -123,6 +123,23 @@ describe('NotificationsScreen', () => {
     expect(getUnreadCount()).toBe(3);
   });
 
+  it.each(['adminWarning', 'reportResult'] as const)('an incoming %s appears unread in the open Inbox; only tapping opens its detail screen', async type => {
+    jest.mocked(getNotifications).mockResolvedValue(page([row(1)]));
+    const renderer = await render();
+    const notice = row(2, { type, actor: null, title: '운영팀 안내', body: '검토 결과를 확인해 주세요.', target: { kind: 'moderationNotice', noticeId: 11 } });
+    jest.mocked(getNotifications).mockResolvedValue(page([notice, row(1)]));
+    await act(async () => { emitSocialPushEvent({ type, noticeId: 11, collectionId: null }); });
+    expect(rowIds(renderer)).toEqual([2, 1]);
+    expect(byTestId(renderer, 'notification-unread-2')).toHaveLength(1);
+    expect(getUnreadCount()).toBe(2);
+    expect(markNotificationRead).not.toHaveBeenCalled();
+    expect(navigationRef.navigate).not.toHaveBeenCalled();
+    jest.mocked(markNotificationRead).mockResolvedValue({ markedCount: 1, unreadCount: 1 });
+    await act(async () => { pressable(renderer, 'notification-row-2').props.onPress(); });
+    expect(navigationRef.navigate).toHaveBeenCalledWith('ModerationNotice', { noticeId: 11 });
+    expect(markNotificationRead).toHaveBeenCalledWith(expect.any(Function), 2);
+  });
+
   it('a cancelled approval request disappears from the open Inbox when the Collection refresh signal arrives, with its unread count; the other rows stay', async () => {
     const request = (id: number) => row(id, { type: 'collectionLinkSubmission', actor: null, body: `request ${id}`, target: { kind: 'collectionSubmissions', collectionId: 4 } });
     jest.mocked(getNotifications).mockResolvedValueOnce(page([request(2), request(1), row(0)]));

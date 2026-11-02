@@ -1,54 +1,25 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Modal, Platform } from 'react-native';
-import { AppNativeModal, useNoticeModalBlocked } from '../AppNativeModal';
+import { Modal, Platform, Text } from 'react-native';
+import { AppNativeModal } from '../AppNativeModal';
 
-let blocked = false;
-function Probe() { blocked = useNoticeModalBlocked(); return null; }
 const originalOS = Platform.OS;
 afterEach(() => { Object.defineProperty(Platform, 'OS', { value: originalOS, configurable: true }); });
 
-it.each(['android', 'ios'])('%s: waits behind an existing modal and leaves its callbacks and visibility intact', os => {
+it.each(['android', 'ios'])('%s: ordinary modal visibility and close/dismiss callbacks remain controlled by its caller', os => {
   Object.defineProperty(Platform, 'OS', { value: os, configurable: true });
-  const dismissed = jest.fn();
-  const element = (visible: boolean) => <><Probe /><AppNativeModal visible={visible} onDismiss={dismissed} /></>;
+  const dismiss = jest.fn();
+  const close = jest.fn();
+  const element = (visible: boolean) => <AppNativeModal visible={visible} onDismiss={dismiss} onRequestClose={close}><Text>Existing dialog</Text></AppNativeModal>;
   let tree!: ReactTestRenderer;
   act(() => { tree = create(element(true)); });
-  expect(blocked).toBe(true);
+  const modal = () => tree.root.findByType(Modal);
+  expect(modal().props.visible).toBe(true);
+  act(() => modal().props.onRequestClose());
+  expect(close).toHaveBeenCalledTimes(1);
+  expect(modal().props.visible).toBe(true);
   act(() => tree.update(element(false)));
-  expect(tree.root.findByType(Modal).props.visible).toBe(false);
-  expect(blocked).toBe(os === 'ios');
-  act(() => tree.root.findByType(Modal).props.onDismiss());
-  expect(blocked).toBe(false);
-  expect(dismissed).toHaveBeenCalledTimes(1);
-});
-
-it('a late iOS dismissal callback cannot unblock a modal that has reopened', () => {
-  Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
-  const element = (visible: boolean) => <><Probe /><AppNativeModal visible={visible} /></>;
-  let tree!: ReactTestRenderer;
-  act(() => { tree = create(element(true)); });
-  const oldDismiss = tree.root.findByType(Modal).props.onDismiss;
-  act(() => tree.update(element(false)));
-  act(() => tree.update(element(true)));
-  act(() => oldDismiss());
-  expect(blocked).toBe(true);
-  act(() => tree.update(<Probe />));
-  expect(blocked).toBe(false);
-});
-
-it('the queued notice does not block itself, and unmount releases only its own modal', () => {
-  let observer!: ReactTestRenderer;
-  let first!: ReactTestRenderer;
-  let second!: ReactTestRenderer;
-  act(() => {
-    observer = create(<><Probe /><AppNativeModal blocksNotice={false} visible /></>);
-  });
-  expect(blocked).toBe(false);
-  act(() => { first = create(<AppNativeModal visible />); second = create(<AppNativeModal visible />); });
-  expect(blocked).toBe(true);
-  act(() => first.unmount());
-  expect(blocked).toBe(true);
-  act(() => second.unmount());
-  expect(blocked).toBe(false);
-  act(() => observer.unmount());
+  expect(modal().props.visible).toBe(false);
+  act(() => modal().props.onDismiss());
+  expect(dismiss).toHaveBeenCalledTimes(1);
+  act(() => tree.unmount());
 });

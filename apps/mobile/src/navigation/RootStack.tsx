@@ -21,7 +21,6 @@ import { OnboardingTourLauncher } from '../tour/OnboardingTourLauncher';
 import { TourBackground } from '../tour/TourBackground';
 import { TourHost } from '../tour/TourHost';
 import { SubscriptionRequiredPrompt } from '../billing/SubscriptionRequiredPrompt';
-import { ModerationNoticeHost } from '../safety/ModerationNoticeHost';
 import { MyCollectionSubmissionsScreen } from '../screens/MyCollectionSubmissionsScreen';
 import { headerTitleWithIcon, screenIcons } from './screenIcons';
 import { iosHeaderOptions } from './sheetHeader';
@@ -379,7 +378,6 @@ export function RootStack() {
       {isReady ? <OnboardingTourLauncher /> : null}
       {isReady ? <TourHost /> : null}
       {isReady ? <SubscriptionRequiredPrompt /> : null}
-      {isReady ? <ModerationNoticeHost /> : null}
     </>
   );
 }

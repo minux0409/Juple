@@ -82,13 +82,6 @@ export async function getModerationNotice(request: AuthenticatedApiRequest, id: 
   return parseModerationNotice(response.body);
 }
 
-/** The operator messages (warning / action) the person has not confirmed yet, oldest first - what the app shows as 운영팀 안내. */
-export async function listUnacknowledgedModerationNotices(request: AuthenticatedApiRequest): Promise<readonly ModerationNotice[]> {
-  const response = await request<{ items?: unknown }>({ method: 'GET', path: '/api/v1/moderation-notices/unacknowledged' });
-  const items = response.body && Array.isArray((response.body as { items?: unknown }).items) ? ((response.body as { items: unknown[] }).items) : [];
-  return items.map(parseModerationNotice).filter((notice): notice is ModerationNotice => notice !== null);
-}
-
 export async function acknowledgeModerationNotice(request: AuthenticatedApiRequest, id: number): Promise<void> {
   await request<void>({ method: 'POST', path: `${noticePath(id)}/acknowledge` });
 }

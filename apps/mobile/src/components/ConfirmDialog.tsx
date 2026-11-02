@@ -7,7 +7,6 @@ import { DialogActions } from './DialogActions';
 import { KeyboardFieldScope } from './keyboardToolbar';
 
 interface ConfirmDialogProps {
-  readonly blocksNotice?: boolean;
   readonly visible: boolean;
   readonly busy?: boolean;
   readonly title: string;
@@ -58,7 +57,6 @@ export function ConfirmDialog({
   children,
   dismissable = true,
   onDismiss,
-  blocksNotice = true,
 }: ConfirmDialogProps) {
   const dismiss = dismissable && !busy ? (onCancel ?? onConfirm) : ignoreDismissRequest;
 
@@ -76,7 +74,7 @@ export function ConfirmDialog({
   }, [isEmptyNotice]);
 
   return (
-    <Modal blocksNotice={blocksNotice} animationType="fade" onDismiss={onDismiss} onRequestClose={dismiss} transparent visible={isShown}>
+    <Modal animationType="fade" onDismiss={onDismiss} onRequestClose={dismiss} transparent visible={isShown}>
       <KeyboardFieldScope>
       <View style={styles.overlay}>
         <Pressable
