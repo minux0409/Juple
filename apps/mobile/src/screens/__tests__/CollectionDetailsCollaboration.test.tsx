@@ -1668,7 +1668,7 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     const renderer = await renderScreen();
 
     const entry = pendingEntry(renderer);
-    expect(entry.findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '3']);
+    expect(entry.findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '대기 3건']);
     expect(entry.props.accessibilityLabel).toBe('받은 승인 요청 3개 보기');
     // No "총 N개" in the header any more (and proposals were never counted as links).
     expect(header(renderer).root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.detailItemCount', { count: 18 }))).toBe(false);
@@ -1687,7 +1687,7 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     const renderer = await renderScreen();
 
     const entry = pendingEntry(renderer);
-    expect(entry.findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '1']);
+    expect(entry.findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '대기 1건']);
     expect(StyleSheet.flatten(rowStyle(entry))).toEqual(expect.objectContaining({ minHeight: 44, flexDirection: 'row', backgroundColor: colors.brandSoft, borderColor: colors.brandText }));
     expect(entry.type).toBe(PendingActionRow);
     // Order inside the list header: title, header actions, this row, then the sort chips.
@@ -1707,7 +1707,7 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
       jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
       const renderer = await renderScreen();
 
-      expect(pendingEntry(renderer).findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '4']);
+      expect(pendingEntry(renderer).findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '대기 4건']);
       const entry = joinEntry(renderer);
       expect(entry.findAllByType(Text).map(text => text.props.children)).toEqual(['참여 요청', '1']);
       expect(entry.type).toBe(PendingActionRow);
@@ -1843,7 +1843,7 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
     const renderer = await renderScreen();
 
-    expect(pendingEntry(renderer).findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '3']);
+    expect(pendingEntry(renderer).findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '대기 3건']);
     expect(myPendingEntry(renderer).findAllByType(Text).map(text => text.props.children)).toEqual(['보낸 승인 요청', '대기 4건']);
     expect(pendingEntry(renderer).props.accessibilityLabel).toBe('받은 승인 요청 3개 보기');
     expect(myPendingEntry(renderer).props.accessibilityLabel).toBe('보낸 승인 요청 4개 보기');
@@ -1896,7 +1896,7 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     });
 
     expect(jest.mocked(getCollection).mock.calls.length).toBe(callsBefore + 1);
-    expect(pendingEntry(renderer).findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '2']);
+    expect(pendingEntry(renderer).findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '대기 2건']);
   });
 
   it('nothing waiting: no entry at all', async () => {

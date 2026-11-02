@@ -1,4 +1,5 @@
 import { Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Pressable } from './Pressable';
 import { useLayoutDirection } from '../i18n/layoutDirection';
 import { BellIcon } from '../icons/BellIcon';
@@ -15,14 +16,16 @@ interface PendingActionRowProps {
   /** What assistive technology says; the whole row is ONE button, the chevron is decorative. */
   readonly accessibilityLabel: string;
   readonly onPress: () => void;
-  /** The pending number, always a red count badge at the row's end (never a number inside `label`). */
+  /** The pending number, shown as localized "대기 n건" at the row's end. */
   readonly count?: number;
+  /** Unrelated join-request rows can retain their existing badge presentation. */
+  readonly countPresentation?: 'pending' | 'badge';
   /**
-   * 'action' (default): something I must answer - the light-blue emphasized card with a red count badge.
-   * 'status': something I am only waiting for (my own sent requests) - a quiet neutral card, no badge, `statusText` at its end.
+   * 'action' (default): something I must answer - the emphasized card.
+   * 'status': something I am only waiting for - a quiet neutral card. Both use the same pending text.
    */
   readonly variant?: 'action' | 'status';
-  /** With variant 'status': the neutral text beside the chevron, e.g. "대기 2건". */
+  /** Optional explicit text beside the chevron; otherwise derived from count. */
   readonly statusText?: string;
   readonly testID?: string;
   /** Outer spacing only - each screen decides its own gap above / below; the look itself never differs. */
@@ -30,14 +33,14 @@ interface PendingActionRowProps {
 }
 
 /**
- * The one pending status/action row (sent approvals, received approvals and received invitations) (leading bell): light-blue background, blue border and text, a compact one-line height and a
- * chevron toward the reading direction's end. The Owner's `받은 승인 요청 N` (Collection details) and the requester's
- * `보낸 승인 요청 N` (Collections screen and Collection details) are this same component - only the text and the
- * handler differ - so the two can never drift apart again.
+ * Sent approvals, received approvals and received invitations share one bell/label/status/chevron
+ * layout. Action rows keep their emphasis; every count uses the same localized pending text.
  */
-export function PendingActionRow({ label, accessibilityLabel, onPress, count = 0, variant = 'action', statusText, testID, style }: PendingActionRowProps) {
+export function PendingActionRow({ label, accessibilityLabel, onPress, count = 0, countPresentation = 'pending', variant = 'action', statusText, testID, style }: PendingActionRowProps) {
+  const { t } = useTranslation();
   const layoutDirection = useLayoutDirection();
   const isStatus = variant === 'status';
+  const pendingText = statusText ?? (count > 0 ? t('collections.myPendingStatus', { count }) : null);
   return (
     <Pressable
       accessibilityLabel={accessibilityLabel}
@@ -51,12 +54,9 @@ export function PendingActionRow({ label, accessibilityLabel, onPress, count = 0
         <BellIcon color={isStatus ? colors.textSecondary : colors.brandText} size={PENDING_ROW_ICON_SIZE} />
       </View>
       <Text numberOfLines={2} style={[styles.label, isStatus && styles.labelStatus]}>{label}</Text>
-      {/* Badge, then the chevron: one end-aligned group, so the two never overlap. */}
-      {isStatus ? (
-        statusText ? <Text numberOfLines={1} style={styles.statusText} testID={testID ? `${testID}-status` : undefined}>{statusText}</Text> : null
-      ) : (
-        <CountBadge count={count} testID={testID ? `${testID}-badge` : undefined} />
-      )}
+      {/* The same end-aligned status for sent approvals, received approvals and invitations. */}
+      {countPresentation === 'badge' && !isStatus ? <CountBadge count={count} testID={testID ? `${testID}-badge` : undefined} /> :
+        pendingText ? <Text numberOfLines={1} style={styles.statusText} testID={testID ? `${testID}-status` : undefined}>{pendingText}</Text> : null}
       {/* Points toward the reading direction's end (mirrored under RTL). */}
       <ChevronIcon color={isStatus ? colors.textSecondary : colors.brandText} direction={layoutDirection === 'rtl' ? 'left' : 'right'} size={16} />
     </Pressable>

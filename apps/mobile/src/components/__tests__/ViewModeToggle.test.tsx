@@ -15,11 +15,12 @@ const option = (renderer: ReactTestRenderer.ReactTestRenderer, label: string) =>
   renderer.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0];
 
 describe('ViewModeToggle', () => {
-  it('can stretch beside the Friends search field without fixing its accessibility-expanded height', () => {
-    const { renderer } = render({ fillHeight: true });
-    const button = option(renderer, i18n.t('common.viewList'));
-    expect(StyleSheet.flatten(button.props.style)).toMatchObject({ height: 'auto', minHeight: 40, width: 32 });
-    expect(StyleSheet.flatten(button.parent!.props.style).alignSelf).toBe('stretch');
+  it('uses square List/Grid buttons in the independent Collection/Friends controls row', () => {
+    const { renderer } = render();
+    for (const key of ['common.viewList', 'common.viewGrid']) {
+      const style = StyleSheet.flatten(option(renderer, i18n.t(key)).props.style);
+      expect(style.height).toBe(style.width);
+    }
   });
   it('stays List / Grid everywhere that does not opt in', () => {
     const { renderer } = render();

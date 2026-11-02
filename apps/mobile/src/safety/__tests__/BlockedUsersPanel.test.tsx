@@ -1,5 +1,8 @@
 ﻿import ReactTestRenderer, { act } from 'react-test-renderer';
 import { BlockedUsersPanel } from '../BlockedUsersPanel';
+import { StyleSheet } from 'react-native';
+import { UserAvatar } from '../../components/UserAvatar';
+import { colors, getActiveColorScheme, minTouchTarget, radii, setActiveColorScheme, spacing } from '../../theme/tokens';
 
 const mockRequest = jest.fn();
 const mockNavigate = jest.fn();
@@ -64,5 +67,26 @@ describe('BlockedUsersPanel', () => {
     mockRequest.mockResolvedValue({ body: { items: [] } });
     const renderer = await renderScreen();
     expect(renderer.root.findAll(node => node.props.testID === 'blocked-users-empty').length).toBeGreaterThan(0);
+  });
+
+  it.each(['light', 'dark'] as const)('%s: blocked people use a borderless rounded friend card without losing their unblock target', async scheme => {
+    const previous = getActiveColorScheme();
+    setActiveColorScheme(scheme);
+    let renderer: ReactTestRenderer.ReactTestRenderer | undefined;
+    try {
+      mockRequest.mockResolvedValue({ body: { items: [person] } });
+      renderer = await renderScreen();
+      const card = renderer.root.findAll(node => node.props.testID === 'blocked-user-ABC12345' && typeof node.type === 'string')[0];
+      const style = StyleSheet.flatten(card.props.style);
+      expect(style).toMatchObject({ backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md });
+      expect(style.borderWidth ?? 0).toBe(0);
+      expect(renderer.root.findByType(UserAvatar).props.size).toBe(44);
+      const action = byId(renderer, 'blocked-user-unblock-ABC12345');
+      expect(StyleSheet.flatten(action.props.style).minHeight).toBeGreaterThanOrEqual(minTouchTarget);
+      expect(mockRequest).toHaveBeenCalledTimes(1); // rendering never unblocks anyone
+    } finally {
+      act(() => renderer?.unmount());
+      setActiveColorScheme(previous);
+    }
   });
 });

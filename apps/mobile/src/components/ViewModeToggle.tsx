@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 import { Pressable } from './Pressable';
 import type { SavedLinkViewMode, TrashViewMode } from '../settings/viewModePreference';
-import { colors, radii, themedStyles } from '../theme/tokens';
+import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 
 type ToggleMode = SavedLinkViewMode | TrashViewMode;
 
@@ -15,8 +15,6 @@ interface ViewModeToggleProps<Mode extends ToggleMode> {
   /** Adds the third, compact 3-column Grid option (deleted links only), drawn with the same nine-block glyph as Image view. */
   readonly showCompact?: boolean;
   readonly style?: StyleProp<ViewStyle>;
-  /** Match an adjacent text field, including its accessibility font expansion. */
-  readonly fillHeight?: boolean;
 }
 
 function ListGlyph({ selected }: { readonly selected: boolean }) {
@@ -33,7 +31,7 @@ function ImageGlyph({ selected }: { readonly selected: boolean }) {
 }
 
 /** Compact List / Grid (/ Image) presentation switch shared by link and Collection screens. */
-export function ViewModeToggle<Mode extends ToggleMode = ToggleMode>({ value, onChange, showImage = false, showCompact = false, style, fillHeight = false }: ViewModeToggleProps<Mode>) {
+export function ViewModeToggle<Mode extends ToggleMode = ToggleMode>({ value, onChange, showImage = false, showCompact = false, style }: ViewModeToggleProps<Mode>) {
   const { t } = useTranslation();
   const hasThird = showImage || showCompact;
   const option = (mode: ToggleMode, label: string, glyph: ReactElement) => (
@@ -43,12 +41,12 @@ export function ViewModeToggle<Mode extends ToggleMode = ToggleMode>({ value, on
       accessibilityState={{ selected: value === mode }}
       hitSlop={hasThird ? { bottom: 4, top: 4 } : undefined}
       onPress={() => onChange(mode as Mode)}
-      style={[styles.button, hasThird && styles.buttonWide, fillHeight && styles.buttonFill, value === mode && styles.buttonSelected]}
+      style={[styles.button, hasThird && styles.buttonWide, value === mode && styles.buttonSelected]}
     >
       {glyph}
     </Pressable>
   );
-  return <View style={[styles.container, fillHeight && styles.containerFill, style]}>
+  return <View style={[styles.container, style]}>
     {option('list', t('common.viewList'), <ListGlyph selected={value === 'list'} />)}
     {option('grid', t('common.viewGrid'), <GridGlyph selected={value === 'grid'} />)}
     {showImage ? option('image', t('common.viewImage'), <ImageGlyph selected={value === 'image'} />) : null}
@@ -56,14 +54,18 @@ export function ViewModeToggle<Mode extends ToggleMode = ToggleMode>({ value, on
   </View>;
 }
 
+/** A separate end-aligned row above the full-width search, as in the Archive. */
+export function ViewModeToolbar<Mode extends ToggleMode = ToggleMode>({ testID, ...props }: ViewModeToggleProps<Mode> & { readonly testID?: string }) {
+  return <View style={styles.toolbar} testID={testID}><ViewModeToggle {...props} /></View>;
+}
+
 const styles = themedStyles(() => ({
+  toolbar: { alignItems: 'flex-end', marginBottom: spacing.md },
   container: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, flexDirection: 'row', padding: 2 },
   button: { alignItems: 'center', borderRadius: radii.sm, height: 32, justifyContent: 'center', width: 32 },
   // With three options each keeps a full 44dp-wide, 44dp-tall (36 + hit slop) target.
   buttonWide: { height: 36, width: 44 },
   buttonSelected: { backgroundColor: colors.surface },
-  containerFill: { alignSelf: 'stretch' },
-  buttonFill: { height: 'auto', minHeight: 40 },
   listGlyph: { gap: 3, width: 16 },
   listLine: { backgroundColor: colors.textSecondary, borderRadius: 2, height: 2, width: 16 },
   gridGlyph: { flexDirection: 'row', flexWrap: 'wrap', gap: 3, width: 13 },

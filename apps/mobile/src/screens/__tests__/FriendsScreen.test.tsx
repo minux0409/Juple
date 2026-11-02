@@ -12,7 +12,8 @@ import { ImportantState } from '../../components/ImportantState';
 import { RefreshFailureNotice } from '../../components/RefreshFailureNotice';
 import { UserAvatar } from '../../components/UserAvatar';
 import { ChevronIcon } from '../../icons/ChevronIcon';
-import { ViewModeToggle } from '../../components/ViewModeToggle';
+import { ViewModeToggle, ViewModeToolbar } from '../../components/ViewModeToggle';
+import { AddIconButton } from '../../components/AddIconButton';
 import { CheckIcon } from '../../icons/CheckIcon';
 import { CloseIcon } from '../../icons/CloseIcon';
 import { TrashIcon } from '../../icons/TrashIcon';
@@ -177,6 +178,7 @@ async function openAddFromHeader(renderer: Renderer) {
   });
   const button = header.root.find(node => node.props.testID === 'friends-add-open' && typeof node.props.onPress === 'function');
   expect(button.props.accessibilityLabel).toBe(i18n.t('friends.add'));
+  expect(header.root.findAllByType(AddIconButton)).toHaveLength(1);
   await act(async () => {
     button.props.onPress();
   });
@@ -354,7 +356,8 @@ describe('FriendsScreen - a friend row', () => {
     expect(frame).toEqual(expect.objectContaining({ backgroundColor: colors.surface, borderRadius: radii.lg }));
     // Cards sit closer together (8dp) than the controls sit above the first card (12dp): the section gap is the larger one.
     expect(frame.marginBottom).toBe(spacing.sm);
-    const controls = StyleSheet.flatten(byId(renderer, 'friends-list').props.ListHeaderComponent.props.children[0].props.style);
+    const search = byId(renderer, 'friends-list').props.ListHeaderComponent.props.children[1];
+    const controls = StyleSheet.flatten(search.props.style);
     expect(controls.marginBottom).toBe(spacing.md);
     expect(controls.marginBottom).toBeGreaterThan(frame.marginBottom as number);
   });
@@ -1136,15 +1139,23 @@ describe('FriendsScreen - narrow screens and accessibility', () => {
 describe('FriendsScreen - List / Grid', () => {
   beforeEach(() => mockPrefs.clear());
 
-  it('shows the shared List/Grid switch on the far end of the search row; List is the default', async () => {
+  it('puts the shared square List/Grid controls in their own row above the full-width search', async () => {
     const renderer = await renderScreen();
 
     const toggle = renderer.root.findByType(ViewModeToggle);
-    const row = toggle.parent!;
-    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: 'row' });
-    const children = row.children as ReactTestRenderer.ReactTestInstance[];
-    expect(children[children.length - 1]).toBe(toggle);
-    expect(children[0].findByProps({ testID: 'friends-search' })).toBeDefined();
+    const toolbar = renderer.root.findByType(ViewModeToolbar);
+    const header = renderer.root.findByType(FlatList).props.ListHeaderComponent;
+    expect(header.props.children[0].type).toBe(ViewModeToolbar);
+    expect(toolbar.findAllByProps({ testID: 'friends-search' })).toHaveLength(0);
+    expect(StyleSheet.flatten((toolbar.children[0] as ReactTestRenderer.ReactTestInstance).props.style)).toMatchObject({ alignItems: 'flex-end' });
+    const search = renderer.root.findAll(node => node.props.testID === 'friends-search' && typeof node.type === 'string')[0];
+    expect(StyleSheet.flatten(search.parent!.parent!.props.style).flex).toBeUndefined();
+    const buttons = toggle.findAll(node => node.props.accessibilityRole === 'button' && typeof node.props.onPress === 'function' && typeof node.type !== 'string');
+    expect(buttons).toHaveLength(2);
+    buttons.forEach(button => {
+      const style = StyleSheet.flatten(button.props.style);
+      expect(style.height).toBe(style.width);
+    });
     expect(renderer.root.findByProps({ testID: 'friends-list' }).props.numColumns).toBe(1);
   });
 

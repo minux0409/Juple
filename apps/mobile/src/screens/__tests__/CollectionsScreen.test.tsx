@@ -9,6 +9,8 @@ import { CollectionStatusBadges } from '../../collections/CollectionStatusBadges
 import { CrownIcon } from '../../icons/CrownIcon';
 import { StarIcon } from '../../icons/StarIcon';
 import { PendingActionRow } from '../../components/PendingActionRow';
+import { AddIconButton } from '../../components/AddIconButton';
+import { ViewModeToolbar } from '../../components/ViewModeToggle';
 import { radii, spacing } from '../../theme/tokens';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Dimensions, FlatList, Image, InputAccessoryView, Linking, Platform, RefreshControl, StyleSheet, Text, TextInput } from 'react-native';
@@ -160,6 +162,19 @@ describe('CollectionsScreen - refresh spinner (iOS stuck spinner after coming ba
     jest.clearAllMocks();
   });
   const nativeSpinner = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findByType(RefreshControl).props.refreshing;
+
+  it('keeps add in the title while the independent view controls precede the full-width search', async () => {
+    const renderer = await renderScreen();
+    const add = renderer.root.findByType(AddIconButton);
+    expect(add.props.accessibilityLabel).toBe(i18n.t('collections.create'));
+    expect(add.parent!.findAllByType(ViewModeToolbar)).toHaveLength(0);
+    const controls = renderer.root.findByType(ViewModeToolbar);
+    expect(controls.findAllByProps({ testID: 'collections-search' })).toHaveLength(0);
+    const order = renderer.root.findAll(node => typeof node.type === 'string' && ['collections-view-controls', 'collections-search'].includes(node.props.testID)).map(node => node.props.testID);
+    expect(order).toEqual(['collections-view-controls', 'collections-search']);
+    act(() => controls.props.onChange('list'));
+    expect(renderer.root.findByType(FlatList).props.numColumns).toBe(1);
+  });
   const deferred = <T,>() => {
     let resolve!: (value: T) => void;
     let reject!: (error: unknown) => void;
@@ -803,7 +818,7 @@ describe('CollectionsScreen 공유 요청 (received collaboration invitations)',
     expect(badge(renderer)[0].findByType(Text).props.children).toBe('99+');
   });
 
-  it('받은 승인 요청 (links / join requests I answer as Owner) is a 공유 컬렉션 row with a red count badge, listing the Collections that hold them', async () => {
+  it('받은 승인 요청 uses pending text and lists only the Collections whose requests I can answer', async () => {
     const store = createMobileAttentionStore(jest.fn());
     store.replace('invitations', []);
     store.replace('collections', [
@@ -821,7 +836,8 @@ describe('CollectionsScreen 공유 요청 (received collaboration invitations)',
     });
     expect(row()).toHaveLength(1);
     // Only MY Collections count (3 + 1); a Collection I do not own never adds its numbers.
-    expect(row()[0].findAllByType(Text).map(text => String(text.props.children))).toContain('4');
+    expect(row()[0].findAllByType(Text).map(text => String(text.props.children))).toContain(i18n.t('collections.myPendingStatus', { count: 4 }));
+    expect(renderer.root.findAllByProps({ testID: 'collections-received-approvals-badge' })).toHaveLength(0);
     expect(renderer.root.findByProps({ testID: 'collections-filter-shared-badge' }).findByType(Text).props.children).toBe('4');
     await act(async () => row()[0].props.onPress());
     const sheet = renderer.root.findByType(ReceivedApprovalsSheet);
@@ -903,7 +919,8 @@ describe('CollectionsScreen 공유 요청 (received collaboration invitations)',
     await selectFilter(renderer, 'shared');
 
     expect(shareRequestsRow(renderer)).toHaveLength(1);
-    expect(String(renderer.root.findByProps({ testID: 'collections-share-requests-badge' }).findByType(Text).props.children)).toBe('2');
+    expect(renderer.root.findByProps({ testID: 'collections-share-requests-status' }).props.children).toBe(i18n.t('collections.myPendingStatus', { count: 2 }));
+    expect(renderer.root.findAllByProps({ testID: 'collections-share-requests-badge' })).toHaveLength(0);
     expect(shareRequestsRow(renderer)[0].props.accessibilityLabel).toBe(i18n.t('collections.shareRequestCount', { count: 2 }));
   });
 
@@ -983,7 +1000,7 @@ describe('CollectionsScreen 공유 요청 (received collaboration invitations)',
 
     expect(acceptCollectionInvitation).toHaveBeenCalledWith(expect.anything(), 3);
     expect(renderer.root.findAll(node => node.props.testID === 'share-request-3')).toHaveLength(0);
-    expect(String(renderer.root.findByProps({ testID: 'collections-share-requests-badge' }).findByType(Text).props.children)).toBe('1');
+    expect(renderer.root.findByProps({ testID: 'collections-share-requests-status' }).props.children).toBe(i18n.t('collections.myPendingStatus', { count: 1 }));
     expect(jest.mocked(getCollections).mock.calls.filter(call => call[1]?.scope === 'shared').length).toBe(sharedCallsBefore + 1);
     expect(renderer.root.findByType(FlatList).props.data).toEqual([sharedCollection, joined]);
     expect(sheet(renderer).props.visible).toBe(true); // one more to answer

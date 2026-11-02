@@ -67,11 +67,11 @@ describe('PendingActionRow status variant (what I only wait for)', () => {
   }
   const byId = (renderer: ReactTestRenderer.ReactTestRenderer, id: string) => renderer.root.findAll(node => node.props.testID === id && typeof node.type === 'string');
 
-  it('an action row keeps the blue card with a red count badge and no status text', async () => {
+  it('an action row keeps its emphasis but uses the same pending text without a red badge', async () => {
     const { renderer, style } = await renderVariant();
     expect(style).toMatchObject({ backgroundColor: colors.brandSoft, borderColor: colors.brandText });
-    expect(byId(renderer, 'row-badge')).toHaveLength(1);
-    expect(byId(renderer, 'row-status')).toHaveLength(0);
+    expect(byId(renderer, 'row-badge')).toHaveLength(0);
+    expect(byId(renderer, 'row-status')[0].props.children).toBe('대기 2건');
   });
 
   it('a status row is a quiet neutral card with "대기 n건" and no badge - same height, rounding and chevron', async () => {
@@ -84,5 +84,14 @@ describe('PendingActionRow status variant (what I only wait for)', () => {
     expect(byId(renderer, 'row-badge')).toHaveLength(0);
     expect(byId(renderer, 'row-status')[0].props.children).toBe('대기 2건');
     expect(renderer.root.findAllByType(ChevronIcon)).toHaveLength(1);
+  });
+
+  it.each([0, 1, 7])('derives received request status from its existing count (%s)', async count => {
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    act(() => { renderer = ReactTestRenderer.create(<PendingActionRow accessibilityLabel="받은 요청" count={count} label="받은 요청" onPress={jest.fn()} testID="row" />); });
+    expect(byId(renderer, 'row-badge')).toHaveLength(0);
+    const text = byId(renderer, 'row-status');
+    expect(text).toHaveLength(count > 0 ? 1 : 0);
+    if (count > 0) expect(text[0].props.children).toBe(`대기 ${count}건`);
   });
 });

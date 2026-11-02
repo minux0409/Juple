@@ -20,7 +20,8 @@ import { savedLinkLayout } from '../components/savedLinkLayout';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { useActionAfterMenu } from '../components/useActionAfterMenu';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
-import { ViewModeToggle } from '../components/ViewModeToggle';
+import { ViewModeToolbar } from '../components/ViewModeToggle';
+import { AddIconButton } from '../components/AddIconButton';
 import { useViewModePreference, type ViewMode } from '../settings/viewModePreference';
 import { UserAvatar } from '../components/UserAvatar';
 import { AddFriendModal, getFriendRequestErrorMessage } from '../friends/AddFriendModal';
@@ -43,12 +44,10 @@ import { BlockIcon } from '../icons/BlockIcon';
 import { CheckIcon } from '../icons/CheckIcon';
 import { CloseIcon } from '../icons/CloseIcon';
 import { CopyIcon } from '../icons/CopyIcon';
-import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { UserMinusIcon } from '../icons/UserMinusIcon';
 import { UserIcon } from '../icons/UserIcon';
 import { useFocusedPolling, useLiveRefresh } from '../push/useLiveRefresh';
-import { useTheme } from '../theme/ThemeContext';
 import { BlockedUsersPanel } from '../safety/BlockedUsersPanel';
 import { useBlockPersonFlow } from '../safety/useBlockPersonFlow';
 import { collectionFilterColors, colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
@@ -373,7 +372,7 @@ export function FriendsScreen() {
       }
       ListHeaderComponent={
         <View>
-          {/* [search] on the start side, the List/Grid switch pinned to the end edge. */}
+          <ViewModeToolbar onChange={changeViewMode} testID="friends-view-controls" value={viewMode} />
           <View style={[styles.searchRow, viewMode === 'list' && styles.searchRowList]}>
             <View style={styles.searchField}>
               {/* A person glyph inside the field - decoration, not a control (a tap there reaches the input). */}
@@ -390,7 +389,6 @@ export function FriendsScreen() {
                 value={search}
               />
             </View>
-            <ViewModeToggle fillHeight onChange={changeViewMode} value={viewMode} />
           </View>
           {/* Friends are already listed and a refresh failed: keep them, with a compact retry row (not a full failure state). */}
           {hasLoadedFriends && friendsError ? <RefreshFailureNotice onRetry={() => loadFriends(searchRef.current)} testID="friends-stale" /> : null}
@@ -601,18 +599,14 @@ export function FriendsScreen() {
 /** 친구 추가 - the header's [+], labelled for assistive technology. */
 function FriendsAddHeaderButton({ onPress }: { readonly onPress: () => void }) {
   const { t } = useTranslation();
-  useTheme(); // rendered by the native header, outside the screen's themed wrapper
   return (
-    <Pressable
+    <AddIconButton
       accessibilityLabel={t('friends.add')}
       accessibilityRole="button"
       hitSlop={8}
       onPress={onPress}
-      style={styles.headerButton}
       testID="friends-add-open"
-    >
-      <PlusIcon color={colors.textPrimary} size={22} />
-    </Pressable>
+    />
   );
 }
 
@@ -773,7 +767,6 @@ function RequestRow({ request, isBusy, onAccept, onDecline, onCancel, onOpenPers
 
 const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
-  headerButton: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
   // A 2x2 menu (친구 | 받은 요청 / 보낸 요청 | 차단한 사용자): four equal cells, two per row.
   tabBar: {
     flexDirection: 'row',
@@ -810,9 +803,9 @@ const styles = themedStyles(() => ({
   tabBadgeTextEmphasized: { color: colors.onBrand },
   tabBadgeTextMuted: { color: colors.textSecondary },
   listContent: { flexGrow: 1, paddingBottom: spacing.xl, paddingHorizontal: spacing.xl, paddingTop: spacing.md },
-  searchRow: { alignItems: 'center', columnGap: spacing.sm, flexDirection: 'row', marginBottom: spacing.xs },
+  searchRow: { marginBottom: spacing.xs },
   searchRowList: { marginBottom: spacing.md },
-  searchField: { flex: 1, justifyContent: 'center', minWidth: 0 },
+  searchField: { justifyContent: 'center', minWidth: 0 },
   searchIcon: { alignItems: 'center', bottom: 0, justifyContent: 'center', position: 'absolute', start: spacing.md, top: 0, zIndex: 1 },
   searchInput: {
     backgroundColor: colors.surface,

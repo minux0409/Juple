@@ -1722,6 +1722,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       {isOwner && (collection.pendingJoinRequestCount ?? 0) > 0 ? (
         <PendingActionRow
           accessibilityLabel={t('collections.joinRequestsA11y', { count: collection.pendingJoinRequestCount })}
+          countPresentation="badge"
           count={collection.pendingJoinRequestCount}
           label={t('collections.joinRequests')}
           onPress={() => runUnlocked(() => setIsJoinRequestsSheetVisible(true))}

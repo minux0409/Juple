@@ -82,7 +82,7 @@ export function BlockedUsersPanel() {
           renderItem={({ item }) => (
             <View style={styles.card} testID={`blocked-user-${item.jupleId}`}>
               <View style={styles.row}>
-                <UserAvatar displayName={item.displayName} imageUrl={item.profileImageUrl} imageVersion={item.profileImageVersion} jupleId={item.jupleId} size={40} />
+                <UserAvatar displayName={item.displayName} imageUrl={item.profileImageUrl} imageVersion={item.profileImageVersion} jupleId={item.jupleId} size={44} />
                 <View style={styles.text}>
                   <Text numberOfLines={1} style={styles.name}>{nameOf(item)}</Text>
                   <Text numberOfLines={1} style={[styles.detail, ltrTextStyle]}>{formatJupleId(item.jupleId)}</Text>
@@ -134,10 +134,10 @@ const styles = themedStyles(() => ({
   loading: { marginTop: spacing.xl },
   list: { flexGrow: 1, gap: spacing.sm, paddingBottom: spacing.xl, paddingHorizontal: spacing.xl, paddingTop: spacing.md },
   empty: { color: colors.textSecondary, fontSize: 15, marginTop: spacing.xl, textAlign: 'center' },
-  card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, padding: spacing.md },
+  card: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md },
   row: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
   text: { flex: 1, minWidth: 0 },
-  name: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
+  name: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
   detail: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
   unblock: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flexShrink: 0, justifyContent: 'center', maxWidth: '40%', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   unblockLabel: { color: colors.textPrimary, fontSize: 14, fontWeight: '600', textAlign: 'center' },

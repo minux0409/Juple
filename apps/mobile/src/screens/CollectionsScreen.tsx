@@ -56,13 +56,13 @@ import { shareEntryTileKey } from '../collections/shareEntryTileKey';
 import { CollectionCardSkeleton } from '../collections/CollectionCardSkeleton';
 import { applyCollectionIconImageChange, getIconImageSaveErrorMessage, type CollectionIconImageChange } from '../collections/collectionIconImage';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
-import { ViewModeToggle } from '../components/ViewModeToggle';
+import { ViewModeToolbar } from '../components/ViewModeToggle';
+import { AddIconButton } from '../components/AddIconButton';
 import { useViewModePreference } from '../settings/viewModePreference';
 import { DEFAULT_COLLECTION_COLOR, type CollectionColorValue } from '../collections/collectionColors';
 import { DEFAULT_COLLECTION_ICON, type CollectionIconKey } from '../collections/collectionIcons';
 import { CollectionNameLabel } from '../collections/CollectionNameLabel';
 import { PendingActionRow } from '../components/PendingActionRow';
-import { PlusIcon } from '../icons/PlusIcon';
 import { StarIcon } from '../icons/StarIcon';
 import type { MainTabParamList } from '../navigation/MainTabs';
 import type { RootStackParamList } from '../navigation/RootStack';
@@ -869,14 +869,7 @@ export function CollectionsScreen() {
             <SubscriptionExpiredNotice />
             <View style={styles.titleRow}>
               <ScreenTitle icon={screenIcons.collections} textStyle={styles.title} title={t('collections.title')} />
-              <View style={styles.headerButtons}>
-                <View {...viewModeTarget}>
-                  <ViewModeToggle onChange={changeViewMode} value={viewMode} />
-                </View>
-                <Pressable {...createTarget} accessibilityLabel={t('collections.create')} accessibilityRole="button" onPress={openCreateDialog} style={styles.addButton}>
-                  <PlusIcon color={colors.surface} size={20} strokeWidth={2.25} />
-                </Pressable>
-              </View>
+              <AddIconButton {...createTarget} accessibilityLabel={t('collections.create')} onPress={openCreateDialog} />
             </View>
 
             {/* Four same-level filters as a 2x2 grid: every option is always visible, each cell takes
@@ -935,7 +928,7 @@ export function CollectionsScreen() {
             ) : null}
 
             {/* Requests are shared-Collection work: only on 공유 컬렉션, only while something waits, and always the same
-                row (bell, label, red count badge, chevron). 받은 승인 요청 = links/join requests I answer as Owner;
+                row (bell, label, pending text, chevron). 받은 승인 요청 = links/join requests I answer as Owner;
                 받은 초대 요청 = invitations I received; 보낸 승인 요청 (above) = my own waiting proposals. */}
             {filter === 'shared' && approvalOwnerCollections.length > 0 ? (
               <PendingActionRow
@@ -958,7 +951,10 @@ export function CollectionsScreen() {
               />
             ) : null}
 
-            {/* The search: below the filters and request rows (the Web order), above the list. The shared Juple search field (themed input, clear button). */}
+            <View {...viewModeTarget}>
+              <ViewModeToolbar onChange={changeViewMode} testID="collections-view-controls" value={viewMode} />
+            </View>
+            {/* Search stays full-width below the filters, requests and presentation controls. */}
             <View style={styles.searchRow}>
               <View collapsable={false} onLayout={measureOverlay} onTouchStart={markTouchInSearch} ref={searchAnchorRef}>
                 <SearchField
@@ -1241,15 +1237,6 @@ const styles = themedStyles(() => ({
     fontSize: 24,
     fontWeight: '800',
   },
-  addButton: {
-    alignItems: 'center',
-    backgroundColor: colors.brand,
-    borderRadius: radii.md + 4,
-    height: minTouchTarget,
-    justifyContent: 'center',
-    width: minTouchTarget,
-  },
-  headerButtons: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   error: {
     color: colors.dangerText,
     fontSize: 14,
