@@ -42,9 +42,19 @@ async function measure(width: number, height: number): Promise<LayoutMeasurement
   const chrome = spawn(browsers[0], ['--headless=new', '--disable-gpu', '--no-first-run', '--remote-debugging-port=0', `--user-data-dir=${profile}`, pathToFileURL(file).href], { stdio: 'ignore' });
   try {
     const portFile = path.join(profile, 'DevToolsActivePort');
-    for (let attempt = 0; attempt < 100 && !existsSync(portFile); attempt += 1) await delay(50);
-    assert.ok(existsSync(portFile), 'Chrome did not publish its DevTools port');
-    const port = Number(readFileSync(portFile, 'utf8').split(/\r?\n/, 1)[0]);
+    // Windows can see the file before Chrome releases its write lock (or before it contains the port).
+    // Keep the existing 5-second startup bound; existence alone is not readiness.
+    let port = 0;
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      try {
+        const candidate = Number(readFileSync(portFile, 'utf8').split(/\r?\n/, 1)[0]);
+        if (Number.isInteger(candidate) && candidate > 0 && candidate <= 65535) { port = candidate; break; }
+      } catch (error) {
+        if (!['ENOENT', 'EBUSY'].includes((error as NodeJS.ErrnoException).code ?? '')) throw error;
+      }
+      await delay(50);
+    }
+    assert.ok(port > 0, 'Chrome did not publish a readable DevTools port');
     const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json() as Array<{ type: string; url: string; webSocketDebuggerUrl: string }>;
     const target = targets.find(candidate => candidate.type === 'page' && candidate.url.includes('login.html'));
     assert.ok(target);
