@@ -9,6 +9,7 @@ import { participantName, roleLabel } from '../../../lib/collectionSharing';
 import { collectionTile } from '../../../lib/collectionsView';
 import { Avatar } from '../Avatar';
 import { CollectionGlyph } from '../Glyph';
+import { LinkImage } from '../LinkImage';
 import { useSignedInApp } from '../AppRoot';
 import { LoadFailed } from '../PageStates';
 import { Modal } from '../Modal';
@@ -98,7 +99,7 @@ export function ReceivedInvitations({ onAccepted }: { readonly onAccepted: () =>
             const tile = collectionTile(item.color ?? null, item.collectionId);
             return <li className={styles.card} data-invitation-id={item.invitationId} key={item.invitationId}>
               <div className={styles.header}>
-                <span aria-hidden className={styles.tile} style={{ background: tile.background, color: tile.icon }}><CollectionGlyph icon={item.icon ?? 'Folder'} size={20} /></span>
+                <span aria-hidden className={styles.tile} style={{ background: tile.background, color: tile.icon }}><LinkImage className={styles.iconImage} fallback={<CollectionGlyph icon={item.icon ?? 'Folder'} size={20} />} src={item.iconImageUrl ?? null} /></span>
                 <div className={styles.details}>
                   <h3 className={styles.name}>{item.collectionName}</h3>
                   {/* The Owner as Juple marks one everywhere: the crown on the avatar (Avatar role="owner") - no "소유자" word; assistive technology still hears it. */}

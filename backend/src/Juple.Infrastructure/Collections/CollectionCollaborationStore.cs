@@ -1,6 +1,7 @@
 ﻿using Juple.Application.Notifications;
 using Juple.Application.Collections;
 using Juple.Application.Collections.Collaboration;
+using Juple.Application.Collections.SetCollectionIconImage;
 using Juple.Application.Users.Profile;
 using Juple.Domain.Collections;
 using Juple.Domain.Notifications;
@@ -13,7 +14,8 @@ namespace Juple.Infrastructure.Collections;
 
 public sealed class CollectionCollaborationStore(
     JupleDbContext dbContext,
-    IUserProfileImageStorage? profileImageStorage = null) : ICollectionCollaborationStore
+    IUserProfileImageStorage? profileImageStorage = null,
+    ICollectionIconImageStorage? iconImageStorage = null) : ICollectionCollaborationStore
 {
     public async Task<CollectionPendingInvitationDto> CreateInvitationAsync(
         long collectionId,
@@ -361,6 +363,7 @@ public sealed class CollectionCollaborationStore(
                 collection.Name,
                 collection.Icon,
                 collection.Color,
+                collection.IconImageBlobName,
                 OwnerPublicCode = owner.PublicCode,
                 OwnerUserId = owner.Id,
                 OwnerDisplayName = owner.DisplayName,
@@ -377,9 +380,14 @@ public sealed class CollectionCollaborationStore(
         foreach (var row in rows)
         {
             var ownerImage = await profileImageStorage.ResolveProfileImageAsync(row.OwnerUserId, row.OwnerProfileImageBlobName, cancellationToken);
+            // The pending invitation authorizes this recipient to see the Collection's presentation, not its contents.
+            var iconUrl = iconImageStorage is not null && row.IconImageBlobName is not null
+                ? await iconImageStorage.CreateCollectionIconReadUrlAsync(row.OwnerUserId, row.IconImageBlobName, cancellationToken)
+                : null;
             invitations.Add(new ReceivedCollectionInvitationDto(
                 row.Id, row.CollectionId, row.Name, row.Icon.ToString(), row.Color, row.OwnerPublicCode,
-                row.Role.ToString(), row.CreatedAtUtc, row.ExpiresAtUtc, row.OwnerDisplayName, ownerImage.Url, ownerImage.Version, row.RequiresOwnerApproval));
+                row.Role.ToString(), row.CreatedAtUtc, row.ExpiresAtUtc, row.OwnerDisplayName, ownerImage.Url, ownerImage.Version, row.RequiresOwnerApproval,
+                iconUrl?.ToString(), iconUrl is not null ? CollectionIconImageVersion.From(row.IconImageBlobName!) : null));
         }
 
         return invitations;

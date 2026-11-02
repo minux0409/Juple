@@ -108,7 +108,7 @@ export function ReceivedInvitationsSheet({
               return (
                 <View key={invitation.invitationId} style={styles.card} testID={`share-request-${invitation.invitationId}`}>
                   <View style={styles.header}>
-                    <CategoryIconTile collectionId={invitation.collectionId} color={invitation.color} icon={invitation.icon} size={44} />
+                    <CategoryIconTile collectionId={invitation.collectionId} color={invitation.color} icon={invitation.icon} imageUrl={invitation.iconImageUrl} imageVersion={invitation.iconImageVersion} size={44} />
                     <View style={styles.headerText}>
                       <Text numberOfLines={2} style={styles.name}>{invitation.collectionName}</Text>
                       {/* The Owner is shown the way Juple marks an Owner everywhere (OwnerCrown on the avatar) - no "소유자" word on the card; the

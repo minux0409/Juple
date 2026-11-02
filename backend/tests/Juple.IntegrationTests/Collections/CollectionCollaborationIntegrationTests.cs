@@ -303,6 +303,22 @@ public sealed class CollectionCollaborationIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ReceivedInvitation_PhotoIsSignedForTheCollectionOwner_OnlyForTheInvitedRecipient()
+    {
+        var blob = $"items/{_owner}/collections/{_sharedId}/invited.jpg";
+        await new CollectionStore(_db, new FakeIconStorage()).SetIconImageAsync(_owner, _sharedId, blob, DateTimeOffset.UtcNow);
+        await _collaboration.InviteAsync(_owner, _sharedId, await JupleIdOfAsync(_stranger));
+        _db.ChangeTracker.Clear();
+        var store = new CollectionCollaborationStore(_db, iconImageStorage: new FakeIconStorage());
+        var received = Assert.Single(await store.ListReceivedAsync(_stranger, DateTimeOffset.UtcNow));
+        Assert.Equal($"https://blob.example.test/{blob}", received.IconImageUrl);
+        Assert.Equal(CollectionIconImageVersion.From(blob), received.IconImageVersion);
+        Assert.Empty(await store.ListReceivedAsync(_contributor, DateTimeOffset.UtcNow));
+        Assert.Empty(await store.ListReceivedAsync(_stranger, DateTimeOffset.UtcNow.AddDays(60)));
+        Assert.Null(Assert.Single(await new CollectionCollaborationStore(_db).ListReceivedAsync(_stranger, DateTimeOffset.UtcNow)).IconImageUrl);
+    }
+
+    [Fact]
     public async Task SharedItemView_IsReadOnlyMetadata_AndOnlyForItemsOfThatCollection()
     {
         var item = await _items.GetItemAsync(_contributor, _sharedId, _ownerItemInShared);

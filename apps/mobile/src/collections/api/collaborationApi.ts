@@ -32,6 +32,8 @@ export interface CollectionParticipants {
 }
 
 export interface ReceivedCollectionInvitation {
+  readonly iconImageUrl?: string | null;
+  readonly iconImageVersion?: string | null;
   readonly requiresOwnerApproval?: boolean;
   readonly invitationId: number;
   readonly collectionId: number;

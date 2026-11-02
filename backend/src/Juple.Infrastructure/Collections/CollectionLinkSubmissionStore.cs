@@ -1,6 +1,7 @@
 using Juple.Application.Collections;
 using Juple.Application.Collections.Public;
 using Juple.Application.Collections.Submissions;
+using Juple.Application.Collections.SetCollectionIconImage;
 using Juple.Application.Items;
 using Juple.Application.Users.Profile;
 using Juple.Domain.Collections;
@@ -14,7 +15,8 @@ namespace Juple.Infrastructure.Collections;
 
 public sealed class CollectionLinkSubmissionStore(
     JupleDbContext dbContext,
-    IUserProfileImageStorage? profileImageStorage = null) : ICollectionLinkSubmissionStore
+    IUserProfileImageStorage? profileImageStorage = null,
+    ICollectionIconImageStorage? iconImageStorage = null) : ICollectionLinkSubmissionStore
 {
     // Same spacing as CollectionStore: a new link goes on top of the Collection's manual order.
     private const int SortOrderGap = 4096;
@@ -223,6 +225,10 @@ public sealed class CollectionLinkSubmissionStore(
                 // Only for a member; never for anyone else (see above).
                 CollectionId = isMember ? (long?)collection.Id : null,
                 CollectionName = isMember ? collection.Name : null,
+                CollectionOwnerId = collection.UserId,
+                CollectionIcon = isMember ? (CollectionIcon?)collection.Icon : null,
+                CollectionColor = isMember ? collection.Color : null,
+                CollectionIconImageBlobName = isMember ? collection.IconImageBlobName : null,
                 current.Submission.Url,
                 current.Title,
                 current.PreviewImageUrl,
@@ -236,9 +242,20 @@ public sealed class CollectionLinkSubmissionStore(
             .ToListAsync(cancellationToken);
         var hasMore = rows.Count > limit;
         var page = hasMore ? rows.GetRange(0, limit) : rows;
+        var result = new List<MyCollectionLinkSubmissionWithCollectionDto>(page.Count);
+        foreach (var row in page)
+        {
+            // Former members/non-members retain their own proposal, never the private Collection's image or appearance.
+            var iconUrl = iconImageStorage is not null && row.CollectionIconImageBlobName is not null
+                ? await iconImageStorage.CreateCollectionIconReadUrlAsync(row.CollectionOwnerId, row.CollectionIconImageBlobName, cancellationToken)
+                : null;
+            result.Add(new MyCollectionLinkSubmissionWithCollectionDto(
+                row.Id, row.CollectionId, row.CollectionName, row.Url, row.Title, row.PreviewImageUrl, row.CreatedAtUtc,
+                row.CollectionIcon?.ToString(), row.CollectionColor, iconUrl?.ToString(),
+                iconUrl is not null ? CollectionIconImageVersion.From(row.CollectionIconImageBlobName!) : null));
+        }
         return new MyCollectionLinkSubmissionAcrossPage(
-            page.Select(row => new MyCollectionLinkSubmissionWithCollectionDto(
-                row.Id, row.CollectionId, row.CollectionName, row.Url, row.Title, row.PreviewImageUrl, row.CreatedAtUtc)).ToList(),
+            result,
             hasMore ? page[^1].Id : null,
             totalCount);
     }

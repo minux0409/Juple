@@ -10,6 +10,8 @@ using Juple.Application.Collections.EnableCollectionShare;
 using Juple.Application.Collections.RevokeCollectionShare;
 using Juple.Application.Collections.Public;
 using Juple.Application.Collections.Submissions;
+using Juple.Application.Collections.SetCollectionIconImage;
+using Juple.Application.Images;
 using Juple.Application.Items;
 using Juple.Domain.Collections;
 using Juple.Domain.Notifications;
@@ -336,11 +338,14 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task MyPending_AcrossCollections_OnlyMyOwnRows_MemberOnesWithTheirName_PagedNewestFirst_InBoundedQueries()
     {
+        var photo = $"items/{_owner}/collections/{_sharedId}/request.jpg";
+        await new CollectionStore(_db, new IconStorage()).SetIconImageAsync(_owner, _sharedId, photo, DateTimeOffset.UtcNow);
         var second = (await _collections.CreateAsync(_owner, "Wishlist", "WISHLIST", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
         var invitation = await _collaboration.InviteAsync(_owner, second, await JupleIdOfAsync(_submitter), CollectionCollaboratorRole.Submitter);
         await _collaboration.AcceptInvitationAsync(_submitter, invitation.InvitationId);
         // A Collection reachable only through a public link (never a member) - must not be mixed in.
         var publicOnly = (await _collections.CreateAsync(_owner, "PublicOnly", "PUBLICONLY", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        await new CollectionStore(_db, new IconStorage()).SetIconImageAsync(_owner, publicOnly, $"items/{_owner}/collections/{publicOnly}/private.jpg", DateTimeOffset.UtcNow);
         _db.ChangeTracker.Clear();
 
         await Add().AddAsync(_submitter, _sharedId, await NewItemAsync(_submitter, "https://example.test/x1"));
@@ -354,7 +359,7 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
 
         var counter = new CommandCounter();
         await using var counted = NewContext(counter);
-        var store = new CollectionLinkSubmissionStore(counted);
+        var store = new CollectionLinkSubmissionStore(counted, iconImageStorage: new IconStorage());
         counter.Reset();
         var all = await store.ListMineAcrossCollectionsAsync(_submitter, null, 50);
         Assert.True(counter.Count <= 2);
@@ -364,6 +369,14 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
         Assert.Equal(new[] { "https://example.test/x4", "https://example.test/x3", "https://example.test/x2", "https://example.test/x1" }, all.Items.Select(entry => entry.Url));
         Assert.Null(all.Items[0].CollectionId);
         Assert.Null(all.Items[0].CollectionName);
+        Assert.Null(all.Items[0].CollectionIcon);
+        Assert.Null(all.Items[0].CollectionColor);
+        Assert.Null(all.Items[0].CollectionIconImageUrl);
+        Assert.Null(all.Items[0].CollectionIconImageVersion);
+        var pictured = all.Items.First(entry => entry.CollectionId == _sharedId);
+        Assert.Equal($"https://blob.example.test/{photo}", pictured.CollectionIconImageUrl);
+        Assert.Equal(CollectionIconImageVersion.From(photo), pictured.CollectionIconImageVersion);
+        Assert.Null(all.Items.Single(entry => entry.CollectionId == second).CollectionIconImageUrl);
         Assert.Equal("Wishlist", all.Items.Single(entry => entry.Url.EndsWith("/x2", StringComparison.Ordinal)).CollectionName);
         Assert.Equal(second, all.Items.Single(entry => entry.Url.EndsWith("/x2", StringComparison.Ordinal)).CollectionId);
 
@@ -1692,6 +1705,13 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
 
     private string JupleIdOf(long userId) =>
         _db.Users.AsNoTracking().Where(user => user.Id == userId).Select(user => user.PublicCode).Single();
+
+    private sealed class IconStorage : ICollectionIconImageStorage
+    {
+        public Task<string> UploadCollectionIconAsync(long ownerUserId, long collectionId, ImageFormat format, byte[] content, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task DeleteCollectionIconAsync(long ownerUserId, string blobName, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<Uri?> CreateCollectionIconReadUrlAsync(long ownerUserId, string blobName, CancellationToken cancellationToken = default) => Task.FromResult<Uri?>(new Uri($"https://blob.example.test/{blobName}"));
+    }
 
     private sealed class NoImages : Juple.Application.Images.IItemImageStorage
     {

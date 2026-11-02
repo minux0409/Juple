@@ -6,6 +6,11 @@ import { webDestinationOf, parseNotificationTarget } from '../lib/notifications.
 import { requiresSignIn } from '../lib/authSession.ts';
 
 describe('received collection invitations (existing authenticated API)', () => {
+  it('retains recipient-scoped collection photo fields while normalizing roles', async () => {
+    const invitation = { invitationId: 1, role: 'Viewer', iconImageUrl: 'https://images.example.test/photo.jpg', iconImageVersion: 'v1' };
+    const api: AppApi = async () => ({ items: [invitation] }) as never;
+    assert.deepEqual(await receivedInvitations(api), [{ ...invitation, role: 'viewer' }]);
+  });
   it('reads received requests and posts accept/decline to the same API as mobile', async () => {
     const calls: unknown[] = [];
     const invitations = [{ invitationId: 12, collectionName: 'Shared', ownerJupleId: 'Owner' }];

@@ -44,7 +44,7 @@ export function ReceivedApprovalsSheet({ visible, collections, onClose, onOpen }
               style={styles.row}
               testID={`received-approvals-${collection.id}`}
             >
-              <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} size={44} />
+              <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} imageVersion={collection.iconImageVersion} size={44} />
               <Text numberOfLines={2} style={styles.name}>{collection.name}</Text>
               <CountBadge count={count} />
             </Pressable>

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { formatCommentTime } from '../comments/formatCommentTime';
 import { UserAvatar } from '../components/UserAvatar';
 import { FolderIcon } from '../icons/FolderIcon';
+import { CategoryIconTile } from './CategoryIconTile';
 import { GlobeIcon } from '../icons/GlobeIcon';
 import { ShareIcon } from '../icons/ShareIcon';
 import { UserIcon } from '../icons/UserIcon';
@@ -21,6 +22,11 @@ const CONTEXT_ICON_SIZE = 13;
 
 /** What the card shows of one waiting link - the same shape for the Owner's queue and a submitter's own list. */
 export interface PendingSubmissionRow {
+  readonly collectionId?: number | null;
+  readonly collectionIcon?: string | null;
+  readonly collectionColor?: string | null;
+  readonly collectionIconImageUrl?: string | null;
+  readonly collectionIconImageVersion?: string | null;
   readonly submissionId: number;
   readonly url: string;
   readonly title: string | null;
@@ -130,7 +136,9 @@ export function PendingSubmissionCard({ row, variant, trailing, actionStrip, emb
           ) : contextName ? (
             // My own request: the Collection it waits in - no request time and no status line (the sheet's title already says it waits).
             <View style={styles.contextRow} testID={`my-submission-context-${row.submissionId}`}>
-              <ContextIcon color={colors.textSecondary} size={CONTEXT_ICON_SIZE} />
+              {row.collectionName && row.collectionId != null ? (
+                <CategoryIconTile collectionId={row.collectionId} icon={row.collectionIcon ?? 'Folder'} color={row.collectionColor} imageUrl={row.collectionIconImageUrl} imageVersion={row.collectionIconImageVersion} size={20} />
+              ) : <ContextIcon color={colors.textSecondary} size={CONTEXT_ICON_SIZE} />}
               <Text numberOfLines={1} style={styles.contextName}>{contextName}</Text>
             </View>
           ) : null}

@@ -57,7 +57,11 @@ public sealed record MyCollectionLinkSubmissionWithCollectionDto(
     string Url,
     string? Title,
     string? PreviewImageUrl,
-    DateTimeOffset SubmittedAtUtc);
+    DateTimeOffset SubmittedAtUtc,
+    string? CollectionIcon = null,
+    string? CollectionColor = null,
+    string? CollectionIconImageUrl = null,
+    string? CollectionIconImageVersion = null);
 
 /// <summary>Newest first; NextCursor = the last row's submissionId (null on the last page); TotalCount = all the caller's own waiting proposals in their member Collections.</summary>
 public sealed record MyCollectionLinkSubmissionAcrossPage(IReadOnlyList<MyCollectionLinkSubmissionWithCollectionDto> Items, long? NextCursor, int TotalCount);

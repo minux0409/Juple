@@ -814,6 +814,10 @@ export async function getMyPendingSubmissionTotal(request: AuthenticatedApiReque
 
 /** One of the caller's OWN waiting proposals, with the Collection it waits in - see GET /collections/submissions/mine. */
 export interface MyCollectionLinkSubmissionWithCollection extends MyCollectionLinkSubmission {
+  readonly collectionIcon?: string | null;
+  readonly collectionColor?: string | null;
+  readonly collectionIconImageUrl?: string | null;
+  readonly collectionIconImageVersion?: string | null;
   /** Null for a request of mine in a Collection I am not a member of (a public-link request, a link since revoked): no Collection data is sent. */
   readonly collectionId: number | null;
   readonly collectionName: string | null;
