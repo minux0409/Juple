@@ -1,5 +1,6 @@
+import { AppNativeModal as Modal } from './AppNativeModal';
 import { useRef, useState } from 'react';
-import { Modal, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Pressable } from './Pressable';
 import { InfoIcon } from '../icons/InfoIcon';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';

@@ -153,6 +153,8 @@ export function usePushMessageHandling(): void {
       if (!isReadyRef.current) {
         return;
       }
+      // Operator actions have their own global, recipient-validated dialog. Do not place a second generic banner over it.
+      if (event?.type === 'adminWarning') return;
       const banner = bannerFromRemoteMessage(remoteMessage);
       if (banner) {
         notificationBannerQueue.enqueue(banner);

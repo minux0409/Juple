@@ -1,5 +1,6 @@
+import { AppNativeModal as Modal } from './AppNativeModal';
 import { useEffect } from 'react';
-import { AccessibilityInfo, ActivityIndicator, Modal, Text, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Text, View } from 'react-native';
 import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 import { APP_MODAL_BACKDROP } from './AppModal';
 import { KeyboardFieldScope } from './keyboardToolbar';

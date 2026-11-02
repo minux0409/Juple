@@ -1,16 +1,18 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { AppState, Text } from 'react-native';
 import i18n from '../../i18n';
+import { AppModal } from '../../components/AppModal';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { emitSocialPushEvent } from '../../push/pushEvents';
 import { ModerationNoticeHost } from '../ModerationNoticeHost';
 
 const mockRequest = jest.fn();
+let mockNavigationChanged: () => void = () => undefined;
 let mockRoute: { name: string; params?: unknown } | undefined;
 
 jest.mock('../../api/useAuthenticatedApi', () => ({ useAuthenticatedApi: () => mockRequest }));
 jest.mock('../../navigation/navigationRef', () => ({
-  navigationRef: { isReady: () => mockRoute !== undefined, getCurrentRoute: () => mockRoute },
+  navigationRef: { isReady: () => mockRoute !== undefined, getCurrentRoute: () => mockRoute, addListener: (_event: string, callback: () => void) => { mockNavigationChanged = callback; return () => { mockNavigationChanged = () => undefined; }; } },
 }));
 
 type Renderer = ReactTestRenderer.ReactTestRenderer;
@@ -27,14 +29,16 @@ let unconfirmed: unknown[] = [];
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
 });
+const originalAppState = Object.getOwnPropertyDescriptor(AppState, 'currentState')!;
 beforeEach(() => {
+  Object.defineProperty(AppState, 'currentState', { value: 'active', configurable: true });
   mockRoute = { name: 'MainTabs' };
   unconfirmed = [deleted];
   mockRequest.mockReset();
   mockRequest.mockImplementation(async (request: { method: string; path: string }) =>
-    request.method === 'GET' ? { body: { items: unconfirmed } } : { body: undefined });
+    request.method === 'GET' ? { body: request.path.endsWith('/unacknowledged') ? { items: unconfirmed } : unconfirmed.find(entry => (entry as { id: number }).id === Number(request.path.split('/').pop())) } : { body: undefined });
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => { jest.restoreAllMocks(); Object.defineProperty(AppState, 'currentState', originalAppState); });
 
 async function mount() {
   let renderer!: Renderer;
@@ -148,3 +152,72 @@ describe('ModerationNoticeHost (운영팀 안내 pop-up)', () => {
     expect(dialog(await mount())).toBeUndefined();
   });
 });
+
+
+describe('foreground notice ordering and ownership boundaries', () => {
+  it('waits for another modal to close, queues different notices and coalesces a repeated event', async () => {
+    unconfirmed = [];
+    const renderer = await mount();
+    let editor!: Renderer;
+    await act(async () => { editor = ReactTestRenderer.create(<AppModal visible title="Editor" onClose={() => {}}><Text>Draft</Text></AppModal>); });
+    unconfirmed = [deleted, warning];
+    await act(async () => {
+      for (let i = 0; i < 3; i++) emitSocialPushEvent({ type: 'adminWarning', collectionId: null, noticeId: 11 });
+      emitSocialPushEvent({ type: 'adminWarning', collectionId: null, noticeId: 12 });
+    });
+    expect(dialog(renderer)).toBeUndefined();
+    expect(mockRequest.mock.calls.filter(([request]) => request.path === '/api/v1/moderation-notices/11')).toHaveLength(1);
+    await act(async () => editor.unmount());
+    expect(dialog(renderer)).toBeDefined();
+    await confirm(renderer);
+    expect(dialog(renderer)!.props.message).toBe(i18n.t('moderation.warningIntro'));
+    await confirm(renderer);
+    expect(dialog(renderer)).toBeUndefined();
+  });
+
+  it('a push lookup is independent of an older in-flight launch snapshot', async () => {
+    let finish!: (value: unknown) => void;
+    mockRequest.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const renderer = await mount();
+    unconfirmed = [warning];
+    await act(async () => emitSocialPushEvent({ type: 'adminWarning', collectionId: null, noticeId: 12 }));
+    expect(dialog(renderer)).toBeDefined();
+    await act(async () => finish({ body: { items: [] } }));
+    expect(dialog(renderer)).toBeDefined();
+  });
+
+  it('a notice opened by a tap is not automatically presented again after leaving that screen', async () => {
+    const renderer = await mount();
+    await act(async () => { mockRoute = { name: 'ModerationNotice', params: { noticeId: 11 } }; mockNavigationChanged(); });
+    expect(dialog(renderer)).toBeUndefined();
+    await act(async () => { mockRoute = { name: 'MainTabs' }; mockNavigationChanged(); });
+    expect(dialog(renderer)).toBeUndefined();
+  });
+
+  it("does not show another account's rejected lookup, acknowledged notices, report results, or ordinary social messages", async () => {
+    unconfirmed = [];
+    const renderer = await mount();
+    mockRequest.mockRejectedValueOnce(new Error('404'));
+    await act(async () => emitSocialPushEvent({ type: 'adminWarning', collectionId: null, noticeId: 88 }));
+    unconfirmed = [{ ...warning, acknowledgedAtUtc: '2026-11-02T00:00:00Z' }, { ...deleted, id: 13, kind: 'reportResult' }];
+    await act(async () => {
+      emitSocialPushEvent({ type: 'adminWarning', collectionId: null, noticeId: 12 });
+      emitSocialPushEvent({ type: 'adminWarning', collectionId: null, noticeId: 13 });
+      emitSocialPushEvent({ type: 'friendRequest', collectionId: null });
+    });
+    expect(dialog(renderer)).toBeUndefined();
+  });
+
+  it('never lets a delayed old-session read populate a newly mounted signed-in host', async () => {
+    let finish!: (value: unknown) => void;
+    mockRequest.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const old = await mount();
+    await act(async () => old.unmount());
+    unconfirmed = [];
+    const next = await mount();
+    await act(async () => finish({ body: { items: [deleted] } }));
+    expect(dialog(next)).toBeUndefined();
+  });
+});
+
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }) }));

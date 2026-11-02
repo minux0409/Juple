@@ -1,4 +1,5 @@
-import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppNativeModal as Modal } from '../components/AppNativeModal';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Pressable } from '../components/Pressable';
 import { useTranslation } from 'react-i18next';
 import { CloseIcon } from '../icons/CloseIcon';

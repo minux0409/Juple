@@ -1,5 +1,6 @@
+import { AppNativeModal as Modal } from '../components/AppNativeModal';
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, Modal, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { Pressable } from '../components/Pressable';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

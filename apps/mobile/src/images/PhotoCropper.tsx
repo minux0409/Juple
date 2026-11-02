@@ -1,6 +1,7 @@
+import { AppNativeModal as Modal } from '../components/AppNativeModal';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Image, Modal, PanResponder, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Image, PanResponder, Text, View, useWindowDimensions } from 'react-native';
 import { Pressable } from '../components/Pressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';

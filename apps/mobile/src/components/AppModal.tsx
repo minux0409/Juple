@@ -1,6 +1,7 @@
+import { AppNativeModal as Modal } from './AppNativeModal';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Pressable } from './Pressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CloseIcon } from '../icons/CloseIcon';

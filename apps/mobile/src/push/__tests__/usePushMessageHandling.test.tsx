@@ -253,6 +253,19 @@ describe('usePushMessageHandling', () => {
     expect(getUnreadCount()).toBe(3);
   });
 
+  it('foreground operator notices trigger the global notice host, without a duplicate generic banner or automatic read receipt', async () => {
+    const received = jest.fn();
+    const unsubscribe = subscribeSocialPushEvents(received);
+    await mount();
+    act(() => foregroundHandler()({ data: { type: 'adminWarning', noticeId: '11', notificationId: '77' }, notification: { title: 'Team', body: 'Message' } }));
+    await flush();
+    unsubscribe();
+    expect(received).toHaveBeenCalledWith(expect.objectContaining({ type: 'adminWarning', noticeId: 11 }));
+    expect(notificationBannerQueue.current()).toBeNull();
+    expect(readCalls()).toHaveLength(0);
+    expect(navigationRef.navigate).not.toHaveBeenCalled();
+  });
+
   it('a tap with a notificationId opens its exact current target and marks it read', async () => {
     mockDetails.set(55, { kind: 'collectionItem', collectionId: 7, itemId: 99, focus: 'comments' });
     await mount();

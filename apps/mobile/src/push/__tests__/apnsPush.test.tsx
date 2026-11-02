@@ -17,6 +17,7 @@ import { getOrCreatePushInstallationId } from '../pushInstallationId';
 import { getPushPermissionStatus } from '../pushPermission';
 import { syncPushRegistration } from '../pushRegistrationSync';
 import { usePushMessageHandling } from '../usePushMessageHandling';
+import { subscribeSocialPushEvents } from '../pushEvents';
 
 type Listener = (value: string) => void;
 
@@ -244,6 +245,18 @@ describe('usePushMessageHandling on iOS', () => {
     await flush();
 
     expect(notificationBannerQueue.current()).toEqual(expect.objectContaining({ notificationId: 55, title: '새 댓글' }));
+    expect(navigationRef.navigate).not.toHaveBeenCalled();
+  });
+
+  it('foreground APNs operator notice uses the same popup signal as Android, without a second banner', async () => {
+    const received = jest.fn();
+    const unsubscribe = subscribeSocialPushEvents(received);
+    await mount();
+    act(() => fire('foreground', JSON.stringify({ notification: { title: 'Team', body: 'Message' }, data: { type: 'adminWarning', noticeId: '11', notificationId: '77' } })));
+    await flush();
+    unsubscribe();
+    expect(received).toHaveBeenCalledWith(expect.objectContaining({ type: 'adminWarning', noticeId: 11 }));
+    expect(notificationBannerQueue.current()).toBeNull();
     expect(navigationRef.navigate).not.toHaveBeenCalled();
   });
 

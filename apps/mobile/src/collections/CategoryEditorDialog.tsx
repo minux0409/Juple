@@ -1,6 +1,7 @@
+import { AppNativeModal as Modal } from '../components/AppNativeModal';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Keyboard, Modal, Platform, ScrollView, StyleSheet, Text, View, type KeyboardEvent, type LayoutChangeEvent } from 'react-native';
+import { Keyboard, Platform, ScrollView, StyleSheet, Text, View, type KeyboardEvent, type LayoutChangeEvent } from 'react-native';
 import { Pressable } from '../components/Pressable';
 import { ThemedTextInput } from '../components/ThemedTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

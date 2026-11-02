@@ -1,5 +1,6 @@
+import { AppNativeModal as Modal } from './AppNativeModal';
 import type { ComponentType, ReactNode } from 'react';
-import { Modal, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Pressable } from './Pressable';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { KeyboardFieldScope } from './keyboardToolbar';

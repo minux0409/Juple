@@ -1,8 +1,9 @@
+import { AppNativeModal as Modal } from '../components/AppNativeModal';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { AccessibilityInfo, ActivityIndicator, AppState, Modal, Platform, Text, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, AppState, Platform, Text, View } from 'react-native';
 import { Pressable } from '../components/Pressable';
 import { ThemedTextInput } from '../components/ThemedTextInput';
 import { ThemedSwitch } from '../components/ThemedSwitch';

@@ -1,6 +1,7 @@
+import { AppNativeModal as Modal } from '../components/AppNativeModal';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Animated, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Pressable } from '../components/Pressable';
 import { ThemedTextInput } from '../components/ThemedTextInput';
 import { SheetHeader, useSheetDismissGesture } from '../components/sheetDismissGesture';
