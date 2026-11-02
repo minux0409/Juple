@@ -161,7 +161,7 @@ export function FriendPickerModal({ visible, authenticatedRequest, unavailable, 
           testID="friend-picker-search"
           value={search}
         />
-        <ViewModeToggle onChange={setLayout} value={layout} />
+        <ViewModeToggle matchSearchHeight onChange={setLayout} value={layout} />
       </View>
       <FlatList
         columnWrapperStyle={isGrid ? styles.gridRow : undefined}
@@ -257,7 +257,7 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget,
     paddingHorizontal: spacing.md,
   },
-  searchRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
+  searchRow: { alignItems: 'stretch', flexDirection: 'row', gap: spacing.sm },
   searchInput: { flex: 1 },
   list: { flex: 1, marginTop: spacing.sm },
   gridRow: { gap: spacing.sm, marginBottom: spacing.sm },
