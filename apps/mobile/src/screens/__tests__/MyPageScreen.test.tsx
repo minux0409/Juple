@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Modal, Text } from 'react-native';
+import { Linking, Modal, Text } from 'react-native';
 import { ThemedSwitch } from '../../components/ThemedSwitch';
 import i18n from '../../i18n';
 import { MyPageScreen } from '../MyPageScreen';
@@ -348,4 +348,22 @@ it('has no app permissions settings menu or navigation action', async () => {
   expect(findTextValues(renderer)).not.toContain(i18n.t('permissions.title'));
   expect(renderer.root.findAll(node => node.props.testID === 'my-permissions')).toHaveLength(0);
   await act(async () => renderer.unmount());
+});
+
+it('opens the web banner externally while preserving My Page content and settings', async () => {
+  mockUseAuth({});
+  const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+  try {
+    const renderer = await renderScreen();
+    const before = findTextValues(renderer);
+    const settings = renderer.root.findAllByType(ThemedSwitch).map(node => node.props.value);
+    mockNavigate.mockClear();
+    await act(async () => { await renderer.root.findByProps({ testID: 'my-web-banner' }).props.onPress(); });
+    expect(open).toHaveBeenCalledWith('https://juple.co.kr');
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(findTextValues(renderer)).toEqual(before);
+    expect(renderer.root.findAllByType(ThemedSwitch).map(node => node.props.value)).toEqual(settings);
+  } finally {
+    open.mockRestore();
+  }
 });
