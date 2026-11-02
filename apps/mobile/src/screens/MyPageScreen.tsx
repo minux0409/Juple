@@ -1,3 +1,4 @@
+import { menuRowShape } from '../components/menuRowShape';
 import { NoticeMenuRow } from '../notices/NoticeMenuRow';
 import { SettingsMenuRow } from '../components/SettingsMenuRow';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -174,7 +175,7 @@ export function MyPageScreen() {
             {...languageTarget}
             accessibilityRole="button"
             onPress={() => navigation.navigate('LanguageSettings')}
-            style={styles.settingsRow}
+            style={[styles.settingsRow, menuRowShape('first')]}
           >
             <View style={styles.settingsRowIcon}>
               <screenIcons.language color={colors.textSecondary} size={18} />
@@ -304,7 +305,7 @@ export function MyPageScreen() {
             <Pressable
               accessibilityRole="button"
               onPress={() => setIsSignOutDialogVisible(true)}
-            style={styles.settingsRow}
+            style={[styles.settingsRow, menuRowShape('last')]}
           >
             <View style={styles.settingsRowIcon}>
               <LogoutIcon color={colors.dangerText} size={18} />

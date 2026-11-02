@@ -9,7 +9,6 @@ import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { ActionMenuDialog } from '../components/ActionMenuDialog';
 import { BlockingProgressOverlay } from '../components/BlockingProgressOverlay';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { LinkSortChips } from '../components/LinkSortChips';
 import { isDefinitiveLoadError, LoadFailureState } from '../components/LoadFailureState';
 import { edgeAlignedCellPadding, SavedLinkGridCard, savedLinkGridLayout, useSavedLinkGridCellStyle } from '../components/SavedLinkGridCard';
 import { gridListKey, useSavedLinkColumns } from '../layout/responsiveGrid';
@@ -21,7 +20,6 @@ import { closeOpenRow, useSwipeAwareScrollEnabled } from '../components/swipeabl
 import { useActionAfterMenu } from '../components/useActionAfterMenu';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { ViewModeToggle } from '../components/ViewModeToggle';
-import { sortLinksByName } from '../collections/sortCollectionItems';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { RestoreIcon } from '../icons/RestoreIcon';
 import { EmptyTrashIcon } from '../icons/EmptyTrashIcon';
@@ -35,7 +33,6 @@ import {
   type ItemTrashEntry,
 } from '../items/api/itemsApi';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
-import { isNameSort, nextDateSort, nextNameSort, useSortPreference } from '../settings/sortPreference';
 import { useViewModePreference } from '../settings/viewModePreference';
 import { useTheme } from '../theme/ThemeContext';
 import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
@@ -94,7 +91,6 @@ export function TrashScreen() {
   // Responsive Grid (phone: 2 cards / 3 image tiles, as always) - see layout/responsiveGrid.
   const columns = useSavedLinkColumns();
   const gridCellStyle = useSavedLinkGridCellStyle();
-  const { sortOption, setSortOption } = useSortPreference('trashLinkSort');
   // The deleted link whose action popup (링크 열기 / 복구 / 영구 삭제) is open. A deleted link has no
   // ItemDetails, so tapping or long-pressing it opens this instead.
   const [actionItem, setActionItem] = useState<ItemTrashEntry | null>(null);
@@ -142,20 +138,9 @@ export function TrashScreen() {
     }, [load]),
   );
 
-  // The server caps the list, so the whole list is here: any order is a local sort.
-  const displayedItems = useMemo(() => {
-    if (isNameSort(sortOption)) {
-      return sortLinksByName(
-        items,
-        { title: item => item.title, url: item => item.url, addedAtUtc: item => item.deletedAtUtc, id: item => item.id },
-        undefined,
-        sortOption === 'titleDesc' ? 'desc' : 'asc',
-      );
-    }
-    // 시간순 is the deletion time: newest deleted first, or the reverse (never relying on the server's order alone).
-    const direction = sortOption === 'oldest' ? 1 : -1;
-    return [...items].sort((a, b) => direction * (a.deletedAtUtc.localeCompare(b.deletedAtUtc) || a.id - b.id));
-  }, [items, sortOption]);
+  // Deleted time, newest first; independent of any legacy persisted sort preference.
+  const displayedItems = useMemo(() => [...items].sort((a, b) =>
+    b.deletedAtUtc.localeCompare(a.deletedAtUtc) || b.id - a.id), [items]);
 
   // 3-column mode: lines of three links; the screen still has ONE list, so it scrolls through every link (not just nine).
   const imageLines = useMemo(() => chunkIntoImageLines(displayedItems, columns.image), [columns.image, displayedItems]);
@@ -242,18 +227,6 @@ export function TrashScreen() {
     <StackScreenSafeArea style={styles.screen}>
       {items.length > 0 ? (
         <View style={styles.controlsRow}>
-          <LinkSortChips
-            dateLabel={t('collections.sortDate')}
-            dateNewestA11yLabel={t('collections.sortDateNewestA11y')}
-            dateOldestA11yLabel={t('collections.sortDateOldestA11y')}
-            nameAscA11yLabel={t('collections.sortNameAscA11y')}
-            nameDescA11yLabel={t('collections.sortNameDescA11y')}
-            nameLabel={t('collections.sortName')}
-            onPressDate={() => setSortOption(nextDateSort(sortOption))}
-            onPressName={() => setSortOption(nextNameSort(sortOption))}
-            sort={sortOption}
-            testIDPrefix="trash-sort"
-          />
           <View style={styles.controlsSpacer} />
           <ViewModeToggle onChange={changeViewMode} showCompact value={viewMode} />
         </View>

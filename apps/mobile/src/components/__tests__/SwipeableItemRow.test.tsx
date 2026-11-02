@@ -274,12 +274,12 @@ describe('SwipeableItemRow', () => {
     expect(tiny).not.toHaveBeenCalled();
   });
 
-  it('a diagonal move never deletes, however far it went', async () => {
+  it.each([-150, 150, 230])('a captured diagonal left move asks once after its horizontal distance, dy=%s', async dy => {
     const onDelete = jest.fn();
     const renderer = await renderRow({ onPress: jest.fn(), onDelete, onShare: jest.fn() });
-    await swipeLeft(renderer, [[-200, -150, 1]]);
-
-    expect(onDelete).not.toHaveBeenCalled();
+    expect(contentLayerOf(renderer).props.onMoveShouldSetResponderCapture(touchesMoved(-200, dy))).toBe(true);
+    await swipeLeft(renderer, [[-200, dy, 2]]);
+    expect(onDelete).toHaveBeenCalledTimes(1);
   });
 
   it('a mostly vertical move is never taken as a swipe at all', async () => {
@@ -287,6 +287,14 @@ describe('SwipeableItemRow', () => {
     const layer = contentLayerOf(renderer);
     expect(layer.props.onMoveShouldSetResponder(touchesMoved(-12, 40))).toBe(false);
     expect(layer.props.onMoveShouldSetResponder(touchesMoved(-4, 0))).toBe(false);
+  });
+
+  it('a gesture that started as vertical scrolling cannot later turn into a delete swipe', async () => {
+    const renderer = await renderRow({ onPress: jest.fn(), onDelete: jest.fn(), onShare: jest.fn() });
+    const layer = contentLayerOf(renderer);
+    layer.props.onStartShouldSetResponderCapture({ ...FAKE_RESPONDER_EVENT, nativeEvent: { touches: [] } });
+    expect(layer.props.onMoveShouldSetResponderCapture(touchesMoved(-3, 30))).toBe(false);
+    expect(layer.props.onMoveShouldSetResponderCapture(touchesMoved(-100, 80, 2, [-3, 30, 1]))).toBe(false);
   });
 
   it('one swipe asks once, even if the release is reported again; the next swipe can ask again', async () => {

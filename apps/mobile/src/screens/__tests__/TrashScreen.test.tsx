@@ -380,67 +380,23 @@ describe('TrashScreen List / Grid, sort and persistence', () => {
 
   const shownIds = (renderer: ReactTestRenderer.ReactTestRenderer) =>
     (renderer.root.findByType(FlatList).props.data as ItemTrashEntry[]).map(entry => entry.id);
-  const chips = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findByType(LinkSortChips);
 
-  it('opens in List on 시간순 ↓ (newest deleted first) with the shared sort chips and List/Grid switch', async () => {
-    const renderer = await renderScreen();
-
-    expect(renderer.root.findAllByType(ViewModeToggle)).toHaveLength(1);
-    expect(chips(renderer).props.sort).toBe('newest');
-    expect(shownIds(renderer)).toEqual([2, 3, 1, 4]);
-    expect(renderer.root.findByType(FlatList).props.numColumns).toBe(1);
-    expect(renderer.root.findAllByType(SavedLinkRow)).toHaveLength(4);
+  it('has no sort controls and always shows the newest deleted first, ignoring legacy name/oldest preferences', async () => {
+    for (const legacy of ['title', 'titleDesc', 'oldest']) {
+      mockPrefs.set('juple.trashLinkSort', legacy);
+      const renderer = await renderScreen();
+      expect(renderer.root.findAllByType(LinkSortChips)).toHaveLength(0);
+      expect(shownIds(renderer)).toEqual([2, 3, 1, 4]);
+      expect(mockPrefs.get('juple.trashLinkSort')).toBe(legacy);
+    }
   });
 
-  it('시간순 flips ↓ newest ↔ ↑ oldest', async () => {
+  it('persists and restores the view mode without changing deletion order', async () => {
     const renderer = await renderScreen();
-
-    await act(async () => {
-      chips(renderer).props.onPressDate();
-    });
-    expect(chips(renderer).props.sort).toBe('oldest');
-    expect(shownIds(renderer)).toEqual([4, 1, 3, 2]);
-
-    await act(async () => {
-      chips(renderer).props.onPressDate();
-    });
-    expect(shownIds(renderer)).toEqual([2, 3, 1, 4]);
-  });
-
-  it('이름순 ↑ then ↓: the same locale-aware rule as Home / Collections (title-less links last in both)', async () => {
-    const renderer = await renderScreen();
-
-    await act(async () => {
-      chips(renderer).props.onPressName();
-    });
-    expect(chips(renderer).props.sort).toBe('title');
-    expect(shownIds(renderer)).toEqual([3, 1, 2, 4]);
-
-    await act(async () => {
-      chips(renderer).props.onPressName();
-    });
-    expect(chips(renderer).props.sort).toBe('titleDesc');
-    expect(shownIds(renderer)).toEqual([2, 1, 3, 4]);
-    expect(renderer.root.findByProps({ testID: 'trash-sort-name' }).props.accessibilityLabel).toBe(i18n.t('collections.sortNameDescA11y'));
-  });
-
-  it('persists the sort and the view mode, and restores them', async () => {
-    const renderer = await renderScreen();
-    await act(async () => {
-      chips(renderer).props.onPressName();
-    });
-    await act(async () => {
-      chips(renderer).props.onPressName();
-    });
-    await act(async () => {
-      renderer.root.findByType(ViewModeToggle).props.onChange('grid');
-    });
-    expect(mockPrefs.get('juple.trashLinkSort')).toBe('titleDesc');
+    await act(async () => renderer.root.findByType(ViewModeToggle).props.onChange('grid'));
     expect(mockPrefs.get('juple.trashViewMode')).toBe('grid');
-
     const restored = await renderScreen();
-    expect(chips(restored).props.sort).toBe('titleDesc');
-    expect(shownIds(restored)).toEqual([2, 1, 3, 4]);
+    expect(shownIds(restored)).toEqual([2, 3, 1, 4]);
     expect(restored.root.findByType(FlatList).props.numColumns).toBe(2);
   });
 

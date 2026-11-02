@@ -1,5 +1,6 @@
-import { Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Pressable } from './Pressable';
+import { PressedShape } from './PressedShape';
 import { OwnerCrown } from '../collections/OwnerCrown';
 import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 import { UserAvatar } from './UserAvatar';
@@ -70,10 +71,12 @@ export function ParticipantAvatarStack({
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
       disabled={participants === null}
+      pressFeedback={false}
       onPress={onPress}
       style={[styles.row, style]}
       testID={testID}
     >
+      {({ pressed }) => <View style={styles.capsule}>
       {participants === null
         ? Array.from({ length: Math.max(1, Math.min(placeholderCount, placeholderLimit)) }, (_, index) => (
             <View key={index} style={[styles.ring, index > 0 && styles.overlap]} testID={`${testID ?? 'participant-stack'}-placeholder-${index}`}>
@@ -103,11 +106,16 @@ export function ParticipantAvatarStack({
           </View>
         </View>
       ) : null}
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: visible.length + 1 }]}>
+        <PressedShape borderRadius={CIRCLE_SIZE / 2} pressed={pressed} strong />
+      </View>
+      </View>}
     </Pressable>
   );
 }
 
 const styles = themedStyles(() => ({
+  capsule: { alignItems: 'center', borderRadius: CIRCLE_SIZE / 2, flexDirection: 'row' },
   // The row is a full touch target tall, though the circles are small.
   row: {
     alignItems: 'center',

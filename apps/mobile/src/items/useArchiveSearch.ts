@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getItemHistory, type ItemHistoryEntry } from './api/itemsApi';
 
@@ -63,6 +64,8 @@ export function useArchiveSearch(rawQuery: string, sort: ArchiveFlatSort = 'time
   const [errorCause, setErrorCause] = useState<unknown>(null);
   const [moreError, setMoreError] = useState(false);
   const sequenceRef = useRef(0);
+  const hasAttemptedRef = useRef(false);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadingMoreRef = useRef(false);
   const firstInFlight = useRef<string | null>(null);
   const queryKeyRef = useRef(queryKey);
@@ -84,6 +87,7 @@ export function useArchiveSearch(rawQuery: string, sort: ArchiveFlatSort = 'time
   const run = useCallback(
     async (key: string) => {
       if (firstInFlight.current === key) return;
+      hasAttemptedRef.current = true;
       const sequence = ++sequenceRef.current;
       firstInFlight.current = key;
       loadingMoreRef.current = false;
@@ -143,9 +147,11 @@ export function useArchiveSearch(rawQuery: string, sort: ArchiveFlatSort = 'time
     }
     // Debounced: one request after the typing pauses, not one per keystroke.
     const timer = setTimeout(() => {
+      debounceTimerRef.current = null;
       run(queryKey).catch(() => undefined);
     }, ARCHIVE_SEARCH_DEBOUNCE_MS);
-    return () => { clearTimeout(timer); sequenceRef.current++; };
+    debounceTimerRef.current = timer;
+    return () => { clearTimeout(timer); debounceTimerRef.current = null; sequenceRef.current++; };
   }, [isFlat, queryKey, run, term]);
 
   const loadMore = useCallback(() => {
@@ -188,6 +194,22 @@ export function useArchiveSearch(rawQuery: string, sort: ArchiveFlatSort = 'time
   }, [isFlat, run]);
 
   const removeItem = useCallback((itemId: number) => setItems(previous => previous.filter(entry => entry.id !== itemId)), []);
+
+  // A tab stays mounted while Home saves a link. Re-entering must read again; sharing run() coalesces the mount/query request.
+  // Keep the old rows while loading and on failure, and leave search, view mode and the list's scroll state alone.
+  const focusRef = useRef({ isFlat, run });
+  focusRef.current = { isFlat, run };
+  useFocusEffect(useCallback(() => {
+    const focused = focusRef.current;
+    if (focused.isFlat && hasAttemptedRef.current) {
+      // Returning while a changed search is still debouncing must not schedule a second identical request afterwards.
+      if (debounceTimerRef.current !== null) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      focused.run(queryKeyRef.current).catch(() => undefined);
+    }
+  }, []));
 
   return { isSearching: term !== null, isFlat, items, isLoading, isLoadingMore, error, errorCause, settledTerm: settledKey, hasMore: nextCursor !== null, moreError, loadMore, refresh, removeItem };
 }

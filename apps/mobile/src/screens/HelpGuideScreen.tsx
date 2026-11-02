@@ -1,3 +1,4 @@
+import { menuRowShape, menuRowPosition } from '../components/menuRowShape';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
@@ -53,7 +54,7 @@ export function HelpGuideScreen() {
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => navigation.navigate('HelpGuideSection', { sectionId: section.id })}
-                  style={styles.row}
+                  style={[styles.row, menuRowShape(menuRowPosition(index, GUIDE_SECTIONS.length))]}
                   testID={`guide-section-${section.id}`}
                 >
                   <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.rowIcon}>
@@ -70,7 +71,7 @@ export function HelpGuideScreen() {
           })}
         </View>
         <View style={[styles.card, styles.replayCard]}>
-          <Pressable accessibilityRole="button" onPress={() => navigation.navigate('Tutorial')} style={styles.row} testID="guide-replay-tutorial">
+          <Pressable accessibilityRole="button" onPress={() => navigation.navigate('Tutorial')} style={[styles.row, menuRowShape('single')]} testID="guide-replay-tutorial">
             <View style={styles.rowText}>
               <Text style={styles.rowTitle}>{t('guide.replayTutorial')}</Text>
             </View>
@@ -85,7 +86,7 @@ export function HelpGuideScreen() {
 const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   content: { alignSelf: 'center', maxWidth: 640, padding: spacing.xl, paddingTop: spacing.lg, width: '100%' },
-  card: { backgroundColor: colors.surface, borderRadius: radii.lg, overflow: 'hidden', ...cardShadow },
+  card: { backgroundColor: colors.surface, borderRadius: radii.lg, ...cardShadow },
   replayCard: { marginTop: spacing.lg },
   sectionsCard: { marginTop: spacing.lg },
   guidesCard: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, rowGap: spacing.sm, ...cardShadow },

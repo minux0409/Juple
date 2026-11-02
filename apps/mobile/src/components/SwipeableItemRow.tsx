@@ -28,7 +28,7 @@ const HORIZONTAL_INTENT_THRESHOLD = 8;
 const DELETE_SWIPE_DISTANCE = 48;
 /** ...or once it is flung left this fast (px/ms, PanResponder's vx) after at least half an action width. */
 const DELETE_SWIPE_VELOCITY = 0.5;
-/** A release that drifted more than this share of its horizontal travel vertically is a diagonal move, never a delete. */
+/** A short velocity-only fling still needs a mostly horizontal heading. Full-distance captured swipes may drift. */
 const DELETE_SWIPE_MAX_VERTICAL_SHARE = 0.5;
 const ACTION_ICON_SIZE = 22;
 /** The icon on a revealed action: white on the dark-grey share / red delete panels in both themes. */
@@ -240,7 +240,8 @@ export function SwipeableItemRow({
       }
       const farEnough = offset <= -DELETE_SWIPE_DISTANCE;
       const flung = gesture !== null && rtlSign * gesture.vx <= -DELETE_SWIPE_VELOCITY && offset <= -actionWidth / 2;
-      if (!revealsDelete && onDelete && horizontal && (farEnough || flung) && !deleteRequestedRef.current) {
+      // Once captured, distance expresses intent even if the finger drifts vertically. Only a short fling still needs a horizontal heading.
+      if (!revealsDelete && onDelete && gesture !== null && (farEnough || (horizontal && flung)) && !deleteRequestedRef.current) {
         deleteRequestedRef.current = true;
         close();
         onDelete();
@@ -258,11 +259,17 @@ export function SwipeableItemRow({
 
   const panResponder = useMemo(
     () => {
-      const isHorizontalSwipe = (gesture: { readonly dx: number; readonly dy: number }) =>
-        !disabled &&
+      let scrollingVertically = false;
+      const isHorizontalSwipe = (gesture: { readonly dx: number; readonly dy: number }) => {
+        if (Math.abs(gesture.dy) > HORIZONTAL_INTENT_THRESHOLD && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.5) scrollingVertically = true;
+        return !scrollingVertically && !disabled &&
         Math.abs(gesture.dx) > HORIZONTAL_INTENT_THRESHOLD &&
-        Math.abs(gesture.dx) > Math.abs(gesture.dy);
+        (rtlSign * gesture.dx < 0 && onDelete
+          ? Math.abs(gesture.dy) <= Math.abs(gesture.dx) * 1.5
+          : Math.abs(gesture.dx) > Math.abs(gesture.dy));
+      };
       return PanResponder.create({
+        onStartShouldSetPanResponderCapture: () => { scrollingVertically = false; return false; },
         // Capture as well: a swipe starting on anything inside the card (a thumbnail, a title, a link or reaction button) belongs to
         // the row as soon as it is clearly horizontal, whatever holds the touch; a tap never moves that far and stays with the button.
         onMoveShouldSetPanResponderCapture: (_event, gesture) => isHorizontalSwipe(gesture),

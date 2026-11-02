@@ -2,6 +2,7 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { StyleSheet, Text } from 'react-native';
 import { ParticipantAvatarStack } from '../ParticipantAvatarStack';
 import { UserAvatar } from '../UserAvatar';
+import { PressedShape } from '../PressedShape';
 
 const person = (index: number) => ({ jupleId: `PERS${index}234`, displayName: `사람${index}`, profileImageUrl: null, profileImageVersion: null });
 const people = (count: number) => Array.from({ length: count }, (_, index) => person(index));
@@ -64,6 +65,17 @@ describe('ParticipantAvatarStack - while the people are loading', () => {
 });
 
 describe('ParticipantAvatarStack', () => {
+  it.each([1, 3])('press feedback follows only %s avatars while preserving the full hit target', count => {
+    const { renderer } = render(count);
+    const button = renderer.root.findAll(node => node.props.testID === 'stack' && typeof node.props.children === 'function')[0];
+    expect(button.props.pressFeedback).toBe(false);
+    expect(StyleSheet.flatten(button.props.style).minHeight).toBeGreaterThanOrEqual(44);
+    let drawn!: ReactTestRenderer.ReactTestRenderer;
+    act(() => { drawn = ReactTestRenderer.create(button.props.children({ pressed: true })); });
+    const feedback = drawn.root.findByType(PressedShape);
+    expect(feedback.props.borderRadius).toBe(16);
+    expect(feedback.props.pressed).toBe(true);
+  });
   it('draws one small circle per person when they all fit, in order', () => {
     const { renderer } = render(3);
 

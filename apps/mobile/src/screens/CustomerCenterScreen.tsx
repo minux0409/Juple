@@ -1,3 +1,4 @@
+import { menuRowShape, menuRowPosition, type MenuRowPosition } from '../components/menuRowShape';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Fragment } from 'react';
@@ -45,7 +46,7 @@ export function CustomerCenterScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text accessibilityRole="header" style={styles.sectionTitle}>{t('customerCenter.inquiryHeading')}</Text>
         <View style={styles.card}>
-          <NavigationRow label={t('inquiry.title')} onPress={() => navigation.navigate('SupportInquiry')} testID="customer-center-contact" />
+          <NavigationRow position="single" label={t('inquiry.title')} onPress={() => navigation.navigate('SupportInquiry')} testID="customer-center-contact" />
         </View>
 
         {legalRows.length > 0 ? (
@@ -55,7 +56,7 @@ export function CustomerCenterScreen() {
               {legalRows.map((row, index) => (
                 <Fragment key={row.id}>
                   {index > 0 ? <View style={styles.divider} /> : null}
-                  <NavigationRow label={row.label} onPress={() => { openLegal(row.url).catch(() => undefined); }} testID={`customer-center-${row.id}`} />
+                  <NavigationRow position={menuRowPosition(index, legalRows.length)} label={row.label} onPress={() => { openLegal(row.url).catch(() => undefined); }} testID={`customer-center-${row.id}`} />
                 </Fragment>
               ))}
             </View>
@@ -73,9 +74,9 @@ export function CustomerCenterScreen() {
   );
 }
 
-function NavigationRow({ label, onPress, testID }: { readonly label: string; readonly onPress: () => void; readonly testID: string }) {
+function NavigationRow({ label, onPress, testID, position }: { readonly position: MenuRowPosition; readonly label: string; readonly onPress: () => void; readonly testID: string }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.navRow} testID={testID}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={[styles.navRow, menuRowShape(position)]} testID={testID}>
       <Text style={styles.navLabel}>{label}</Text>
       <ChevronIcon color={colors.textSecondary} direction="right" size={18} />
     </Pressable>
@@ -86,7 +87,7 @@ const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   content: { alignSelf: 'center', maxWidth: 640, padding: spacing.xl, paddingTop: spacing.lg, width: '100%' },
   sectionTitle: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', marginBottom: spacing.sm, marginTop: spacing.xl },
-  card: { backgroundColor: colors.surface, borderRadius: radii.lg, overflow: 'hidden', ...cardShadow },
+  card: { backgroundColor: colors.surface, borderRadius: radii.lg, ...cardShadow },
   divider: { backgroundColor: colors.divider, height: 1, marginHorizontal: spacing.md },
   navRow: { alignItems: 'center', columnGap: spacing.sm, flexDirection: 'row', minHeight: minTouchTarget, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2 },
   navLabel: { color: colors.textPrimary, flex: 1, fontSize: 15, fontWeight: '600' },

@@ -1,3 +1,4 @@
+import { menuRowShape } from '../components/menuRowShape';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useState } from 'react';
@@ -137,7 +138,7 @@ export function AccountManagementScreen() {
                   accessibilityRole="button"
                   disabled={isSigningIn}
                   onPress={() => setShowResetGuide(true)}
-                  style={styles.row}
+                  style={[styles.row, menuRowShape('last')]}
                   testID="account-password-reset"
                 >
                   <Text style={[styles.rowTitle, styles.rowText]}>{t('account.passwordReset')}</Text>
@@ -203,15 +204,15 @@ const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   content: { alignSelf: 'center', maxWidth: 640, padding: spacing.xl, width: '100%' },
   loading: { paddingVertical: spacing.lg },
-  card: { backgroundColor: colors.surface, borderRadius: radii.lg, paddingHorizontal: spacing.md, ...cardShadow },
-  row: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, minHeight: minTouchTarget, paddingVertical: spacing.md },
+  card: { backgroundColor: colors.surface, borderRadius: radii.lg, ...cardShadow },
+  row: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, minHeight: minTouchTarget, paddingHorizontal: spacing.md, paddingVertical: spacing.md },
   rowText: { flex: 1, minWidth: 0 },
   rowValue: { color: colors.textPrimary, flexShrink: 0, fontSize: 16, fontWeight: '600' },
   valueRow: { alignItems: 'center', columnGap: spacing.md, flexDirection: 'row' },
   emailValue: { color: colors.textSecondary, flex: 1, fontSize: 15, minWidth: 0, textAlign: 'right' },
   rowTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
   rowDescription: { color: colors.textSecondary, fontSize: 13, marginTop: 3 },
-  divider: { backgroundColor: colors.divider, height: StyleSheet.hairlineWidth },
+  divider: { backgroundColor: colors.divider, height: StyleSheet.hairlineWidth, marginHorizontal: spacing.md },
   notice: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.md },
   error: { color: colors.dangerText, fontSize: 14 },
   exportCard: { backgroundColor: colors.surface, borderRadius: radii.lg, marginTop: spacing.xl, padding: spacing.lg, ...cardShadow },

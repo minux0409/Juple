@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Text, View } from 'react-native';
 import { Pressable } from './Pressable';
+import { menuRowShape, type MenuRowPosition } from './menuRowShape';
 import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 
 /** The existing My Page single-line menu geometry, shared by ordinary menu entries. */
@@ -11,6 +12,7 @@ export function SettingsMenuRow({
   testID,
   badge,
   accessibilityLabel,
+  position = 'middle',
 }: {
   icon: ReactNode;
   title: string;
@@ -18,6 +20,7 @@ export function SettingsMenuRow({
   testID?: string;
   badge?: ReactNode;
   accessibilityLabel?: string;
+  position?: MenuRowPosition;
 }) {
   return (
     <Pressable
@@ -25,7 +28,7 @@ export function SettingsMenuRow({
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
       testID={testID}
-      style={styles.row}
+      style={[styles.row, menuRowShape(position)]}
     >
       <View style={styles.icon}>{icon}</View>
       <Text style={styles.label}>{title}</Text>

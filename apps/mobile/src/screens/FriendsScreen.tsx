@@ -390,7 +390,7 @@ export function FriendsScreen() {
                 value={search}
               />
             </View>
-            <ViewModeToggle onChange={changeViewMode} value={viewMode} />
+            <ViewModeToggle fillHeight onChange={changeViewMode} value={viewMode} />
           </View>
           {/* Friends are already listed and a refresh failed: keep them, with a compact retry row (not a full failure state). */}
           {hasLoadedFriends && friendsError ? <RefreshFailureNotice onRetry={() => loadFriends(searchRef.current)} testID="friends-stale" /> : null}
