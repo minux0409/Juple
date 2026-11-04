@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, StyleSheet, Switch, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Switch, Text } from 'react-native';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { CollectionDetailsScreen } from '../CollectionDetailsScreen';
@@ -302,10 +302,7 @@ function getHeaderElement(renderer: ReactTestRenderer.ReactTestRenderer) {
   const flatList = findItemList(renderer);
   let headerRenderer!: ReactTestRenderer.ReactTestRenderer;
   ReactTestRenderer.act(() => {
-    // The ⋯ button is the stack header's headerRight (navigation options); it is rendered after the page's own header part.
-    const calls = jest.mocked((navigation as unknown as { setOptions: jest.Mock }).setOptions).mock.calls;
-    const headerRight = [...calls].reverse().map(call => call[0]?.headerRight).find(Boolean) as (() => ReactElement) | undefined;
-    headerRenderer = ReactTestRenderer.create(<View>{flatList.props.ListHeaderComponent}{headerRight?.()}</View>);
+    headerRenderer = ReactTestRenderer.create(flatList.props.ListHeaderComponent);
   });
   return headerRenderer;
 }

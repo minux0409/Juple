@@ -377,8 +377,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   // The stack header's title is this Collection's own icon and name (one line, "…" when long) - not a fixed "컬렉션" label.
   const headerCollection = collection;
-  // Owner and member menus are never empty today; the header offers the button only when there is something in it.
-  const hasCollectionMenu = collection !== null;
   useEffect(() => {
     if (!headerCollection) {
       return;
@@ -396,25 +394,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           name={headerCollection.name}
         />,
       ),
-      // ⋯ lives in the header's end corner; the row below keeps only favorite / bell / share.
-      headerRight: hasCollectionMenu
-        ? () => (
-          <Pressable
-            accessibilityLabel={t('collections.manageAction')}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: isDeletingCollection, busy: isDeletingCollection }}
-            disabled={isDeletingCollection}
-            hitSlop={4}
-            onPress={() => setIsCollectionMenuVisible(true)}
-            style={[styles.iconButton, isDeletingCollection && styles.disabledButton]}
-            testID="collection-details-more"
-          >
-            <MoreIcon color={colors.textSecondary} size={20} />
-          </Pressable>
-        )
-        : undefined,
     });
-  }, [hasCollectionMenu, headerCollection, isDeletingCollection, navigation, t]);
+  }, [headerCollection, navigation]);
   const [targetMode, setTargetMode] = useState<'merge' | null>(null);
   const [targetCollections, setTargetCollections] = useState<readonly Collection[]>([]);
   const [targetNextCursor, setTargetNextCursor] = useState<string | null>(null);
@@ -1726,6 +1707,20 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                 <ShareIcon color={colors.textPrimary} size={20} />
               </Pressable>
             ) : null}
+            {collectionMenuActions.length > 0 ? (
+              <Pressable
+                accessibilityLabel={t('collections.manageAction')}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isDeletingCollection, busy: isDeletingCollection }}
+                disabled={isDeletingCollection}
+                hitSlop={4}
+                onPress={() => setIsCollectionMenuVisible(true)}
+                style={[styles.iconButton, isDeletingCollection && styles.disabledButton]}
+                testID="collection-details-more"
+              >
+                <MoreIcon color={colors.textSecondary} size={20} />
+              </Pressable>
+            ) : null}
             </View>
           </View>
       </View>
@@ -2270,7 +2265,8 @@ const styles = themedStyles(() => ({
     justifyContent: 'space-between',
   },
   // In the header's one row: centered with the actions, no top offset of its own.
-  participantStack: { alignSelf: 'center', flexShrink: 1, marginTop: 0, minHeight: ICON_BUTTON_SIZE },
+  // Many participants never push the buttons: the stack takes only the room left of them and clips there.
+  participantStack: { alignSelf: 'center', flexShrink: 1, marginTop: 0, minHeight: ICON_BUTTON_SIZE, overflow: 'hidden' },
   headerMetaSpacer: { flex: 1 },
   // 승인 대기: a full-width, one-line tappable row on its own (the same family as the Collections tab's
   // 공유 요청 row), tinted so it is seen at a glance - not a small inline label.

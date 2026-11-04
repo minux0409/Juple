@@ -58,6 +58,8 @@ import { useLeaveWhenCollectionLost } from '../collections/useLeaveWhenCollectio
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { InfoCallout } from '../components/InfoCallout';
 import { CheckIcon } from '../icons/CheckIcon';
+import { ChevronIcon } from '../icons/ChevronIcon';
+import { AppModal } from '../components/AppModal';
 import { CloseIcon } from '../icons/CloseIcon';
 import { EyeIcon } from '../icons/EyeIcon';
 import { UserMinusIcon } from '../icons/UserMinusIcon';
@@ -259,43 +261,62 @@ interface RoleToggleProps {
   readonly onUnavailablePress?: () => void;
 }
 
-/** 읽기 전용 | 승인 후 추가 | 링크 추가 for one person about to be invited. The wire roles are never shown. */
-function RoleToggle({ value, onChange, disabled = false, label, testID, stretch = false, minimum = null, onUnavailablePress }: RoleToggleProps) {
+/**
+ * 읽기 전용 / 승인 후 추가 / 링크 추가 for one person about to be invited, as a dropdown: one field showing the chosen permission,
+ * and a vertical list (one permission per row, full wrapping text, a check on the chosen one) in the standard modal. A permission
+ * below the public link's level stays in the list but unavailable (faint, struck through); its tap only explains why. The wire
+ * roles are never shown.
+ */
+function RoleToggle({ value, onChange, disabled = false, label, testID, minimum = null, onUnavailablePress }: RoleToggleProps) {
   const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
+  const title = t('shareSheet.permissionA11y', { name: label });
   return (
-    <View accessibilityLabel={t('shareSheet.permissionA11y', { name: label })} accessibilityRole="radiogroup" style={[styles.roleToggle, stretch && styles.roleToggleStretch]}>
-      {ROLES.map(role => {
-        const isSelected = value === role;
-        const isBelowMinimum = minimum !== null && INVITATION_ROLE_RANK[role] < INVITATION_ROLE_RANK[minimum];
-        const isDisabled = disabled || isBelowMinimum;
-        return (
-          <Pressable
-            accessibilityRole="radio"
-            accessibilityState={{ checked: isSelected, disabled: isDisabled }}
-            // Below the minimum stays pressable on purpose: the tap only explains (see onUnavailablePress).
-            disabled={disabled}
-            hitSlop={3}
-            key={role}
-            onPress={() => {
-              if (isBelowMinimum) {
-                onUnavailablePress?.();
-              } else if (!isSelected) {
-                onChange(role);
-              }
-            }}
-            style={[styles.roleOption, stretch && styles.roleOptionStretch, isSelected && styles.roleOptionSelected, disabled && styles.disabled]}
-            testID={`${testID}-${role}`}
-          >
-            <Text
-              numberOfLines={1}
-              style={[styles.roleOptionLabel, isSelected && styles.roleOptionLabelSelected, isBelowMinimum && styles.roleOptionLabelUnavailable]}
-            >
-              {t(roleLabelKey(role))}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
+    <>
+      <Pressable
+        accessibilityHint={title}
+        accessibilityLabel={`${title}, ${t(roleLabelKey(value))}`}
+        accessibilityRole="button"
+        accessibilityState={{ disabled, expanded: isOpen }}
+        disabled={disabled}
+        onPress={() => setIsOpen(true)}
+        style={[styles.roleField, disabled && styles.disabled]}
+        testID={testID}
+      >
+        <Text style={styles.roleFieldLabel} testID={`${testID}-value`}>{t(roleLabelKey(value))}</Text>
+        <ChevronIcon color={colors.textSecondary} direction="down" size={18} />
+      </Pressable>
+      <AppModal onClose={() => setIsOpen(false)} testID={`${testID}-menu`} title={title} visible={isOpen}>
+        <View accessibilityLabel={title} accessibilityRole="radiogroup">
+          {ROLES.map(role => {
+            const isSelected = value === role;
+            const isBelowMinimum = minimum !== null && INVITATION_ROLE_RANK[role] < INVITATION_ROLE_RANK[minimum];
+            return (
+              <Pressable
+                accessibilityRole="radio"
+                accessibilityState={{ checked: isSelected, disabled: isBelowMinimum }}
+                key={role}
+                onPress={() => {
+                  setIsOpen(false);
+                  if (isBelowMinimum) {
+                    onUnavailablePress?.();
+                  } else if (!isSelected) {
+                    onChange(role);
+                  }
+                }}
+                style={[styles.roleChoice, isSelected && styles.roleChoiceSelected]}
+                testID={`${testID}-${role}`}
+              >
+                <Text style={[styles.roleChoiceLabel, isSelected && styles.roleChoiceLabelSelected, isBelowMinimum && styles.roleOptionLabelUnavailable]}>
+                  {t(roleLabelKey(role))}
+                </Text>
+                <View style={styles.roleChoiceCheck}>{isSelected ? <CheckIcon color={colors.brandText} size={20} /> : null}</View>
+              </Pressable>
+            );
+          })}
+        </View>
+      </AppModal>
+    </>
   );
 }
 
@@ -1598,31 +1619,32 @@ const styles = themedStyles(() => ({
     minHeight: minTouchTarget,
     minWidth: minTouchTarget,
   },
-  roleToggle: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radii.md + 2,
-    flexDirection: 'row',
-    flexShrink: 0,
-    gap: 2,
-    padding: 2,
-  },
-  roleToggleStretch: { alignSelf: 'stretch', flexGrow: 1, flexShrink: 1 },
-  // 38dp to look at; the hitSlop on each option (see RoleToggle) keeps the touch target at 44dp.
-  roleOption: {
+  // The dropdown field: full width, as tall as its (wrapping) text needs, never clipped.
+  roleField: {
     alignItems: 'center',
-    borderColor: 'transparent',
+    alignSelf: 'stretch',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: radii.md,
-    borderWidth: 1,
-    flexShrink: 1,
-    justifyContent: 'center',
-    minHeight: minTouchTarget - 6,
-    minWidth: 0,
-    paddingHorizontal: spacing.sm,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: minTouchTarget,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  roleOptionStretch: { flexBasis: 0, flexGrow: 1 },
-  roleOptionSelected: { ...selectedSegment() },
-  roleOptionLabel: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
-  roleOptionLabelSelected: { color: colors.textPrimary, fontWeight: '700' },
+  roleFieldLabel: { color: colors.textPrimary, flex: 1, fontSize: 15, fontWeight: '600', minWidth: 0 },
+  roleChoice: {
+    alignItems: 'center',
+    borderRadius: radii.md,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: minTouchTarget,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  roleChoiceSelected: { backgroundColor: colors.brandSoft },
+  roleChoiceLabel: { color: colors.textPrimary, flex: 1, fontSize: 15, fontWeight: '500', minWidth: 0 },
+  roleChoiceLabelSelected: { color: colors.brandText, fontWeight: '700' },
+  roleChoiceCheck: { alignItems: 'center', flexShrink: 0, height: 20, width: 20 },
   // Below the public link's 링크 추가: visibly unavailable - faint, struck through.
   roleOptionLabelUnavailable: { color: colors.border, textDecorationLine: 'line-through' },
   primaryButton: {

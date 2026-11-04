@@ -199,6 +199,22 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
     });
   }
 
+  const ROLE_LABEL_KEYS = { viewer: 'shareSheet.permissionRead', submitter: 'shareSheet.permissionSubmit', contributor: 'shareSheet.permissionWrite' } as const;
+  const roleText = (role: keyof typeof ROLE_LABEL_KEYS) => i18n.t(ROLE_LABEL_KEYS[role]);
+  /** The permission dropdown's field shows the chosen permission. */
+  const roleShown = (renderer: Renderer, field: string) => texts(byId(renderer, `${field}-value`)).join('');
+  /** Opens a person's permission dropdown and picks one of its rows. */
+  async function chooseRole(renderer: Renderer, field: string, role: keyof typeof ROLE_LABEL_KEYS) {
+    await openRoles(renderer, field);
+    await press(renderer, `${field}-${role}`);
+  }
+  /** The dropdown's field (RoleToggle itself carries the same testID, so the pressable is picked by its handler). */
+  async function openRoles(renderer: Renderer, field: string) {
+    await act(async () => {
+      renderer.root.findAll(node => node.props.testID === field && typeof node.props.onPress === 'function')[0].props.onPress();
+    });
+  }
+
   /** The ID tab of 친구 초대 (친구 is the default tab). */
   async function openIdTab(renderer: Renderer) {
     if (!exists(renderer, 'id-invite-input')) {
@@ -802,12 +818,12 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       const renderer = await renderScreen();
       await pickFriends(renderer, ['FRND2345', 'FRNE2345']);
 
-      expect(byId(renderer, 'draft-role-FRND2345-viewer').props.accessibilityState.checked).toBe(true);
-      expect(byId(renderer, 'draft-role-FRNE2345-viewer').props.accessibilityState.checked).toBe(true);
+      expect(roleShown(renderer, 'draft-role-FRND2345')).toBe(roleText('viewer'));
+      expect(roleShown(renderer, 'draft-role-FRNE2345')).toBe(roleText('viewer'));
       // My private note is shown in the picker only, never in the batch.
       expect(texts(byId(renderer, 'share-invite-list'))).not.toContain('회사 개발팀');
 
-      await press(renderer, 'draft-role-FRNE2345-contributor');
+      await chooseRole(renderer, 'draft-role-FRNE2345', 'contributor');
       await press(renderer, 'invite-send');
 
       expect(inviteCollaborator).toHaveBeenCalledTimes(2);
@@ -833,9 +849,9 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       const person = byId(renderer, 'id-invite-person');
       expect(texts(person)).toEqual(expect.arrayContaining(['이상해씨', 'NAMD2345']));
 
-      await press(renderer, 'id-invite-role-contributor');
+      await chooseRole(renderer, 'id-invite-role', 'contributor');
       await press(renderer, 'id-invite-add');
-      expect(byId(renderer, 'draft-role-NAMD2345-contributor').props.accessibilityState.checked).toBe(true);
+      expect(roleShown(renderer, 'draft-role-NAMD2345')).toBe(roleText('contributor'));
 
       await press(renderer, 'invite-send');
       expect(inviteCollaborator).toHaveBeenCalledWith(expect.anything(), 5, 'NAMD2345', 'contributor');
@@ -876,7 +892,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
         expect(byId(renderer, 'id-invite-input').props.value).toBe('');
         expect(exists(renderer, 'id-invite-person')).toBe(false);
       }
-      await press(renderer, 'draft-role-BBBB2345-contributor');
+      await chooseRole(renderer, 'draft-role-BBBB2345', 'contributor');
 
       expect(texts(byId(renderer, 'share-invite-list-count'))).toEqual([i18n.t('shareSheet.selectedCount', { count: 3 })]);
       await press(renderer, 'invite-send');
@@ -982,12 +998,12 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
 
       expect(exists(renderer, 'share-invite-fixed-role')).toBe(false);
       await findById(renderer, 'CCCC2345');
-      await press(renderer, 'id-invite-role-contributor');
+      await chooseRole(renderer, 'id-invite-role', 'contributor');
       await press(renderer, 'id-invite-add');
       await findById(renderer, 'EEEE2345');
       await press(renderer, 'id-invite-add');
-      expect(byId(renderer, 'draft-role-CCCC2345-contributor').props.accessibilityState.checked).toBe(true);
-      expect(byId(renderer, 'draft-role-EEEE2345-viewer').props.accessibilityState.checked).toBe(true);
+      expect(roleShown(renderer, 'draft-role-CCCC2345')).toBe(roleText('contributor'));
+      expect(roleShown(renderer, 'draft-role-EEEE2345')).toBe(roleText('viewer'));
       await press(renderer, 'invite-send');
 
       expect(inviteCollaborator).toHaveBeenCalledWith(expect.anything(), 5, 'CCCC2345', 'contributor');
@@ -1005,8 +1021,10 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       const option = (testID: string) => renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onPress === 'function')[0];
       /** Looks disabled, but still hears a tap (never a native disabled press) - and the tap only explains. */
       const tapUnavailable = async (unavailableId: string, selectedId: string) => {
+        const field = unavailableId.replace(/-(viewer|submitter|contributor)$/, '');
+        await openRoles(renderer, field);
         const unavailable = option(unavailableId);
-        expect(unavailable.props.disabled).toBe(false);
+        expect(unavailable.props.disabled).toBeFalsy();
         expect(unavailable.props.accessibilityState).toEqual({ checked: false, disabled: true });
         expect(StyleSheet.flatten(unavailable.findByType(Text).props.style)).toEqual(expect.objectContaining({ textDecorationLine: 'line-through', color: colors.border }));
         jest.mocked(inviteCollaborator).mockClear();
@@ -1014,8 +1032,8 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
           unavailable.props.onPress();
         });
         expect(texts(renderer)).toContain(reason); // the app's own transient toast (iOS and Android alike)
-        expect(option(unavailableId).props.accessibilityState.checked).toBe(false);
-        expect(option(selectedId).props.accessibilityState.checked).toBe(true);
+        // The list closed itself; the field still shows the unchanged choice.
+        expect(roleShown(renderer, field)).toBe(roleText(selectedId.split('-').pop() as keyof typeof ROLE_LABEL_KEYS));
         expect(inviteCollaborator).not.toHaveBeenCalled();
       };
 
@@ -1046,6 +1064,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
 
       await press(renderer, 'share-invite-tabs-friends');
       await pickFriends(renderer, ['FRND2345', 'GGGG2345']);
+      await openRoles(renderer, 'draft-role-FRND2345');
       expect(option('draft-role-FRND2345-viewer').props.accessibilityState).toEqual({ checked: false, disabled: true });
       expect(option('draft-role-FRND2345-submitter').props.accessibilityState).toEqual({ checked: true, disabled: false });
       expect(option('draft-role-FRND2345-contributor').props.accessibilityState).toEqual({ checked: false, disabled: false });
@@ -1054,8 +1073,8 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
         option('draft-role-FRND2345-viewer').props.onPress();
       });
       expect(texts(renderer)).toContain('공용 컬렉션 권한보다 낮은 권한은 부여할 수 없습니다.');
-      await press(renderer, 'draft-role-GGGG2345-contributor');
-      expect(option('draft-role-GGGG2345-contributor').props.accessibilityState.checked).toBe(true);
+      await chooseRole(renderer, 'draft-role-GGGG2345', 'contributor');
+      expect(roleShown(renderer, 'draft-role-GGGG2345')).toBe(roleText('contributor'));
 
       await press(renderer, 'invite-send');
       expect(inviteCollaborator).toHaveBeenCalledWith(expect.anything(), 5, 'FRND2345', 'submitter');
@@ -1091,12 +1110,13 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       const renderer = await renderScreen();
 
       await findById(renderer, 'DDDD2345');
+      await openRoles(renderer, 'id-invite-role');
       const viewer = renderer.root.findAll(node => node.props.testID === 'id-invite-role-viewer' && typeof node.props.onPress === 'function')[0];
       expect(viewer.props.accessibilityState.disabled).toBe(false);
-      await press(renderer, 'id-invite-role-contributor');
-      expect(byId(renderer, 'id-invite-role-contributor').props.accessibilityState.checked).toBe(true);
-      await press(renderer, 'id-invite-role-viewer');
-      expect(byId(renderer, 'id-invite-role-viewer').props.accessibilityState.checked).toBe(true);
+      await chooseRole(renderer, 'id-invite-role', 'contributor');
+      expect(roleShown(renderer, 'id-invite-role')).toBe(roleText('contributor'));
+      await chooseRole(renderer, 'id-invite-role', 'viewer');
+      expect(roleShown(renderer, 'id-invite-role')).toBe(roleText('viewer'));
       expect(texts(renderer)).not.toContain(i18n.t('shareSheet.belowPublicPermission'));
     });
 
@@ -1208,14 +1228,14 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(idsIn(firstLine)).toContain('draft-remove-AAAA2345');
       expect(idsIn(firstLine).some(id => id.startsWith('draft-role-'))).toBe(false);
       expect(secondLine.props.testID).toBe('draft-permission-AAAA2345');
-      expect(texts(secondLine)).toEqual([i18n.t('shareSheet.permissionRead'), i18n.t('shareSheet.permissionSubmit'), i18n.t('shareSheet.permissionWrite')]);
-      // Still announced as that person's permission group.
-      expect(secondLine.findAll(node => node.props.accessibilityRole === 'radiogroup' && typeof node.type === 'string')[0].props.accessibilityLabel)
-        .toMatch(new RegExp(`AAAA.*${i18n.t('shareSheet.permissionA11y', { name: '' }).trim()}$`));
-      expect(idsIn(secondLine)).toEqual(expect.arrayContaining(['draft-role-AAAA2345-viewer', 'draft-role-AAAA2345-submitter', 'draft-role-AAAA2345-contributor']));
-      // Full width: both options share the line equally.
-      const option = renderer.root.find(node => typeof node.type === 'string' && node.props.testID === 'draft-role-AAAA2345-viewer');
-      expect(StyleSheet.flatten(option.props.style)).toEqual(expect.objectContaining({ flexBasis: 0, flexGrow: 1 }));
+      // One dropdown field showing the chosen permission (the other two live in its list), announced with the person's name.
+      expect(texts(secondLine)).toEqual([i18n.t('shareSheet.permissionRead')]);
+      const field = secondLine.find(node => typeof node.type === 'string' && node.props.testID === 'draft-role-AAAA2345');
+      expect(field.props.accessibilityRole).toBe('button');
+      expect(field.props.accessibilityLabel).toMatch(new RegExp(`AAAA.*${i18n.t('shareSheet.permissionRead')}$`));
+      // Full width, and the text may wrap (never clipped to one line).
+      expect(StyleSheet.flatten(field.props.style)).toEqual(expect.objectContaining({ alignSelf: 'stretch' }));
+      expect(secondLine.findByProps({ testID: 'draft-role-AAAA2345-value' }).props.numberOfLines).toBeUndefined();
     });
 
     it('two people to invite stay compact: 8dp around each, 6dp between who and their choice - nothing in between', async () => {
@@ -1521,7 +1541,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       const hostById = (testID: string) => renderer.root.find(node => typeof node.type === 'string' && node.props.testID === testID);
       const labelStyle = (testID: string) => StyleSheet.flatten(hostById(testID).findByType(Text).props.style);
 
-      for (const selected of ['share-all-users-permission-read', 'share-invite-tabs-friends', 'draft-role-FRND2345-viewer']) {
+      for (const selected of ['share-all-users-permission-read', 'share-invite-tabs-friends']) {
         const style = StyleSheet.flatten(hostById(selected).props.style);
         expect(style.backgroundColor).toBe(colors.surface);
         expect(style.borderColor).not.toBe(colors.brand);
@@ -1531,7 +1551,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
         const pressableNode = renderer.root.findAll(node => node.props.testID === selected && node.props.hitSlop !== undefined)[0];
         expect(pressableNode.props.hitSlop).toBe(3);
       }
-      for (const unselected of ['share-all-users-permission-write', 'share-invite-tabs-id', 'draft-role-FRND2345-contributor']) {
+      for (const unselected of ['share-all-users-permission-write', 'share-invite-tabs-id']) {
         const style = StyleSheet.flatten(hostById(unselected).props.style);
         expect(style.backgroundColor).toBeUndefined();
         expect(labelStyle(unselected).color).toBe(colors.textSecondary);

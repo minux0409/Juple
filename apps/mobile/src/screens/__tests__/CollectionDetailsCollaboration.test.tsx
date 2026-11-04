@@ -1,4 +1,3 @@
-import type { ReactElement } from 'react';
 import { ActionMenuDialog } from '../../components/ActionMenuDialog';
 import { ReportModal } from '../../safety/ReportModal';
 import { BellIcon } from '../../icons/BellIcon';
@@ -15,7 +14,7 @@ import { QuickReactionBar } from '../../reactions/QuickReactionBar';
 import { ReactionChips } from '../../reactions/ReactionChips';
 import { ReactionPickerDialog } from '../../reactions/ReactionPickerDialog';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, Linking, StyleSheet, Switch, Text, View } from 'react-native';
+import { FlatList, Linking, StyleSheet, Switch, Text } from 'react-native';
 import { savedLinkLayout } from '../../components/savedLinkLayout';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
@@ -265,12 +264,8 @@ function renderPart(element: React.ReactElement) {
   return part;
 }
 
-// The ⋯ button lives in the stack header's end corner (navigation options), so it is rendered after the page's own header part.
-const header = (renderer: ReactTestRenderer.ReactTestRenderer) => {
-  const calls = jest.mocked((navigation as unknown as { setOptions: jest.Mock }).setOptions).mock.calls;
-  const headerRight = [...calls].reverse().map(call => call[0]?.headerRight).find(Boolean) as (() => ReactElement) | undefined;
-  return renderPart(<View>{findItemList(renderer).props.ListHeaderComponent}{headerRight?.()}</View>);
-};
+const header = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+  renderPart(findItemList(renderer).props.ListHeaderComponent);
 
 const row = (renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) =>
   renderPart(findItemList(renderer).props.renderItem({ item, index: 0 }));
