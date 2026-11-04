@@ -66,7 +66,8 @@ import { ReportModal, type ReportTargetPreview } from '../safety/ReportModal';
 import type { ReportTarget } from '../safety/safetyApi';
 import { CollectionUnlockModal } from '../collections/CollectionUnlockModal';
 import { CollectionUnlockPanel } from '../collections/CollectionUnlockPanel';
-import { CategoryIconTile } from '../collections/CategoryIconTile';
+import { CollectionHeaderTitle } from '../collections/CollectionHeaderTitle';
+import { headerTitleWithElement } from '../navigation/screenIcons';
 import { applyCollectionIconImageChange, getIconImageSaveErrorMessage, type CollectionIconImageChange } from '../collections/collectionIconImage';
 import {
   resolveEffectiveCollectionColorValue,
@@ -326,6 +327,28 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [collection, setCollection] = useState<Collection | null>(null);
   const [isLoadingCollection, setIsLoadingCollection] = useState(true);
   const [collectionError, setCollectionError] = useState<{ readonly cause: unknown; readonly notice: string | null } | null>(null);
+
+  // The stack header's title is this Collection's own icon and name (one line, "…" when long) - not a fixed "컬렉션" label.
+  const headerCollection = collection;
+  useEffect(() => {
+    if (!headerCollection) {
+      return;
+    }
+    navigation.setOptions({
+      title: headerCollection.name,
+      ...headerTitleWithElement(
+        <CollectionHeaderTitle
+          collectionId={headerCollection.id}
+          color={headerCollection.color}
+          icon={headerCollection.icon}
+          imageUrl={headerCollection.iconImageUrl}
+          imageVersion={headerCollection.iconImageVersion}
+          isLocked={isCollectionLocked(headerCollection)}
+          name={headerCollection.name}
+        />,
+      ),
+    });
+  }, [headerCollection, navigation]);
 
   // Editing name/icon/color is a centered CategoryEditorDialog now (this round's Category UX
   // rework), not an inline expand-below form - a single editError surfaces whichever step of
@@ -1609,17 +1632,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const listHeader = (
     <View>
       <View>
-          <View style={styles.headerTitleRow}>
-            <View style={styles.headerIconBadge}>
-              <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} imageVersion={collection.iconImageVersion} size={HEADER_ICON_SIZE} />
-            </View>
-            <Text ellipsizeMode="tail" numberOfLines={2} style={styles.title} testID="collection-details-title">{collection.name}</Text>
-            {isCollectionLocked(collection) ? (
-              <View accessibilityLabel={t('collections.lockedA11y')} style={styles.headerLock} testID="collection-details-locked">
-                <LockIcon color={colors.textSecondary} size={18} />
-              </View>
-            ) : null}
-          </View>
           {/* One row: who is in it on the start side (the whole stack opens the participant list), the actions on the end side. No
               link count - the list below shows the links. */}
           <View style={styles.headerMetaRow}>
@@ -1722,7 +1734,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       {isOwner && (collection.pendingJoinRequestCount ?? 0) > 0 ? (
         <PendingActionRow
           accessibilityLabel={t('collections.joinRequestsA11y', { count: collection.pendingJoinRequestCount })}
-          countPresentation="badge"
           count={collection.pendingJoinRequestCount}
           label={t('collections.joinRequests')}
           onPress={() => runUnlocked(() => setIsJoinRequestsSheetVisible(true))}
@@ -2198,9 +2209,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   );
 }
 
-/** The Collection's icon in the header, and its title's line height - one value, so the two always share a centre. */
-const HEADER_ICON_SIZE = 30;
-
 const styles = themedStyles(() => ({
   sharedByRow: {
     alignItems: 'center',
@@ -2238,42 +2246,12 @@ const styles = themedStyles(() => ({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
   },
-  // Top-aligned (not flex-end) - the title wraps to at most two lines (see `title` below).
-  headerTitleRow: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-  },
-  // Spacing wrapper only - CategoryIconTile owns its own size/background/radius (see
-  // CategoryIconTile.tsx) so this Collection's icon renders identically here, in the Categories
-  // list, and in the New Link Review/Item Details category picker. The header previously showed
-  // no icon at all. Sits beside the title's own line-height, never competing with it for space
-  // (title still gets flex: 1 below).
-  headerIconBadge: {
-    marginEnd: spacing.sm + 2,
-  },
-  // The lock sits on the first line's centre too (a box as tall as that line).
-  headerLock: { height: HEADER_ICON_SIZE, justifyContent: 'center', marginStart: spacing.xs },
-  // At most two lines, then "…" (numberOfLines/ellipsizeMode on the Text) - even a name with no
-  // spaces at all; flexShrink/minWidth keep it from pushing the icon or the lock out of the row.
-  // The title's line box is exactly the icon's height, so a one-line name sits on the icon's vertical centre on every platform
-  // (no font-metric guess), and a two-line name keeps its first line there; Android's extra font padding would shift it down.
-  title: {
-    color: colors.textPrimary,
-    flex: 1,
-    flexShrink: 1,
-    minWidth: 0,
-    fontSize: 21,
-    fontWeight: '800',
-    includeFontPadding: false,
-    lineHeight: HEADER_ICON_SIZE,
-  },
   // Item count on the start edge, the favorite/share/⋯ icons pinned to the end edge - a second row
   // below the title/favorite row (see this round's "개수 오른쪽 끝" header layout requirement).
   headerMetaRow: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: spacing.sm,
   },
   // In the header's one row: centered with the actions, no top offset of its own.
   participantStack: { alignSelf: 'center', flexShrink: 1, marginTop: 0 },

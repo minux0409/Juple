@@ -10,6 +10,10 @@ interface InstallCtaProps {
   /** Android only: Chrome's intent:// link to the canonical share URL (see lib/shareLinks.ts). */
   readonly openInAppUrl?: string;
   readonly openInAppLabel: string;
+  /** iPhone inside KakaoTalk's browser only: its "open in Safari" link (Universal Links cannot start the app from there). */
+  readonly openInSafariUrl?: string;
+  readonly openInSafariLabel?: string;
+  readonly openInSafariHint?: string;
 }
 
 /**
@@ -24,7 +28,7 @@ interface InstallCtaProps {
  * "other" (desktop, or any UA that doesn't match either) shows every configured store, since
  * neither guess is confidently wrong.
  */
-export function InstallCta({ text, googlePlayLabel, appStoreLabel, platform, openInAppUrl, openInAppLabel }: InstallCtaProps) {
+export function InstallCta({ text, googlePlayLabel, appStoreLabel, platform, openInAppUrl, openInAppLabel, openInSafariUrl, openInSafariLabel, openInSafariHint }: InstallCtaProps) {
   const plan = planInstallCta({
     platform,
     googlePlayUrl: storeConfig.googlePlayUrl,
@@ -34,6 +38,20 @@ export function InstallCta({ text, googlePlayLabel, appStoreLabel, platform, ope
   const showGooglePlay = plan.googlePlay;
   const showAppStore = plan.appStore;
   const showOpen = plan.open;
+
+  if (openInSafariUrl) {
+    return (
+      <div className="installCta">
+        <p className="installCtaText">{openInSafariHint ?? text}</p>
+        <div className="installCtaButtons">
+          <a className="installCtaButton" href={openInSafariUrl} rel="noopener">{openInSafariLabel}</a>
+          {showAppStore ? (
+            <a className="installCtaButton" href={storeConfig.appStoreUrl} rel="noopener noreferrer">{appStoreLabel}</a>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
 
   // No usable store/open target: render nothing. There is no placeholder launch promise.
   if (plan.comingSoon) {

@@ -3,9 +3,9 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { LANGUAGE_COOKIE } from '../../../lib/appI18n';
 import { getDictionary, resolvePublicLocale } from '../../../lib/i18n';
-import { resolveClientPlatform } from '../../../lib/platform';
+import { isKakaoTalkIosInApp, resolveClientPlatform } from '../../../lib/platform';
 import { planSharePage } from '../../../lib/installCta';
-import { androidOpenInAppUrl, canonicalShareUrl, normalizeHost, WEB_ONLY_PARAM } from '../../../lib/shareLinks';
+import { androidOpenInAppUrl, canonicalShareUrl, kakaoOpenInSafariUrl, normalizeHost, WEB_ONLY_PARAM } from '../../../lib/shareLinks';
 import { buildShareMetadata, loadShareView } from '../../../lib/shareView';
 import { storeConfig } from '../../../lib/storeConfig';
 import { isValidPublicId, unlockCookieName } from '../../../lib/unlockCookie';
@@ -51,7 +51,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     // iOS Smart App Banner - only when a real App Store app-id is configured (see
     // lib/storeConfig.ts); no fabricated app-id, and the field is simply absent otherwise.
     ...(storeConfig.appStoreAppId
-      ? { other: { 'apple-itunes-app': `app-id=${storeConfig.appStoreAppId}` } }
+      ? {
+        other: {
+          // app-argument: the opened app receives this canonical share URL (a Universal Link it routes to the Collection).
+          'apple-itunes-app': `app-id=${storeConfig.appStoreAppId}${host && isValidPublicId(publicId) ? `, app-argument=${canonicalShareUrl(host, publicId)}` : ''}`,
+        },
+      }
       : {}),
   };
 }
@@ -77,12 +82,16 @@ export default async function PublicCollectionPage({ params, searchParams }: Pag
   }
 
   const openInAppUrl = host ? androidOpenInAppUrl(host, publicId) : undefined;
+  const kakaoSafariUrl = host && isKakaoTalkIosInApp(requestHeaders.get('user-agent')) ? kakaoOpenInSafariUrl(canonicalShareUrl(host, publicId)) : undefined;
   const installCta = (
     <InstallCta
       appStoreLabel={dict.appStore}
       googlePlayLabel={dict.googlePlay}
       openInAppLabel={dict.openInApp}
       openInAppUrl={openInAppUrl}
+      openInSafariHint={dict.kakaoIosHint}
+      openInSafariLabel={dict.openInSafari}
+      openInSafariUrl={kakaoSafariUrl}
       platform={platform}
       text={dict.installCtaText}
     />

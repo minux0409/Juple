@@ -32,6 +32,8 @@ interface Dictionary {
   readonly tooManyAttempts: string;
   readonly unlockFailed: string;
   readonly openInApp: string;
+  readonly openInSafari: string;
+  readonly kakaoIosHint: string;
   readonly unavailableTitle: string;
   readonly unavailableMessage: string;
   readonly metaDescription: string;
@@ -76,6 +78,8 @@ const dictionaries: Record<Locale, Dictionary> = {
     tooManyAttempts: 'Too many attempts. Please try again later.',
     unlockFailed: "Couldn't open it right now. Please try again.",
     openInApp: 'Open in Juple',
+    openInSafari: 'Open in Safari',
+    kakaoIosHint: "KakaoTalk's browser can't open the Juple app directly. Open this page in Safari to continue.",
     unavailableTitle: "We can't show this right now.",
     unavailableMessage: 'Please try again in a moment.',
     metaDescription: 'A collection shared with Juple.',
@@ -118,6 +122,8 @@ const dictionaries: Record<Locale, Dictionary> = {
     tooManyAttempts: '시도 횟수가 너무 많습니다. 잠시 후 다시 시도해 주세요.',
     unlockFailed: '지금은 열 수 없습니다. 다시 시도해 주세요.',
     openInApp: 'Juple에서 열기',
+    openInSafari: 'Safari에서 열기',
+    kakaoIosHint: '카카오톡 안에서는 Juple 앱이 바로 열리지 않아요. Safari에서 열어 계속하세요.',
     unavailableTitle: '지금은 보여드릴 수 없습니다.',
     unavailableMessage: '잠시 후 다시 시도해 주세요.',
     metaDescription: 'Juple에서 공유된 컬렉션입니다.',

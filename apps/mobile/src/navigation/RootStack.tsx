@@ -3,6 +3,7 @@ import { NoticeDetailScreen } from '../screens/NoticeDetailScreen';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
+import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissionOnboarding } from '../permissions/usePermissionOnboarding';
@@ -22,7 +23,7 @@ import { TourBackground } from '../tour/TourBackground';
 import { TourHost } from '../tour/TourHost';
 import { SubscriptionRequiredPrompt } from '../billing/SubscriptionRequiredPrompt';
 import { MyCollectionSubmissionsScreen } from '../screens/MyCollectionSubmissionsScreen';
-import { headerTitleWithIcon, screenIcons } from './screenIcons';
+import { headerTitleWithElement, headerTitleWithIcon, screenIcons } from './screenIcons';
 import { iosHeaderOptions } from './sheetHeader';
 import { TermsAgreementScreen } from '../safety/TermsAgreementScreen';
 import { TermsUnavailable } from '../safety/TermsUnavailable';
@@ -257,7 +258,8 @@ export function RootStack() {
             <Stack.Screen
               component={themedScreen(CollectionDetailsScreen)}
               name="CollectionDetails"
-              options={{ title: t('nav.collectionDetails'), ...headerTitleWithIcon(screenIcons.collectionDetails, t('nav.collectionDetails')) }}
+              // The header title is the Collection's own icon and name, set by the screen once loaded (no fixed "컬렉션" text).
+              options={{ title: t('nav.collectionDetails'), ...headerTitleWithElement(<View />) }}
             />
             {/* On iOS 'modal' is a page sheet with no back button of its own: the stack-wide back arrow (screenOptions) closes it
                 like the swipe-down does (the screen keeps no unsaved draft to guard). Android shows a normal stack screen. */}

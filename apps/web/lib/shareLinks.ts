@@ -18,6 +18,14 @@ export function canonicalShareUrl(host: string, publicId: string): string {
 }
 
 /**
+ * KakaoTalk's own link that opens a URL in the phone's default browser (Safari) instead of its in-app browser. It carries only the
+ * canonical share URL, which Safari then shows (with the Smart App Banner's "open" when the App Store id is configured).
+ */
+export function kakaoOpenInSafariUrl(canonicalUrl: string): string {
+  return `kakaotalk://web/openExternal?url=${encodeURIComponent(canonicalUrl)}`;
+}
+
+/**
  * Chrome's documented "intent://" link for an explicit "open in Juple" button: it opens the installed app on exactly this
  * canonical URL, and when the app is not installed it simply stays on (or returns to) this same web page through
  * S.browser_fallback_url. No timers, no store redirect, no custom scheme - the HTTPS URL stays the one link.

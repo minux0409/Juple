@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import { Platform } from 'react-native';
 import { ScreenTitle, type ScreenTitleIcon } from '../components/ScreenTitle';
@@ -57,5 +58,10 @@ export const screenIcons = {
  */
 export function headerTitleWithIcon(icon: ScreenTitleIcon, title: string): NativeStackNavigationOptions {
   const element = <ScreenTitle icon={icon} title={title} />;
+  return Platform.OS === 'ios' ? iosLeadingTitleOptions(element) : { headerTitle: () => element };
+}
+
+/** A stack screen's header title made of any element (e.g. a Collection's own icon and name), placed like `headerTitleWithIcon`. */
+export function headerTitleWithElement(element: ReactElement): NativeStackNavigationOptions {
   return Platform.OS === 'ios' ? iosLeadingTitleOptions(element) : { headerTitle: () => element };
 }

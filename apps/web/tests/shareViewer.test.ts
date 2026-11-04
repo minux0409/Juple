@@ -246,3 +246,14 @@ describe('public viewer: an anonymous page never trusts a stored link as an href
     }
   });
 });
+
+describe('iOS KakaoTalk in-app browser', () => {
+  it('is recognised only for an iPhone/iPad KakaoTalk UA and builds a Safari handoff of the canonical URL', async () => {
+    const { isKakaoTalkIosInApp } = await import('../lib/platform.ts');
+    const { kakaoOpenInSafariUrl } = await import('../lib/shareLinks.ts');
+    assert.equal(isKakaoTalkIosInApp('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit KAKAOTALK 11.0.0'), true);
+    assert.equal(isKakaoTalkIosInApp('Mozilla/5.0 (Linux; Android 14) KAKAOTALK 11.0.0'), false);
+    assert.equal(isKakaoTalkIosInApp('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0) Safari/604.1'), false);
+    assert.equal(kakaoOpenInSafariUrl('https://juple.co.kr/c/abc'), 'kakaotalk://web/openExternal?url=https%3A%2F%2Fjuple.co.kr%2Fc%2Fabc');
+  });
+});

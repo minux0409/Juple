@@ -7,6 +7,15 @@ export type ClientPlatform = 'android' | 'ios' | 'other';
  * to anyone else, e.g. desktop) is a UX nicety; getting it wrong here has no consequence beyond a
  * mis-targeted CTA, so a couple of literal marker checks is enough - no UA-parsing library.
  */
+/**
+ * KakaoTalk's in-app browser on an iPhone/iPad. Its web view never hands an https link to iOS Universal Links, so the installed app
+ * cannot open from a tap in there - the page offers "open in Safari" instead (see kakaoOpenInSafariUrl).
+ */
+export function isKakaoTalkIosInApp(userAgentHeader: string | null): boolean {
+  const userAgent = userAgentHeader ?? '';
+  return /kakaotalk/i.test(userAgent) && /iphone|ipad|ipod/i.test(userAgent);
+}
+
 export function resolveClientPlatform(userAgentHeader: string | null): ClientPlatform {
   const userAgent = userAgentHeader ?? '';
 

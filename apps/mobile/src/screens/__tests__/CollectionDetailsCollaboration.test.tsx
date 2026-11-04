@@ -239,7 +239,7 @@ function findItemList(
 
 const route = { key: 'CollectionDetails', name: 'CollectionDetails', params: { collectionId: COLLECTION_ID } } as never;
 const mockNavigate = jest.fn();
-const navigation = { navigate: mockNavigate, goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn(), setParams: jest.fn() } as never;
+const navigation = { navigate: mockNavigate, goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn(), setParams: jest.fn(), setOptions: jest.fn() } as never;
 
 async function renderScreen() {
   let renderer!: ReactTestRenderer.ReactTestRenderer;
@@ -1690,12 +1690,12 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     expect(entry.findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '대기 1건']);
     expect(StyleSheet.flatten(rowStyle(entry))).toEqual(expect.objectContaining({ minHeight: 44, flexDirection: 'row', backgroundColor: colors.brandSoft, borderColor: colors.brandText }));
     expect(entry.type).toBe(PendingActionRow);
-    // Order inside the list header: title, header actions, this row, then the sort chips.
+    // Order inside the list header: header actions, this row, then the sort chips.
     const order = header(renderer).root
-      .findAll(node => typeof node.type === 'string' && ['collection-details-title', 'collection-details-favorite', 'collection-details-pending', 'collection-view-controls'].includes(node.props.testID))
+      .findAll(node => typeof node.type === 'string' && ['collection-details-favorite', 'collection-details-pending', 'collection-view-controls'].includes(node.props.testID))
       .map(node => node.props.testID)
       .filter((id: string, index: number, all: string[]) => all.indexOf(id) === index);
-    expect(order).toEqual(['collection-details-title', 'collection-details-favorite', 'collection-details-pending', 'collection-view-controls']);
+    expect(order).toEqual(['collection-details-favorite', 'collection-details-pending', 'collection-view-controls']);
   });
 
   describe('참여 요청 N (people waiting to join) - a row of its own beside 받은 승인 요청', () => {
@@ -1709,7 +1709,7 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
 
       expect(pendingEntry(renderer).findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '대기 4건']);
       const entry = joinEntry(renderer);
-      expect(entry.findAllByType(Text).map(text => text.props.children)).toEqual(['참여 요청', '1']);
+      expect(entry.findAllByType(Text).map(text => text.props.children)).toEqual(['참여 요청', '대기 1건']);
       expect(entry.type).toBe(PendingActionRow);
       expect(StyleSheet.flatten(rowStyle(entry))).toEqual(expect.objectContaining({ minHeight: 44, flexDirection: 'row' }));
       // Order in the header: the link approvals, then the applicants, then the sort chips.
@@ -1822,10 +1822,10 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     const renderer = await renderScreen();
 
     const order = header(renderer).root
-      .findAll(node => typeof node.type === 'string' && ['collection-details-title', 'collection-view-controls', 'collection-details-my-pending'].includes(node.props.testID))
+      .findAll(node => typeof node.type === 'string' && ['collection-view-controls', 'collection-details-my-pending'].includes(node.props.testID))
       .map(node => node.props.testID)
       .filter((id: string, index: number, all: string[]) => all.indexOf(id) === index);
-    expect(order).toEqual(['collection-details-title', 'collection-view-controls', 'collection-details-my-pending']);
+    expect(order).toEqual(['collection-view-controls', 'collection-details-my-pending']);
     // It is the last thing of the header: the list's own rows (the links) follow it directly.
     const headerChildren = header(renderer).root.findAll(node => typeof node.type === 'string' && node.props.testID === 'collection-details-my-pending');
     expect(headerChildren).toHaveLength(1);

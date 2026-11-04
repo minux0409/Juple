@@ -68,7 +68,7 @@ jest.mock('../../items/shareItem', () => ({ shareItem: jest.fn() }));
 
 const navigate = jest.fn();
 const route = { key: 'CollectionDetails', name: 'CollectionDetails', params: { collectionId: 1 } } as never;
-const navigation = { navigate, goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn() } as never;
+const navigation = { navigate, goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn(), setOptions: jest.fn() } as never;
 
 function makeCollection(overrides: Partial<Collection> = {}): Collection {
   return { id: 1, name: 'Groceries', isFavorite: false, itemCount: 1, createdAtUtc: new Date().toISOString(), updatedAtUtc: new Date().toISOString(), icon: 'Folder', color: null, accessRole: 'owner', ...overrides };

@@ -1,4 +1,4 @@
-import { CategoryIconTile } from '../../collections/CategoryIconTile';
+import type { ReactElement } from 'react';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { FlatList, StyleSheet, Switch, Text } from 'react-native';
 import i18n from '../../i18n';
@@ -209,8 +209,21 @@ function findItemList(
   };
 }
 
+// The stack header title the screen sets (the real helper only wraps it in a platform-specific header option).
+jest.mock('../../navigation/screenIcons', () => ({
+  ...jest.requireActual('../../navigation/screenIcons'),
+  headerTitleWithElement: (element: unknown) => ({ headerTitleElement: element }),
+}));
+function headerTitle() {
+  const calls = jest.mocked((navigation as unknown as { setOptions: jest.Mock }).setOptions).mock.calls;
+  const element = calls[calls.length - 1][0].headerTitleElement as ReactElement;
+  let renderer!: ReactTestRenderer.ReactTestRenderer;
+  act(() => { renderer = ReactTestRenderer.create(element); });
+  return renderer;
+}
+
 const route = { key: 'CollectionDetails', name: 'CollectionDetails', params: { collectionId: 1 } } as never;
-const navigation = { navigate: jest.fn(), goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn() } as never;
+const navigation = { navigate: jest.fn(), goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn(), setOptions: jest.fn() } as never;
 
 // Wrapped in the real AppToastProvider (not mocked) - Move/Unlink/Collection-Delete Undo now show
 // via the global AppToast Host (see useAppToast), so these tests exercise the real Provider and
@@ -709,28 +722,16 @@ describe('CollectionDetailsScreen', () => {
       expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.newLinkNotificationsError'))).toBe(true);
     });
 
-    it('shows at most two lines of even a very long, space-free name, then an ellipsis', async () => {
-      jest.mocked(getCollection).mockResolvedValue(makeCollection({ name: 'A'.repeat(300) }));
-      const renderer = await renderScreen();
-      const title = getHeaderElement(renderer).root.findAll(node => node.props.testID === 'collection-details-title')[0];
-
-      expect(title.props.numberOfLines).toBe(2);
-      expect(title.props.ellipsizeMode).toBe('tail');
-      expect(StyleSheet.flatten(title.props.style)).toMatchObject({ flexShrink: 1, minWidth: 0 });
-    });
-
-    it('puts the icon and the name on one centre line: the title\'s line box is exactly the icon\'s height', async () => {
+    it('puts the Collection name in the stack header (no fixed 컬렉션 label) and no title row in the page', async () => {
       jest.mocked(getCollection).mockResolvedValue(makeCollection({ name: 'Trip' }));
       const renderer = await renderScreen();
-      const header = getHeaderElement(renderer).root;
-      const title = header.findAll(node => node.props.testID === 'collection-details-title')[0];
-      const icon = header.findAllByType(CategoryIconTile)[0];
-      const titleStyle = StyleSheet.flatten(title.props.style);
 
-      expect(titleStyle.lineHeight).toBe(icon.props.size);
-      expect(titleStyle.includeFontPadding).toBe(false);
-      // The icon is not nudged on its own any more - the two share the row's top and the same line height.
-      expect(StyleSheet.flatten(icon.parent!.props.style).marginTop).toBeUndefined();
+      expect(jest.mocked(navigation.setOptions as jest.Mock)).toHaveBeenCalledWith(expect.objectContaining({ title: 'Trip' }));
+      const title = headerTitle().root.findByProps({ testID: 'collection-details-title' });
+      expect(title.props.children).toBe('Trip');
+      expect(title.props.numberOfLines).toBe(1);
+      expect(title.props.ellipsizeMode).toBe('tail');
+      expect(getHeaderElement(renderer).root.findAll(node => node.props.testID === 'collection-details-title')).toHaveLength(0);
     });
 
     it('keeps the detail screen open and shows the existing one-button notice when delete fails', async () => {
@@ -826,10 +827,9 @@ describe('CollectionDetailsScreen', () => {
 
     it('shows the collection\'s chosen icon in the header, next to the name', async () => {
       jest.mocked(getCollection).mockResolvedValue(makeCollection({ icon: 'Heart' }));
-      const renderer = await renderScreen();
-      const header = getHeaderElement(renderer);
+      await renderScreen();
 
-      expect(header.root.findAllByType(HeartIcon)).toHaveLength(1);
+      expect(headerTitle().root.findAllByType(HeartIcon)).toHaveLength(1);
     });
 
     it('seeds the icon picker from the collection\'s current icon when edit mode opens', async () => {
@@ -1694,7 +1694,7 @@ describe('CollectionDetailsScreen - an action asked for by the Collections list 
   async function renderForAction(pendingAction: 'edit' | 'lock' | 'delete' | 'leave' | 'share') {
     const setParams = jest.fn();
     const navigateMock = jest.fn();
-    const actionNavigation = { navigate: navigateMock, goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn(), setParams } as never;
+    const actionNavigation = { navigate: navigateMock, goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn(), setParams, setOptions: jest.fn() } as never;
     const actionRoute = { key: 'CollectionDetails', name: 'CollectionDetails', params: { collectionId: 1, pendingAction } } as never;
     let renderer!: ReactTestRenderer.ReactTestRenderer;
     await act(async () => {

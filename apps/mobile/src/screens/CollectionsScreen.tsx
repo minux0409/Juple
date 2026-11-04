@@ -869,7 +869,7 @@ export function CollectionsScreen() {
             <SubscriptionExpiredNotice />
             <View style={styles.titleRow}>
               <ScreenTitle icon={screenIcons.collections} textStyle={styles.title} title={t('collections.title')} />
-              <AddIconButton {...createTarget} accessibilityLabel={t('collections.create')} onPress={openCreateDialog} />
+              <AddIconButton {...createTarget} compact accessibilityLabel={t('collections.create')} onPress={openCreateDialog} />
             </View>
 
             {/* Four same-level filters as a 2x2 grid: every option is always visible, each cell takes

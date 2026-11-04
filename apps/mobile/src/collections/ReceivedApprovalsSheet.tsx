@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, Text } from 'react-native';
 import { Pressable } from '../components/Pressable';
 import { AppModal } from '../components/AppModal';
-import { CountBadge } from '../components/CountBadge';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import type { Collection } from './api/collectionsApi';
 import { CategoryIconTile } from './CategoryIconTile';
@@ -46,7 +45,7 @@ export function ReceivedApprovalsSheet({ visible, collections, onClose, onOpen }
             >
               <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} imageVersion={collection.iconImageVersion} size={44} />
               <Text numberOfLines={2} style={styles.name}>{collection.name}</Text>
-              <CountBadge count={count} />
+              <Text numberOfLines={1} style={styles.pendingText} testID={`received-approvals-${collection.id}-status`}>{t('collections.myPendingStatus', { count })}</Text>
             </Pressable>
           );
         })}
@@ -57,6 +56,8 @@ export function ReceivedApprovalsSheet({ visible, collections, onClose, onOpen }
 
 const styles = themedStyles(() => ({
   list: { flexGrow: 0, maxHeight: 420 },
+  // The same pending text as the 받은 승인 요청 row (PendingActionRow's statusText).
+  pendingText: { color: colors.textSecondary, flexShrink: 0, fontSize: 13, fontWeight: '600' },
   row: {
     alignItems: 'center',
     backgroundColor: colors.background,
