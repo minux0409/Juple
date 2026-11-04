@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { ActionMenuDialog } from '../../components/ActionMenuDialog';
 import { ReportModal } from '../../safety/ReportModal';
 import { BellIcon } from '../../icons/BellIcon';
@@ -14,9 +15,8 @@ import { QuickReactionBar } from '../../reactions/QuickReactionBar';
 import { ReactionChips } from '../../reactions/ReactionChips';
 import { ReactionPickerDialog } from '../../reactions/ReactionPickerDialog';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, Linking, StyleSheet, Switch, Text } from 'react-native';
+import { FlatList, Linking, StyleSheet, Switch, Text, View } from 'react-native';
 import { savedLinkLayout } from '../../components/savedLinkLayout';
-import { LINK_CONTROLS_BOTTOM_GAP, LINK_CONTROLS_TOP_GAP } from '../../components/savedLinkLayout';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { AppToastProvider } from '../../components/AppToast';
@@ -265,8 +265,12 @@ function renderPart(element: React.ReactElement) {
   return part;
 }
 
-const header = (renderer: ReactTestRenderer.ReactTestRenderer) =>
-  renderPart(findItemList(renderer).props.ListHeaderComponent);
+// The ⋯ button lives in the stack header's end corner (navigation options), so it is rendered after the page's own header part.
+const header = (renderer: ReactTestRenderer.ReactTestRenderer) => {
+  const calls = jest.mocked((navigation as unknown as { setOptions: jest.Mock }).setOptions).mock.calls;
+  const headerRight = [...calls].reverse().map(call => call[0]?.headerRight).find(Boolean) as (() => ReactElement) | undefined;
+  return renderPart(<View>{findItemList(renderer).props.ListHeaderComponent}{headerRight?.()}</View>);
+};
 
 const row = (renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) =>
   renderPart(findItemList(renderer).props.renderItem({ item, index: 0 }));
@@ -1867,15 +1871,14 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     expect(myPendingEntry(renderer)).toBeUndefined();
   });
 
-  it('the 총 N개 line and the List-Grid row are spaced like Home (the shared controls gap), the toggle at the far end - no sort chips', async () => {
+  it('the 링크 n개 count sits at the start and the List-Grid toggle at the far end of one row - no sort chips', async () => {
     jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, itemCount: 18 }));
     jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
     const renderer = await renderScreen();
 
     const controlsRow = header(renderer).root.findAll(node => node.props.testID === 'collection-view-controls' && typeof node.type === 'string')[0];
-    expect(StyleSheet.flatten(controlsRow.props.style)).toMatchObject({ flexDirection: 'row', marginTop: LINK_CONTROLS_TOP_GAP, marginBottom: LINK_CONTROLS_BOTTOM_GAP });
-    // Two separate gaps: 총 N개 -> controls (top) and controls -> first link (bottom), the very values Home uses.
-    expect(LINK_CONTROLS_TOP_GAP).not.toBe(LINK_CONTROLS_BOTTOM_GAP);
+    expect(StyleSheet.flatten(controlsRow.props.style)).toMatchObject({ flexDirection: 'row' });
+    expect(header(renderer).root.findAll(node => node.props.testID === 'collection-link-count' && typeof node.type === 'string')[0].props.children).toBe('링크 18개');
     // The links are always newest first: no 시간순 / 이름순 to pick.
     expect(header(renderer).root.findAll(node => String(node.props.testID ?? '').startsWith('collection-sort-'))).toHaveLength(0);
     const children = controlsRow.children as ReactTestRenderer.ReactTestInstance[];

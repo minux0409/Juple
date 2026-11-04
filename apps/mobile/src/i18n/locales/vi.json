@@ -131,6 +131,7 @@
     "sortDateOldestA11y": "Thời gian, cũ nhất trước",
     "sortNameTooLarge": "Bộ sưu tập có hơn {{max}} liên kết chưa thể sắp xếp theo tên.",
     "itemCount": "Đã lưu {{count}}",
+    "linkCount": "Liên kết: {{count}}",
     "newLinkNotificationsError": "Không thể thay đổi cài đặt thông báo. Vui lòng thử lại.",
     "newLinkNotificationsOnA11y": "Thông báo đang bật. Nhấn đúp để tắt",
     "newLinkNotificationsOffA11y": "Thông báo đang tắt. Nhấn đúp để bật",

@@ -131,6 +131,7 @@
     "sortDateOldestA11y": "เวลา เก่าสุดก่อน",
     "sortNameTooLarge": "คอลเลกชันที่มีลิงก์เกิน {{max}} รายการยังเรียงตามชื่อไม่ได้",
     "itemCount": "บันทึกแล้ว {{count}} รายการ",
+    "linkCount": "ลิงก์: {{count}}",
     "newLinkNotificationsError": "เปลี่ยนการตั้งค่าการแจ้งเตือนไม่ได้ โปรดลองอีกครั้ง",
     "newLinkNotificationsOnA11y": "การแจ้งเตือนเปิดอยู่ แตะสองครั้งเพื่อปิด",
     "newLinkNotificationsOffA11y": "การแจ้งเตือนปิดอยู่ แตะสองครั้งเพื่อเปิด",

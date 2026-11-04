@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, Text, View, type Insets, type StyleProp, type ViewStyle } from 'react-native';
 import { Pressable } from './Pressable';
 import { PressedShape } from './PressedShape';
 import { OwnerCrown } from '../collections/OwnerCrown';
@@ -29,6 +29,8 @@ interface ParticipantAvatarStackProps {
   readonly maxAvatars?: number;
   /** Placement only (e.g. inside a row of header actions). */
   readonly style?: StyleProp<ViewStyle>;
+  /** For a row that gives the stack less height than minTouchTarget: the touch area grows beyond it instead. */
+  readonly hitSlop?: Insets;
   readonly onPress: () => void;
   readonly accessibilityLabel: string;
   readonly accessibilityHint?: string;
@@ -52,6 +54,7 @@ export function ParticipantAvatarStack({
   maxVisible = 4,
   maxAvatars,
   style,
+  hitSlop,
   onPress,
   accessibilityLabel,
   accessibilityHint,
@@ -71,6 +74,7 @@ export function ParticipantAvatarStack({
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
       disabled={participants === null}
+      hitSlop={hitSlop}
       pressFeedback={false}
       onPress={onPress}
       style={[styles.row, style]}

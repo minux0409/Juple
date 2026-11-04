@@ -131,6 +131,7 @@
     "sortDateOldestA11y": "Time, oldest first",
     "sortNameTooLarge": "Collections with more than {{max}} links can’t be sorted by name yet.",
     "itemCount": "{{count}} saved",
+    "linkCount": "Links: {{count}}",
     "newLinkNotificationsError": "Couldn't change the notification setting. Please try again.",
     "newLinkNotificationsOnA11y": "Notifications on. Double-tap to turn off",
     "newLinkNotificationsOffA11y": "Notifications off. Double-tap to turn on",

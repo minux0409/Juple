@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, StyleSheet, Switch, Text } from 'react-native';
+import { FlatList, StyleSheet, Switch, Text, View } from 'react-native';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { CollectionDetailsScreen } from '../CollectionDetailsScreen';
@@ -302,7 +302,10 @@ function getHeaderElement(renderer: ReactTestRenderer.ReactTestRenderer) {
   const flatList = findItemList(renderer);
   let headerRenderer!: ReactTestRenderer.ReactTestRenderer;
   ReactTestRenderer.act(() => {
-    headerRenderer = ReactTestRenderer.create(flatList.props.ListHeaderComponent);
+    // The ⋯ button is the stack header's headerRight (navigation options); it is rendered after the page's own header part.
+    const calls = jest.mocked((navigation as unknown as { setOptions: jest.Mock }).setOptions).mock.calls;
+    const headerRight = [...calls].reverse().map(call => call[0]?.headerRight).find(Boolean) as (() => ReactElement) | undefined;
+    headerRenderer = ReactTestRenderer.create(<View>{flatList.props.ListHeaderComponent}{headerRight?.()}</View>);
   });
   return headerRenderer;
 }
@@ -386,7 +389,7 @@ describe('CollectionDetailsScreen', () => {
     expect(renderer.root.findAll(node => String(node.props.testID ?? '').startsWith('collection-date-filter'))).toHaveLength(0);
   });
 
-  it('places 링크 검색 BETWEEN the [List/Grid/Image] row and the links (like the Archive)', async () => {
+  it('places 링크 검색 right under the actions, THEN the [링크 n개 / List/Grid/Image] row, THEN the links', async () => {
     jest.mocked(getCollectionItems).mockResolvedValue({ items: [makeItemEntry({ itemId: 5, title: 'First link' })], nextCursor: null });
     const renderer = await renderScreen();
     // Depth-first tree order is the on-screen order of this header column.
@@ -394,7 +397,7 @@ describe('CollectionDetailsScreen', () => {
       .map(node => node.props.testID as string);
     const firstOf = (testID: string) => order.indexOf(testID);
     expect(firstOf('collection-view-controls')).toBeGreaterThanOrEqual(0);
-    expect(firstOf('collection-view-controls')).toBeLessThan(firstOf('collection-search'));
+    expect(firstOf('collection-view-controls')).toBeGreaterThan(firstOf('collection-search'));
     // The links follow the controls: the list's header holds them, its rows come after.
     const list = renderer.root.findAllByType(FlatList).find(candidate => candidate.props.ListHeaderComponent);
     expect(list).toBeTruthy();
@@ -726,7 +729,7 @@ describe('CollectionDetailsScreen', () => {
       jest.mocked(getCollection).mockResolvedValue(makeCollection({ name: 'Trip' }));
       const renderer = await renderScreen();
 
-      expect(jest.mocked(navigation.setOptions as jest.Mock)).toHaveBeenCalledWith(expect.objectContaining({ title: 'Trip' }));
+      expect((navigation as unknown as { setOptions: jest.Mock }).setOptions).toHaveBeenCalledWith(expect.objectContaining({ title: 'Trip' }));
       const title = headerTitle().root.findByProps({ testID: 'collection-details-title' });
       expect(title.props.children).toBe('Trip');
       expect(title.props.numberOfLines).toBe(1);

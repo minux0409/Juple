@@ -131,6 +131,7 @@
     "sortDateOldestA11y": "समय, सबसे पुराने पहले",
     "sortNameTooLarge": "{{max}} से ज़्यादा लिंक वाले संग्रह को अभी नाम से क्रमबद्ध नहीं किया जा सकता।",
     "itemCount": "{{count}} सेव किए",
+    "linkCount": "लिंक: {{count}}",
     "newLinkNotificationsError": "सूचना सेटिंग नहीं बदली जा सकी। कृपया फिर से कोशिश करें।",
     "newLinkNotificationsOnA11y": "सूचनाएँ चालू हैं। बंद करने के लिए दो बार टैप करें",
     "newLinkNotificationsOffA11y": "सूचनाएँ बंद हैं। चालू करने के लिए दो बार टैप करें",

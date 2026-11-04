@@ -131,6 +131,7 @@
     "sortDateOldestA11y": "Zaman, en eski önce",
     "sortNameTooLarge": "{{max}} bağlantıdan fazlasını içeren koleksiyonlar henüz ada göre sıralanamaz.",
     "itemCount": "{{count}} kaydedildi",
+    "linkCount": "Bağlantılar: {{count}}",
     "newLinkNotificationsError": "Bildirim ayarı değiştirilemedi. Lütfen tekrar deneyin.",
     "newLinkNotificationsOnA11y": "Bildirimler açık. Kapatmak için çift dokunun",
     "newLinkNotificationsOffA11y": "Bildirimler kapalı. Açmak için çift dokunun",

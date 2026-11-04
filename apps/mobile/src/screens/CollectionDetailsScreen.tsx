@@ -94,7 +94,7 @@ import { useRecentReactions } from '../reactions/recentReactions';
 import { useItemReactions } from '../reactions/useItemReactions';
 import { edgeAlignedCellPadding, SavedLinkGridCard, savedLinkGridLayout, useSavedLinkGridCellStyle } from '../components/SavedLinkGridCard';
 import { gridListKey, useSavedLinkColumns } from '../layout/responsiveGrid';
-import { LINK_CONTROLS_BOTTOM_GAP, LINK_CONTROLS_TOP_GAP, savedLinkLayout } from '../components/savedLinkLayout';
+import { LINK_CONTROLS_BOTTOM_GAP, savedLinkLayout } from '../components/savedLinkLayout';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SavedLinkRowSkeleton } from '../components/SavedLinkSkeleton';
 import { SavedLinkImageRow } from '../components/SavedLinkImageTile';
@@ -328,28 +328,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [isLoadingCollection, setIsLoadingCollection] = useState(true);
   const [collectionError, setCollectionError] = useState<{ readonly cause: unknown; readonly notice: string | null } | null>(null);
 
-  // The stack header's title is this Collection's own icon and name (one line, "…" when long) - not a fixed "컬렉션" label.
-  const headerCollection = collection;
-  useEffect(() => {
-    if (!headerCollection) {
-      return;
-    }
-    navigation.setOptions({
-      title: headerCollection.name,
-      ...headerTitleWithElement(
-        <CollectionHeaderTitle
-          collectionId={headerCollection.id}
-          color={headerCollection.color}
-          icon={headerCollection.icon}
-          imageUrl={headerCollection.iconImageUrl}
-          imageVersion={headerCollection.iconImageVersion}
-          isLocked={isCollectionLocked(headerCollection)}
-          name={headerCollection.name}
-        />,
-      ),
-    });
-  }, [headerCollection, navigation]);
-
   // Editing name/icon/color is a centered CategoryEditorDialog now (this round's Category UX
   // rework), not an inline expand-below form - a single editError surfaces whichever step of
   // submitEdit's sequential name/icon/color calls actually failed (see that function's own
@@ -396,6 +374,47 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [actionMenuItem, setActionMenuItem] = useState<CollectionItemEntry | null>(null);
   const [isItemActionMenuVisible, setIsItemActionMenuVisible] = useState(false);
   const [isCollectionMenuVisible, setIsCollectionMenuVisible] = useState(false);
+
+  // The stack header's title is this Collection's own icon and name (one line, "…" when long) - not a fixed "컬렉션" label.
+  const headerCollection = collection;
+  // Owner and member menus are never empty today; the header offers the button only when there is something in it.
+  const hasCollectionMenu = collection !== null;
+  useEffect(() => {
+    if (!headerCollection) {
+      return;
+    }
+    navigation.setOptions({
+      title: headerCollection.name,
+      ...headerTitleWithElement(
+        <CollectionHeaderTitle
+          collectionId={headerCollection.id}
+          color={headerCollection.color}
+          icon={headerCollection.icon}
+          imageUrl={headerCollection.iconImageUrl}
+          imageVersion={headerCollection.iconImageVersion}
+          isLocked={isCollectionLocked(headerCollection)}
+          name={headerCollection.name}
+        />,
+      ),
+      // ⋯ lives in the header's end corner; the row below keeps only favorite / bell / share.
+      headerRight: hasCollectionMenu
+        ? () => (
+          <Pressable
+            accessibilityLabel={t('collections.manageAction')}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isDeletingCollection, busy: isDeletingCollection }}
+            disabled={isDeletingCollection}
+            hitSlop={4}
+            onPress={() => setIsCollectionMenuVisible(true)}
+            style={[styles.iconButton, isDeletingCollection && styles.disabledButton]}
+            testID="collection-details-more"
+          >
+            <MoreIcon color={colors.textSecondary} size={20} />
+          </Pressable>
+        )
+        : undefined,
+    });
+  }, [hasCollectionMenu, headerCollection, isDeletingCollection, navigation, t]);
   const [targetMode, setTargetMode] = useState<'merge' | null>(null);
   const [targetCollections, setTargetCollections] = useState<readonly Collection[]>([]);
   const [targetNextCursor, setTargetNextCursor] = useState<string | null>(null);
@@ -1629,6 +1648,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         { label: t('collections.leaveAction'), destructive: true, icon: LogoutIcon, onPress: closeCollectionMenuThen(() => setIsLeaveConfirmVisible(true)) },
       ];
 
+  // Not while the content is behind a lock; a search shows its number only once every result page has arrived (never a partial count).
+  const linkCount = isContentLocked ? null
+    : search.isSearching ? (search.hasMore || search.isLoading ? null : search.items.length)
+      : collection.itemCount;
+
   const listHeader = (
     <View>
       <View>
@@ -1645,6 +1669,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                 onPress={() => setIsParticipantsSheetVisible(true)}
                 participants={stackParticipants}
                 placeholderCount={Math.min(otherParticipants + 1, 5)}
+                hitSlop={{ top: 4, bottom: 4 }}
                 style={styles.participantStack}
                 testID="collection-details-participants"
               />
@@ -1653,7 +1678,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
             <View style={styles.headerActions}>
               {/* The caller's own favorite mark - a Contributor has one too; it changes
                   nothing for anyone else, so it is not an Owner-only control. */}
-              <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }} disabled={isTogglingFavorite} onPress={toggleFavoriteAction} style={styles.iconButton} testID="collection-details-favorite">
+              <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }} disabled={isTogglingFavorite} onPress={toggleFavoriteAction} hitSlop={4} style={styles.iconButton} testID="collection-details-favorite">
                 <StarIcon color={collection.isFavorite ? colors.warning : colors.border} filled={collection.isFavorite} size={20} />
               </Pressable>
               {/* 새 링크 알림 - a plain on/off toggle of the caller's own preference, shown once it is known. */}
@@ -1662,7 +1687,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                   accessibilityLabel={t(newLinkNotifications ? 'collections.newLinkNotificationsOnA11y' : 'collections.newLinkNotificationsOffA11y')}
                   accessibilityRole="button"
                   onPress={() => changeNewLinkNotifications(!newLinkNotifications)}
-                  style={styles.iconButton}
+                  hitSlop={4} style={styles.iconButton}
                   testID="collection-details-notifications"
                 >
                   {/* The shape alone tells the state: a bell when on, a slashed bell when off - no badge. */}
@@ -1678,7 +1703,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                 accessibilityLabel={t('collections.shareAction')}
                 accessibilityRole="button"
                 onPress={openOwnerShare}
-                style={styles.iconButton}
+                hitSlop={4} style={styles.iconButton}
                 testID="collection-details-share"
               >
                 <ShareIcon color={colors.textPrimary} size={20} />
@@ -1695,23 +1720,10 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                 onPress={() => {
                   openMemberLinkShare().catch(() => undefined);
                 }}
-                style={styles.iconButton}
+                hitSlop={4} style={styles.iconButton}
                 testID="collection-details-share-link"
               >
                 <ShareIcon color={colors.textPrimary} size={20} />
-              </Pressable>
-            ) : null}
-            {collectionMenuActions.length > 0 ? (
-              <Pressable
-                accessibilityLabel={t('collections.manageAction')}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: isDeletingCollection, busy: isDeletingCollection }}
-                disabled={isDeletingCollection}
-                onPress={() => setIsCollectionMenuVisible(true)}
-                style={[styles.iconButton, isDeletingCollection && styles.disabledButton]}
-                testID="collection-details-more"
-              >
-                <MoreIcon color={colors.textSecondary} size={20} />
               </Pressable>
             ) : null}
             </View>
@@ -1741,12 +1753,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           testID="collection-details-join-requests"
         />
       ) : null}
-      {/* How the links are shown (List / Grid / Image) at the end edge - they are always newest first, so there is no order to pick. */}
-      <View style={styles.sortRow} testID="collection-view-controls">
-        <View style={styles.sortRowSpacer} />
-        <ViewModeToggle onChange={changeViewMode} showImage style={styles.viewModeToggle} value={viewMode} />
-      </View>
-      {/* Then 링크 검색 right above the links - the server-backed search of this Collection. */}
+      {/* 링크 검색 right under the actions - the server-backed search of this Collection. */}
       {isContentLocked ? null : (
         <View style={styles.searchBox}>
           <SearchField
@@ -1760,6 +1767,13 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           {searchText.trim().length === 1 ? <Text style={styles.searchHint}>{t('history.searchMinHint')}</Text> : null}
         </View>
       )}
+      {/* The content row: how many links are shown (the Collection's, or the search's once its results are complete) on the start side,
+          List / Grid / Image at the end edge - links are always newest first, so there is no order to pick. */}
+      <View style={styles.sortRow} testID="collection-view-controls">
+        {linkCount !== null ? <Text numberOfLines={1} style={styles.linkCount} testID="collection-link-count">{t('collections.linkCount', { count: linkCount })}</Text> : null}
+        <View style={styles.sortRowSpacer} />
+        <ViewModeToggle onChange={changeViewMode} showImage style={styles.viewModeToggle} value={viewMode} />
+      </View>
       {/* A submitter's 내 승인 대기: MY OWN proposed links that the Owner has not answered yet - a long
           action row of the same family as the Owner's 승인 대기 (same size, shape and shadow, neutral
           color), directly under the sort / List-Grid controls and right before the first link. Separate
@@ -2209,6 +2223,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   );
 }
 
+const ICON_BUTTON_SIZE = 36;
+
 const styles = themedStyles(() => ({
   sharedByRow: {
     alignItems: 'center',
@@ -2254,7 +2270,7 @@ const styles = themedStyles(() => ({
     justifyContent: 'space-between',
   },
   // In the header's one row: centered with the actions, no top offset of its own.
-  participantStack: { alignSelf: 'center', flexShrink: 1, marginTop: 0 },
+  participantStack: { alignSelf: 'center', flexShrink: 1, marginTop: 0, minHeight: ICON_BUTTON_SIZE },
   headerMetaSpacer: { flex: 1 },
   // 승인 대기: a full-width, one-line tappable row on its own (the same family as the Collections tab's
   // 공유 요청 row), tinted so it is seen at a glance - not a small inline label.
@@ -2271,11 +2287,12 @@ const styles = themedStyles(() => ({
   // Icon-only, no border box (see this round's "버튼마다 큰 border box를 만들지 말 것") - the
   // Pressable itself is the full min touch target even though the icon drawn inside it is
   // visually compact (size=20), so the tappable area never shrinks below 44x44dp.
+  // 36dp control (so the press shows only around the icon) + the 4dp hitSlop on each Pressable = the 44dp touch target.
   iconButton: {
     alignItems: 'center',
+    height: ICON_BUTTON_SIZE,
     justifyContent: 'center',
-    minHeight: minTouchTarget,
-    minWidth: minTouchTarget,
+    width: ICON_BUTTON_SIZE,
   },
   error: {
     color: colors.dangerText,
@@ -2323,11 +2340,12 @@ const styles = themedStyles(() => ({
   selectionPrimaryLabel: { color: colors.onBrand, fontSize: 15, fontWeight: '700' },
   skeletonRow: { overflow: 'hidden' },
   // Wraps only when the sort chips and the three-option view switch genuinely do not fit side by side (the switch keeps the end edge).
-  sortRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: LINK_CONTROLS_BOTTOM_GAP, marginTop: LINK_CONTROLS_TOP_GAP },
+  sortRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm },
+  linkCount: { color: colors.textSecondary, flexShrink: 1, fontSize: 13, fontWeight: '600' },
   viewModeToggle: { marginStart: 'auto' },
   flatGridRow: { flexDirection: 'row' },
   imageSectionLast: { paddingBottom: spacing.xs },
-  searchBox: { marginBottom: LINK_CONTROLS_BOTTOM_GAP },
+  searchBox: { marginBottom: spacing.sm },
   searchHint: { color: colors.textSecondary, fontSize: 12, marginTop: spacing.xs },
   searchStatus: { marginTop: spacing.xl },
   sortRowSpacer: { flex: 1 },

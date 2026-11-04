@@ -131,6 +131,7 @@
     "sortDateOldestA11y": "按时间，最早在前",
     "sortNameTooLarge": "链接超过 {{max}} 个的合集暂时无法按名称排序。",
     "itemCount": "{{count}} 个",
+    "linkCount": "链接 {{count}} 个",
     "newLinkNotificationsError": "无法更改通知设置，请重试。",
     "newLinkNotificationsOnA11y": "通知已开启。双击可关闭",
     "newLinkNotificationsOffA11y": "通知已关闭。双击可开启",

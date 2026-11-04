@@ -131,6 +131,7 @@
     "sortDateOldestA11y": "Heure, plus anciens d’abord",
     "sortNameTooLarge": "Les collections de plus de {{max}} liens ne peuvent pas encore être triées par nom.",
     "itemCount": "{{count}} enregistrés",
+    "linkCount": "Liens : {{count}}",
     "newLinkNotificationsError": "Impossible de modifier l’alerte. Veuillez réessayer.",
     "newLinkNotificationsOnA11y": "Notifications activées. Appuyez deux fois pour les désactiver",
     "newLinkNotificationsOffA11y": "Notifications désactivées. Appuyez deux fois pour les activer",

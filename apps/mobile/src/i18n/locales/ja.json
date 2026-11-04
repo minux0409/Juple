@@ -131,6 +131,7 @@
     "sortDateOldestA11y": "時間順、古い順",
     "sortNameTooLarge": "リンクが{{max}}件を超えるコレクションは、まだ名前順に並べ替えできません。",
     "itemCount": "{{count}}件",
+    "linkCount": "リンク {{count}}件",
     "newLinkNotificationsError": "通知設定を変更できませんでした。もう一度お試しください。",
     "newLinkNotificationsOnA11y": "通知オン。ダブルタップでオフにします",
     "newLinkNotificationsOffA11y": "通知オフ。ダブルタップでオンにします",

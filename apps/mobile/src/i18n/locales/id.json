@@ -131,6 +131,7 @@
     "sortDateOldestA11y": "Waktu, terlama dulu",
     "sortNameTooLarge": "Koleksi dengan lebih dari {{max}} tautan belum bisa diurutkan berdasarkan nama.",
     "itemCount": "{{count}} disimpan",
+    "linkCount": "Tautan: {{count}}",
     "newLinkNotificationsError": "Tidak dapat mengubah pengaturan notifikasi. Coba lagi.",
     "newLinkNotificationsOnA11y": "Notifikasi aktif. Ketuk dua kali untuk mematikan",
     "newLinkNotificationsOffA11y": "Notifikasi mati. Ketuk dua kali untuk mengaktifkan",

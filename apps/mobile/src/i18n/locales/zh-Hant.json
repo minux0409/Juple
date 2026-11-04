@@ -131,6 +131,7 @@
     "sortDateOldestA11y": "依時間，最早在前",
     "sortNameTooLarge": "連結超過 {{max}} 個的合集暫時無法依名稱排序。",
     "itemCount": "{{count}} 個",
+    "linkCount": "連結 {{count}} 個",
     "newLinkNotificationsError": "無法變更通知設定，請再試一次。",
     "newLinkNotificationsOnA11y": "通知已開啟。點兩下即可關閉",
     "newLinkNotificationsOffA11y": "通知已關閉。點兩下即可開啟",

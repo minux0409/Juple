@@ -131,6 +131,7 @@
     "sortDateOldestA11y": "Ora, più vecchi prima",
     "sortNameTooLarge": "Le raccolte con più di {{max}} link non si possono ancora ordinare per nome.",
     "itemCount": "{{count}} salvati",
+    "linkCount": "Link: {{count}}",
     "newLinkNotificationsError": "Impossibile modificare la notifica. Riprova.",
     "newLinkNotificationsOnA11y": "Notifiche attive. Tocca due volte per disattivarle",
     "newLinkNotificationsOffA11y": "Notifiche disattivate. Tocca due volte per attivarle",

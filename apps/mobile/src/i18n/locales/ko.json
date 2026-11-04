@@ -131,6 +131,7 @@
     "sortDateOldestA11y": "시간순, 오래된 링크가 위",
     "sortNameTooLarge": "링크가 {{max}}개를 넘는 컬렉션은 아직 이름순으로 정렬할 수 없어요.",
     "itemCount": "{{count}}개",
+    "linkCount": "링크 {{count}}개",
     "newLinkNotificationsError": "알림 설정을 바꾸지 못했어요. 다시 시도해 주세요.",
     "newLinkNotificationsOnA11y": "알림 켜짐. 두 번 탭하여 끄기",
     "newLinkNotificationsOffA11y": "알림 꺼짐. 두 번 탭하여 켜기",

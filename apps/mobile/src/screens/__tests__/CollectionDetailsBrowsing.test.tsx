@@ -204,7 +204,7 @@ describe('Collection Details - one list, always newest first', () => {
     expect(part.root.findAll(node => /^collection-(sort|grouping)/.test(String(node.props.testID)))).toHaveLength(0);
   });
 
-  it('keeps the order: [List|Grid|Image] at the end of its row, THEN search, THEN the links', async () => {
+  it('keeps the order: search, THEN [링크 n개 ... List|Grid|Image] (toggle at the end of its row), THEN the links', async () => {
     serve(sample());
     const renderer = await renderScreen();
     const part = header(renderer);
@@ -212,7 +212,8 @@ describe('Collection Details - one list, always newest first', () => {
     const children = controls.children as ReactTestRenderer.ReactTestInstance[];
     expect(children[children.length - 1].type).toBe(ViewModeToggle);
     const everything = part.root.findAll(() => true);
-    expect(everything.findIndex(node => node.type === ViewModeToggle)).toBeLessThan(everything.findIndex(node => node.type === SearchField));
+    expect(everything.findIndex(node => node.type === ViewModeToggle)).toBeGreaterThan(everything.findIndex(node => node.type === SearchField));
+    expect(part.root.findAll(node => node.props.testID === 'collection-link-count' && typeof node.type === 'string')).toHaveLength(1);
   });
 
   it('defaults to List (the current look), persists the view under its own key, and restores it', async () => {

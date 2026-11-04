@@ -131,6 +131,7 @@
     "sortDateOldestA11y": "الوقت، الأقدم أولاً",
     "sortNameTooLarge": "لا يمكن بعد ترتيب المجموعات التي تضم أكثر من {{max}} رابط حسب الاسم.",
     "itemCount": "تم حفظ {{count}}",
+    "linkCount": "الروابط: {{count}}",
     "newLinkNotificationsError": "تعذّر تغيير إعداد الإشعارات. حاول مرة أخرى.",
     "newLinkNotificationsOnA11y": "الإشعارات مفعّلة. اضغط مرتين لإيقافها",
     "newLinkNotificationsOffA11y": "الإشعارات متوقفة. اضغط مرتين لتفعيلها",
