@@ -48,7 +48,13 @@ function IosStackHeader({ back, navigation, options, titleElement }: NativeStack
     <View
       style={[
         styles.bar,
-        { backgroundColor: navigationColors.card, borderBottomColor: navigationColors.border, paddingTop: isSheet ? IOS_SHEET_TOP_PADDING : insets.top },
+        {
+          backgroundColor: StyleSheet.flatten(options.headerStyle)?.backgroundColor ?? navigationColors.card,
+          borderBottomColor: navigationColors.border,
+          // A screen that sits on one flat surface with its content (headerShadowVisible: false) draws no line under the bar.
+          borderBottomWidth: options.headerShadowVisible === false ? 0 : StyleSheet.hairlineWidth,
+          paddingTop: isSheet ? IOS_SHEET_TOP_PADDING : insets.top,
+        },
       ]}
       testID="ios-stack-header"
     >

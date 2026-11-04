@@ -128,6 +128,7 @@ import type { RootStackParamList } from '../navigation/RootStack';
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import type { SocialPushEventType } from '../push/pushEvents';
 import { useViewModePreference, type SavedLinkViewMode } from '../settings/viewModePreference';
+import { useTheme } from '../theme/ThemeContext';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
@@ -311,6 +312,7 @@ const COPY_SELECT_ALL_PAGE_SIZE = 100;
 
 export function CollectionDetailsScreen({ route, navigation }: Props) {
   const swipeScrollEnabled = useSwipeAwareScrollEnabled();
+  const { isDark } = useTheme();
   const { collectionId } = route.params;
   // Blocking this Collection's owner (from its participants sheet) ends my membership: the screen leaves once the server says so.
   useLeaveWhenCollectionLost(collectionId, () => navigation.navigate('MainTabs'));
@@ -383,6 +385,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
     navigation.setOptions({
       title: headerCollection.name,
+      // One flat plane: the bar takes the page's own background and draws no line or shadow under it.
+      headerStyle: { backgroundColor: colors.background },
+      headerShadowVisible: false,
       ...headerTitleWithElement(
         <CollectionHeaderTitle
           collectionId={headerCollection.id}
@@ -395,7 +400,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         />,
       ),
     });
-  }, [headerCollection, navigation]);
+  }, [headerCollection, isDark, navigation]);
   const [targetMode, setTargetMode] = useState<'merge' | null>(null);
   const [targetCollections, setTargetCollections] = useState<readonly Collection[]>([]);
   const [targetNextCursor, setTargetNextCursor] = useState<string | null>(null);
@@ -1656,10 +1661,10 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
               />
             ) : null}
             <View style={styles.headerMetaSpacer} />
-            <View style={styles.headerActions}>
+            <View hitSlop={{ top: 4, bottom: 4 }} style={styles.headerActions} testID="collection-details-toolbar">
               {/* The caller's own favorite mark - a Contributor has one too; it changes
                   nothing for anyone else, so it is not an Owner-only control. */}
-              <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }} disabled={isTogglingFavorite} onPress={toggleFavoriteAction} hitSlop={4} style={styles.iconButton} testID="collection-details-favorite">
+              <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }} disabled={isTogglingFavorite} onPress={toggleFavoriteAction} hitSlop={TOOLBAR_HIT_SLOP} style={styles.toolbarButton} testID="collection-details-favorite">
                 <StarIcon color={collection.isFavorite ? colors.warning : colors.border} filled={collection.isFavorite} size={20} />
               </Pressable>
               {/* 새 링크 알림 - a plain on/off toggle of the caller's own preference, shown once it is known. */}
@@ -1668,7 +1673,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                   accessibilityLabel={t(newLinkNotifications ? 'collections.newLinkNotificationsOnA11y' : 'collections.newLinkNotificationsOffA11y')}
                   accessibilityRole="button"
                   onPress={() => changeNewLinkNotifications(!newLinkNotifications)}
-                  hitSlop={4} style={styles.iconButton}
+                  hitSlop={TOOLBAR_HIT_SLOP} style={styles.toolbarButton}
                   testID="collection-details-notifications"
                 >
                   {/* The shape alone tells the state: a bell when on, a slashed bell when off - no badge. */}
@@ -1684,7 +1689,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                 accessibilityLabel={t('collections.shareAction')}
                 accessibilityRole="button"
                 onPress={openOwnerShare}
-                hitSlop={4} style={styles.iconButton}
+                hitSlop={TOOLBAR_HIT_SLOP} style={styles.toolbarButton}
                 testID="collection-details-share"
               >
                 <ShareIcon color={colors.textPrimary} size={20} />
@@ -1701,7 +1706,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                 onPress={() => {
                   openMemberLinkShare().catch(() => undefined);
                 }}
-                hitSlop={4} style={styles.iconButton}
+                hitSlop={TOOLBAR_HIT_SLOP} style={styles.toolbarButton}
                 testID="collection-details-share-link"
               >
                 <ShareIcon color={colors.textPrimary} size={20} />
@@ -1713,9 +1718,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                 accessibilityRole="button"
                 accessibilityState={{ disabled: isDeletingCollection, busy: isDeletingCollection }}
                 disabled={isDeletingCollection}
-                hitSlop={4}
+                hitSlop={TOOLBAR_HIT_SLOP}
                 onPress={() => setIsCollectionMenuVisible(true)}
-                style={[styles.iconButton, isDeletingCollection && styles.disabledButton]}
+                style={[styles.toolbarButton, isDeletingCollection && styles.disabledButton]}
                 testID="collection-details-more"
               >
                 <MoreIcon color={colors.textSecondary} size={20} />
@@ -1767,7 +1772,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       <View style={styles.sortRow} testID="collection-view-controls">
         {linkCount !== null ? <Text numberOfLines={1} style={styles.linkCount} testID="collection-link-count">{t('collections.linkCount', { count: linkCount })}</Text> : null}
         <View style={styles.sortRowSpacer} />
-        <ViewModeToggle onChange={changeViewMode} showImage style={styles.viewModeToggle} value={viewMode} />
+        <ViewModeToggle onChange={changeViewMode} plain showImage style={styles.viewModeToggle} value={viewMode} />
       </View>
       {/* A submitter's 내 승인 대기: MY OWN proposed links that the Owner has not answered yet - a long
           action row of the same family as the Owner's 승인 대기 (same size, shape and shadow, neutral
@@ -2219,6 +2224,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 }
 
 const ICON_BUTTON_SIZE = 36;
+// The outline toolbar around favorite / bell / share / ⋯: 36dp tall with its 1dp border; buttons reach the 44dp touch size through hitSlop.
+const TOOLBAR_HEIGHT = 36;
+const TOOLBAR_HIT_SLOP = { top: 4, bottom: 4, left: 2, right: 2 };
 
 const styles = themedStyles(() => ({
   sharedByRow: {
@@ -2255,7 +2263,7 @@ const styles = themedStyles(() => ({
     flexGrow: 1,
     paddingBottom: spacing.xl,
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.md,
+    paddingTop: spacing.xs,
   },
   // Item count on the start edge, the favorite/share/⋯ icons pinned to the end edge - a second row
   // below the title/favorite row (see this round's "개수 오른쪽 끝" header layout requirement).
@@ -2263,10 +2271,11 @@ const styles = themedStyles(() => ({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: spacing.sm,
   },
   // In the header's one row: centered with the actions, no top offset of its own.
   // Many participants never push the buttons: the stack takes only the room left of them and clips there.
-  participantStack: { alignSelf: 'center', flexShrink: 1, marginTop: 0, minHeight: ICON_BUTTON_SIZE, overflow: 'hidden' },
+  participantStack: { alignSelf: 'center', flexShrink: 1, marginTop: 0, minHeight: TOOLBAR_HEIGHT, overflow: 'hidden' },
   headerMetaSpacer: { flex: 1 },
   // 승인 대기: a full-width, one-line tappable row on its own (the same family as the Collections tab's
   // 공유 요청 row), tinted so it is seen at a glance - not a small inline label.
@@ -2274,12 +2283,20 @@ const styles = themedStyles(() => ({
   pendingRowSpacing: { marginTop: spacing.md },
   // The controls row above already carries the gap; this one the gap to the first link.
   myPendingRowSpacing: { marginBottom: LINK_CONTROLS_BOTTOM_GAP },
+  // One light outline toolbar sized to its buttons: surface colour, 1dp border, no shadow or elevation, no filled capsule.
   headerActions: {
     alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.inputBorder,
+    borderRadius: 16,
+    borderWidth: 1,
     flexDirection: 'row',
     flexShrink: 0,
+    height: TOOLBAR_HEIGHT,
     marginStart: spacing.sm,
+    overflow: 'hidden',
   },
+  toolbarButton: { alignItems: 'center', height: TOOLBAR_HEIGHT - 2, justifyContent: 'center', width: 40 },
   // Icon-only, no border box (see this round's "버튼마다 큰 border box를 만들지 말 것") - the
   // Pressable itself is the full min touch target even though the icon drawn inside it is
   // visually compact (size=20), so the tappable area never shrinks below 44x44dp.
