@@ -1772,7 +1772,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       <View style={styles.sortRow} testID="collection-view-controls">
         {linkCount !== null ? <Text numberOfLines={1} style={styles.linkCount} testID="collection-link-count">{t('collections.linkCount', { count: linkCount })}</Text> : null}
         <View style={styles.sortRowSpacer} />
-        <ViewModeToggle onChange={changeViewMode} plain showImage style={styles.viewModeToggle} value={viewMode} />
+        <ViewModeToggle onChange={changeViewMode} showImage tinted style={styles.viewModeToggle} value={viewMode} />
       </View>
       {/* A submitter's 내 승인 대기: MY OWN proposed links that the Owner has not answered yet - a long
           action row of the same family as the Owner's 승인 대기 (same size, shape and shadow, neutral
@@ -2224,7 +2224,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 }
 
 const ICON_BUTTON_SIZE = 36;
-// The outline toolbar around favorite / bell / share / ⋯: 36dp tall with its 1dp border; buttons reach the 44dp touch size through hitSlop.
+// The icon row of favorite / bell / share / ⋯: 36dp tall; the buttons reach the 44dp touch size through hitSlop.
 const TOOLBAR_HEIGHT = 36;
 const TOOLBAR_HIT_SLOP = { top: 4, bottom: 4, left: 2, right: 2 };
 
@@ -2283,20 +2283,15 @@ const styles = themedStyles(() => ({
   pendingRowSpacing: { marginTop: spacing.md },
   // The controls row above already carries the gap; this one the gap to the first link.
   myPendingRowSpacing: { marginBottom: LINK_CONTROLS_BOTTOM_GAP },
-  // One light outline toolbar sized to its buttons: surface colour, 1dp border, no shadow or elevation, no filled capsule.
+  // Bare icons in one row - no border, fill or shadow. The row is as tall as one control so the participants' row lines up with it.
   headerActions: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.inputBorder,
-    borderRadius: 16,
-    borderWidth: 1,
     flexDirection: 'row',
     flexShrink: 0,
     height: TOOLBAR_HEIGHT,
     marginStart: spacing.sm,
-    overflow: 'hidden',
   },
-  toolbarButton: { alignItems: 'center', height: TOOLBAR_HEIGHT - 2, justifyContent: 'center', width: 40 },
+  toolbarButton: { alignItems: 'center', height: TOOLBAR_HEIGHT, justifyContent: 'center', width: 38 },
   // Icon-only, no border box (see this round's "버튼마다 큰 border box를 만들지 말 것") - the
   // Pressable itself is the full min touch target even though the icon drawn inside it is
   // visually compact (size=20), so the tappable area never shrinks below 44x44dp.

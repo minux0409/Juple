@@ -16,8 +16,8 @@ interface ViewModeToggleProps<Mode extends ToggleMode> {
   readonly showCompact?: boolean;
   /** Use the Home/Archive option width and stretch to the adjacent search field's natural height. */
   readonly matchSearchHeight?: boolean;
-  /** No capsule: the options sit on the page itself, and only the chosen one gets a small soft-brand background. */
-  readonly plain?: boolean;
+  /** Keeps the grouped container, but marks the chosen option with a soft-brand background (unchosen ones stay bare icons). */
+  readonly tinted?: boolean;
   readonly style?: StyleProp<ViewStyle>;
 }
 
@@ -35,7 +35,7 @@ function ImageGlyph({ selected }: { readonly selected: boolean }) {
 }
 
 /** Compact List / Grid (/ Image) presentation switch shared by link and Collection screens. */
-export function ViewModeToggle<Mode extends ToggleMode = ToggleMode>({ value, onChange, showImage = false, showCompact = false, matchSearchHeight = false, plain = false, style }: ViewModeToggleProps<Mode>) {
+export function ViewModeToggle<Mode extends ToggleMode = ToggleMode>({ value, onChange, showImage = false, showCompact = false, matchSearchHeight = false, tinted = false, style }: ViewModeToggleProps<Mode>) {
   const { t } = useTranslation();
   const hasThird = showImage || showCompact;
   const option = (mode: ToggleMode, label: string, glyph: ReactElement) => (
@@ -45,12 +45,12 @@ export function ViewModeToggle<Mode extends ToggleMode = ToggleMode>({ value, on
       accessibilityState={{ selected: value === mode }}
       hitSlop={hasThird || matchSearchHeight ? { bottom: 4, top: 4 } : undefined}
       onPress={() => onChange(mode as Mode)}
-      style={[styles.button, (hasThird || matchSearchHeight) && styles.buttonWide, matchSearchHeight && styles.buttonFill, value === mode && (plain ? styles.buttonSelectedPlain : styles.buttonSelected)]}
+      style={[styles.button, (hasThird || matchSearchHeight) && styles.buttonWide, matchSearchHeight && styles.buttonFill, value === mode && (tinted ? styles.buttonSelectedTinted : styles.buttonSelected)]}
     >
       {glyph}
     </Pressable>
   );
-  return <View style={[styles.container, plain && styles.containerPlain, matchSearchHeight && styles.searchContainer, style]}>
+  return <View style={[styles.container, matchSearchHeight && styles.searchContainer, style]}>
     {option('list', t('common.viewList'), <ListGlyph selected={value === 'list'} />)}
     {option('grid', t('common.viewGrid'), <GridGlyph selected={value === 'grid'} />)}
     {showImage ? option('image', t('common.viewImage'), <ImageGlyph selected={value === 'image'} />) : null}
@@ -61,7 +61,6 @@ export function ViewModeToggle<Mode extends ToggleMode = ToggleMode>({ value, on
 const LINK_VIEW_OPTION_HEIGHT = 36;
 const styles = themedStyles(() => ({
   container: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, flexDirection: 'row', padding: 2 },
-  containerPlain: { backgroundColor: 'transparent', padding: 0 },
   searchContainer: { alignSelf: 'stretch', flexShrink: 0 },
   button: { alignItems: 'center', borderRadius: radii.sm, height: 32, justifyContent: 'center', width: 32 },
   // Home/Archive option geometry; search rows reuse it without adding the third option.
@@ -69,7 +68,7 @@ const styles = themedStyles(() => ({
   // Yoga stretches both options inside the row; no copied TextInput height or layout-state update.
   buttonFill: { height: 'auto', minHeight: LINK_VIEW_OPTION_HEIGHT },
   buttonSelected: { backgroundColor: colors.surface },
-  buttonSelectedPlain: { backgroundColor: colors.brandSoft },
+  buttonSelectedTinted: { backgroundColor: colors.brandSoft },
   listGlyph: { gap: 3, width: 16 },
   listLine: { backgroundColor: colors.textSecondary, borderRadius: 2, height: 2, width: 16 },
   gridGlyph: { flexDirection: 'row', flexWrap: 'wrap', gap: 3, width: 13 },
