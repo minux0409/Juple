@@ -62,6 +62,8 @@ export function headerTitleWithIcon(icon: ScreenTitleIcon, title: string): Nativ
 }
 
 /** A stack screen's header title made of any element (e.g. a Collection's own icon and name), placed like `headerTitleWithIcon`. */
-export function headerTitleWithElement(element: ReactElement): NativeStackNavigationOptions {
-  return Platform.OS === 'ios' ? iosLeadingTitleOptions(element) : { headerTitle: () => element };
+export function headerTitleWithElement(element: ReactElement, compactBar = false): NativeStackNavigationOptions {
+  // compactBar: the in-screen 44dp bar on Android too (the native toolbar is 56dp tall with its title centred, which leaves a wide gap
+  // under the title on a screen whose content starts with an icon row).
+  return Platform.OS === 'ios' || compactBar ? iosLeadingTitleOptions(element) : { headerTitle: () => element };
 }

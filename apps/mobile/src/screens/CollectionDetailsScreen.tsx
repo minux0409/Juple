@@ -313,6 +313,8 @@ const COPY_SELECT_ALL_PAGE_SIZE = 100;
 export function CollectionDetailsScreen({ route, navigation }: Props) {
   const swipeScrollEnabled = useSwipeAwareScrollEnabled();
   const { isDark } = useTheme();
+  // This screen sits on one white plane in Light (header, page, list); Dark keeps the theme's own background.
+  const pageBackground = isDark ? colors.background : colors.surface;
   const { collectionId } = route.params;
   // Blocking this Collection's owner (from its participants sheet) ends my membership: the screen leaves once the server says so.
   useLeaveWhenCollectionLost(collectionId, () => navigation.navigate('MainTabs'));
@@ -385,9 +387,12 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
     navigation.setOptions({
       title: headerCollection.name,
-      // One flat plane: the bar takes the page's own background and draws no line or shadow under it.
-      headerStyle: { backgroundColor: colors.background },
+      // One flat plane: the bar takes the page's own background (white in Light, the Dark theme's own background in Dark) and draws no line or shadow under it.
+      headerStyle: { backgroundColor: isDark ? colors.background : colors.surface },
+      contentStyle: { backgroundColor: isDark ? colors.background : colors.surface },
       headerShadowVisible: false,
+      // The in-screen bar would otherwise tint the arrow in the brand colour; the other stack screens keep it in the text colour.
+      headerTintColor: colors.textPrimary,
       ...headerTitleWithElement(
         <CollectionHeaderTitle
           collectionId={headerCollection.id}
@@ -398,6 +403,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           isLocked={isCollectionLocked(headerCollection)}
           name={headerCollection.name}
         />,
+        true,
       ),
     });
   }, [headerCollection, isDark, navigation]);
@@ -1400,7 +1406,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   if (isLoadingCollection && !collection) {
     return (
-      <StackScreenSafeArea style={styles.loadingContainer}>
+      <StackScreenSafeArea style={[styles.loadingContainer, { backgroundColor: pageBackground }]}>
         <ActivityIndicator />
       </StackScreenSafeArea>
     );
@@ -1408,7 +1414,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   if (!collection) {
     return (
-      <StackScreenSafeArea style={styles.loadingContainer}>
+      <StackScreenSafeArea style={[styles.loadingContainer, { backgroundColor: pageBackground }]}>
         {collectionError ? <LoadFailureState error={collectionError.cause} notice={collectionError.notice} onRetry={() => { loadCollection().catch(() => undefined); }} testID="collection-details-error" /> : null}
       </StackScreenSafeArea>
     );
@@ -1834,7 +1840,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   };
 
   return (
-    <StackScreenSafeArea style={styles.safeArea}>
+    <StackScreenSafeArea style={[styles.safeArea, { backgroundColor: pageBackground }]}>
       {/* Only the password prompt of a locked Collection takes text here - it must stay above the keyboard. */}
       <KeyboardSafeView enabled={isContentLocked}>
       {search.isSearching && !isContentLocked ? (
@@ -2263,7 +2269,8 @@ const styles = themedStyles(() => ({
     flexGrow: 1,
     paddingBottom: spacing.xl,
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xs,
+    // No top padding: the 36dp icon row's own 8dp inset is the gap under the bar.
+    paddingTop: 0,
   },
   // Item count on the start edge, the favorite/share/⋯ icons pinned to the end edge - a second row
   // below the title/favorite row (see this round's "개수 오른쪽 끝" header layout requirement).

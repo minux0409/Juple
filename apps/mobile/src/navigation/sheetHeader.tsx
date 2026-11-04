@@ -54,6 +54,8 @@ function IosStackHeader({ back, navigation, options, titleElement }: NativeStack
           // A screen that sits on one flat surface with its content (headerShadowVisible: false) draws no line under the bar.
           borderBottomWidth: options.headerShadowVisible === false ? 0 : StyleSheet.hairlineWidth,
           paddingTop: isSheet ? IOS_SHEET_TOP_PADDING : insets.top,
+          // A flat-plane screen (headerShadowVisible: false) lets its content start right under the row.
+          ...(options.headerShadowVisible === false ? { paddingBottom: 0 } : null),
         },
       ]}
       testID="ios-stack-header"

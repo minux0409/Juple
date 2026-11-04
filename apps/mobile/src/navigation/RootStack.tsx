@@ -259,7 +259,7 @@ export function RootStack() {
               component={themedScreen(CollectionDetailsScreen)}
               name="CollectionDetails"
               // The header title is the Collection's own icon and name, set by the screen once loaded (no fixed "컬렉션" text).
-              options={{ title: t('nav.collectionDetails'), ...headerTitleWithElement(<View />) }}
+              options={{ title: t('nav.collectionDetails'), ...headerTitleWithElement(<View />, true) }}
             />
             {/* On iOS 'modal' is a page sheet with no back button of its own: the stack-wide back arrow (screenOptions) closes it
                 like the swipe-down does (the screen keeps no unsaved draft to guard). Android shows a normal stack screen. */}
