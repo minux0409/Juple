@@ -190,7 +190,7 @@
     "addNew": "+ 새로 만들기",
     "unlinkConfirmTitle": "컬렉션에서 제거할까요?",
     "unlinkConfirmMessage": "링크는 삭제되지 않고 이 컬렉션에서만 제거됩니다.",
-    "unlinkAction": "제거",
+    "unlinkAction": "삭제",
     "errorShareManagementFallback": "공유 상태를 변경할 수 없습니다.",
     "errorListFallback": "컬렉션 목록을 불러올 수 없습니다.",
     "errorItemsLoadFallback": "컬렉션 항목을 불러올 수 없습니다.",

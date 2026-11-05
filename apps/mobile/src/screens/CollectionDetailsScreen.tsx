@@ -1650,6 +1650,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     : search.isSearching ? (search.hasMore || search.isLoading ? null : search.items.length)
       : collection.itemCount;
 
+  // An Owner request row (승인 요청 / 참여 요청) sits right above the search: it then needs its own gap before the field.
+  const hasPendingRowAboveSearch = isOwner && ((collection.pendingSubmissionCount ?? 0) > 0 || (collection.pendingJoinRequestCount ?? 0) > 0);
   const listHeader = (
     <View>
       <View>
@@ -1766,7 +1768,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       ) : null}
       {/* 링크 검색 right under the actions - the server-backed search of this Collection. */}
       {isContentLocked ? null : (
-        <View style={styles.searchBox}>
+        <View style={[styles.searchBox, hasPendingRowAboveSearch && styles.searchBoxBelowPendingRow]}>
           <SearchField
             accessibilityHint={t('history.searchMinHint')}
             clearLabel={t('history.searchClear')}
@@ -2022,7 +2024,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       />
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
-        confirmLabel={t('collections.removeFromCollection')}
+        confirmLabel={t('collections.unlinkAction')}
         message={t('collections.unlinkConfirmMessage')}
         onCancel={() => setPendingUnlinkItemId(null)}
         onConfirm={() => {
@@ -2366,6 +2368,8 @@ const styles = themedStyles(() => ({
   flatGridRow: { flexDirection: 'row' },
   imageSectionLast: { paddingBottom: spacing.xs },
   searchBox: { marginBottom: spacing.sm },
+  // Under the Owner's request row(s): the same spacing.md that separates those rows from each other and from the header.
+  searchBoxBelowPendingRow: { marginTop: spacing.md },
   searchHint: { color: colors.textSecondary, fontSize: 12, marginTop: spacing.xs },
   searchStatus: { marginTop: spacing.xl },
   sortRowSpacer: { flex: 1 },

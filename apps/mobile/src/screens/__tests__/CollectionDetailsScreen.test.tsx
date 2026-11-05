@@ -445,7 +445,7 @@ describe('CollectionDetailsScreen', () => {
 
       await act(async () => {
         const confirmButton = renderer.root.findAll(
-          node => node.props.accessibilityLabel === i18n.t('collections.removeFromCollection'),
+          node => node.props.accessibilityLabel === i18n.t('collections.unlinkAction'),
         )[0];
         confirmButton.props.onPress();
       });
@@ -473,7 +473,7 @@ describe('CollectionDetailsScreen', () => {
       await swipeRowToDelete(row.root);
       await act(async () => {
         const confirmButton = renderer.root.findAll(
-          node => node.props.accessibilityLabel === i18n.t('collections.removeFromCollection'),
+          node => node.props.accessibilityLabel === i18n.t('collections.unlinkAction'),
         )[0];
         confirmButton.props.onPress();
       });
@@ -1069,7 +1069,7 @@ describe('CollectionDetailsScreen', () => {
       const row = getRowElement(renderer, makeItemEntry({ itemId: 2 }));
       await swipeRowToDelete(row.root);
       await act(async () => {
-        renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.removeFromCollection'))[0].props.onPress();
+        renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.unlinkAction'))[0].props.onPress();
       });
 
       expect(shownIds(renderer)).toEqual([1, 3]);

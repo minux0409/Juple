@@ -1254,7 +1254,7 @@ function CollectionShareScreenContent({ route, navigation }: Props) {
                     <Text numberOfLines={1} style={styles.batchTitle}>{t('shareSheet.inviteListTitle')}</Text>
                     <Text numberOfLines={1} style={styles.batchCount} testID="share-invite-list-count">{t('shareSheet.selectedCount', { count: drafts.length })}</Text>
                   </View>
-                  {drafts.map((draft, index) => {
+                  {drafts.map(draft => {
                     const removeButton = (
                       <Pressable
                         accessibilityLabel={t('common.delete')}
@@ -1269,7 +1269,7 @@ function CollectionShareScreenContent({ route, navigation }: Props) {
                       </Pressable>
                     );
                     return (
-                      <View key={draft.jupleId} style={[styles.draftRow, index > 0 && styles.listRowDivider]} testID={`draft-${draft.jupleId}`}>
+                      <View key={draft.jupleId} style={styles.draftRow} testID={`draft-${draft.jupleId}`}>
                         {/* Who and their × on one line; then that person's own permission choice right under it, full
                             width (no visible 권한 label) - the same stacked shape on every screen width. */}
                         <View style={styles.rowLine}>
@@ -1599,8 +1599,17 @@ const styles = themedStyles(() => ({
   inlineAction: { alignSelf: 'flex-start', justifyContent: 'center', minHeight: minTouchTarget },
   inlineActionLabel: { color: colors.brandText, fontSize: 14, fontWeight: '700' },
   listRow: { gap: spacing.xs, paddingVertical: spacing.xs + 2 },
-  // A person to invite: who, then 권한 with their choice - 8dp above and below, 6dp between.
-  draftRow: { gap: spacing.xs + 2, paddingVertical: spacing.sm },
+  // A person to invite: who, then 권한 with their choice - one bordered card per person (the same soft outline as the section
+  // cards) so each pair reads as one unit; 6dp between the two lines, spacing.sm between cards.
+  draftRow: {
+    backgroundColor: colors.surface,
+    borderColor: colors.inputBorder,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    gap: spacing.xs + 2,
+    marginTop: spacing.sm,
+    padding: spacing.sm + 2,
+  },
   // One line, never wrapping: the name gives way (ellipsis) before a badge or button would drop.
   listRowMain: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   rowLine: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },

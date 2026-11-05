@@ -1238,14 +1238,14 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(secondLine.findByProps({ testID: 'draft-role-AAAA2345-value' }).props.numberOfLines).toBeUndefined();
     });
 
-    it('two people to invite stay compact: 8dp around each, 6dp between who and their choice - nothing in between', async () => {
+    it('each person to invite is one bordered card: 6dp between who and their choice, 8dp between cards - nothing in between', async () => {
       jest.mocked(getFriends).mockResolvedValue({ items: [friend('FRND2345', '피카츄'), friend('FRNE2345', '파이리')], nextCursor: null });
       const renderer = await renderScreen();
       await pickFriends(renderer, ['FRND2345', 'FRNE2345']);
 
       for (const jupleId of ['FRND2345', 'FRNE2345']) {
         const row = renderer.root.find(node => typeof node.type === 'string' && node.props.testID === `draft-${jupleId}`);
-        expect(StyleSheet.flatten(row.props.style)).toEqual(expect.objectContaining({ gap: 6, paddingVertical: 8 }));
+        expect(StyleSheet.flatten(row.props.style)).toEqual(expect.objectContaining({ gap: 6, padding: 10, marginTop: 8, borderWidth: 1 }));
         // The permission block starts directly with the choice - no label line (and so no space left for one).
         const block = renderer.root.find(node => typeof node.type === 'string' && node.props.testID === `draft-permission-${jupleId}`);
         expect(block.findAllByType(Text)[0].props.children).toBe(i18n.t('shareSheet.permissionRead'));
