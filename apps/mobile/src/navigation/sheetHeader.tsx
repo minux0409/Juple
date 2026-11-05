@@ -21,6 +21,12 @@ const IOS_SHEET_TOP_PADDING = 20;
 const ARROW_SIZE = 24;
 const ARROW_TO_TITLE_GAP = 32;
 /**
+ * The compact bar (a Collection: arrow, then its icon tile and name): the arrow glyph's ink ends 4pt inside its 24pt box, so 16pt
+ * here leaves ~20pt of air between the arrow and the tile - the same as between the Collection's own toolbar icons (favorite, share)
+ * - instead of the toolbar-title rhythm above. The arrow's touch area (ARROW_HIT_SLOP) still ends where the title starts.
+ */
+const COMPACT_ARROW_TO_TITLE_GAP = 16;
+/**
  * The arrow's control is a minTouchTarget square centred on the glyph (so its press shows as a circle around the arrow, like the
  * other icon buttons); this pulls it back by the extra width on each side, so the glyph, the title after it and the touch area
  * (with ARROW_HIT_SLOP) stay exactly where they were with a glyph-wide control.
@@ -36,7 +42,7 @@ const ARROW_HIT_SLOP = { top: 10, bottom: 10, left: 16 - ARROW_SQUARE_INSET, rig
  * and seen as a shake at the end of every push. Inside the screen the header moves with it, as one piece. The transition itself,
  * the edge swipe back and the sheet's swipe down stay native (react-native-screens decides them from `gestureEnabled`).
  */
-function IosStackHeader({ back, navigation, options, titleElement }: NativeStackHeaderProps & { readonly titleElement?: ReactElement }) {
+function IosStackHeader({ back, navigation, options, titleElement, compact = false }: NativeStackHeaderProps & { readonly titleElement?: ReactElement; readonly compact?: boolean }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { colors: navigationColors } = useNavigationTheme();
@@ -73,7 +79,7 @@ function IosStackHeader({ back, navigation, options, titleElement }: NativeStack
             <BackArrowIcon color={tintColor} size={ARROW_SIZE} />
           </Pressable>
         ) : null}
-        <View style={[styles.title, canGoBack && styles.titleAfterArrow]}>
+        <View style={[styles.title, canGoBack && (compact ? styles.titleAfterArrowCompact : styles.titleAfterArrow)]}>
           {titleElement ?? (
             <Text accessibilityRole="header" numberOfLines={1} style={[styles.titleText, { color: navigationColors.text }]}>{options.title}</Text>
           )}
@@ -95,9 +101,12 @@ export function iosHeaderOptions(): NativeStackNavigationOptions {
   return { header: props => <IosStackHeader {...props} /> };
 }
 
-/** A titled stack screen's header on iOS: the [arrow] [icon] Title row, left-aligned like Android. */
-export function iosLeadingTitleOptions(title: ReactElement): NativeStackNavigationOptions {
-  return { header: props => <IosStackHeader {...props} titleElement={title} /> };
+/**
+ * A titled stack screen's header on iOS: the [arrow] [icon] Title row, left-aligned like Android. compact: the in-screen bar of a
+ * screen whose title is an icon tile (a Collection) - the title follows the arrow at the toolbar icons' spacing.
+ */
+export function iosLeadingTitleOptions(title: ReactElement, compact = false): NativeStackNavigationOptions {
+  return { header: props => <IosStackHeader {...props} compact={compact} titleElement={title} /> };
 }
 
 const styles = themedStyles(() => ({
@@ -115,6 +124,7 @@ const styles = themedStyles(() => ({
   },
   title: { flex: 1, minWidth: 0 },
   titleAfterArrow: { marginStart: ARROW_TO_TITLE_GAP },
+  titleAfterArrowCompact: { marginStart: COMPACT_ARROW_TO_TITLE_GAP },
   titleText: { fontSize: 17, fontWeight: '600' },
   right: { flexShrink: 0, marginStart: spacing.sm },
 }));

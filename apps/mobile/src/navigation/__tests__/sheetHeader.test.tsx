@@ -71,6 +71,19 @@ describe('the iOS stack header (drawn in the screen, so it moves with the screen
     expect(button.props.hitSlop).toEqual({ top: 10, bottom: 10, left: 6, right: 6 });
   });
 
+  it('the compact bar (a Collection) puts its title after the arrow at the toolbar icons\' spacing; the other screens keep theirs', () => {
+    const titleBox = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+      renderer.root.findByProps({ children: 'Name' }).parent!.parent!;
+    const regular = renderHeader(iosLeadingTitleOptions(<Text>Name</Text>)).renderer;
+    expect(StyleSheet.flatten(titleBox(regular).props.style)).toEqual(expect.objectContaining({ marginStart: 32, flex: 1, minWidth: 0 }));
+    // 16pt after the arrow's box = ~20pt of air after its ink (it ends 4pt inside the box), as between the favorite and share icons.
+    const compact = renderHeader(iosLeadingTitleOptions(<Text>Name</Text>, true)).renderer;
+    expect(StyleSheet.flatten(titleBox(compact).props.style)).toEqual(expect.objectContaining({ marginStart: 16, flex: 1, minWidth: 0 }));
+    // The arrow keeps its full touch area.
+    const arrow = compact.root.findByProps({ testID: 'header-back', accessibilityRole: 'button' });
+    expect(StyleSheet.flatten(arrow.props.style)).toEqual(expect.objectContaining({ width: 44, height: 44 }));
+  });
+
   it('sits under the status bar on a pushed screen; a page sheet has no status bar inset', () => {
     expect(StyleSheet.flatten(bar(renderHeader(iosHeaderOptions()).renderer).props.style).paddingTop).toBe(62);
     expect(StyleSheet.flatten(bar(renderHeader(iosHeaderOptions(), { screen: { presentation: 'modal' } }).renderer).props.style).paddingTop).toBe(20);

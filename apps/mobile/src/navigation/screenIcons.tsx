@@ -65,5 +65,8 @@ export function headerTitleWithIcon(icon: ScreenTitleIcon, title: string): Nativ
 export function headerTitleWithElement(element: ReactElement, compactBar = false): NativeStackNavigationOptions {
   // compactBar: the in-screen 44dp bar on Android too (the native toolbar is 56dp tall with its title centred, which leaves a wide gap
   // under the title on a screen whose content starts with an icon row).
-  return Platform.OS === 'ios' || compactBar ? iosLeadingTitleOptions(element) : { headerTitle: () => element };
+  if (compactBar) {
+    return iosLeadingTitleOptions(element, true);
+  }
+  return Platform.OS === 'ios' ? iosLeadingTitleOptions(element) : { headerTitle: () => element };
 }
