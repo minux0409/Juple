@@ -1,10 +1,10 @@
 import { createContext, useContext, useEffect, useId, useRef, type ReactNode } from 'react';
-import { Animated, Easing, StyleSheet, View, type PressableProps } from 'react-native';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { Animated, Easing, StyleSheet, useWindowDimensions, View, type PressableProps } from 'react-native';
+import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 import { Pressable } from '../components/Pressable';
 import { useReduceMotion } from '../components/useReduceMotion';
 import { useTheme } from '../theme/ThemeContext';
-import { BRAND_GRADIENT_STOPS } from '../theme/tokens';
+import { BRAND_GRADIENT_STOPS, radii } from '../theme/tokens';
 
 /**
  * The selected tab's "jelly" indicator: a soft pill in the brand gradient behind the tab's icon that squishes into place when its
@@ -27,7 +27,17 @@ interface JellyMotion {
   /** 0 = round, 1 = pressed flat (wider, lower) - the squash of the jelly as it lands. */
   readonly squash: Animated.Value;
   readonly iconScale: Animated.Value;
+  /** Horizontal distance (px) from the tab the pill is coming from to this tab; springs to 0 so the pill flows in from the old tab. */
+  readonly travel: Animated.Value;
+  /** One tab's width: the pill is stretched along its path by up to this much travel. */
+  readonly pitch: number;
 }
+
+/** The bar always has this many equal cells (Home, Archive, Collections, My Page). */
+const TAB_COUNT = 4;
+/** The tab selected last (module-wide: the four buttons are siblings that only know themselves) - where the next pill flows from. */
+let lastSelectedTab = -1;
+const MAX_STRETCH = 1.45;
 
 const JellyMotionContext = createContext<JellyMotion | null>(null);
 
@@ -38,17 +48,23 @@ const DESELECT_MS = 170;
 const ICON_POP_SCALE = 1.12;
 const SPRING_REST = { restDisplacementThreshold: 0.01, restSpeedThreshold: 0.01 } as const;
 
-function useJellyMotion(selected: boolean): JellyMotion {
+function useJellyMotion(selected: boolean, jellyIndex: number): JellyMotion {
   const reduceMotion = useReduceMotion();
+  const { width } = useWindowDimensions();
+  const pitch = Math.max(width / TAB_COUNT, 1);
   // Created once per button; the initial selection starts at rest (no animation on the first frame or on a re-mount).
   const motion = useRef<JellyMotion | null>(null);
   if (motion.current === null) {
-    motion.current = { pill: new Animated.Value(selected ? 1 : 0), squash: new Animated.Value(0), iconScale: new Animated.Value(1) };
+    motion.current = { pill: new Animated.Value(selected ? 1 : 0), squash: new Animated.Value(0), iconScale: new Animated.Value(1), travel: new Animated.Value(0), pitch };
+    if (selected) {
+      lastSelectedTab = jellyIndex;
+    }
   }
+  (motion.current as { pitch: number }).pitch = pitch;
   const isFirstRun = useRef(true);
 
   useEffect(() => {
-    const { pill, squash, iconScale } = motion.current!;
+    const { pill, squash, iconScale, travel } = motion.current!;
     if (isFirstRun.current) {
       isFirstRun.current = false;
       return;
@@ -57,14 +73,29 @@ function useJellyMotion(selected: boolean): JellyMotion {
     pill.stopAnimation();
     squash.stopAnimation();
     iconScale.stopAnimation();
+    travel.stopAnimation();
+    const from = lastSelectedTab;
+    if (selected) {
+      lastSelectedTab = jellyIndex;
+    }
     if (reduceMotion) {
       pill.setValue(selected ? 1 : 0);
       squash.setValue(0);
       iconScale.setValue(1);
+      travel.setValue(0);
       return;
+    }
+    // The pill flows in from the tab that was selected before (visible straight away), instead of growing out of nothing.
+    const flowsFromNeighbour = selected && from >= 0 && from !== jellyIndex;
+    if (selected) {
+      travel.setValue(flowsFromNeighbour ? (from - jellyIndex) * pitch : 0);
+      if (flowsFromNeighbour) {
+        pill.setValue(0.55);
+      }
     }
     const animation = selected
       ? Animated.parallel([
+          Animated.spring(travel, { toValue: 0, damping: 12, stiffness: 170, mass: 0.8, useNativeDriver: true, ...SPRING_REST }),
           Animated.spring(pill, { toValue: 1, damping: 11, stiffness: 260, mass: 0.7, useNativeDriver: true, ...SPRING_REST }),
           Animated.sequence([
             Animated.timing(squash, { toValue: 1, duration: SQUASH_IN_MS, easing: Easing.out(Easing.quad), useNativeDriver: true }),
@@ -82,7 +113,7 @@ function useJellyMotion(selected: boolean): JellyMotion {
         ]);
     animation.start();
     return () => animation.stop();
-  }, [reduceMotion, selected]);
+  }, [reduceMotion, selected, jellyIndex, pitch]);
 
   // Reduce Motion switched on while a pill was mid-way: settle it now.
   useEffect(() => {
@@ -98,59 +129,62 @@ function useJellyMotion(selected: boolean): JellyMotion {
   return motion.current;
 }
 
-type JellyTabPressableProps = PressableProps & { readonly 'aria-selected'?: boolean; readonly children?: ReactNode };
+type JellyTabPressableProps = PressableProps & { readonly 'aria-selected'?: boolean; readonly children?: ReactNode; /** Position in the bar (0-based, left to right). */ readonly jellyIndex: number };
 
-/** A tab button: the app Pressable (its touch area, label and accessibility props unchanged) plus the jelly motion of its tab. */
-export function JellyTabPressable({ children, ...props }: JellyTabPressableProps) {
-  const motion = useJellyMotion(props['aria-selected'] === true);
+/** A tab button: the app Pressable (its touch area, label and accessibility props unchanged) plus the jelly of its tab behind icon AND label. */
+export function JellyTabPressable({ children, jellyIndex, ...props }: JellyTabPressableProps) {
+  const motion = useJellyMotion(props['aria-selected'] === true, jellyIndex);
+  const { pill, squash, travel, pitch } = motion;
+  // Stretched along its path (liquid), relaxing to its round shape as it lands.
+  const stretch = travel.interpolate({ inputRange: [-pitch, 0, pitch], outputRange: [MAX_STRETCH, 1, MAX_STRETCH], extrapolate: 'clamp' });
+  const pillStyle = {
+    opacity: pill.interpolate({ inputRange: [0, 0.35, 1], outputRange: [0, 1, 1], extrapolate: 'clamp' }),
+    transform: [
+      { translateX: travel },
+      { scaleX: Animated.multiply(Animated.multiply(pill.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }), squash.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] })), stretch) },
+      { scaleY: Animated.multiply(pill.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }), squash.interpolate({ inputRange: [0, 1], outputRange: [1, 0.84] })) },
+    ],
+  };
   return (
-    <Pressable {...props}>
-      <JellyMotionContext.Provider value={motion}>{children}</JellyMotionContext.Provider>
+    <Pressable {...props} style={typeof props.style === 'function' ? props.style : [props.style, styles.buttonShape]}>
+      {/* The icon + label block, as wide and tall as its content. The blob is laid out around THIS block (not the button), so it always
+          wraps icon and label together whatever the language: content size + padding, a minimum so a short label ("홈") does not
+          give a tiny blob, and never wider than the tab. Smaller than the button because the padding is only a few dp. */}
+      <View style={styles.content}>
+        <Animated.View pointerEvents="none" style={[styles.pill, pillStyle]} testID="jelly-tab-pill">
+          <JellyPillShape />
+        </Animated.View>
+        <JellyMotionContext.Provider value={motion}>{children}</JellyMotionContext.Provider>
+      </View>
     </Pressable>
   );
 }
 
-/** The pill behind a tab icon: wider than the icon, centred on it. */
-export const JELLY_PILL_WIDTH = 56;
-export const JELLY_PILL_HEIGHT = 30;
-
-/** The tab's icon with the jelly pill behind it; `focused` is the copy the tab bar shows while the tab is selected. */
+/** The tab's icon; the selected look pops as its tab is chosen (the blob behind icon and label belongs to the button). */
 export function JellyTabIcon({ focused, size, children }: { readonly focused: boolean; readonly size: number; readonly children: ReactNode }) {
   const motion = useContext(JellyMotionContext);
   if (!motion) {
     return <>{children}</>;
   }
-  const { pill, squash, iconScale } = motion;
-  const pillStyle = {
-    opacity: pill.interpolate({ inputRange: [0, 0.35, 1], outputRange: [0, 1, 1], extrapolate: 'clamp' }),
-    transform: [
-      { scaleX: Animated.multiply(pill.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }), squash.interpolate({ inputRange: [0, 1], outputRange: [1, 1.14] })) },
-      { scaleY: Animated.multiply(pill.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }), squash.interpolate({ inputRange: [0, 1], outputRange: [1, 0.8] })) },
-    ],
-  };
   return (
     <View style={[styles.iconBox, { height: size, width: size }]}>
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.pill, { left: (size - JELLY_PILL_WIDTH) / 2, top: (size - JELLY_PILL_HEIGHT) / 2 }, pillStyle]}
-        testID="jelly-tab-pill"
-      >
-        <JellyPillShape />
-      </Animated.View>
       {/* Only the selected look pops; the unselected copy keeps its plain size. */}
-      <Animated.View style={focused ? { transform: [{ scale: iconScale }] } : null}>{children}</Animated.View>
+      <Animated.View style={focused ? { transform: [{ scale: motion.iconScale }] } : null}>{children}</Animated.View>
     </View>
   );
 }
 
-/** The pill itself: the brand gradient (pink -> violet -> blue, diagonal like the wordmark) as a soft fill with a slightly stronger rim. */
+/** Plump, slightly irregular blob (not a rectangle): a soft pill whose top and bottom bulge a little, in a 100x60 box stretched to the button. */
+const BLOB_PATH =
+  'M 28 4 C 42 0.5, 58 0.5, 72 4 C 90 8, 99 18, 99 30 C 99 43, 90 54, 72 57 C 58 60, 42 60, 28 57 C 10 54, 1 43, 1 30 C 1 18, 10 8, 28 4 Z';
+
+/** The blob: the brand gradient (pink -> violet -> blue, diagonal like the wordmark) as a soft fill with a slightly stronger rim. */
 function JellyPillShape() {
   const { isDark } = useTheme();
   const gradientId = `jelly${useId().replace(/[^A-Za-z0-9]/g, '')}`;
   const [pink, violet, blue] = BRAND_GRADIENT_STOPS;
-  const radius = JELLY_PILL_HEIGHT / 2;
   return (
-    <Svg height={JELLY_PILL_HEIGHT} width={JELLY_PILL_WIDTH}>
+    <Svg height="100%" preserveAspectRatio="none" viewBox="0 0 100 60" width="100%">
       <Defs>
         <LinearGradient id={gradientId} x1="0" x2="1" y1="0" y2="1">
           <Stop offset="0" stopColor={pink} />
@@ -158,17 +192,13 @@ function JellyPillShape() {
           <Stop offset="1" stopColor={blue} />
         </LinearGradient>
       </Defs>
-      <Rect
+      <Path
+        d={BLOB_PATH}
         fill={`url(#${gradientId})`}
         fillOpacity={isDark ? 0.34 : 0.2}
-        height={JELLY_PILL_HEIGHT - 1}
-        rx={radius - 0.5}
         stroke={`url(#${gradientId})`}
         strokeOpacity={isDark ? 0.55 : 0.4}
         strokeWidth={1}
-        width={JELLY_PILL_WIDTH - 1}
-        x={0.5}
-        y={0.5}
       />
     </Svg>
   );
@@ -176,5 +206,9 @@ function JellyPillShape() {
 
 const styles = StyleSheet.create({
   iconBox: { alignItems: 'center', justifyContent: 'center' },
-  pill: { height: JELLY_PILL_HEIGHT, position: 'absolute', width: JELLY_PILL_WIDTH },
+  // The pressed state layer follows the button's own corner radii (it is no longer clipped by the tab item).
+  buttonShape: { borderRadius: radii.md + 4 },
+  content: { alignItems: 'center', justifyContent: 'center', maxWidth: '100%', minWidth: 64 },
+  // Around the content block: a little outside it (padding), never inside it.
+  pill: { bottom: -4, left: -8, position: 'absolute', right: -8, top: -5 },
 });

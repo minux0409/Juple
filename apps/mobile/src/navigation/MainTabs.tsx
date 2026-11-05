@@ -57,12 +57,12 @@ function renderMyPageIcon({ focused }: { focused: boolean }) {
 
 // A tab that a guided tour can spotlight: the target is the whole tab button (the bar's cells are navigator-owned, so the button
 // is wrapped rather than measured).
-function TourTabButton({ tourId, href: _href, pressOpacity: _pressOpacity, hoverEffect: _hoverEffect, android_ripple: _ripple, ...props }: BottomTabBarButtonProps & { readonly tourId: string }) {
+function TourTabButton({ tourId, jellyIndex, href: _href, pressOpacity: _pressOpacity, hoverEffect: _hoverEffect, android_ripple: _ripple, ...props }: BottomTabBarButtonProps & { readonly tourId: string; readonly jellyIndex: number }) {
   // No extra margin around a tab: it fills its cell, so the ring sits exactly on the tab's edges (its 2pt stroke drawn inside).
   const target = useTourTarget(tourId, { radius: radii.md, padding: 0 });
   return (
     <View {...target} style={styles.tabTarget}>
-      <JellyTabPressable {...props} />
+      <JellyTabPressable {...props} jellyIndex={jellyIndex} />
     </View>
   );
 }
@@ -71,19 +71,19 @@ function TourTabButton({ tourId, href: _href, pressOpacity: _pressOpacity, hover
 // whose Android ripple and iOS fade would differ from the other three tabs). The navigator's android_ripple is dropped on every tab
 // so Android never shows a ripple on top of the state layer.
 function renderHomeButton({ href: _href, pressOpacity: _pressOpacity, hoverEffect: _hoverEffect, android_ripple: _ripple, ...props }: BottomTabBarButtonProps) {
-  return <JellyTabPressable {...props} />;
+  return <JellyTabPressable {...props} jellyIndex={0} />;
 }
 
 function renderHistoryButton(props: BottomTabBarButtonProps) {
-  return <TourTabButton {...props} tourId={TOUR_TARGETS.tabHistory} />;
+  return <TourTabButton {...props} tourId={TOUR_TARGETS.tabHistory} jellyIndex={1} />;
 }
 
 function renderCollectionsButton(props: BottomTabBarButtonProps) {
-  return <TourTabButton {...props} tourId={TOUR_TARGETS.tabCollections} />;
+  return <TourTabButton {...props} tourId={TOUR_TARGETS.tabCollections} jellyIndex={2} />;
 }
 
 function renderMyPageButton(props: BottomTabBarButtonProps) {
-  return <TourTabButton {...props} tourId={TOUR_TARGETS.tabMyPage} />;
+  return <TourTabButton {...props} tourId={TOUR_TARGETS.tabMyPage} jellyIndex={3} />;
 }
 
 export function MainTabs() {
@@ -112,7 +112,6 @@ export function MainTabs() {
         // moves the layout (only the pill and icon animate, as transforms).
         tabBarItemStyle: {
           borderRadius: radii.md + 4,
-          overflow: 'hidden',
           marginHorizontal: spacing.xs,
         },
         // No explicit height/padding here - the default height already accounts for the bottom

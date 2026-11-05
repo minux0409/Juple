@@ -49,8 +49,8 @@ describe('the jelly tab indicator', () => {
     const spring = jellyCalls('spring');
     const timing = jellyCalls('timing');
     const { renderer } = await renderTabs();
-    // 4 tabs x the selected and the unselected look of each icon.
-    expect(pills(renderer)).toHaveLength(8);
+    // One blob per tab button (behind icon and label).
+    expect(pills(renderer)).toHaveLength(4);
     expect(spring).toHaveLength(0);
     expect(timing).toHaveLength(0);
     // Only the selected look of an icon pops (its wrapper scales); the unselected look never does.
@@ -68,9 +68,9 @@ describe('the jelly tab indicator', () => {
     const { ref } = await renderTabs();
     await act(async () => { ref.navigate('Collections'); });
     expect(ref.getCurrentRoute()?.name).toBe('CollectionsHome');
-    // New tab: the pill, its squash and the icon pop settle with springs (3); the squash and pop start with a short press-in (2);
+    // New tab: the pill flows in from the previous tab (travel), the pill, its squash and the icon pop settle with springs (4); the squash and pop start with a short press-in (2);
     // old tab: a timed shrink of its pill, squash and icon (3).
-    expect(spring).toHaveLength(3);
+    expect(spring).toHaveLength(4);
     expect(timing).toHaveLength(5);
     for (const [, config] of [...spring, ...timing]) {
       expect(config.useNativeDriver).toBe(true);
