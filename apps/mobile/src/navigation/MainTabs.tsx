@@ -1,4 +1,4 @@
-import { createBottomTabNavigator, type BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator, type BottomTabBarButtonProps, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
@@ -13,7 +13,7 @@ import { screenIcons } from './screenIcons';
 import { useAttentionSnapshot } from '../attention/attentionContext';
 import { formatBadgeCount } from '../components/badgeCount';
 import { CollectionsStack, type CollectionsStackParamList } from './CollectionsStack';
-import { JellyTabIcon, JellyTabPressable } from './JellyTab';
+import { JellyTabBar, JellyTabIcon, JellyTabPressable } from './JellyTab';
 
 export type MainTabParamList = {
   Home: undefined;
@@ -86,6 +86,10 @@ function renderMyPageButton(props: BottomTabBarButtonProps) {
   return <TourTabButton {...props} tourId={TOUR_TARGETS.tabMyPage} jellyIndex={3} />;
 }
 
+function renderTabBar(props: BottomTabBarProps) {
+  return <JellyTabBar {...props} />;
+}
+
 export function MainTabs() {
   const { t } = useTranslation();
   const { counts } = useAttentionSnapshot();
@@ -94,6 +98,7 @@ export function MainTabs() {
 
   return (
     <Tab.Navigator
+      tabBar={renderTabBar}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.brandText,
@@ -114,19 +119,10 @@ export function MainTabs() {
           borderRadius: radii.md + 4,
           marginHorizontal: spacing.xs,
         },
-        // No explicit height/padding here - the default height already accounts for the bottom
-        // safe-area inset (see this repo's own rule against duplicating inset handling); this only
-        // adds the white background + subtle top shadow the redesign calls for.
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.inputBorder,
-          borderTopWidth: 1,
-          elevation: 8,
-          shadowColor: '#000000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.05,
-          shadowRadius: 6,
-        },
+        // The bar's look (background, top border, shadow) belongs to JellyTabBar, which draws the shared blob between that background and
+        // the buttons - so the navigator's own bar is transparent. No explicit height/padding here: the default height already accounts
+        // for the bottom safe-area inset (see this repo's own rule against duplicating inset handling).
+        tabBarStyle: { backgroundColor: 'transparent', borderTopWidth: 0, elevation: 0, shadowOpacity: 0 },
       }}
     >
       <Tab.Screen

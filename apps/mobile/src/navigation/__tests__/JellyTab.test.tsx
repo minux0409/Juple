@@ -26,9 +26,6 @@ async function renderTabs() {
   return { renderer, ref };
 }
 
-const pills = (renderer: ReactTestRenderer.ReactTestRenderer) =>
-  renderer.root.findAll(node => node.props.testID === 'jelly-tab-pill' && typeof node.type === 'string');
-
 /** The Animated.spring / Animated.timing calls made by the jelly tab itself (the tab bar animates its own things too). */
 function jellyCalls(method: 'spring' | 'timing') {
   const original = Animated[method] as (...args: never[]) => unknown;
@@ -44,16 +41,13 @@ function jellyCalls(method: 'spring' | 'timing') {
 
 afterEach(() => jest.restoreAllMocks());
 
-describe('the jelly tab indicator', () => {
-  it('every tab has its pill behind the icon (both looks of the icon read the same motion); the start needs no animation', async () => {
+describe('the jelly tab bar', () => {
+  it('renders the four tabs; the start needs no animation and only the selected icon look pops', async () => {
     const spring = jellyCalls('spring');
     const timing = jellyCalls('timing');
     const { renderer } = await renderTabs();
-    // One blob per tab button (behind icon and label).
-    expect(pills(renderer)).toHaveLength(4);
     expect(spring).toHaveLength(0);
     expect(timing).toHaveLength(0);
-    // Only the selected look of an icon pops (its wrapper scales); the unselected look never does.
     const homeIcons = renderer.root.findAllByType(HomeIcon as never);
     const wrappersWithScale = homeIcons.filter(icon => {
       const transform = icon.parent?.props.style?.transform as { scale?: unknown }[] | undefined;
@@ -62,21 +56,16 @@ describe('the jelly tab indicator', () => {
     expect(wrappersWithScale.map(icon => icon.props.filled)).toEqual([true]);
   });
 
-  it('choosing a tab springs the new pill and icon in and lets the old pill shrink away - on the native driver, without holding up the switch', async () => {
+  it('choosing a tab pops the new icon natively and never waits for the blob: the navigation is immediate', async () => {
     const spring = jellyCalls('spring');
     const timing = jellyCalls('timing');
     const { ref } = await renderTabs();
     await act(async () => { ref.navigate('Collections'); });
     expect(ref.getCurrentRoute()?.name).toBe('CollectionsHome');
-    // New tab: the pill flows in from the previous tab (travel), the pill, its squash and the icon pop settle with springs (4); the squash and pop start with a short press-in (2);
-    // old tab: a timed shrink of its pill, squash and icon (3).
-    expect(spring).toHaveLength(4);
-    expect(timing).toHaveLength(6);
-    for (const [, config] of [...spring, ...timing]) {
-      expect(config.useNativeDriver).toBe(true);
-    }
-    // The longest timed step is short (the whole motion ~200-350ms).
-    expect(Math.max(...timing.map(([, config]) => config.duration ?? 0))).toBeLessThanOrEqual(200);
+    // The icon pop and the old icon's settle run on the native driver. (The blob itself - two JS-driven edge springs - starts only once
+    // the bar has measured the tabs, which a test renderer cannot do.)
+    const native = [...spring, ...timing].filter(([, config]) => config.useNativeDriver === true);
+    expect(native.length).toBeGreaterThan(0);
   });
 
   it('fast repeated tab changes just restart the motion - the selection always ends on the last tab', async () => {
@@ -91,7 +80,7 @@ describe('the jelly tab indicator', () => {
     expect(ref.getCurrentRoute()?.name).toBe('MyPage');
   });
 
-  it('respects Reduce Motion: the pill moves straight to the new tab, no spring or timing', async () => {
+  it('respects Reduce Motion: no icon pop, the selection just moves', async () => {
     jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
     const { ref } = await renderTabs();
     const spring = jellyCalls('spring');
