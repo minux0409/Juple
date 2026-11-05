@@ -152,7 +152,8 @@ export function legacyPushTarget(data: Readonly<Record<string, unknown>> | null 
 /** The navigator calls one target turns into - what navigateToNotificationTarget performs. */
 export type NotificationNavigationAction =
   | { readonly name: 'Friends'; readonly params?: { readonly openRequests: true; readonly refreshToken: number } }
-  | { readonly name: 'MainTabs'; readonly params: { readonly screen: 'Collections'; readonly params: { readonly filter: 'shared'; readonly openShareRequests: true; readonly refreshToken: number } } }
+  | { readonly name: 'MainTabs'; readonly params: { readonly screen: 'Collections'; readonly params: { readonly screen: 'CollectionsHome'; readonly params: { readonly filter: 'shared'; readonly openShareRequests: true; readonly refreshToken: number }; readonly pop: true } } }
+  /** The Collection opens in the 컬렉션 tab (see navigation/collectionNavigation), the Collections list under it. */
   | { readonly name: 'CollectionDetails'; readonly params: { readonly collectionId: number; readonly refreshToken: number; readonly openItem?: { readonly itemId: number; readonly focus: 'comments' | null; readonly commentRootId?: number | null; readonly shared?: boolean }; readonly openApprovals?: true; readonly openJoinRequests?: true } }
   | { readonly name: 'SharedCollection'; readonly params: { readonly publicId: string } }
   | { readonly name: 'ModerationNotice'; readonly params: { readonly noticeId: number } };
@@ -165,7 +166,7 @@ export function navigationActionFor(target: NotificationTarget, nowMs: number = 
     case 'friends':
       return { name: 'Friends' };
     case 'collectionInvitations':
-      return { name: 'MainTabs', params: { screen: 'Collections', params: { filter: 'shared', openShareRequests: true, refreshToken: nowMs } } };
+      return { name: 'MainTabs', params: { screen: 'Collections', params: { screen: 'CollectionsHome', params: { filter: 'shared', openShareRequests: true, refreshToken: nowMs }, pop: true } } };
     case 'collection':
       return { name: 'CollectionDetails', params: { collectionId: target.collectionId, refreshToken: nowMs } };
     case 'collectionItem':

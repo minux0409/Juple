@@ -1,17 +1,20 @@
 ﻿import ReactTestRenderer, { act } from 'react-test-renderer';
 import { BlockedUsersPanel } from '../BlockedUsersPanel';
+import { openedCollections } from '../../testing/collectionNavigationDriver';
 import { StyleSheet } from 'react-native';
 import { UserAvatar } from '../../components/UserAvatar';
 import { colors, getActiveColorScheme, minTouchTarget, radii, setActiveColorScheme, spacing } from '../../theme/tokens';
 
 const mockRequest = jest.fn();
 const mockNavigate = jest.fn();
+const mockDispatch = jest.fn();
 
 jest.mock('../../api/useAuthenticatedApi', () => ({ useAuthenticatedApi: () => mockRequest }));
 jest.mock('@react-navigation/native', () => {
   const { useEffect } = require('react');
   return {
-    useNavigation: () => ({ navigate: mockNavigate }),
+    useNavigation: () => ({ navigate: mockNavigate, dispatch: mockDispatch }),
+    CommonActions: jest.requireActual('@react-navigation/native').CommonActions,
     useFocusEffect: (effect: () => void) => useEffect(effect, [effect]),
   };
 });
@@ -41,13 +44,15 @@ describe('BlockedUsersPanel', () => {
   beforeEach(() => {
     mockRequest.mockReset();
     mockNavigate.mockReset();
+    mockDispatch.mockReset();
   });
 
   it('a hidden Collection stays reachable: its row opens the normal Collection screen', async () => {
     mockRequest.mockResolvedValue({ body: { items: [person] } });
     const renderer = await renderScreen();
     await act(async () => byId(renderer, 'blocked-user-collection-7').props.onPress());
-    expect(mockNavigate).toHaveBeenCalledWith('CollectionDetails', { collectionId: 7 });
+    // In the 컬렉션 tab (see navigation/collectionNavigation).
+    expect(openedCollections(mockDispatch)).toEqual([{ collectionId: 7 }]);
   });
 
   it('unblocking asks first, then calls the server and removes the row', async () => {

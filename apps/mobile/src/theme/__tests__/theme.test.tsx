@@ -389,6 +389,10 @@ describe('a theme change re-renders what is on screen in place (no remount)', ()
     // every registered screen goes through it
     expect(root.match(/component=\{(?!themedScreen\()/g)).toBeNull();
     expect(tabs.match(/component=\{(?!themedScreen\()/g)).toBeNull();
+    // the 컬렉션 tab's own stack (the Collections list and one Collection) too
+    const collectionsStack = fs.readFileSync(path.resolve(__dirname, '../../navigation/CollectionsStack.tsx'), 'utf8');
+    expect(collectionsStack).toMatch(/component=\{themedScreen\(CollectionDetailsScreen\)\}/);
+    expect(collectionsStack.match(/component=\{(?!themedScreen\()/g)).toBeNull();
     // a wrapper is cached per screen, so re-rendering the navigator never swaps the component type (which would remount it)
     const { themedScreen: themed } = jest.requireActual<typeof import('../ThemeContext')>('../ThemeContext');
     const Dummy = () => null;

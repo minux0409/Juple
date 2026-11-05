@@ -80,7 +80,8 @@ jest.mock('../../navigation/navigationRef', () => ({
   navigationRef: {
     isReady: jest.fn(() => true),
     navigate: jest.fn(),
-    getRootState: jest.fn(() => ({ routeNames: ['MainTabs', 'CollectionDetails'] })),
+    dispatch: jest.fn(),
+    getRootState: jest.fn(() => ({ routeNames: ['MainTabs', 'ItemDetails'] })),
     addListener: jest.fn(() => () => undefined),
   },
 }));

@@ -4,6 +4,7 @@ import { getInitialNotification, getMessaging, onMessage, onNotificationOpenedAp
 import '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { navigationRef } from '../../navigation/navigationRef';
+import { openedCollections } from '../../testing/collectionNavigationDriver';
 import { notificationBannerQueue } from '../../notifications/bannerQueue';
 import { getUnreadCount } from '../../notifications/notificationState';
 import { subscribeNotificationUnavailable } from '../../notifications/openNotification';
@@ -45,7 +46,8 @@ jest.mock('../../navigation/navigationRef', () => ({
   navigationRef: {
     isReady: jest.fn(() => true),
     navigate: jest.fn(),
-    getRootState: jest.fn(() => ({ routeNames: mockSignedInRoutes.value ? ['MainTabs', 'CollectionDetails'] : ['AuthPending'] })),
+    dispatch: jest.fn(),
+    getRootState: jest.fn(() => ({ routeNames: mockSignedInRoutes.value ? ['MainTabs', 'ItemDetails'] : ['AuthPending'] })),
     addListener: jest.fn(() => () => undefined),
   },
 }));
@@ -127,6 +129,7 @@ describe('usePushMessageHandling', () => {
     expect(received).toEqual(['collectionContentChanged']);
     expect(notificationBannerQueue.current()).toBeNull();
     expect(navigationRef.navigate).not.toHaveBeenCalled();
+    expect(navigationRef.dispatch).not.toHaveBeenCalled();
   });
 
   it('any notification message re-reads the bell count, banner or not (iOS and Android alike) - exactly one read per message', async () => {
@@ -215,6 +218,7 @@ describe('usePushMessageHandling', () => {
     const asked = mockRequest.mock.calls.map(([request]) => request.path).filter(path => /^\/api\/v1\/notifications\/\d+\?/.test(path));
     expect(asked.map(path => /notifications\/(\d+)/.exec(path)![1]).sort()).toEqual(['155', '156']);
     expect(navigationRef.navigate).not.toHaveBeenCalled();
+    expect(navigationRef.dispatch).not.toHaveBeenCalled();
   });
 
   it('a banner is kept when the check itself fails (offline) - it is only a banner, the Inbox is the truth', async () => {
@@ -249,6 +253,7 @@ describe('usePushMessageHandling', () => {
     expect(notificationBannerQueue.current()).toEqual(expect.objectContaining({ notificationId: 55, title: '새 댓글' }));
     expect(notificationBannerQueue.pendingCount()).toBe(0);
     expect(navigationRef.navigate).not.toHaveBeenCalled();
+    expect(navigationRef.dispatch).not.toHaveBeenCalled();
     expect(readCalls()).toHaveLength(0);
     expect(getUnreadCount()).toBe(3);
   });
@@ -264,6 +269,7 @@ describe('usePushMessageHandling', () => {
     expect(notificationBannerQueue.current()).toBeNull();
     expect(readCalls()).toHaveLength(0);
     expect(navigationRef.navigate).not.toHaveBeenCalled();
+    expect(navigationRef.dispatch).not.toHaveBeenCalled();
     expect(mockRequest.mock.calls.every(([request]) => request.path === '/api/v1/notifications/unread-count')).toBe(true);
     expect(getUnreadCount()).toBe(3);
   });
@@ -284,10 +290,10 @@ describe('usePushMessageHandling', () => {
     act(() => tapHandler()({ data: { type: 'collectionItemComment', collectionId: '7', notificationId: '55' } }));
     await flush();
 
-    expect(navigationRef.navigate).toHaveBeenCalledWith('CollectionDetails', expect.objectContaining({
+    expect(openedCollections(navigationRef.dispatch)).toEqual([expect.objectContaining({
       collectionId: 7,
       openItem: { itemId: 99, focus: 'comments' },
-    }));
+    })]);
     expect(readCalls().map(([request]) => request.path)).toEqual(['/api/v1/notifications/55/read']);
   });
 
@@ -299,6 +305,7 @@ describe('usePushMessageHandling', () => {
     await flush();
 
     expect(navigationRef.navigate).not.toHaveBeenCalled();
+    expect(navigationRef.dispatch).not.toHaveBeenCalled();
     expect(readCalls()).toHaveLength(0);
   });
 
@@ -314,6 +321,7 @@ describe('usePushMessageHandling', () => {
 
     expect(unavailable).toHaveBeenCalledTimes(1);
     expect(navigationRef.navigate).not.toHaveBeenCalled();
+    expect(navigationRef.dispatch).not.toHaveBeenCalled();
   });
 
   it('when the lookup fails (offline), the Push\'s own routing ids still lead somewhere safe', async () => {
@@ -323,7 +331,7 @@ describe('usePushMessageHandling', () => {
     act(() => tapHandler()({ data: { type: 'collectionLinkSubmission', collectionId: '9', notificationId: '58' } }));
     await flush();
 
-    expect(navigationRef.navigate).toHaveBeenCalledWith('CollectionDetails', expect.objectContaining({ collectionId: 9, openApprovals: true }));
+    expect(openedCollections(navigationRef.dispatch)).toEqual([expect.objectContaining({ collectionId: 9, openApprovals: true })]);
   });
 
   it('an older Push without notificationId routes by its legacy fields', async () => {
@@ -337,19 +345,26 @@ describe('usePushMessageHandling', () => {
     await open({ type: 'friendRequest' }, 'a');
     expect(navigationRef.navigate).toHaveBeenLastCalledWith('Friends', { openRequests: true, refreshToken: expect.any(Number) });
     await open({ type: 'collectionInvitation', collectionId: '3' }, 'b');
-    expect(navigationRef.navigate).toHaveBeenLastCalledWith('MainTabs', {
-      screen: 'Collections',
-      params: expect.objectContaining({ filter: 'shared', openShareRequests: true }),
+    // Back to the MainTabs underneath (never a second one), 공유 컬렉션 with its 공유 요청 open in the Collections list.
+    expect(jest.mocked(navigationRef.dispatch).mock.calls.at(-1)?.[0]).toEqual({
+      type: 'NAVIGATE',
+      payload: {
+        name: 'MainTabs',
+        params: { screen: 'Collections', params: { screen: 'CollectionsHome', params: expect.objectContaining({ filter: 'shared', openShareRequests: true }), pop: true } },
+        pop: true,
+      },
     });
     await open({ type: 'collectionItemReaction', collectionId: '7' }, 'c');
-    expect(navigationRef.navigate).toHaveBeenLastCalledWith('CollectionDetails', expect.objectContaining({ collectionId: 7 }));
+    expect(openedCollections(navigationRef.dispatch).at(-1)).toEqual(expect.objectContaining({ collectionId: 7 }));
     await open({ type: 'collectionLinkSubmissionRejected', publicId: 'AbCdEfGh1234' }, 'd');
     expect(navigationRef.navigate).toHaveBeenLastCalledWith('SharedCollection', { publicId: 'AbCdEfGh1234' });
 
     // Nowhere safe to go (public link off, no membership): the app just opens.
     jest.mocked(navigationRef.navigate).mockClear();
+    jest.mocked(navigationRef.dispatch).mockClear();
     await open({ type: 'collectionLinkSubmissionRejected' }, 'e');
     expect(navigationRef.navigate).not.toHaveBeenCalled();
+    expect(navigationRef.dispatch).not.toHaveBeenCalled();
     expect(readCalls()).toHaveLength(0);
   });
 
@@ -362,6 +377,7 @@ describe('usePushMessageHandling', () => {
     await mount();
     await flush();
     expect(navigationRef.navigate).not.toHaveBeenCalled();
+    expect(navigationRef.dispatch).not.toHaveBeenCalled();
 
     // Signed in, but the signed-in screens are not mounted yet: still waiting.
     mockAuth.isAuthenticated = true;
@@ -370,6 +386,7 @@ describe('usePushMessageHandling', () => {
     });
     await flush();
     expect(navigationRef.navigate).not.toHaveBeenCalled();
+    expect(navigationRef.dispatch).not.toHaveBeenCalled();
 
     // RootStack swaps to the signed-in screens: the navigator's state listener retries.
     mockSignedInRoutes.value = true;

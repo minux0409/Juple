@@ -1,6 +1,7 @@
 import { subscribeJoinRequestWithdrawn } from '../collections/joinRequestChanges';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useBottomTabBarHeight, type BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
@@ -66,6 +67,7 @@ import { PendingActionRow } from '../components/PendingActionRow';
 import { StarIcon } from '../icons/StarIcon';
 import type { MainTabParamList } from '../navigation/MainTabs';
 import type { RootStackParamList } from '../navigation/RootStack';
+import type { CollectionsStackParamList } from '../navigation/CollectionsStack';
 import { cardShadow, collectionFilterColors, colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { TOUR_TARGETS } from '../tour/tourGuides';
 import { useTourTarget } from '../tour/tourTargets';
@@ -204,9 +206,13 @@ export function CollectionsScreen() {
   const { t } = useTranslation();
   const viewModeTarget = useTourTarget(TOUR_TARGETS.collectionsViewMode, { radius: radii.md });
   const createTarget = useTourTarget(TOUR_TARGETS.collectionsCreate, { radius: radii.md + 4 });
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const tabNavigation = useNavigation<BottomTabNavigationProp<MainTabParamList, 'Collections'>>();
-  const route = useRoute<RouteProp<MainTabParamList, 'Collections'>>();
+  // The list is the first screen of the 컬렉션 tab's own stack (a Collection opens on top of it, under the tab bar); every other
+  // screen it opens is a root screen.
+  const navigation = useNavigation<CompositeNavigationProp<
+    NativeStackNavigationProp<CollectionsStackParamList, 'CollectionsHome'>,
+    CompositeNavigationProp<BottomTabNavigationProp<MainTabParamList, 'Collections'>, NativeStackNavigationProp<RootStackParamList>>
+  >>();
+  const route = useRoute<RouteProp<CollectionsStackParamList, 'CollectionsHome'>>();
   const authenticatedRequest = useAuthenticatedApi();
   // This screen never shows a Toast itself, but the Collection Delete Undo toast (shown from
   // CollectionDetailsScreen just before it navigates back here) stays alive across that
@@ -398,7 +404,7 @@ export function CollectionsScreen() {
     }
     const target = route.params.filter;
     const openShareRequests = route.params.openShareRequests === true;
-    tabNavigation.setParams({ refreshToken: undefined, filter: undefined, openShareRequests: undefined });
+    navigation.setParams({ refreshToken: undefined, filter: undefined, openShareRequests: undefined });
     if (target && target !== filterRef.current) {
       filterRef.current = target;
       setFilter(target);
@@ -413,7 +419,7 @@ export function CollectionsScreen() {
         })
         .catch(() => undefined);
     }
-  }, [authenticatedRequest, invalidateOtherFilters, load, route.params?.filter, route.params?.openShareRequests, route.params?.refreshToken, tabNavigation]);
+  }, [authenticatedRequest, invalidateOtherFilters, load, route.params?.filter, route.params?.openShareRequests, route.params?.refreshToken, navigation]);
 
   // Without polling: link counts (another member or a public-link writer added/removed links) and
   // the 공유 요청 badge follow Push while the app is open, and refresh on returning to the app.

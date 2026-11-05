@@ -1,5 +1,7 @@
 import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
+import { CommonActions } from '@react-navigation/native';
+import { openCollectionDetailsAction } from '../navigation/collectionNavigation';
 import { navigationRef } from '../navigation/navigationRef';
 import { getNotification, markNotificationRead } from './notificationsApi';
 import { adjustUnreadCount, refreshUnreadCount, setUnreadCount } from './notificationState';
@@ -61,10 +63,11 @@ export function navigateWithRootNavigator(action: NotificationNavigationAction):
       else navigationRef.navigate('Friends');
       return;
     case 'MainTabs':
-      navigationRef.navigate('MainTabs', action.params);
+      // Back to the MainTabs at the bottom of the root stack (from 알림, say) - a plain navigate would push a second one.
+      navigationRef.dispatch(CommonActions.navigate({ name: 'MainTabs', params: action.params, pop: true }));
       return;
     case 'CollectionDetails':
-      navigationRef.navigate('CollectionDetails', action.params);
+      navigationRef.dispatch(openCollectionDetailsAction(action.params));
       return;
     case 'SharedCollection':
       navigationRef.navigate('SharedCollection', action.params);

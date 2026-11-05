@@ -1,4 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
+import { openedCollections, lastOpenCollectionActionType } from '../../testing/collectionNavigationDriver';
 import { ActivityIndicator, FlatList, Modal, Text, TextInput } from 'react-native';
 import i18n from '../../i18n';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -11,6 +12,9 @@ import { getPublicCollection, getPublicCollectionItems, unlockPublicCollection }
 
 const mockRequest = jest.fn();
 const mockReplace = jest.fn();
+const mockDispatch = jest.fn();
+/** The Collections a member was sent to (in the 컬렉션 tab - see navigation/collectionNavigation). */
+const opened = () => openedCollections(mockDispatch);
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 const mockSignIn = jest.fn(() => Promise.resolve());
@@ -22,6 +26,8 @@ jest.mock('@react-navigation/native', () => ({
     const React = require('react');
     React.useEffect(() => callback(), [callback]);
   },
+  CommonActions: jest.requireActual('@react-navigation/native').CommonActions,
+  StackActions: jest.requireActual('@react-navigation/native').StackActions,
 }));
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
@@ -65,7 +71,8 @@ beforeEach(() => {
 afterEach(() => jest.clearAllMocks());
 
 function navigationProp() {
-  return { navigate: mockNavigate, replace: mockReplace, goBack: mockGoBack, canGoBack: () => mockCanGoBack, getState: () => ({ routeNames: ['SharedCollection', 'CollectionDetails'] }) } as never;
+  // The link opened over the signed-in app: MainTabs is underneath it in the root stack.
+  return { navigate: mockNavigate, replace: mockReplace, dispatch: mockDispatch, goBack: mockGoBack, canGoBack: () => mockCanGoBack, getState: () => ({ routeNames: ['MainTabs', 'SharedCollection'], routes: [{ name: 'MainTabs' }, { name: 'SharedCollection' }] }) } as never;
 }
 
 async function renderScreen() {
@@ -99,14 +106,35 @@ async function confirm(renderer: Renderer, title: string) {
   });
 }
 
+describe('a member is handed to the Collection inside the 컬렉션 tab', () => {
+  it('over the running app: back to the MainTabs underneath (the link screen goes, no second MainTabs)', async () => {
+    mockServer({ membership: { isMember: true, collectionId: 77, role: 'viewer' } });
+    const renderer = await renderScreen();
+    expect(opened()).toEqual([{ collectionId: 77 }]);
+    expect(lastOpenCollectionActionType(mockDispatch)).toBe('NAVIGATE');
+    expect(mockDispatch.mock.calls[0][0].payload.pop).toBe(true);
+    act(() => renderer.unmount());
+  });
+
+  it('a cold start straight into the link (no MainTabs yet): the link screen is replaced by MainTabs', async () => {
+    const navigation = { ...navigationProp() as object, getState: () => ({ routeNames: ['MainTabs', 'SharedCollection'], routes: [{ name: 'SharedCollection' }] }) } as never;
+    mockServer({ membership: { isMember: true, collectionId: 77, role: 'viewer' } });
+    let renderer!: Renderer;
+    await act(async () => { renderer = ReactTestRenderer.create(<SharedCollectionScreen navigation={navigation} route={route} />); });
+    expect(opened()).toEqual([{ collectionId: 77 }]);
+    expect(lastOpenCollectionActionType(mockDispatch)).toBe('REPLACE');
+    act(() => renderer.unmount());
+  });
+});
+
 describe('the one resolver for a Collection link (App Link, pasted URL, notification - cold or warm)', () => {
   it.each(['owner', 'contributor', 'submitter', 'viewer'] as const)('a %s goes straight to the normal CollectionDetails - no dialog, no list', async role => {
     mockServer({ membership: { isMember: true, collectionId: 77, role } });
     const renderer = await renderScreen();
 
     expect(mockRequest).toHaveBeenCalledWith({ method: 'GET', path: '/api/v1/public-shares/pub-1/membership' });
-    expect(mockReplace).toHaveBeenCalledTimes(1);
-    expect(mockReplace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 77 });
+    expect(opened()).toHaveLength(1);
+    expect(opened()).toContainEqual({ collectionId: 77 });
     expect(anyEntryDialog(renderer)).toBeUndefined();
     expect(saveCalls()).toHaveLength(0);
     expect(requestCalls()).toHaveLength(0);
@@ -115,7 +143,7 @@ describe('the one resolver for a Collection link (App Link, pasted URL, notifica
   it('a membership claim without a Collection id is not enough to navigate', async () => {
     mockServer({ membership: { isMember: true, collectionId: null, role: 'viewer' } });
     await renderScreen();
-    expect(mockReplace).not.toHaveBeenCalled();
+    expect(opened()).toHaveLength(0);
   });
 
   it('PUBLIC nonmember: the 컬렉션 추가 dialog with only the Collection profile - no item list, no URL, nothing is saved by opening', async () => {
@@ -132,7 +160,7 @@ describe('the one resolver for a Collection link (App Link, pasted URL, notifica
     expect(getPublicCollectionItems).not.toHaveBeenCalled();
     expect(saveCalls()).toHaveLength(0);
     expect(requestCalls()).toHaveLength(0);
-    expect(mockReplace).not.toHaveBeenCalled();
+    expect(opened()).toHaveLength(0);
   });
 
   it('PRIVATE nonmember: the 참가 요청 dialog (취소 / 요청) - no item list, nothing requested by opening', async () => {
@@ -162,7 +190,7 @@ describe('the one resolver for a Collection link (App Link, pasted URL, notifica
     expect(renderer.root.findAllByType(ActivityIndicator).length).toBeGreaterThan(0);
     expect(dialog(renderer, i18n.t('sharedCollection.requestTitle'))).toBeUndefined();
     expect(requestCalls()).toHaveLength(0);
-    expect(mockReplace).not.toHaveBeenCalled();
+    expect(opened()).toHaveLength(0);
     expect(getPublicCollectionItems).not.toHaveBeenCalled();
   });
 
@@ -186,19 +214,19 @@ describe('the one resolver for a Collection link (App Link, pasted URL, notifica
     await act(async () => {
       resolveLookup({ status: 200, body: { isMember: true, collectionId: 5, role: 'viewer' } });
     });
-    expect(mockReplace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 5 });
+    expect(opened()).toContainEqual({ collectionId: 5 });
   });
 
   it('a failed membership lookup offers retry instead of a false nonmember dialog or an endless spinner', async () => {
     mockRequest.mockRejectedValue(new Error('network'));
     const renderer = await renderScreen();
 
-    expect(mockReplace).not.toHaveBeenCalled();
+    expect(opened()).toHaveLength(0);
     expect(anyEntryDialog(renderer)).toBeUndefined();
     expect(renderer.root.findAllByType(ActivityIndicator)).toHaveLength(0);
     mockServer({ membership: { isMember: true, collectionId: 5, role: 'viewer' } });
     await act(async () => renderer.root.findByProps({ testID: 'shared-collection-retry' }).props.onPress());
-    expect(mockReplace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 5 });
+    expect(opened()).toContainEqual({ collectionId: 5 });
   });
 
   it('signed out: no membership call, no save, no request - just a sign-in notice over the profile', async () => {
@@ -233,7 +261,7 @@ describe('컬렉션 추가 (a public Collection)', () => {
 
     expect(saveCalls()).toHaveLength(0);
     expect(mockGoBack).toHaveBeenCalledTimes(1);
-    expect(mockReplace).not.toHaveBeenCalled();
+    expect(opened()).toHaveLength(0);
   });
 
   it('취소 on a cold start (nothing to go back to) lands on Home', async () => {
@@ -253,7 +281,7 @@ describe('컬렉션 추가 (a public Collection)', () => {
     await confirm(renderer, i18n.t('sharedCollection.addTitle'));
 
     expect(saveCalls().map(([options]) => options)).toEqual([{ method: 'POST', path: '/api/v1/public-shares/pub-1/save' }]);
-    expect(mockReplace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 33 });
+    expect(opened()).toContainEqual({ collectionId: 33 });
     expect(requestCalls()).toHaveLength(0);
   });
 
@@ -281,7 +309,7 @@ describe('컬렉션 추가 (a public Collection)', () => {
 
     await confirm(renderer, i18n.t('sharedCollection.addTitle'));
 
-    expect(mockReplace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 33 });
+    expect(opened()).toContainEqual({ collectionId: 33 });
   });
 
   it('the Owner switched 공용 컬렉션 OFF while the dialog was open: nothing is saved, it says so, and the dialog becomes the 참가 요청 one', async () => {
@@ -291,7 +319,7 @@ describe('컬렉션 추가 (a public Collection)', () => {
 
     await confirm(renderer, i18n.t('sharedCollection.addTitle'));
 
-    expect(mockReplace).not.toHaveBeenCalled();
+    expect(opened()).toHaveLength(0);
     expect(renderer.root.findAll(node => node.type === Modal && node.props.visible === true)
       .flatMap(modal => modal.findAllByType(Text).map(text => String(text.props.children)))).toContain(i18n.t('sharedCollection.joinNotAllowed'));
     expect(dialog(renderer, i18n.t('sharedCollection.requestTitle'))).toBeDefined();
@@ -303,7 +331,7 @@ describe('컬렉션 추가 (a public Collection)', () => {
 
     await confirm(renderer, i18n.t('sharedCollection.addTitle'));
 
-    expect(mockReplace).not.toHaveBeenCalled();
+    expect(opened()).toHaveLength(0);
     expect(saveCalls()).toHaveLength(1);
   });
 });
@@ -334,7 +362,7 @@ describe('참가 요청 (a private Collection)', () => {
     expect(saveCalls()).toHaveLength(0);
     expect(dialog(renderer, i18n.t('sharedCollection.joinPendingTitle'))).toBeDefined();
     expect(dialog(renderer, i18n.t('sharedCollection.requestTitle'))).toBeUndefined();
-    expect(mockReplace).not.toHaveBeenCalled();
+    expect(opened()).toHaveLength(0);
     expect(getPublicCollectionItems).not.toHaveBeenCalled();
   });
 
@@ -365,7 +393,7 @@ describe('참가 요청 (a private Collection)', () => {
 
     await confirm(renderer, i18n.t('sharedCollection.requestTitle'));
 
-    expect(mockReplace).not.toHaveBeenCalled();
+    expect(opened()).toHaveLength(0);
     expect(dialog(renderer, i18n.t('sharedCollection.addTitle'))).toBeDefined();
   });
 
@@ -391,7 +419,7 @@ describe('참가 요청 (a private Collection)', () => {
     mockServer({ membership: { isMember: true, collectionId: 33, role: 'viewer' } });
     await renderScreen();
 
-    expect(mockReplace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 33 });
+    expect(opened()).toContainEqual({ collectionId: 33 });
   });
 });
 
@@ -540,7 +568,7 @@ describe('a password-protected link (mobile unlock)', () => {
     await confirm(renderer, i18n.t('sharedCollection.addTitle'));
 
     expect(saveCalls()[0][0]).toEqual({ method: 'POST', path: '/api/v1/public-shares/pub-1/save', headers: { 'X-Juple-Collection-Unlock': GRANT } });
-    expect(mockReplace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 8 });
+    expect(opened()).toContainEqual({ collectionId: 8 });
     expect(JSON.stringify(mockRequest.mock.calls)).not.toContain('right-password');
   });
 
@@ -565,7 +593,7 @@ describe('a password-protected link (mobile unlock)', () => {
     mockServer({ membership: { isMember: true, collectionId: 77, role: 'viewer' } });
     const renderer = await renderScreen();
 
-    expect(mockReplace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 77 });
+    expect(opened()).toContainEqual({ collectionId: 77 });
     expect(exists(renderer, 'shared-collection-unlock-password')).toBe(false);
   });
 
@@ -602,12 +630,12 @@ describe('cold-start share route while authenticated destinations are not regist
     await act(async () => { renderer = ReactTestRenderer.create(entry(false)); });
     expect(mockRequest).not.toHaveBeenCalled();
     expect(getPublicCollection).not.toHaveBeenCalled();
-    expect(mockReplace).not.toHaveBeenCalled();
+    expect(opened()).toHaveLength(0);
     // A failed bootstrap/retry preserves this route, without querying the link or losing its publicId.
     await act(async () => renderer.update(entry(false)));
     await act(async () => renderer.update(entry(true)));
-    expect(mockReplace).toHaveBeenCalledTimes(1);
-    expect(mockReplace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 77 });
+    expect(opened()).toHaveLength(1);
+    expect(opened()).toContainEqual({ collectionId: 77 });
     expect(calls(/membership$/)).toHaveLength(1);
     // A duplicate delivery/re-render of the pending route must not start another resolution.
     await act(async () => renderer.update(entry(true)));
@@ -630,7 +658,7 @@ describe('cold-start share route while authenticated destinations are not regist
     await act(async () => renderer.update(entry(false)));
     mockServer({ membership: { isMember: true, collectionId: 77, role: 'viewer' } });
     await act(async () => renderer.update(entry(true)));
-    expect(mockReplace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 77 });
+    expect(opened()).toContainEqual({ collectionId: 77 });
     expect(saveCalls()).toHaveLength(0);
     expect(requestCalls()).toHaveLength(0);
     act(() => renderer.unmount());
@@ -638,17 +666,17 @@ describe('cold-start share route while authenticated destinations are not regist
 
   it('a missing destination yields an actionable retry instead of a dropped replace and an endless spinner', async () => {
     let destinationReady = false;
-    const navigation = { ...navigationProp() as object, getState: () => ({ routeNames: destinationReady ? ['SharedCollection', 'CollectionDetails'] : ['SharedCollection', 'AuthPending'] }) } as never;
+    const navigation = { ...navigationProp() as object, getState: () => ({ routeNames: destinationReady ? ['MainTabs', 'SharedCollection'] : ['SharedCollection', 'AuthPending'], routes: [{ name: 'SharedCollection' }] }) } as never;
     mockServer({ membership: { isMember: true, collectionId: 77, role: 'viewer' } });
     let renderer!: Renderer;
     await act(async () => { renderer = ReactTestRenderer.create(<SharedCollectionScreen navigation={navigation} route={route} />); });
-    expect(mockReplace).not.toHaveBeenCalled();
+    expect(opened()).toHaveLength(0);
     expect(renderer.root.findAllByType(ActivityIndicator)).toHaveLength(0);
     expect(anyEntryDialog(renderer)).toBeUndefined();
     destinationReady = true;
     await act(async () => renderer.root.findByProps({ testID: 'shared-collection-retry' }).props.onPress());
-    expect(mockReplace).toHaveBeenCalledTimes(1);
-    expect(mockReplace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 77 });
+    expect(opened()).toHaveLength(1);
+    expect(opened()).toContainEqual({ collectionId: 77 });
     act(() => renderer.unmount());
   });
 
@@ -658,7 +686,7 @@ describe('cold-start share route while authenticated destinations are not regist
     const renderer = await renderScreen();
     act(() => renderer.unmount());
     await act(async () => resolveLookup({ status: 200, body: { isMember: true, collectionId: 77, role: 'viewer' } }));
-    expect(mockReplace).not.toHaveBeenCalled();
+    expect(opened()).toHaveLength(0);
   });
 });
 

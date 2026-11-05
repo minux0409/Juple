@@ -1,8 +1,8 @@
 import { createBottomTabNavigator, type BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
+import type { NavigatorScreenParams } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 import { Pressable } from '../components/Pressable';
-import { CollectionsScreen } from '../screens/CollectionsScreen';
 import { DailyInboxScreen } from '../screens/DailyInboxScreen';
 import { DateHistoryScreen } from '../screens/DateHistoryScreen';
 import { MyPageScreen } from '../screens/MyPageScreen';
@@ -13,15 +13,13 @@ import { useTourTarget } from '../tour/tourTargets';
 import { screenIcons } from './screenIcons';
 import { useAttentionSnapshot } from '../attention/attentionContext';
 import { formatBadgeCount } from '../components/badgeCount';
+import { CollectionsStack, type CollectionsStackParamList } from './CollectionsStack';
 
 export type MainTabParamList = {
   Home: undefined;
   History: undefined;
-  /**
-   * filter/openShareRequests come from a tapped Collection invitation Push (see
-   * usePushMessageHandling): land on 공유 컬렉션 with its 공유 요청 open.
-   */
-  Collections: { refreshToken?: number; filter?: 'shared'; openShareRequests?: boolean } | undefined;
+  /** The 컬렉션 tab is a stack of its own: the Collections list and one Collection on top (see CollectionsStack). */
+  Collections: NavigatorScreenParams<CollectionsStackParamList> | undefined;
   MyPage: undefined;
 };
 
@@ -101,6 +99,9 @@ export function MainTabs() {
         tabBarActiveTintColor: colors.brandText,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarLabelPosition: 'below-icon',
+        // A text field never shares the space above the keyboard with the tab bar (Android windows that resize would otherwise lift
+        // the bar onto the keyboard, e.g. under a Collection's search or password field).
+        tabBarHideOnKeyboard: true,
         tabBarBadgeStyle: { backgroundColor: colors.badge, color: colors.onBadge, fontSize: 11, fontWeight: '700' },
         tabBarLabelStyle: {
           fontSize: 11,
@@ -139,7 +140,7 @@ export function MainTabs() {
         options={{ tabBarLabel: t('tabs.history'), tabBarIcon: renderHistoryIcon, tabBarButton: renderHistoryButton, tabBarBadge: badge(counts.archive) }}
       />
       <Tab.Screen
-        component={themedScreen(CollectionsScreen)}
+        component={themedScreen(CollectionsStack)}
         name="Collections"
         options={{ tabBarLabel: t('tabs.collections'), tabBarIcon: renderCollectionsIcon, tabBarButton: renderCollectionsButton, tabBarBadge: badge(counts.collections) }}
       />

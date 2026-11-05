@@ -5,6 +5,7 @@ import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getCollection } from '../collections/api/collectionsApi';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { openCollectionDetailsAction } from '../navigation/collectionNavigation';
 import { navigationRef } from '../navigation/navigationRef';
 import NativeIncomingShare from '../share/specs/NativeIncomingShare';
 import { collectionShortcutService } from './CollectionShortcutService';
@@ -51,7 +52,7 @@ export function CollectionShortcutRouter() {
     if (current?.name === 'CollectionDetails' && (current.params as { collectionId?: number } | undefined)?.collectionId === collectionId) {
       return;
     }
-    navigationRef.navigate('CollectionDetails', { collectionId });
+    navigationRef.dispatch(openCollectionDetailsAction({ collectionId }));
   }, [request]);
 
   const consume = useCallback(async () => {

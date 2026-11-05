@@ -1,6 +1,7 @@
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { openCollectionDetailsAction } from '../navigation/collectionNavigation';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMobileAttention, useAttentionSnapshot } from '../attention/attentionContext';
@@ -489,7 +490,7 @@ export function FriendsScreen() {
         friend={selected}
         onOpenCollection={collectionId => {
           setSelected(null);
-          navigation.navigate('CollectionDetails', { collectionId });
+          navigation.dispatch(openCollectionDetailsAction({ collectionId }));
         }}
         onChanged={updated => {
           setFriends(previous => previous.map(friend => (friend.friendshipId === updated.friendshipId ? updated : friend)));

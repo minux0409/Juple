@@ -59,7 +59,9 @@ beforeAll(async () => {
   await i18n.changeLanguage('ko');
 });
 
+jest.mock('@react-navigation/bottom-tabs', () => ({ useBottomTabBarHeight: () => 80 }));
 jest.mock('@react-navigation/native', () => ({
+  CommonActions: jest.requireActual('@react-navigation/native').CommonActions,
   useFocusEffect: (callback: () => void | (() => void)) => {
     const React = require('react');
     React.useEffect(() => {
@@ -223,7 +225,7 @@ function headerTitle() {
 }
 
 const route = { key: 'CollectionDetails', name: 'CollectionDetails', params: { collectionId: 1 } } as never;
-const navigation = { navigate: jest.fn(), goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn(), setOptions: jest.fn() } as never;
+const navigation = { navigate: jest.fn(), goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn(), dispatch: jest.fn(), setOptions: jest.fn() } as never;
 
 // Wrapped in the real AppToastProvider (not mocked) - Move/Unlink/Collection-Delete Undo now show
 // via the global AppToast Host (see useAppToast), so these tests exercise the real Provider and
@@ -363,9 +365,9 @@ describe('CollectionDetailsScreen', () => {
 
       await act(async () => dialog.props.onConfirm());
       expect(leaveCollection).toHaveBeenCalledWith(expect.anything(), 1);
-      expect((navigation as { popTo: jest.Mock }).popTo).toHaveBeenCalledWith('MainTabs', {
-        screen: 'Collections',
-        params: { refreshToken: expect.any(Number) },
+      expect((navigation as { dispatch: jest.Mock }).dispatch).toHaveBeenCalledWith({
+        type: 'NAVIGATE',
+        payload: { name: 'MainTabs', params: { screen: 'Collections', params: { screen: 'CollectionsHome', params: { refreshToken: expect.any(Number) }, pop: true } }, pop: true },
       });
     });
 
@@ -376,7 +378,7 @@ describe('CollectionDetailsScreen', () => {
       await pressCollectionMenuAction(renderer, i18n.t('collections.leaveAction'));
       const dialog = renderer.root.findAllByType(ConfirmDialog).find(candidate => candidate.props.visible)!;
       await act(async () => dialog.props.onConfirm());
-      expect((navigation as { popTo: jest.Mock }).popTo).not.toHaveBeenCalled();
+      expect((navigation as { dispatch: jest.Mock }).dispatch).not.toHaveBeenCalled();
     });
   });
 
@@ -627,9 +629,9 @@ describe('CollectionDetailsScreen', () => {
       // effect) rather than trusting a one-shot deletedCollectionId param - the global AppToast
       // Host owns the Undo toast itself, shown before this navigate call.
       // Back to the existing MainTabs (its Collections filter survives) - never a fresh one.
-      expect((navigation as { popTo: jest.Mock }).popTo).toHaveBeenCalledWith('MainTabs', {
-        screen: 'Collections',
-        params: { refreshToken: expect.any(Number) },
+      expect((navigation as { dispatch: jest.Mock }).dispatch).toHaveBeenCalledWith({
+        type: 'NAVIGATE',
+        payload: { name: 'MainTabs', params: { screen: 'Collections', params: { screen: 'CollectionsHome', params: { refreshToken: expect.any(Number) }, pop: true } }, pop: true },
       });
       expect((navigation as { replace: jest.Mock }).replace).not.toHaveBeenCalled();
       expect(renderer.root.findByProps({ children: i18n.t('toast.collectionDeleteSuccess') })).toBeTruthy();
@@ -747,7 +749,7 @@ describe('CollectionDetailsScreen', () => {
         await Promise.resolve();
       });
 
-      expect((navigation as { popTo: jest.Mock }).popTo).not.toHaveBeenCalled();
+      expect((navigation as { dispatch: jest.Mock }).dispatch).not.toHaveBeenCalled();
       expect(renderer.root.findByProps({ children: i18n.t('collections.errorDeleteFallback') })).toBeTruthy();
     });
   });
@@ -1096,13 +1098,14 @@ describe('CollectionDetailsScreen', () => {
     });
   });
 
-  describe('bottom inset layout (system nav bar overlap regression)', () => {
-    // The list viewport itself must end above the system nav bar: the screen root is the shared
-    // StackScreenSafeArea (real container padding), never an inset folded into list content padding.
-    async function expectListInsideStackSafeArea(renderer: ReactTestRenderer.ReactTestRenderer) {
-      const safeAreaRoots = renderer.root.findAllByType(StackScreenSafeArea);
-      expect(safeAreaRoots).toHaveLength(1);
-      const list = findItemList(safeAreaRoots[0]);
+  describe('bottom inset layout (inside the 컬렉션 tab)', () => {
+    // The screen lives in the 컬렉션 tab's own stack: the tab bar below it already reserves the system nav bar, so the screen root
+    // adds no bottom inset of its own (a second one would leave an empty band above the tab bar), and the list fills the root.
+    async function expectListFillsTabScreen(renderer: ReactTestRenderer.ReactTestRenderer) {
+      expect(renderer.root.findAllByType(StackScreenSafeArea)).toHaveLength(0);
+      const root = renderer.root.findByProps({ testID: 'collection-details-screen' });
+      expect(StyleSheet.flatten(root.props.style).paddingBottom).toBeUndefined();
+      const list = findItemList(root);
       expect(StyleSheet.flatten(list.props.style)).toMatchObject({ flex: 1 });
       expect(StyleSheet.flatten(list.props.contentContainerStyle).paddingBottom).toBe(spacing.xl);
     }
@@ -1111,16 +1114,25 @@ describe('CollectionDetailsScreen', () => {
       jest.mocked(getCollectionItems).mockResolvedValue({ items: [makeItemEntry({ itemId: 1 }), makeItemEntry({ itemId: 2 })], nextCursor: null });
     });
 
-    it('keeps List and Grid inside the StackScreenSafeArea root', async () => {
+    it('keeps List and Grid filling the screen above the tab bar, with no inset of its own', async () => {
       const renderer = await renderScreen();
-      await expectListInsideStackSafeArea(renderer);
+      await expectListFillsTabScreen(renderer);
 
       await act(async () => {
         renderer.root.findByProps({ accessibilityLabel: i18n.t('common.viewGrid') }).props.onPress();
       });
       // 시간순 Grid: tiles inside the open date section's card.
       expect(renderer.root.findAllByType(SavedLinkGridCard).length).toBeGreaterThan(0);
-      await expectListInsideStackSafeArea(renderer);
+      await expectListFillsTabScreen(renderer);
+    });
+
+    it('sits on the app background like Home, 보관함 and the Collections list - page and header bar alike', async () => {
+      const renderer = await renderScreen();
+      const root = renderer.root.findByProps({ testID: 'collection-details-screen' });
+      expect(StyleSheet.flatten(root.props.style).backgroundColor).toBe(colors.background);
+      const options = jest.mocked((navigation as { setOptions: jest.Mock }).setOptions).mock.calls.map(([value]) => value).filter(value => value.headerStyle).at(-1);
+      expect(options.headerStyle).toEqual({ backgroundColor: colors.background });
+      expect(options.contentStyle).toEqual({ backgroundColor: colors.background });
     });
 
     it('Grid cards use the same full date+time mode as List rows', async () => {
@@ -1229,10 +1241,9 @@ describe('CollectionDetailsScreen', () => {
       const renderer = await renderScreen(); await openItemMenu(renderer);
       await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await moveViaPicker(renderer);
       expect(renderer.root.findByProps({ children: i18n.t('toast.moveSuccess') })).toBeTruthy();
-      // Stack screen with no bottom tab bar and no fixed bottom action bar - the toast floats
-      // directly above the safe-area inset (mocked to 0 here - see useSafeAreaInsets mock above),
-      // not some tab-bar/action-bar height.
-      expect(renderer.root.findByType(UndoToast).props.bottomOffset).toBe(0);
+      // Inside the 컬렉션 tab: the toast floats just above the tab bar (its height mocked to 80 here - see the
+      // bottom-tabs mock above), like Home's - never under it.
+      expect(renderer.root.findByType(UndoToast).props.bottomOffset).toBe(80);
       await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress());
       expect(undoTransferCollectionItem).toHaveBeenCalledWith(expect.anything(), 1, 9, 2, true);
     });
@@ -1694,7 +1705,7 @@ describe('CollectionDetailsScreen - an action asked for by the Collections list 
   async function renderForAction(pendingAction: 'edit' | 'lock' | 'delete' | 'leave' | 'share') {
     const setParams = jest.fn();
     const navigateMock = jest.fn();
-    const actionNavigation = { navigate: navigateMock, goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn(), setParams, setOptions: jest.fn() } as never;
+    const actionNavigation = { navigate: navigateMock, goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn(), dispatch: jest.fn(), setParams, setOptions: jest.fn() } as never;
     const actionRoute = { key: 'CollectionDetails', name: 'CollectionDetails', params: { collectionId: 1, pendingAction } } as never;
     let renderer!: ReactTestRenderer.ReactTestRenderer;
     await act(async () => {

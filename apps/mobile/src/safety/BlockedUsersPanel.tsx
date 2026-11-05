@@ -11,6 +11,7 @@ import { UserAvatar } from '../components/UserAvatar';
 import { useMessageDialog } from '../components/useMessageDialog';
 import { formatJupleId } from '../collections/api/collaborationApi';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { openCollectionDetailsAction } from '../navigation/collectionNavigation';
 import { listBlockedUsers, unblockUser, type BlockedUser } from './safetyApi';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
@@ -99,7 +100,7 @@ export function BlockedUsersPanel() {
                     <Pressable
                       accessibilityRole="link"
                       key={collection.id}
-                      onPress={() => navigation.navigate('CollectionDetails', { collectionId: collection.id })}
+                      onPress={() => navigation.dispatch(openCollectionDetailsAction({ collectionId: collection.id }))}
                       style={styles.hiddenRow}
                       testID={`blocked-user-collection-${collection.id}`}
                     >

@@ -75,7 +75,9 @@ async function chooseDestinations(renderer: ReactTestRenderer.ReactTestRenderer,
   await act(async () => destinationSubmit(renderer).props.onPress());
 }
 
+jest.mock('@react-navigation/bottom-tabs', () => ({ useBottomTabBarHeight: () => 80 }));
 jest.mock('@react-navigation/native', () => ({
+  CommonActions: jest.requireActual('@react-navigation/native').CommonActions,
   useFocusEffect: (callback: () => void | (() => void)) => {
     const React = require('react');
     React.useEffect(() => callback(), [callback]);
@@ -238,7 +240,7 @@ function findItemList(
 
 const route = { key: 'CollectionDetails', name: 'CollectionDetails', params: { collectionId: COLLECTION_ID } } as never;
 const mockNavigate = jest.fn();
-const navigation = { navigate: mockNavigate, goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn(), setParams: jest.fn(), setOptions: jest.fn() } as never;
+const navigation = { navigate: mockNavigate, goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn(), dispatch: jest.fn(), setParams: jest.fn(), setOptions: jest.fn() } as never;
 
 async function renderScreen() {
   let renderer!: ReactTestRenderer.ReactTestRenderer;

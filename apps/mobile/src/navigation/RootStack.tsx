@@ -3,12 +3,10 @@ import { NoticeDetailScreen } from '../screens/NoticeDetailScreen';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissionOnboarding } from '../permissions/usePermissionOnboarding';
 import { AccountManagementScreen } from '../screens/AccountManagementScreen';
-import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
 import { CollectionLockSettingsScreen } from '../screens/CollectionLockSettingsScreen';
 import { CollectionShareScreen } from '../screens/CollectionShareScreen';
 import { CustomerCenterScreen } from '../screens/CustomerCenterScreen';
@@ -23,7 +21,7 @@ import { TourBackground } from '../tour/TourBackground';
 import { TourHost } from '../tour/TourHost';
 import { SubscriptionRequiredPrompt } from '../billing/SubscriptionRequiredPrompt';
 import { MyCollectionSubmissionsScreen } from '../screens/MyCollectionSubmissionsScreen';
-import { headerTitleWithElement, headerTitleWithIcon, screenIcons } from './screenIcons';
+import { headerTitleWithIcon, screenIcons } from './screenIcons';
 import { iosHeaderOptions } from './sheetHeader';
 import { TermsAgreementScreen } from '../safety/TermsAgreementScreen';
 import { TermsUnavailable } from '../safety/TermsUnavailable';
@@ -81,41 +79,6 @@ export type RootStackParamList = {
      * memory (see itemOpenGrant) and lives only as long as this popup.
      */
     openContext?: ItemOpenContext;
-  };
-  /**
-   * collectionId only - the screen fetches the current Collection and its Item list itself via GET.
-   * refreshToken is optional and only ever meaningful when this exact screen might already be the
-   * focused one (e.g. a Merge Undo toast navigating back to the Collection it just merged into) -
-   * mirrors CollectionsScreen's own refreshToken param, needed because React Navigation does not
-   * re-fire useFocusEffect for a `navigate` call that lands back on an already-focused screen.
-   */
-  CollectionDetails: {
-    collectionId: number;
-    refreshToken?: number;
-    /**
-     * A reaction/comment notification on my link here: once the Collection's content is open (its
-     * lock / share-password gate passed, as for any visit), that link opens IN this Collection - so
-     * its reactions and comments show and the visit's unlock is reused. Consumed once.
-     */
-    openItem?: {
-      readonly itemId: number;
-      readonly focus: 'comments' | null;
-      /** A reply / heart notification: the top-level comment whose thread is opened once the comments are here. */
-      readonly commentRootId?: number | null;
-      /** Somebody else's link: opened in the read-only shared view instead of the owner's ItemDetails. */
-      readonly shared?: boolean;
-    };
-    /** A 승인 요청 notification: opens the Owner's 링크 승인 대기 popup over the Collection once its content is open. Consumed once. */
-    openApprovals?: boolean;
-    /** A join-request notification: once the content is open (lock gate passed), the 참여 요청 bottom sheet opens over the Collection. Consumed once. */
-    openJoinRequests?: boolean;
-    /**
-     * The Collections list's long-press menu: 공유 (the same share entry as the header icon) and 수정 / 잠금 설정 / 삭제 / 나가기 are this screen's own dialogs (with its
-     * password prompt for a locked Collection, its undo and its navigation back) - the list asks for one and this screen
-     * opens it once the Collection is loaded, so no dialog or API call is duplicated. Consumed once; what the caller may do
-     * is decided here from the Collection itself, never from this param.
-     */
-    pendingAction?: 'edit' | 'lock' | 'delete' | 'leave' | 'share';
   };
   /**
    * Owner-only sharing of one Collection, as a modal - one screen: 모든 사용자 (the public link),
@@ -254,12 +217,6 @@ export function RootStack() {
                 presentation: 'transparentModal',
                 title: t('nav.itemDetails'),
               }}
-            />
-            <Stack.Screen
-              component={themedScreen(CollectionDetailsScreen)}
-              name="CollectionDetails"
-              // The header title is the Collection's own icon and name, set by the screen once loaded (no fixed "컬렉션" text).
-              options={{ title: t('nav.collectionDetails'), ...headerTitleWithElement(<View />, true) }}
             />
             {/* On iOS 'modal' is a page sheet with no back button of its own: the stack-wide back arrow (screenOptions) closes it
                 like the swipe-down does (the screen keeps no unsaved draft to guard). Android shows a normal stack screen. */}

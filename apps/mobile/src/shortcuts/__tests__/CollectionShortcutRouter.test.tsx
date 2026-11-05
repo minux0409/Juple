@@ -4,6 +4,7 @@ import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { getCollection } from '../../collections/api/collectionsApi';
 import { navigationRef } from '../../navigation/navigationRef';
+import { openedCollections } from '../../testing/collectionNavigationDriver';
 import NativeIncomingShare from '../../share/specs/NativeIncomingShare';
 import { collectionShortcutService } from '../CollectionShortcutService';
 import { CollectionShortcutRouter } from '../CollectionShortcutRouter';
@@ -13,7 +14,7 @@ jest.mock('../../api/useAuthenticatedApi', () => {
   return { useAuthenticatedApi: () => request };
 });
 jest.mock('../../collections/api/collectionsApi', () => ({ getCollection: jest.fn() }));
-jest.mock('../../navigation/navigationRef', () => ({ navigationRef: { isReady: jest.fn(() => true), navigate: jest.fn(), getCurrentRoute: jest.fn(() => ({ name: 'MainTabs' })) } }));
+jest.mock('../../navigation/navigationRef', () => ({ navigationRef: { isReady: jest.fn(() => true), navigate: jest.fn(), dispatch: jest.fn(), getCurrentRoute: jest.fn(() => ({ name: 'MainTabs' })) } }));
 jest.mock('../../share/specs/NativeIncomingShare', () => ({
   __esModule: true,
   default: { consumeShortcutLaunch: jest.fn() },
@@ -51,7 +52,7 @@ describe('CollectionShortcutRouter', () => {
     await render({ openCollectionId: 42, notice: null });
 
     expect(getCollection).toHaveBeenCalledWith(expect.anything(), 42);
-    expect(navigationRef.navigate).toHaveBeenCalledWith('CollectionDetails', { collectionId: 42 });
+    expect(openedCollections(navigationRef.dispatch)).toEqual([{ collectionId: 42 }]);
   });
 
   it.each([
@@ -63,6 +64,7 @@ describe('CollectionShortcutRouter', () => {
     const renderer = await render({ openCollectionId: 42, notice: null });
 
     expect(navigationRef.navigate).not.toHaveBeenCalled();
+    expect(navigationRef.dispatch).not.toHaveBeenCalled();
     expect(collectionShortcutService.unpin).toHaveBeenCalledWith(42);
     expect(message(renderer)).toBe(i18n.t('collections.shortcutOpenUnavailable'));
   });
@@ -72,7 +74,7 @@ describe('CollectionShortcutRouter', () => {
 
     await render({ openCollectionId: 42, notice: null });
 
-    expect(navigationRef.navigate).toHaveBeenCalledWith('CollectionDetails', { collectionId: 42 });
+    expect(openedCollections(navigationRef.dispatch)).toEqual([{ collectionId: 42 }]);
     expect(collectionShortcutService.unpin).not.toHaveBeenCalled();
   });
 
@@ -82,10 +84,11 @@ describe('CollectionShortcutRouter', () => {
     await render({ openCollectionId: 42, notice: null });
 
     expect(navigationRef.navigate).not.toHaveBeenCalled();
+    expect(navigationRef.dispatch).not.toHaveBeenCalled();
     // A different Collection still opens.
     jest.mocked(navigationRef.getCurrentRoute).mockReturnValue({ name: 'CollectionDetails', params: { collectionId: 7 } } as never);
     await render({ openCollectionId: 42, notice: null });
-    expect(navigationRef.navigate).toHaveBeenCalledWith('CollectionDetails', { collectionId: 42 });
+    expect(openedCollections(navigationRef.dispatch)).toEqual([{ collectionId: 42 }]);
   });
 
   it('an icon made by another account fails the same safe way: the CURRENT account is asked, gets 404, nothing opens', async () => {
@@ -97,6 +100,7 @@ describe('CollectionShortcutRouter', () => {
     expect(getCollection).toHaveBeenCalledWith(expect.anything(), 42);
     expect(request).not.toHaveBeenCalled();
     expect(navigationRef.navigate).not.toHaveBeenCalled();
+    expect(navigationRef.dispatch).not.toHaveBeenCalled();
     expect(message(renderer)).toBe(i18n.t('collections.shortcutOpenUnavailable'));
     expect(i18n.t('collections.shortcutOpenUnavailable')).toBe('이 컬렉션은 더 이상 열 수 없어요. 삭제되었거나 접근 권한이 없어서 바로가기를 제거했어요.');
   });
@@ -108,6 +112,7 @@ describe('CollectionShortcutRouter', () => {
     act(() => renderer.root.findAll(node => typeof node.props.onConfirm === 'function' && node.props.visible === true)[0].props.onConfirm());
     expect(message(renderer)).toBeUndefined();
     expect(navigationRef.navigate).not.toHaveBeenCalled();
+    expect(navigationRef.dispatch).not.toHaveBeenCalled();
   });
 
   it('shows "saved, but not into the Collection" when the headless save could not add it', async () => {
@@ -124,6 +129,7 @@ describe('CollectionShortcutRouter', () => {
     expect(message(idle)).toBeUndefined();
     expect(getCollection).not.toHaveBeenCalled();
     expect(navigationRef.navigate).not.toHaveBeenCalled();
+    expect(navigationRef.dispatch).not.toHaveBeenCalled();
   });
 
   it('looks again every time the app comes to the front (a tap while it was already running)', async () => {
@@ -141,7 +147,7 @@ describe('CollectionShortcutRouter', () => {
     await act(async () => listener?.('active'));
 
     expect(native.consumeShortcutLaunch).toHaveBeenCalledTimes(2);
-    expect(navigationRef.navigate).toHaveBeenCalledWith('CollectionDetails', { collectionId: 42 });
+    expect(openedCollections(navigationRef.dispatch)).toEqual([{ collectionId: 42 }]);
     spy.mockRestore();
   });
 });

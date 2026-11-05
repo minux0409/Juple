@@ -22,7 +22,7 @@ describe('notification targets', () => {
       'collectionInvitation (waiting)',
       { kind: 'collectionInvitations', collectionId: 3 },
       { kind: 'collectionInvitations' },
-      { name: 'MainTabs', params: { screen: 'Collections', params: { filter: 'shared', openShareRequests: true, refreshToken: NOW } } },
+      { name: 'MainTabs', params: { screen: 'Collections', params: { screen: 'CollectionsHome', params: { filter: 'shared', openShareRequests: true, refreshToken: NOW }, pop: true } } },
     ],
     [
       'collectionItemsAdded / approved / rejected (member)',

@@ -1,4 +1,5 @@
 import { BrokenLinkIcon } from '../../icons/BrokenLinkIcon';
+import { openedCollections } from '../../testing/collectionNavigationDriver';
 import { InfoIcon } from '../../icons/InfoIcon';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { AppState, FlatList, Image, Platform, ScrollView, StyleSheet, Text, TextInput } from 'react-native';
@@ -59,7 +60,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 }));
 // The header's [+] is set through navigation options - kept here so a test can render and tap it.
 const mockRoute: { params?: { openRequests?: true; refreshToken?: number } } = {};
-const mockNavigation = { setOptions: jest.fn(), navigate: jest.fn(), setParams: jest.fn(params => { mockRoute.params = { ...mockRoute.params, ...params }; }) };
+const mockNavigation = { setOptions: jest.fn(), navigate: jest.fn(), dispatch: jest.fn(), setParams: jest.fn(params => { mockRoute.params = { ...mockRoute.params, ...params }; }) };
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (callback: () => void | (() => void)) => {
     const React = require('react');
@@ -67,6 +68,7 @@ jest.mock('@react-navigation/native', () => ({
   },
   useNavigation: () => mockNavigation,
   useRoute: () => mockRoute,
+  CommonActions: jest.requireActual('@react-navigation/native').CommonActions,
 }));
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
@@ -1442,7 +1444,7 @@ describe('FriendsScreen - 함께 공유 중인 컬렉션', () => {
     expect(byId(renderer, 'friend-shared-11').findAllByType(LockIcon)).toHaveLength(0);
 
     await press(renderer, 'friend-shared-12');
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('CollectionDetails', { collectionId: 12 });
+    expect(openedCollections(mockNavigation.dispatch)).toEqual([{ collectionId: 12 }]);
     expect(renderer.root.findAllByType(AppModal).some(modal => modal.props.testID === 'friend-detail')).toBe(false);
   });
 

@@ -28,6 +28,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 import { useMessageDialog } from '../components/useMessageDialog';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { replaceWithCollectionDetailsAction } from '../navigation/collectionNavigation';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SharedCollection'>;
@@ -82,7 +83,7 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
     return getPublicShareMembership(authenticatedRequest, publicId)
       .then(found => {
         if (found?.isMember && found.collectionId) {
-          navigation.replace('CollectionDetails', { collectionId: found.collectionId });
+          navigation.dispatch(replaceWithCollectionDetailsAction(navigation.getState(), { collectionId: found.collectionId }));
         } else {
           setMembership(found);
         }
@@ -108,13 +109,14 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
         setMembership(found);
         setIsCheckingMembership(false);
         if (found?.isMember && found.collectionId) {
-          const destinationReady = navigation.getState().routeNames.includes('CollectionDetails');
+          // The signed-in screens (MainTabs, with the 컬렉션 tab a Collection opens in) are registered.
+          const destinationReady = navigation.getState().routeNames.includes('MainTabs');
           console.info('[Juple shared link] navigation', { stage: 'replace', destinationReady });
           if (!destinationReady) {
             setMembershipLookupFailed(true);
             return;
           }
-          navigation.replace('CollectionDetails', { collectionId: found.collectionId });
+          navigation.dispatch(replaceWithCollectionDetailsAction(navigation.getState(), { collectionId: found.collectionId }));
         }
       })
       .catch(() => {
@@ -189,7 +191,7 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
       const result = await action();
       if ((result.outcome === 'joined' || result.outcome === 'alreadyMember') && result.collectionId) {
         // A member now: the normal Collection (the Collections list refetches when it regains focus).
-        navigation.replace('CollectionDetails', { collectionId: result.collectionId });
+        navigation.dispatch(replaceWithCollectionDetailsAction(navigation.getState(), { collectionId: result.collectionId }));
         return;
       }
       setMembership(previous => ({ isMember: false, collectionId: null, role: null, ...previous, joinRequestPending: true }));

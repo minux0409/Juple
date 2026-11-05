@@ -5,6 +5,7 @@ import i18n from '../../i18n';
 import { UserAvatar } from '../../components/UserAvatar';
 import { CategoryIconTile } from '../../collections/CategoryIconTile';
 import { navigationRef } from '../../navigation/navigationRef';
+import { openedCollections } from '../../testing/collectionNavigationDriver';
 import { NotificationBellButton } from '../../notifications/NotificationBellButton';
 import { getUnreadCount, resetNotificationState, setUnreadCount } from '../../notifications/notificationState';
 import { NotificationTypeIcon } from '../../notifications/NotificationTypeIcon';
@@ -27,12 +28,13 @@ jest.mock('@react-navigation/native', () => ({
     React.useEffect(() => callback(), [callback]);
   },
   useNavigation: () => mockNavigation,
+  CommonActions: jest.requireActual('@react-navigation/native').CommonActions,
 }));
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
-jest.mock('../../navigation/navigationRef', () => ({ navigationRef: { navigate: jest.fn() } }));
+jest.mock('../../navigation/navigationRef', () => ({ navigationRef: { navigate: jest.fn(), dispatch: jest.fn() } }));
 jest.mock('../../notifications/notificationsApi', () => ({
   ...jest.requireActual('../../notifications/notificationsApi'),
   getNotifications: jest.fn(),
@@ -169,10 +171,11 @@ describe('NotificationsScreen', () => {
     expect(byTestId(renderer, 'notification-unread-5')).toHaveLength(0);
     expect(markNotificationRead).toHaveBeenCalledWith(expect.any(Function), 5);
     expect(getUnreadCount()).toBe(1);
-    expect(navigationRef.navigate).toHaveBeenCalledWith('CollectionDetails', expect.objectContaining({
+    // The Collection opens in the 컬렉션 tab (see navigation/collectionNavigation).
+    expect(openedCollections(navigationRef.dispatch)).toEqual([expect.objectContaining({
       collectionId: 4,
       openItem: { itemId: 9, focus: 'comments' },
-    }));
+    })]);
   });
 
   it('모두 읽음 is offered only while something is unread, and reads everything at once', async () => {

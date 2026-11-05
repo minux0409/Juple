@@ -2,6 +2,7 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { AccessibilityInfo, Animated, Text } from 'react-native';
 import i18n from '../../i18n';
 import { navigationRef } from '../../navigation/navigationRef';
+import { openedCollections } from '../../testing/collectionNavigationDriver';
 import { createBannerQueue, type NotificationBanner } from '../bannerQueue';
 import { BANNER_VISIBLE_MS, createBannerPanConfig, NotificationBannerHost, planBannerExit } from '../NotificationBannerHost';
 import { isHorizontalBannerDrag, resolveBannerSwipe, type BannerSwipeDirection } from '../bannerGesture';
@@ -10,7 +11,7 @@ import { getNotification, markNotificationRead } from '../notificationsApi';
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 0, left: 0 }),
 }));
-jest.mock('../../navigation/navigationRef', () => ({ navigationRef: { navigate: jest.fn() } }));
+jest.mock('../../navigation/navigationRef', () => ({ navigationRef: { navigate: jest.fn(), dispatch: jest.fn() } }));
 jest.mock('../notificationsApi', () => ({
   ...jest.requireActual('../notificationsApi'),
   getNotification: jest.fn(),
@@ -104,7 +105,7 @@ describe('NotificationBannerHost', () => {
     });
 
     expect(markNotificationRead).toHaveBeenCalledWith(expect.any(Function), 5);
-    expect(navigationRef.navigate).toHaveBeenCalledWith('CollectionDetails', expect.objectContaining({ openItem: { itemId: 9, focus: 'comments' } }));
+    expect(openedCollections(navigationRef.dispatch)).toEqual([expect.objectContaining({ openItem: { itemId: 9, focus: 'comments' } })]);
     expect(queue.current()).toBeNull();
   });
 

@@ -32,7 +32,7 @@ const RECENT_TAP_LIMIT = 20;
  * later) - navigationRef.isReady() alone only means the container mounted.
  */
 function isSignedInNavigatorReady(): boolean {
-  return navigationRef.isReady() && (navigationRef.getRootState()?.routeNames ?? []).includes('CollectionDetails');
+  return navigationRef.isReady() && (navigationRef.getRootState()?.routeNames ?? []).includes('MainTabs');
 }
 
 /**

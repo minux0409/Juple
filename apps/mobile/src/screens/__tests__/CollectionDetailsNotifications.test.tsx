@@ -8,7 +8,9 @@ import { getCollection, getCollectionItemSections, getCollectionItems, type Coll
 import { markCollectionNewLinksRead } from '../../notifications/notificationsApi';
 import { getUnreadCount, resetNotificationState, subscribeCollectionNewLinksRead } from '../../notifications/notificationState';
 
+jest.mock('@react-navigation/bottom-tabs', () => ({ useBottomTabBarHeight: () => 80 }));
 jest.mock('@react-navigation/native', () => ({
+  CommonActions: jest.requireActual('@react-navigation/native').CommonActions,
   useFocusEffect: (callback: () => void | (() => void)) => {
     const React = require('react');
     React.useEffect(() => callback(), [callback]);
@@ -67,7 +69,7 @@ function collection(overrides: Partial<Collection> = {}): Collection {
 }
 
 async function renderScreen(params: Record<string, unknown>) {
-  const navigation = { navigate: jest.fn(), setParams: jest.fn(), goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn(), setOptions: jest.fn() };
+  const navigation = { navigate: jest.fn(), setParams: jest.fn(), goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn(), dispatch: jest.fn(), setOptions: jest.fn() };
   let renderer!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
     renderer = ReactTestRenderer.create(

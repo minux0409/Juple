@@ -1,4 +1,5 @@
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/native';
+import { useBottomTabBarHeight, type BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -81,7 +82,6 @@ import { LoadFailureState } from '../components/LoadFailureState';
 import { RefreshFailureNotice } from '../components/RefreshFailureNotice';
 import { SearchField } from '../components/SearchField';
 import { useCollectionSearch } from '../collections/useCollectionSearch';
-import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { ActionMenuDialog, type ActionMenuDialogAction } from '../components/ActionMenuDialog';
@@ -125,6 +125,9 @@ import { buildFlatItemRows, type FlatItemRow } from '../items/flatItemRows';
 import { END_REACHED_THRESHOLD, useContinuousViewportFill } from '../items/useContinuousViewportFill';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
+import type { MainTabParamList } from '../navigation/MainTabs';
+import type { CollectionsStackParamList } from '../navigation/CollectionsStack';
+import { showCollectionsListAction } from '../navigation/collectionNavigation';
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import type { SocialPushEventType } from '../push/pushEvents';
 import { useViewModePreference, type SavedLinkViewMode } from '../settings/viewModePreference';
@@ -134,7 +137,11 @@ import { KeyboardSafeView } from '../components/KeyboardSafeView';
 import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 import { useLeaveWhenCollectionLost } from '../collections/useLeaveWhenCollectionLost';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'CollectionDetails'>;
+/** In the 컬렉션 tab's own stack (see CollectionsStack), inside MainTabs, inside the root stack - the link sheet, sharing and the other full-screen flows are root screens. */
+type Props = CompositeScreenProps<
+  NativeStackScreenProps<CollectionsStackParamList, 'CollectionDetails'>,
+  CompositeScreenProps<BottomTabScreenProps<MainTabParamList, 'Collections'>, NativeStackScreenProps<RootStackParamList>>
+>;
 
 /** A definitive answer about the Collection itself (gone, signed out) - null for an ordinary failure to load (the standard text). */
 function getCollectionLoadNotice(error: unknown, t: TFunction): string | null {
@@ -313,20 +320,21 @@ const COPY_SELECT_ALL_PAGE_SIZE = 100;
 export function CollectionDetailsScreen({ route, navigation }: Props) {
   const swipeScrollEnabled = useSwipeAwareScrollEnabled();
   const { isDark } = useTheme();
-  // This screen sits on one white plane in Light (header, page, list); Dark keeps the theme's own background.
-  const pageBackground = isDark ? colors.background : colors.surface;
+  // One plane with the app background - the same as Home, 보관함 and the Collections list (header, page, list); the link cards keep
+  // their own surface and border on it. Read at render time so a theme change repaints it.
+  const pageBackground = colors.background;
   const { collectionId } = route.params;
   // Blocking this Collection's owner (from its participants sheet) ends my membership: the screen leaves once the server says so.
-  useLeaveWhenCollectionLost(collectionId, () => navigation.navigate('MainTabs'));
+  useLeaveWhenCollectionLost(collectionId, () => navigation.dispatch(showCollectionsListAction(Date.now())));
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const { showNotificationToast, showUndoToast } = useAppToast();
-  // A stack screen, not a tab screen - there is no Juple tab bar below it reserving the system
-  // nav/gesture-area inset. The layout itself reserves it via the StackScreenSafeArea root (real
-  // container padding, not list content padding - see that component's remarks); the raw inset is
-  // only still needed here to anchor toasts above the system bar.
+  // Inside the 컬렉션 tab: the Juple tab bar below already reserves the system nav/gesture-area inset (as on the other tab screens),
+  // so the layout adds none of its own. Toasts sit above the tab bar, like Home's; the raw inset is still needed by the
+  // full-window destination picker sheet.
   const insets = useSafeAreaInsets();
-  useToastBottomAnchor(insets.bottom);
+  const tabBarHeight = useBottomTabBarHeight();
+  useToastBottomAnchor(tabBarHeight);
 
   const [collection, setCollection] = useState<Collection | null>(null);
   const [isLoadingCollection, setIsLoadingCollection] = useState(true);
@@ -387,9 +395,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
     navigation.setOptions({
       title: headerCollection.name,
-      // One flat plane: the bar takes the page's own background (white in Light, the Dark theme's own background in Dark) and draws no line or shadow under it.
-      headerStyle: { backgroundColor: isDark ? colors.background : colors.surface },
-      contentStyle: { backgroundColor: isDark ? colors.background : colors.surface },
+      // One flat plane: the bar takes the page's own background (the app background, as on the tab screens) and draws no line or shadow under it.
+      headerStyle: { backgroundColor: colors.background },
+      contentStyle: { backgroundColor: colors.background },
       headerShadowVisible: false,
       // The in-screen bar would otherwise tint the arrow in the brand colour; the other stack screens keep it in the text colour.
       headerTintColor: colors.textPrimary,
@@ -1035,17 +1043,14 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         message: t('toast.collectionDeleteSuccess'),
         onUndo: async () => {
           await restoreCollection(authenticatedRequest, collectionId);
-          navigation.popTo('MainTabs', { screen: 'Collections', params: { refreshToken: Date.now() } });
+          navigation.dispatch(showCollectionsListAction(Date.now()));
         },
         undoErrorMessage: t('toast.undoCollectionDeleteError'), noticeTitle: t('common.notice'), confirmLabel: t('common.confirm'),
       });
-      // Back to the MainTabs already under this screen - never a new one (replace, or navigate in
-      // React Navigation 7, would mount fresh tabs and lose the Collections filter, History's
-      // scroll/expanded dates and Home's state). The refreshToken makes Collections reload.
-      navigation.popTo('MainTabs', {
-        screen: 'Collections',
-        params: { refreshToken: Date.now() },
-      });
+      // Back to the Collections list already under this screen - never a new one (replace, or navigate in
+      // React Navigation 7, would mount a fresh list and lose its filter; the other tabs keep their state).
+      // The refreshToken makes Collections reload.
+      navigation.dispatch(showCollectionsListAction(Date.now()));
     } catch (caughtError) {
       setNotice(getDeleteErrorMessage(caughtError, t));
     } finally {
@@ -1062,7 +1067,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     try {
       await leaveCollection(authenticatedRequest, collectionId);
       collectionShortcutService.unpin(collectionId).catch(() => undefined);
-      navigation.popTo('MainTabs', { screen: 'Collections', params: { refreshToken: Date.now() } });
+      navigation.dispatch(showCollectionsListAction(Date.now()));
     } catch {
       setNotice(t('collections.leaveError'));
     } finally {
@@ -1406,17 +1411,17 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   if (isLoadingCollection && !collection) {
     return (
-      <StackScreenSafeArea style={[styles.loadingContainer, { backgroundColor: pageBackground }]}>
+      <View style={[styles.loadingContainer, { backgroundColor: pageBackground }]}>
         <ActivityIndicator />
-      </StackScreenSafeArea>
+      </View>
     );
   }
 
   if (!collection) {
     return (
-      <StackScreenSafeArea style={[styles.loadingContainer, { backgroundColor: pageBackground }]}>
+      <View style={[styles.loadingContainer, { backgroundColor: pageBackground }]}>
         {collectionError ? <LoadFailureState error={collectionError.cause} notice={collectionError.notice} onRetry={() => { loadCollection().catch(() => undefined); }} testID="collection-details-error" /> : null}
-      </StackScreenSafeArea>
+      </View>
     );
   }
 
@@ -1840,7 +1845,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   };
 
   return (
-    <StackScreenSafeArea style={[styles.safeArea, { backgroundColor: pageBackground }]}>
+    <View style={[styles.safeArea, { backgroundColor: pageBackground }]} testID="collection-details-screen">
       {/* Only the password prompt of a locked Collection takes text here - it must stay above the keyboard. */}
       <KeyboardSafeView enabled={isContentLocked}>
       {search.isSearching && !isContentLocked ? (
@@ -2225,7 +2230,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         visible={isParticipantsSheetVisible && pendingUnlockAction === null}
       />
       {notice ? <ConfirmDialog confirmLabel={t('common.confirm')} message={notice} onConfirm={() => setNotice(null)} title={t('common.notice')} visible /> : null}
-    </StackScreenSafeArea>
+    </View>
   );
 }
 
@@ -2250,8 +2255,8 @@ const styles = themedStyles(() => ({
     backgroundColor: colors.background,
     flex: 1,
   },
-  // flex:1 inside StackScreenSafeArea's bottom-inset padding - the list viewport itself ends above
-  // the system nav bar, for List and Grid alike (see StackScreenSafeArea's own remarks).
+  // flex:1 above the tab bar - the list viewport itself ends above it (and the tab bar above the
+  // system nav bar), for List and Grid alike.
   list: {
     flex: 1,
   },
