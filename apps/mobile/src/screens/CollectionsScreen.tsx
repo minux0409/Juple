@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 import { Pressable } from '../components/Pressable';
 import { usePullToRefresh } from '../components/PullRefreshControl';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { TabScreenSafeArea } from '../components/TabScreenSafeArea';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { reconcileCollectionShortcuts } from '../categories/collectionShortcutSync';
@@ -841,7 +841,7 @@ export function CollectionsScreen() {
   });
 
   return (
-    <SafeAreaView edges={['top']} onTouchStart={closeSuggestionsOnOutsideTouch} style={styles.safeArea}>
+    <TabScreenSafeArea onTouchStart={closeSuggestionsOnOutsideTouch} style={styles.safeArea}>
       <View collapsable={false} pointerEvents="none" ref={overlayRootRef} style={styles.overlayRoot} />
       <FlatList
         key={gridListKey(viewMode, viewMode === 'grid', gridColumns)}
@@ -1075,7 +1075,7 @@ export function CollectionsScreen() {
         onSubmit={handleCreateSubmit}
         visible={isCreateDialogVisible}
       />
-    </SafeAreaView>
+    </TabScreenSafeArea>
   );
 }
 

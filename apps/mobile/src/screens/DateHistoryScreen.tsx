@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { usePullToRefresh } from '../components/PullRefreshControl';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { TabScreenSafeArea } from '../components/TabScreenSafeArea';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
@@ -280,7 +280,7 @@ export function DateHistoryScreen() {
   const pullToRefresh = usePullToRefresh(search.isLoading, refresh);
 
   return (
-    <SafeAreaView edges={['top']} style={styles.safeArea}>
+    <TabScreenSafeArea style={styles.safeArea}>
       <FlatList
         contentContainerStyle={styles.content}
         data={flatRows}
@@ -344,7 +344,7 @@ export function DateHistoryScreen() {
         title={t('history.deleteConfirmTitle')}
         visible={pendingDeleteItemId !== null}
       />
-    </SafeAreaView>
+    </TabScreenSafeArea>
   );
 }
 

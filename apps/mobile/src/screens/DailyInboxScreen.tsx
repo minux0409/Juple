@@ -14,7 +14,7 @@ import {
 import { Pressable } from '../components/Pressable';
 import { usePullToRefresh } from '../components/PullRefreshControl';
 import { ThemedTextInput } from '../components/ThemedTextInput';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { TabScreenSafeArea } from '../components/TabScreenSafeArea';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
@@ -524,7 +524,7 @@ export function DailyInboxScreen() {
     loadToday('refresh');
   });
   return (
-    <SafeAreaView edges={['top']} style={styles.safeArea}>
+    <TabScreenSafeArea style={styles.safeArea}>
       <FlatList<ItemHistoryEntry | ImageLine>
         key={gridListKey(viewMode, viewMode === 'grid', columns.grid)}
         contentContainerStyle={styles.content}
@@ -665,7 +665,7 @@ export function DailyInboxScreen() {
         title={t('inbox.deleteConfirmTitle')}
         visible={pendingDeleteItemId !== null}
       />
-    </SafeAreaView>
+    </TabScreenSafeArea>
   );
 }
 

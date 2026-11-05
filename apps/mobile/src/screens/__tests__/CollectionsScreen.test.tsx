@@ -1,4 +1,5 @@
 import { notifyJoinRequestWithdrawn } from '../../collections/joinRequestChanges';
+import { TabScreenSafeArea } from '../../components/TabScreenSafeArea';
 import { BrokenLinkIcon } from '../../icons/BrokenLinkIcon';
 import { LoadFailureState } from '../../components/LoadFailureState';
 import { RefreshFailureNotice } from '../../components/RefreshFailureNotice';
@@ -2090,7 +2091,7 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
   it('a touch outside the field and the panel closes it (no keyboard event needed - a hardware keyboard shows none); inside it stays; the text stays', async () => {
     const renderer = await renderWithLayout();
     // Touches bubble from the touched view outward: an inner handler runs before the screen root's.
-    const screenRoot = () => renderer.root.findAll(node => Array.isArray(node.props.edges) && typeof node.props.onTouchStart === 'function')[0];
+    const screenRoot = () => renderer.root.findAllByType(TabScreenSafeArea).filter(node => typeof node.props.onTouchStart === 'function')[0];
     const touchFrom = async (inner?: { props: { onTouchStart?: () => void } }) => {
       await act(async () => {
         inner?.props.onTouchStart?.();

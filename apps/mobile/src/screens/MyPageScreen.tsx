@@ -10,7 +10,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { Pressable } from '../components/Pressable';
 import { DarkModeSwitchRow } from '../components/DarkModeSwitchRow';
 import { ThemedSwitch } from '../components/ThemedSwitch';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { TabScreenSafeArea } from '../components/TabScreenSafeArea';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
 import { useSubscriptionEntryAvailable } from '../billing/useSubscriptionEntry';
@@ -128,7 +128,7 @@ export function MyPageScreen() {
   const jupleId = profile?.jupleId ?? null;
 
   return (
-    <SafeAreaView edges={['top']} style={styles.safeArea}>
+    <TabScreenSafeArea style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content}>
         <ScreenTitle icon={screenIcons.myPage} textStyle={styles.title} title={t('myPage.title')} />
 
@@ -328,7 +328,7 @@ export function MyPageScreen() {
         title={t('myPage.signOutConfirmTitle')}
         visible={isSignOutDialogVisible}
       />
-    </SafeAreaView>
+    </TabScreenSafeArea>
   );
 }
 
