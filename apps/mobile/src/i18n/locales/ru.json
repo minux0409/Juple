@@ -115,7 +115,7 @@
     "searchMinHint": "Введите не менее 2 символов."
   },
   "collections": {
-    "listSearchPlaceholder": "Поиск коллекций или ссылок",
+    "listSearchPlaceholder": "Поиск",
     "searchSuggestionLinks": "Ссылки",
     "attentionA11y": "{{name}}, требуют внимания: {{count}}",
     "title": "Коллекции",

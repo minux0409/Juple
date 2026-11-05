@@ -115,7 +115,7 @@
     "searchMinHint": "कम से कम 2 अक्षर दर्ज करें।"
   },
   "collections": {
-    "listSearchPlaceholder": "संग्रह या लिंक खोजें",
+    "listSearchPlaceholder": "खोजें",
     "searchSuggestionLinks": "लिंक",
     "attentionA11y": "{{name}}, ध्यान देने वाले {{count}} आइटम",
     "title": "संग्रह",

@@ -115,7 +115,7 @@
     "searchMinHint": "Nhập ít nhất 2 ký tự."
   },
   "collections": {
-    "listSearchPlaceholder": "Tìm bộ sưu tập hoặc liên kết",
+    "listSearchPlaceholder": "Tìm kiếm",
     "searchSuggestionLinks": "Liên kết",
     "attentionA11y": "{{name}}, {{count}} mục cần chú ý",
     "title": "Bộ sưu tập",

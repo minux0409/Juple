@@ -115,7 +115,7 @@
     "searchMinHint": "En az 2 karakter girin."
   },
   "collections": {
-    "listSearchPlaceholder": "Koleksiyon veya bağlantı ara",
+    "listSearchPlaceholder": "Ara",
     "searchSuggestionLinks": "Bağlantılar",
     "attentionA11y": "{{name}}, ilgilenilmesi gereken {{count}} öğe",
     "title": "Koleksiyonlar",

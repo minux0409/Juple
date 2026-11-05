@@ -115,7 +115,7 @@
     "searchMinHint": "Masukkan minimal 2 karakter."
   },
   "collections": {
-    "listSearchPlaceholder": "Cari koleksi atau tautan",
+    "listSearchPlaceholder": "Cari",
     "searchSuggestionLinks": "Tautan",
     "attentionA11y": "{{name}}, {{count}} item perlu perhatian",
     "title": "Koleksi",

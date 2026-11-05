@@ -115,7 +115,7 @@
     "searchMinHint": "Bitte mindestens 2 Zeichen eingeben."
   },
   "collections": {
-    "listSearchPlaceholder": "Sammlungen oder Links suchen",
+    "listSearchPlaceholder": "Suchen",
     "searchSuggestionLinks": "Links",
     "attentionA11y": "{{name}}, {{count}} Einträge erfordern Aufmerksamkeit",
     "title": "Sammlungen",

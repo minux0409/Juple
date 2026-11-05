@@ -115,7 +115,7 @@
     "searchMinHint": "أدخل حرفين على الأقل."
   },
   "collections": {
-    "listSearchPlaceholder": "البحث في المجموعات أو الروابط",
+    "listSearchPlaceholder": "بحث",
     "searchSuggestionLinks": "الروابط",
     "attentionA11y": "{{name}}، عناصر تحتاج إلى انتباه: {{count}}",
     "title": "المجموعات",

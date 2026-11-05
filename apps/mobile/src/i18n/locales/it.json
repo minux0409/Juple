@@ -115,7 +115,7 @@
     "searchMinHint": "Inserisci almeno 2 caratteri."
   },
   "collections": {
-    "listSearchPlaceholder": "Cerca raccolte o link",
+    "listSearchPlaceholder": "Cerca",
     "searchSuggestionLinks": "Link",
     "attentionA11y": "{{name}}, {{count}} elementi da controllare",
     "title": "Raccolte",

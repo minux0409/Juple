@@ -115,7 +115,7 @@
     "searchMinHint": "กรุณาพิมพ์อย่างน้อย 2 ตัวอักษร"
   },
   "collections": {
-    "listSearchPlaceholder": "ค้นหาคอลเลกชันหรือลิงก์",
+    "listSearchPlaceholder": "ค้นหา",
     "searchSuggestionLinks": "ลิงก์",
     "attentionA11y": "{{name}} มี {{count}} รายการที่ต้องดู",
     "title": "คอลเลกชัน",
