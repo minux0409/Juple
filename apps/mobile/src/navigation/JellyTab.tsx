@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useId, useRef, type ReactNode } from 'react';
 import { Animated, Easing, StyleSheet, useWindowDimensions, View, type PressableProps } from 'react-native';
-import Svg, { Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 import { Pressable } from '../components/Pressable';
 import { useReduceMotion } from '../components/useReduceMotion';
 import { useTheme } from '../theme/ThemeContext';
@@ -42,7 +42,6 @@ const MAX_STRETCH = 1.45;
 const JellyMotionContext = createContext<JellyMotion | null>(null);
 
 /** Total motion ~300ms: the press-in and icon pop take ~100ms, the springs settle visibly within ~200ms after. */
-const SQUASH_IN_MS = 100;
 const ICON_POP_MS = 110;
 const DESELECT_MS = 170;
 const ICON_POP_SCALE = 1.12;
@@ -98,8 +97,10 @@ function useJellyMotion(selected: boolean, jellyIndex: number): JellyMotion {
           Animated.spring(travel, { toValue: 0, damping: 12, stiffness: 170, mass: 0.8, useNativeDriver: true, ...SPRING_REST }),
           Animated.spring(pill, { toValue: 1, damping: 11, stiffness: 260, mass: 0.7, useNativeDriver: true, ...SPRING_REST }),
           Animated.sequence([
-            Animated.timing(squash, { toValue: 1, duration: SQUASH_IN_MS, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-            Animated.spring(squash, { toValue: 0, damping: 5.5, stiffness: 240, mass: 0.7, useNativeDriver: true, ...SPRING_REST }),
+            // Pressed in as it sets off, spread wide as it lands, then settles with a small wobble.
+            Animated.timing(squash, { toValue: -0.45, duration: 70, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+            Animated.timing(squash, { toValue: 1, duration: 120, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+            Animated.spring(squash, { toValue: 0, damping: 8, stiffness: 260, mass: 0.7, useNativeDriver: true, ...SPRING_REST }),
           ]),
           Animated.sequence([
             Animated.timing(iconScale, { toValue: ICON_POP_SCALE, duration: ICON_POP_MS, easing: Easing.out(Easing.quad), useNativeDriver: true }),
@@ -141,8 +142,10 @@ export function JellyTabPressable({ children, jellyIndex, ...props }: JellyTabPr
     opacity: pill.interpolate({ inputRange: [0, 0.35, 1], outputRange: [0, 1, 1], extrapolate: 'clamp' }),
     transform: [
       { translateX: travel },
-      { scaleX: Animated.multiply(Animated.multiply(pill.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }), squash.interpolate({ inputRange: [0, 1], outputRange: [1, 1.2] })), stretch) },
-      { scaleY: Animated.multiply(Animated.multiply(pill.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }), squash.interpolate({ inputRange: [0, 1], outputRange: [1, 0.76] })), travel.interpolate({ inputRange: [-pitch, 0, pitch], outputRange: [0.86, 1, 0.86], extrapolate: 'clamp' })) },
+      // A slight lean along the way, level again on arrival.
+      { rotate: travel.interpolate({ inputRange: [-pitch, 0, pitch], outputRange: ['-4deg', '0deg', '4deg'], extrapolate: 'clamp' }) },
+      { scaleX: Animated.multiply(Animated.multiply(pill.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }), squash.interpolate({ inputRange: [-1, 0, 1], outputRange: [0.92, 1, 1.16] })), stretch) },
+      { scaleY: Animated.multiply(Animated.multiply(pill.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }), squash.interpolate({ inputRange: [-1, 0, 1], outputRange: [1.1, 1, 0.8] })), travel.interpolate({ inputRange: [-pitch, 0, pitch], outputRange: [0.86, 1, 0.86], extrapolate: 'clamp' })) },
     ],
   };
   return (
@@ -174,16 +177,19 @@ export function JellyTabIcon({ focused, size, children }: { readonly focused: bo
   );
 }
 
-/** Plump, slightly irregular blob in a 100x60 box (stretched to the button): a fuller belly on the lower left, a lighter shoulder on the upper right. */
+/**
+ * An irregular 2D stain in a 100x60 box (stretched to the button), deliberately NOT symmetric: the top dips in the middle and swells on the
+ * right, the right edge bulges and then pinches in, the lower left is pressed in a little, the bottom edge sags on the left. Every
+ * extent stays inside the box and the centre region (where icon and label sit) is always covered, so it stays tidy, never scruffy.
+ */
 const BLOB_PATH =
-  'M 24 7 C 37 1.5, 58 1, 75 6 C 90 10, 99 20, 98 33 C 97 47, 85 58.5, 65 59 C 51 59.5, 40 59.5, 27 57 C 11 54, 1.5 44, 1.5 30 C 1.5 17, 10 9.5, 24 7 Z';
-/** The glossy cap on the top of the jelly, and its single specular spot. */
-const HIGHLIGHT_PATH = 'M 20 15 C 31 6.5, 60 5, 79 11 C 68 19, 36 21, 20 15 Z';
+  'M 9 25 C 7 13, 21 5, 37 7 C 49 8.5, 56 2.5, 70 5 C 88 8, 98 19, 95.5 32 C 94 43, 99 51, 85 55.5 C 72 59.5, 61 54, 47 57 C 31 60, 17 58.5, 9.5 49 C 4 42, 11 36.5, 9 25 Z';
+/** A faint lighter patch inside, off-centre (upper left), so the stain has a little body - not a glossy highlight. */
+const SOFT_PATCH_PATH = 'M 17 22 C 18 13, 32 10, 44 12 C 36 17, 28 27, 17 22 Z';
 
 /**
- * The jelly, drawn in layers (no filters or blur - those are not reliable on Android): a faint outer glow, the body in the brand gradient,
- * a radial shade that darkens toward the rim (the belly reads as volume), a soft white cap of light on top with one small specular spot,
- * a gradient rim and a thin inner white rim. The viewBox leaves room around the body so the glow is not clipped.
+ * The stain: the brand gradient (pink -> violet -> blue, diagonal like the wordmark) as a soft translucent fill, a gentle inner shade toward
+ * the edge, one very faint lighter patch and a thin gradient edge. No gloss, specular spot, bevel or glow.
  */
 function JellyPillShape() {
   const { isDark } = useTheme();
@@ -191,7 +197,6 @@ function JellyPillShape() {
   const [pink, violet, blue] = BRAND_GRADIENT_STOPS;
   const body = `${uid}b`;
   const shade = `${uid}s`;
-  const cap = `${uid}c`;
   return (
     <Svg height="100%" preserveAspectRatio="none" viewBox="0 0 100 60" width="100%">
       <Defs>
@@ -200,26 +205,16 @@ function JellyPillShape() {
           <Stop offset="0.55" stopColor={violet} />
           <Stop offset="1" stopColor={blue} />
         </LinearGradient>
-        <RadialGradient cx="50" cy="22" gradientUnits="userSpaceOnUse" id={shade} r="52">
+        <RadialGradient cx="46" cy="30" gradientUnits="userSpaceOnUse" id={shade} r="50">
           <Stop offset="0" stopColor={violet} stopOpacity={0} />
-          <Stop offset="0.62" stopColor={violet} stopOpacity={0} />
-          <Stop offset="1" stopColor={violet} stopOpacity={isDark ? 0.5 : 0.34} />
+          <Stop offset="0.6" stopColor={violet} stopOpacity={0} />
+          <Stop offset="1" stopColor={violet} stopOpacity={isDark ? 0.3 : 0.18} />
         </RadialGradient>
-        <LinearGradient id={cap} x1="0" x2="0" y1="0" y2="1">
-          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={isDark ? 0.5 : 0.85} />
-          <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0} />
-        </LinearGradient>
       </Defs>
-      <G transform="translate(5 3) scale(0.9 0.9)">
-        {/* soft glow: the same shape, wide and faint, under the body */}
-        <Path d={BLOB_PATH} fill="none" stroke={`url(#${body})`} strokeOpacity={isDark ? 0.22 : 0.16} strokeWidth={6} />
-        <Path d={BLOB_PATH} fill={`url(#${body})`} fillOpacity={isDark ? 0.42 : 0.3} />
-        <Path d={BLOB_PATH} fill={`url(#${shade})`} />
-        <Path d={HIGHLIGHT_PATH} fill={`url(#${cap})`} />
-        <Ellipse cx={78} cy={17} fill="#FFFFFF" fillOpacity={isDark ? 0.5 : 0.8} rotation={-18} originX={78} originY={17} rx={4.5} ry={2} />
-        <Path d={BLOB_PATH} fill="none" stroke={`url(#${body})`} strokeOpacity={isDark ? 0.7 : 0.55} strokeWidth={1.1} />
-        <Path d={BLOB_PATH} fill="none" stroke="#FFFFFF" strokeOpacity={isDark ? 0.18 : 0.5} strokeWidth={0.7} transform="translate(1.6 1.2) scale(0.968 0.96)" />
-      </G>
+      <Path d={BLOB_PATH} fill={`url(#${body})`} fillOpacity={isDark ? 0.4 : 0.26} />
+      <Path d={BLOB_PATH} fill={`url(#${shade})`} />
+      <Path d={SOFT_PATCH_PATH} fill="#FFFFFF" fillOpacity={isDark ? 0.06 : 0.16} />
+      <Path d={BLOB_PATH} fill="none" stroke={`url(#${body})`} strokeOpacity={isDark ? 0.55 : 0.42} strokeWidth={1} />
     </Svg>
   );
 }

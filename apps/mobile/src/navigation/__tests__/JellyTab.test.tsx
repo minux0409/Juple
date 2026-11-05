@@ -71,7 +71,7 @@ describe('the jelly tab indicator', () => {
     // New tab: the pill flows in from the previous tab (travel), the pill, its squash and the icon pop settle with springs (4); the squash and pop start with a short press-in (2);
     // old tab: a timed shrink of its pill, squash and icon (3).
     expect(spring).toHaveLength(4);
-    expect(timing).toHaveLength(5);
+    expect(timing).toHaveLength(6);
     for (const [, config] of [...spring, ...timing]) {
       expect(config.useNativeDriver).toBe(true);
     }
