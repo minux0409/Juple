@@ -8,6 +8,7 @@ import {
   resolveBootstrapStep,
 } from '../auth/bootstrapProgress';
 import { useAuth } from '../auth/AuthContext';
+import { JellyBrandMark } from '../components/JellyBrandMark';
 import { JupleBrandMark } from '../components/JupleBrandMark';
 import { ProgressBar } from '../components/ProgressBar';
 import { colors, spacing, themedStyles } from '../theme/tokens';
@@ -51,7 +52,8 @@ export function StartupProgressScreen() {
 
   return (
     <View style={styles.container}>
-      <JupleBrandMark size="medium" style={styles.brand} />
+      {/* The mark bounces like jelly while the real steps run (decoration only - the message and bar below are the progress). */}
+      <JellyBrandMark size="medium" style={styles.brand} />
       <Text style={styles.progressMessage}>{t(STEP_MESSAGE_KEYS[step])}</Text>
       <View style={styles.progressBarWrapper}>
         <ProgressBar progress={bootstrapStepFraction(step)} />
