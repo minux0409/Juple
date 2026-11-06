@@ -31,6 +31,7 @@ interface CategoryIconTileProps {
   readonly imageVersion?: string | null;
   /** Tile edge length in dp; the icon glyph itself is drawn at roughly 46% of this. */
   readonly size?: number;
+  readonly shape?: 'tile' | 'circle';
 }
 
 /**
@@ -40,7 +41,7 @@ interface CategoryIconTileProps {
  * of screen, instead of each screen computing its own tile color or falling back to a plain
  * outline icon with no tile at all. A Collection's own photo, when it has one, takes the tile.
  */
-export function CategoryIconTile({ icon, collectionId, color, imageUrl, imageVersion, size = 40 }: CategoryIconTileProps) {
+export function CategoryIconTile({ icon, collectionId, color, imageUrl, imageVersion, size = 40, shape = 'tile' }: CategoryIconTileProps) {
   const [failedUris, setFailedUris] = useState<ReadonlySet<string>>(() => new Set());
   useEffect(() => {
     setFailedUris(new Set());
@@ -52,7 +53,7 @@ export function CategoryIconTile({ icon, collectionId, color, imageUrl, imageVer
   const tile = explicitColorKey || isCustomCollectionColor(explicitColor)
     ? resolveCollectionColorTile((explicitColorKey ?? explicitColor) as CollectionColorValue)
     : categoryTilePalette[Math.abs(collectionId) % categoryTilePalette.length];
-  const borderRadius = radii.md + Math.round(size / 8);
+  const borderRadius = shape === 'circle' ? size / 2 : radii.md + Math.round(size / 8);
   // The kept URI for this photo first; if it cannot load (evicted from the cache after its URL
   // expired, or a picked local file was cleaned up), this response's fresh URL; then the glyph.
   const keptUri = resolveCollectionIconUri(collectionId, imageVersion, imageUrl);

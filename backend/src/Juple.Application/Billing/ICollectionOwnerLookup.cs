@@ -13,10 +13,4 @@ public interface ICollectionOwnerLookup
     /// <summary>The owner of the Collection a pending invitation would add the person to (null when there is no such invitation).</summary>
     Task<long?> FindOwnerUserIdByInvitationAsync(long invitationId, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// The owners of the Collections a merge operation touched (its source and target, even if soft-deleted) - empty when there is no
-    /// such operation. Merges only ever run on the caller's own Collections, so this is normally just the caller; it is resolved
-    /// from the data rather than assumed.
-    /// </summary>
-    Task<IReadOnlyCollection<long>> FindOwnerUserIdsByMergeOperationAsync(Guid operationToken, CancellationToken cancellationToken = default);
 }

@@ -15,7 +15,7 @@ public interface ICollectionAccessService
 
     /// <summary>
     /// The permission AND the content gate for who the caller is - required for every operation on
-    /// the Collection's content (reading links, adding/removing links, reordering, transfer/merge) and
+    /// the Collection's content (reading links, adding/removing links, reordering, transfer) and
     /// for managing it: the Owner needs a lock grant for a locked Collection (CollectionLockedException);
     /// a recipient needs a share-password grant when the Collection has its own share password
     /// (CollectionSharePasswordRequiredException), and a lock grant only on a legacy Collection that

@@ -15,6 +15,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { Pressable } from '../components/Pressable';
+import { TabScreenSafeArea } from '../components/TabScreenSafeArea';
 import { usePullToRefresh } from '../components/PullRefreshControl';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
@@ -30,8 +31,6 @@ import {
   getCollection,
   getCollectionNotificationPreference,
   getCollectionItems,
-  getCollections,
-  mergeCollection,
   removeItemFromCollection,
   renameCollection,
   restoreCollection,
@@ -40,7 +39,6 @@ import {
   setCollectionIcon,
   setCollectionNotificationPreference,
   transferCollectionItem,
-  undoCollectionMerge,
   undoTransferCollectionItem,
   MAX_ITEMS_PER_COPY,
   type Collection,
@@ -68,7 +66,8 @@ import type { ReportTarget } from '../safety/safetyApi';
 import { CollectionUnlockModal } from '../collections/CollectionUnlockModal';
 import { CollectionUnlockPanel } from '../collections/CollectionUnlockPanel';
 import { CollectionHeaderTitle } from '../collections/CollectionHeaderTitle';
-import { headerTitleWithElement } from '../navigation/screenIcons';
+import { CollectionReviewRequestsSheet } from '../collections/CollectionReviewRequestsSheet';
+import { useLayoutDirection } from '../i18n/layoutDirection';
 import { applyCollectionIconImageChange, getIconImageSaveErrorMessage, type CollectionIconImageChange } from '../collections/collectionIconImage';
 import {
   resolveEffectiveCollectionColorValue,
@@ -104,6 +103,8 @@ import { ViewModeToggle } from '../components/ViewModeToggle';
 import { closeOpenRow, useSwipeAwareScrollEnabled } from '../components/swipeableRowCoordinator';
 import { FIRST_PAGE_SKELETON_ROWS } from '../components/DateSectionList';
 import { BellIcon } from '../icons/BellIcon';
+import { BackArrowIcon } from '../icons/BackArrowIcon';
+import { ChevronIcon } from '../icons/ChevronIcon';
 import { BellOffIcon } from '../icons/BellOffIcon';
 import { CheckIcon } from '../icons/CheckIcon';
 import { ArchiveIcon } from '../icons/ArchiveIcon';
@@ -112,14 +113,12 @@ import { copySavedLinkUrl } from '../items/copyLink';
 import { EditIcon } from '../icons/EditIcon';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { LockIcon } from '../icons/LockIcon';
-import { MergeIcon } from '../icons/MergeIcon';
 import { MoveIcon } from '../icons/MoveIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { UnlockIcon } from '../icons/UnlockIcon';
 import { ShareIcon } from '../icons/ShareIcon';
 import { StarIcon } from '../icons/StarIcon';
 import { MoreIcon } from '../icons/MoreIcon';
-import { CollectionTargetPickerDialog } from '../collections/CollectionTargetPickerDialog';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
 import { buildFlatItemRows, type FlatItemRow } from '../items/flatItemRows';
 import { END_REACHED_THRESHOLD, useContinuousViewportFill } from '../items/useContinuousViewportFill';
@@ -131,7 +130,6 @@ import { showCollectionsListAction } from '../navigation/collectionNavigation';
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import type { SocialPushEventType } from '../push/pushEvents';
 import { useViewModePreference, type SavedLinkViewMode } from '../settings/viewModePreference';
-import { useTheme } from '../theme/ThemeContext';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
@@ -319,7 +317,7 @@ const COPY_SELECT_ALL_PAGE_SIZE = 100;
 
 export function CollectionDetailsScreen({ route, navigation }: Props) {
   const swipeScrollEnabled = useSwipeAwareScrollEnabled();
-  const { isDark } = useTheme();
+  const direction = useLayoutDirection();
   // One plane with the app background - the same as Home, 보관함 and the Collections list (header, page, list); the link cards keep
   // their own surface and border on it. Read at render time so a theme change repaints it.
   const pageBackground = colors.background;
@@ -361,9 +359,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   const [isParticipantsSheetVisible, setIsParticipantsSheetVisible] = useState(false);
   const [reporting, setReporting] = useState<{ readonly target: ReportTarget; readonly label: string; readonly preview?: ReportTargetPreview } | null>(null);
-  const [isOwnerApprovalSheetVisible, setIsOwnerApprovalSheetVisible] = useState(false);
+  const [ownerRequestSheet, setOwnerRequestSheet] = useState<'review' | 'approvals' | 'join' | null>(null);
   // 참여 요청 (people waiting to join): a bottom sheet of its own, opened from its row or from a 참여 요청 notification.
-  const [isJoinRequestsSheetVisible, setIsJoinRequestsSheetVisible] = useState(false);
   const [isMyApprovalSheetVisible, setIsMyApprovalSheetVisible] = useState(false);
   // Emoji reactions to the Collection's links (shared Collections only): the optimistic per-link state,
   // this device's recent picks, and the full picker (opened from the menu's "+", one modal at a time).
@@ -387,42 +384,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [isItemActionMenuVisible, setIsItemActionMenuVisible] = useState(false);
   const [isCollectionMenuVisible, setIsCollectionMenuVisible] = useState(false);
 
-  // The stack header's title is this Collection's own icon and name (one line, "…" when long) - not a fixed "컬렉션" label.
-  const headerCollection = collection;
-  useEffect(() => {
-    if (!headerCollection) {
-      return;
-    }
-    navigation.setOptions({
-      title: headerCollection.name,
-      // One flat plane: the bar takes the page's own background (the app background, as on the tab screens) and draws no line or shadow under it.
-      headerStyle: { backgroundColor: colors.background },
-      contentStyle: { backgroundColor: colors.background },
-      headerShadowVisible: false,
-      // The in-screen bar would otherwise tint the arrow in the brand colour; the other stack screens keep it in the text colour.
-      headerTintColor: colors.textPrimary,
-      ...headerTitleWithElement(
-        <CollectionHeaderTitle
-          collectionId={headerCollection.id}
-          color={headerCollection.color}
-          icon={headerCollection.icon}
-          imageUrl={headerCollection.iconImageUrl}
-          imageVersion={headerCollection.iconImageVersion}
-          isLocked={isCollectionLocked(headerCollection)}
-          name={headerCollection.name}
-        />,
-        true,
-      ),
-    });
-  }, [headerCollection, isDark, navigation]);
-  const [targetMode, setTargetMode] = useState<'merge' | null>(null);
-  const [targetCollections, setTargetCollections] = useState<readonly Collection[]>([]);
-  const [targetNextCursor, setTargetNextCursor] = useState<string | null>(null);
-  const [isLoadingMoreTargets, setIsLoadingMoreTargets] = useState(false);
-  const loadingMoreTargetsRef = useRef(false);
-  const [isLoadingTargets, setIsLoadingTargets] = useState(false);
-  const [pendingTarget, setPendingTarget] = useState<Collection | null>(null);
-  const [isMembershipMutation, setIsMembershipMutation] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   // 새 링크 알림 - the caller's own setting for this Collection (null until loaded / not offered).
   const [newLinkNotifications, setNewLinkNotifications] = useState<boolean | null>(null);
@@ -814,12 +775,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }, [loadCollection]),
   );
 
-  // Refresh signaling deliberately separate from AppToast state: revisiting this screen must never
-  // recreate a toast or reset its timer - mirrors CollectionsScreen's own refreshToken effect,
-  // needed because a Merge Undo toast's navigate() call back to this exact Collection can land on
-  // an already-focused screen, which the useFocusEffect above will not re-fire for.
-  // One reload per token: the latest loaders are read through a ref, so a loader that changes identity while it runs (the
-  // link list's refresh does) can never start the reload again.
+  // Notification links can reach the already-focused screen, so each token reloads it once.
   const reloadForTokenRef = useRef(() => {});
   reloadForTokenRef.current = () => {
     loadCollection();
@@ -863,7 +819,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
     navigation.setParams({ openApprovals: undefined });
     if (!isSharedWithMe(collection)) {
-      setIsOwnerApprovalSheetVisible(true);
+      setOwnerRequestSheet('approvals');
     }
   }, [collection, isContentOpen, navigation, openApprovals]);
 
@@ -876,7 +832,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
     navigation.setParams({ openJoinRequests: undefined });
     if (!isSharedWithMe(collection)) {
-      setIsJoinRequestsSheetVisible(true);
+      setOwnerRequestSheet('join');
     }
   }, [collection, isContentOpen, navigation, openJoinRequests]);
 
@@ -1200,52 +1156,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     Linking.openURL(url).catch(() => setNotice(t('item.urlOpenFailed')));
   };
 
-  /** 병합: one target Collection from the plain list (unchanged - the destination picker below is for links). */
-  const openMergePicker = async () => {
-    setIsItemActionMenuVisible(false);
-    setActionMenuItem(null);
-    setIsCollectionMenuVisible(false);
-    setTargetMode('merge');
-    setIsLoadingTargets(true);
-    try {
-      let page = await getCollections(authenticatedRequest, { limit: 50 });
-      let candidates = page.items.filter(candidate => candidate.id !== collectionId);
-      // If the first page only contains the source, advance just until a usable target exists or
-      // pagination ends; do not eagerly fetch every page once a target is available.
-      while (candidates.length === 0 && page.nextCursor) {
-        page = await getCollections(authenticatedRequest, { limit: 50, cursor: page.nextCursor });
-        candidates = page.items.filter(candidate => candidate.id !== collectionId);
-      }
-      setTargetCollections(candidates);
-      setTargetNextCursor(page.nextCursor);
-      if (candidates.length === 0 && page.nextCursor === null) {
-        setTargetMode(null);
-        setNotice(t('collections.addModalEmpty'));
-      }
-    } catch {
-      setTargetMode(null);
-      setNotice(t('collections.errorTargetLoadFallback'));
-    } finally { setIsLoadingTargets(false); }
-  };
-
-  const loadMoreTargets = () => {
-    if (loadingMoreTargetsRef.current || !targetNextCursor || isLoadingTargets || isMembershipMutation) return;
-    loadingMoreTargetsRef.current = true; setIsLoadingMoreTargets(true);
-    void getCollections(authenticatedRequest, { limit: 50, cursor: targetNextCursor }).then(page => {
-      setTargetCollections(previous => {
-        const seen = new Set(previous.map(item => item.id));
-        return [...previous, ...page.items.filter(item => item.id !== collectionId && !seen.has(item.id))];
-      });
-      setTargetNextCursor(page.nextCursor);
-    }).catch(() => { setNotice(t('collections.errorTargetLoadFallback')); setTargetMode(null); })
-      .finally(() => { loadingMoreTargetsRef.current = false; setIsLoadingMoreTargets(false); });
-  };
-
-  const selectTarget = (target: Collection) => {
-    if (!targetMode) return;
-    setPendingTarget(target);
-  };
-
   /**
    * 다른 컬렉션으로 이동 of one of MY links: into one other Collection of mine. Between two Collections
    * nobody else is in it is the server's one atomic move (with its Undo). Anything shared - a shared
@@ -1377,51 +1287,21 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     setActionMenuItem(null);
   };
 
-  const confirmMergeAction = async () => {
-    if (!pendingTarget || isMembershipMutation) return;
-    setIsMembershipMutation(true);
-    try {
-      const targetCollectionId = pendingTarget.id;
-      const merge = await mergeCollection(authenticatedRequest, collectionId, targetCollectionId);
-      // null only for the source-equals-target no-op (see MergeCollectionResult) - nothing was
-      // merged, so there is nothing to offer an Undo for.
-      if (merge.undoOperationId) {
-        const undoOperationId = merge.undoOperationId;
-        showUndoToast({
-          actionLabel: t('toast.undoAction'),
-          message: t('toast.collectionMergeSuccess'),
-          onUndo: async () => {
-            await undoCollectionMerge(authenticatedRequest, undoOperationId);
-            // Backend is the sole source of truth for the restored membership state - this only
-            // re-navigates to (and, via refreshToken, force-refreshes) the target Collection,
-            // never reconstructs a local membership snapshot.
-            navigation.navigate('CollectionDetails', { collectionId: targetCollectionId, refreshToken: Date.now() });
-          },
-          undoErrorMessage: t('toast.undoCollectionMergeError'),
-          noticeTitle: t('common.notice'),
-          confirmLabel: t('common.confirm'),
-        });
-      }
-      navigation.replace('CollectionDetails', { collectionId: targetCollectionId });
-    } catch (caughtError) {
-      setNotice(t(gateNoticeKey(caughtError) ?? 'collections.mergeError'));
-    }
-    finally { setPendingTarget(null); setTargetMode(null); setActionMenuItem(null); setIsMembershipMutation(false); }
-  };
-
-  if (isLoadingCollection && !collection) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: pageBackground }]}>
-        <ActivityIndicator />
-      </View>
-    );
-  }
-
+  const backButton = (
+    <Pressable accessibilityLabel={t('common.back')} accessibilityRole="button"
+      onPress={() => navigation.goBack()} style={styles.toolbarButton} testID="collection-details-back">
+      <BackArrowIcon color={colors.textPrimary} />
+    </Pressable>
+  );
   if (!collection) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: pageBackground }]}>
-        {collectionError ? <LoadFailureState error={collectionError.cause} notice={collectionError.notice} onRetry={() => { loadCollection().catch(() => undefined); }} testID="collection-details-error" /> : null}
-      </View>
+      <TabScreenSafeArea style={styles.safeArea}>
+        <View style={styles.navigationBar}>{backButton}</View>
+        <View style={styles.loadingContainer}>
+          {isLoadingCollection ? <ActivityIndicator /> :
+            collectionError ? <LoadFailureState error={collectionError.cause} notice={collectionError.notice} onRetry={() => { loadCollection().catch(() => undefined); }} testID="collection-details-error" /> : null}
+        </View>
+      </TabScreenSafeArea>
     );
   }
 
@@ -1614,7 +1494,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   };
 
   // The Collection's ⋯ menu - what this caller may do, in a fixed order. The Owner: 수정, the lock,
-  // 병합, then 삭제 last (destructive). Edit and delete used to be header icons of their own.
+  // Keep the destructive delete action last.
   const collectionMenuActions: ActionMenuDialogAction[] = isOwner
     ? [
         { label: t('common.edit'), icon: EditIcon, onPress: closeCollectionMenuThen(() => runUnlocked(openEditDialog)) },
@@ -1623,8 +1503,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         isCollectionLocked(collection)
           ? { label: t('collections.lockRemoveAction'), destructive: true, icon: UnlockIcon, onPress: closeCollectionMenuThen(() => setLockDialogMode('remove')) }
           : { label: t('collections.lockSetTitle'), icon: LockIcon, onPress: closeCollectionMenuThen(() => setLockDialogMode('lock')) },
-        // Merging moves this Category's links, so it is offered only once its content is unlocked.
-        ...(collection.hasCollaborators || isContentLocked ? [] : [{ label: t('collections.mergeWithOther'), icon: MergeIcon, onPress: () => void openMergePicker() }]),
         { label: t('common.delete'), destructive: true, icon: TrashIcon, onPress: closeCollectionMenuThen(() => runUnlocked(confirmDeleteCollection)) },
       ]
     : [
@@ -1650,125 +1528,129 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     : search.isSearching ? (search.hasMore || search.isLoading ? null : search.items.length)
       : collection.itemCount;
 
-  // An Owner request row (승인 요청 / 참여 요청) sits right above the search: it then needs its own gap before the field.
-  const hasPendingRowAboveSearch = isOwner && ((collection.pendingSubmissionCount ?? 0) > 0 || (collection.pendingJoinRequestCount ?? 0) > 0);
+  const toolbar = (
+    <View style={styles.navigationBar}>
+      {backButton}
+      <View style={styles.headerActions} testID="collection-details-toolbar">
+        {/* The caller's own favorite mark - a Contributor has one too; it changes
+            nothing for anyone else, so it is not an Owner-only control. */}
+        <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }} disabled={isTogglingFavorite} onPress={toggleFavoriteAction} style={styles.toolbarButton} testID="collection-details-favorite">
+          <StarIcon color={collection.isFavorite ? colors.warning : colors.border} filled={collection.isFavorite} size={20} />
+        </Pressable>
+        {/* 새 링크 알림 - a plain on/off toggle of the caller's own preference, shown once it is known. */}
+        {offersNewLinkNotifications && newLinkNotifications !== null ? (
+          <Pressable
+            accessibilityLabel={t(newLinkNotifications ? 'collections.newLinkNotificationsOnA11y' : 'collections.newLinkNotificationsOffA11y')}
+            accessibilityRole="button"
+            onPress={() => changeNewLinkNotifications(!newLinkNotifications)}
+            style={styles.toolbarButton}
+            testID="collection-details-notifications"
+          >
+            {/* The shape alone tells the state: a bell when on, a slashed bell when off - no badge. */}
+            {newLinkNotifications
+              ? <BellIcon color={colors.textPrimary} size={20} />
+              : <BellOffIcon color={colors.textSecondary} size={20} />}
+          </Pressable>
+        ) : null}
+        {isOwner ? (
+          // The single entry point for sharing - opens the one Share screen; tapping it never
+          // turns anything on by itself.
+          <Pressable
+            accessibilityLabel={t('collections.shareAction')}
+            accessibilityRole="button"
+            onPress={openOwnerShare}
+            style={styles.toolbarButton}
+            testID="collection-details-share"
+          >
+            <ShareIcon color={colors.textPrimary} size={20} />
+          </Pressable>
+        ) : memberShareUrl ? (
+          // A member passes on the Owner's public link: 친구 / ID / 외부 공유, after the server
+          // confirms it is still public. Nothing about the link's settings (or its password) is
+          // reachable here, and nobody is invited.
+          <Pressable
+            accessibilityLabel={t('collections.sharePublicLinkA11y')}
+            accessibilityRole="button"
+            accessibilityState={{ busy: isCheckingShareLink }}
+            disabled={isCheckingShareLink}
+            onPress={() => {
+              openMemberLinkShare().catch(() => undefined);
+            }}
+            style={styles.toolbarButton}
+            testID="collection-details-share-link"
+          >
+            <ShareIcon color={colors.textPrimary} size={20} />
+          </Pressable>
+        ) : null}
+        {collectionMenuActions.length > 0 ? (
+          <Pressable
+            accessibilityLabel={t('collections.manageAction')}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isDeletingCollection, busy: isDeletingCollection }}
+            disabled={isDeletingCollection}
+            onPress={() => setIsCollectionMenuVisible(true)}
+            style={[styles.toolbarButton, isDeletingCollection && styles.disabledButton]}
+            testID="collection-details-more"
+          >
+            <MoreIcon color={colors.textSecondary} size={20} />
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
+  );
+  const pendingSubmissions = collection.pendingSubmissionCount ?? 0;
+  const pendingJoins = collection.pendingJoinRequestCount ?? 0;
+  const reviewRequestCount = pendingSubmissions + pendingJoins;
+  const reviewTitle = t('collections.reviewRequests');
+  const reviewStatus = t('collections.myPendingStatus', { count: reviewRequestCount });
+  const participantCount = participants?.participants.length ?? otherParticipants + 1;
   const listHeader = (
     <View>
-      <View>
-          {/* One row: who is in it on the start side (the whole stack opens the participant list), the actions on the end side. No
-              link count - the list below shows the links. */}
-          <View style={styles.headerMetaRow}>
-            {showParticipantStack ? (
-              // Small overlapping photos (up to five, then "+N"), drawn from the very first render (placeholder circles until the list
-              // arrives) - never a line of names swapped for photos a moment later.
-              <ParticipantAvatarStack
-                accessibilityHint={t('collections.participantsTitle')}
-                accessibilityLabel={t('collections.participantsAvatarsA11y', { count: stackParticipants?.length ?? otherParticipants + 1 })}
-                maxAvatars={5}
-                onPress={() => setIsParticipantsSheetVisible(true)}
-                participants={stackParticipants}
-                placeholderCount={Math.min(otherParticipants + 1, 5)}
-                hitSlop={{ top: 4, bottom: 4 }}
-                style={styles.participantStack}
-                testID="collection-details-participants"
-              />
-            ) : null}
-            <View style={styles.headerMetaSpacer} />
-            <View hitSlop={{ top: 4, bottom: 4 }} style={styles.headerActions} testID="collection-details-toolbar">
-              {/* The caller's own favorite mark - a Contributor has one too; it changes
-                  nothing for anyone else, so it is not an Owner-only control. */}
-              <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }} disabled={isTogglingFavorite} onPress={toggleFavoriteAction} hitSlop={TOOLBAR_HIT_SLOP} style={styles.toolbarButton} testID="collection-details-favorite">
-                <StarIcon color={collection.isFavorite ? colors.warning : colors.border} filled={collection.isFavorite} size={20} />
-              </Pressable>
-              {/* 새 링크 알림 - a plain on/off toggle of the caller's own preference, shown once it is known. */}
-              {offersNewLinkNotifications && newLinkNotifications !== null ? (
-                <Pressable
-                  accessibilityLabel={t(newLinkNotifications ? 'collections.newLinkNotificationsOnA11y' : 'collections.newLinkNotificationsOffA11y')}
-                  accessibilityRole="button"
-                  onPress={() => changeNewLinkNotifications(!newLinkNotifications)}
-                  hitSlop={TOOLBAR_HIT_SLOP} style={styles.toolbarButton}
-                  testID="collection-details-notifications"
-                >
-                  {/* The shape alone tells the state: a bell when on, a slashed bell when off - no badge. */}
-                  {newLinkNotifications
-                    ? <BellIcon color={colors.textPrimary} size={20} />
-                    : <BellOffIcon color={colors.textSecondary} size={20} />}
-                </Pressable>
-              ) : null}
-            {isOwner ? (
-              // The single entry point for sharing - opens the one Share screen; tapping it never
-              // turns anything on by itself.
-              <Pressable
-                accessibilityLabel={t('collections.shareAction')}
-                accessibilityRole="button"
-                onPress={openOwnerShare}
-                hitSlop={TOOLBAR_HIT_SLOP} style={styles.toolbarButton}
-                testID="collection-details-share"
-              >
-                <ShareIcon color={colors.textPrimary} size={20} />
-              </Pressable>
-            ) : memberShareUrl ? (
-              // A member passes on the Owner's public link: 친구 / ID / 외부 공유, after the server
-              // confirms it is still public. Nothing about the link's settings (or its password) is
-              // reachable here, and nobody is invited.
-              <Pressable
-                accessibilityLabel={t('collections.sharePublicLinkA11y')}
-                accessibilityRole="button"
-                accessibilityState={{ busy: isCheckingShareLink }}
-                disabled={isCheckingShareLink}
-                onPress={() => {
-                  openMemberLinkShare().catch(() => undefined);
-                }}
-                hitSlop={TOOLBAR_HIT_SLOP} style={styles.toolbarButton}
-                testID="collection-details-share-link"
-              >
-                <ShareIcon color={colors.textPrimary} size={20} />
-              </Pressable>
-            ) : null}
-            {collectionMenuActions.length > 0 ? (
-              <Pressable
-                accessibilityLabel={t('collections.manageAction')}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: isDeletingCollection, busy: isDeletingCollection }}
-                disabled={isDeletingCollection}
-                hitSlop={TOOLBAR_HIT_SLOP}
-                onPress={() => setIsCollectionMenuVisible(true)}
-                style={[styles.toolbarButton, isDeletingCollection && styles.disabledButton]}
-                testID="collection-details-more"
-              >
-                <MoreIcon color={colors.textSecondary} size={20} />
-              </Pressable>
-            ) : null}
+      <CollectionHeaderTitle
+        key={collection.id}
+        collectionId={collection.id}
+        color={collection.color}
+        icon={collection.icon}
+        imageUrl={collection.iconImageUrl}
+        imageVersion={collection.iconImageVersion}
+        isLocked={isCollectionLocked(collection)}
+        name={collection.name}
+      />
+      {showParticipantStack ? (
+        <ParticipantAvatarStack
+          accessibilityHint={t('collections.participantsTitle')}
+          accessibilityLabel={t('collections.participantsAvatarsA11y', { count: participantCount })}
+          maxAvatars={5}
+          onPress={() => setIsParticipantsSheetVisible(true)}
+          participants={stackParticipants}
+          placeholderCount={Math.min(otherParticipants + 1, 5)}
+          style={styles.participantStack}
+          testID="collection-details-participants"
+          trailing={
+            <View style={styles.participantSummary}>
+              <Text style={styles.participantCount}>{t('collections.participantsCount', { count: participantCount })}</Text>
+              <ChevronIcon color={colors.textSecondary} direction={direction === 'rtl' ? 'left' : 'right'} size={16} />
             </View>
-          </View>
-      </View>
-      {/* The Owner's 승인 대기: proposed links (승인 후 추가) waiting for them - a clear one-line row
-          (like the 공유 요청 row of the Collections tab), only while there are any. Never part of the link count. */}
-      {isOwner && (collection.pendingSubmissionCount ?? 0) > 0 ? (
-        <PendingActionRow
-          accessibilityLabel={t('collections.pendingSubmissionsA11y', { count: collection.pendingSubmissionCount })}
-          count={collection.pendingSubmissionCount}
-          label={t('collections.pendingSubmissions')}
-          onPress={() => runUnlocked(() => setIsOwnerApprovalSheetVisible(true))}
-          style={styles.pendingRowSpacing}
-          testID="collection-details-pending"
+          }
         />
       ) : null}
-      {/* The Owner's 참여 요청: people waiting to be let in (a CollectionJoinRequest) - an action row of the same family as 받은 승인 요청 above,
-          but a separate row with its own list (applicants, never links), only while there are any. Not a participant list. */}
-      {isOwner && (collection.pendingJoinRequestCount ?? 0) > 0 ? (
+      {isOwner && reviewRequestCount > 0 ? (
         <PendingActionRow
-          accessibilityLabel={t('collections.joinRequestsA11y', { count: collection.pendingJoinRequestCount })}
-          count={collection.pendingJoinRequestCount}
-          label={t('collections.joinRequests')}
-          onPress={() => runUnlocked(() => setIsJoinRequestsSheetVisible(true))}
-          style={styles.pendingRowSpacing}
-          testID="collection-details-join-requests"
+          accessibilityLabel={`${reviewTitle}, ${reviewStatus}`}
+          compact
+          count={reviewRequestCount}
+          label={reviewTitle}
+          onPress={() => runUnlocked(() => {
+            setOwnerRequestSheet('review');
+            loadCollection().catch(() => undefined);
+          })}
+          style={styles.reviewRequests}
+          testID="collection-details-review-requests"
         />
       ) : null}
       {/* 링크 검색 right under the actions - the server-backed search of this Collection. */}
       {isContentLocked ? null : (
-        <View style={[styles.searchBox, hasPendingRowAboveSearch && styles.searchBoxBelowPendingRow]}>
+        <View style={styles.searchBox}>
           <SearchField
             accessibilityHint={t('history.searchMinHint')}
             clearLabel={t('history.searchClear')}
@@ -1847,7 +1729,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   };
 
   return (
-    <View style={[styles.safeArea, { backgroundColor: pageBackground }]} testID="collection-details-screen">
+    <TabScreenSafeArea style={[styles.safeArea, { backgroundColor: pageBackground }]} testID="collection-details-screen">
+      {toolbar}
       {/* Only the password prompt of a locked Collection takes text here - it must stay above the keyboard. */}
       <KeyboardSafeView enabled={isContentLocked}>
       {search.isSearching && !isContentLocked ? (
@@ -2156,8 +2039,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         viewModeKey="replicatePickerViewMode"
         visible={destinationPicker.isVisible}
       />
-      <CollectionTargetPickerDialog collections={targetCollections} isLoading={isLoadingTargets} isLoadingMore={isLoadingMoreTargets} onCancel={() => setTargetMode(null)} onLoadMore={loadMoreTargets} onSelect={selectTarget} visible={targetMode !== null && pendingTarget === null} />
-      <ConfirmDialog cancelLabel={t('common.cancel')} confirmLabel={t('collections.mergeAction')} destructive message={t('collections.mergeConfirmMessage', { source: collection.name, target: pendingTarget?.name })} onCancel={() => { if (!isMembershipMutation) { setPendingTarget(null); setTargetMode(null); } }} onConfirm={() => void confirmMergeAction()} title={t('collections.mergeTitle')} visible={pendingTarget !== null} />
       <CollectionLinkShareSheet
         authenticatedRequest={authenticatedRequest}
         collectionId={collectionId}
@@ -2176,15 +2057,23 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         }}
         visible={isLinkShareSheetVisible && !isOwner}
       />
+      <CollectionReviewRequestsSheet
+        approvalCount={pendingSubmissions}
+        joinCount={pendingJoins}
+        onClose={() => setOwnerRequestSheet(null)}
+        onOpenApprovals={() => runUnlocked(() => setOwnerRequestSheet('approvals'))}
+        onOpenJoinRequests={() => runUnlocked(() => setOwnerRequestSheet('join'))}
+        visible={ownerRequestSheet === 'review' && isOwner && pendingUnlockAction === null}
+      />
       {/* 승인 대기 popups (status lists, not places): the Owner's queue, and my own waiting links in this Collection. */}
       <ApprovalSubmissionSheet
         authenticatedRequest={authenticatedRequest}
         collectionId={collectionId}
         expectedCount={collection.pendingSubmissionCount ?? 0}
         onChanged={refreshAll}
-        onClose={() => setIsOwnerApprovalSheetVisible(false)}
+        onClose={() => setOwnerRequestSheet(null)}
         variant="owner"
-        visible={isOwnerApprovalSheetVisible && isOwner && pendingUnlockAction === null}
+        visible={ownerRequestSheet === 'approvals' && isOwner && pendingUnlockAction === null}
       />
       {/* 참여 요청: the applicants waiting to join - its own sheet in the same family as the approval queue above. */}
       <JoinRequestsSheet
@@ -2192,8 +2081,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         collectionId={collectionId}
         expectedCount={collection.pendingJoinRequestCount ?? 0}
         onChanged={refreshAll}
-        onClose={() => setIsJoinRequestsSheetVisible(false)}
-        visible={isJoinRequestsSheetVisible && isOwner && pendingUnlockAction === null}
+        onClose={() => setOwnerRequestSheet(null)}
+        visible={ownerRequestSheet === 'join' && isOwner && pendingUnlockAction === null}
       />
       <ApprovalSubmissionSheet
         authenticatedRequest={authenticatedRequest}
@@ -2232,14 +2121,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         visible={isParticipantsSheetVisible && pendingUnlockAction === null}
       />
       {notice ? <ConfirmDialog confirmLabel={t('common.confirm')} message={notice} onConfirm={() => setNotice(null)} title={t('common.notice')} visible /> : null}
-    </View>
+    </TabScreenSafeArea>
   );
 }
 
 const ICON_BUTTON_SIZE = 36;
-// The icon row of favorite / bell / share / ⋯: 36dp tall; the buttons reach the 44dp touch size through hitSlop.
-const TOOLBAR_HEIGHT = 36;
-const TOOLBAR_HIT_SLOP = { top: 4, bottom: 4, left: 2, right: 2 };
 
 const styles = themedStyles(() => ({
   sharedByRow: {
@@ -2268,44 +2154,31 @@ const styles = themedStyles(() => ({
     justifyContent: 'center',
     padding: 24,
   },
-  // paddingTop is intentionally smaller than the other three sides - the navigation header above
-  // already reserves its own vertical rhythm/elevation, so a full 24 on top read as an extra gap
-  // beneath it (see this round's "content starts slightly higher" request). Horizontal/bottom stay
-  // at the same 24 the rest of the screen (and other Juple detail screens) already use.
   content: {
     flexGrow: 1,
     paddingBottom: spacing.xl,
-    paddingHorizontal: spacing.xl,
-    // No top padding: the 36dp icon row's own 8dp inset is the gap under the bar.
-    paddingTop: 0,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
   },
-  // Item count on the start edge, the favorite/share/⋯ icons pinned to the end edge - a second row
-  // below the title/favorite row (see this round's "개수 오른쪽 끝" header layout requirement).
-  headerMetaRow: {
+  navigationBar: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+    minHeight: minTouchTarget,
+    paddingHorizontal: spacing.sm,
   },
-  // In the header's one row: centered with the actions, no top offset of its own.
-  // Many participants never push the buttons: the stack takes only the room left of them and clips there.
-  participantStack: { alignSelf: 'center', flexShrink: 1, marginTop: 0, minHeight: TOOLBAR_HEIGHT, overflow: 'hidden' },
-  headerMetaSpacer: { flex: 1 },
-  // 승인 대기: a full-width, one-line tappable row on its own (the same family as the Collections tab's
-  // 공유 요청 row), tinted so it is seen at a glance - not a small inline label.
-  // Outer spacing only: the 승인 대기 look itself is the shared PendingActionRow.
-  pendingRowSpacing: { marginTop: spacing.md },
+  participantStack: { alignSelf: 'stretch', marginBottom: spacing.sm, marginTop: 0 },
+  participantSummary: { alignItems: 'center', flexDirection: 'row', flexShrink: 1, gap: spacing.xs, marginStart: spacing.md, minWidth: 0 },
+  reviewRequests: { marginBottom: spacing.md },
+  participantCount: { color: colors.textSecondary, flexShrink: 1, fontSize: 14, fontWeight: '600' },
   // The controls row above already carries the gap; this one the gap to the first link.
   myPendingRowSpacing: { marginBottom: LINK_CONTROLS_BOTTOM_GAP },
-  // Bare icons in one row - no border, fill or shadow. The row is as tall as one control so the participants' row lines up with it.
   headerActions: {
     alignItems: 'center',
     flexDirection: 'row',
     flexShrink: 0,
-    height: TOOLBAR_HEIGHT,
-    marginStart: spacing.sm,
   },
-  toolbarButton: { alignItems: 'center', height: TOOLBAR_HEIGHT, justifyContent: 'center', width: 38 },
+  toolbarButton: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
   // Icon-only, no border box (see this round's "버튼마다 큰 border box를 만들지 말 것") - the
   // Pressable itself is the full min touch target even though the icon drawn inside it is
   // visually compact (size=20), so the tappable area never shrinks below 44x44dp.
@@ -2368,8 +2241,6 @@ const styles = themedStyles(() => ({
   flatGridRow: { flexDirection: 'row' },
   imageSectionLast: { paddingBottom: spacing.xs },
   searchBox: { marginBottom: spacing.sm },
-  // Under the Owner's request row(s): the same spacing.md that separates those rows from each other and from the header.
-  searchBoxBelowPendingRow: { marginTop: spacing.md },
   searchHint: { color: colors.textSecondary, fontSize: 12, marginTop: spacing.xs },
   searchStatus: { marginTop: spacing.xl },
   sortRowSpacer: { flex: 1 },

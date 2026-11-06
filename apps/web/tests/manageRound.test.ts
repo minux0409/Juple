@@ -245,11 +245,3 @@ describe('8-12. moving and copying links: the existing Backend API only', () => 
 });
 
 // 12. 내 컬렉션으로 복제 - see tests/cloneRound.test.ts (the shared editor page).
-
-describe('13. link actions never merge (병합 is the Collection header\'s alone - tests/mergeRound.test.ts)', () => {
-  it('the link details and the shared-link views never call merge', () => {
-    for (const file of ['app/(app)/items/[itemId]/ItemDetailContent.tsx', 'app/(app)/collections/[collectionId]/items/[itemId]/SharedItemContent.tsx', 'app/(app)/collections/[collectionId]/clone/CloneCollectionView.tsx']) {
-      assert.doesNotMatch(source(file), /mergePath|\/merge|mergeWithOther/, file);
-    }
-  });
-});

@@ -17,7 +17,7 @@ namespace Juple.IntegrationTests.Collections;
 
 /// <summary>
 /// CollectionItem.VisibleSinceUtc - when a membership became visible content of ITS Collection - against the real schema.
-/// Every creation path stamps it from the authoritative operation time (direct add, approved proposal, copy-in, move/merge
+/// Every creation path stamps it from the authoritative operation time (direct add, approved proposal, copy-in, move
 /// target, restored membership) while AddedAtUtc keeps its existing browsing/history meaning; the subscription freeze reads
 /// only VisibleSinceUtc. Nothing here is visible to a user: browsing, ordering and dates are asserted unchanged.
 /// </summary>
@@ -356,25 +356,6 @@ public sealed class CollectionItemVisibleSinceIntegrationTests : IAsyncLifetime
         Assert.Equal(Operation, restored.AddedAtUtc);
         Assert.Equal(Operation, restored.VisibleSinceUtc);
         AssertStamped(restored);
-    }
-
-    // ---------------------------------------------------------------- merge
-
-    [Fact]
-    public async Task Merge_TargetMembershipsGetTheMergeTime_KeepTheirBrowsingDate_AndTheSourceIsUntouched()
-    {
-        var item = await NewItemAsync(_owner, "https://example.test/merge");
-        await new CollectionStore(_db).AddAsync(_owner, _a, item, Old);
-
-        await new CollectionStore(_db, null, null, new StubTime(Operation)).MergeAsync(_owner, _a, _b);
-
-        var target = await MembershipAsync(_b, item);
-        var source = await MembershipAsync(_a, item);
-        Assert.Equal(Old, target.AddedAtUtc);
-        Assert.Equal(Operation, target.VisibleSinceUtc);
-        AssertStamped(target);
-        Assert.Equal(Old, source.AddedAtUtc);
-        Assert.Equal(Old, source.VisibleSinceUtc);
     }
 
     // ---------------------------------------------------------------- migration of existing rows

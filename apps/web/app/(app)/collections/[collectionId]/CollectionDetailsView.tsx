@@ -29,10 +29,8 @@ import { collectionNewLinksReadPath, type NotificationReadResult } from '../../.
 import { CollectionTileView } from '../CollectionsView';
 import { Modal } from '../../Modal';
 import { ParticipantsPanel, ParticipantStack, SharePanel } from './CollectionSharing';
+import { peekCloneResult } from '../../../../lib/collectionOperations';
 import { CloneResultBanner } from './CloneResultBanner';
-import { MergeCollection } from './MergeCollection';
-import { MergeUndoBanner } from './MergeUndoBanner';
-import { canMergeCollection, peekCloneResult, peekMergeUndo } from '../../../../lib/collectionOperations';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ActionMenu, type MenuAction } from '../../Popover';
 import { UnlockPanel } from './UnlockPanel';
@@ -122,13 +120,12 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
   // A Collections card's 공유 arrives as `?panel=share`: the share screen opens at once (only if this person may share - checked below),
   // and the address is cleaned so a reload or Back does not reopen it.
   const wantsSharePanel = useSearchParams().get('panel') === 'share';
-  const [panel, setPanel] = useState<'share' | 'participants' | 'merge' | null>(wantsSharePanel ? 'share' : null);
+  const [panel, setPanel] = useState<'share' | 'participants' | null>(wantsSharePanel ? 'share' : null);
   // 받은 승인 요청: the Owner's notification arrives as `?requests=1` (opens the answering dialog once the Collection and its gate are open).
   const wantsRequests = useSearchParams().get(REQUESTS_PARAM) === '1';
-  const [requestsOpen, setRequestsOpen] = useState(wantsRequests);
+  const [requestsMode, setRequestsMode] = useState<'review' | 'direct' | null>(wantsRequests ? 'direct' : null);
+  const requestsOpen = requestsMode !== null;
   const [managementMode, setManagementMode] = useState<CollectionManagementMode>(null);
-  // Arrived here from 다른 컬렉션과 병합: 되돌리기 is offered for a moment (in memory only; see MergeUndoBanner).
-  const [mergeUndo, setMergeUndo] = useState(() => (collectionId === null ? null : peekMergeUndo(collectionId)));
   // Arrived here from 내 컬렉션으로 복제: how the copy went (in memory only; see CloneResultBanner).
   const [cloneResult, setCloneResult] = useState(() => (collectionId === null ? null : peekCloneResult(collectionId)));
   const router = useRouter();
@@ -137,7 +134,6 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
       router.replace(collectionHref(collectionId), { scroll: false });
     }
   }, [collectionId, router, wantsRequests, wantsSharePanel]);
-  const [mergeFailure, setMergeFailure] = useState<string | null>(null);
   // 새 링크 알림 (mobile's header bell / long-press item): the caller's own On / Off for this Collection, offered wherever someone else
   // can add links - a Collection shared with me, or mine with members or a public link. Null until the server has answered (nothing is
   // offered on a guess). Only the latest change counts; a failed save puts the previous state back and says so.
@@ -190,7 +186,6 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
       },
     );
   };
-  const closeMergeUndo = useCallback(() => setMergeUndo(null), []);
 
   // The content is really open (its links were read, past the lock / share-password gate): that is reading its 새 링크 notifications,
   // as on mobile - once per visit (and again after an unlock), best effort; the bell takes the server's new total. Its 승인 대기 count is
@@ -370,6 +365,9 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
     setContentToken(token => token + 1);
   };
 
+  const reviewRequestCount = (collection.pendingSubmissionCount ?? 0) + (collection.pendingJoinRequestCount ?? 0);
+  const reviewStatus = formatMessage(dictionary.requestsMyPendingStatus, { count: reviewRequestCount });
+
   // Who added each link is shown only in a shared Collection (never repeated avatars of "me" in a personal one).
   const showAdders = shouldShowLinkAdders(collection, []);
 
@@ -383,14 +381,10 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
         memberShareUrl={memberShareUrl}
         onOpenParticipants={() => setPanel('participants')}
         menuActions={
-          // A Collection shared with me, its content open: 내 컬렉션으로 복제. My own, nobody else in it, its content open: 다른 컬렉션과
-          // 병합 (the server refuses anything else too). The two never appear together.
           [
             ...(isSharedWithMe(collection) && !gate
               ? [{ key: 'clone', label: dictionary.cloneToMine, icon: 'Copy' as const, onSelect: () => router.push(`${collectionHref(collection.id)}/clone`) }]
-              : canMergeCollection(collection, !gate && (!isCollectionLocked(collection) || unlockTokenFor(collection.id) !== null))
-                ? [{ key: 'merge', label: dictionary.mergeWithOther, icon: 'Merge' as const, onSelect: () => setPanel('merge') }]
-                : []),
+              : []),
             ...(newLinkNotifications === null
               ? []
               : [
@@ -430,14 +424,16 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
         participants={participants}
         participantsFailed={participantsFailed}
       />
-      {/* The Owner's received requests (links proposed for approval, people asking to join): one row, the red count at its end. */}
-      {!isSharedWithMe(collection) && !gate && (collection.pendingSubmissionCount ?? 0) + (collection.pendingJoinRequestCount ?? 0) > 0 ? (
+      {/* The Owner's received requests (links proposed for approval, people asking to join): one entry with the localized total. */}
+      {!isSharedWithMe(collection) && !gate && reviewRequestCount > 0 ? (
         <RequestRow
-          accessibleLabel={formatMessage(dictionary.requestsPendingSubmissionsA11y, { count: (collection.pendingSubmissionCount ?? 0) + (collection.pendingJoinRequestCount ?? 0) })}
-          count={(collection.pendingSubmissionCount ?? 0) + (collection.pendingJoinRequestCount ?? 0)}
+          accessibleLabel={dictionary.requestsReviewTitle + ', ' + reviewStatus}
+          count={reviewRequestCount}
           expanded={requestsOpen}
-          label={dictionary.requestsPendingSubmissions}
-          onClick={() => setRequestsOpen(true)}
+          label={dictionary.requestsReviewTitle}
+          statusText={reviewStatus}
+          variant="review"
+          onClick={() => setRequestsMode('review')}
           testId="collection-received-requests"
         />
       ) : null}
@@ -448,8 +444,9 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
             setReloadToken(token => token + 1);
             setContentToken(token => token + 1);
           }}
-          onClose={() => setRequestsOpen(false)}
+          onClose={() => setRequestsMode(null)}
           open={requestsOpen}
+          review={requestsMode === 'review'}
         />
       ) : null}
       <CollectionManagementDialogs
@@ -490,18 +487,6 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
         />
       </Modal>
       {cloneResult ? <CloneResultBanner onDone={() => setCloneResult(null)} outcome={cloneResult} /> : null}
-      {panel === 'merge' ? <MergeCollection collection={collection} onClose={() => setPanel(null)} onFailed={setMergeFailure} /> : null}
-      {mergeUndo ? (
-        <MergeUndoBanner
-          onDone={closeMergeUndo}
-          onUndone={() => {
-            setReloadToken(token => token + 1);
-            setContentToken(token => token + 1);
-          }}
-          undo={mergeUndo}
-        />
-      ) : null}
-      {mergeFailure ? <p className={styles.fieldError} data-merge-failed role="alert">{mergeFailure}</p> : null}
       <Modal closeLabel={dictionary.close} onClose={() => setPanel(null)} open={panel === 'participants'} title={dictionary.participantsTitle}>
         <ParticipantsPanel data={participants} dictionary={dictionary} failed={participantsFailed} />
       </Modal>

@@ -26,6 +26,7 @@ import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { reconcileCollectionShortcuts } from '../categories/collectionShortcutSync';
 import {
+  cancelMyJoinRequest,
   createCollection,
   getCollections,
   getMyPendingSubmissionTotal,
@@ -48,6 +49,7 @@ import { ReceivedInvitationsSheet } from '../collections/ReceivedInvitationsShee
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import { formatBadgeCount } from '../components/badgeCount';
 import { CountBadge } from '../components/CountBadge';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { subscribeCollectionNewLinksRead } from '../notifications/notificationState';
 import { CollectionStatusBadges } from '../collections/CollectionStatusBadges';
@@ -288,6 +290,9 @@ export function CollectionsScreen() {
     setPendingJoins(rows => rows.filter(row => row.requestId !== requestId));
   }), []);
   const [pendingJoins, setPendingJoins] = useState<readonly MyJoinRequest[]>([]);
+  const [joinToWithdraw, setJoinToWithdraw] = useState<MyJoinRequest | null>(null);
+  const [isWithdrawingJoin, setIsWithdrawingJoin] = useState(false);
+  const withdrawingJoinRef = useRef(false);
 
   const loadRequestIdRef = useRef(0);
   /** The request options of the current search: nothing at all without one, so a plain list is asked exactly as it always was. */
@@ -796,10 +801,30 @@ export function CollectionsScreen() {
     (filter === 'all' || filter === 'shared') && searchTerm === ''
       ? [...pendingJoins.map<PendingJoinEntry>(join => ({ pendingJoin: join })), ...activeList.items]
       : activeList.items;
-  const openPendingJoin = (join: MyJoinRequest) => navigation.navigate('SharedCollection', { publicId: join.publicId });
   const openCollection = (collection: Collection) =>
     navigation.navigate('CollectionDetails', { collectionId: collection.id });
   const { showNotificationToast } = useAppToast();
+  const closeJoinWithdrawal = () => {
+    if (!withdrawingJoinRef.current) setJoinToWithdraw(null);
+  };
+  const withdrawJoin = async () => {
+    if (!joinToWithdraw || withdrawingJoinRef.current) return;
+    withdrawingJoinRef.current = true;
+    setIsWithdrawingJoin(true);
+    try {
+      await cancelMyJoinRequest(authenticatedRequest, joinToWithdraw.requestId);
+      invalidateOtherFilters(filterRef.current);
+      load(filterRef.current, 'refresh');
+      loadMyPendingTotal();
+      attentionStore?.refresh(['collections'], true).catch(() => undefined);
+    } catch {
+      showNotificationToast(t('submissions.cancelFailed'));
+    } finally {
+      setJoinToWithdraw(null);
+      setIsWithdrawingJoin(false);
+      withdrawingJoinRef.current = false;
+    }
+  };
   // The "open original" icon of a link suggestion: the saved page in the browser. Only plain http(s) is ever opened (checked here as well as
   // when the icon is drawn); no Linking.canOpenURL pre-check (Android package visibility - see ItemDetailsScreen.openOriginalUrl). The search,
   // the tab and the panel are left as they are, so coming back finds the same state.
@@ -1002,7 +1027,7 @@ export function CollectionsScreen() {
           )
         }
         renderItem={({ item }) => 'pendingJoin' in item ? (
-          <PendingJoinCard join={item.pendingJoin} onPress={() => openPendingJoin(item.pendingJoin)} variant={viewMode} />
+          <PendingJoinCard join={item.pendingJoin} onPress={() => setJoinToWithdraw(item.pendingJoin)} variant={viewMode} />
         ) : viewMode === 'grid' ? (
           <CollectionTile
             collection={item}
@@ -1070,6 +1095,16 @@ export function CollectionsScreen() {
         visible={isMyPendingSheetVisible}
       />
 
+      <ConfirmDialog
+        busy={isWithdrawingJoin}
+        cancelLabel={t('submissions.keepRequest')}
+        confirmLabel={t('submissions.cancelRequest')}
+        message={t('sharedCollection.cancelJoinMessage')}
+        onCancel={closeJoinWithdrawal}
+        onConfirm={withdrawJoin}
+        title={t('sharedCollection.cancelJoinTitle')}
+        visible={joinToWithdraw !== null}
+      />
       <CategoryEditorDialog
         error={createError}
         initialColor={DEFAULT_COLLECTION_COLOR}

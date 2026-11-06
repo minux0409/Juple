@@ -30,24 +30,18 @@ export function DestinationDialog({
   selection,
   contained = [],
   excluded = [],
-  eligible,
   onSubmit,
   errorMessage,
   onClose,
-  viewModes,
 }: {
   readonly title: string;
   readonly confirmLabel: string;
   readonly selection: 'single' | 'multiple';
   readonly contained?: readonly number[];
   readonly excluded?: readonly number[];
-  /** Only these are offered (병합: mine, not itself, nobody else in it). */
-  readonly eligible?: (collection: CollectionSummary) => boolean;
   readonly onSubmit: (destinations: readonly PickedDestination[]) => Promise<void>;
   readonly errorMessage: (error: unknown) => string;
   readonly onClose: () => void;
-  /** Offers the picker's List | Grid switch (병합). */
-  readonly viewModes?: boolean;
 }) {
   const { api, dictionary, onSessionLost } = useSignedInApp();
   const [destinations, setDestinations] = useState<readonly CollectionSummary[] | null>(null);
@@ -63,7 +57,7 @@ export function DestinationDialog({
     loadOwnedCollections(api).then(
       list => {
         if (!ignore) {
-          setDestinations(list.filter(collection => !excluded.includes(collection.id) && (eligible ? eligible(collection) : true)));
+          setDestinations(list.filter(collection => !excluded.includes(collection.id)));
         }
       },
       caught => {
@@ -148,7 +142,6 @@ export function DestinationDialog({
             }}
             selectedIds={new Set([...chosen, ...containedIds])}
             session={session}
-            viewModes={viewModes}
           />
         )}
         {failed ? <p className={styles.formError}>{dictionary.destinationsLoadFailed}</p> : null}

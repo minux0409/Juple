@@ -82,12 +82,6 @@ type Palette = Readonly<Record<ColorRole, string>>;
  * is the light coral the Dark theme already used for destructive actions.
  */
 export const BRAND_PRIMARY = '#6751FC';
-/**
- * The pink -> violet -> blue part of the Juple brand gradient (scripts/generate-brand-assets.py STOPS at 55% / 80% / 100%; the Web's
- * --brand-gradient). Decoration only - a soft fill behind a brand-coloured glyph (the selected tab's jelly indicator), never a text
- * or icon colour, so no contrast pairing depends on it. The same in Light and Dark; each use sets its own opacity per theme.
- */
-export const BRAND_GRADIENT_STOPS = ['#F133C5', BRAND_PRIMARY, '#51A1FD'] as const;
 const BRAND_DANGER = '#FF8A8A';
 /**
  * The red of the "J" in the Juple wordmark (assets/branding/juple-wordmark.png): the J runs from #FC7660 at the top to #FB5C74 at the

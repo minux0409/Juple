@@ -239,16 +239,11 @@
     "itemManageAction": "リンクのその他の操作",
     "addToOther": "別のコレクションに複製",
     "moveToOther": "別のコレクションに移動",
-    "mergeWithOther": "別のコレクションと統合",
     "targetPickerTitle": "コレクションを選択",
     "moveTitle": "リンクを移動",
     "moveAction": "移動",
     "moveConfirmMessage": "このリンクを\"{{target}}\"に移動しますか？",
     "moveError": "リンクを移動できませんでした。",
-    "mergeTitle": "コレクションを統合",
-    "mergeAction": "統合",
-    "mergeConfirmMessage": "\"{{source}}\"を\"{{target}}\"に統合しますか？リンクがまとめられ、このコレクションは削除されます。",
-    "mergeError": "コレクションを統合できませんでした。",
     "errorTargetLoadFallback": "コレクションを読み込めませんでした。",
     "myCategoriesTab": "マイコレクション",
     "sharedCategoriesTab": "共有コレクション",
@@ -278,6 +273,7 @@
     "filterAll": "すべて",
     "participantsMore": "{{names}} ほか{{count}}人",
     "participantsTitle": "参加者",
+    "participantsCount": "参加者{{count}}人",
     "participantsLoadFallback": "参加者を読み込めませんでした。",
     "participantMe": "{{name}}（自分）",
     "roleOwner": "オーナー",
@@ -302,6 +298,7 @@
     "saveOutcomeAlreadyPending": "選んだコレクションでは、このリンクはすでに承認待ちです。",
     "saveOutcomeAlreadyInCollection": "選んだコレクションにはすでにこのリンクがあります。",
     "roleSubmitter": "承認後に追加",
+    "reviewRequests": "確認待ちのリクエスト",
     "pendingSubmissions": "受信した承認リクエスト",
     "pendingSubmissionsA11y": "受信した承認リクエスト{{count}}件を見る",
     "removeFromSharedOwnerOnly": "共有されたコレクションからリンクを外せるのはオーナーだけです。",
@@ -386,9 +383,7 @@
     "unlinkSuccess": "コレクションから削除しました。",
     "undoUnlinkError": "コレクションからの削除を元に戻せませんでした。",
     "collectionDeleteSuccess": "コレクションを削除しました。",
-    "undoCollectionDeleteError": "コレクションの削除を元に戻せませんでした。",
-    "collectionMergeSuccess": "コレクションを統合しました。",
-    "undoCollectionMergeError": "コレクションの統合を元に戻せませんでした。"
+    "undoCollectionDeleteError": "コレクションの削除を元に戻せませんでした。"
   },
   "myPage": {
     "title": "マイページ",
@@ -1163,8 +1158,8 @@
         "shortcut": "よく開くコレクションは、ホーム画面からすぐに開けます。\nコレクションを長押しして「ホーム画面にショートカットを追加」を選ぶと、\nスマートフォンのホーム画面からそのコレクションへ直接入れます。\n\nロック中のコレクションは、ショートカットから開いてもパスワードが必要です。\n\n作成したショートカットは、不要になったらホーム画面から自分で削除してください。"
       },
       "manageLinks": {
-        "title": "コピー・移動・統合",
-        "body": "コレクションを開き、リンクの「その他」メニューから、ほかのコレクションへのコピー、移動、このコレクションからの削除ができます。削除してもリンク自体は消えません。\n\nコレクションの管理メニューから、別のコレクションと統合することもできます。移動・削除・統合のあとに表示されるメッセージで「元に戻す」をタップできます。"
+        "title": "リンクのコピーと移動",
+        "body": "コレクションを開き、リンクの「その他」メニューから、ほかのコレクションへのコピー、移動、このコレクションからの削除ができます。削除してもリンク自体は消えません。\n\n移動または削除した後は、表示されるメッセージで「元に戻す」をタップします。"
       },
       "publicLink": {
         "title": "リンクでコレクションを共有",

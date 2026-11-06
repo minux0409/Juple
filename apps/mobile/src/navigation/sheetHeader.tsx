@@ -6,7 +6,7 @@ import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Pressable } from '../components/Pressable';
 import { BackArrowIcon } from '../icons/BackArrowIcon';
-import { minTouchTarget, spacing, themedStyles } from '../theme/tokens';
+import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 
 /**
  * The iOS header's layout, like the Android toolbar: the arrow's ink on the content edge (24pt: this inset plus the glyph's own
@@ -60,8 +60,8 @@ function IosStackHeader({ back, navigation, options, titleElement, compact = fal
           // A screen that sits on one flat surface with its content (headerShadowVisible: false) draws no line under the bar.
           borderBottomWidth: options.headerShadowVisible === false ? 0 : StyleSheet.hairlineWidth,
           paddingTop: isSheet ? IOS_SHEET_TOP_PADDING : insets.top,
-          // A flat-plane screen (headerShadowVisible: false) lets its content start right under the row.
-          ...(options.headerShadowVisible === false ? { paddingBottom: 0 } : null),
+          // Keep the standard header's height when its hairline is removed. Collection details stays compact.
+          ...(options.headerShadowVisible === false ? { paddingBottom: compact ? 0 : IOS_BAR_BOTTOM_PADDING } : null),
         },
       ]}
       testID="ios-stack-header"
@@ -88,6 +88,15 @@ function IosStackHeader({ back, navigation, options, titleElement, compact = fal
       </View>
     </View>
   );
+}
+
+/** Match the page background on normal stack screens. Sheets can keep their own chrome. */
+export function flatStackPageOptions(): NativeStackNavigationOptions {
+  return {
+    headerStyle: { backgroundColor: colors.background },
+    contentStyle: { backgroundColor: colors.background },
+    headerShadowVisible: false,
+  };
 }
 
 /**

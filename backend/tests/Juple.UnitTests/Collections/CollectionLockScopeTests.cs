@@ -2,7 +2,6 @@ using Juple.Application.Collections;
 using Juple.Application.Collections.Access;
 using Juple.Application.Collections.AddItemToCollection;
 using Juple.Application.Collections.Locking;
-using Juple.Application.Collections.MergeCollections;
 using Juple.Application.Collections.MoveCollectionItem;
 using Juple.Application.Collections.RemoveItemFromCollection;
 using Juple.Application.Collections.TransferCollectionItem;
@@ -100,19 +99,16 @@ public sealed class CollectionLockScopeTests
     }
 
     [Fact]
-    public async Task TransferAndMerge_NeedAGrantForEveryLockedCollectionInvolved()
+    public async Task Transfer_NeedAGrantForEveryLockedCollectionInvolved()
     {
         var transfer = new TransferCollectionItemService(_access, _managementStore);
-        var merge = new MergeCollectionsService(_access, _managementStore);
 
         await Assert.ThrowsAsync<CollectionLockedException>(() => transfer.TransferAsync(Owner, Unlocked, 99, OtherLocked));
-        await Assert.ThrowsAsync<CollectionLockedException>(
-            () => merge.MergeAsync(Owner, Locked, OtherLocked, Grant(Locked, Owner, 3)));
+        await Assert.ThrowsAsync<CollectionLockedException>(() => transfer.TransferAsync(Owner, Locked, 99, OtherLocked, Grant(Locked, Owner, 3)));
         Assert.Equal(0, _managementStore.Calls);
 
         await transfer.TransferAsync(Owner, Unlocked, 99, OtherLocked, Grant(OtherLocked, Owner, 1));
-        await merge.MergeAsync(Owner, Locked, OtherLocked, $"{Grant(Locked, Owner, 3)},{Grant(OtherLocked, Owner, 1)}");
-        Assert.Equal(2, _managementStore.Calls);
+        Assert.Equal(1, _managementStore.Calls);
     }
 
     [Fact]
@@ -137,33 +133,28 @@ public sealed class CollectionLockScopeTests
     }
 
     [Fact]
-    public async Task TransferMergeAndUndo_AnnounceOnlyLinksNewToTheirTarget_AsOneGroupedEvent()
+    public async Task TransferAndUndo_AnnounceOnlyLinksNewToTheirTarget_AsOneGroupedEvent()
     {
         var publisher = new RecordingSocialPublisher();
         var transfer = new Juple.Application.Collections.TransferCollectionItem.TransferCollectionItemService(_access, _managementStore, publisher);
         var undo = new Juple.Application.Collections.UndoTransferCollectionItem.UndoTransferCollectionItemService(_access, _managementStore, publisher);
-        var merge = new Juple.Application.Collections.MergeCollections.MergeCollectionsService(_access, _managementStore, publisher);
 
         await transfer.TransferAsync(Owner, Unlocked, 99, OtherLocked, Grant(OtherLocked, Owner, 1));
         _managementStore.TargetMembershipCreated = false; // already in the target: nothing new
         await transfer.TransferAsync(Owner, Unlocked, 99, OtherLocked, Grant(OtherLocked, Owner, 1));
 
-        _managementStore.MergeAdded = 17; // 17 new in the target (any duplicates are not counted)
-        await merge.MergeAsync(Owner, Unlocked, OtherLocked, Grant(OtherLocked, Owner, 1));
-        _managementStore.MergeAdded = 0; // duplicates only
-        await merge.MergeAsync(Owner, Unlocked, OtherLocked, Grant(OtherLocked, Owner, 1));
 
         await undo.UndoAsync(Owner, Unlocked, 99, OtherLocked, true, Grant(OtherLocked, Owner, 1));
         _managementStore.SourceMembershipRecreated = false;
         await undo.UndoAsync(Owner, Unlocked, 99, OtherLocked, true, Grant(OtherLocked, Owner, 1));
 
         Assert.Equal(
-            ["items-added:1:12:1:named", "items-added:1:12:17:named", "items-added:1:11:1:named"],
+            ["items-added:1:12:1:named", "items-added:1:11:1:named"],
             publisher.Events);
 
         // A refused operation publishes nothing.
-        await Assert.ThrowsAsync<CollectionLockedException>(() => merge.MergeAsync(Owner, Unlocked, OtherLocked));
-        Assert.Equal(3, publisher.Events.Count);
+        await Assert.ThrowsAsync<CollectionLockedException>(() => transfer.TransferAsync(Owner, Unlocked, 99, OtherLocked));
+        Assert.Equal(2, publisher.Events.Count);
     }
 
     [Fact]
@@ -222,7 +213,6 @@ public sealed class CollectionLockScopeTests
 
         public bool TargetMembershipCreated { get; set; } = true;
 
-        public int MergeAdded { get; set; }
 
         public bool SourceMembershipRecreated { get; set; } = true;
 
@@ -232,13 +222,6 @@ public sealed class CollectionLockScopeTests
             return Task.FromResult(SourceMembershipRecreated);
         }
 
-        public Task<MergeCollectionsResult> MergeAsync(long userId, long sourceCollectionId, long targetCollectionId, CancellationToken cancellationToken = default)
-        {
-            Calls++;
-            return Task.FromResult(new MergeCollectionsResult(Guid.NewGuid(), MergeAdded));
-        }
-
-        public Task UndoMergeAsync(long userId, Guid undoOperationId, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     internal sealed class RecordingSocialPublisher : ISocialNotificationPublisher

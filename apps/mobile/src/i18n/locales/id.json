@@ -239,16 +239,11 @@
     "itemManageAction": "Tindakan link lainnya",
     "addToOther": "Duplikat ke koleksi lain",
     "moveToOther": "Pindahkan ke koleksi lain",
-    "mergeWithOther": "Gabungkan dengan koleksi lain",
     "targetPickerTitle": "Pilih koleksi",
     "moveTitle": "Pindahkan link",
     "moveAction": "Pindahkan",
     "moveConfirmMessage": "Pindahkan link ini ke \"{{target}}\"?",
     "moveError": "Tidak dapat memindahkan link.",
-    "mergeTitle": "Gabungkan koleksi",
-    "mergeAction": "Gabungkan",
-    "mergeConfirmMessage": "Gabungkan \"{{source}}\" ke \"{{target}}\"? Link akan digabungkan dan koleksi ini akan dihapus.",
-    "mergeError": "Tidak dapat menggabungkan koleksi.",
     "errorTargetLoadFallback": "Tidak dapat memuat koleksi.",
     "myCategoriesTab": "Koleksi saya",
     "sharedCategoriesTab": "Dibagikan",
@@ -278,6 +273,7 @@
     "filterAll": "Semua",
     "participantsMore": "{{names}} +{{count}}",
     "participantsTitle": "Peserta",
+    "participantsCount": "Peserta: {{count}}",
     "participantsLoadFallback": "Tidak dapat memuat peserta.",
     "participantMe": "{{name}} (Anda)",
     "roleOwner": "Pemilik",
@@ -302,6 +298,7 @@
     "saveOutcomeAlreadyPending": "Di koleksi yang kamu pilih, tautan ini sudah menunggu persetujuan.",
     "saveOutcomeAlreadyInCollection": "Koleksi yang kamu pilih sudah berisi tautan ini.",
     "roleSubmitter": "Perlu persetujuan",
+    "reviewRequests": "Permintaan untuk ditinjau",
     "pendingSubmissions": "Permintaan persetujuan diterima",
     "pendingSubmissionsA11y": "Lihat {{count}}: Permintaan persetujuan diterima",
     "removeFromSharedOwnerOnly": "Hanya pemilik yang dapat menghapus tautan dari koleksi yang dibagikan dengan Anda.",
@@ -386,9 +383,7 @@
     "unlinkSuccess": "Dihapus dari koleksi.",
     "undoUnlinkError": "Tidak dapat mengurungkan penghapusan dari koleksi.",
     "collectionDeleteSuccess": "Koleksi dihapus.",
-    "undoCollectionDeleteError": "Tidak dapat mengurungkan penghapusan koleksi.",
-    "collectionMergeSuccess": "Koleksi digabungkan.",
-    "undoCollectionMergeError": "Tidak dapat mengurungkan penggabungan koleksi."
+    "undoCollectionDeleteError": "Tidak dapat mengurungkan penghapusan koleksi."
   },
   "myPage": {
     "title": "Halaman Saya",
@@ -1163,8 +1158,8 @@
         "shortcut": "Buka koleksi yang sering dipakai langsung dari layar utama. Tekan lama lalu pilih “Tambahkan pintasan ke layar Utama” untuk masuk ke koleksi itu dari layar utama ponsel.\n\nKoleksi yang terkunci tetap meminta kata sandi saat dibuka dari pintasan.\n\nHapus sendiri pintasan dari layar utama jika sudah tidak diperlukan."
       },
       "manageLinks": {
-        "title": "Salin, pindahkan, dan gabungkan",
-        "body": "Buka koleksi dan gunakan menu lainnya pada tautan untuk menyalinnya ke koleksi lain, memindahkannya, atau mengeluarkannya dari koleksi ini. Mengeluarkan tidak menghapus tautan.\n\nAnda juga bisa menggabungkan koleksi ke koleksi lain dari menu kelolanya. Setelah memindahkan, menghapus, atau menggabungkan, ketuk Urungkan di pesan yang muncul."
+        "title": "Salin dan pindahkan tautan",
+        "body": "Buka koleksi dan gunakan menu lainnya pada tautan untuk menyalinnya ke koleksi lain, memindahkannya, atau mengeluarkannya dari koleksi ini. Mengeluarkan tidak menghapus tautan.\n\nSetelah memindahkan atau menghapus, ketuk Urungkan pada pesan yang muncul."
       },
       "publicLink": {
         "title": "Bagikan koleksi lewat tautan",

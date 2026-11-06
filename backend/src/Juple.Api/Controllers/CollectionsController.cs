@@ -16,7 +16,6 @@ using Juple.Application.Collections.GetCollectionShare;
 using Juple.Application.Collections.ListCollections;
 using Juple.Application.Collections.Public;
 using Juple.Application.Collections.MoveCollectionItem;
-using Juple.Application.Collections.MergeCollections;
 using Juple.Application.Collections.RemoveItemFromCollection;
 using Juple.Application.Collections.RenameCollection;
 using Juple.Application.Collections.RevokeCollectionShare;
@@ -30,7 +29,6 @@ using Juple.Application.Collections.Submissions;
 using Juple.Application.Images;
 using Juple.Application.Items;
 using Juple.Application.Collections.TransferCollectionItem;
-using Juple.Application.Collections.UndoMergeCollections;
 using Juple.Application.Collections.UndoTransferCollectionItem;
 using Juple.Application.Identity;
 using Juple.Application.Users.CurrentUser;
@@ -64,8 +62,6 @@ public sealed class CollectionsController(
     IMoveCollectionItemService moveCollectionItemService,
     ITransferCollectionItemService transferCollectionItemService,
     IUndoTransferCollectionItemService undoTransferCollectionItemService,
-    IMergeCollectionsService mergeCollectionsService,
-    IUndoMergeCollectionsService undoMergeCollectionsService,
     IEnableCollectionShareService enableCollectionShareService,
     IGetCollectionShareService getCollectionShareService,
     IRevokeCollectionShareService revokeCollectionShareService,
@@ -1677,36 +1673,6 @@ public sealed class CollectionsController(
                 request.TargetMembershipCreated, unlockToken, cancellationToken),
             cancellationToken);
 
-    /// <summary>
-    /// Merges all memberships into the target, then soft-deletes the owned source Collection
-    /// atomically. The returned undoOperationId (null only for the source-equals-target no-op) can
-    /// be replayed against the dedicated Undo endpoint below to reverse exactly this merge.
-    /// </summary>
-    [HttpPost("{sourceCollectionId:long}/merge")]
-    [CollectionPermission(CollectionPermission.Reorganize, "sourceCollectionId")]
-    public Task<IActionResult> MergeAsync(
-        long sourceCollectionId, MergeCollectionsRequest request, CancellationToken cancellationToken, [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
-        ExecuteAsync(
-            userId => mergeCollectionsService.MergeAsync(
-                userId, sourceCollectionId, request.TargetCollectionId, unlockToken, cancellationToken),
-            result => Ok(new MergeCollectionsResponse(result.UndoOperationId)),
-            cancellationToken);
-
-    /// <summary>
-    /// Reverses a single Merge atomically: restores the source Collection and removes only the
-    /// Target memberships that merge itself created (never a plain source-ItemIds-minus-target
-    /// pass - see CollectionStore.UndoMergeAsync). Idempotent - undoing an already-undone operation
-    /// is a safe no-op. Ownership is resolved server-side from undoOperationId; no other collection
-    /// or membership state is accepted from the client.
-    /// </summary>
-    [Juple.Api.Billing.CollectionOwnedWrite(MergeOperationProperty = "UndoOperationId")]
-    [HttpPost("merge/undo")]
-    public Task<IActionResult> UndoMergeAsync(
-        UndoMergeCollectionsRequest request, CancellationToken cancellationToken) =>
-        ExecuteAsync(
-            userId => undoMergeCollectionsService.UndoAsync(userId, request.UndoOperationId, cancellationToken),
-            cancellationToken);
-
     private async Task<IActionResult> ExecuteAsync(
         Func<long, Task> action,
         CancellationToken cancellationToken) =>
@@ -1855,11 +1821,8 @@ public sealed class CollectionsController(
 
     public sealed record TransferCollectionItemResponse(bool TargetMembershipCreated);
 
-    public sealed record MergeCollectionsRequest(long TargetCollectionId);
 
-    public sealed record MergeCollectionsResponse(Guid? UndoOperationId);
 
-    public sealed record UndoMergeCollectionsRequest(Guid UndoOperationId);
 
     public sealed record CollectionsResponse(IReadOnlyList<CollectionDto> Items, string? NextCursor);
 

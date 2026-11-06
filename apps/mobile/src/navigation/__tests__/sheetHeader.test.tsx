@@ -4,7 +4,8 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Platform, StyleSheet, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import i18n from '../../i18n';
-import { iosHeaderOptions, iosLeadingTitleOptions } from '../sheetHeader';
+import { flatStackPageOptions, iosHeaderOptions, iosLeadingTitleOptions } from '../sheetHeader';
+import { colors } from '../../theme/tokens';
 
 const originalOS = Platform.OS;
 const metrics = { frame: { x: 0, y: 0, width: 400, height: 800 }, insets: { top: 62, left: 0, right: 0, bottom: 34 } };
@@ -92,6 +93,15 @@ describe('the iOS stack header (drawn in the screen, so it moves with the screen
   it('renders the screen\'s headerRight (a live action such as 모두 읽음)', () => {
     const { renderer } = renderHeader(iosHeaderOptions(), { screen: { title: 'T', headerRight: () => <Text>Action</Text> } });
     expect(renderer.root.findByProps({ children: 'Action' })).toBeTruthy();
+  });
+
+  it('uses the page background and removes only the separator on a regular full-page header', () => {
+    const normal = StyleSheet.flatten(bar(renderHeader(iosHeaderOptions()).renderer).props.style);
+    const screen = flatStackPageOptions();
+    const flat = StyleSheet.flatten(bar(renderHeader(iosHeaderOptions(), { screen }).renderer).props.style);
+    expect(flat).toMatchObject({ backgroundColor: colors.background, borderBottomWidth: 0, paddingTop: normal.paddingTop });
+    expect(flat.paddingBottom).toBe(normal.paddingBottom + normal.borderBottomWidth);
+    expect(screen.contentStyle).toEqual({ backgroundColor: colors.background });
   });
 });
 

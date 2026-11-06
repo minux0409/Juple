@@ -10,3 +10,5 @@
 .rowStatus .label { font-weight: 600; }
 .rowStatus .icon, .rowStatus .chevron { color: var(--app-text-secondary); }
 .statusText { flex-shrink: 0; color: var(--app-text-secondary); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.rowReview { border-color: var(--brand-soft); box-shadow: none; }
+.rowReview .statusText { flex-shrink: 1; min-width: 0; color: var(--brand-text); white-space: normal; overflow-wrap: anywhere; }

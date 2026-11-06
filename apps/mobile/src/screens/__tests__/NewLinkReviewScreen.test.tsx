@@ -340,6 +340,13 @@ describe('링크 저장 - the existing 컬렉션 선택 chooser, many Collection
     const conflicting = (draftCollectionId: number | null, preselectedCollectionId: number | null = null) => ({
       id: 'next', text: 'https://youtu.be/abc?si=xyz', receivedAtEpochMs: Date.now(), initialTitle: 'Next title', preselectedCollectionId, draftTitle: null, draftCollectionId,
     });
+    it('requires an explicit choice so dismissing cannot save or discard the draft', async () => {
+      const { tree } = await render();
+      await act(async () => { getActiveNewLinkReviewDraft()!.onConflictingShare(conflicting(null)); });
+      const dialog = tree.root.findAllByType(ConfirmDialog).find(item => item.props.visible && item.props.title === i18n.t('item.activeDraftConflictTitle'))!;
+      expect(dialog.props.dismissable).toBe(false);
+      expect(saveInboxEntryToCollections).not.toHaveBeenCalled();
+    });
     async function handOff(share: ReturnType<typeof conflicting>) {
       const { tree, navigation } = await render();
       await act(async () => { getActiveNewLinkReviewDraft()!.onConflictingShare(share); });

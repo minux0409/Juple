@@ -8,7 +8,6 @@ using Juple.Application.Collections.Collaboration;
 using Juple.Application.Collections.CopyItems;
 using Juple.Application.Collections.EnableCollectionShare;
 using Juple.Application.Collections.GetCollectionItems;
-using Juple.Application.Collections.MergeCollections;
 using Juple.Application.Collections.Public;
 using Juple.Application.Collections.TransferCollectionItem;
 using Juple.Application.Images;
@@ -414,13 +413,12 @@ public sealed class CollectionItemsAddedIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task TransferAndMerge_NeverReachAnyone_AndARefusedOneLeavesNothingBehind()
+    public async Task Transfer_NeverReachAnyone_AndARefusedOneLeavesNothingBehind()
     {
         var store = _collections;
         var transfer = new TransferCollectionItemService(Access(), store, _publisher);
-        var merge = new MergeCollectionsService(Access(), store, _publisher);
         var source = (await store.CreateAsync(_owner, "Src", "SRC", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
-        // The only "shared" target a transfer/merge may use: an active public link, no members.
+        // The only "shared" target a transfer may use: an active public link, no members.
         var linked = (await store.CreateAsync(_owner, "Linked", "LINKED", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
         await new EnableCollectionShareService(new CollectionShareStore(_db), TimeProvider.System).EnableAsync(_owner, linked);
         var a = await NewItemAsync(_owner, "https://example.test/t-a");
@@ -431,24 +429,20 @@ public sealed class CollectionItemsAddedIntegrationTests : IAsyncLifetime
             await _addItem.AddAsync(_owner, source, id);
         }
 
-        await _addItem.AddAsync(_owner, linked, c); // c is a duplicate for both operations
+        await _addItem.AddAsync(_owner, linked, c); // c is a already in the target
         _db.ChangeTracker.Clear();
 
         Assert.True((await transfer.TransferAsync(_owner, source, a, linked)).TargetMembershipCreated);
         Assert.False((await transfer.TransferAsync(_owner, source, c, linked)).TargetMembershipCreated); // duplicate-only
-        await _addItem.AddAsync(_owner, source, c);
         _db.ChangeTracker.Clear();
-        var merged = await merge.MergeAsync(_owner, source, linked);
-        Assert.Equal(1, merged.AddedToTargetCount); // b is new; c was already there
         Assert.Empty(await ItemsAddedEvents(linked)); // the Owner is the actor, and there is nobody else
 
-        // A shared (collaborative) Collection is refused for transfer/merge - rolled back, nobody told.
+        // A shared (collaborative) Collection is refused for transfer - rolled back, nobody told.
         var other = (await store.CreateAsync(_owner, "Other", "OTHER", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
         var d = await NewItemAsync(_owner, "https://example.test/t-d");
         await _addItem.AddAsync(_owner, other, d);
         _db.ChangeTracker.Clear();
         await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() => transfer.TransferAsync(_owner, other, d, _sharedId));
-        await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() => merge.MergeAsync(_owner, other, _sharedId));
         _db.ChangeTracker.Clear();
         Assert.False(await _db.CollectionItems.AnyAsync(entry => entry.CollectionId == _sharedId && entry.ItemId == d));
         Assert.True(await _db.CollectionItems.AnyAsync(entry => entry.CollectionId == other && entry.ItemId == d));

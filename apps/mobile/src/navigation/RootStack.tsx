@@ -22,7 +22,8 @@ import { TourHost } from '../tour/TourHost';
 import { SubscriptionRequiredPrompt } from '../billing/SubscriptionRequiredPrompt';
 import { MyCollectionSubmissionsScreen } from '../screens/MyCollectionSubmissionsScreen';
 import { headerTitleWithIcon, screenIcons } from './screenIcons';
-import { iosHeaderOptions } from './sheetHeader';
+import { Platform } from 'react-native';
+import { flatStackPageOptions, iosHeaderOptions } from './sheetHeader';
 import { TermsAgreementScreen } from '../safety/TermsAgreementScreen';
 import { TermsUnavailable } from '../safety/TermsUnavailable';
 import { useTermsOnboarding } from '../safety/useTermsOnboarding';
@@ -200,7 +201,24 @@ export function RootStack() {
   return (
     <>
       <TourBackground>
-      <Stack.Navigator screenOptions={iosHeaderOptions()}>
+      <Stack.Navigator screenOptions={({ route }) => {
+        const header = iosHeaderOptions();
+        switch (route.name) {
+          case 'MainTabs':
+          case 'ItemDetails':
+          case 'Tutorial':
+          case 'TermsAgreement':
+          case 'TermsUnavailable':
+          case 'AuthPending':
+          case 'SignIn':
+            return header;
+          case 'CollectionShare':
+            // iOS presents this as a page sheet; Android presents it as a full page.
+            if (Platform.OS === 'ios') return header;
+            break;
+        }
+        return { ...header, ...flatStackPageOptions() };
+      }}>
         {isReady ? (
           <Stack.Group>
             <Stack.Screen component={themedScreen(MainTabs)} name="MainTabs" options={{ headerShown: false }} />

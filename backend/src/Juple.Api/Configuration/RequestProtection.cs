@@ -154,8 +154,8 @@ public static class RequestProtection
             || controller == "Collections" && name.Contains("IconImage", StringComparison.Ordinal))) return "image";
         if (controller == "UrlMetadata") return "metadata";
         if (controller == "Inbox" && write) return "link";
-        if (write && (controller.Contains("Copy", StringComparison.Ordinal) || controller.Contains("Merge", StringComparison.Ordinal)
-            || name.Contains("Merge", StringComparison.Ordinal) || name.Contains("Copy", StringComparison.Ordinal) || name == "EmptyTrash")) return "bulk";
+        if (write && (controller.Contains("Copy", StringComparison.Ordinal)
+            || name.Contains("Copy", StringComparison.Ordinal) || name == "EmptyTrash")) return "bulk";
         // Logout cleanup must not consume the registration bucket after token/locale changes.
         if (HttpMethods.IsPut(context.Request.Method) && controller == "PushDevices") return "push";
         if (write && (controller == "CollectionLockSettings" || name is "SetSharePassword" or "RemoveSharePassword")) return "password";

@@ -239,16 +239,11 @@
     "itemManageAction": "Más acciones del enlace",
     "addToOther": "Duplicar en otra colección",
     "moveToOther": "Mover a otra colección",
-    "mergeWithOther": "Combinar con otra colección",
     "targetPickerTitle": "Seleccionar colección",
     "moveTitle": "Mover enlace",
     "moveAction": "Mover",
     "moveConfirmMessage": "¿Mover este enlace a \"{{target}}\"?",
     "moveError": "No se pudo mover el enlace.",
-    "mergeTitle": "Combinar colecciones",
-    "mergeAction": "Combinar",
-    "mergeConfirmMessage": "¿Combinar \"{{source}}\" con \"{{target}}\"? Los enlaces se combinarán y esta colección se eliminará.",
-    "mergeError": "No se pudo combinar la colección.",
     "errorTargetLoadFallback": "No se pudieron cargar las colecciones.",
     "myCategoriesTab": "Mis colecciones",
     "sharedCategoriesTab": "Compartidas",
@@ -278,6 +273,7 @@
     "filterAll": "Todas",
     "participantsMore": "{{names}} +{{count}}",
     "participantsTitle": "Participantes",
+    "participantsCount": "Participantes: {{count}}",
     "participantsLoadFallback": "No se pudieron cargar los participantes.",
     "participantMe": "{{name}} (tú)",
     "roleOwner": "Propietario",
@@ -302,6 +298,7 @@
     "saveOutcomeAlreadyPending": "En la colección que elegiste, este enlace ya está pendiente de aprobación.",
     "saveOutcomeAlreadyInCollection": "La colección que elegiste ya tiene este enlace.",
     "roleSubmitter": "Con aprobación",
+    "reviewRequests": "Solicitudes por revisar",
     "pendingSubmissions": "Solicitudes de aprobación recibidas",
     "pendingSubmissionsA11y": "Ver {{count}}: Solicitudes de aprobación recibidas",
     "removeFromSharedOwnerOnly": "Solo el propietario puede quitar enlaces de una colección compartida contigo.",
@@ -386,9 +383,7 @@
     "unlinkSuccess": "Se quitó de la colección.",
     "undoUnlinkError": "No se pudo deshacer que se quitara de la colección.",
     "collectionDeleteSuccess": "Colección eliminada.",
-    "undoCollectionDeleteError": "No se pudo deshacer la eliminación de la colección.",
-    "collectionMergeSuccess": "Colección fusionada.",
-    "undoCollectionMergeError": "No se pudo deshacer la fusión de la colección."
+    "undoCollectionDeleteError": "No se pudo deshacer la eliminación de la colección."
   },
   "myPage": {
     "title": "Mi página",
@@ -1163,8 +1158,8 @@
         "shortcut": "Abre una colección que usas a menudo directamente desde tu pantalla de inicio. Mantenla pulsada y elige «Añadir acceso directo a la pantalla de inicio» para entrar en esa colección desde la pantalla de inicio del teléfono.\n\nUna colección bloqueada sigue pidiendo su contraseña al abrirla desde un acceso directo.\n\nElimina tú mismo el acceso directo de tu pantalla de inicio cuando ya no lo necesites."
       },
       "manageLinks": {
-        "title": "Copiar, mover y combinar",
-        "body": "Abre una colección y usa el menú de más opciones de un enlace para copiarlo a otras colecciones, moverlo o quitarlo de esta colección. Quitarlo no elimina el enlace.\n\nTambién puedes combinar una colección con otra desde su menú de gestión. Después de mover, eliminar o combinar, toca Deshacer en el mensaje que aparece."
+        "title": "Copiar y mover enlaces",
+        "body": "Abre una colección y usa el menú de más opciones de un enlace para copiarlo a otras colecciones, moverlo o quitarlo de esta colección. Quitarlo no elimina el enlace.\n\nDespués de mover o eliminar, toca Deshacer en el mensaje que aparece."
       },
       "publicLink": {
         "title": "Compartir una colección con un enlace",

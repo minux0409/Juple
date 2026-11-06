@@ -43,7 +43,6 @@ public sealed class CollectionCollaborationEndpointTests
     [InlineData("MoveItemAsync", CollectionPermission.Reorganize)]
     [InlineData("TransferItemAsync", CollectionPermission.Reorganize)]
     [InlineData("UndoTransferItemAsync", CollectionPermission.Reorganize)]
-    [InlineData("MergeAsync", CollectionPermission.Reorganize)]
     public void OwnerOnlyEndpoints_DeclareTheirPermission(string actionName, CollectionPermission expected)
     {
         Assert.Equal(expected, DeclaredPermission(Action(typeof(CollectionsController), actionName)));

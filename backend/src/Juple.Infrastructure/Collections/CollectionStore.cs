@@ -1,7 +1,6 @@
 ﻿using Juple.Application.Collections;
 using Juple.Application.Collections.HomeSummary;
 using Juple.Application.Collections.ListCollections;
-using Juple.Application.Collections.MergeCollections;
 using Juple.Application.Collections.Public;
 using Juple.Application.Collections.SetCollectionIconImage;
 using Juple.Application.Collections.TransferCollectionItem;
@@ -1830,147 +1829,13 @@ public sealed class CollectionStore(
         return !sourceMembershipExists;
     }
 
-    public async Task<MergeCollectionsResult> MergeAsync(
-        long userId,
-        long sourceCollectionId,
-        long targetCollectionId,
-        CancellationToken cancellationToken = default)
-    {
-        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
-        await EnsureOwnedCollectionsAsync(userId, sourceCollectionId, targetCollectionId, cancellationToken);
-
-        if (sourceCollectionId == targetCollectionId)
-        {
-            await transaction.CommitAsync(cancellationToken);
-            return new MergeCollectionsResult(null);
-        }
-
-        var source = await dbContext.Collections.FirstAsync(
-            collection => collection.Id == sourceCollectionId && collection.UserId == userId, cancellationToken);
-        var targetItemIds = await dbContext.CollectionItems.AsNoTracking()
-            .Where(membership => membership.CollectionId == targetCollectionId)
-            .Select(membership => membership.ItemId)
-            .ToHashSetAsync(cancellationToken);
-        var sourceMemberships = await dbContext.CollectionItems.AsNoTracking()
-            .Where(membership => membership.CollectionId == sourceCollectionId)
-            .OrderBy(membership => membership.SortOrder)
-            .ThenBy(membership => membership.Id)
-            .ToListAsync(cancellationToken);
-        var minSortOrder = await dbContext.CollectionItems.AsNoTracking()
-            .Where(membership => membership.CollectionId == targetCollectionId)
-            .Select(membership => (int?)membership.SortOrder)
-            .MinAsync(cancellationToken) ?? 0;
-
-        var createdMemberships = new List<CollectionItem>();
-        var mergedAtUtc = Clock.GetUtcNow();
-        foreach (var membership in sourceMemberships)
-        {
-            if (targetItemIds.Add(membership.ItemId))
-            {
-                minSortOrder -= SortOrderGap;
-                // AddedAtUtc carried over as before; VisibleSinceUtc is the merge time (a new membership in the target).
-                var created = new CollectionItem(
-                    targetCollectionId, membership.ItemId, userId, membership.AddedAtUtc, mergedAtUtc, minSortOrder);
-                dbContext.CollectionItems.Add(created);
-                createdMemberships.Add(created);
-            }
-        }
-
-        // Soft-delete only, matching regular DeleteAsync - unlike the old hard delete this used to
-        // do, memberships and the share row are never cascaded away, so Undo can restore this exact
-        // state (see UndoMergeAsync) and an active public share becomes reachable again unchanged.
-        source.SoftDelete(DateTimeOffset.UtcNow);
-
-        var operationToken = Guid.NewGuid();
-        var operation = new CollectionMergeOperation(
-            userId, operationToken, sourceCollectionId, targetCollectionId, DateTimeOffset.UtcNow);
-        dbContext.CollectionMergeOperations.Add(operation);
-
-        // This first save assigns real Ids to both the operation row and every newly created
-        // CollectionItem row - CollectionMergeCreatedMembership rows need those real Ids (neither
-        // entity carries a navigation property to the other for EF to fix up automatically - see
-        // both configurations), so they can only be built in a second pass below, still inside the
-        // same transaction.
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        if (createdMemberships.Count > 0)
-        {
-            foreach (var created in createdMemberships)
-            {
-                dbContext.CollectionMergeCreatedMemberships.Add(
-                    new CollectionMergeCreatedMembership(operation.Id, created.Id));
-            }
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-
-        await transaction.CommitAsync(cancellationToken);
-        return new MergeCollectionsResult(operationToken, createdMemberships.Count);
-    }
-
-    public async Task UndoMergeAsync(
-        long userId,
-        Guid undoOperationId,
-        CancellationToken cancellationToken = default)
-    {
-        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
-
-        // Row-locked so two concurrent Undo calls for the same operation (e.g. a client retry racing
-        // its own original request) serialize instead of both observing UndoneAtUtc == null and both
-        // acting on it - mirrors EnsureOwnedCollectionsAsync's own UPDLOCK/HOLDLOCK use.
-        var operation = await dbContext.CollectionMergeOperations
-            .FromSqlInterpolated($"SELECT * FROM collections.CollectionMergeOperations WITH (UPDLOCK, HOLDLOCK) WHERE OperationToken = {undoOperationId}")
-            .FirstOrDefaultAsync(cancellationToken);
-        if (operation is null || operation.UserId != userId)
-        {
-            // Not found and "found but belongs to someone else" are deliberately indistinguishable
-            // to the caller - same NotFound treatment as every other ownership check in this store.
-            throw new CollectionNotFoundException();
-        }
-
-        if (operation.UndoneAtUtc is not null)
-        {
-            // Already undone (e.g. a retried request) - the desired end state was already reached,
-            // so this is a safe no-op rather than re-restoring Source or re-deleting memberships
-            // that may have since changed for unrelated reasons.
-            await transaction.CommitAsync(cancellationToken);
-            return;
-        }
-
-        var source = await dbContext.Collections.FirstOrDefaultAsync(
-            collection => collection.Id == operation.SourceCollectionId && collection.UserId == userId, cancellationToken);
-        if (source is null)
-        {
-            throw new CollectionNotFoundException();
-        }
-        source.Restore();
-
-        // Only the specific CollectionItem rows this merge itself created - never a plain "remove
-        // every source ItemId from Target" pass, which would also strip a membership the Target
-        // already had before the merge, or one the user (re-)added afterward for their own reasons.
-        // A row already gone (removed by the user, or cascaded away with its Item) simply is not
-        // returned by this join - never an error, and Target itself is never read or restored here,
-        // so an already soft-deleted Target stays exactly as it was (see this store's own remarks).
-        var createdCollectionItems = await (
-            from created in dbContext.CollectionMergeCreatedMemberships
-            where created.MergeOperationId == operation.Id
-            join item in dbContext.CollectionItems on created.CollectionItemId equals item.Id
-            select item
-        ).ToListAsync(cancellationToken);
-        dbContext.CollectionItems.RemoveRange(createdCollectionItems);
-
-        operation.MarkUndone(DateTimeOffset.UtcNow);
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-    }
-
     private async Task EnsureOwnedCollectionsAsync(
         long userId,
         long sourceCollectionId,
         long targetCollectionId,
         CancellationToken cancellationToken)
     {
-        // Lock in stable ID order so concurrent transfer/merge operations cannot observe a partially
+        // Lock in stable ID order so concurrent transfers cannot observe a partially
         // changed pair. SQL Server applies UPDLOCK/HOLDLOCK through commit.
         var ownedIds = await dbContext.Collections
             .FromSqlInterpolated($"SELECT * FROM collections.Collections WITH (UPDLOCK, HOLDLOCK) WHERE Id IN ({sourceCollectionId}, {targetCollectionId})")
@@ -1983,7 +1848,7 @@ public sealed class CollectionStore(
             throw new CollectionNotFoundException();
         }
 
-        // v1: a Collection with collaborators (or a pending invitation) is never merged or used as a
+        // v1: a Collection with collaborators (or a pending invitation) is never used as a
         // transfer source/target - no partial "owner's items only" variant. Checked under the
         // UPDLOCK taken above, so an invitation accepted concurrently cannot slip in between.
         var collaborative = await dbContext.CollectionCollaborators

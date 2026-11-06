@@ -16,11 +16,9 @@ import { NewCollectionDialog } from './collections/NewCollectionDialog';
 import { CollectionTileView } from './collections/CollectionsView';
 import { Glyph } from './Glyph';
 import { PasswordDialog } from './PasswordDialog';
-import { ViewModeToggle } from './ViewModeToggle';
 import { CollectionSkeleton } from './Skeletons';
 import styles from './app.module.css';
 
-const PICKER_VIEW_MODES = ['list', 'grid'] as const;
 
 interface Pending {
   readonly collection: CollectionSummary;
@@ -51,7 +49,6 @@ export function CollectionPicker({
   onUnavailable,
   onRefreshed,
   onCreated,
-  viewModes,
 }: {
   /** Null while loading. */
   readonly destinations: readonly CollectionSummary[] | null;
@@ -81,7 +78,6 @@ export function CollectionPicker({
    * Adds the List | Grid switch (mobile's picker toggle) beside the search: List = one compact row per Collection, Grid = icon / photo
    * tiles with the name underneath. Kept for this opening of the picker only - nothing is stored. Absent = the picker as it was.
    */
-  readonly viewModes?: boolean;
 }) {
   const { api, dictionary, onSessionLost } = useSignedInApp();
   const [query, setQuery] = useState('');
@@ -90,7 +86,6 @@ export function CollectionPicker({
     const timer = setTimeout(() => setAppliedQuery(query), COLLECTION_SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [query]);
-  const [layout, setLayout] = useState<'list' | 'grid'>('list');
   const [pending, setPending] = useState<Pending | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [creating, setCreating] = useState<{ readonly error: string | null; readonly busy: boolean; readonly host: Element } | null>(null);
@@ -239,32 +234,21 @@ export function CollectionPicker({
 
   return (
     <div className={styles.collectionPicker}>
-      <div className={viewModes ? styles.pickerToolbar : undefined}>
-        <div className={styles.pickerSearch}>
-          <Glyph className={styles.pickerSearchIcon} name="Search" size={16} />
-          <input
-            aria-label={dictionary.collectionSearchPlaceholder}
-            className={styles.textInput}
-            dir="auto"
-            onChange={event => setQuery(event.target.value)}
-            placeholder={dictionary.collectionSearchPlaceholder}
-            type="search"
-            value={query}
-          />
-          {query ? (
-            <button aria-label={dictionary.searchClear} className={styles.pickerClear} onClick={() => setQuery('')} title={dictionary.searchClear} type="button">
-              ×
-            </button>
-          ) : null}
-        </div>
-        {viewModes ? (
-          <ViewModeToggle
-            groupLabel={dictionary.viewModeLabel}
-            labels={{ list: dictionary.viewList, grid: dictionary.viewGrid, image: dictionary.viewImage }}
-            modes={PICKER_VIEW_MODES}
-            onChange={setLayout}
-            value={layout}
-          />
+      <div className={styles.pickerSearch}>
+        <Glyph className={styles.pickerSearchIcon} name="Search" size={16} />
+        <input
+          aria-label={dictionary.collectionSearchPlaceholder}
+          className={styles.textInput}
+          dir="auto"
+          onChange={event => setQuery(event.target.value)}
+          placeholder={dictionary.collectionSearchPlaceholder}
+          type="search"
+          value={query}
+        />
+        {query ? (
+          <button aria-label={dictionary.searchClear} className={styles.pickerClear} onClick={() => setQuery('')} title={dictionary.searchClear} type="button">
+            ×
+          </button>
         ) : null}
       </div>
       {failed ? <p className={styles.fieldError}>{dictionary.loadFailedTitle}</p> : null}
@@ -276,7 +260,7 @@ export function CollectionPicker({
       {/* About three rows are visible; the rest scrolls inside this box (focusable, so the keyboard can scroll it too). */}
       <div aria-busy={destinations === null} aria-label={dictionary.collectionsLabel} className={styles.pickerScroll} role="group" tabIndex={0}>
         {destinations === null && !failed ? <CollectionSkeleton count={6} mode="grid" /> : null}
-        <div className={`${styles.choiceList} ${viewModes ? (layout === 'grid' ? styles.choiceGridTiles : styles.choiceListRows) : ''}`} data-picker-layout={viewModes ? layout : undefined}>
+        <div className={styles.choiceList}>
           {onNone || clearable ? (
             <button
               aria-pressed={noneSelected === true}
@@ -303,24 +287,16 @@ export function CollectionPicker({
             return (
               <button
                 aria-pressed={selected}
-                className={`${selected ? styles.choiceSelected : styles.choice}${viewModes && layout === 'grid' ? ` ${styles.choiceTile}` : ''}`}
+                className={selected ? styles.choiceSelected : styles.choice}
                 key={collection.id}
                 onClick={() => void requestToggle(collection)}
                 type="button"
               >
-                {/* Grid: the lock is a badge on the thumbnail's top-start corner, so a locked tile is exactly as tall as any other. */}
-                <span className={styles.choiceThumb}>
-                  <CollectionTileView collection={collection} size={48} />
-                  {isCollectionLocked(collection) && viewModes && layout === 'grid' ? (
-                    <span aria-label={dictionary.lockedCollection} className={styles.choiceLockBadge} data-choice-lock role="img" title={dictionary.lockedCollection}>
-                      <Glyph name="Lock" size={11} />
-                    </span>
-                  ) : null}
-                </span>
+                <CollectionTileView collection={collection} size={48} />
                 <span className={styles.choiceName} dir="auto">
                   {collection.name}
                 </span>
-                {isCollectionLocked(collection) && !(viewModes && layout === 'grid') ? <Glyph name="Lock" size={14} /> : null}
+                {isCollectionLocked(collection) ? <Glyph name="Lock" size={14} /> : null}
               </button>
             );
           })}

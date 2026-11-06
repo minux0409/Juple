@@ -239,16 +239,11 @@
     "itemManageAction": "Thao tác khác với liên kết",
     "addToOther": "Nhân bản sang bộ sưu tập khác",
     "moveToOther": "Chuyển sang bộ sưu tập khác",
-    "mergeWithOther": "Gộp với bộ sưu tập khác",
     "targetPickerTitle": "Chọn bộ sưu tập",
     "moveTitle": "Chuyển liên kết",
     "moveAction": "Chuyển",
     "moveConfirmMessage": "Chuyển liên kết này sang \"{{target}}\"?",
     "moveError": "Không thể chuyển liên kết.",
-    "mergeTitle": "Gộp bộ sưu tập",
-    "mergeAction": "Gộp",
-    "mergeConfirmMessage": "Gộp \"{{source}}\" vào \"{{target}}\"? Các liên kết sẽ được gộp và bộ sưu tập này sẽ bị xóa.",
-    "mergeError": "Không thể gộp bộ sưu tập.",
     "errorTargetLoadFallback": "Không thể tải bộ sưu tập.",
     "myCategoriesTab": "Bộ sưu tập của tôi",
     "sharedCategoriesTab": "Đã chia sẻ",
@@ -278,6 +273,7 @@
     "filterAll": "Tất cả",
     "participantsMore": "{{names}} +{{count}}",
     "participantsTitle": "Người tham gia",
+    "participantsCount": "{{count}} người tham gia",
     "participantsLoadFallback": "Không thể tải người tham gia.",
     "participantMe": "{{name}} (bạn)",
     "roleOwner": "Chủ sở hữu",
@@ -302,6 +298,7 @@
     "saveOutcomeAlreadyPending": "Trong bộ sưu tập bạn chọn, liên kết này đang chờ phê duyệt.",
     "saveOutcomeAlreadyInCollection": "Bộ sưu tập bạn chọn đã có liên kết này.",
     "roleSubmitter": "Cần phê duyệt",
+    "reviewRequests": "Yêu cầu cần xem xét",
     "pendingSubmissions": "Yêu cầu duyệt đã nhận",
     "pendingSubmissionsA11y": "Xem {{count}}: Yêu cầu duyệt đã nhận",
     "removeFromSharedOwnerOnly": "Chỉ chủ sở hữu mới có thể gỡ liên kết khỏi bộ sưu tập được chia sẻ với bạn.",
@@ -386,9 +383,7 @@
     "unlinkSuccess": "Đã xóa khỏi bộ sưu tập.",
     "undoUnlinkError": "Không thể hoàn tác việc xóa khỏi bộ sưu tập.",
     "collectionDeleteSuccess": "Đã xóa bộ sưu tập.",
-    "undoCollectionDeleteError": "Không thể hoàn tác việc xóa bộ sưu tập.",
-    "collectionMergeSuccess": "Đã hợp nhất bộ sưu tập.",
-    "undoCollectionMergeError": "Không thể hoàn tác việc hợp nhất bộ sưu tập."
+    "undoCollectionDeleteError": "Không thể hoàn tác việc xóa bộ sưu tập."
   },
   "myPage": {
     "title": "Trang của tôi",
@@ -1163,8 +1158,8 @@
         "shortcut": "Mở nhanh bộ sưu tập hay dùng ngay từ màn hình chính. Nhấn giữ nó và chọn “Thêm lối tắt vào màn hình chính” để vào thẳng bộ sưu tập đó từ màn hình chính của điện thoại.\n\nBộ sưu tập bị khóa vẫn yêu cầu mật khẩu khi mở từ lối tắt.\n\nHãy tự xóa lối tắt khỏi màn hình chính khi không cần nữa."
       },
       "manageLinks": {
-        "title": "Sao chép, di chuyển và hợp nhất",
-        "body": "Mở một bộ sưu tập và dùng menu thêm của liên kết để sao chép sang bộ sưu tập khác, di chuyển, hoặc gỡ khỏi bộ sưu tập này. Gỡ ra không xóa liên kết.\n\nBạn cũng có thể hợp nhất một bộ sưu tập vào bộ sưu tập khác từ menu quản lý. Sau khi di chuyển, xóa hoặc hợp nhất, hãy chạm Hoàn tác trong thông báo hiện ra."
+        "title": "Sao chép và di chuyển liên kết",
+        "body": "Mở một bộ sưu tập và dùng menu thêm của liên kết để sao chép sang bộ sưu tập khác, di chuyển, hoặc gỡ khỏi bộ sưu tập này. Gỡ ra không xóa liên kết.\n\nSau khi di chuyển hoặc xóa, hãy nhấn Hoàn tác trong thông báo hiện ra."
       },
       "publicLink": {
         "title": "Chia sẻ bộ sưu tập bằng liên kết",

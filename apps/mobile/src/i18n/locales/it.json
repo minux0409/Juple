@@ -239,16 +239,11 @@
     "itemManageAction": "Altre azioni del link",
     "addToOther": "Duplica in un’altra raccolta",
     "moveToOther": "Sposta in un’altra raccolta",
-    "mergeWithOther": "Unisci a un’altra raccolta",
     "targetPickerTitle": "Seleziona raccolta",
     "moveTitle": "Sposta link",
     "moveAction": "Sposta",
     "moveConfirmMessage": "Spostare questo link in \"{{target}}\"?",
     "moveError": "Impossibile spostare il link.",
-    "mergeTitle": "Unisci raccolte",
-    "mergeAction": "Unisci",
-    "mergeConfirmMessage": "Unire \"{{source}}\" in \"{{target}}\"? I link verranno uniti e questa raccolta verrà eliminata.",
-    "mergeError": "Impossibile unire la raccolta.",
     "errorTargetLoadFallback": "Impossibile caricare le raccolte.",
     "myCategoriesTab": "Le mie raccolte",
     "sharedCategoriesTab": "Condivise",
@@ -278,6 +273,7 @@
     "filterAll": "Tutte",
     "participantsMore": "{{names}} +{{count}}",
     "participantsTitle": "Partecipanti",
+    "participantsCount": "Partecipanti: {{count}}",
     "participantsLoadFallback": "Impossibile caricare i partecipanti.",
     "participantMe": "{{name}} (tu)",
     "roleOwner": "Proprietario",
@@ -302,6 +298,7 @@
     "saveOutcomeAlreadyPending": "Nella raccolta scelta questo link è già in attesa di approvazione.",
     "saveOutcomeAlreadyInCollection": "La raccolta scelta contiene già questo link.",
     "roleSubmitter": "Con approvazione",
+    "reviewRequests": "Richieste da esaminare",
     "pendingSubmissions": "Richieste di approvazione ricevute",
     "pendingSubmissionsA11y": "Vedi {{count}}: Richieste di approvazione ricevute",
     "removeFromSharedOwnerOnly": "Solo il proprietario può rimuovere link da una raccolta condivisa con te.",
@@ -386,9 +383,7 @@
     "unlinkSuccess": "Rimosso dalla raccolta.",
     "undoUnlinkError": "Impossibile annullare la rimozione dalla raccolta.",
     "collectionDeleteSuccess": "Raccolta eliminata.",
-    "undoCollectionDeleteError": "Impossibile annullare l'eliminazione della raccolta.",
-    "collectionMergeSuccess": "Raccolta unita.",
-    "undoCollectionMergeError": "Impossibile annullare l'unione della raccolta."
+    "undoCollectionDeleteError": "Impossibile annullare l'eliminazione della raccolta."
   },
   "myPage": {
     "title": "Il mio profilo",
@@ -1163,8 +1158,8 @@
         "shortcut": "Apri una raccolta che usi spesso direttamente dalla schermata Home. Tienila premuta e scegli «Aggiungi scorciatoia alla schermata Home» per entrare in quella raccolta dalla schermata Home del telefono.\n\nUna raccolta bloccata chiede comunque la password quando la apri da una scorciatoia.\n\nElimina tu stesso la scorciatoia dalla schermata Home quando non ti serve più."
       },
       "manageLinks": {
-        "title": "Copiare, spostare e unire",
-        "body": "Apri una raccolta e usa il menu «altro» di un link per copiarlo in altre raccolte, spostarlo o rimuoverlo da questa raccolta. Rimuoverlo non elimina il link.\n\nPuoi anche unire una raccolta a un’altra dal suo menu di gestione. Dopo uno spostamento, un’eliminazione o un’unione, tocca Annulla nel messaggio che appare."
+        "title": "Copiare e spostare link",
+        "body": "Apri una raccolta e usa il menu «altro» di un link per copiarlo in altre raccolte, spostarlo o rimuoverlo da questa raccolta. Rimuoverlo non elimina il link.\n\nDopo uno spostamento o un’eliminazione, tocca Annulla nel messaggio che appare."
       },
       "publicLink": {
         "title": "Condividere una raccolta con un link",

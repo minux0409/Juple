@@ -83,8 +83,6 @@ const WEB_ONLY: Readonly<Record<'ko' | 'en', WebOnlyStrings>> = {
     clonePartialFailure: '일부 링크를 복사하지 못했어요. 새 컬렉션에서 확인해 주세요.',
     confirmMove: '이동',
     confirmCopy: '복사',
-    mergeConfirmTitle: "컬렉션을 병합할까요?",
-    mergeConfirmBody: "\"{source}\"의 링크 {count}개를 \"{target}\"에 합칩니다. 이미 \"{target}\"에 있는 링크는 중복되지 않아요. 병합이 완료되면 \"{source}\" 컬렉션은 삭제되며, 병합 직후에는 되돌릴 수 있어요.",
   },
   en: {
     inquiryStatusInProgress: 'In progress',
@@ -160,8 +158,6 @@ const WEB_ONLY: Readonly<Record<'ko' | 'en', WebOnlyStrings>> = {
     clonePartialFailure: 'Some links could not be copied. Check the new collection.',
     confirmMove: 'Move',
     confirmCopy: 'Copy',
-    mergeConfirmTitle: "Merge these collections?",
-    mergeConfirmBody: "Adds the {count} links of \"{source}\" to \"{target}\". Links already in \"{target}\" are not duplicated. Once merged, the collection \"{source}\" is deleted; you can undo the merge right after.",
   },
 };
 

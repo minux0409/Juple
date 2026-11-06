@@ -16,7 +16,7 @@ import { useSheetDismissGesture } from '../components/sheetDismissGesture';
 import type { Collection } from './api/collectionsApi';
 import { KeyboardFieldScope } from '../components/keyboardToolbar';
 
-// See CollectionTargetPickerDialog.tsx's identical constants/animation - the same bottom-sheet
+// Keep the shared bottom-sheet
 // entrance pattern, kept local to each component rather than a new shared helper since only these
 // two components need it.
 const SHEET_ENTER_OFFSET = 800;

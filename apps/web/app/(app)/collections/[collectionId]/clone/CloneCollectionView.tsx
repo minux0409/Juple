@@ -27,7 +27,7 @@ type State = { readonly kind: 'loading' } | { readonly kind: 'failed' } | { read
  * .cloneCollection: chunks of 200, a partial copy said as such). People, invitations, password, sharing, comments, replies, hearts and
  * reactions are never copied, and the source is never changed. The new Collection opens and says how the copy went.
  *
- * Only for a member (the Owner has 병합 instead); a share-password-protected source asks its password first - the copy reads it.
+ * Only for a member; a share-password-protected source asks its password first - the copy reads it.
  */
 export function CloneCollectionView({ collectionIdParam }: { readonly collectionIdParam: string }) {
   const { api, dictionary, onSessionLost } = useSignedInApp();

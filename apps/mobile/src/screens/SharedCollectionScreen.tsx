@@ -2,10 +2,10 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { Pressable } from '../components/Pressable';
 import { PasswordInput } from '../components/PasswordInput';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
@@ -268,16 +268,16 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
 
   if (isCheckingMembership || (!membershipLookupFailed && membership?.isMember) || (isLoadingCollection && !collection && !isUnavailable)) {
     return (
-      <SafeAreaView edges={['top']} style={styles.centerContainer}>
+      <StackScreenSafeArea style={styles.centerContainer}>
         <ActivityIndicator />
-      </SafeAreaView>
+      </StackScreenSafeArea>
     );
   }
 
   // I blocked the Owner: the server's answer (before anything of the Collection was drawn) is only this notice.
   if (membership?.ownerBlockedByYou === true) {
     return (
-      <SafeAreaView edges={['top']} style={styles.safeArea} testID="shared-collection-owner-blocked">
+      <StackScreenSafeArea testID="shared-collection-owner-blocked">
         <ConfirmDialog
           confirmLabel={t('common.close')}
           destructive={false}
@@ -286,13 +286,13 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
           title={t('sharedCollection.blockedOwnerTitle')}
           visible
         />
-      </SafeAreaView>
+      </StackScreenSafeArea>
     );
   }
 
   if (membershipLookupFailed || isUnavailable || !collection || (collection.name === null && !collection.isLocked)) {
     return (
-      <SafeAreaView edges={['top']} style={styles.centerContainer}>
+      <StackScreenSafeArea style={styles.centerContainer}>
         <Text style={styles.unavailableTitle}>{t(membershipLookupFailed ? 'importantState.loadFailedTitle' : 'sharedCollection.unavailableTitle')}</Text>
         <Text style={styles.unavailableMessage}>{t(membershipLookupFailed ? 'auth.backendUnavailable' : 'sharedCollection.unavailableMessage')}</Text>
         <Pressable accessibilityRole="button" testID="shared-collection-retry" style={styles.primaryButton} onPress={() => {
@@ -301,7 +301,7 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
         }}>
           <Text style={styles.primaryLabel}>{t('auth.retry')}</Text>
         </Pressable>
-      </SafeAreaView>
+      </StackScreenSafeArea>
     );
   }
 
@@ -309,9 +309,10 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
   // A protected link before its password was proven: nothing of the Collection is known or shown, not even its name.
   if (collection !== null && !isUnavailable && collection.name === null && collection.isLocked) {
     return (
-      <SafeAreaView edges={['top']} style={styles.safeArea}>
+      <StackScreenSafeArea>
         <KeyboardSafeView>
-          <View style={styles.lockedPanel} testID="shared-collection-locked">
+          <ScrollView contentContainerStyle={styles.lockedPanel} contentInsetAdjustmentBehavior="never"
+            keyboardShouldPersistTaps="handled" testID="shared-collection-locked">
             <Text style={styles.lockedTitle}>{t('sharedCollection.lockedTitle')}</Text>
             <Text style={styles.hint}>{t('sharedCollection.lockedMessage')}</Text>
             <PasswordInput
@@ -347,10 +348,10 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
             >
               {isUnlocking ? <ActivityIndicator color={colors.onBrand} size="small" /> : <Text style={styles.primaryLabel}>{t('sharedCollection.unlockAction')}</Text>}
             </Pressable>
-          </View>
+          </ScrollView>
         </KeyboardSafeView>
         {messageDialog}
-      </SafeAreaView>
+      </StackScreenSafeArea>
     );
   }
 
@@ -382,7 +383,7 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
 
   // The plain background behind the dialog - never any of the Collection's content.
   return (
-    <SafeAreaView edges={['top']} style={styles.safeArea} testID="shared-collection-entry">
+    <StackScreenSafeArea testID="shared-collection-entry">
       {!isAuthenticated ? (
         <ConfirmDialog
           confirmLabel={t('common.confirm')}
@@ -402,6 +403,7 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
           destructive={false}
           message={t('sharedCollection.joinPendingMessage')}
           onConfirm={cancel}
+          onRequestClose={cancel}
           title={t('sharedCollection.joinPendingTitle')}
           visible={!confirmWithdrawal}
         >
@@ -440,14 +442,11 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
         onCancel={() => { if (!isBusyRef.current) setConfirmWithdrawal(false); }}
         onConfirm={() => { withdraw().catch(() => undefined); }} />
       {messageDialog}
-    </SafeAreaView>
+    </StackScreenSafeArea>
   );
 }
 
 const styles = themedStyles(() => ({
-  safeArea: {
-    flex: 1,
-  },
   centerContainer: {
     alignItems: 'center',
     flex: 1,

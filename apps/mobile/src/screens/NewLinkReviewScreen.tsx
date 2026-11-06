@@ -577,7 +577,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
       {categoryPicker.unlockTarget ? <CollectionUnlockDialog collection={categoryPicker.unlockTarget} onCancel={categoryPicker.cancelUnlock}
         onGranted={categoryPicker.onUnlockGranted} onStateChanged={categoryPicker.onUnlockStateChanged} /> : null}
       <ConfirmDialog cancelLabel={t('item.saveDraftAndContinue')}
-        confirmLabel={t('item.discardDraftAndContinue')} message={t('item.activeDraftConflictMessage')}
+        confirmLabel={t('item.discardDraftAndContinue')} dismissable={false} message={t('item.activeDraftConflictMessage')}
         onCancel={resolveConflictWithSave} onConfirm={resolveConflictWithDiscard}
         title={t('item.activeDraftConflictTitle')} visible={pendingConflictShare !== null} />
       {messageDialog}

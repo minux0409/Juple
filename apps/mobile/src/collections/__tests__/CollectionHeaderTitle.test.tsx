@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { StyleSheet, Text } from 'react-native';
+import { Text } from 'react-native';
 import { CollectionHeaderTitle } from '../CollectionHeaderTitle';
 import { CategoryIconTile } from '../CategoryIconTile';
 
@@ -14,14 +14,15 @@ function render(name: string, isLocked = false) {
 }
 
 describe('CollectionHeaderTitle', () => {
-  it('shows the Collection icon and the name on ONE line, ending in an ellipsis however long the name is', () => {
-    const renderer = render('A'.repeat(300));
+  it('shows the Collection icon and caps a long title at two lines', () => {
+    const name = 'A'.repeat(300);
+    const renderer = render(name);
     const title = renderer.root.findByProps({ testID: 'collection-details-title' });
 
     expect(renderer.root.findAllByType(CategoryIconTile)).toHaveLength(1);
-    expect(title.props.numberOfLines).toBe(1);
+    expect(title.props.numberOfLines).toBe(2);
     expect(title.props.ellipsizeMode).toBe('tail');
-    expect(StyleSheet.flatten(title.props.style)).toMatchObject({ flexShrink: 1, minWidth: 0 });
+    expect(title.props.accessibilityLabel).toBe(name);
     act(() => renderer.unmount());
   });
 

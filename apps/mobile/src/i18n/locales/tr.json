@@ -239,16 +239,11 @@
     "itemManageAction": "Diğer bağlantı işlemleri",
     "addToOther": "Başka koleksiyona çoğalt",
     "moveToOther": "Başka koleksiyona taşı",
-    "mergeWithOther": "Başka koleksiyonla birleştir",
     "targetPickerTitle": "Koleksiyon seç",
     "moveTitle": "Bağlantıyı taşı",
     "moveAction": "Taşı",
     "moveConfirmMessage": "Bu bağlantı \"{{target}}\" koleksiyonuna taşınsın mı?",
     "moveError": "Bağlantı taşınamadı.",
-    "mergeTitle": "Koleksiyonları birleştir",
-    "mergeAction": "Birleştir",
-    "mergeConfirmMessage": "\"{{source}}\", \"{{target}}\" ile birleştirilsin mi? Bağlantılar birleştirilecek ve bu koleksiyon silinecek.",
-    "mergeError": "Koleksiyon birleştirilemedi.",
     "errorTargetLoadFallback": "Koleksiyonlar yüklenemedi.",
     "myCategoriesTab": "Koleksiyonlarım",
     "sharedCategoriesTab": "Paylaşılanlar",
@@ -278,6 +273,7 @@
     "filterAll": "Tümü",
     "participantsMore": "{{names}} +{{count}}",
     "participantsTitle": "Katılımcılar",
+    "participantsCount": "Katılımcılar: {{count}}",
     "participantsLoadFallback": "Katılımcılar yüklenemedi.",
     "participantMe": "{{name}} (siz)",
     "roleOwner": "Sahip",
@@ -302,6 +298,7 @@
     "saveOutcomeAlreadyPending": "Seçtiğin koleksiyonda bu bağlantı zaten onay bekliyor.",
     "saveOutcomeAlreadyInCollection": "Seçtiğin koleksiyonda bu bağlantı zaten var.",
     "roleSubmitter": "Onayla eklenir",
+    "reviewRequests": "İncelenecek istekler",
     "pendingSubmissions": "Alınan onay istekleri",
     "pendingSubmissionsA11y": "Alınan onay istekleri: {{count}} adet gör",
     "removeFromSharedOwnerOnly": "Sizinle paylaşılan bir koleksiyondan bağlantıları yalnızca sahibi kaldırabilir.",
@@ -386,9 +383,7 @@
     "unlinkSuccess": "Koleksiyondan kaldırıldı.",
     "undoUnlinkError": "Koleksiyondan kaldırma geri alınamadı.",
     "collectionDeleteSuccess": "Koleksiyon silindi.",
-    "undoCollectionDeleteError": "Koleksiyon silme geri alınamadı.",
-    "collectionMergeSuccess": "Koleksiyon birleştirildi.",
-    "undoCollectionMergeError": "Koleksiyon birleştirme geri alınamadı."
+    "undoCollectionDeleteError": "Koleksiyon silme geri alınamadı."
   },
   "myPage": {
     "title": "Sayfam",
@@ -1163,8 +1158,8 @@
         "shortcut": "Sık kullandığınız bir koleksiyonu doğrudan ana ekranınızdan açın. Uzun basıp «Ana ekrana kısayol ekle»yi seçin; telefonunuzun ana ekranından o koleksiyona girebilirsiniz.\n\nKilitli bir koleksiyon kısayoldan açıldığında da şifre ister.\n\nİhtiyacınız kalmadığında kısayolu ana ekranınızdan kendiniz silin."
       },
       "manageLinks": {
-        "title": "Kopyalama, taşıma ve birleştirme",
-        "body": "Bir koleksiyonu açın ve bir bağlantının daha fazla menüsünden onu başka koleksiyonlara kopyalayın, taşıyın veya bu koleksiyondan çıkarın. Çıkarmak bağlantıyı silmez.\n\nYönetim menüsünden bir koleksiyonu başkasıyla birleştirebilirsiniz. Taşıma, silme veya birleştirmeden sonra çıkan mesajda Geri al'a dokunun."
+        "title": "Bağlantıları kopyalama ve taşıma",
+        "body": "Bir koleksiyonu açın ve bir bağlantının daha fazla menüsünden onu başka koleksiyonlara kopyalayın, taşıyın veya bu koleksiyondan çıkarın. Çıkarmak bağlantıyı silmez.\n\nTaşıdıktan veya sildikten sonra çıkan mesajda Geri al’a dokunun."
       },
       "publicLink": {
         "title": "Koleksiyonu bağlantıyla paylaşma",

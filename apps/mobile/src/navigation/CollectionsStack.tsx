@@ -1,11 +1,9 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
-import { View } from 'react-native';
 import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
 import { CollectionsScreen } from '../screens/CollectionsScreen';
 import { themedScreen, useTheme } from '../theme/ThemeContext';
-import { headerTitleWithElement } from './screenIcons';
-import { iosHeaderOptions } from './sheetHeader';
+import { flatStackPageOptions, iosHeaderOptions } from './sheetHeader';
 
 /**
  * collectionId only - the screen fetches the current Collection and its Item list itself via GET.
@@ -70,8 +68,8 @@ export function CollectionsStack() {
       <Stack.Screen
         component={themedScreen(CollectionDetailsScreen)}
         name="CollectionDetails"
-        // The header title is the Collection's own icon and name, set by the screen once loaded (no fixed "컬렉션" text).
-        options={{ title: t('nav.collectionDetails'), ...headerTitleWithElement(<View />, true) }}
+        // The detail owns its navigation row and multi-line Collection title.
+        options={{ ...flatStackPageOptions(), headerShown: false, title: t('nav.collectionDetails') }}
       />
     </Stack.Navigator>
   );

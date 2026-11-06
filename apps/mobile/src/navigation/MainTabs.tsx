@@ -1,7 +1,8 @@
-import { createBottomTabNavigator, type BottomTabBarButtonProps, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator, type BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
+import { Pressable } from '../components/Pressable';
 import { DailyInboxScreen } from '../screens/DailyInboxScreen';
 import { DateHistoryScreen } from '../screens/DateHistoryScreen';
 import { MyPageScreen } from '../screens/MyPageScreen';
@@ -13,7 +14,6 @@ import { screenIcons } from './screenIcons';
 import { useAttentionSnapshot } from '../attention/attentionContext';
 import { formatBadgeCount } from '../components/badgeCount';
 import { CollectionsStack, type CollectionsStackParamList } from './CollectionsStack';
-import { JellyTabBar, JellyTabIcon, JellyTabPressable } from './JellyTab';
 
 export type MainTabParamList = {
   Home: undefined;
@@ -38,31 +38,31 @@ function tabIconColor(focused: boolean): string {
   return focused ? colors.brandText : colors.textSecondary;
 }
 
-// Selected: the solid icon in the brand colour on the jelly pill (see JellyTab); the others: the outline. Same size and place either way.
+// Selected: the solid icon in the brand colour; the others: the outline. Same size and place either way.
 function renderHomeIcon({ focused }: { focused: boolean }) {
-  return <JellyTabIcon focused={focused} size={TAB_ICON_SIZE}><screenIcons.home color={tabIconColor(focused)} filled={focused} size={TAB_ICON_SIZE} /></JellyTabIcon>;
+  return <screenIcons.home color={tabIconColor(focused)} filled={focused} size={TAB_ICON_SIZE} />;
 }
 
 function renderHistoryIcon({ focused }: { focused: boolean }) {
-  return <JellyTabIcon focused={focused} size={TAB_ICON_SIZE}><screenIcons.archive color={tabIconColor(focused)} cutoutColor={colors.surface} filled={focused} size={TAB_ICON_SIZE} /></JellyTabIcon>;
+  return <screenIcons.archive color={tabIconColor(focused)} cutoutColor={colors.surface} filled={focused} size={TAB_ICON_SIZE} />;
 }
 
 function renderCollectionsIcon({ focused }: { focused: boolean }) {
-  return <JellyTabIcon focused={focused} size={TAB_ICON_SIZE}><screenIcons.collections color={tabIconColor(focused)} filled={focused} size={TAB_ICON_SIZE} /></JellyTabIcon>;
+  return <screenIcons.collections color={tabIconColor(focused)} filled={focused} size={TAB_ICON_SIZE} />;
 }
 
 function renderMyPageIcon({ focused }: { focused: boolean }) {
-  return <JellyTabIcon focused={focused} size={TAB_ICON_SIZE}><screenIcons.myPage color={tabIconColor(focused)} filled={focused} size={TAB_ICON_SIZE} /></JellyTabIcon>;
+  return <screenIcons.myPage color={tabIconColor(focused)} filled={focused} size={TAB_ICON_SIZE} />;
 }
 
 // A tab that a guided tour can spotlight: the target is the whole tab button (the bar's cells are navigator-owned, so the button
 // is wrapped rather than measured).
-function TourTabButton({ tourId, jellyIndex, href: _href, pressOpacity: _pressOpacity, hoverEffect: _hoverEffect, android_ripple: _ripple, ...props }: BottomTabBarButtonProps & { readonly tourId: string; readonly jellyIndex: number }) {
+function TourTabButton({ tourId, href: _href, pressOpacity: _pressOpacity, hoverEffect: _hoverEffect, android_ripple: _ripple, ...props }: BottomTabBarButtonProps & { readonly tourId: string }) {
   // No extra margin around a tab: it fills its cell, so the ring sits exactly on the tab's edges (its 2pt stroke drawn inside).
   const target = useTourTarget(tourId, { radius: radii.md, padding: 0 });
   return (
     <View {...target} style={styles.tabTarget}>
-      <JellyTabPressable {...props} jellyIndex={jellyIndex} />
+      <Pressable {...props} />
     </View>
   );
 }
@@ -71,23 +71,19 @@ function TourTabButton({ tourId, jellyIndex, href: _href, pressOpacity: _pressOp
 // whose Android ripple and iOS fade would differ from the other three tabs). The navigator's android_ripple is dropped on every tab
 // so Android never shows a ripple on top of the state layer.
 function renderHomeButton({ href: _href, pressOpacity: _pressOpacity, hoverEffect: _hoverEffect, android_ripple: _ripple, ...props }: BottomTabBarButtonProps) {
-  return <JellyTabPressable {...props} jellyIndex={0} />;
+  return <Pressable {...props} />;
 }
 
 function renderHistoryButton(props: BottomTabBarButtonProps) {
-  return <TourTabButton {...props} tourId={TOUR_TARGETS.tabHistory} jellyIndex={1} />;
+  return <TourTabButton {...props} tourId={TOUR_TARGETS.tabHistory} />;
 }
 
 function renderCollectionsButton(props: BottomTabBarButtonProps) {
-  return <TourTabButton {...props} tourId={TOUR_TARGETS.tabCollections} jellyIndex={2} />;
+  return <TourTabButton {...props} tourId={TOUR_TARGETS.tabCollections} />;
 }
 
 function renderMyPageButton(props: BottomTabBarButtonProps) {
-  return <TourTabButton {...props} tourId={TOUR_TARGETS.tabMyPage} jellyIndex={3} />;
-}
-
-function renderTabBar(props: BottomTabBarProps) {
-  return <JellyTabBar {...props} />;
+  return <TourTabButton {...props} tourId={TOUR_TARGETS.tabMyPage} />;
 }
 
 export function MainTabs() {
@@ -98,7 +94,6 @@ export function MainTabs() {
 
   return (
     <Tab.Navigator
-      tabBar={renderTabBar}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.brandText,
@@ -112,17 +107,26 @@ export function MainTabs() {
           fontSize: 11,
           fontWeight: '600',
         },
-        // The selected tab is told by its solid brand-coloured icon (and label) on the jelly pill behind the icon (see JellyTab) - no
-        // background on the whole tab; every tab has the same margins and size whether it is selected or not, so switching tabs never
-        // moves the layout (only the pill and icon animate, as transforms).
+        // The selected tab is told by its solid brand-coloured icon (and label) alone - no background behind it; every tab has the
+        // same margins and size whether it is selected or not, so switching tabs never moves anything.
         tabBarItemStyle: {
           borderRadius: radii.md + 4,
+          overflow: 'hidden',
           marginHorizontal: spacing.xs,
         },
-        // The bar's look (background, top border, shadow) belongs to JellyTabBar, which draws the shared blob between that background and
-        // the buttons - so the navigator's own bar is transparent. No explicit height/padding here: the default height already accounts
-        // for the bottom safe-area inset (see this repo's own rule against duplicating inset handling).
-        tabBarStyle: { backgroundColor: 'transparent', borderTopWidth: 0, elevation: 0, shadowOpacity: 0 },
+        // No explicit height/padding here - the default height already accounts for the bottom
+        // safe-area inset (see this repo's own rule against duplicating inset handling); this only
+        // adds the white background + subtle top shadow the redesign calls for.
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.inputBorder,
+          borderTopWidth: 1,
+          elevation: 8,
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 6,
+        },
       }}
     >
       <Tab.Screen

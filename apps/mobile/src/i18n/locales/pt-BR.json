@@ -239,16 +239,11 @@
     "itemManageAction": "Mais ações do link",
     "addToOther": "Duplicar em outra coleção",
     "moveToOther": "Mover para outra coleção",
-    "mergeWithOther": "Mesclar com outra coleção",
     "targetPickerTitle": "Selecionar coleção",
     "moveTitle": "Mover link",
     "moveAction": "Mover",
     "moveConfirmMessage": "Mover este link para \"{{target}}\"?",
     "moveError": "Não foi possível mover o link.",
-    "mergeTitle": "Mesclar coleções",
-    "mergeAction": "Mesclar",
-    "mergeConfirmMessage": "Mesclar \"{{source}}\" em \"{{target}}\"? Os links serão combinados e esta coleção será excluída.",
-    "mergeError": "Não foi possível mesclar a coleção.",
     "errorTargetLoadFallback": "Não foi possível carregar as coleções.",
     "myCategoriesTab": "Minhas coleções",
     "sharedCategoriesTab": "Compartilhadas",
@@ -278,6 +273,7 @@
     "filterAll": "Todas",
     "participantsMore": "{{names}} +{{count}}",
     "participantsTitle": "Participantes",
+    "participantsCount": "Participantes: {{count}}",
     "participantsLoadFallback": "Não foi possível carregar os participantes.",
     "participantMe": "{{name}} (você)",
     "roleOwner": "Proprietário",
@@ -302,6 +298,7 @@
     "saveOutcomeAlreadyPending": "Na coleção escolhida, este link já está aguardando aprovação.",
     "saveOutcomeAlreadyInCollection": "A coleção escolhida já tem este link.",
     "roleSubmitter": "Com aprovação",
+    "reviewRequests": "Solicitações para revisar",
     "pendingSubmissions": "Solicitações de aprovação recebidas",
     "pendingSubmissionsA11y": "Ver {{count}}: Solicitações de aprovação recebidas",
     "removeFromSharedOwnerOnly": "Só o proprietário pode remover links de uma coleção compartilhada com você.",
@@ -386,9 +383,7 @@
     "unlinkSuccess": "Removido da coleção.",
     "undoUnlinkError": "Não foi possível desfazer a remoção da coleção.",
     "collectionDeleteSuccess": "Coleção excluída.",
-    "undoCollectionDeleteError": "Não foi possível desfazer a exclusão da coleção.",
-    "collectionMergeSuccess": "Coleção mesclada.",
-    "undoCollectionMergeError": "Não foi possível desfazer a mesclagem da coleção."
+    "undoCollectionDeleteError": "Não foi possível desfazer a exclusão da coleção."
   },
   "myPage": {
     "title": "Minha página",
@@ -1163,8 +1158,8 @@
         "shortcut": "Abra uma coleção que você usa muito direto da tela inicial. Mantenha-a pressionada e escolha «Adicionar atalho à tela inicial» para entrar nessa coleção pela tela inicial do telefone.\n\nUma coleção bloqueada continua pedindo a senha ao ser aberta por um atalho.\n\nExclua você mesmo o atalho da tela inicial quando não precisar mais dele."
       },
       "manageLinks": {
-        "title": "Copiar, mover e mesclar",
-        "body": "Abra uma coleção e use o menu «mais» de um link para copiá-lo para outras coleções, movê-lo ou removê-lo desta coleção. Remover não exclui o link.\n\nVocê também pode mesclar uma coleção com outra pelo menu de gerenciamento. Depois de mover, excluir ou mesclar, toque em Desfazer na mensagem que aparece."
+        "title": "Copiar e mover links",
+        "body": "Abra uma coleção e use o menu «mais» de um link para copiá-lo para outras coleções, movê-lo ou removê-lo desta coleção. Remover não exclui o link.\n\nDepois de mover ou excluir, toque em Desfazer na mensagem exibida."
       },
       "publicLink": {
         "title": "Compartilhar uma coleção por link",

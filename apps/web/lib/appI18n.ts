@@ -164,9 +164,6 @@ export interface WebOnlyStrings {
   readonly clonePartialFailure: string;
   readonly confirmMove: string;
   readonly confirmCopy: string;
-  /** 다른 컬렉션과 병합 - the confirmation before anything happens */
-  readonly mergeConfirmTitle: string;
-  readonly mergeConfirmBody: string;
   readonly mobileLandingTitle: string;
   readonly mobileLandingBody: string;
   readonly appOpen: string;

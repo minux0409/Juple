@@ -239,16 +239,11 @@
     "itemManageAction": "Autres actions du lien",
     "addToOther": "Dupliquer dans une autre collection",
     "moveToOther": "Déplacer vers une autre collection",
-    "mergeWithOther": "Fusionner avec une autre collection",
     "targetPickerTitle": "Sélectionner une collection",
     "moveTitle": "Déplacer le lien",
     "moveAction": "Déplacer",
     "moveConfirmMessage": "Déplacer ce lien vers \"{{target}}\" ?",
     "moveError": "Impossible de déplacer le lien.",
-    "mergeTitle": "Fusionner les collections",
-    "mergeAction": "Fusionner",
-    "mergeConfirmMessage": "Fusionner \"{{source}}\" dans \"{{target}}\" ? Les liens seront regroupés et cette collection sera supprimée.",
-    "mergeError": "Impossible de fusionner la collection.",
     "errorTargetLoadFallback": "Impossible de charger les collections.",
     "myCategoriesTab": "Mes collections",
     "sharedCategoriesTab": "Partagées",
@@ -278,6 +273,7 @@
     "filterAll": "Toutes",
     "participantsMore": "{{names}} +{{count}}",
     "participantsTitle": "Participants",
+    "participantsCount": "Participants : {{count}}",
     "participantsLoadFallback": "Impossible de charger les participants.",
     "participantMe": "{{name}} (vous)",
     "roleOwner": "Propriétaire",
@@ -302,6 +298,7 @@
     "saveOutcomeAlreadyPending": "Dans la collection choisie, ce lien est déjà en attente d’approbation.",
     "saveOutcomeAlreadyInCollection": "La collection choisie contient déjà ce lien.",
     "roleSubmitter": "Avec approbation",
+    "reviewRequests": "Demandes à examiner",
     "pendingSubmissions": "Demandes d’approbation reçues",
     "pendingSubmissionsA11y": "Voir {{count}} : Demandes d’approbation reçues",
     "removeFromSharedOwnerOnly": "Seul le propriétaire peut retirer des liens d’une collection partagée avec vous.",
@@ -386,9 +383,7 @@
     "unlinkSuccess": "Retiré de la collection.",
     "undoUnlinkError": "Impossible d’annuler le retrait de la collection.",
     "collectionDeleteSuccess": "Collection supprimée.",
-    "undoCollectionDeleteError": "Impossible d’annuler la suppression de la collection.",
-    "collectionMergeSuccess": "Collection fusionnée.",
-    "undoCollectionMergeError": "Impossible d’annuler la fusion de la collection."
+    "undoCollectionDeleteError": "Impossible d’annuler la suppression de la collection."
   },
   "myPage": {
     "title": "Mon compte",
@@ -1163,8 +1158,8 @@
         "shortcut": "Ouvrez une collection que vous utilisez souvent directement depuis votre écran d’accueil. Appuyez longuement dessus et choisissez « Ajouter un raccourci à l’écran d’accueil » pour accéder à cette collection depuis l’écran d’accueil du téléphone.\n\nUne collection verrouillée demande toujours son mot de passe quand on l’ouvre depuis un raccourci.\n\nSupprimez vous-même le raccourci de votre écran d’accueil quand vous n’en avez plus besoin."
       },
       "manageLinks": {
-        "title": "Copier, déplacer et fusionner",
-        "body": "Ouvrez une collection et utilisez le menu « plus » d’un lien pour le copier dans d’autres collections, le déplacer ou le retirer de cette collection. Le retirer ne supprime pas le lien.\n\nVous pouvez aussi fusionner une collection dans une autre depuis son menu de gestion. Après un déplacement, une suppression ou une fusion, touchez Annuler dans le message qui s’affiche."
+        "title": "Copier et déplacer des liens",
+        "body": "Ouvrez une collection et utilisez le menu « plus » d’un lien pour le copier dans d’autres collections, le déplacer ou le retirer de cette collection. Le retirer ne supprime pas le lien.\n\nAprès un déplacement ou une suppression, touchez Annuler dans le message qui apparaît."
       },
       "publicLink": {
         "title": "Partager une collection par lien",

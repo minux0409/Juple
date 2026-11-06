@@ -23,22 +23,4 @@ public sealed class CollectionOwnerLookup(JupleDbContext dbContext) : ICollectio
             .Where(invitation => invitation.Id == invitationId)
             .Join(dbContext.Collections.AsNoTracking(), invitation => invitation.CollectionId, collection => collection.Id, (invitation, collection) => (long?)collection.UserId)
             .SingleOrDefaultAsync(cancellationToken);
-
-    public async Task<IReadOnlyCollection<long>> FindOwnerUserIdsByMergeOperationAsync(Guid operationToken, CancellationToken cancellationToken = default)
-    {
-        var collectionIds = await dbContext.CollectionMergeOperations.AsNoTracking()
-            .Where(operation => operation.OperationToken == operationToken)
-            .Select(operation => new[] { operation.SourceCollectionId, operation.TargetCollectionId })
-            .SingleOrDefaultAsync(cancellationToken);
-        if (collectionIds is null)
-        {
-            return [];
-        }
-
-        return await dbContext.Collections.AsNoTracking()
-            .Where(collection => collectionIds.Contains(collection.Id))
-            .Select(collection => collection.UserId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
-    }
 }

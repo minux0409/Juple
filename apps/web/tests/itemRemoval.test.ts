@@ -118,9 +118,7 @@ describe('other writers speak the right fact', () => {
     assert.doesNotMatch(content, /notifyItemsChanged\(\);/, 'no anonymous signal is left');
   });
 
-  it('a merge and its undo refresh the lists (many links changed), nothing is removed locally', () => {
-    assert.match(source('app/(app)/collections/[collectionId]/MergeCollection.tsx'), /notifyItemsChanged\(\{ kind: 'refresh' \}\)/);
-    assert.match(source('app/(app)/collections/[collectionId]/MergeUndoBanner.tsx'), /notifyItemsChanged\(\{ kind: 'refresh' \}\)/);
+  it('a refresh updates the lists without removing anything locally', () => {
     for (const scope of [personal, inCollection(3)]) {
       assert.equal(removesFromList({ kind: 'refresh' }, scope), false);
       assert.equal(affectsList({ kind: 'refresh' }, scope), true);

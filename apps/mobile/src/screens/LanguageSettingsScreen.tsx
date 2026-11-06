@@ -3,7 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { Pressable } from '../components/Pressable';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { LanguageBadge, type LanguageBadgeContent } from '../icons/LanguageBadge';
 import {
   loadLanguagePreference,
@@ -55,9 +55,6 @@ const LANGUAGE_OPTIONS: readonly LanguageOption[] = [
  */
 export function LanguageSettingsScreen() {
   const { t } = useTranslation();
-  // Only the bottom inset is needed here - see the JSX below for why top must NOT also be
-  // handled by this screen (the native-stack header above it already does).
-  const insets = useSafeAreaInsets();
   const [preference, setPreference] = useState<LanguagePreference | null>(null);
   const [pendingPreference, setPendingPreference] = useState<LanguagePreference | null>(null);
 
@@ -96,21 +93,15 @@ export function LanguageSettingsScreen() {
 
   if (preference === null) {
     return (
-      <View style={styles.loadingContainer}>
+      <StackScreenSafeArea style={styles.loadingContainer}>
         <ActivityIndicator />
-      </View>
+      </StackScreenSafeArea>
     );
   }
 
   return (
-    // A stack screen with its native-stack header shown (title "언어") - that header already
-    // reserves the top safe area (status bar/notch) for itself, so wrapping this in ANOTHER
-    // SafeAreaView(edges=['top']) double-applied the inset, which is what pushed the whole list
-    // down and made the first row ("시스템 설정 사용") read as clipped/mispositioned right at that
-    // boundary (same root cause CollectionDetailsScreen had - see its own history). Bottom still
-    // genuinely needs insets.bottom below (no tab bar here to already absorb it).
-    <View style={styles.safeArea}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}>
+    <StackScreenSafeArea>
+      <ScrollView contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="never">
         {LANGUAGE_OPTIONS.map(option => {
           const isSelected = preference === option.preference;
           const isDisabled = pendingPreference !== null;
@@ -137,14 +128,11 @@ export function LanguageSettingsScreen() {
           );
         })}
       </ScrollView>
-    </View>
+    </StackScreenSafeArea>
   );
 }
 
 const styles = themedStyles(() => ({
-  safeArea: {
-    flex: 1,
-  },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',

@@ -4,6 +4,7 @@ import { BellIcon } from '../../icons/BellIcon';
 import { CopyIcon } from '../../icons/CopyIcon';
 import { FlagIcon } from '../../icons/FlagIcon';
 import { colors, radii } from '../../theme/tokens';
+import { CollectionReviewRequestsSheet } from '../../collections/CollectionReviewRequestsSheet';
 import { PendingActionRow } from '../../components/PendingActionRow';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ApprovalSubmissionSheet } from '../../collections/ApprovalSubmissionSheet';
@@ -267,7 +268,7 @@ function renderPart(element: React.ReactElement) {
 }
 
 const header = (renderer: ReactTestRenderer.ReactTestRenderer) =>
-  renderPart(findItemList(renderer).props.ListHeaderComponent);
+  renderPart(<>{renderer.root.findByProps({ testID: 'collection-details-toolbar' }).props.children}{findItemList(renderer).props.ListHeaderComponent}</>);
 
 const row = (renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) =>
   renderPart(findItemList(renderer).props.renderItem({ item, index: 0 }));
@@ -1162,7 +1163,7 @@ describe('CollectionDetailsScreen - the participants under the title', () => {
     expect(renderer.root.findAllByType(Text).some(node => [node.props.children].flat().join('') === '피카츄')).toBe(false);
   });
 
-  it('with more than five people: five photos and one "+N" circle for everyone else, in the same row as the actions', async () => {
+  it('with more than five people: shows five photos, an overflow circle and the total in a separate row', async () => {
     withParticipants(7);
     const renderer = await renderScreen();
 
@@ -1170,10 +1171,7 @@ describe('CollectionDetailsScreen - the participants under the title', () => {
     expect(stack.findAllByType(UserAvatar)).toHaveLength(5);
     const more = renderer.root.findAll(node => node.props.testID === 'collection-details-participants-more' && node.type === Text)[0];
     expect(more.props.children).toEqual(['+', 2]);
-    // One row: the stack and the favorite button share a parent.
-    const favorite = renderer.root.find(node => node.props.testID === 'collection-details-favorite' && typeof node.props.onPress === 'function');
-    const row = stack.parent!;
-    expect(row.findAll(node => node === favorite)).toHaveLength(1);
+    expect(stack.findAllByType(Text).some(node => node.props.children === i18n.t('collections.participantsCount', { count: 7 }))).toBe(true);
   });
 
   it('an Owner with nobody else in it (only a public link) shows no avatars at all', async () => {
@@ -1654,130 +1652,63 @@ const rowStyle = (entry: ReactTestRenderer.ReactTestInstance) => {
   return typeof host.props.style === 'function' ? host.props.style({ pressed: false }) : host.props.style;
 };
 
-describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)', () => {
+describe('CollectionDetailsScreen - requests to review', () => {
   afterEach(() => jest.clearAllMocks());
 
   const pendingEntry = (renderer: ReactTestRenderer.ReactTestRenderer) =>
-    header(renderer).root.findAll(node => node.props.testID === 'collection-details-pending' && typeof node.props.onPress === 'function')[0];
-
+    header(renderer).root.findAllByType(PendingActionRow).find(node => node.props.testID === 'collection-details-review-requests');
   const approvalSheet = (renderer: ReactTestRenderer.ReactTestRenderer, variant: 'owner' | 'mine') =>
-    renderer.root.findAllByType(ApprovalSubmissionSheet).find(sheet => sheet.props.variant === variant)!;
+    renderer.root.findAllByType(ApprovalSubmissionSheet).find(node => node.props.variant === variant)!;
+  const sheet = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findByType(CollectionReviewRequestsSheet);
 
-  it('the Owner sees 승인 대기 N next to the link count, and it opens the approval popup (not a screen)', async () => {
-    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, itemCount: 18, pendingSubmissionCount: 3 }));
+  it('shows one compact row with the total and opens the overview before the existing queues', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, pendingSubmissionCount: 3, pendingJoinRequestCount: 2 }));
     jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
     const renderer = await renderScreen();
 
-    const entry = pendingEntry(renderer);
-    expect(entry.findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '대기 3건']);
-    expect(entry.props.accessibilityLabel).toBe('받은 승인 요청 3개 보기');
-    // No "총 N개" in the header any more (and proposals were never counted as links).
-    expect(header(renderer).root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.detailItemCount', { count: 18 }))).toBe(false);
-    expect(approvalSheet(renderer, 'owner').props.visible).toBe(false);
-    await act(async () => entry.props.onPress());
-    expect(approvalSheet(renderer, 'owner').props.visible).toBe(true);
-    expect(approvalSheet(renderer, 'owner').props.collectionId).toBe(COLLECTION_ID);
+    const reviewRow = pendingEntry(renderer)!;
+    expect(reviewRow.findAllByType(Text).map(text => text.props.children)).toEqual(['검토할 요청', '대기 5건']);
+    expect(StyleSheet.flatten(rowStyle(reviewRow))).toMatchObject({ minHeight: 44, backgroundColor: colors.brandSoft });
+    await act(async () => reviewRow.props.onPress());
+    expect(sheet(renderer).props).toMatchObject({ visible: true, approvalCount: 3, joinCount: 2 });
+    expect(renderer.root.findAllByType(ApprovalSubmissionSheet).every(node => !node.props.visible)).toBe(true);
+    expect(renderer.root.findByType(JoinRequestsSheet).props.visible).toBe(false);
     expect(mockNavigate).not.toHaveBeenCalled();
-    // Answering inside the popup refreshes this Collection (its count and links) without leaving it.
-    expect(approvalSheet(renderer, 'owner').props.onChanged).toEqual(expect.any(Function));
   });
 
-  it('it is a clear one-line row of its own - below the title/header actions and above the sort chips, a full touch target, not small inline text', async () => {
-    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, itemCount: 18, pendingSubmissionCount: 1 }));
+  it('hides the entry at zero and for non-owners', async () => {
     jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
-    const renderer = await renderScreen();
-
-    const entry = pendingEntry(renderer);
-    expect(entry.findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '대기 1건']);
-    expect(StyleSheet.flatten(rowStyle(entry))).toEqual(expect.objectContaining({ minHeight: 44, flexDirection: 'row', backgroundColor: colors.brandSoft, borderColor: colors.brandText }));
-    expect(entry.type).toBe(PendingActionRow);
-    // Order inside the list header: header actions, this row, then the sort chips.
-    const order = header(renderer).root
-      .findAll(node => typeof node.type === 'string' && ['collection-details-favorite', 'collection-details-pending', 'collection-view-controls'].includes(node.props.testID))
-      .map(node => node.props.testID)
-      .filter((id: string, index: number, all: string[]) => all.indexOf(id) === index);
-    expect(order).toEqual(['collection-details-favorite', 'collection-details-pending', 'collection-view-controls']);
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true }));
+    expect(pendingEntry(await renderScreen())).toBeUndefined();
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', hasCollaborators: true, pendingJoinRequestCount: 2 }));
+    expect(pendingEntry(await renderScreen())).toBeUndefined();
   });
 
-  describe('참여 요청 N (people waiting to join) - a row of its own beside 받은 승인 요청', () => {
-    const joinEntry = (renderer: ReactTestRenderer.ReactTestRenderer) =>
-      header(renderer).root.findAll(node => node.props.testID === 'collection-details-join-requests' && typeof node.props.onPress === 'function')[0];
-
-    it('the Owner sees 참여 요청 N as a separate row of the same family - and both rows can be there together, each with its own number', async () => {
-      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, pendingSubmissionCount: 4, pendingJoinRequestCount: 1 }));
-      jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
-      const renderer = await renderScreen();
-
-      expect(pendingEntry(renderer).findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '대기 4건']);
-      const entry = joinEntry(renderer);
-      expect(entry.findAllByType(Text).map(text => text.props.children)).toEqual(['참여 요청', '대기 1건']);
-      expect(entry.type).toBe(PendingActionRow);
-      expect(StyleSheet.flatten(rowStyle(entry))).toEqual(expect.objectContaining({ minHeight: 44, flexDirection: 'row' }));
-      // Order in the header: the link approvals, then the applicants, then the sort chips.
-      const order = header(renderer).root
-        .findAll(node => typeof node.type === 'string' && ['collection-details-pending', 'collection-details-join-requests', 'collection-view-controls'].includes(node.props.testID))
-        .map(node => node.props.testID)
-        .filter((id: string, index: number, all: string[]) => all.indexOf(id) === index);
-      expect(order).toEqual(['collection-details-pending', 'collection-details-join-requests', 'collection-view-controls']);
+  it('refreshes the total after an answer and reads new counts when the overview is reopened', async () => {
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+    const owner = { accessRole: 'owner' as const, hasCollaborators: true };
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ ...owner, pendingSubmissionCount: 1, pendingJoinRequestCount: 2 }));
+    const renderer = await renderScreen();
+    const openReview = pendingEntry(renderer)!.props.onPress;
+    await act(async () => openReview());
+    await act(async () => {
+      sheet(renderer).props.onClose();
+      sheet(renderer).props.onOpenJoinRequests();
     });
+    const joinSheet = renderer.root.findByType(JoinRequestsSheet);
+    expect(joinSheet.props.visible).toBe(true);
 
-    it('it is hidden at zero, and for anyone but the Owner', async () => {
-      jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
-      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, pendingJoinRequestCount: 0 }));
-      expect(joinEntry(await renderScreen())).toBeUndefined();
-
-      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', hasCollaborators: true, pendingJoinRequestCount: 2 }));
-      expect(joinEntry(await renderScreen())).toBeUndefined();
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ ...owner, pendingSubmissionCount: 1 }));
+    await act(async () => {
+      joinSheet.props.onChanged();
+      joinSheet.props.onClose();
     });
+    expect(pendingEntry(renderer)?.props.count).toBe(1);
 
-    it('it opens the 참여 요청 BOTTOM SHEET over the Collection - no navigation anywhere, and the approval popup stays closed', async () => {
-      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, pendingSubmissionCount: 2, pendingJoinRequestCount: 1 }));
-      jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
-      const renderer = await renderScreen();
-      const entry = joinEntry(renderer);
-      const sheet = () => renderer.root.findByType(JoinRequestsSheet);
-      expect(sheet().props.visible).toBe(false);
-      mockNavigate.mockClear();
-
-      await act(async () => {
-        entry.props.onPress();
-      });
-
-      expect(sheet().props.visible).toBe(true);
-      expect(sheet().props.collectionId).toBe(COLLECTION_ID);
-      expect(sheet().props.expectedCount).toBe(1);
-      expect(mockNavigate).not.toHaveBeenCalled();
-      expect(renderer.root.findAllByType(ApprovalSubmissionSheet).every(approval => approval.props.visible !== true)).toBe(true);
-
-      await act(async () => {
-        sheet().props.onClose();
-      });
-      expect(sheet().props.visible).toBe(false);
-    });
-
-    it('an answered applicant refreshes the Collection (count, row and badge source) without leaving it', async () => {
-      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, pendingJoinRequestCount: 1 }));
-      jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
-      const renderer = await renderScreen();
-      const before = jest.mocked(getCollection).mock.calls.length;
-      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, pendingJoinRequestCount: 0 }));
-
-      await act(async () => {
-        renderer.root.findByType(JoinRequestsSheet).props.onChanged();
-      });
-
-      expect(jest.mocked(getCollection).mock.calls.length).toBeGreaterThan(before);
-      expect(joinEntry(renderer)).toBeUndefined();
-    });
-
-    it('the Participants section holds no 참여 요청 - they are not participants yet', async () => {
-      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, pendingJoinRequestCount: 3 }));
-      jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
-      const renderer = await renderScreen();
-
-      const participantsText = renderer.root.findAll(node => String(node.props.testID ?? '').startsWith('collection-details-participants')).flatMap(node => node.findAllByType(Text).map(text => String(text.props.children)));
-      expect(participantsText.join(' ')).not.toContain('참여 요청');
-    });
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ ...owner, pendingSubmissionCount: 3 }));
+    const reopenReview = pendingEntry(renderer)!.props.onPress;
+    await act(async () => reopenReview());
+    expect(sheet(renderer).props).toMatchObject({ visible: true, approvalCount: 3, joinCount: 0 });
   });
 
   it('a link is framed by the very same card Home and the Archive use (rounded, thin border) - there are no date sections', async () => {
@@ -1844,9 +1775,9 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
     const renderer = await renderScreen();
 
-    expect(pendingEntry(renderer).findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '대기 3건']);
+    expect(pendingEntry(renderer)!.findAllByType(Text).map(text => text.props.children)).toEqual(['검토할 요청', '대기 3건']);
     expect(myPendingEntry(renderer).findAllByType(Text).map(text => text.props.children)).toEqual(['보낸 승인 요청', '대기 4건']);
-    expect(pendingEntry(renderer).props.accessibilityLabel).toBe('받은 승인 요청 3개 보기');
+    expect(pendingEntry(renderer)!.props.accessibilityLabel).toBe('검토할 요청, 대기 3건');
     expect(myPendingEntry(renderer).props.accessibilityLabel).toBe('보낸 승인 요청 4개 보기');
   });
 
@@ -1896,7 +1827,7 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     });
 
     expect(jest.mocked(getCollection).mock.calls.length).toBe(callsBefore + 1);
-    expect(pendingEntry(renderer).findAllByType(Text).map(text => text.props.children)).toEqual(['받은 승인 요청', '대기 2건']);
+    expect(pendingEntry(renderer)!.findAllByType(Text).map(text => text.props.children)).toEqual(['검토할 요청', '대기 2건']);
   });
 
   it('nothing waiting: no entry at all', async () => {

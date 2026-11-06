@@ -1,5 +1,6 @@
 import { notifyJoinRequestWithdrawn } from '../../collections/joinRequestChanges';
 import { TabScreenSafeArea } from '../../components/TabScreenSafeArea';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { BrokenLinkIcon } from '../../icons/BrokenLinkIcon';
 import { LoadFailureState } from '../../components/LoadFailureState';
 import { RefreshFailureNotice } from '../../components/RefreshFailureNotice';
@@ -24,6 +25,7 @@ import { AttentionContext } from '../../attention/attentionContext';
 import { createMobileAttentionStore, type MobileAttentionStore } from '../../attention/mobileAttention';
 import { ThemedTextInput } from '../../components/ThemedTextInput';
 import {
+  cancelMyJoinRequest,
   createCollection,
   getCollections,
   getCollectionSuggestions,
@@ -1630,6 +1632,8 @@ describe('CollectionsScreen - 승인 대기 중 placeholders (my own waiting joi
   const cardById = (renderer: ReactTestRenderer.ReactTestRenderer) =>
     renderer.root.findAll(node => node.props.testID === 'collection-join-pending-41' && typeof node.props.onPress === 'function')[0];
   const allText = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByType(Text).map(text => String(text.props.children));
+  const withdrawalDialog = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    renderer.root.findAllByType(ConfirmDialog).find(dialog => dialog.props.title === i18n.t('sharedCollection.cancelJoinTitle'))!;
 
   async function renderWaiting(mode: 'grid' | 'list') {
     setUpGetCollectionsMock();
@@ -1653,7 +1657,7 @@ describe('CollectionsScreen - 승인 대기 중 placeholders (my own waiting joi
     act(() => renderer.unmount());
   });
 
-  it.each(['grid', 'list'] as const)('%s: tapping opens the private link status - never CollectionDetails - and there is no long-press menu or favorite', async mode => {
+  it.each(['grid', 'list'] as const)('%s: tapping opens the withdrawal dialog in place and keeping the request does not call the API', async mode => {
     const renderer = await renderWaiting(mode);
     const card = cardById(renderer);
 
@@ -1661,11 +1665,71 @@ describe('CollectionsScreen - 승인 대기 중 placeholders (my own waiting joi
       card.props.onPress();
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith('SharedCollection', { publicId: 'pub-private' });
-    expect(mockNavigate).not.toHaveBeenCalledWith('CollectionDetails', expect.anything());
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(withdrawalDialog(renderer).props.visible).toBe(true);
+    await act(async () => withdrawalDialog(renderer).props.onCancel());
+    expect(withdrawalDialog(renderer).props.visible).toBe(false);
+    expect(cancelMyJoinRequest).not.toHaveBeenCalled();
+    expect(cardById(renderer)).toBeDefined();
     expect(card.props.onLongPress).toBeUndefined();
     expect(card.findAll(node => node.props.accessibilityLabel === i18n.t('collections.addFavorite'))).toHaveLength(0);
     act(() => renderer.unmount());
+  });
+
+  it.each([false, true])('calls the withdrawal API only once and preserves the card on failure (fails=%s)', async fails => {
+    const renderer = await renderWaiting('grid');
+    let finish!: () => void;
+    let reject!: (error: Error) => void;
+    const result = new Promise<void>((resolve, rejectPromise) => {
+      finish = resolve;
+      reject = rejectPromise;
+    });
+    jest.mocked(cancelMyJoinRequest).mockReturnValueOnce(result);
+    const listReads = jest.mocked(getCollections).mock.calls.length;
+    const countReads = jest.mocked(getMyPendingSubmissionTotal).mock.calls.length;
+    await act(async () => cardById(renderer).props.onPress());
+    await act(async () => {
+      const confirm = withdrawalDialog(renderer).props.onConfirm;
+      confirm();
+      confirm();
+    });
+    expect(cancelMyJoinRequest).toHaveBeenCalledTimes(1);
+    expect(cancelMyJoinRequest).toHaveBeenCalledWith(expect.any(Function), 41);
+    expect(cardById(renderer)).toBeDefined();
+
+    await act(async () => {
+      if (fails) {
+        reject(new Error('offline'));
+      } else {
+        notifyJoinRequestWithdrawn(41);
+        finish();
+      }
+    });
+    expect(withdrawalDialog(renderer).props.visible).toBe(false);
+    expect(mockNavigate).not.toHaveBeenCalled();
+    if (fails) {
+      expect(cardById(renderer)).toBeDefined();
+      expect(getCollections).toHaveBeenCalledTimes(listReads);
+    } else {
+      expect(cardById(renderer)).toBeUndefined();
+      expect(getCollections).toHaveBeenCalledTimes(listReads + 1);
+      expect(getMyPendingSubmissionTotal).toHaveBeenCalledTimes(countReads + 1);
+    }
+    await act(async () => renderer.unmount());
+  });
+
+  it('closes the withdrawal confirmation from its backdrop without withdrawing the request', async () => {
+    const renderer = await renderWaiting('grid');
+    await act(async () => cardById(renderer).props.onPress());
+    const backdrop = withdrawalDialog(renderer).findAll(node =>
+      node.props.accessibilityElementsHidden && typeof node.props.onPress === 'function',
+    )[0];
+    await act(async () => backdrop.props.onPress());
+    expect(withdrawalDialog(renderer).props.visible).toBe(false);
+    expect(cancelMyJoinRequest).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(cardById(renderer)).toBeDefined();
+    await act(async () => renderer.unmount());
   });
 
   it('removes a successfully withdrawn request immediately, even before a focus refetch', async () => {

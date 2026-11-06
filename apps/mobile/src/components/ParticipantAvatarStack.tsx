@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { StyleSheet, Text, View, type Insets, type StyleProp, type ViewStyle } from 'react-native';
 import { Pressable } from './Pressable';
 import { PressedShape } from './PressedShape';
@@ -35,6 +36,7 @@ interface ParticipantAvatarStackProps {
   readonly accessibilityLabel: string;
   readonly accessibilityHint?: string;
   readonly testID?: string;
+  readonly trailing?: ReactNode;
 }
 
 const AVATAR_SIZE = 28;
@@ -59,6 +61,7 @@ export function ParticipantAvatarStack({
   accessibilityLabel,
   accessibilityHint,
   testID,
+  trailing,
 }: ParticipantAvatarStackProps) {
   // A single overflow circle takes the place of the last slot, never an extra one - so "+N" always
   // stands for at least two people (never one person hidden behind a number).
@@ -80,7 +83,8 @@ export function ParticipantAvatarStack({
       style={[styles.row, style]}
       testID={testID}
     >
-      {({ pressed }) => <View style={styles.capsule}>
+      {({ pressed }) => <>
+      <View style={styles.capsule}>
       {participants === null
         ? Array.from({ length: Math.max(1, Math.min(placeholderCount, placeholderLimit)) }, (_, index) => (
             <View key={index} style={[styles.ring, index > 0 && styles.overlap]} testID={`${testID ?? 'participant-stack'}-placeholder-${index}`}>
@@ -113,7 +117,9 @@ export function ParticipantAvatarStack({
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: visible.length + 1 }]}>
         <PressedShape borderRadius={CIRCLE_SIZE / 2} pressed={pressed} strong />
       </View>
-      </View>}
+      </View>
+      {trailing}
+      </>}
     </Pressable>
   );
 }

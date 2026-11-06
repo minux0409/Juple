@@ -50,8 +50,6 @@ jest.mock('../../collections/api/collectionsApi', () => ({
   createCollection: jest.fn(),
   transferCollectionItem: jest.fn(),
   undoTransferCollectionItem: jest.fn(),
-  mergeCollection: jest.fn(),
-  undoCollectionMerge: jest.fn(),
   removeItemFromCollection: jest.fn(),
   renameCollection: jest.fn(),
   restoreCollection: jest.fn(),

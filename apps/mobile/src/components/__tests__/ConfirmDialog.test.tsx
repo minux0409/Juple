@@ -86,6 +86,30 @@ describe('ConfirmDialog', () => {
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
+  it.each(['backdrop', 'back'] as const)('%s dismissal uses the dedicated close handler and neither button', async source => {
+    const onCancel = jest.fn();
+    const onConfirm = jest.fn();
+    const onRequestClose = jest.fn();
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <ConfirmDialog cancelLabel="Withdraw request" confirmLabel="OK" message="Pending"
+          onCancel={onCancel} onConfirm={onConfirm} onRequestClose={onRequestClose} title="Join request" visible />,
+      );
+    });
+    await act(async () => {
+      if (source === 'back') {
+        renderer.root.findByType(Modal).props.onRequestClose();
+      } else {
+        renderer.root.findAll(node => node.props.accessibilityElementsHidden && typeof node.props.onPress === 'function')[0].props.onPress();
+      }
+    });
+    expect(onRequestClose).toHaveBeenCalledTimes(1);
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(onConfirm).not.toHaveBeenCalled();
+    await act(async () => renderer.unmount());
+  });
+
   it('renders the given title and message', async () => {
     let renderer!: ReactTestRenderer.ReactTestRenderer;
     await act(async () => {

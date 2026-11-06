@@ -239,16 +239,11 @@
     "itemManageAction": "Weitere Linkaktionen",
     "addToOther": "In andere Sammlung duplizieren",
     "moveToOther": "In andere Sammlung verschieben",
-    "mergeWithOther": "Mit anderer Sammlung zusammenführen",
     "targetPickerTitle": "Sammlung auswählen",
     "moveTitle": "Link verschieben",
     "moveAction": "Verschieben",
     "moveConfirmMessage": "Diesen Link nach \"{{target}}\" verschieben?",
     "moveError": "Link konnte nicht verschoben werden.",
-    "mergeTitle": "Sammlungen zusammenführen",
-    "mergeAction": "Zusammenführen",
-    "mergeConfirmMessage": "\"{{source}}\" mit \"{{target}}\" zusammenführen? Die Links werden zusammengeführt und diese Sammlung wird gelöscht.",
-    "mergeError": "Sammlung konnte nicht zusammengeführt werden.",
     "errorTargetLoadFallback": "Sammlungen konnten nicht geladen werden.",
     "myCategoriesTab": "Meine Sammlungen",
     "sharedCategoriesTab": "Geteilt",
@@ -278,6 +273,7 @@
     "filterAll": "Alle",
     "participantsMore": "{{names}} +{{count}}",
     "participantsTitle": "Teilnehmende",
+    "participantsCount": "Teilnehmende: {{count}}",
     "participantsLoadFallback": "Teilnehmende konnten nicht geladen werden.",
     "participantMe": "{{name}} (du)",
     "roleOwner": "Eigentümer",
@@ -302,6 +298,7 @@
     "saveOutcomeAlreadyPending": "In der gewählten Sammlung wartet dieser Link schon auf Freigabe.",
     "saveOutcomeAlreadyInCollection": "Die gewählte Sammlung enthält diesen Link schon.",
     "roleSubmitter": "Mit Freigabe",
+    "reviewRequests": "Anfragen zur Prüfung",
     "pendingSubmissions": "Erhaltene Freigabeanfragen",
     "pendingSubmissionsA11y": "Erhaltene Freigabeanfragen: {{count}} ansehen",
     "removeFromSharedOwnerOnly": "Nur der Eigentümer kann Links aus einer mit dir geteilten Sammlung entfernen.",
@@ -386,9 +383,7 @@
     "unlinkSuccess": "Aus der Sammlung entfernt.",
     "undoUnlinkError": "Entfernen aus der Sammlung konnte nicht rückgängig gemacht werden.",
     "collectionDeleteSuccess": "Sammlung gelöscht.",
-    "undoCollectionDeleteError": "Das Löschen der Sammlung konnte nicht rückgängig gemacht werden.",
-    "collectionMergeSuccess": "Sammlung zusammengeführt.",
-    "undoCollectionMergeError": "Das Zusammenführen der Sammlung konnte nicht rückgängig gemacht werden."
+    "undoCollectionDeleteError": "Das Löschen der Sammlung konnte nicht rückgängig gemacht werden."
   },
   "myPage": {
     "title": "Mein Bereich",
@@ -1163,8 +1158,8 @@
         "shortcut": "Öffne eine oft genutzte Sammlung direkt von deinem Startbildschirm. Halte sie gedrückt und wähle „Verknüpfung zum Startbildschirm hinzufügen“, um vom Startbildschirm deines Telefons direkt in diese Sammlung zu springen.\n\nEine gesperrte Sammlung fragt auch beim Öffnen über eine Verknüpfung nach ihrem Passwort.\n\nLösche die Verknüpfung selbst von deinem Startbildschirm, wenn du sie nicht mehr brauchst."
       },
       "manageLinks": {
-        "title": "Kopieren, verschieben und zusammenführen",
-        "body": "Öffne eine Sammlung und nutze das Menü „Mehr“ eines Links, um ihn in andere Sammlungen zu kopieren, zu verschieben oder aus dieser Sammlung zu entfernen. Entfernen löscht den Link nicht.\n\nÜber das Verwaltungsmenü kannst du eine Sammlung auch mit einer anderen zusammenführen. Nach dem Verschieben, Löschen oder Zusammenführen tippst du in der angezeigten Meldung auf Rückgängig."
+        "title": "Links kopieren und verschieben",
+        "body": "Öffne eine Sammlung und nutze das Menü „Mehr“ eines Links, um ihn in andere Sammlungen zu kopieren, zu verschieben oder aus dieser Sammlung zu entfernen. Entfernen löscht den Link nicht.\n\nTippe nach dem Verschieben oder Löschen in der Meldung auf Rückgängig."
       },
       "publicLink": {
         "title": "Sammlung per Link teilen",

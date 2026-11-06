@@ -239,16 +239,11 @@
     "itemManageAction": "更多链接操作",
     "addToOther": "复制到其他合集",
     "moveToOther": "移至其他合集",
-    "mergeWithOther": "与其他合集合并",
     "targetPickerTitle": "选择合集",
     "moveTitle": "移动链接",
     "moveAction": "移动",
     "moveConfirmMessage": "要将此链接移至\"{{target}}\"吗？",
     "moveError": "无法移动链接。",
-    "mergeTitle": "合并合集",
-    "mergeAction": "合并",
-    "mergeConfirmMessage": "要将\"{{source}}\"合并到\"{{target}}\"吗？链接将合并，且此合集将被删除。",
-    "mergeError": "无法合并合集。",
     "errorTargetLoadFallback": "无法加载合集。",
     "myCategoriesTab": "我的合集",
     "sharedCategoriesTab": "共享合集",
@@ -278,6 +273,7 @@
     "filterAll": "全部",
     "participantsMore": "{{names}} 等{{count}}人",
     "participantsTitle": "参与者",
+    "participantsCount": "{{count}} 位参与者",
     "participantsLoadFallback": "无法加载参与者。",
     "participantMe": "{{name}}（我）",
     "roleOwner": "所有者",
@@ -302,6 +298,7 @@
     "saveOutcomeAlreadyPending": "你选择的合集中，此链接已在等待审核。",
     "saveOutcomeAlreadyInCollection": "你选择的合集中已有此链接。",
     "roleSubmitter": "审核后添加",
+    "reviewRequests": "待审核请求",
     "pendingSubmissions": "收到的审批请求",
     "pendingSubmissionsA11y": "查看收到的审批请求 {{count}} 条",
     "removeFromSharedOwnerOnly": "只有所有者才能从共享给你的合集中移除链接。",
@@ -386,9 +383,7 @@
     "unlinkSuccess": "已从合集中移除。",
     "undoUnlinkError": "无法撤销从合集中移除。",
     "collectionDeleteSuccess": "已删除合集。",
-    "undoCollectionDeleteError": "无法撤销删除合集。",
-    "collectionMergeSuccess": "已合并合集。",
-    "undoCollectionMergeError": "无法撤销合并合集。"
+    "undoCollectionDeleteError": "无法撤销删除合集。"
   },
   "myPage": {
     "title": "我的",
@@ -1163,8 +1158,8 @@
         "shortcut": "把常用的合集直接放到主屏幕上打开。\n长按合集，选择“添加到主屏幕”，\n就可以从手机主屏幕直接进入该合集。\n\n锁定的合集即使从快捷方式打开，也需要输入密码。\n\n不再需要时，请自己在主屏幕上删除创建的快捷方式。"
       },
       "manageLinks": {
-        "title": "复制、移动与合并",
-        "body": "打开合集，在链接的更多菜单中可以把它复制到其他合集、移动它，或从当前合集中移除。移除不会删除链接本身。\n\n你也可以在合集的管理菜单中把它合并到另一个合集。移动、删除或合并之后，可以点按出现的提示中的“撤销”。"
+        "title": "复制和移动链接",
+        "body": "打开合集，在链接的更多菜单中可以把它复制到其他合集、移动它，或从当前合集中移除。移除不会删除链接本身。\n\n移动或删除后，点按提示消息中的“撤销”。"
       },
       "publicLink": {
         "title": "通过链接分享合集",

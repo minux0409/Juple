@@ -1,6 +1,5 @@
-import type { ReactElement } from 'react';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, StyleSheet, Switch, Text } from 'react-native';
+import { FlatList, StyleSheet, Switch, Text, View } from 'react-native';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { CollectionDetailsScreen } from '../CollectionDetailsScreen';
@@ -21,8 +20,6 @@ import {
   addItemToCollections,
   transferCollectionItem,
   undoTransferCollectionItem,
-  mergeCollection,
-  undoCollectionMerge,
   removeItemFromCollection,
   renameCollection,
   restoreCollection,
@@ -40,7 +37,6 @@ import { FolderPlusIcon } from '../../icons/FolderPlusIcon';
 import { EditIcon } from '../../icons/EditIcon';
 import { HeartIcon } from '../../icons/HeartIcon';
 import { LockIcon } from '../../icons/LockIcon';
-import { MergeIcon } from '../../icons/MergeIcon';
 import { MoveIcon } from '../../icons/MoveIcon';
 import { TrashIcon } from '../../icons/TrashIcon';
 import { shareItem } from '../../items/shareItem';
@@ -96,8 +92,6 @@ jest.mock('../../collections/api/collectionsApi', () => ({
   createCollection: jest.fn(),
   transferCollectionItem: jest.fn(),
   undoTransferCollectionItem: jest.fn(),
-  mergeCollection: jest.fn(),
-  undoCollectionMerge: jest.fn(),
   removeItemFromCollection: jest.fn(),
   renameCollection: jest.fn(),
   restoreCollection: jest.fn(),
@@ -211,19 +205,6 @@ function findItemList(
   };
 }
 
-// The stack header title the screen sets (the real helper only wraps it in a platform-specific header option).
-jest.mock('../../navigation/screenIcons', () => ({
-  ...jest.requireActual('../../navigation/screenIcons'),
-  headerTitleWithElement: (element: unknown) => ({ headerTitleElement: element }),
-}));
-function headerTitle() {
-  const calls = jest.mocked((navigation as unknown as { setOptions: jest.Mock }).setOptions).mock.calls;
-  const element = calls[calls.length - 1][0].headerTitleElement as ReactElement;
-  let renderer!: ReactTestRenderer.ReactTestRenderer;
-  act(() => { renderer = ReactTestRenderer.create(element); });
-  return renderer;
-}
-
 const route = { key: 'CollectionDetails', name: 'CollectionDetails', params: { collectionId: 1 } } as never;
 const navigation = { navigate: jest.fn(), goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn(), dispatch: jest.fn(), setOptions: jest.fn() } as never;
 
@@ -304,7 +285,13 @@ function getHeaderElement(renderer: ReactTestRenderer.ReactTestRenderer) {
   const flatList = findItemList(renderer);
   let headerRenderer!: ReactTestRenderer.ReactTestRenderer;
   ReactTestRenderer.act(() => {
-    headerRenderer = ReactTestRenderer.create(flatList.props.ListHeaderComponent);
+    const toolbar = renderer.root.findByProps({ testID: 'collection-details-toolbar' });
+    headerRenderer = ReactTestRenderer.create(
+      <View>
+        {toolbar.props.children}
+        {flatList.props.ListHeaderComponent}
+      </View>,
+    );
   });
   return headerRenderer;
 }
@@ -586,7 +573,7 @@ describe('CollectionDetailsScreen', () => {
   });
 
   describe('header - [즐겨찾기] [공유] [⋯], everything else in the ⋯ menu', () => {
-    it('offers 수정 · 잠금 · 병합 · 삭제 in the menu (no separate edit/delete icons), and deletes only after confirming', async () => {
+    it('offers 수정 · 잠금 · 삭제 in the menu (no separate edit/delete icons), and deletes only after confirming', async () => {
       jest.mocked(deleteCollection).mockResolvedValue(undefined);
       const renderer = await renderScreen();
       const header = getHeaderElement(renderer);
@@ -601,13 +588,12 @@ describe('CollectionDetailsScreen', () => {
       expect(await openCollectionMenu(renderer)).toEqual([
         i18n.t('common.edit'),
         i18n.t('collections.lockSetTitle'),
-        i18n.t('collections.mergeWithOther'),
         i18n.t('common.delete'),
       ]);
       const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible);
       expect(menu?.props.actions.at(-1).destructive).toBe(true);
       // Every row leads with its icon; the row (announced by its label) is the one button.
-      for (const [index, icon] of [EditIcon, LockIcon, MergeIcon, TrashIcon].entries()) {
+      for (const [index, icon] of [EditIcon, LockIcon, TrashIcon].entries()) {
         const row = menu!.findAll(node => node.props.accessibilityLabel === menu!.props.actions[index].label && typeof node.props.onPress === 'function')[0];
         expect(row.findAllByType(icon)).toHaveLength(1);
       }
@@ -724,16 +710,15 @@ describe('CollectionDetailsScreen', () => {
       expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.newLinkNotificationsError'))).toBe(true);
     });
 
-    it('puts the Collection name in the stack header (no fixed 컬렉션 label) and no title row in the page', async () => {
+    it('puts a two-line Collection name below the fixed navigation row', async () => {
       jest.mocked(getCollection).mockResolvedValue(makeCollection({ name: 'Trip' }));
       const renderer = await renderScreen();
 
-      expect((navigation as unknown as { setOptions: jest.Mock }).setOptions).toHaveBeenCalledWith(expect.objectContaining({ title: 'Trip' }));
-      const title = headerTitle().root.findByProps({ testID: 'collection-details-title' });
+      const title = getHeaderElement(renderer).root.findByProps({ testID: 'collection-details-title' });
       expect(title.props.children).toBe('Trip');
-      expect(title.props.numberOfLines).toBe(1);
+      expect(title.props.numberOfLines).toBe(2);
       expect(title.props.ellipsizeMode).toBe('tail');
-      expect(getHeaderElement(renderer).root.findAll(node => node.props.testID === 'collection-details-title')).toHaveLength(0);
+      expect(renderer.root.findByProps({ testID: 'collection-details-back', accessibilityRole: 'button' })).toBeDefined();
     });
 
     it('keeps the detail screen open and shows the existing one-button notice when delete fails', async () => {
@@ -829,9 +814,9 @@ describe('CollectionDetailsScreen', () => {
 
     it('shows the collection\'s chosen icon in the header, next to the name', async () => {
       jest.mocked(getCollection).mockResolvedValue(makeCollection({ icon: 'Heart' }));
-      await renderScreen();
+      const renderer = await renderScreen();
 
-      expect(headerTitle().root.findAllByType(HeartIcon)).toHaveLength(1);
+      expect(getHeaderElement(renderer).root.findAllByType(HeartIcon)).toHaveLength(1);
     });
 
     it('seeds the icon picker from the collection\'s current icon when edit mode opens', async () => {
@@ -1130,9 +1115,8 @@ describe('CollectionDetailsScreen', () => {
       const renderer = await renderScreen();
       const root = renderer.root.findByProps({ testID: 'collection-details-screen' });
       expect(StyleSheet.flatten(root.props.style).backgroundColor).toBe(colors.background);
-      const options = jest.mocked((navigation as { setOptions: jest.Mock }).setOptions).mock.calls.map(([value]) => value).filter(value => value.headerStyle).at(-1);
-      expect(options.headerStyle).toEqual({ backgroundColor: colors.background });
-      expect(options.contentStyle).toEqual({ backgroundColor: colors.background });
+      const toolbar = renderer.root.findByProps({ testID: 'collection-details-toolbar' });
+      expect(toolbar.parent?.props.style.backgroundColor).toBeUndefined();
     });
 
     it('Grid cards use the same full date+time mode as List rows', async () => {
@@ -1168,9 +1152,6 @@ describe('CollectionDetailsScreen', () => {
   describe('category management actions', () => {
     async function openItemMenu(renderer: ReactTestRenderer.ReactTestRenderer, item = makeItemEntry({ itemId: 9 })) {
       await longPressRow(getRowElement(renderer, item));
-    }
-    async function chooseTarget(renderer: ReactTestRenderer.ReactTestRenderer) {
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: 'Target' }).props.onPress());
     }
     it('a List row has no trailing "..." - a long press opens the link menu, without navigating', async () => {
       const item = makeItemEntry({ itemId: 9 });
@@ -1298,64 +1279,6 @@ describe('CollectionDetailsScreen', () => {
       const renderer = await renderScreen(); await openItemMenu(renderer);
       await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await moveViaPicker(renderer);
       expect(renderer.root.findAll(node => node.props.children === i18n.t('collections.moveError')).length).toBeGreaterThan(0);
-    });
-    /** Drives the whole merge confirm flow (manage menu -> merge action -> pick target -> confirm) up to and including the mergeCollection call. */
-    async function performMerge(renderer: ReactTestRenderer.ReactTestRenderer) {
-      const header = getHeaderElement(renderer);
-      await act(async () => header.root.findByProps({ accessibilityLabel: i18n.t('collections.manageAction') }).props.onPress());
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.mergeWithOther') }).props.onPress()); await chooseTarget(renderer);
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.mergeAction') }).props.onPress());
-    }
-
-    it('merges only after confirmation, replaces the detail route, and shows the global undo toast with the received undoOperationId', async () => {
-      jest.mocked(mergeCollection).mockResolvedValue({ undoOperationId: 'merge-op-1' });
-      const renderer = await renderScreen(); const header = getHeaderElement(renderer);
-      await act(async () => header.root.findByProps({ accessibilityLabel: i18n.t('collections.manageAction') }).props.onPress());
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.mergeWithOther') }).props.onPress()); await chooseTarget(renderer);
-      expect(mergeCollection).not.toHaveBeenCalled();
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.mergeAction') }).props.onPress());
-      expect(mergeCollection).toHaveBeenCalledWith(expect.anything(), 1, 2);
-      expect((navigation as { replace: jest.Mock }).replace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 2 });
-      const undoToast = renderer.root.findByType(UndoToast);
-      expect(undoToast.props.message).toBe(i18n.t('toast.collectionMergeSuccess'));
-      expect(typeof undoToast.props.onUndo).toBe('function');
-    });
-    it('keeps the source screen and shows an error when merge fails', async () => {
-      jest.mocked(mergeCollection).mockRejectedValue(new Error('no'));
-      const renderer = await renderScreen();
-      await performMerge(renderer);
-      expect((navigation as { replace: jest.Mock }).replace).not.toHaveBeenCalled();
-      expect(renderer.root.findAll(node => node.props.children === i18n.t('collections.mergeError')).length).toBeGreaterThan(0);
-      expect(renderer.root.findAllByType(UndoToast)).toHaveLength(0);
-    });
-    it('does not show an undo toast when undoOperationId is null (source-equals-target no-op)', async () => {
-      jest.mocked(mergeCollection).mockResolvedValue({ undoOperationId: null });
-      const renderer = await renderScreen();
-      await performMerge(renderer);
-      expect((navigation as { replace: jest.Mock }).replace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 2 });
-      expect(renderer.root.findAllByType(UndoToast)).toHaveLength(0);
-    });
-    it('undoing a merge calls undoCollectionMerge exactly once and navigates back to the target with a refresh signal, without any extra success message', async () => {
-      jest.mocked(mergeCollection).mockResolvedValue({ undoOperationId: 'merge-op-2' });
-      jest.mocked(undoCollectionMerge).mockResolvedValue(undefined);
-      const renderer = await renderScreen();
-      await performMerge(renderer);
-      await act(async () => { renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress(); await Promise.resolve(); });
-      expect(undoCollectionMerge).toHaveBeenCalledTimes(1);
-      expect(undoCollectionMerge).toHaveBeenCalledWith(expect.anything(), 'merge-op-2');
-      expect((navigation as { navigate: jest.Mock }).navigate).toHaveBeenCalledWith(
-        'CollectionDetails', expect.objectContaining({ collectionId: 2, refreshToken: expect.any(Number) }));
-      expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
-      expect(renderer.root.findAll(node => node.props.children === i18n.t('toast.collectionMergeSuccess')).length).toBe(0);
-    });
-    it('keeps the merged state and shows the existing error dialog when undoing a merge fails', async () => {
-      jest.mocked(mergeCollection).mockResolvedValue({ undoOperationId: 'merge-op-3' });
-      jest.mocked(undoCollectionMerge).mockRejectedValue(new Error('no'));
-      const renderer = await renderScreen();
-      await performMerge(renderer);
-      await act(async () => { renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress(); await Promise.resolve(); });
-      expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
-      expect(renderer.root.findByProps({ children: i18n.t('toast.undoCollectionMergeError') })).toBeTruthy();
     });
     describe('이동 uses the same destination picker as 복제 and 복사 - but with one destination', () => {
       const SOURCE = makeCollection({ id: 1, name: 'Groceries' });

@@ -25,14 +25,14 @@ export function RequestRow({
   readonly onClick: () => void;
   readonly testId?: string;
   /** 'status' (my own sent requests, only waiting): a quiet neutral row with `statusText`, no badge. Default 'action': the blue row with a red badge. */
-  readonly variant?: 'action' | 'status';
+  readonly variant?: 'action' | 'status' | 'review';
   readonly statusText?: string;
 }) {
   return (
-    <button aria-expanded={expanded} aria-haspopup="dialog" aria-label={accessibleLabel} className={variant === 'status' ? `${styles.row} ${styles.rowStatus}` : styles.row} data-request-row={testId} data-request-variant={variant} onClick={onClick} type="button">
+    <button aria-expanded={expanded} aria-haspopup={variant === 'review' && expanded === undefined ? undefined : 'dialog'} aria-label={accessibleLabel} className={[styles.row, variant === 'status' && styles.rowStatus, variant === 'review' && styles.rowReview].filter(Boolean).join(' ')} data-request-row={testId} data-request-variant={variant} onClick={onClick} type="button">
       <Glyph className={styles.icon} name="Bell" size={18} />
       <span className={styles.label}>{label}</span>
-      {variant === 'status' ? <span className={styles.statusText} data-request-status>{statusText}</span> : <AttentionBadge count={count} />}
+      {variant === 'action' ? <AttentionBadge count={count} /> : <span className={styles.statusText} data-request-status>{statusText}</span>}
       <Glyph className={styles.chevron} name="Chevron" size={16} />
     </button>
   );

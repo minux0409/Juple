@@ -239,16 +239,11 @@
     "itemManageAction": "링크 더보기",
     "addToOther": "다른 컬렉션에 복제",
     "moveToOther": "다른 컬렉션으로 이동",
-    "mergeWithOther": "다른 컬렉션과 병합",
     "targetPickerTitle": "컬렉션 선택",
     "moveTitle": "링크 이동",
     "moveAction": "이동",
     "moveConfirmMessage": "이 링크를 \"{{target}}\" 컬렉션으로 이동할까요?",
     "moveError": "링크를 이동하지 못했습니다.",
-    "mergeTitle": "컬렉션 병합",
-    "mergeAction": "병합",
-    "mergeConfirmMessage": "\"{{source}}\" 컬렉션을 \"{{target}}\"에 병합할까요? 링크가 합쳐지고 현재 컬렉션은 삭제됩니다.",
-    "mergeError": "컬렉션을 병합하지 못했습니다.",
     "errorTargetLoadFallback": "컬렉션을 불러오지 못했습니다.",
     "myCategoriesTab": "내 컬렉션",
     "sharedCategoriesTab": "공유 컬렉션",
@@ -278,6 +273,7 @@
     "filterAll": "전체",
     "participantsMore": "{{names}} 외 {{count}}명",
     "participantsTitle": "참여자",
+    "participantsCount": "참여자 {{count}}명",
     "participantsLoadFallback": "참여자를 불러오지 못했어요.",
     "participantMe": "{{name}} (나)",
     "roleOwner": "소유자",
@@ -302,6 +298,7 @@
     "saveOutcomeAlreadyPending": "선택한 컬렉션에는 이미 승인 대기 중인 링크가 있어요.",
     "saveOutcomeAlreadyInCollection": "선택한 컬렉션에는 이미 같은 링크가 있어요.",
     "roleSubmitter": "승인 후 추가",
+    "reviewRequests": "검토할 요청",
     "pendingSubmissions": "받은 승인 요청",
     "pendingSubmissionsA11y": "받은 승인 요청 {{count}}개 보기",
     "removeFromSharedOwnerOnly": "공유받은 컬렉션에서는 소유자만 링크를 뺄 수 있어요.",
@@ -386,9 +383,7 @@
     "unlinkSuccess": "컬렉션에서 제거했습니다.",
     "undoUnlinkError": "컬렉션 제거를 되돌리지 못했습니다.",
     "collectionDeleteSuccess": "컬렉션을 삭제했습니다.",
-    "undoCollectionDeleteError": "컬렉션 삭제를 되돌리지 못했습니다.",
-    "collectionMergeSuccess": "컬렉션을 병합했습니다.",
-    "undoCollectionMergeError": "컬렉션 병합을 되돌리지 못했습니다."
+    "undoCollectionDeleteError": "컬렉션 삭제를 되돌리지 못했습니다."
   },
   "myPage": {
     "title": "내 페이지",
@@ -557,7 +552,7 @@
     "collectionLinkNotSavable": "Juple 컬렉션 공유 링크는 일반 링크로 저장할 수 없어요. 컬렉션에서 열어 주세요."
   },
   "sharedCollection": {
-    "cancelJoinTitle": "참여 요청을 취소할까요?",
+    "cancelJoinTitle": "참여 요청을 취소하시겠습니까?",
     "cancelJoinMessage": "취소하면 이 컬렉션의 참여 승인 대기 목록에서 사라져요.",
     "itemsEmpty": "이 공유 컬렉션에 저장된 링크가 아직 없습니다.",
     "unavailableTitle": "더 이상 사용할 수 없는 링크입니다.",
@@ -1163,8 +1158,8 @@
         "shortcut": "자주 여는 컬렉션은 홈 화면에서 바로 열 수 있어요.\n컬렉션을 길게 누른 뒤 '홈 화면에 바로가기 추가'를 선택하면\n휴대폰 홈 화면에서 해당 컬렉션으로 바로 들어갈 수 있어요.\n\n잠긴 컬렉션은 바로가기로 열어도 비밀번호가 필요해요.\n\n만든 바로가기는 홈 화면에서 직접 삭제해야 해요."
       },
       "manageLinks": {
-        "title": "복사·이동·병합",
-        "body": "컬렉션을 열고 링크의 더보기 메뉴에서 다른 컬렉션에 복사하거나, 이동하거나, 이 컬렉션에서 제거할 수 있어요. 제거해도 링크는 삭제되지 않아요.\n\n컬렉션 관리 메뉴에서 다른 컬렉션과 병합할 수도 있어요. 이동, 삭제, 병합 뒤에는 나타나는 메시지에서 되돌리기를 누를 수 있어요."
+        "title": "링크 복사 및 이동",
+        "body": "컬렉션을 열고 링크의 더보기 메뉴에서 다른 컬렉션에 복사하거나, 이동하거나, 이 컬렉션에서 제거할 수 있어요. 제거해도 링크는 삭제되지 않아요.\n\n이동하거나 삭제한 직후에는 나타나는 메시지에서 되돌릴 수 있어요."
       },
       "publicLink": {
         "title": "링크로 컬렉션 공유하기",

@@ -15,6 +15,7 @@ import { LinkImage } from '../LinkImage';
 import { LoadFailed } from '../PageStates';
 import { Modal } from '../Modal';
 import { OpenOriginalLink } from './OpenOriginalLink';
+import { RequestRow } from './RequestRow';
 import { useSignedInApp } from '../AppRoot';
 import { useAttention } from '../useAttention';
 import styles from './ReceivedRequests.module.css';
@@ -34,9 +35,11 @@ export function ReceivedRequestsDialog({
   open,
   onClose,
   onChanged,
+  review = false,
 }: {
   readonly collection: { readonly id: number; readonly name: string };
   readonly open: boolean;
+  readonly review?: boolean;
   readonly onClose: () => void;
   /** Something was answered (the caller refreshes what it shows: its counts, its links). */
   readonly onChanged: () => void;
@@ -45,17 +48,18 @@ export function ReceivedRequestsDialog({
   const busyRef = useRef(false);
   // The Modal renders its body only while open, so every opening starts from a fresh load.
   return (
-    <Modal closeLabel={dictionary.close} onClose={() => { if (!busyRef.current) onClose(); }} open={open} title={dictionary.requestsPendingSubmissions}>
-      <RequestsBody collectionId={collection.id} onBusyChange={value => { busyRef.current = value; }} onChanged={onChanged} />
+    <Modal closeLabel={dictionary.close} onClose={() => { if (!busyRef.current) onClose(); }} open={open} title={review ? dictionary.requestsReviewTitle : dictionary.requestsPendingSubmissions}>
+      <RequestsBody collectionId={collection.id} review={review} onBusyChange={value => { busyRef.current = value; }} onChanged={onChanged} />
     </Modal>
   );
 }
 
-function RequestsBody({ collectionId, onBusyChange, onChanged }: { readonly collectionId: number; readonly onBusyChange: (busy: boolean) => void; readonly onChanged: () => void }) {
+function RequestsBody({ collectionId, onBusyChange, onChanged, review }: { readonly collectionId: number; readonly review: boolean; readonly onBusyChange: (busy: boolean) => void; readonly onChanged: () => void }) {
   const collection = { id: collectionId };
   const { api, dictionary, locale, onSessionLost } = useSignedInApp();
   const { store } = useAttention();
   const [state, setState] = useState<Loaded>({ kind: 'loading' });
+  const [queue, setQueue] = useState<'link' | 'person' | null>(null);
   const [reload, setReload] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -126,6 +130,13 @@ function RequestsBody({ collectionId, onBusyChange, onChanged }: { readonly coll
   const links = state.kind === 'ready' ? state.links : [];
   const people = state.kind === 'ready' ? state.people : [];
   const rejecting = confirmReject;
+  const requestRow = (kind: 'link' | 'person', label: string, count: number) => {
+    const status = formatMessage(dictionary.requestsMyPendingStatus, { count });
+    return count > 0 ? (
+      <RequestRow accessibleLabel={label + ', ' + status} count={count} label={label} onClick={() => setQueue(kind)} statusText={status} variant="review" />
+    ) : null;
+  };
+  const visibleCount = queue === 'link' ? links.length : queue === 'person' ? people.length : links.length + people.length;
   return (
     <>
       <div>
@@ -136,8 +147,20 @@ function RequestsBody({ collectionId, onBusyChange, onChanged }: { readonly coll
           {state.kind === 'failed' ? (
             state.message ? <p className={styles.error} role="alert">{state.message}</p> : <LoadFailed dictionary={dictionary} onRetry={() => { setState({ kind: 'loading' }); setReload(token => token + 1); }} />
           ) : null}
-          {state.kind === 'ready' && links.length === 0 && people.length === 0 ? <p className={styles.empty}>{dictionary.submissionsEmpty}</p> : null}
-          {links.length > 0 ? (
+          {review && queue === null && visibleCount > 0 ? (
+            <div className={styles.list}>
+              {requestRow('link', dictionary.requestsPendingSubmissions, links.length)}
+              {requestRow('person', dictionary.requestsJoinRequests, people.length)}
+            </div>
+          ) : null}
+          {review && queue !== null ? (
+            <div className={styles.actions}>
+              <button className={styles.reject} disabled={busy !== null} onClick={() => setQueue(null)} type="button">{dictionary.back}</button>
+              <h3 className={styles.heading}>{queue === 'link' ? dictionary.requestsPendingSubmissions : dictionary.requestsJoinRequests}</h3>
+            </div>
+          ) : null}
+          {state.kind === 'ready' && visibleCount === 0 ? <p className={styles.empty}>{dictionary.submissionsEmpty}</p> : null}
+          {links.length > 0 && (!review || queue === 'link') ? (
             <ul className={styles.list}>
               {links.map(link => {
                 const title = link.title?.trim() || siteOf(link.url) || link.url;
@@ -179,9 +202,9 @@ function RequestsBody({ collectionId, onBusyChange, onChanged }: { readonly coll
               })}
             </ul>
           ) : null}
-          {people.length > 0 ? (
+          {people.length > 0 && (!review || queue === 'person') ? (
             <>
-              <h3 className={styles.heading}>{dictionary.requestsJoinRequests}</h3>
+              {!review ? <h3 className={styles.heading}>{dictionary.requestsJoinRequests}</h3> : null}
               <ul className={styles.list}>
                 {people.map(person => {
                   const name = participantName(person, dictionary);

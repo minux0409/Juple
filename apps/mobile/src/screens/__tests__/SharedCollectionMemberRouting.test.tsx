@@ -690,6 +690,17 @@ describe('cold-start share route while authenticated destinations are not regist
   });
 });
 
+it('dismissing the pending dialog closes the entry without opening withdrawal confirmation', async () => {
+  jest.mocked(getPublicCollection).mockResolvedValue(privateDto as never);
+  mockRequest.mockResolvedValue({ status: 200, body: notAMember(false, true) });
+  const renderer = await renderScreen();
+  await act(async () => dialog(renderer, i18n.t('sharedCollection.joinPendingTitle')).props.onRequestClose());
+  expect(mockGoBack).toHaveBeenCalledTimes(1);
+  expect(dialog(renderer, i18n.t('sharedCollection.cancelJoinTitle'))).toBeUndefined();
+  expect(calls(/join-requests\/mine/)).toHaveLength(0);
+  await act(async () => renderer.unmount());
+});
+
 it.each([false, true])('withdrawal confirmation, duplicate guard and failure preservation (fails=%s)', async fails => {
   jest.mocked(getPublicCollection).mockResolvedValue(privateDto as never);
   let finish!: () => void;

@@ -8,50 +8,7 @@ import { STATUS_ICON_MARKUP } from '../lib/collectionIconMarkup.ts';
 
 const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const detail = source('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx');
-const picker = source('app/(app)/CollectionPicker.tsx');
-const mergeDialog = source('app/(app)/collections/[collectionId]/MergeCollection.tsx');
-const destination = source('app/(app)/DestinationDialog.tsx');
 const css = source('app/(app)/app.module.css');
-
-describe('Collection merge picker: List | Grid', () => {
-  it('only the merge dialog turns the switch on; the dialog passes it through to the picker', () => {
-    assert.match(mergeDialog, /<DestinationDialog[\s\S]*viewModes\s*\/>/);
-    assert.match(destination, /viewModes=\{viewModes\}/);
-    assert.equal((source('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx').match(/viewModes/g) ?? []).length, 0);
-  });
-
-  it('the picker offers the existing ViewModeToggle with List and Grid only, kept in memory (no storage key)', () => {
-    assert.match(picker, /import \{ ViewModeToggle \} from '\.\/ViewModeToggle'/);
-    assert.match(picker, /PICKER_VIEW_MODES = \['list', 'grid'\] as const/);
-    assert.match(picker, /groupLabel=\{dictionary\.viewModeLabel\}/);
-    assert.match(picker, /list: dictionary\.viewList, grid: dictionary\.viewGrid/);
-    assert.doesNotMatch(picker, /localStorage|useStoredChoice/);
-  });
-
-  it('Grid draws icon tiles with the name underneath; List keeps a compact row; the toggle exposes the selected mode', () => {
-    assert.match(picker, /styles\.choiceGridTiles/);
-    assert.match(picker, /styles\.choiceListRows/);
-    assert.match(picker, /styles\.choiceTile/);
-    assert.match(css, /\.choice\.choiceTile,\s*\.choiceSelected\.choiceTile \{[^}]*flex-direction: column;/);
-    assert.match(css, /\.choiceTile \.choiceName \{[^}]*-webkit-line-clamp: 2;/);
-    const toggle = source('app/(app)/ViewModeToggle.tsx');
-    assert.match(toggle, /aria-pressed=\{value === mode\}/);
-    assert.match(toggle, /aria-label=\{labels\[mode\]\}/);
-  });
-
-  it('the Collection being merged is still excluded and the existing merge request / confirmation is untouched', () => {
-    assert.match(mergeDialog, /excluded=\{\[collection\.id\]\}/);
-    assert.match(mergeDialog, /eligible=\{candidate => isMergeTarget\(candidate, collection\.id\)\}/);
-    assert.match(mergeDialog, /path: mergePath\(collection\.id\)/);
-    assert.match(mergeDialog, /body: \{ targetCollectionId: target\.collection\.id \}/);
-    assert.match(mergeDialog, /<ConfirmDialog[\s\S]*destructive/);
-  });
-
-  it('the choices are real buttons (Tab / Enter / Space) in the shared Modal', () => {
-    assert.match(picker, /<button[\s\S]*aria-pressed=\{selected\}[\s\S]*type="button"/);
-    assert.match(destination, /<Modal /);
-  });
-});
 
 describe('No whole-Collection report in the Collection menu (the server no longer accepts one)', () => {
   it('neither the member branch nor the lock/delete branch has a report entry, and the member still leaves', () => {
@@ -82,7 +39,7 @@ describe('Shared Collection 알림 켜기 / 끄기', () => {
   it('the label and glyph follow the state: ON offers 알림 끄기 (bell-off), OFF offers 알림 켜기 (bell)', () => {
     assert.match(detail, /newLinkNotifications \? dictionary\.newLinkNotificationsTurnOff : dictionary\.newLinkNotificationsTurnOn/);
     assert.match(detail, /newLinkNotifications \? \('BellOff' as const\) : \('Bell' as const\)/);
-    assert.ok(STATUS_ICON_MARKUP.BellOff && STATUS_ICON_MARKUP.Bell && STATUS_ICON_MARKUP.Moon && STATUS_ICON_MARKUP.Merge);
+    assert.ok(STATUS_ICON_MARKUP.BellOff && STATUS_ICON_MARKUP.Bell && STATUS_ICON_MARKUP.Moon);
   });
 
   it('flips at once, rolls back to the previous state and says so on failure; only the latest change counts', () => {
@@ -105,13 +62,6 @@ describe('Shared Collection 알림 켜기 / 끄기', () => {
   });
 });
 
-describe('merge menu item', () => {
-  it('uses the merge glyph and the unchanged permission rule', () => {
-    assert.match(detail, /key: 'merge', label: dictionary\.mergeWithOther, icon: 'Merge' as const/);
-    assert.match(detail, /canMergeCollection\(collection,/);
-  });
-});
-
 describe('one close X for every window', () => {
   const closeButton = source('app/(app)/ModalCloseButton.tsx');
   it('the shared button: a 22px X glyph, the localized 닫기 as its name, a 44px hit area with hover and keyboard focus', () => {
@@ -122,7 +72,7 @@ describe('one close X for every window', () => {
     assert.match(css, /\.modalCloseButton:focus-visible \{[^}]*outline: 2px solid var\(--brand\)/);
   });
 
-  it('the common Modal (Link share, participants, merge picker ...), the Friend picker, the link sheet and the reaction picker all use it - no text 닫기 button, no tiny ×', () => {
+  it('the common Modal (Link share, participants, destination picker ...), the Friend picker, the link sheet and the reaction picker all use it - no text 닫기 button, no tiny ×', () => {
     assert.match(source('app/(app)/Modal.tsx'), /<ModalCloseButton label=\{closeLabel\} onClick=\{onClose\} \/>/);
     assert.doesNotMatch(source('app/(app)/Modal.tsx'), /\{closeLabel\}\s*<\/button>/);
     for (const file of ['app/(app)/collections/[collectionId]/FriendPicker.tsx', 'app/(app)/items/[itemId]/QuickDetailSheet.tsx', 'app/(app)/ItemCollaboration.tsx']) {
@@ -270,17 +220,6 @@ describe('Friend detail: shared collections as compact vertical tiles', () => {
     assert.match(page, /<Link aria-label=\{collection\.name\} className=\{styles\.friendSharedItem\} href=\{collectionHref\(collection\.id\)\}/);
     assert.match(page, /\/api\/v1\/friends\/\$\{friendshipId\}\/shared-collections\?limit=50/);
     assert.match(page, /data-friend-shared-more/);
-  });
-});
-
-describe('Merge picker Grid: the lock is a thumbnail badge', () => {
-  const picker = source('app/(app)/CollectionPicker.tsx');
-  it('in Grid the lock is overlaid on the thumbnail (top-start) and takes no row; List keeps its trailing lock', () => {
-    assert.match(picker, /styles\.choiceThumb/);
-    assert.match(picker, /isCollectionLocked\(collection\) && viewModes && layout === 'grid' \?[\s\S]*styles\.choiceLockBadge/);
-    assert.match(picker, /isCollectionLocked\(collection\) && !\(viewModes && layout === 'grid'\) \? <Glyph name="Lock" size=\{14\} \/> : null/);
-    assert.match(css, /\.choiceLockBadge \{[^}]*position: absolute;[^}]*top: -5px;[^}]*inset-inline-start: -5px;/);
-    assert.match(css, /\.choiceThumb \{[^}]*position: relative;/);
   });
 });
 

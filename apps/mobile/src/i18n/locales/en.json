@@ -161,7 +161,7 @@
     "copySelectUpTo": "Select up to {{max}}",
     "detailItemCount": "Total {{count}}",
     "myPendingSubmissions": "Sent approval requests",
-    "myPendingStatus": "{{count}} waiting",
+    "myPendingStatus": "{{count}} pending",
     "myPendingSubmissionsA11y": "View {{count}}: Sent approval requests",
     "myPendingA11y": "Sent approval requests: {{count}}",
     "favoritesTitle": "Favorites",
@@ -239,16 +239,11 @@
     "itemManageAction": "More link actions",
     "addToOther": "Duplicate to another collection",
     "moveToOther": "Move to another collection",
-    "mergeWithOther": "Merge with another collection",
     "targetPickerTitle": "Select collection",
     "moveTitle": "Move link",
     "moveAction": "Move",
     "moveConfirmMessage": "Move this link to \"{{target}}\"?",
     "moveError": "Couldn't move the link.",
-    "mergeTitle": "Merge collections",
-    "mergeAction": "Merge",
-    "mergeConfirmMessage": "Merge \"{{source}}\" into \"{{target}}\"? Links will be combined and this collection will be deleted.",
-    "mergeError": "Couldn't merge the collection.",
     "errorTargetLoadFallback": "Couldn't load collections.",
     "myCategoriesTab": "My collections",
     "sharedCategoriesTab": "Shared",
@@ -278,6 +273,7 @@
     "filterAll": "All",
     "participantsMore": "{{names}} +{{count}}",
     "participantsTitle": "Participants",
+    "participantsCount": "Participants: {{count}}",
     "participantsLoadFallback": "Couldn't load participants.",
     "participantMe": "{{name}} (you)",
     "roleOwner": "Owner",
@@ -302,6 +298,7 @@
     "saveOutcomeAlreadyPending": "The collection you chose already has this link waiting for approval.",
     "saveOutcomeAlreadyInCollection": "The collection you chose already has this link.",
     "roleSubmitter": "Needs approval",
+    "reviewRequests": "Requests to review",
     "pendingSubmissions": "Received approval requests",
     "pendingSubmissionsA11y": "View {{count}}: Received approval requests",
     "removeFromSharedOwnerOnly": "Only the owner can remove links from a collection shared with you.",
@@ -386,9 +383,7 @@
     "unlinkSuccess": "Removed from the collection.",
     "undoUnlinkError": "Couldn't undo removing from the collection.",
     "collectionDeleteSuccess": "Collection deleted.",
-    "undoCollectionDeleteError": "Couldn't undo deleting the collection.",
-    "collectionMergeSuccess": "Collection merged.",
-    "undoCollectionMergeError": "Couldn't undo merging the collection."
+    "undoCollectionDeleteError": "Couldn't undo deleting the collection."
   },
   "myPage": {
     "title": "My Page",
@@ -1163,8 +1158,8 @@
         "shortcut": "Open a frequently used Collection straight from your Home screen. Long-press it and choose \"Add shortcut to Home screen\" to jump into that Collection from your phone's Home screen.\n\nA locked Collection still asks for its password when opened from a shortcut.\n\nDelete a shortcut yourself from your Home screen when you no longer need it."
       },
       "manageLinks": {
-        "title": "Copy, move and merge",
-        "body": "Open a Collection and use a link's more menu to copy it into other Collections, move it, or remove it from this Collection. Removing it doesn't delete the link.\n\nYou can also merge a Collection into another from its manage menu. After a move, delete or merge, tap Undo in the message that appears."
+        "title": "Copy and move links",
+        "body": "Open a Collection and use a link's more menu to copy it into other Collections, move it, or remove it from this Collection. Removing it doesn't delete the link.\n\nAfter moving or deleting, tap Undo in the message that appears."
       },
       "publicLink": {
         "title": "Share a Collection by link",

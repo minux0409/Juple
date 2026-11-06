@@ -9,7 +9,6 @@ import {
   revokeCollectionShare,
   setCollectionColor,
   setCollectionIcon,
-  mergeCollection,
   moveCollectionItem,
   removeItemFromCollection,
 } from '../api/collectionsApi';
@@ -101,19 +100,17 @@ describe('content changes carry the unlock grants of this session', () => {
     expect(headersOfCall(0)).toBeUndefined();
   });
 
-  it('attaches the stored grant to add/remove/reorder, and every involved grant to a merge', async () => {
+  it('attaches the stored grant to add/remove/reorder', async () => {
     rememberCollectionUnlock(1, 'grant-1', later());
     rememberCollectionUnlock(2, 'grant-2', later());
 
     await addItemToCollection(request as never, 1, 99);
     await removeItemFromCollection(request as never, 1, 99);
     await moveCollectionItem(request as never, 1, 99, null);
-    await mergeCollection(request as never, 1, 2);
 
     for (const index of [0, 1, 2]) {
       expect(headersOfCall(index)).toEqual({ [COLLECTION_UNLOCK_HEADER]: 'grant-1' });
     }
-    expect(headersOfCall(3)).toEqual({ [COLLECTION_UNLOCK_HEADER]: 'grant-1,grant-2' });
   });
 
   it('managing a locked Collection (rename/icon/color/delete/share/collaboration) carries its grant too', async () => {

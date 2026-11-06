@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import type { StyleProp, ViewStyle } from 'react-native';
+import type { StyleProp, ViewProps, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors, themedStyles } from '../theme/tokens';
 
-interface StackScreenSafeAreaProps {
+interface StackScreenSafeAreaProps extends Pick<ViewProps, 'testID'> {
   readonly children: ReactNode;
   readonly style?: StyleProp<ViewStyle>;
 }
@@ -24,13 +25,17 @@ interface StackScreenSafeAreaProps {
  * THIS container real padding instead physically shrinks every child's available height, so a
  * flex:1 FlatList/ScrollView inside it can never render a pixel under the system nav bar, regardless
  * of scroll position or content length. The padding band itself is filled by this same container's
- * own `style` background (pass an opaque one, e.g. colors.background), so it reads as a solid,
+ * own opaque background, so it reads as a solid,
  * fully separate area rather than translucent app content showing through the system bar.
  */
-export function StackScreenSafeArea({ children, style }: StackScreenSafeAreaProps) {
+export function StackScreenSafeArea({ children, style, testID }: StackScreenSafeAreaProps) {
   return (
-    <SafeAreaView edges={['bottom']} style={style}>
+    <SafeAreaView edges={['bottom']} style={[styles.screen, style]} testID={testID}>
       {children}
     </SafeAreaView>
   );
 }
+
+const styles = themedStyles(() => ({
+  screen: { backgroundColor: colors.background, flex: 1 },
+}));

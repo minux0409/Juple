@@ -15,7 +15,7 @@ turning it on is not part of any current task.
 | Pending purchase | no access granted | yes | per trial/other purchases | never acknowledged until active |
 | `ProgramEnabled=false` (today) | `status null`, `canWrite true` | yes | yes | nothing is checked or started; no trial starts |
 
-- **Writes** that need access: saving links, editing/deleting links, Collections (create/edit/delete), sharing, invitations (send/accept), collaborators, comments, reactions, friends (create/accept), image uploads, copy/move/merge, public-link writes. The server answers `403 subscriptionRequired`.
+- **Writes** that need access: saving links, editing/deleting links, Collections (create/edit/delete), sharing, invitations (send/accept), collaborators, comments, reactions, friends (create/accept), image uploads, copy/move, public-link writes. The server answers `403 subscriptionRequired`.
 - **Always allowed (any state):** account, sign-in/session, bootstrap, billing verify/restore, support, push registration, settings (profile, language, lock password, notification preferences, notifications, recently opened, URL metadata lookup) and exit/safety actions (leave a Collection, decline, cancel my own request, stop sharing, unlock/reveal, my own lock, remove friend/cancel request).
 - **Shared Collections:** a write needs **both** the acting person **and** the Collection's owner to have live access (otherwise `403 collectionOwnerSubscriptionRequired`). Reading is never blocked, so an expired owner's Collection is simply frozen for everyone. Public-link writes are gated the same way against the link's owner. There is no separate time-based "frozen snapshot".
 - **Billing/restore:** always available. A restore of an already expired purchase does not reactivate access.

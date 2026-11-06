@@ -59,7 +59,7 @@ export function needsUnlockForContent(
 
 /**
  * Shown with the "shared" marker - exactly the server's 공유 컬렉션 ("shared") scope: shared with
- * me, or my own Collection that has members or an active 모든 사용자 link. (Move/merge rules look
+ * me, or my own Collection that has members or an active 모든 사용자 link. (Move rules look
  * at hasCollaborators alone - a public link never blocks those.)
  */
 export function isCollaborative(collection: Pick<Collection, 'accessRole' | 'hasCollaborators' | 'isPublicShareActive'>): boolean {
