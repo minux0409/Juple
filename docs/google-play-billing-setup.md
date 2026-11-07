@@ -1,6 +1,6 @@
 # Google Play billing - external setup checklist (R39-B2)
 
-> 2026-10-20 source-policy update: the business target is USD 1.99/month. This checklist is not approval to change a live product,
+> 2026-10-20 source-policy update: the business target is USD 1.99/month (confirmed as the base price on 2026-11-07: monthly USD 1.99 and yearly USD 19.90 - about 17% off in the US; no store free trial). This checklist is not approval to change a live product,
 > activate selling or enable Billing. First report the authenticated catalog, regional prices and existing subscriber cohorts, then obtain
 > explicit approval. See [price audit and remaining access gates](permissions-pricing-business-expenses.md#b-가격-정책과-외부-확인).
 
@@ -33,14 +33,15 @@ secret value is written anywhere in the repo: placeholders in `<angle brackets>`
 2. **Monetization setup > Real-time developer notifications**: enter the Pub/Sub topic name `<projects/.../topics/juple-play-rtdn>`, choose
    subscription notifications (and voided-purchase notifications), and use **Send test notification** - it must arrive at the webhook and
    appear as a `test` event in `billing.StoreEvents`.
-3. **Create the subscription product** (proposed id: `juple_monthly`) with **one monthly auto-renewing base plan** (proposed id: `monthly`).
-   Set the **US base price to the USD 1.99 target (source policy only; store changes require separate approval)**; let Play convert the other countries and review the proposed local prices.
+3. **Subscription product** `juple_monthly` (DEV: exists and ACTIVE) with **two auto-renewing base plans**: `monthly` (1 month) and `yearly` (1 year, **to be added - not yet done**).
+   Set the **US base prices to USD 1.99 / USD 19.90 (confirmed by the product owner; applying them in Play Console still requires a separate approval and is not part of any code change)**; let Play convert the other countries and review the proposed local prices.
    The proposed ids are **proposals until Play Console confirms they are free and acceptable**. Do **not** add a free-trial or introductory offer:
    the 30-day trial is Juple-controlled, not a store offer.
 4. Activate the base plan, and add a **grace period** and **account hold** for payment failures (the backend maps both).
 5. Upload a build to **Internal testing**, add **license testers** and tester accounts, and install from the Play track (a sideloaded APK cannot
    buy). Test purchases are fast-renewing and cancel themselves - use them to exercise renewal, cancel, hold and refund.
-6. Set `Billing:Google:ProductId` / `BasePlanId` to the confirmed ids in the environment (never in source).
+6. Set `Billing:Google:ProductId` and `Billing:Google:BasePlanIds:0..1` (`monthly`, `yearly`) to the confirmed ids in the environment (never in source). The legacy single `BasePlanId` still works and is treated as the only allowed plan. The server identifies the plan by the purchase's billing period (P1M / P1Y); a base plan outside the list is refused.
+7. The app reads each base plan's price and **offer token** from Play (`subscriptionOffers`, matched by `basePlanIdAndroid`); the yearly discount shown is computed per country from monthly x 12 vs yearly, so Play's regional price tiers need not reproduce 16.67%. A switch monthly <-> yearly is a Play upgrade/downgrade of the same subscription; the server just reads the new state. Verify in a license-tester account.
 
 ## 3. Azure (DEV first)
 
@@ -55,6 +56,8 @@ secret value is written anywhere in the repo: placeholders in `<angle brackets>`
    and Play's test notification is processed.
 
 ## 4. Sandbox purchase E2E (acceptance for R39-B2)
+
+Run the matrix for **both** plans, plus monthly -> yearly and yearly -> monthly.
 
 New purchase -> `verify` -> acknowledged -> entitlement `active`; renewal; cancel (access until the period ends, reason `cancelled`); payment failure ->
 grace (`gracePeriod`) -> hold (`expired` + `billingIssue`); refund / revoke (`expired` + `refunded` - confirm it really arrives and is detected; this is the one
@@ -72,6 +75,7 @@ part of R39-B1.
 | | Proposed | Confirmed in Play Console |
 |---|---|---|
 | Subscription product | `juple_monthly` | _R39-B2_ |
-| Base plan | `monthly` | _R39-B2_ |
+| Base plan (monthly) | `monthly` | DEV: ACTIVE |
+| Base plan (yearly) | `yearly` | _to be created_ |
 
 Neither is hardcoded in the app or the backend: both come from configuration, which stays empty (billing disabled) until then.
