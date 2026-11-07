@@ -120,7 +120,10 @@ public sealed class ServiceBusBillingConsumer(
         try
         {
             await using var scope = scopeFactory.CreateAsyncScope();
+            // The queue carries ids only. Each processor takes only the events of ITS store (the repository filters by source), so the
+            // one that does not own this id simply reports NotTaken.
             await scope.ServiceProvider.GetRequiredService<IGoogleBillingProcessor>().ProcessEventAsync(eventId, args.CancellationToken);
+            await scope.ServiceProvider.GetRequiredService<Juple.Application.Billing.Apple.IAppleBillingProcessor>().ProcessEventAsync(eventId, args.CancellationToken);
             // Whatever the outcome (processed, not due, taken by another, retry scheduled in SQL), this message's job - waking a
             // processor - is done; SQL owns the rest.
             await args.CompleteMessageAsync(args.Message, args.CancellationToken);
@@ -148,6 +151,9 @@ public sealed class BillingTelemetry(ILogger<BillingTelemetry> logger) : IBillin
 
     public void GoogleCallFailed(string operation, string errorType) =>
         logger.LogWarning("billing.google.call.failed Operation={Operation} ErrorType={ErrorType}", operation, errorType);
+
+    public void AppleCallFailed(string operation, string errorType) =>
+        logger.LogWarning("billing.apple.call.failed Operation={Operation} ErrorType={ErrorType}", operation, errorType);
 
     public void AcknowledgeFailed(long purchaseId) =>
         logger.LogWarning("billing.google.acknowledge.failed PurchaseId={PurchaseId}", purchaseId);

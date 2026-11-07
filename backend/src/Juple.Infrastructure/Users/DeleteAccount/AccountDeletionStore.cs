@@ -162,6 +162,9 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext, TimeProvider?
             await dbContext.GoogleAccountLinks
                 .Where(link => link.UserId == userId)
                 .ExecuteDeleteAsync(cancellationToken);
+            await dbContext.AppleAccountLinks
+                .Where(link => link.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
             await dbContext.StorePurchases
                 .Where(purchase => purchase.UserId == userId)
                 .ExecuteUpdateAsync(

@@ -25,7 +25,7 @@ public sealed class PurchaseNotAllowedException(PurchaseRejectionReason reason) 
 public sealed class BillingNotEnabledException() : Exception("Google Play billing is not enabled.");
 
 /// <summary>What the app needs to start a purchase. Only non-secret, non-price data; the price comes from Google Play itself.</summary>
-public sealed record GoogleCatalog(bool Enabled, string? ProductId, string? BasePlanId, string? ObfuscatedAccountId);
+public sealed record GoogleCatalog(bool Enabled, string? ProductId, string? BasePlanId, string? ObfuscatedAccountId, IReadOnlyList<string>? BasePlanIds = null);
 
 public enum GoogleVerifyOutcome
 {

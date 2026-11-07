@@ -21,6 +21,7 @@ public static class RateLimitPolicies
 
     /// <summary>Google Play billing catalog / verify / restore: per signed-in identity (the public RTDN webhook has none, on purpose).</summary>
     public const string BillingGoogle = "billing-google";
+    public const string BillingApple = "billing-apple";
 
     /// <summary>Public unlock: the share link plus the opaque browser attempt id (bounded length; never logged).</summary>
     public static string PublicUnlockPartitionKey(HttpContext httpContext)
@@ -77,6 +78,10 @@ public static class RateLimitPolicies
             RateLimitPartition.GetFixedWindowLimiter(
                 RateLimitPolicies.IdentityPartitionKey(httpContext),
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+        options.AddPolicy(RateLimitPolicies.BillingApple, httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                RateLimitPolicies.IdentityPartitionKey(httpContext),
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
         options.AddPolicy(RateLimitPolicies.BillingGoogle, httpContext =>
             RateLimitPartition.GetFixedWindowLimiter(
                 RateLimitPolicies.IdentityPartitionKey(httpContext),

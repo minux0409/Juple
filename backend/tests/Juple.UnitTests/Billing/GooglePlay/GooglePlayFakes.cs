@@ -109,7 +109,7 @@ public sealed class FakeSignal : IBillingEventSignal
 }
 
 /// <summary>An in-memory IGoogleBillingStore that applies the SAME domain rules as the SQL one (ownership, claim of a detached purchase, stable lapse end).</summary>
-public sealed class FakeGoogleBillingStore : IGoogleBillingStore
+public class FakeGoogleBillingStore : IGoogleBillingStore
 {
     private long _nextId = 1;
     private readonly Dictionary<long, StorePurchase> _purchases = [];

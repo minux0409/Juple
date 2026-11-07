@@ -109,6 +109,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
 
     public DbSet<Juple.Domain.Billing.GoogleAccountLink> GoogleAccountLinks => Set<Juple.Domain.Billing.GoogleAccountLink>();
 
+    public DbSet<Juple.Domain.Billing.AppleAccountLink> AppleAccountLinks => Set<Juple.Domain.Billing.AppleAccountLink>();
+
     public DbSet<DataExportLink> DataExportLinks => Set<DataExportLink>();
     public DbSet<Juple.Domain.Expenses.Expense> Expenses => Set<Juple.Domain.Expenses.Expense>();
     public DbSet<Juple.Domain.Expenses.ExpenseAttachment> ExpenseAttachments => Set<Juple.Domain.Expenses.ExpenseAttachment>();

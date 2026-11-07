@@ -6,11 +6,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Billing;
 
-public sealed class GoogleBillingStore(JupleDbContext dbContext) : IGoogleBillingStore
+public class GoogleBillingStore(JupleDbContext dbContext) : IGoogleBillingStore
 {
     private const int MaxUpsertAttempts = 5;
 
-    public async Task EnsureAccountLinkAsync(long userId, string accountKey, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+    /// <summary>The store whose rows this repository reads and writes (the App Store repository overrides it). Rows of another source are never touched.</summary>
+    protected virtual StoreSource Source => StoreSource.GooglePlay;
+
+    public virtual async Task EnsureAccountLinkAsync(long userId, string accountKey, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
     {
         if (await dbContext.GoogleAccountLinks.AsNoTracking().AnyAsync(link => link.UserId == userId, cancellationToken))
         {
@@ -33,7 +36,7 @@ public sealed class GoogleBillingStore(JupleDbContext dbContext) : IGoogleBillin
         }
     }
 
-    public Task<long?> FindUserIdByAccountKeyAsync(string accountKey, CancellationToken cancellationToken = default) =>
+    public virtual Task<long?> FindUserIdByAccountKeyAsync(string accountKey, CancellationToken cancellationToken = default) =>
         dbContext.GoogleAccountLinks.AsNoTracking()
             .Where(link => link.AccountKey == accountKey)
             .Select(link => (long?)link.UserId)
@@ -41,19 +44,19 @@ public sealed class GoogleBillingStore(JupleDbContext dbContext) : IGoogleBillin
 
     public Task<StorePurchaseRecord?> FindPurchaseAsync(byte[] externalKeyHash, CancellationToken cancellationToken = default) =>
         dbContext.StorePurchases.AsNoTracking()
-            .Where(purchase => purchase.Source == StoreSource.GooglePlay && purchase.ExternalKeyHash == externalKeyHash)
+            .Where(purchase => purchase.Source == Source && purchase.ExternalKeyHash == externalKeyHash)
             .Select(ToRecord)
             .FirstOrDefaultAsync(cancellationToken);
 
     public Task<StorePurchaseRecord?> FindPurchaseAsync(long purchaseId, CancellationToken cancellationToken = default) =>
         dbContext.StorePurchases.AsNoTracking()
-            .Where(purchase => purchase.Id == purchaseId)
+            .Where(purchase => purchase.Id == purchaseId && purchase.Source == Source)
             .Select(ToRecord)
             .FirstOrDefaultAsync(cancellationToken);
 
     public async Task<IReadOnlyList<StorePurchaseRecord>> ListPurchasesForUserAsync(long userId, CancellationToken cancellationToken = default) =>
         await dbContext.StorePurchases.AsNoTracking()
-            .Where(purchase => purchase.UserId == userId)
+            .Where(purchase => purchase.UserId == userId && purchase.Source == Source)
             .Select(ToRecord)
             .ToListAsync(cancellationToken);
 
@@ -63,11 +66,11 @@ public sealed class GoogleBillingStore(JupleDbContext dbContext) : IGoogleBillin
         {
             dbContext.ChangeTracker.Clear();
             var purchase = await dbContext.StorePurchases.SingleOrDefaultAsync(
-                entry => entry.Source == StoreSource.GooglePlay && entry.ExternalKeyHash == command.ExternalKeyHash, cancellationToken);
+                entry => entry.Source == Source && entry.ExternalKeyHash == command.ExternalKeyHash, cancellationToken);
 
             if (purchase is null)
             {
-                purchase = new StorePurchase(command.UserId, StoreSource.GooglePlay, command.ProductId, command.ExternalKeyHash, command.EncryptedToken, command.NowUtc);
+                purchase = new StorePurchase(command.UserId, Source, command.ProductId, command.ExternalKeyHash, command.EncryptedToken, command.NowUtc);
                 dbContext.StorePurchases.Add(purchase);
             }
             else if (command.UserId is { } requester && purchase.UserId != requester)
@@ -143,7 +146,7 @@ public sealed class GoogleBillingStore(JupleDbContext dbContext) : IGoogleBillin
     {
         var leaseUntil = nowUtc + lease;
         var claimed = await dbContext.StoreEvents
-            .Where(entry => entry.Id == eventId && entry.ProcessedAtUtc == null && entry.NextAttemptAtUtc <= nowUtc)
+            .Where(entry => entry.Id == eventId && entry.Source == Source && entry.ProcessedAtUtc == null && entry.NextAttemptAtUtc <= nowUtc)
             .ExecuteUpdateAsync(setters => setters.SetProperty(entry => entry.NextAttemptAtUtc, leaseUntil), cancellationToken);
         if (claimed == 0)
         {
@@ -158,7 +161,7 @@ public sealed class GoogleBillingStore(JupleDbContext dbContext) : IGoogleBillin
 
     public async Task<IReadOnlyList<long>> ListDueEventIdsAsync(DateTimeOffset nowUtc, int limit, CancellationToken cancellationToken = default) =>
         await dbContext.StoreEvents.AsNoTracking()
-            .Where(entry => entry.ProcessedAtUtc == null && entry.NextAttemptAtUtc <= nowUtc)
+            .Where(entry => entry.Source == Source && entry.ProcessedAtUtc == null && entry.NextAttemptAtUtc <= nowUtc)
             .OrderBy(entry => entry.NextAttemptAtUtc)
             .Select(entry => entry.Id)
             .Take(limit)
@@ -183,7 +186,7 @@ public sealed class GoogleBillingStore(JupleDbContext dbContext) : IGoogleBillin
     public async Task<IReadOnlyList<long>> ClaimDuePurchaseIdsAsync(DateTimeOffset nowUtc, TimeSpan lease, int limit, CancellationToken cancellationToken = default)
     {
         var due = await dbContext.StorePurchases.AsNoTracking()
-            .Where(purchase => purchase.NextReconcileAtUtc <= nowUtc && purchase.VerificationHandleEncrypted != null)
+            .Where(purchase => purchase.Source == Source && purchase.NextReconcileAtUtc <= nowUtc && purchase.VerificationHandleEncrypted != null)
             .OrderBy(purchase => purchase.NextReconcileAtUtc)
             .Select(purchase => new { purchase.Id, purchase.NextReconcileAtUtc })
             .Take(limit)

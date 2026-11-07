@@ -22,7 +22,7 @@ public sealed class PurchaseTokenTamperedException() : Exception("The sealed pur
 /// trial keys). Packed as <c>version(1) | nonce(12) | tag(16) | ciphertext</c>, with the version and a fixed purpose string
 /// authenticated, so a blob cannot be altered, truncated or reused for another purpose without detection.
 /// </summary>
-public sealed class PurchaseTokenProtector(BillingOptions options) : IPurchaseTokenProtector
+public class PurchaseTokenProtector(BillingOptions options) : IPurchaseTokenProtector
 {
     private const byte Version = 1;
     private const int NonceLength = 12;
@@ -71,10 +71,15 @@ public sealed class PurchaseTokenProtector(BillingOptions options) : IPurchaseTo
 
     public byte[] Hash(string purchaseToken) => SHA256.HashData(Encoding.UTF8.GetBytes(purchaseToken));
 
+    /// <summary>The configured Base64 key. The Apple protector overrides it with its own, separate key.</summary>
+    protected virtual string? ConfiguredKey => options.Google.PurchaseTokenEncryptionKey;
+
+    protected virtual string ConfiguredKeyName => "Billing:Google:PurchaseTokenEncryptionKey";
+
     private byte[] RequireKey() =>
-        TryDecodeKey(options.Google.PurchaseTokenEncryptionKey, out var key)
+        TryDecodeKey(ConfiguredKey, out var key)
             ? key
-            : throw new InvalidOperationException("Billing:Google:PurchaseTokenEncryptionKey is not configured.");
+            : throw new InvalidOperationException($"{ConfiguredKeyName} is not configured.");
 
     internal static bool TryDecodeKey(string? value, out byte[] key)
     {

@@ -186,6 +186,10 @@ builder.Services.AddSingleton<Juple.Application.Billing.IPurchaseTokenProtector,
 builder.Services.AddSingleton<Juple.Application.Billing.GooglePlay.IGoogleAccountIdProvider, Juple.Application.Billing.GooglePlay.GoogleAccountIdProvider>();
 builder.Services.AddScoped<Juple.Application.Billing.GooglePlay.IGoogleBillingService, Juple.Application.Billing.GooglePlay.GoogleBillingService>();
 builder.Services.AddScoped<Juple.Application.Billing.GooglePlay.IGoogleBillingProcessor, Juple.Application.Billing.GooglePlay.GoogleBillingProcessor>();
+builder.Services.AddSingleton<Juple.Application.Billing.Apple.IAppleAccountTokenProvider, Juple.Application.Billing.Apple.AppleAccountTokenProvider>();
+builder.Services.AddSingleton<Juple.Application.Billing.Apple.IApplePurchaseHandleProtector, Juple.Application.Billing.Apple.ApplePurchaseHandleProtector>();
+builder.Services.AddScoped<Juple.Application.Billing.Apple.IAppleBillingService, Juple.Application.Billing.Apple.AppleBillingService>();
+builder.Services.AddScoped<Juple.Application.Billing.Apple.IAppleBillingProcessor, Juple.Application.Billing.Apple.AppleBillingProcessor>();
 builder.Services.AddScoped<ICurrentUserBootstrapService, CurrentUserBootstrapService>();
 builder.Services.AddScoped<IDeleteAccountService, DeleteAccountService>();
 builder.Services.AddScoped<IInboxEntrySaveService, InboxEntrySaveService>();
@@ -396,6 +400,7 @@ var app = builder.Build();
 // Google billing settings are checked in EVERY mode (API, worker, Jobs): disabled needs nothing; enabled needs all of its settings and
 // three distinct secrets, or the process stops here naming the setting (never echoing a value).
 Juple.Application.Billing.BillingOptionsValidator.ValidateGoogle(billingOptions);
+Juple.Application.Billing.BillingOptionsValidator.ValidateApple(billingOptions);
 
 // One-shot execution mode for the push-dispatch Job - never reaches the HTTP pipeline below.
 if (isPushDispatchJob)

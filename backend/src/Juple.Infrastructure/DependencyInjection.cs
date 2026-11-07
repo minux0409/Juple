@@ -87,6 +87,10 @@ public static class DependencyInjection
             services.AddSingleton<Juple.Application.Billing.GooglePlay.IBillingEventSignal, Juple.Infrastructure.Billing.ServiceBusBillingEventSignal>();
         }
 
+        // Apple App Store billing: the same inert-until-enabled pattern (no credential is read at startup).
+        services.AddScoped<Juple.Application.Billing.Apple.IAppleBillingStore, Juple.Infrastructure.Billing.AppleBillingStore>();
+        services.AddSingleton<Juple.Application.Billing.Apple.IAppleJwsVerifier, Juple.Application.Billing.Apple.AppleJwsVerifier>();
+        services.AddHttpClient<Juple.Application.Billing.Apple.IAppleStoreServerClient, Juple.Infrastructure.Billing.AppleStoreServerClient>(client => client.Timeout = TimeSpan.FromSeconds(20));
         services.AddSingleton<Juple.Infrastructure.Billing.ServiceBusBillingConsumer>();
         services.AddScoped<IAccountDeletionStore, AccountDeletionStore>();
         services.AddScoped<IEntraIdentityDeletionStore, Juple.Infrastructure.Users.DeleteAccount.EntraIdentityDeletionStore>();

@@ -19,6 +19,11 @@ public interface IBillingTelemetry
 
     void AcknowledgeFailed(long purchaseId);
 
+    /// <summary>An App Store Server API call failed (a default no-op so existing implementations keep compiling).</summary>
+    void AppleCallFailed(string operation, string errorType)
+    {
+    }
+
     void EventIngested(long eventId, bool isNew, string eventType);
 
     void EventProcessed(long eventId, StoreEventResult result);
@@ -66,7 +71,8 @@ public sealed class GoogleBillingService(
 
         var accountKey = accountIds.Compute(userId);
         await store.EnsureAccountLinkAsync(userId, accountKey, timeProvider.GetUtcNow(), cancellationToken);
-        return new GoogleCatalog(true, settings.ProductId, settings.BasePlanId, accountKey);
+        var plans = settings.AllowedBasePlanIds;
+        return new GoogleCatalog(true, settings.ProductId, plans.FirstOrDefault(), accountKey, plans);
     }
 
     public async Task<GoogleVerifyResult> VerifyAsync(long userId, string purchaseToken, CancellationToken cancellationToken = default)
@@ -229,7 +235,7 @@ public sealed class GoogleBillingService(
         }
 
         if (!string.Equals(snapshot.ProductId, options.Google.ProductId, StringComparison.Ordinal)
-            || (snapshot.BasePlanId is not null && !string.Equals(snapshot.BasePlanId, options.Google.BasePlanId, StringComparison.Ordinal)))
+            || (snapshot.BasePlanId is not null && !options.Google.AllowedBasePlanIds.Contains(snapshot.BasePlanId, StringComparer.Ordinal)))
         {
             telemetry.VerifyRejected("product");
             throw new PurchaseNotAllowedException(PurchaseRejectionReason.Product);

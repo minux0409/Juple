@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Users\Profile\NicknameTerms.json" LogicalName="Juple.Application.Users.Profile.NicknameTerms.json" />
+    <!-- Apple Root CA - G3 (public certificate, SHA-256 63:34:3A:BF:B8:9A:6A:03:EB:B5:7E:9B:3F:5F:A7:BE:7C:4F:5C:75:6F:30:17:B3:A8:C4:88:C3:65:3E:91:79): the pinned trust anchor of every signed App Store payload. -->
+    <EmbeddedResource Include="Billing\Apple\Certificates\AppleRootCA-G3.cer" LogicalName="Juple.Application.Billing.Apple.Certificates.AppleRootCA-G3.cer" />
   </ItemGroup>
 
   <ItemGroup>

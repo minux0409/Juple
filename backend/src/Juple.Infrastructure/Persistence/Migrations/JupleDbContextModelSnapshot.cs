@@ -220,6 +220,36 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.ToTable("UserDailyActivitiesKst", "analytics");
                 });
 
+            modelBuilder.Entity("Juple.Domain.Billing.AppleAccountLink", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid>("AppAccountToken")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppAccountToken")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AppleAccountLinks_AppAccountToken");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AppleAccountLinks_UserId");
+
+                    b.ToTable("AppleAccountLinks", "billing");
+                });
+
             modelBuilder.Entity("Juple.Domain.Billing.GoogleAccountLink", b =>
                 {
                     b.Property<long>("Id")

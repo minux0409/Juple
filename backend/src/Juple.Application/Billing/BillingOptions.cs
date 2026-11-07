@@ -32,6 +32,9 @@ public sealed class BillingOptions
     /// <summary>Google Play billing (R39-B1). Disabled by default: the API starts with none of its secrets.</summary>
     public GoogleBillingOptions Google { get; set; } = new();
 
+    /// <summary>Apple App Store billing (StoreKit + App Store Server API / Notifications V2). Disabled by default: the API starts with none of its secrets.</summary>
+    public AppleBillingOptions Apple { get; set; } = new();
+
     /// <summary>The durable billing-event wake-up queue (shared by the API, the worker and the reconcile job).</summary>
     public BillingEventsOptions Events { get; set; } = new();
 
@@ -69,6 +72,16 @@ public sealed class GoogleBillingOptions
     /// <summary>The allowlisted base plan of that product. Null until it exists.</summary>
     public string? BasePlanId { get; set; }
 
+    /// <summary>
+    /// All allowlisted base plans of the ONE membership subscription (monthly and yearly). <see cref="BasePlanId"/> (the original single
+    /// setting) is included, so an existing deployment that only sets it keeps working unchanged.
+    /// </summary>
+    public List<string> BasePlanIds { get; set; } = [];
+
+    /// <summary>The allowlist actually used: the legacy single plan plus the list, without blanks or duplicates, in a stable order.</summary>
+    public IReadOnlyList<string> AllowedBasePlanIds =>
+        new[] { BasePlanId }.Concat(BasePlanIds).Where(plan => !string.IsNullOrWhiteSpace(plan)).Select(plan => plan!.Trim()).Distinct(StringComparer.Ordinal).ToList();
+
     /// <summary>The Google service-account credential JSON (a secret). See IGoogleCredentialSource for the swappable source.</summary>
     public string? ServiceAccountCredentialJson { get; set; }
 
@@ -79,6 +92,45 @@ public sealed class GoogleBillingOptions
     public string? PurchaseTokenEncryptionKey { get; set; }
 
     public GooglePubSubOptions PubSub { get; set; } = new();
+}
+
+/// <summary>
+/// Apple App Store billing settings. Product ids are NOT defaults: they stay empty until the App Store Connect subscription group
+/// exists. Every secret (the in-app purchase signing key, the two keys below) comes only from user-secrets locally or from
+/// environment / Key Vault-backed Container Apps secret references when deployed - never from a committed file.
+/// </summary>
+public sealed class AppleBillingOptions
+{
+    public const string DefaultBundleId = "com.juple.app";
+
+    public bool Enabled { get; set; }
+
+    public string BundleId { get; set; } = DefaultBundleId;
+
+    /// <summary>The allowlisted auto-renewable products (monthly and yearly of the ONE Juple membership group). Anything else is refused.</summary>
+    public List<string> ProductIds { get; set; } = [];
+
+    /// <summary>
+    /// Whether a Sandbox transaction is accepted. App Review and TestFlight purchase in the Sandbox even against the production server, so
+    /// the first release must accept it; the production verification of a Sandbox purchase only ever reaches the Sandbox API and grants
+    /// the same access a real purchase would, which is why this is a deliberate, documented switch and not implicit.
+    /// </summary>
+    public bool AcceptSandbox { get; set; } = true;
+
+    /// <summary>The App Store Connect issuer id (a UUID) of the in-app purchase API key.</summary>
+    public string? IssuerId { get; set; }
+
+    /// <summary>The key id of the in-app purchase API key (App Store Connect > Users and Access > Integrations > In-App Purchase).</summary>
+    public string? KeyId { get; set; }
+
+    /// <summary>The .p8 private key (PEM text, a secret). Used only to sign the short-lived App Store Server API token.</summary>
+    public string? PrivateKeyPem { get; set; }
+
+    /// <summary>Base64, at least 32 bytes: keys the App Account Token given to StoreKit. Its own secret.</summary>
+    public string? AccountTokenKey { get; set; }
+
+    /// <summary>Base64, exactly 32 bytes: seals the stored original-transaction handle. Its own secret.</summary>
+    public string? HandleEncryptionKey { get; set; }
 }
 
 /// <summary>What authenticates Google's Pub/Sub push to the public RTDN endpoint (an OIDC token, not a Juple login).</summary>
@@ -103,6 +155,52 @@ public sealed class BillingEventsOptions
 
 public static class BillingOptionsValidator
 {
+    /// <summary>Apple billing is validated independently (like Google): disabled = nothing required; enabled = everything required and the keys distinct.</summary>
+    public static void ValidateApple(BillingOptions options)
+    {
+        var apple = options.Apple;
+        if (!apple.Enabled)
+        {
+            return;
+        }
+
+        static void Require(string? value, string setting)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new InvalidOperationException($"{setting} is required when Billing:Apple:Enabled is true.");
+            }
+        }
+
+        Require(apple.BundleId, "Billing:Apple:BundleId");
+        Require(apple.IssuerId, "Billing:Apple:IssuerId");
+        Require(apple.KeyId, "Billing:Apple:KeyId");
+        Require(apple.PrivateKeyPem, "Billing:Apple:PrivateKeyPem");
+        if (apple.ProductIds.Count == 0 || apple.ProductIds.Any(string.IsNullOrWhiteSpace))
+        {
+            throw new InvalidOperationException("Billing:Apple:ProductIds is required when Billing:Apple:Enabled is true (the monthly and yearly product ids).");
+        }
+
+        if (!TrialIdentityHasher.TryDecodeKey(apple.AccountTokenKey, out _))
+        {
+            throw new InvalidOperationException(
+                $"Billing:Apple:AccountTokenKey is required when Billing:Apple:Enabled is true: a Base64 value of at least {BillingOptions.MinimumHashKeyBytes} bytes.");
+        }
+
+        if (!PurchaseTokenProtector.TryDecodeKey(apple.HandleEncryptionKey, out _))
+        {
+            throw new InvalidOperationException("Billing:Apple:HandleEncryptionKey is required when Billing:Apple:Enabled is true: a Base64 value of exactly 32 bytes.");
+        }
+
+        var secrets = new[] { apple.AccountTokenKey, apple.HandleEncryptionKey, options.Google.AccountHashKey, options.Google.PurchaseTokenEncryptionKey, options.TrialIdentityHashKey }
+            .Where(secret => !string.IsNullOrWhiteSpace(secret))
+            .ToList();
+        if (secrets.Count != secrets.Distinct(StringComparer.Ordinal).Count())
+        {
+            throw new InvalidOperationException("The billing secrets (Apple and Google keys, Billing:TrialIdentityHashKey) must each be a distinct value.");
+        }
+    }
+
     /// <summary>Throws <see cref="InvalidOperationException"/> with the exact setting at fault. Never echoes the secret.</summary>
     public static void Validate(BillingOptions options)
     {
@@ -153,7 +251,11 @@ public static class BillingOptionsValidator
 
         Require(google.PackageName, "Billing:Google:PackageName");
         Require(google.ProductId, "Billing:Google:ProductId");
-        Require(google.BasePlanId, "Billing:Google:BasePlanId");
+        if (google.AllowedBasePlanIds.Count == 0)
+        {
+            throw new InvalidOperationException("Billing:Google:BasePlanId (or Billing:Google:BasePlanIds) is required when Billing:Google:Enabled is true.");
+        }
+
         Require(google.ServiceAccountCredentialJson, "Billing:Google:ServiceAccountCredentialJson");
         Require(google.PubSub.Audience, "Billing:Google:PubSub:Audience");
         Require(google.PubSub.PushServiceAccountEmail, "Billing:Google:PubSub:PushServiceAccountEmail");

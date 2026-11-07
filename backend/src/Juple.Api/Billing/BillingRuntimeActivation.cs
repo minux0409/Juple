@@ -18,7 +18,7 @@ public static class BillingRuntimeActivation
     /// <summary>The worker's hosted service: the billing-events consumer when enabled, an idle placeholder otherwise.</summary>
     public static void AddBillingWorker(IServiceCollection services, BillingOptions options)
     {
-        if (options.Google.Enabled)
+        if (options.Google.Enabled || options.Apple.Enabled)
         {
             services.AddHostedService<BillingWorkerService>();
         }
@@ -31,10 +31,10 @@ public static class BillingRuntimeActivation
     /// <summary>What the worker needs beyond ValidateGoogle: the queue namespace - only when it will consume it.</summary>
     public static void EnsureWorkerConfiguration(BillingOptions options)
     {
-        if (options.Google.Enabled && string.IsNullOrWhiteSpace(options.Events.ServiceBusNamespace))
+        if ((options.Google.Enabled || options.Apple.Enabled) && string.IsNullOrWhiteSpace(options.Events.ServiceBusNamespace))
         {
             throw new InvalidOperationException(
-                "Billing:Events:ServiceBusNamespace must be configured for --run-billing-worker when Billing:Google:Enabled is true.");
+                "Billing:Events:ServiceBusNamespace must be configured for --run-billing-worker when Billing:Google:Enabled or Billing:Apple:Enabled is true.");
         }
     }
 
@@ -47,7 +47,7 @@ public static class BillingRuntimeActivation
         await using var scope = rootServices.CreateAsyncScope();
         var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("BillingReconcileJob");
         var billing = scope.ServiceProvider.GetRequiredService<BillingOptions>();
-        if (!billing.Google.Enabled)
+        if (!billing.Google.Enabled && !billing.Apple.Enabled)
         {
             return 0;
         }
@@ -55,7 +55,15 @@ public static class BillingRuntimeActivation
         try
         {
             // Bounded on purpose: the cadence per purchase is set by the purchase itself (see GooglePurchaseNormalizer), never a hot loop.
-            var summary = await scope.ServiceProvider.GetRequiredService<IGoogleBillingProcessor>().SweepAsync(eventLimit: 100, purchaseLimit: 100);
+            var summary = billing.Google.Enabled
+                ? await scope.ServiceProvider.GetRequiredService<IGoogleBillingProcessor>().SweepAsync(eventLimit: 100, purchaseLimit: 100)
+                : new SweepSummary(0, 0, 0);
+            if (billing.Apple.Enabled)
+            {
+                var apple = await scope.ServiceProvider.GetRequiredService<Juple.Application.Billing.Apple.IAppleBillingProcessor>().SweepAsync(eventLimit: 100, purchaseLimit: 100);
+                summary = new SweepSummary(summary.EventsProcessed + apple.EventsProcessed, summary.PurchasesReconciled + apple.PurchasesReconciled, summary.Failures + apple.Failures);
+            }
+
             if (summary.EventsProcessed != 0 || summary.PurchasesReconciled != 0 || summary.Failures != 0)
             {
                 logger.LogInformation(

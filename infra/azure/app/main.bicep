@@ -225,6 +225,30 @@ param googlePurchaseTokenKeySecretName string = 'google-purchase-token-key'
 param googleAccountHashKeySecretName string = 'google-account-hash-key'
 param trialIdentityHashKeySecretName string = 'trial-identity-hash-key'
 
+// ---- Apple App Store billing (StoreKit + App Store Server API / Notifications V2). OFF by default, exactly like Google's: with
+// appleBillingEnabled false the runtime gets no Apple secret and no Apple setting. Secrets are Key Vault references through the managed
+// identity (names only here). The product ids stay empty until the App Store Connect subscription group exists.
+@description('Turns on App Store billing (catalog / verify / restore / Server Notifications V2). Requires billingKeyVaultUri, billingEventsServiceBusNamespace and the settings below, set the SAME on the API, the billing worker and the reconcile Job.')
+param appleBillingEnabled bool = false
+
+@description('The iOS bundle id the App Store transactions must carry.')
+param appleBundleId string = 'com.juple.app'
+
+@description('The allowlisted auto-renewable product ids of the ONE membership group (monthly and yearly). Never guessed: set once they exist in App Store Connect.')
+param appleProductIds array = []
+
+@description('The App Store Connect issuer id (UUID) and the in-app purchase API key id.')
+param appleIssuerId string = ''
+param appleKeyId string = ''
+
+@description('Whether Sandbox transactions are accepted (App Review and TestFlight purchase in the Sandbox even against the production server).')
+param appleAcceptSandbox bool = true
+
+@description('Key Vault secret NAMES (never values): the .p8 in-app purchase key (PEM text), the App Account Token key and the stored-transaction handle key (Base64 >= 32 bytes / exactly 32 bytes, distinct from every other billing secret).')
+param applePrivateKeySecretName string = 'apple-iap-private-key'
+param appleAccountTokenKeySecretName string = 'apple-account-token-key'
+param appleHandleKeySecretName string = 'apple-handle-key'
+
 @description('Fully-qualified Service Bus namespace for the billing-events wake-up (usually the same as serviceBusNamespaceFqdn). Empty = no wake-up; the reconcile Job sweep still processes every event.')
 param billingEventsServiceBusNamespace string = ''
 
@@ -345,6 +369,25 @@ var billingSecrets = concat(
         }
       ]
     : [],
+  appleBillingEnabled
+      ? [
+          {
+            name: 'apple-iap-private-key'
+            keyVaultUrl: '${billingKeyVaultUri}secrets/${applePrivateKeySecretName}'
+            identity: managedIdentityResourceId
+          }
+          {
+            name: 'apple-account-token-key'
+            keyVaultUrl: '${billingKeyVaultUri}secrets/${appleAccountTokenKeySecretName}'
+            identity: managedIdentityResourceId
+          }
+          {
+            name: 'apple-handle-key'
+            keyVaultUrl: '${billingKeyVaultUri}secrets/${appleHandleKeySecretName}'
+            identity: managedIdentityResourceId
+          }
+        ]
+      : [],
   billingProgramEnabled
     ? [
         {
@@ -355,6 +398,12 @@ var billingSecrets = concat(
       ]
     : []
 )
+
+// One env var per allowlisted product id (a for-expression must be a variable's own value).
+var appleProductIdEnv = [for (productId, index) in appleProductIds: {
+  name: 'Billing__Apple__ProductIds__${index}'
+  value: productId
+}]
 
 var billingEnv = concat(
   googleBillingEnabled
@@ -397,6 +446,49 @@ var billingEnv = concat(
         }
       ]
     : [],
+  appleBillingEnabled
+      ? concat(
+          [
+            {
+              name: 'Billing__Apple__Enabled'
+              value: 'true'
+            }
+            {
+              name: 'Billing__Apple__BundleId'
+              value: appleBundleId
+            }
+            {
+              name: 'Billing__Apple__IssuerId'
+              value: appleIssuerId
+            }
+            {
+              name: 'Billing__Apple__KeyId'
+              value: appleKeyId
+            }
+            {
+              name: 'Billing__Apple__AcceptSandbox'
+              value: string(appleAcceptSandbox)
+            }
+            {
+              name: 'Billing__Apple__PrivateKeyPem'
+              secretRef: 'apple-iap-private-key'
+            }
+            {
+              name: 'Billing__Apple__AccountTokenKey'
+              secretRef: 'apple-account-token-key'
+            }
+            {
+              name: 'Billing__Apple__HandleEncryptionKey'
+              secretRef: 'apple-handle-key'
+            }
+            {
+              name: 'Billing__Events__ServiceBusNamespace'
+              value: billingEventsServiceBusNamespace
+            }
+          ],
+          appleProductIdEnv
+        )
+      : [],
   billingProgramEnabled
     ? [
         {

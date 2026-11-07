@@ -43,6 +43,30 @@ param billingIdentityClientId string
 @description('Turns Google Play billing on for this runtime - the same switch as ../app/main.bicep\'s googleBillingEnabled. false (the default): the runtime is deployed but inert - no Google call, no billing-event consumption, no reconciliation - and none of the Google / Key Vault settings below is wired or required.')
 param googleBillingEnabled bool = false
 
+// ---- Apple App Store billing (StoreKit + App Store Server API / Notifications V2). OFF by default, exactly like Google's: with
+// appleBillingEnabled false the runtime gets no Apple secret and no Apple setting. Secrets are Key Vault references through the managed
+// identity (names only here). The product ids stay empty until the App Store Connect subscription group exists.
+@description('Turns on App Store billing (catalog / verify / restore / Server Notifications V2). Requires billingKeyVaultUri, billingEventsServiceBusNamespace and the settings below, set the SAME on the API, the billing worker and the reconcile Job.')
+param appleBillingEnabled bool = false
+
+@description('The iOS bundle id the App Store transactions must carry.')
+param appleBundleId string = 'com.juple.app'
+
+@description('The allowlisted auto-renewable product ids of the ONE membership group (monthly and yearly). Never guessed: set once they exist in App Store Connect.')
+param appleProductIds array = []
+
+@description('The App Store Connect issuer id (UUID) and the in-app purchase API key id.')
+param appleIssuerId string = ''
+param appleKeyId string = ''
+
+@description('Whether Sandbox transactions are accepted (App Review and TestFlight purchase in the Sandbox even against the production server).')
+param appleAcceptSandbox bool = true
+
+@description('Key Vault secret NAMES (never values): the .p8 in-app purchase key (PEM text), the App Account Token key and the stored-transaction handle key (Base64 >= 32 bytes / exactly 32 bytes, distinct from every other billing secret).')
+param applePrivateKeySecretName string = 'apple-iap-private-key'
+param appleAccountTokenKeySecretName string = 'apple-account-token-key'
+param appleHandleKeySecretName string = 'apple-handle-key'
+
 @description('Service Bus namespace name (the KEDA rule takes the name, the app the FQDN). Needed only when googleBillingEnabled.')
 param serviceBusNamespaceName string = ''
 
@@ -122,6 +146,9 @@ module imageReferenceGuard '../app/image-reference-guard.bicep' = {
 }
 
 var serviceBusNamespaceFqdn = '${serviceBusNamespaceName}.servicebus.windows.net'
+
+// The worker is enabled when EITHER store is: it consumes the one billing-events queue for both.
+var billingEnabled = googleBillingEnabled || appleBillingEnabled
 var billingEventsQueueName = 'billing-events'
 
 var googleEnv = googleBillingEnabled
@@ -165,8 +192,58 @@ var googleEnv = googleBillingEnabled
     ]
   : []
 
+// One env var per allowlisted product id (a for-expression must be a variable's own value).
+var appleProductIdEnv = [for (productId, index) in appleProductIds: {
+  name: 'Billing__Apple__ProductIds__${index}'
+  value: productId
+}]
+
+var appleEnv = appleBillingEnabled
+    ? concat(
+        [
+          {
+            name: 'Billing__Apple__Enabled'
+            value: 'true'
+          }
+          {
+            name: 'Billing__Apple__BundleId'
+            value: appleBundleId
+          }
+          {
+            name: 'Billing__Apple__IssuerId'
+            value: appleIssuerId
+          }
+          {
+            name: 'Billing__Apple__KeyId'
+            value: appleKeyId
+          }
+          {
+            name: 'Billing__Apple__AcceptSandbox'
+            value: string(appleAcceptSandbox)
+          }
+          {
+            name: 'Billing__Apple__PrivateKeyPem'
+            secretRef: 'apple-iap-private-key'
+          }
+          {
+            name: 'Billing__Apple__AccountTokenKey'
+            secretRef: 'apple-account-token-key'
+          }
+          {
+            name: 'Billing__Apple__HandleEncryptionKey'
+            secretRef: 'apple-handle-key'
+          }
+          {
+            name: 'Billing__Events__ServiceBusNamespace'
+            value: serviceBusNamespaceFqdn
+          }
+        ],
+        appleProductIdEnv
+      )
+    : []
+
 // Only an enabled worker scales on the queue; a disabled one has nothing to consume, so it runs minReplicas (0 in dev: none at all).
-var queueScaleRules = googleBillingEnabled
+var queueScaleRules = billingEnabled
   ? [
       {
         name: 'billing-events'
@@ -280,7 +357,26 @@ resource billingWorker 'Microsoft.App/containerApps@2025-01-01' = {
                 identity: billingIdentityResourceId
               }
             ]
-          : []
+          : [],
+        appleBillingEnabled
+            ? [
+                {
+                  name: 'apple-iap-private-key'
+                  keyVaultUrl: '${billingKeyVaultUri}secrets/${applePrivateKeySecretName}'
+                  identity: billingIdentityResourceId
+                }
+                {
+                  name: 'apple-account-token-key'
+                  keyVaultUrl: '${billingKeyVaultUri}secrets/${appleAccountTokenKeySecretName}'
+                  identity: billingIdentityResourceId
+                }
+                {
+                  name: 'apple-handle-key'
+                  keyVaultUrl: '${billingKeyVaultUri}secrets/${appleHandleKeySecretName}'
+                  identity: billingIdentityResourceId
+                }
+              ]
+            : []
       )
     }
     template: {
@@ -311,8 +407,13 @@ resource billingWorker 'Microsoft.App/containerApps@2025-01-01' = {
                 name: 'Billing__Google__Enabled'
                 value: string(googleBillingEnabled)
               }
+              {
+                name: 'Billing__Apple__Enabled'
+                value: string(appleBillingEnabled)
+              }
             ],
             googleEnv,
+            appleEnv,
             observabilityEnv
           )
           probes: [

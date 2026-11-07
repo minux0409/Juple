@@ -42,7 +42,7 @@ public sealed class GoogleBillingController(
     public Task<IActionResult> GetCatalogAsync(CancellationToken cancellationToken) =>
         ExecuteAsync(
             userId => billing.GetCatalogAsync(userId, cancellationToken),
-            catalog => Ok(new CatalogResponse(catalog.Enabled, catalog.ProductId, catalog.BasePlanId, catalog.ObfuscatedAccountId)),
+            catalog => Ok(new CatalogResponse(catalog.Enabled, catalog.ProductId, catalog.BasePlanId, catalog.ObfuscatedAccountId, catalog.BasePlanIds ?? [])),
             cancellationToken);
 
     [HttpPost("verify")]
@@ -121,7 +121,8 @@ public sealed class GoogleBillingController(
         _ => "nothingFound",
     };
 
-    public sealed record CatalogResponse(bool Enabled, string? ProductId, string? BasePlanId, string? ObfuscatedAccountId);
+    /// <summary><c>BasePlanId</c> is the first allowed plan, kept for builds that only know one; <c>BasePlanIds</c> lists monthly and yearly.</summary>
+    public sealed record CatalogResponse(bool Enabled, string? ProductId, string? BasePlanId, string? ObfuscatedAccountId, IReadOnlyList<string> BasePlanIds);
 
     public sealed record VerifyPurchaseRequest(string PurchaseToken);
 

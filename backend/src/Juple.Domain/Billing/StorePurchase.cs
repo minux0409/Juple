@@ -1,9 +1,12 @@
 namespace Juple.Domain.Billing;
 
-/// <summary>Where a purchase was made. Persisted as a stable string. (App Store arrives with R39-C.)</summary>
+/// <summary>Where a purchase was made. Persisted as a stable string (never renumber or rename a member).</summary>
 public enum StoreSource
 {
     GooglePlay,
+
+    /// <summary>Apple App Store (StoreKit). The purchase key is the subscription's ORIGINAL transaction id.</summary>
+    AppStore,
 }
 
 /// <summary>

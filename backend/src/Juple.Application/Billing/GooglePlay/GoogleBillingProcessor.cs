@@ -209,7 +209,7 @@ public sealed class GoogleBillingProcessor(
         var snapshot = await FetchAsync(token, cancellationToken);
         if (snapshot.PlanType != GooglePlanType.AutoRenewing
             || !string.Equals(snapshot.ProductId, options.Google.ProductId, StringComparison.Ordinal)
-            || (snapshot.BasePlanId is not null && !string.Equals(snapshot.BasePlanId, options.Google.BasePlanId, StringComparison.Ordinal)))
+            || (snapshot.BasePlanId is not null && !options.Google.AllowedBasePlanIds.Contains(snapshot.BasePlanId, StringComparer.Ordinal)))
         {
             return StoreEventResult.Ignored;
         }

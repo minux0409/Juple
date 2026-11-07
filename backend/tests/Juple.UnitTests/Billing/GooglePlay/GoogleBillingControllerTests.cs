@@ -67,11 +67,15 @@ public sealed class GoogleBillingControllerTests
         var result = await Controller(service).GetCatalogAsync(CancellationToken.None);
 
         var body = Assert.IsType<GoogleBillingController.CatalogResponse>(Assert.IsType<OkObjectResult>(result).Value);
-        Assert.Equal(new GoogleBillingController.CatalogResponse(true, "juple_monthly", "monthly", "opaque-key"), body);
+        Assert.True(body.Enabled);
+        Assert.Equal("juple_monthly", body.ProductId);
+        Assert.Equal("monthly", body.BasePlanId);
+        Assert.Equal("opaque-key", body.ObfuscatedAccountId);
+        Assert.NotNull(body.BasePlanIds);
         // The caller is identified by the authenticated principal; the request carries none.
         Assert.Equal(7, service.LastUserId);
         // No price, no user id, no credential in the contract.
-        Assert.Equal(["BasePlanId", "Enabled", "ObfuscatedAccountId", "ProductId"], typeof(GoogleBillingController.CatalogResponse).GetProperties(BindingFlags.Public | BindingFlags.Instance).Select(property => property.Name).Order().ToArray());
+        Assert.Equal(["BasePlanId", "BasePlanIds", "Enabled", "ObfuscatedAccountId", "ProductId"], typeof(GoogleBillingController.CatalogResponse).GetProperties(BindingFlags.Public | BindingFlags.Instance).Select(property => property.Name).Order().ToArray());
     }
 
     [Fact]

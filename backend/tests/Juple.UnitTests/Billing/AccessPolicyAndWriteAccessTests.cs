@@ -409,7 +409,7 @@ public sealed class ExpiredWriteAllowlistTests
         // blocking must always work.
         Assert.Equal(
             [
-                "AccountController", "AdminAzureCostsController", "AdminController", "AdminCostsController", "AdminExpensesController", "AdminInsightsController", "AdminNoticesController", "AdminReportsController", "AdminSupportInquiriesController", "AdminWorkspaceController", "AuthSessionController", "CollectionLockSettingsController", "CollectionNotificationPreferencesController",
+                "AccountController", "AdminAzureCostsController", "AdminController", "AdminCostsController", "AdminExpensesController", "AdminInsightsController", "AdminNoticesController", "AdminReportsController", "AdminSupportInquiriesController", "AdminWorkspaceController", "AppleBillingController", "AuthSessionController", "CollectionLockSettingsController", "CollectionNotificationPreferencesController",
                 "CurrentUserBootstrapController", "DataExportController", "GoogleBillingController", "ModerationNoticesController", "NoticesController", "NotificationsController", "PushDevicesController",
                 "RecentlyOpenedLinksController", "SafetyController", "SupportInquiriesController", "UrlMetadataController", "UserProfileController",
             ],
@@ -452,7 +452,7 @@ public sealed class ExpiredWriteAllowlistTests
         Assert.Empty(unreviewed);
 
         Assert.Equal(
-            ["DataExportDownloadController", "GoogleRtdnController", "PublicCollectionsController"],
+            ["AppleNotificationsController", "DataExportDownloadController", "GoogleRtdnController", "PublicCollectionsController"],
             anonymous.Select(entry => entry.controller.Name).Distinct().Order(StringComparer.Ordinal).ToArray());
         Assert.All(anonymous, entry => Assert.False(string.IsNullOrWhiteSpace(entry.method.GetCustomAttribute<AnonymousMutationReviewedAttribute>()!.Reason)));
     }
