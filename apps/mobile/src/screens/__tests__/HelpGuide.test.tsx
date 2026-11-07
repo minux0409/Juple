@@ -165,8 +165,8 @@ describe('Help Guide - Android shortcuts and Direct Share', () => {
 describe('Help Guide - the shortcut capability has one source', () => {
   const read = (relative: string) => fs.readFileSync(path.join(__dirname, '..', '..', relative), 'utf8');
 
-  it('the Collection menu and the guide both derive it from useCollectionShortcutSupport', () => {
-    expect(read('collections/useCollectionLongPressMenu.tsx')).toContain("from '../shortcuts/useCollectionShortcutSupport'");
+  it('the Collection selection bar and the guide both derive it from useCollectionShortcutSupport', () => {
+    expect(read('collections/useCollectionSelection.tsx')).toContain("from '../shortcuts/useCollectionShortcutSupport'");
     expect(read('screens/HelpGuideSectionScreen.tsx')).toContain("from '../shortcuts/useCollectionShortcutSupport'");
   });
 
@@ -176,8 +176,8 @@ describe('Help Guide - the shortcut capability has one source', () => {
     }
   });
 
-  it('the menu no longer keeps a separate launcher-support state of its own', () => {
-    expect(read('collections/useCollectionLongPressMenu.tsx')).not.toContain('setHomeSupported');
+  it('the selection no longer keeps a separate launcher-support state of its own', () => {
+    expect(read('collections/useCollectionSelection.tsx')).not.toContain('setHomeSupported');
   });
 });
 

@@ -12,7 +12,7 @@ import { columnBasis, useSavedLinkColumns } from '../layout/responsiveGrid';
 import type { ItemAdderDisplay } from '../collections/itemAdder';
 import { GRID_CARD_PADDING_H, GRID_CELL_PADDING_H } from './savedLinkLayout';
 import { SavedLinkMetaRow, type SavedLinkDateDisplayMode } from './SavedLinkMetaRow';
-import { SwipeableItemRow } from './SwipeableItemRow';
+import { SwipeableItemRow, type RowSelection } from './SwipeableItemRow';
 import { LockIcon } from '../icons/LockIcon';
 import { OpenOriginalLinkButton } from './OpenOriginalLinkButton';
 
@@ -96,6 +96,8 @@ interface SavedLinkGridCellProps extends SavedLinkGridCardProps {
   readonly onShare?: () => void;
   /** Long-press / the screen-reader "options" action - see SwipeableItemRow. Absent: no menu. */
   readonly onLongPress?: () => void;
+  /** Multi-selection: see SwipeableItemRow's `selection`. */
+  readonly selection?: RowSelection;
 }
 
 /**
@@ -104,11 +106,11 @@ interface SavedLinkGridCellProps extends SavedLinkGridCardProps {
  * lives on the outer cell, outside SwipeableItemRow's clipped wrapper - padding inside that wrapper is
  * exactly the area the swipe action panes would otherwise paint as a blue/red frame around the card.
  */
-export function SavedLinkGridCell({ column, disabled, onPress, onDelete, onShare, onLongPress, ...cardProps }: SavedLinkGridCellProps) {
+export function SavedLinkGridCell({ column, disabled, onPress, onDelete, onShare, onLongPress, selection, ...cardProps }: SavedLinkGridCellProps) {
   const cellStyle = useSavedLinkGridCellStyle();
   const { grid } = useSavedLinkColumns();
   return <View style={column === undefined ? cellStyle : [cellStyle, edgeAlignedCellPadding(column, grid)]}>
-    <SwipeableItemRow containerStyle={savedLinkGridLayout.swipeContainer} deleteBehavior="reveal" disabled={disabled} onOpenOriginal={cardProps.onOpenOriginal} onDelete={onDelete} onLongPress={onLongPress} onPress={onPress} onShare={onShare}>
+    <SwipeableItemRow containerStyle={savedLinkGridLayout.swipeContainer} deleteBehavior="reveal" disabled={disabled} onOpenOriginal={cardProps.onOpenOriginal} onDelete={onDelete} onLongPress={onLongPress} onPress={onPress} onShare={onShare} selection={selection}>
       <SavedLinkGridCard {...cardProps} />
     </SwipeableItemRow>
   </View>;

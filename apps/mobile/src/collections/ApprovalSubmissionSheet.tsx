@@ -6,6 +6,7 @@ import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { useAppToast } from '../components/AppToast';
 import { BottomSheetModal } from '../components/BottomSheetModal';
+import type { ReviewSheetParts } from './reviewSheetParts';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ImportantState } from '../components/ImportantState';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
@@ -68,7 +69,7 @@ interface ApprovalSubmissionSheetProps {
  * The first frame is already the final geometry (skeleton cards, or the rows already held), and the
  * entrance never starts before the sheet has been laid out (see BottomSheetModal).
  */
-export function ApprovalSubmissionSheet({
+export function useApprovalSubmissionSheetParts({
   visible,
   variant,
   collectionId,
@@ -77,7 +78,7 @@ export function ApprovalSubmissionSheet({
   expectedCount = 0,
   onChanged,
   onTotalLoaded,
-}: ApprovalSubmissionSheetProps) {
+}: ApprovalSubmissionSheetProps): ReviewSheetParts {
   const { t } = useTranslation();
   const { showNotificationToast } = useAppToast();
   const [rows, setRows] = useState<readonly PendingSubmissionRow[]>([]);
@@ -343,9 +344,7 @@ export function ApprovalSubmissionSheet({
   const skeletonCount = Math.min(Math.max(expectedCount, 1), MAX_SKELETON_CARDS);
   const emptyKey = isOwner ? 'submissions.empty' : 'submissions.myEmpty';
 
-  return (
-    <BottomSheetModal
-      modalExtras={
+  const modalExtras = (
         <>
           <ConfirmDialog
             cancelLabel={t('common.cancel')}
@@ -379,26 +378,9 @@ export function ApprovalSubmissionSheet({
           {/* The cancel confirmation (requester) and the common message dialog (a link that cannot be opened). */}
           {cancellation.dialogs}
         </>
-      }
-      // Title and the X in one row (no bottom 닫기 row) - the sheet's header, so dragging it down closes the sheet.
-      headerActions={
-        <Pressable
-          accessibilityLabel={t('common.close')}
-          accessibilityRole="button"
-          hitSlop={4}
-          onPress={onClose}
-          style={styles.closeButton}
-          testID="approval-sheet-close"
-        >
-          <CloseIcon color={colors.textSecondary} size={20} />
-        </Pressable>
-      }
-      headerRowStyle={styles.titleRow}
-      headerTitle={<Text accessibilityRole="header" style={styles.title}>{t(isOwner ? 'submissions.ownerSheetTitle' : 'submissions.mySheetTitle')}</Text>}
-      onClose={onClose}
-      testID={isOwner ? 'owner-approval-sheet' : 'my-approval-sheet'}
-      visible={visible}
-    >
+  );
+  const content = (
+    <>
       {showSkeleton ? (
         <View style={styles.list} testID="approval-sheet-skeleton">
           {Array.from({ length: skeletonCount }, (_, index) => (
@@ -446,6 +428,30 @@ export function ApprovalSubmissionSheet({
         />
       )}
       {message && rows.length > 0 ? <Text style={styles.error} testID="approval-sheet-message">{message}</Text> : null}
+    </>
+  );
+  return { title: t(isOwner ? 'submissions.ownerSheetTitle' : 'submissions.mySheetTitle'), titleTestID: null, testID: isOwner ? 'owner-approval-sheet' : 'my-approval-sheet', closeTestID: 'approval-sheet-close', modalExtras, content };
+}
+
+export function ApprovalSubmissionSheet(props: ApprovalSubmissionSheetProps) {
+  const { t } = useTranslation();
+  const parts = useApprovalSubmissionSheetParts(props);
+  return (
+    <BottomSheetModal
+      modalExtras={parts.modalExtras}
+      // Title and the X in one row (no bottom 닫기 row) - the sheet's header, so dragging it down closes the sheet.
+      headerActions={
+        <Pressable accessibilityLabel={t('common.close')} accessibilityRole="button" hitSlop={4} onPress={props.onClose} style={styles.closeButton} testID={parts.closeTestID}>
+          <CloseIcon color={colors.textSecondary} size={20} />
+        </Pressable>
+      }
+      headerRowStyle={styles.titleRow}
+      headerTitle={<Text accessibilityRole="header" style={styles.title}>{parts.title}</Text>}
+      onClose={props.onClose}
+      testID={parts.testID}
+      visible={props.visible}
+    >
+      {parts.content}
     </BottomSheetModal>
   );
 }

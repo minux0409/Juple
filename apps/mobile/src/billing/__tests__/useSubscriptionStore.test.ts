@@ -1,4 +1,5 @@
 jest.mock('../useGoogleBilling', () => ({ useGoogleBilling: jest.fn() }));
+jest.mock('../useAppleBilling', () => ({ useAppleBilling: jest.fn() }));
 
 import type { GoogleBilling } from '../googleBilling';
 import { createGoogleSubscriptionStore } from '../useSubscriptionStore';
@@ -6,6 +7,7 @@ import { createGoogleSubscriptionStore } from '../useSubscriptionStore';
 function fakeBilling(overrides: Partial<GoogleBilling> = {}): GoogleBilling {
   return {
     loadOffer: jest.fn(),
+    loadPlans: jest.fn(),
     purchase: jest.fn(),
     restore: jest.fn(),
     dispose: jest.fn(),

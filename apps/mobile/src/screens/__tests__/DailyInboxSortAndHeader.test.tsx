@@ -3,6 +3,7 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { FlatList, StyleSheet, Text } from 'react-native';
 import i18n from '../../i18n';
 import { AppToastProvider } from '../../components/AppToast';
+import { ThemedTextInput } from '../../components/ThemedTextInput';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { ClockIcon } from '../../icons/ClockIcon';
 import { SearchIcon } from '../../icons/SearchIcon';
@@ -11,7 +12,7 @@ import { HomeIcon } from '../../icons/HomeIcon';
 import { SCREEN_TITLE_ICON_SIZE } from '../../components/ScreenTitle';
 import { colors } from '../../theme/tokens';
 import { getItemHistory, getItemHistoryCount, type GetItemHistoryOptions, type ItemHistoryEntry } from '../../items/api/itemsApi';
-import { LINK_CONTROLS_BOTTOM_GAP, LINK_CONTROLS_TOP_GAP, TITLE_COUNT_GAP } from '../../components/savedLinkLayout';
+import { TITLE_COUNT_GAP } from '../../components/savedLinkLayout';
 import { DailyInboxScreen } from '../DailyInboxScreen';
 
 const mockStore = new Map<string, string>();
@@ -93,22 +94,18 @@ const order = (renderer: ReactTestRenderer.ReactTestRenderer) =>
   (renderer.root.findByType(FlatList).props.data as ItemHistoryEntry[]).map(entry => entry.id);
 
 describe('Home header', () => {
-  it('keeps only the title and count on the 최근 저장 row; the next row holds just the List/Grid/Image switch at the far end - no sort chips', async () => {
+  it('puts the clock, title, count and the List/Grid/Image switch on ONE row (list content), the switch at the far end - no sort chips', async () => {
     serve(ITEMS);
     const renderer = await renderScreen();
 
     const toggle = renderer.root.findByType(ViewModeToggle);
-    const controlsRow = renderer.root.findAll(node => node.props.testID === 'home-view-controls' && typeof node.type === 'string')[0];
-    expect(StyleSheet.flatten(controlsRow.props.style)).toMatchObject({ flexDirection: 'row', marginTop: LINK_CONTROLS_TOP_GAP, marginBottom: LINK_CONTROLS_BOTTOM_GAP });
-    const children = controlsRow.children as ReactTestRenderer.ReactTestInstance[];
-    expect(children[children.length - 1]).toBe(toggle);
+    const header = renderer.root.findAll(node => node.props.testID === 'home-view-controls' && typeof node.type === 'string')[0];
+    expect(StyleSheet.flatten(header.props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, marginTop: 16 });
+    const children = header.children as ReactTestRenderer.ReactTestInstance[];
+    expect(children[children.length - 1].findAllByType(ViewModeToggle)[0]).toBe(toggle);
     expect(renderer.root.findAll(node => String(node.props.testID ?? '').startsWith('home-sort'))).toHaveLength(0);
     expect(renderer.root.findAllByType(Text).some(node => ['시간순', '이름순'].includes(String(node.props.children)))).toBe(false);
-
-    // The title row holds the label and count only - no toggle.
-    const titleRow = renderer.root.findAll(node => node.props.children === i18n.t('inbox.recentSaved') && typeof node.type === 'string')[0].parent!.parent!;
-    expect(titleRow.findAllByType(ViewModeToggle)).toHaveLength(0);
-    const texts = titleRow.findAll(node => typeof node.props.children === 'string').map(node => node.props.children);
+    const texts = header.findAll(node => typeof node.props.children === 'string').map(node => node.props.children);
     expect(texts).toEqual(expect.arrayContaining([i18n.t('inbox.recentSaved'), i18n.t('inbox.recentSavedCount', { count: 4 })]));
   });
 });
@@ -179,6 +176,22 @@ describe('Home URL magnifier', () => {
       expect(StyleSheet.flatten(node.props.style ?? {}).opacity).toBeUndefined();
       node = node.parent;
     }
+  });
+});
+
+describe('Home collapsing header', () => {
+  it('collapses only the logo; the URL field is pinned (like the search of 보관함), and the 최근 저장 row is list content', async () => {
+    serve(ITEMS);
+    const renderer = await renderScreen();
+    const frame = renderer.root.findAll(node => node.props.testID === 'home-fixed-header' && typeof node.type === 'string')[0];
+    const [collapsibleWrapper, pinnedWrapper] = frame.children as ReactTestRenderer.ReactTestInstance[];
+    expect(collapsibleWrapper.findAll(node => node.props.testID === 'juple-brand-mark').length).toBeGreaterThan(0);
+    expect(collapsibleWrapper.findAllByType(ThemedTextInput)).toHaveLength(0);
+    expect(pinnedWrapper.findAllByType(ThemedTextInput)).toHaveLength(1);
+    // The 최근 저장 row and its switch are NOT in the header (they scroll with the links); not collapsed yet, so no second switch there.
+    expect(frame.findAllByType(ViewModeToggle)).toHaveLength(0);
+    const layout = renderer.root.findAll(node => node.props.testID === 'home-fixed-header' && typeof node.type !== 'string')[0];
+    expect(layout.props.collapsedExtra).toBe(56);
   });
 });
 

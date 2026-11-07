@@ -23,6 +23,7 @@ import { useActionAfterMenu } from '../components/useActionAfterMenu';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { AddIconButton } from '../components/AddIconButton';
+import { AnimatedFlatList, CollapsibleHeaderLayout, type CollapsibleListBinding } from '../components/CollapsibleHeaderLayout';
 import { useViewModePreference, type ViewMode } from '../settings/viewModePreference';
 import { UserAvatar } from '../components/UserAvatar';
 import { AddFriendModal, getFriendRequestErrorMessage } from '../friends/AddFriendModal';
@@ -338,10 +339,13 @@ export function FriendsScreen() {
     <LoadFailureState error={failure} onRetry={onRetry} testID={testID} />
   );
 
-  const friendsList = (
-    <FlatList
+  const renderFriendsList = (list: CollapsibleListBinding) => (
+    <AnimatedFlatList
+      ref={list.listRef}
+      onScroll={list.onScroll}
+      scrollEventThrottle={list.scrollEventThrottle}
       key={gridListKey(viewMode, viewMode === 'grid', columns.grid)}
-      contentContainerStyle={styles.listContent}
+      contentContainerStyle={[styles.friendsListContent, list.contentInset(friends.length > 0)]}
       data={friends}
       numColumns={viewMode === 'grid' ? columns.grid : 1}
       keyboardShouldPersistTaps="handled"
@@ -373,31 +377,13 @@ export function FriendsScreen() {
       }
       ListHeaderComponent={
         <View>
-          <View style={[styles.searchRow, viewMode === 'list' && styles.searchRowList]} testID="friends-search-row">
-            <View style={styles.searchField}>
-              {/* A person glyph inside the field - decoration, not a control (a tap there reaches the input). */}
-              <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.searchIcon} testID="friends-search-icon">
-                <UserIcon color={colors.textSecondary} size={18} />
-              </View>
-              <ThemedTextInput
-                accessibilityLabel={t('friends.search')}
-                autoCorrect={false}
-                onChangeText={setSearch}
-                placeholder={t('friends.search')}
-                style={styles.searchInput}
-                testID="friends-search"
-                value={search}
-              />
-            </View>
-            <ViewModeToggle matchSearchHeight onChange={changeViewMode} value={viewMode} />
-          </View>
           {/* Friends are already listed and a refresh failed: keep them, with a compact retry row (not a full failure state). */}
           {hasLoadedFriends && friendsError ? <RefreshFailureNotice onRetry={() => loadFriends(searchRef.current)} testID="friends-stale" /> : null}
         </View>
       }
       onEndReached={loadMore}
       onEndReachedThreshold={0.5}
-      refreshControl={refreshControl}
+      refreshControl={list.withRefreshOffset(refreshControl)}
       renderItem={({ item }) => (
         <FriendRow
           friend={item}
@@ -409,6 +395,30 @@ export function FriendsScreen() {
       )}
       testID="friends-list"
     />
+  );
+
+  // Fixed under the tabs (never inside the scrolling list): the friend search and the List / Grid switch stay put while the friends scroll.
+  const friendsSearchRow = (
+    <View style={styles.fixedSearch}>
+      <View style={[styles.searchRow, viewMode === 'list' && styles.searchRowList]} testID="friends-search-row">
+        <View style={styles.searchField}>
+          {/* A person glyph inside the field - decoration, not a control (a tap there reaches the input). */}
+          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.searchIcon} testID="friends-search-icon">
+            <UserIcon color={colors.textSecondary} size={18} />
+          </View>
+          <ThemedTextInput
+            accessibilityLabel={t('friends.search')}
+            autoCorrect={false}
+            onChangeText={setSearch}
+            placeholder={t('friends.search')}
+            style={styles.searchInput}
+            testID="friends-search"
+            value={search}
+          />
+        </View>
+        <ViewModeToggle matchSearchHeight onChange={changeViewMode} value={viewMode} />
+      </View>
+    </View>
   );
 
   const requestList = (direction: 'incoming' | 'outgoing', data: readonly FriendRequest[]) => (
@@ -452,39 +462,51 @@ export function FriendsScreen() {
     { key: 'blocked', label: t('safety.blockedUsers') },
   ];
 
+  const tabBarElement = (
+  <View {...tabsTarget} accessibilityRole="tablist" style={styles.tabBar} testID="friends-tabs">
+    {tabs.map(entry => {
+      const isSelected = tab === entry.key;
+      const count = entry.count ?? 0;
+      return (
+        <Pressable
+          accessibilityLabel={count > 0 ? `${entry.label} ${count}` : entry.label}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: isSelected }}
+          key={entry.key}
+          onPress={() => setTab(entry.key)}
+          style={[styles.tab, isSelected && styles.tabSelected]}
+          testID={`friends-tab-${entry.key}`}
+        >
+          <Text numberOfLines={2} style={[styles.tabLabel, isSelected && styles.tabLabelSelected]}>{entry.label}</Text>
+          {count > 0 ? (
+            <View style={[styles.tabBadge, entry.emphasized ? styles.tabBadgeEmphasized : styles.tabBadgeMuted]}>
+              <Text
+                style={[styles.tabBadgeText, entry.emphasized ? styles.tabBadgeTextEmphasized : styles.tabBadgeTextMuted]}
+                testID={`friends-tab-${entry.key}-count`}
+              >
+                {formatBadgeCount(count)}
+              </Text>
+            </View>
+          ) : null}
+        </Pressable>
+      );
+    })}
+  </View>
+  );
+
   return (
     <StackScreenSafeArea style={styles.safeArea}>
-      <View {...tabsTarget} accessibilityRole="tablist" style={styles.tabBar} testID="friends-tabs">
-        {tabs.map(entry => {
-          const isSelected = tab === entry.key;
-          const count = entry.count ?? 0;
-          return (
-            <Pressable
-              accessibilityLabel={count > 0 ? `${entry.label} ${count}` : entry.label}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: isSelected }}
-              key={entry.key}
-              onPress={() => setTab(entry.key)}
-              style={[styles.tab, isSelected && styles.tabSelected]}
-              testID={`friends-tab-${entry.key}`}
-            >
-              <Text numberOfLines={2} style={[styles.tabLabel, isSelected && styles.tabLabelSelected]}>{entry.label}</Text>
-              {count > 0 ? (
-                <View style={[styles.tabBadge, entry.emphasized ? styles.tabBadgeEmphasized : styles.tabBadgeMuted]}>
-                  <Text
-                    style={[styles.tabBadgeText, entry.emphasized ? styles.tabBadgeTextEmphasized : styles.tabBadgeTextMuted]}
-                    testID={`friends-tab-${entry.key}-count`}
-                  >
-                    {formatBadgeCount(count)}
-                  </Text>
-                </View>
-              ) : null}
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {tab === 'friends' ? friendsList : tab === 'incoming' ? requestList('incoming', incoming) : tab === 'outgoing' ? requestList('outgoing', outgoing) : <BlockedUsersPanel />}
+      {tab === 'friends' ? (
+        // 친구: the tab menu scrolls away with the friends, the search / view switch stays at the top.
+        <CollapsibleHeaderLayout collapsible={tabBarElement} pinned={friendsSearchRow} resetKey="friends" testID="friends-fixed-header">
+          {renderFriendsList}
+        </CollapsibleHeaderLayout>
+      ) : (
+        <>
+          {tabBarElement}
+          {tab === 'incoming' ? requestList('incoming', incoming) : tab === 'outgoing' ? requestList('outgoing', outgoing) : <BlockedUsersPanel />}
+        </>
+      )}
 
       <FriendDetailModal
         friend={selected}
@@ -602,9 +624,9 @@ function FriendsAddHeaderButton({ onPress }: { readonly onPress: () => void }) {
   const { t } = useTranslation();
   return (
     <AddIconButton
+      compact
       accessibilityLabel={t('friends.add')}
       accessibilityRole="button"
-      hitSlop={8}
       onPress={onPress}
       testID="friends-add-open"
     />
@@ -804,6 +826,9 @@ const styles = themedStyles(() => ({
   tabBadgeTextEmphasized: { color: colors.onBrand },
   tabBadgeTextMuted: { color: colors.textSecondary },
   listContent: { flexGrow: 1, paddingBottom: spacing.xl, paddingHorizontal: spacing.xl, paddingTop: spacing.md },
+  // The friends list starts right under the fixed search row (its own bottom margin is the gap).
+  friendsListContent: { flexGrow: 1, paddingBottom: spacing.xl, paddingHorizontal: spacing.xl },
+  fixedSearch: { marginHorizontal: spacing.xl, marginTop: spacing.md },
   searchRow: { alignItems: 'stretch', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs },
   searchRowList: { marginBottom: spacing.md },
   searchField: { flex: 1, justifyContent: 'center', minWidth: 0 },

@@ -183,7 +183,7 @@ describe('CollectionsScreen 내 카테고리 / 공유 카테고리', () => {
     const badges = (item: Collection) => {
       const row = renderRow(renderer, item);
       return {
-        locked: row.root.findAll(node => node.props.testID === 'collection-badge-locked').length > 0,
+        locked: row.root.findAll(node => node.props.testID === 'collection-name-lock').length > 0,
         shared: row.root.findAll(node => node.props.testID === 'collection-badge-shared').length > 0,
       };
     };

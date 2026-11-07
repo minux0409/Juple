@@ -6,9 +6,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
   AppState,
-  FlatList,
   Platform,
-  Text,
   View,
 } from 'react-native';
 import { Pressable } from '../components/Pressable';
@@ -23,7 +21,7 @@ import { isDefinitiveLoadError, LoadFailureState } from '../components/LoadFailu
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SavedLinkRow } from '../components/SavedLinkRow';
-import { LINK_CONTROLS_BOTTOM_GAP, LINK_CONTROLS_TOP_GAP, savedLinkLayout, TITLE_COUNT_GAP } from '../components/savedLinkLayout';
+import { LINK_CONTROLS_BOTTOM_GAP, savedLinkLayout } from '../components/savedLinkLayout';
 import { SavedLinkGridCell, useSavedLinkGridCellStyle } from '../components/SavedLinkGridCard';
 import { gridListKey, useSavedLinkColumns } from '../layout/responsiveGrid';
 import { SavedLinkGridCardSkeleton, SavedLinkRowSkeleton } from '../components/SavedLinkSkeleton';
@@ -58,6 +56,7 @@ import { onItemListChanged } from '../items/itemListChanges';
 import { shareItem } from '../items/shareItem';
 import { useItemCardOpen } from '../items/useItemCardOpen';
 import { useSavedLinkActions } from '../items/useSavedLinkActions';
+import { useSavedLinkSelection } from '../items/useSavedLinkSelection';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { isHttpUrl } from '../share/resolveIncomingShare';
 import { parseCollectionShareUrl } from '../share/collectionShareUrl';
@@ -67,7 +66,9 @@ import { TOUR_TARGETS } from '../tour/tourGuides';
 import { useTourTarget } from '../tour/tourTargets';
 import { useViewModePreference } from '../settings/viewModePreference';
 import { JupleBrandMark } from '../components/JupleBrandMark';
-import { ScreenTitleGlyph } from '../components/ScreenTitle';
+import { SCREEN_TITLE_ICON_SIZE } from '../components/ScreenTitle';
+import { SectionHeaderRow } from '../components/SectionHeaderRow';
+import { AnimatedFlatList, CollapsibleHeaderLayout } from '../components/CollapsibleHeaderLayout';
 import { ClockIcon } from '../icons/ClockIcon';
 import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
@@ -141,6 +142,9 @@ function getDeleteErrorMessage(error: unknown, t: TFunction): string {
 function getShareErrorMessage(t: TFunction): string {
   return t('item.shareError');
 }
+
+/** The 최근 저장 row (16dp above, the 40dp view switch) that scrolls away under the pinned URL field: after this much extra scroll it is gone. */
+const HOME_TITLE_ROW_SPACE = 56;
 
 /**
  * Home ("오늘 저장한 링크"): every URL the user saved today (SavedAtUtc, local calendar date),
@@ -458,12 +462,25 @@ export function DailyInboxScreen() {
     (itemId, openContext) => navigation.navigate('ItemDetails', { itemId, openContext }),
     () => { loadToday('refresh'); },
   );
-  // Long-press on a link card: 링크 열기 / 수정 / 컬렉션 변경 / 삭제 (shared with History - see useSavedLinkActions).
-  const linkActions = useSavedLinkActions({
+  // Long-press on a link card starts multi-selection (shared with History - see useSavedLinkSelection): the bottom bar then offers
+  // 컬렉션 변경, 삭제 and 더보기 for the chosen links. The long-press is wired through a ref because the selection needs the card
+  // wiring's openLink and the card wiring needs the selection's start.
+  const startSelectionRef = useRef<(item: ItemHistoryEntry) => void>(() => undefined);
+  const linkActions = useSavedLinkActions({ onLongPress: item => startSelectionRef.current(item as ItemHistoryEntry) });
+  const linkSelection = useSavedLinkSelection({
+    items,
     onEdit: item => { itemCardOpen.open(item).catch(() => undefined); },
-    onDelete: item => confirmDelete(item.id),
-    onCollectionsChanged: () => { loadToday('refresh'); },
+    onOpenOriginal: item => { linkActions.openLink(item).catch(() => undefined); },
+    onDeleted: ids => {
+      const gone = new Set(ids);
+      setItems(previous => previous.filter(entry => !gone.has(entry.id)));
+      setTodayCount(previous => (previous === null ? previous : Math.max(0, previous - ids.length)));
+    },
+    onChanged: () => { loadToday('refresh'); },
+    isLoading: isLoading || isRefreshing,
   });
+  startSelectionRef.current = linkSelection.startSelection;
+  const onImageLongPress = useCallback((item: ItemHistoryEntry) => startSelectionRef.current(item), []);
 
   // Always the server's own order - newest saved first (saved time, then id) - paging in as the list scrolls. There is no
   // other order to pick.
@@ -525,121 +542,149 @@ export function DailyInboxScreen() {
   });
   return (
     <TabScreenSafeArea style={styles.safeArea}>
-      <FlatList<ItemHistoryEntry | ImageLine>
-        key={gridListKey(viewMode, viewMode === 'grid', columns.grid)}
-        contentContainerStyle={styles.content}
-        data={viewMode === 'image' ? imageLines : displayedItems}
-        keyExtractor={entry => (isImageLine(entry) ? entry.lineKey : entry.id.toString())}
-        numColumns={viewMode === 'grid' ? columns.grid : 1}
-        initialNumToRender={10}
-        maxToRenderPerBatch={10}
-        windowSize={7}
-        // Android: rows scrolled far away drop their native views (and images) entirely.
-        removeClippedSubviews={Platform.OS === 'android'}
-        onEndReached={() => loadMore()}
-        onEndReachedThreshold={0.5}
-        onScrollBeginDrag={closeOpenRow}
-        scrollEnabled={swipeScrollEnabled}
-        refreshControl={pullToRefresh.refreshControl}
-        ListHeaderComponent={
-          <View>
+      {linkSelection.topBar}
+      {/* Header: the logo + bell scroll away with the links; the URL field stays at the top (like the search field of 보관함 and 컬렉션),
+          with the List / Grid / Image switch beside it once the 최근 저장 row - which scrolls with the links - has gone under it. */}
+      <CollapsibleHeaderLayout
+        collapsedExtra={HOME_TITLE_ROW_SPACE}
+        collapsible={
+          <View style={styles.collapsibleTop}>
             <View style={styles.brandRow}>
               <JupleBrandMark size="medium" />
               {/* 알림 - Home's top end, the one place it lives (not on every screen). */}
               <NotificationBellButton onPress={() => navigation.navigate('Notifications')} />
             </View>
-            <SubscriptionExpiredNotice />
-            <TrialNotice />
-            <View {...inputTarget} style={styles.inputWrapper}>
-              <View pointerEvents="none" style={styles.inputIconContainer}>
-                <LinkIcon color={colors.textSecondary} size={18} />
-              </View>
-              <ThemedTextInput
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-                onChangeText={setUrl}
-                onSubmitEditing={openReview}
-                placeholder={t('inbox.urlPlaceholder')}
-                placeholderTextColor={colors.placeholder}
-                returnKeyType="go"
-                submitBehavior="blurAndSubmit"
-                style={[styles.input, url && ltrTextStyle]}
-                value={url}
-              />
-              <Pressable
-                {...checkTarget}
-                accessibilityLabel={t('common.save')}
-                accessibilityRole="button"
-                disabled={!url.trim()}
-                onPress={openReview}
-                style={styles.saveIconButton}
-              >
-                <SearchIcon color={BRAND_PRIMARY} size={20} />
-              </Pressable>
-            </View>
-            {error && items.length > 0 ? (
-              // Rows are shown (a refresh or the next page failed): the failure sits above them, with a retry.
-              <LoadFailureState compact error={error.cause} notice={isDefinitiveLoadError(error.cause) ? error.message : null} onRetry={() => { loadToday('refresh'); }} testID="home-load-error" />
-            ) : null}
-            <View style={styles.recentHeaderRow}>
-              {/* Title and count only - the view switch is on the row below, as in a Collection. */}
-              <ScreenTitleGlyph icon={ClockIcon} />
-              <View style={styles.recentHeaderLabel}>
-                <Text style={styles.recentTitle}>{t('inbox.recentSaved')}</Text>
-                <Text style={styles.recentCount}>{t('inbox.recentSavedCount', { count: todayCount ?? items.length })}</Text>
-              </View>
-            </View>
-            {swipeHint.isVisible ? <HintBanner message={t('hints.savedLinkSwipe')} onDismiss={swipeHint.dismiss} testID="home-swipe-hint" /> : null}
-            {/* The List / Grid / Image switch, pinned to the end edge - the links are always newest first. */}
-            <View style={styles.sortRow} testID="home-view-controls">
-              <View style={styles.sortRowSpacer} />
-              <ViewModeToggle onChange={changeViewMode} showImage style={styles.viewModeToggle} value={viewMode} />
-            </View>
           </View>
         }
-        ListEmptyComponent={
-          error ? (
-            <LoadFailureState error={error.cause} notice={isDefinitiveLoadError(error.cause) ? error.message : null} onRetry={() => { loadToday('initial'); }} testID="home-load-error" />
-          ) : isLoading ? renderSkeletons(HOME_FIRST_PAGE_SKELETON_ROWS, 'home-first-page-loading') : <CenteredEmptyState message={t('inbox.empty')} />
-        }
-        renderItem={({ item, index }) => isImageLine(item) ? (
-          <SavedLinkImageRow items={item.items} onLongPress={linkActions.openMenu} onPress={openItem} swipeActions={imageSwipeActions} swipeDisabled={actionInFlightItemId !== null || isRefreshing} testID={`home-image-line-${item.lineKey}`} />
-        ) : viewMode === 'grid' ? (
-          <SavedLinkGridCell
-            column={index % columns.grid}
-            disabled={actionInFlightItemId !== null || isRefreshing}
-            isActionInFlight={actionInFlightItemId === item.id}
-            item={item}
-            {...linkActions.menuProps(item)}
-            {...linkActions.originalLinkProps(item)}
-            onDelete={() => confirmDelete(item.id)}
-            onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
-            onShare={getSavedLinkSwipeActions(item).share ? () => runShare(item) : undefined}
-            preferEffectiveThumbnail
-          />
-        ) : (
-          <SwipeableItemRow
-            containerStyle={savedLinkLayout.card}
-            disabled={actionInFlightItemId !== null || isRefreshing}
-            {...linkActions.menuProps(item)}
-            onOpenOriginal={linkActions.originalLinkProps(item).onOpenOriginal}
-            onDelete={() => confirmDelete(item.id)}
-            onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
-            onShare={getSavedLinkSwipeActions(item).share ? () => runShare(item) : undefined}
-          >
-            <SavedLinkRow
-              isActionInFlight={actionInFlightItemId === item.id}
-              item={item}
-              {...linkActions.originalLinkProps(item)}
-              preferEffectiveThumbnail
-            />
-          </SwipeableItemRow>
+        pinned={({ isCollapsed }) => (
+          <View style={styles.pinnedInput}>
+            <View style={styles.inputLine}>
+              <View style={styles.inputFlex}>
+                    <View {...inputTarget} style={styles.inputWrapper}>
+                      <View pointerEvents="none" style={styles.inputIconContainer}>
+                        <LinkIcon color={colors.textSecondary} size={18} />
+                      </View>
+                      <ThemedTextInput
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        keyboardType="url"
+                        onChangeText={setUrl}
+                        onSubmitEditing={openReview}
+                        placeholder={t('inbox.urlPlaceholder')}
+                        placeholderTextColor={colors.placeholder}
+                        returnKeyType="go"
+                        submitBehavior="blurAndSubmit"
+                        style={[styles.input, url && ltrTextStyle]}
+                        value={url}
+                      />
+                      <Pressable
+                        {...checkTarget}
+                        accessibilityLabel={t('common.save')}
+                        accessibilityRole="button"
+                        disabled={!url.trim()}
+                        onPress={openReview}
+                        style={styles.saveIconButton}
+                      >
+                        <SearchIcon color={BRAND_PRIMARY} size={20} />
+                      </Pressable>
+                    </View>
+              </View>
+              {isCollapsed ? <ViewModeToggle onChange={changeViewMode} showImage value={viewMode} /> : null}
+            </View>
+          </View>
         )}
-        ListFooterComponent={isLoadingMore ? renderSkeletons(HOME_NEXT_PAGE_SKELETON_ROWS, 'home-next-page-loading') : undefined}
-      />
+        testID="home-fixed-header"
+      >
+        {list => (
+            <AnimatedFlatList<ItemHistoryEntry | ImageLine>
+              ref={list.listRef}
+              onScroll={list.onScroll}
+              scrollEventThrottle={list.scrollEventThrottle}
+              key={gridListKey(viewMode, viewMode === 'grid', columns.grid)}
+              contentContainerStyle={[styles.content, list.contentInset(displayedItems.length > 0 || imageLines.length > 0)]}
+              extraData={linkSelection.selection}
+              data={viewMode === 'image' ? imageLines : displayedItems}
+              keyExtractor={entry => (isImageLine(entry) ? entry.lineKey : entry.id.toString())}
+              numColumns={viewMode === 'grid' ? columns.grid : 1}
+              initialNumToRender={10}
+              maxToRenderPerBatch={10}
+              windowSize={7}
+              // Android: rows scrolled far away drop their native views (and images) entirely.
+              removeClippedSubviews={Platform.OS === 'android'}
+              onEndReached={() => loadMore()}
+              onEndReachedThreshold={0.5}
+              onScrollBeginDrag={closeOpenRow}
+              scrollEnabled={swipeScrollEnabled}
+              refreshControl={list.withRefreshOffset(pullToRefresh.refreshControl)}
+              ListHeaderComponent={
+                <View>
+                  {/* One line: [clock] 최근 저장 count on the start side, the List / Grid / Image switch at the end edge. It is list content: it
+                      scrolls away under the pinned URL field, and the pinned field then offers the switch itself. */}
+                  <SectionHeaderRow
+                    count={t('inbox.recentSavedCount', { count: todayCount ?? items.length })}
+                    icon={ClockIcon}
+                    iconSize={SCREEN_TITLE_ICON_SIZE}
+                    style={styles.recentRow}
+                    testID="home-view-controls"
+                    title={t('inbox.recentSaved')}
+                    trailing={<ViewModeToggle onChange={changeViewMode} showImage value={viewMode} />}
+                  />
+                  <SubscriptionExpiredNotice />
+                  <TrialNotice />
+                  {error && items.length > 0 ? (
+                    // Rows are shown (a refresh or the next page failed): the failure sits above them, with a retry.
+                    <LoadFailureState compact error={error.cause} notice={isDefinitiveLoadError(error.cause) ? error.message : null} onRetry={() => { loadToday('refresh'); }} testID="home-load-error" />
+                  ) : null}
+                  {swipeHint.isVisible ? <HintBanner message={t('hints.savedLinkSwipe')} onDismiss={swipeHint.dismiss} testID="home-swipe-hint" /> : null}
+                </View>
+              }
+              ListEmptyComponent={
+                error ? (
+                  <LoadFailureState error={error.cause} notice={isDefinitiveLoadError(error.cause) ? error.message : null} onRetry={() => { loadToday('initial'); }} testID="home-load-error" />
+                ) : isLoading ? renderSkeletons(HOME_FIRST_PAGE_SKELETON_ROWS, 'home-first-page-loading') : <CenteredEmptyState message={t('inbox.empty')} />
+              }
+              renderItem={({ item, index }) => isImageLine(item) ? (
+                <SavedLinkImageRow items={item.items} onLongPress={onImageLongPress} onPress={openItem} selection={linkSelection.imageSelection} swipeActions={imageSwipeActions} swipeDisabled={actionInFlightItemId !== null || isRefreshing} testID={`home-image-line-${item.lineKey}`} />
+              ) : viewMode === 'grid' ? (
+                <SavedLinkGridCell
+                  column={index % columns.grid}
+                  disabled={actionInFlightItemId !== null || isRefreshing}
+                  isActionInFlight={actionInFlightItemId === item.id}
+                  item={item}
+                  {...linkActions.menuProps(item)}
+                  {...linkActions.originalLinkProps(item)}
+                  onDelete={() => confirmDelete(item.id)}
+                  onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
+                  onShare={getSavedLinkSwipeActions(item).share ? () => runShare(item) : undefined}
+                  selection={linkSelection.rowSelection(item)}
+                  preferEffectiveThumbnail
+                />
+              ) : (
+                <SwipeableItemRow
+                  containerStyle={savedLinkLayout.card}
+                  disabled={actionInFlightItemId !== null || isRefreshing}
+                  {...linkActions.menuProps(item)}
+                  onOpenOriginal={linkActions.originalLinkProps(item).onOpenOriginal}
+                  onDelete={() => confirmDelete(item.id)}
+                  onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
+                  onShare={getSavedLinkSwipeActions(item).share ? () => runShare(item) : undefined}
+                  selection={linkSelection.rowSelection(item)}
+                >
+                  <SavedLinkRow
+                    isActionInFlight={actionInFlightItemId === item.id}
+                    item={item}
+                    {...linkActions.originalLinkProps(item)}
+                    preferEffectiveThumbnail
+                  />
+                </SwipeableItemRow>
+              )}
+              ListFooterComponent={isLoadingMore ? renderSkeletons(HOME_NEXT_PAGE_SKELETON_ROWS, 'home-next-page-loading') : undefined}
+            />
+        )}
+      </CollapsibleHeaderLayout>
       {itemCardOpen.dialog}
       {linkActions.element}
+      {linkSelection.element}
       {saveError !== null && (
         <ConfirmDialog
           visible
@@ -680,15 +725,23 @@ const styles = themedStyles(() => ({
   // FlatList's own viewport already ends exactly above the tab bar - no tabBarHeight or
   // insets.bottom belongs here too, or the last card gets an extra, empty tab-bar-sized gap below
   // it. `padding.xl` (24) bottom is just ordinary breathing room, the same as every other side.
+  collapsibleTop: { paddingHorizontal: spacing.xl, paddingTop: spacing.xl },
+  // The pinned URL field: 8dp above (the same as the search field of 보관함 / 컬렉션) and 8dp below; the 최근 저장 row adds 16dp on top.
+  pinnedInput: { paddingBottom: spacing.sm, paddingHorizontal: spacing.xl, paddingTop: spacing.sm },
+  inputLine: { alignItems: 'center', columnGap: spacing.sm, flexDirection: 'row' },
+  inputFlex: { flex: 1, minWidth: 0 },
+  recentRow: { marginBottom: LINK_CONTROLS_BOTTOM_GAP, marginTop: spacing.lg },
   content: {
     flexGrow: 1,
-    padding: spacing.xl,
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.xl,
   },
   brandRow: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg,
+    // 20dp + the pinned field's 8dp top padding = the gap the screen always had between the logo and the field.
+    marginBottom: spacing.xl - spacing.xs,
   },
   inputWrapper: {
     alignItems: 'center',
@@ -698,7 +751,6 @@ const styles = themedStyles(() => ({
     borderWidth: 1,
     direction: 'ltr',
     flexDirection: 'row',
-    marginTop: spacing.md,
     minHeight: URL_INPUT_MIN_HEIGHT,
     paddingStart: spacing.md,
     ...cardShadow,
@@ -740,31 +792,6 @@ const styles = themedStyles(() => ({
     color: colors.dangerText,
     fontSize: 14,
     marginTop: spacing.md,
-  },
-  recentHeaderRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.xl,
-  },
-  // Title and count on ONE row, count right after the title: the title shrinks (and wraps within itself)
-  // on a long translation, the count never drops to a line of its own.
-  recentHeaderLabel: { alignItems: 'baseline', columnGap: TITLE_COUNT_GAP, flexDirection: 'row', flexShrink: 1, minWidth: 0 },
-  sortRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: LINK_CONTROLS_BOTTOM_GAP, marginTop: LINK_CONTROLS_TOP_GAP },
-  sortRowSpacer: { flex: 1 },
-  // Pinned to the end edge, also when the (three-option) switch no longer fits beside the sort chips and wraps.
-  viewModeToggle: { marginStart: 'auto' },
-  recentTitle: {
-    flexShrink: 1,
-    color: colors.textPrimary,
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  recentCount: {
-    flexShrink: 0,
-    color: colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '500',
   },
   skeletonCard: { overflow: 'hidden' },
   gridSkeletons: { flexDirection: 'row', flexWrap: 'wrap' },

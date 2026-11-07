@@ -13,6 +13,11 @@ const ENTRANCE_MS = 200;
 interface BottomSheetModalProps {
   readonly visible: boolean;
   readonly onClose: () => void;
+  /**
+   * The system back button / back gesture, when it should do something other than close the sheet (a sheet with inner pages steps back
+   * first). The backdrop, the drag and the X always use onClose.
+   */
+  readonly onBack?: () => void;
   readonly onDismiss?: () => void;
   readonly children: ReactNode;
   /** Rendered inside the same native Modal after the sheet (e.g. a ConfirmDialog opened from it), so iOS never stacks two Modals. */
@@ -42,7 +47,7 @@ interface BottomSheetModalProps {
  * The shared handle sits at its top, over the sheet's header: dragging anywhere in that header block downward closes the
  * sheet through onClose, like the backdrop and back. The content below scrolls as always.
  */
-export function BottomSheetModal({ visible, onClose, onDismiss, children, modalExtras, testID, dismissEnabled = true, headerTitle, headerActions, headerRowStyle }: BottomSheetModalProps) {
+export function BottomSheetModal({ visible, onClose, onBack, onDismiss, children, modalExtras, testID, dismissEnabled = true, headerTitle, headerActions, headerRowStyle }: BottomSheetModalProps) {
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const entrance = useRef(new Animated.Value(0)).current;
@@ -70,7 +75,7 @@ export function BottomSheetModal({ visible, onClose, onDismiss, children, modalE
   };
 
   return (
-    <Modal animationType="none" navigationBarTranslucent onDismiss={onDismiss} onRequestClose={onClose} statusBarTranslucent transparent visible={visible}>
+    <Modal animationType="none" navigationBarTranslucent onDismiss={onDismiss} onRequestClose={onBack ?? onClose} statusBarTranslucent transparent visible={visible}>
       <KeyboardFieldScope>
       <View style={styles.overlay}>
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: Animated.multiply(entrance, gesture.backdropOpacity) }]} testID={`${testID}-backdrop`} />

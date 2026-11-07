@@ -5,6 +5,7 @@ import { Pressable } from '../components/Pressable';
 import { PressedShape } from '../components/PressedShape';
 import { CategoryIconTile } from './CategoryIconTile';
 import { contentGateOf, isCollaborative, isCollectionLocked } from './collectionAccess';
+import { CollectionLockMark } from './CollectionNameLabel';
 import { CollectionStatusBadges } from './CollectionStatusBadges';
 import { CloseIcon } from '../icons/CloseIcon';
 import { FolderPlusIcon } from '../icons/FolderPlusIcon';
@@ -239,13 +240,22 @@ export function CollectionChoiceGrid({
                       <CategoryIconTile collectionId={option.id} color={option.color} icon={option.icon} imageUrl={option.iconImageUrl} imageVersion={option.iconImageVersion} size={48} />
                       {isGrid ? <PressedShape borderRadius={TILE_RADIUS} pressed={pressed} /> : null}
                       {/* Same start-side markers as the Categories screen, so a shared Category is recognizable here too. */}
-                      <CollectionStatusBadges isLocked={isCollectionLocked(option)} isShared={isCollaborative(option)} size={18} />
+                      <CollectionStatusBadges isShared={isCollaborative(option)} size={18} />
                       {isSelected ? <SelectionIndicator selected style={styles.selectedBadge} testID={`category-picker-selected-${option.id}`} /> : null}
                     </View>
                     <View style={isGrid ? styles.gridText : styles.listText}>
-                      <Text numberOfLines={1} style={[styles.tileLabel, !isGrid && styles.listLabel]}>
-                        {option.name}
-                      </Text>
+                      {isCollectionLocked(option) ? (
+                        <View accessibilityLabel={`${option.name}, ${t('collections.lockedA11y')}`} style={styles.lockedNameRow}>
+                          <CollectionLockMark size={isGrid ? 11 : 14} />
+                          <Text numberOfLines={1} style={[styles.tileLabel, styles.lockedName, !isGrid && styles.listLabel]}>
+                            {option.name}
+                          </Text>
+                        </View>
+                      ) : (
+                        <Text numberOfLines={1} style={[styles.tileLabel, !isGrid && styles.listLabel]}>
+                          {option.name}
+                        </Text>
+                      )}
                       {isDisabled ? (
                         <Text numberOfLines={1} style={[styles.disabledLabel, !isGrid && styles.listLabel]} testID={`category-picker-included-${option.id}`}>
                           {t('collections.alreadyIncluded')}
@@ -306,6 +316,9 @@ const styles = themedStyles(() => ({
   tileLabel: { color: colors.textPrimary, fontSize: 12, fontWeight: '600', marginTop: spacing.xs + 2, maxWidth: 76, textAlign: 'center' },
   listLabel: { maxWidth: undefined, textAlign: 'start' },
   gridText: { alignItems: 'center' },
+  // A locked name: the padlock first, then the name taking the rest of the line (same top margin and width as a plain name).
+  lockedNameRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', marginTop: spacing.xs + 2, maxWidth: 76, minWidth: 0 },
+  lockedName: { flexShrink: 1, marginTop: 0, maxWidth: undefined },
   listText: { flex: 1, minWidth: 0 },
   disabledCell: { opacity: 0.45 },
   disabledLabel: { color: colors.textSecondary, fontSize: 11, marginTop: 1, maxWidth: 76, textAlign: 'center' },

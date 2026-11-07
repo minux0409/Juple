@@ -702,16 +702,15 @@ describe('which password stands before a Collection', () => {
 });
 
 describe('CollectionStatusBadges', () => {
-  it('has no share-password (key) badge - the Collection lock and shared markers stay', () => {
+  it('has no share-password (key) badge and no lock badge on the picture (the padlock is before the name) - the shared marker stays', () => {
     let renderer!: ReactTestRenderer.ReactTestRenderer;
     act(() => {
-      renderer = ReactTestRenderer.create(<CollectionStatusBadges isLocked isShared />);
+      renderer = ReactTestRenderer.create(<CollectionStatusBadges isShared />);
     });
 
     expect(renderer.root.findAllByType(KeyIcon)).toHaveLength(0);
     expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-share-password')).toHaveLength(0);
-    expect(renderer.root.find(node => node.props.testID === 'collection-badge-locked' && typeof node.type === 'string').props.accessibilityLabel)
-      .toBe(i18n.t('collections.lockedA11y'));
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-locked')).toHaveLength(0);
     expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-shared').length).toBeGreaterThan(0);
     act(() => renderer.unmount());
   });

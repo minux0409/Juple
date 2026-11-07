@@ -5,6 +5,7 @@ import { Pressable } from '../components/Pressable';
 import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { BottomSheetModal } from '../components/BottomSheetModal';
+import type { ReviewSheetParts } from './reviewSheetParts';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ImportantState } from '../components/ImportantState';
 import { UserAvatar } from '../components/UserAvatar';
@@ -47,7 +48,7 @@ interface JoinRequestsSheetProps {
  * nothing; both ask first. Not 받은 초대 요청 (an invitation goes the other way) and not the participants (they are not members yet). When the
  * last applicant is answered the sheet closes, like the Owner's approval queue.
  */
-export function JoinRequestsSheet({ visible, collectionId, authenticatedRequest, onClose, expectedCount = 0, onChanged }: JoinRequestsSheetProps) {
+export function useJoinRequestsSheetParts({ visible, collectionId, authenticatedRequest, onClose, expectedCount = 0, onChanged }: JoinRequestsSheetProps): ReviewSheetParts {
   const { t } = useTranslation();
   const { showMessage, messageDialog } = useMessageDialog();
   const [rows, setRows] = useState<readonly CollectionJoinRequest[]>([]);
@@ -188,23 +189,7 @@ export function JoinRequestsSheet({ visible, collectionId, authenticatedRequest,
   const showSkeleton = !hasLoaded && rows.length === 0;
   const skeletonCount = Math.min(Math.max(expectedCount, 1), MAX_SKELETON_CARDS);
 
-  return (
-    <BottomSheetModal
-      headerActions={
-        <Pressable
-          accessibilityLabel={t('common.close')}
-          accessibilityRole="button"
-          hitSlop={4}
-          onPress={onClose}
-          style={styles.closeButton}
-          testID="join-requests-sheet-close"
-        >
-          <CloseIcon color={colors.textSecondary} size={20} />
-        </Pressable>
-      }
-      headerRowStyle={styles.titleRow}
-      headerTitle={<Text accessibilityRole="header" style={styles.title} testID="join-requests-title">{t('shareSheet.joinRequestsTitle')}</Text>}
-      modalExtras={
+  const modalExtras = (
         <>
           <ConfirmDialog
             cancelLabel={t('common.cancel')}
@@ -225,11 +210,9 @@ export function JoinRequestsSheet({ visible, collectionId, authenticatedRequest,
           {/* An answer that failed or is no longer possible: the common centered message, the sheet stays. */}
           {messageDialog}
         </>
-      }
-      onClose={onClose}
-      testID="join-requests-sheet"
-      visible={visible}
-    >
+  );
+  const content = (
+    <>
       {showSkeleton ? (
         <View style={styles.list} testID="join-requests-skeleton">
           {Array.from({ length: skeletonCount }, (_, index) => (
@@ -256,6 +239,29 @@ export function JoinRequestsSheet({ visible, collectionId, authenticatedRequest,
           testID="join-requests-list"
         />
       )}
+    </>
+  );
+  return { title: t('shareSheet.joinRequestsTitle'), titleTestID: 'join-requests-title', testID: 'join-requests-sheet', closeTestID: 'join-requests-sheet-close', modalExtras, content };
+}
+
+export function JoinRequestsSheet(props: JoinRequestsSheetProps) {
+  const { t } = useTranslation();
+  const parts = useJoinRequestsSheetParts(props);
+  return (
+    <BottomSheetModal
+      headerActions={
+        <Pressable accessibilityLabel={t('common.close')} accessibilityRole="button" hitSlop={4} onPress={props.onClose} style={styles.closeButton} testID={parts.closeTestID}>
+          <CloseIcon color={colors.textSecondary} size={20} />
+        </Pressable>
+      }
+      headerRowStyle={styles.titleRow}
+      headerTitle={<Text accessibilityRole="header" style={styles.title} testID={parts.titleTestID ?? undefined}>{parts.title}</Text>}
+      modalExtras={parts.modalExtras}
+      onClose={props.onClose}
+      testID={parts.testID}
+      visible={props.visible}
+    >
+      {parts.content}
     </BottomSheetModal>
   );
 }

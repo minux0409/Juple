@@ -138,8 +138,11 @@ const styles = themedStyles(() => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Top gutter is small on purpose: every row already has 16dp of its own vertical padding, so the first label sits ~20dp under the header
+  // (it was 24 + 16 = 40dp). Sides and bottom keep their 24dp (the shared `padding`, no explicit bottom value), so the last row still clears the system navigation bar.
   content: {
     padding: 24,
+    paddingTop: 4,
   },
   row: {
     alignItems: 'center',

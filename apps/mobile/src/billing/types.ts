@@ -1,3 +1,5 @@
+import type { PlanKey } from './subscriptionPricing';
+
 /**
  * The non-secret purchase configuration the Backend serves (GET /api/v1/billing/google/catalog). It never carries a price - the
  * localized one always comes from Google Play itself - nor the internal user id, a credential or a token.
@@ -6,8 +8,22 @@ export interface GoogleCatalog {
   readonly enabled: boolean;
   readonly productId: string | null;
   readonly basePlanId: string | null;
+  /** Every allowed base plan of the ONE membership subscription (monthly and yearly). Older servers answer only `basePlanId`. */
+  readonly basePlanIds?: readonly string[];
   /** The opaque id this account must give Google Play, so the purchase can be tied back to it server-side. */
   readonly obfuscatedAccountId: string | null;
+}
+
+/**
+ * The non-secret App Store purchase configuration (GET /api/v1/billing/apple/catalog): the allowlisted auto-renewable product ids and the
+ * App Account Token this account must give StoreKit. Never a price (the App Store reports the localized one), the internal user id, a
+ * credential or a transaction.
+ */
+export interface AppleCatalog {
+  readonly enabled: boolean;
+  readonly productIds: readonly string[];
+  /** A UUID: how the App Store's transactions and notifications are tied back to this account server-side. */
+  readonly appAccountToken: string | null;
 }
 
 export type VerifyOutcome = 'verified' | 'pending' | 'notEntitled';
@@ -25,14 +41,23 @@ export type RestoreOutcome = 'restored' | 'nothingFound' | 'belongsToAnotherJupl
 export interface GoogleOffer {
   readonly productId: string;
   readonly basePlanId: string;
+  /** Which membership plan this base plan is (read from the store's billing period); null for a period the app does not offer. */
+  readonly plan: PlanKey | null;
   readonly offerToken: string;
   /** The store's own localized price string (e.g. what "{price} / month" is built from) - never a number this app formats. */
   readonly localizedPrice: string;
   readonly currencyCode: string | null;
   /** ISO-8601 billing period of the recurring phase (e.g. "P1M"), for the "per month" wording. */
   readonly billingPeriod: string | null;
+  /** The recurring price in currency units (priceAmountMicros / 1e6), for the per-storefront discount arithmetic; null if unreadable. */
+  readonly priceAmount: number | null;
   readonly obfuscatedAccountId: string;
 }
+
+/** Every offer the store returned for the membership subscription (Android). */
+export type PlansResult =
+  | { readonly kind: 'ready'; readonly offers: readonly GoogleOffer[] }
+  | { readonly kind: 'unavailable'; readonly reason: OfferUnavailableReason };
 
 export type OfferUnavailableReason = 'unsupportedPlatform' | 'disabled' | 'storeUnavailable' | 'productNotFound' | 'offerNotFound';
 

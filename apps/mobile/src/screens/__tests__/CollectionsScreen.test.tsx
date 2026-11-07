@@ -6,17 +6,14 @@ import { LoadFailureState } from '../../components/LoadFailureState';
 import { RefreshFailureNotice } from '../../components/RefreshFailureNotice';
 import { InfoIcon } from '../../icons/InfoIcon';
 import { KeyIcon } from '../../icons/KeyIcon';
-import { ApprovalSubmissionSheet } from '../../collections/ApprovalSubmissionSheet';
-import { CollectionStatusBadges } from '../../collections/CollectionStatusBadges';
+import { CollectionStatusBadges, STATUS_BADGE_CORNER_OFFSET } from '../../collections/CollectionStatusBadges';
 import { CrownIcon } from '../../icons/CrownIcon';
 import { StarIcon } from '../../icons/StarIcon';
-import { PendingActionRow } from '../../components/PendingActionRow';
 import { AddIconButton } from '../../components/AddIconButton';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
-import { radii, spacing } from '../../theme/tokens';
+import { spacing } from '../../theme/tokens';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Dimensions, FlatList, Image, InputAccessoryView, Linking, Platform, RefreshControl, StyleSheet, Text, TextInput } from 'react-native';
-import { colors } from '../../theme/tokens';
 import { collectionFilterColors } from '../../theme/tokens';
 import i18n from '../../i18n';
 import { CategoryIconTile } from '../../collections/CategoryIconTile';
@@ -42,7 +39,6 @@ import {
   type ReceivedCollectionInvitation,
 } from '../../collections/api/collaborationApi';
 import { ApiError } from '../../api/ApiError';
-import { ReceivedApprovalsSheet } from '../../collections/ReceivedApprovalsSheet';
 import { ReceivedInvitationsSheet } from '../../collections/ReceivedInvitationsSheet';
 import { emitSocialPushEvent } from '../../push/pushEvents';
 import { emitCollectionNewLinksRead } from '../../notifications/notificationState';
@@ -552,7 +548,8 @@ describe('CollectionsScreen card contents', () => {
       expect(renderer.root.findAll(node => node.props.testID === testID)).toHaveLength(0);
     }
     expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-shared').length).toBeGreaterThan(0);
-    expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-locked').length).toBeGreaterThan(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-name-lock').length).toBeGreaterThan(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-locked')).toHaveLength(0);
     expect(renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.removeFavorite')).length).toBeGreaterThan(0);
   });
 
@@ -566,7 +563,8 @@ describe('CollectionsScreen card contents', () => {
     expect(renderer.root.findAllByType(KeyIcon)).toHaveLength(0);
     expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-share-password')).toHaveLength(0);
     expect(renderer.root.findAll(node => typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.includes('공유 비밀번호'))).toHaveLength(0);
-    expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-locked').length).toBeGreaterThan(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-name-lock').length).toBeGreaterThan(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-locked')).toHaveLength(0);
   });
 
   it.each(['grid', 'list'] as const)('%s: a Collection with its own photo shows the photo as its icon; without one, the built-in icon', async mode => {
@@ -822,38 +820,6 @@ describe('CollectionsScreen 공유 요청 (received collaboration invitations)',
     jest.mocked(getReceivedCollectionInvitations).mockResolvedValue(Array.from({ length: 120 }, (_, index) => invitation(index + 1)));
     renderer = await renderScreen();
     expect(badge(renderer)[0].findByType(Text).props.children).toBe('99+');
-  });
-
-  it('받은 승인 요청 uses pending text and lists only the Collections whose requests I can answer', async () => {
-    const store = createMobileAttentionStore(jest.fn());
-    store.replace('invitations', []);
-    store.replace('collections', [
-      makeCollection({ id: 11, name: 'Mine A', accessRole: 'owner', hasCollaborators: true, pendingSubmissionCount: 2, pendingJoinRequestCount: 1, attentionCount: 3 }),
-      makeCollection({ id: 12, name: 'Mine B', accessRole: 'owner', hasCollaborators: true, pendingSubmissionCount: 0, pendingJoinRequestCount: 1, attentionCount: 1 }),
-      makeCollection({ id: 13, name: 'Theirs', accessRole: 'contributor', pendingSubmissionCount: 5 }),
-    ]);
-    const renderer = await renderScreen(store);
-    const row = () => renderer.root.findAll(node => node.props.testID === 'collections-received-approvals' && typeof node.props.onPress === 'function' && node.parent?.props.testID !== 'collections-received-approvals');
-    // Not on 즐겨찾기 (and no type but 공유 carries a request badge).
-    expect(row()).toHaveLength(0);
-    expect(renderer.root.findAll(node => /collections-filter-(favorites|all|owned)-badge/.test(node.props.testID ?? ''))).toHaveLength(0);
-    await act(async () => {
-      renderer.root.findAll(node => node.props.testID === 'collections-filter-shared' && typeof node.props.onPress === 'function')[0].props.onPress();
-    });
-    expect(row()).toHaveLength(1);
-    // Only MY Collections count (3 + 1); a Collection I do not own never adds its numbers.
-    expect(row()[0].findAllByType(Text).map(text => String(text.props.children))).toContain(i18n.t('collections.myPendingStatus', { count: 4 }));
-    expect(renderer.root.findAllByProps({ testID: 'collections-received-approvals-badge' })).toHaveLength(0);
-    expect(renderer.root.findByProps({ testID: 'collections-filter-shared-badge' }).findByType(Text).props.children).toBe('4');
-    await act(async () => row()[0].props.onPress());
-    const sheet = renderer.root.findByType(ReceivedApprovalsSheet);
-    expect(sheet.props.visible).toBe(true);
-    expect(sheet.props.collections.map((collection: Collection) => collection.id)).toEqual([11, 12]);
-    // Answering lowers the number at once (the same store): the row leaves at 0.
-    await act(async () => { store.collectionChanged(makeCollection({ id: 11, name: 'Mine A', accessRole: 'owner', hasCollaborators: true, pendingSubmissionCount: 0, pendingJoinRequestCount: 0, attentionCount: 0 })); });
-    await act(async () => { store.collectionChanged(makeCollection({ id: 12, name: 'Mine B', accessRole: 'owner', hasCollaborators: true, pendingSubmissionCount: 0, pendingJoinRequestCount: 0, attentionCount: 0 })); });
-    expect(row()).toHaveLength(0);
-    await act(async () => renderer.unmount());
   });
 
   it('all four type badges use the shared account source and remain in the centered row inside the border on Android/iOS', async () => {
@@ -1341,7 +1307,7 @@ describe('CollectionsScreen attention badge (approvals waiting + unread new link
   });
 });
 
-describe('CollectionsScreen - 내 승인 대기 (a popup of my waiting links, not a filter)', () => {
+describe('CollectionsScreen - the request cards are gone from the list (requests live in each Collection)', () => {
   afterEach(() => {
     jest.clearAllMocks();
     mockRouteParams = undefined;
@@ -1365,13 +1331,6 @@ describe('CollectionsScreen - 내 승인 대기 (a popup of my waiting links, no
     });
     return renderer;
   }
-  const button = (renderer: ReactTestRenderer.ReactTestRenderer) =>
-    renderer.root.findAll(node => node.props.testID === 'collections-filter-my-pending' && typeof node.props.onPress === 'function')[0];
-  const buttonText = (renderer: ReactTestRenderer.ReactTestRenderer) => button(renderer)?.findAllByType(Text).map(text => String(text.props.children));
-  const sheet = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findByType(ApprovalSubmissionSheet);
-  // The screen's own list - the open popup has a list of its own (testID approval-sheet-list).
-  const shownIds = (renderer: ReactTestRenderer.ReactTestRenderer) =>
-    (renderer.root.findAllByType(FlatList).find(list => list.props.testID !== 'approval-sheet-list')!.props.data as Collection[]).map(collection => collection.id);
   const filterCell = (renderer: ReactTestRenderer.ReactTestRenderer, option: string) =>
     renderer.root.findAll(node => node.props.testID === `collections-filter-${option}` && typeof node.props.onPress === 'function')[0];
 
@@ -1383,102 +1342,12 @@ describe('CollectionsScreen - 내 승인 대기 (a popup of my waiting links, no
     expect(filterCell(renderer, 'shared').findAllByType(Text).map(text => String(text.props.children))).toEqual([i18n.t('collections.sharedCategoriesTab')]);
   });
 
-  it('a full-width 내 승인 대기 N row sits right under the four filters, in the shared blue 승인 대기 style, a plain button (not a tab), hidden at 0', async () => {
-    expect(button(await renderIn('grid', 0))).toBeUndefined();
-
-    const renderer = await renderIn('grid', 3);
-    expect(buttonText(renderer)).toEqual([i18n.t('collections.myPendingSubmissions'), i18n.t('collections.myPendingStatus', { count: 3 })]); // label + the quiet 대기 n건 status
-    expect(button(renderer).props.accessibilityLabel).toBe(i18n.t('collections.myPendingA11y', { count: 3 }));
-    const shared = button(renderer);
-    const entry = shared.findAll(node => node.props.accessibilityRole === 'button' && node.props.testID === 'collections-filter-my-pending')[0];
-    const style = StyleSheet.flatten(typeof entry.props.style === 'function' ? entry.props.style({ pressed: false }) : entry.props.style);
-    // The very same shared row as CollectionDetails' 승인 대기 (light-blue background, blue border, compact one line) ...
-    expect(shared.type).toBe(PendingActionRow);
-    expect(shared.props.variant).toBe('status'); // my own sent requests: a quiet status row, never a red alert
-    expect(style).toMatchObject({ backgroundColor: colors.surface, borderColor: colors.inputBorder, borderWidth: 1, borderRadius: radii.md, minHeight: 44, flexDirection: 'row' });
-    expect(entry.props.accessibilityRole).toBe('button');
-    expect(entry.props.accessibilityState).toBeUndefined();
-    expect(entry.findAllByType(Text)).toHaveLength(2); // label + the quiet status text at the end
-    expect(StyleSheet.flatten(entry.findAllByType(Text)[0].props.style)).toMatchObject({ color: colors.textPrimary, fontWeight: '600' }); // quiet status label
-    // ... with its chevron, and no tight or stray spacing: 12dp below it (the filter group's own 12dp is above it, no extra top margin).
-    expect(entry.findAllByType(ChevronIcon)).toHaveLength(1);
-    expect(style.marginBottom).toBe(spacing.md);
-    expect(style.marginTop).toBeUndefined();
-    expect(style.backgroundColor).not.toBe(colors.danger);
-    const order = renderer.root
-      .findAll(node => typeof node.type === 'string' && /^collections-filter-(favorites|all|owned|shared|my-pending)$/.test(String(node.props.testID)))
-      .map(node => node.props.testID);
-    expect(order).toEqual(['collections-filter-favorites', 'collections-filter-all', 'collections-filter-owned', 'collections-filter-shared', 'collections-filter-my-pending']);
-  });
-
-  it('caps the number at 99+ in the label, and says the real count to assistive technology', async () => {
-    const renderer = await renderIn('grid', 130);
-
-    expect(buttonText(renderer)).toEqual([i18n.t('collections.myPendingSubmissions'), i18n.t('collections.myPendingStatus', { count: 130 })]); // label + the quiet 대기 n건 status
-    expect(button(renderer).props.accessibilityLabel).toBe(i18n.t('collections.myPendingA11y', { count: 130 }));
-  });
-
-  it.each(['grid', 'list'] as const)('%s: tapping it opens the popup of my waiting links across all Collections - no filter is selected, no list is requested, nothing is navigated', async mode => {
-    const renderer = await renderIn(mode, 3);
-    expect(shownIds(renderer)).toEqual([1, 2]);
-    expect(sheet(renderer).props.visible).toBe(false);
-    const callsBefore = jest.mocked(getCollections).mock.calls.length;
-
-    await act(async () => {
-      button(renderer).props.onPress();
-    });
-
-    expect(sheet(renderer).props.visible).toBe(true);
-    expect(sheet(renderer).props.variant).toBe('mine');
-    expect(sheet(renderer).props.collectionId).toBeNull();
-    expect(sheet(renderer).props.expectedCount).toBe(3);
-    // The Collection list is untouched: same filter, same cards, and no 'myPending' scope is ever asked for.
-    expect(shownIds(renderer)).toEqual([1, 2]);
-    expect(jest.mocked(getCollections).mock.calls.length).toBe(callsBefore);
-    expect(jest.mocked(getCollections).mock.calls.some(([, options]) => (options as { scope?: string } | undefined)?.scope === 'myPending')).toBe(false);
-    expect(filterCell(renderer, 'shared').props.accessibilityState).toEqual({ selected: true });
-
-    await act(async () => {
-      sheet(renderer).props.onClose();
-    });
-    expect(sheet(renderer).props.visible).toBe(false);
-  });
-
-  it('the popup reports the server total, which becomes the row number (and the row leaves at 0)', async () => {
-    const renderer = await renderIn('grid', 3);
-    await act(async () => {
-      button(renderer).props.onPress();
-    });
-
-    await act(async () => {
-      sheet(renderer).props.onTotalLoaded(1);
-    });
-    expect(buttonText(renderer)).toEqual([i18n.t('collections.myPendingSubmissions'), i18n.t('collections.myPendingStatus', { count: 1 })]); // label + the quiet 대기 n건 status
-
-    await act(async () => {
-      sheet(renderer).props.onTotalLoaded(0);
-    });
-    expect(button(renderer)).toBeUndefined();
-  });
-
-  it('the total is one aggregate request alongside the list (focus / pull-to-refresh / Push), never per card and never polled', async () => {
-    const renderer = await renderIn('grid', 2);
-    const initial = jest.mocked(getMyPendingSubmissionTotal).mock.calls.length;
-    expect(initial).toBeGreaterThanOrEqual(1);
-
-    jest.mocked(getMyPendingSubmissionTotal).mockResolvedValue(5);
-    await act(async () => {
-      renderer.root.findByType(FlatList).props.refreshControl.props.onRefresh();
-    });
-    expect(buttonText(renderer)).toEqual([i18n.t('collections.myPendingSubmissions'), i18n.t('collections.myPendingStatus', { count: 5 })]); // label + the quiet 대기 n건 status
-    const afterRefresh = jest.mocked(getMyPendingSubmissionTotal).mock.calls.length;
-    await act(async () => emitSocialPushEvent({ type: 'collectionItemReaction', collectionId: 1 }));
-    expect(jest.mocked(getMyPendingSubmissionTotal).mock.calls.length).toBe(afterRefresh);
-
-    // A result Push refreshes the number.
-    jest.mocked(getMyPendingSubmissionTotal).mockResolvedValue(4);
-    await act(async () => emitSocialPushEvent({ type: 'collectionLinkSubmissionApproved', collectionId: 2 }));
-    expect(buttonText(renderer)).toEqual([i18n.t('collections.myPendingSubmissions'), i18n.t('collections.myPendingStatus', { count: 4 })]); // label + the quiet 대기 n건 status
+  it.each(['grid', 'list'] as const)('%s: neither 보낸 승인 요청 nor 받은 승인 요청 is drawn, however many requests wait - and the server count is not even asked for', async mode => {
+    const renderer = await renderIn(mode, 7);
+    expect(renderer.root.findAll(node => node.props.testID === 'collections-filter-my-pending')).toHaveLength(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'collections-received-approvals')).toHaveLength(0);
+    expect(renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.myPendingSubmissions'))).toHaveLength(0);
+    expect(getMyPendingSubmissionTotal).not.toHaveBeenCalled();
   });
 });
 
@@ -1686,7 +1555,6 @@ describe('CollectionsScreen - 승인 대기 중 placeholders (my own waiting joi
     });
     jest.mocked(cancelMyJoinRequest).mockReturnValueOnce(result);
     const listReads = jest.mocked(getCollections).mock.calls.length;
-    const countReads = jest.mocked(getMyPendingSubmissionTotal).mock.calls.length;
     await act(async () => cardById(renderer).props.onPress());
     await act(async () => {
       const confirm = withdrawalDialog(renderer).props.onConfirm;
@@ -1713,7 +1581,6 @@ describe('CollectionsScreen - 승인 대기 중 placeholders (my own waiting joi
     } else {
       expect(cardById(renderer)).toBeUndefined();
       expect(getCollections).toHaveBeenCalledTimes(listReads + 1);
-      expect(getMyPendingSubmissionTotal).toHaveBeenCalledTimes(countReads + 1);
     }
     await act(async () => renderer.unmount());
   });
@@ -2429,7 +2296,8 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
     expect(screen).toContain('measureInWindow');
     expect(screen).toContain('getSuggestionOverlayFrame');
     expect(screen).not.toMatch(/searchRowY|searchFieldHeight|scrollY|contentOffset/);
-    expect(screen).toContain('onScroll={suggestionsOpen ? measureOverlay : undefined}');
+    // The header layout forwards every scroll event of the list to this listener (the header itself moves natively).
+    expect(screen).toContain('onScrollEvent={suggestionsOpen ? measureOverlay : undefined}');
     expect(screen).toContain('requestAnimationFrame');
     // The overlay is a direct child of the screen, after the list - not inside ListHeaderComponent.
     expect(screen.indexOf('<CollectionSuggestionPanel')).toBeGreaterThan(screen.indexOf('ListFooterComponent'));
@@ -2452,22 +2320,168 @@ describe('CollectionsScreen - 검색 자동완성 (quick suggestions)', () => {
     act(() => renderer.unmount());
   });
 
-  it('받은 승인 요청: the row follows the server on focus, with no Push and no restart, and leaves at 0', async () => {
-    let waiting = 1;
-    const request = jest.fn(async () => ({
-      body: { items: [makeCollection({ id: 11, name: 'Mine', accessRole: 'owner', hasCollaborators: true, pendingSubmissionCount: waiting, attentionCount: waiting })], nextCursor: null },
-    }));
-    const store = createMobileAttentionStore(request as never);
-    store.replace('invitations', []);
-    store.replace('collections', [makeCollection({ id: 11, name: 'Mine', accessRole: 'owner', hasCollaborators: true, pendingSubmissionCount: 0, attentionCount: 0 })]);
-    const renderer = await renderScreen(store);
-    await act(async () => {
-      renderer.root.findAll(node => node.props.testID === 'collections-filter-shared' && typeof node.props.onPress === 'function')[0].props.onPress();
-    });
-    expect(renderer.root.findAll(node => node.props.testID === 'collections-received-approvals').length).toBeGreaterThan(0);
-    waiting = 0;
-    await act(async () => { await store.readLatest('collections'); });
-    expect(renderer.root.findAll(node => node.props.testID === 'collections-received-approvals')).toHaveLength(0);
-    act(() => renderer.unmount());
+});
+
+describe('CollectionsScreen - long-press starts multi-selection (no centered menu)', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+    mockRouteParams = undefined;
+  });
+
+  const topBar = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByProps({ testID: 'selection-top-bar' });
+  const overlays = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByProps({ testID: 'selection-overlay' }).filter(node => typeof node.props.onPress === 'function');
+  const longPressRow = async (renderer: ReactTestRenderer.ReactTestRenderer, name: string) => {
+    const row = renderer.root
+      .findAll(node => typeof node.props.onLongPress === 'function')
+      .find(node => node.findAllByType(Text).some(textNode => textNode.props.children === name));
+    await act(async () => row!.props.onLongPress());
+  };
+
+  it('a long-press selects that Collection: the selection header appears and every card becomes a checkbox', async () => {
+    setUpGetCollectionsMock();
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'all');
+    expect(topBar(renderer)).toHaveLength(0);
+    expect(overlays(renderer)).toHaveLength(0);
+
+    await longPressRow(renderer, 'All A');
+
+    expect(topBar(renderer).length).toBeGreaterThan(0);
+    expect(renderer.root.findByProps({ testID: 'selection-count' }).props.children).toBe(i18n.t('selection.selectedCount', { count: 1 }));
+    expect(overlays(renderer)).toHaveLength(2);
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('a tap while selecting chooses the other card and never opens it; the close button leaves selection', async () => {
+    setUpGetCollectionsMock();
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'all');
+    await longPressRow(renderer, 'All A');
+
+    await act(async () => overlays(renderer)[1].props.onPress());
+    expect(renderer.root.findByProps({ testID: 'selection-count' }).props.children).toBe(i18n.t('selection.selectedCount', { count: 2 }));
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    await act(async () => renderer.root.findByProps({ testID: 'selection-exit' }).props.onPress());
+    expect(topBar(renderer)).toHaveLength(0);
+    expect(overlays(renderer)).toHaveLength(0);
+  });
+
+  const frames = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAll(node => node.props.testID === 'selection-image-frame' && typeof node.type === 'string');
+  const marks = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAll(node => node.props.testID === 'selection-image-mark' && typeof node.type === 'string');
+
+  it.each(['grid', 'list'] as const)('%s: only the PICTURE is framed (thin border + tint when chosen); the name is not wrapped; every card has the check circle at the same corner place', async mode => {
+    setUpGetCollectionsMock();
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'all');
+    await act(async () => renderer.root.findByType(ViewModeToggle).props.onChange(mode));
+    expect(marks(renderer)).toHaveLength(0); // not selecting: no check circles at all
+    await longPressRow(renderer, 'All A');
+
+    // One frame and one check per card; chosen and not-chosen cards use the same place.
+    expect(frames(renderer)).toHaveLength(2);
+    const [chosen, plain] = marks(renderer).map(mark => StyleSheet.flatten(mark.props.style));
+    expect(marks(renderer)).toHaveLength(2);
+    expect(chosen.start).toBe(plain.start);
+    expect(chosen.top).toBe(plain.top);
+    // On the corner, half out of the picture - exactly the place the lock badge used to have (and the shared badge still has at the bottom).
+    expect(chosen.start).toBe(STATUS_BADGE_CORNER_OFFSET);
+    expect(chosen.top).toBe(STATUS_BADGE_CORNER_OFFSET);
+    expect(chosen.width).toBe(mode === 'grid' ? 20 : 18);
+
+    const [chosenFrame, plainFrame] = frames(renderer).map(frame => StyleSheet.flatten(frame.props.style));
+    expect(chosenFrame.borderWidth).toBeLessThanOrEqual(2);
+    expect(chosenFrame.borderColor).toBeDefined();
+    expect(chosenFrame.backgroundColor).toBeDefined();
+    expect(plainFrame.borderWidth).toBeUndefined();
+
+    // The frame belongs to the picture: the name's text is not inside the frame's parent box.
+    const frameParent = frames(renderer)[0].parent!;
+    const nameInside = frameParent.findAll(node => node.type === Text && node.props.children === 'All A');
+    expect(nameInside).toHaveLength(0);
+
+    await act(async () => renderer.root.findByProps({ testID: 'selection-exit' }).props.onPress());
+    expect(marks(renderer)).toHaveLength(0);
+  });
+
+  const badgeStyle = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
+    StyleSheet.flatten(renderer.root.findAll(node => node.props.testID === testID && typeof node.type === 'string')[0].props.style);
+
+  const nameLocks = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAll(node => node.props.testID === 'collection-name-lock' && typeof node.type === 'string');
+
+  it.each(['grid', 'list'] as const)('%s: the padlock is before the NAME of a locked Collection (not on the picture); selecting changes nothing about it, and the check never meets another marker', async mode => {
+    setUpGetCollectionsMock();
+    const both = [
+      makeCollection({ id: 1, name: 'All A', isLocked: true, accessRole: 'contributor', hasCollaborators: true }),
+      makeCollection({ id: 2, name: 'All B', accessRole: 'owner' }),
+    ];
+    jest.mocked(getCollections).mockImplementation(async () => ({ items: both, nextCursor: null }));
+    // A shared Collection read alone also asks for its own notification setting (More menu) - answered here.
+    (jest.requireMock('../../collections/api/collectionsApi').getCollectionNotificationPreference as jest.Mock).mockResolvedValue({ newItemNotificationsEnabled: true });
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'all');
+    await act(async () => renderer.root.findByType(ViewModeToggle).props.onChange(mode));
+
+    // Only the locked Collection has a padlock, and it is in the name's row, ahead of the name text.
+    expect(nameLocks(renderer)).toHaveLength(1);
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-locked')).toHaveLength(0);
+    // The name's row: the nearest ancestor of the padlock that also holds the name text.
+    let row = nameLocks(renderer)[0].parent!;
+    while (!row.findAll(node => node.type === Text && node.props.children === 'All A').length) {
+      row = row.parent!;
+    }
+    const children = row.findAll(node => node.type === Text || node.props.testID === 'collection-name-lock');
+    expect(children[0].props.testID).toBe('collection-name-lock');
+    expect(children.some(node => node.type === Text && node.props.children === 'All A')).toBe(true);
+    const sharedBefore = badgeStyle(renderer, 'collection-badge-shared');
+
+    await longPressRow(renderer, 'All A');
+
+    expect(nameLocks(renderer)).toHaveLength(1);
+    const sharedAfter = badgeStyle(renderer, 'collection-badge-shared');
+    expect([sharedAfter.start, sharedAfter.bottom]).toEqual([sharedBefore.start, sharedBefore.bottom]);
+    expect(sharedAfter.zIndex).toBeGreaterThan(StyleSheet.flatten(frames(renderer)[0].props.style).zIndex as number);
+    // The top-start corner holds only the check: the same place whether or not the Collection is locked.
+    const [lockedMark, plainMark] = marks(renderer).map(mark => StyleSheet.flatten(mark.props.style));
+    expect([lockedMark.start, lockedMark.top]).toEqual([plainMark.start, plainMark.top]);
+    // ...and that place is the same corner offset the shared badge uses on its own corner.
+    expect(lockedMark.start).toBe(sharedAfter.start);
+    expect(lockedMark.top).toBe(sharedAfter.bottom);
+
+    await act(async () => renderer.root.findByProps({ testID: 'selection-exit' }).props.onPress());
+    expect(nameLocks(renderer)).toHaveLength(1);
+  });
+
+  it.each(['grid', 'list'] as const)('%s: a locked Collection says "locked" in its spoken label, selecting or not', async mode => {
+    setUpGetCollectionsMock();
+    jest.mocked(getCollections).mockImplementation(async () => ({ items: [makeCollection({ id: 1, name: 'All A', isLocked: true, accessRole: 'owner' })], nextCursor: null }));
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'all');
+    await act(async () => renderer.root.findByType(ViewModeToggle).props.onChange(mode));
+    const labelled = () => renderer.root.findAll(node => typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.includes(i18n.t('collections.lockedA11y')));
+    expect(labelled().length).toBeGreaterThan(0);
+    await longPressRow(renderer, 'All A');
+    expect(labelled().length).toBeGreaterThan(0);
+  });
+
+  it('the whole card is one checkbox for assistive technology and reports whether it is chosen', async () => {
+    setUpGetCollectionsMock();
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'all');
+    await longPressRow(renderer, 'All A');
+    const [chosen, plain] = overlays(renderer).map(node => node.props);
+    expect(chosen.accessibilityRole).toBe('checkbox');
+    expect(chosen.accessibilityState).toEqual({ checked: true, selected: true });
+    expect(plain.accessibilityState).toEqual({ checked: false, selected: false });
+  });
+
+  it('a tap anywhere on the card (a full-card touch layer) chooses it', async () => {
+    setUpGetCollectionsMock();
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'all');
+    await longPressRow(renderer, 'All A');
+    expect(overlays(renderer)).toHaveLength(2);
+    await act(async () => overlays(renderer)[1].props.onPress());
+    expect(renderer.root.findByProps({ testID: 'selection-count' }).props.children).toBe(i18n.t('selection.selectedCount', { count: 2 }));
   });
 });

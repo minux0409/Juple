@@ -13,7 +13,6 @@ import { ThemedSwitch } from '../components/ThemedSwitch';
 import { TabScreenSafeArea } from '../components/TabScreenSafeArea';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
-import { useSubscriptionEntryAvailable } from '../billing/useSubscriptionEntry';
 import { getMyProfile, type UserProfile } from '../api/profileApi';
 import { formatJupleId } from '../collections/api/collaborationApi';
 import { formatBadgeCount } from '../components/badgeCount';
@@ -51,7 +50,9 @@ export function MyPageScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { signOut } = useAuth();
   const authenticatedRequest = useAuthenticatedApi();
-  const isSubscriptionEntryAvailable = useSubscriptionEntryAvailable();
+  // 멤버십 is listed once the Backend says the paid program is live - on every platform (it is the status page where a purchase is not
+  // possible yet). While the program is off nothing about membership is shown.
+  const isMembershipEntryShown = useAuth().entitlement?.programEnabled === true;
 
   const [isSignOutDialogVisible, setIsSignOutDialogVisible] = useState(false);
   // OFF until the stored choice has been read - never a fake ON that then flips; the switch waits (disabled) for it.
@@ -286,7 +287,7 @@ export function MyPageScreen() {
           <View style={styles.settingsRowDivider} />
           <NoticeMenuRow />
           <View style={styles.settingsRowDivider} />
-          {isSubscriptionEntryAvailable ? (
+          {isMembershipEntryShown ? (
             <>
               <Pressable
                 accessibilityRole="button"
@@ -297,7 +298,7 @@ export function MyPageScreen() {
                 <View style={styles.settingsRowIcon}>
                   <screenIcons.subscription color={colors.textSecondary} size={18} />
                 </View>
-                <Text style={styles.settingsRowLabel}>{t('subscription.title')}</Text>
+                <Text style={styles.settingsRowLabel}>{t('membership.title')}</Text>
               </Pressable>
               <View style={styles.settingsRowDivider} />
             </>

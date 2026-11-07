@@ -11,7 +11,6 @@ import type { TFunction } from 'i18next';
 import {
   ActivityIndicator,
   BackHandler,
-  FlatList,
   Keyboard,
   Linking,
   Platform,
@@ -29,7 +28,6 @@ import {
   cancelMyJoinRequest,
   createCollection,
   getCollections,
-  getMyPendingSubmissionTotal,
   listMyJoinRequests,
   setCollectionFavorite,
   type Collection,
@@ -38,13 +36,12 @@ import {
 } from '../collections/api/collectionsApi';
 import { getReceivedCollectionInvitations, type ReceivedCollectionInvitation } from '../collections/api/collaborationApi';
 import { isCollaborative, isCollectionLocked } from '../collections/collectionAccess';
-import { useCollectionLongPressMenu } from '../collections/useCollectionLongPressMenu';
+import { useCollectionSelection } from '../collections/useCollectionSelection';
+import { SelectionImageFrame, SelectionTouchLayer } from '../selection/SelectionOverlay';
 import { SubscriptionExpiredNotice } from '../billing/SubscriptionExpiredNotice';
 import { HintBanner } from '../hints/HintBanner';
 import { useOneTimeHint } from '../hints/useOneTimeHint';
 import { collectionShortcutService } from '../shortcuts/CollectionShortcutService';
-import { ApprovalSubmissionSheet } from '../collections/ApprovalSubmissionSheet';
-import { ReceivedApprovalsSheet, approvalCollections } from '../collections/ReceivedApprovalsSheet';
 import { ReceivedInvitationsSheet } from '../collections/ReceivedInvitationsSheet';
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import { formatBadgeCount } from '../components/badgeCount';
@@ -61,12 +58,13 @@ import { applyCollectionIconImageChange, getIconImageSaveErrorMessage, type Coll
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { AddIconButton } from '../components/AddIconButton';
+import { AnimatedFlatList, CollapsibleHeaderLayout } from '../components/CollapsibleHeaderLayout';
 import { useViewModePreference } from '../settings/viewModePreference';
 import { DEFAULT_COLLECTION_COLOR, type CollectionColorValue } from '../collections/collectionColors';
 import { DEFAULT_COLLECTION_ICON, type CollectionIconKey } from '../collections/collectionIcons';
 import { CollectionNameLabel } from '../collections/CollectionNameLabel';
 import { PendingActionRow } from '../components/PendingActionRow';
-import { StarIcon } from '../icons/StarIcon';
+import { FavoriteStar, useStarTap } from '../components/FavoriteStar';
 import type { MainTabParamList } from '../navigation/MainTabs';
 import type { RootStackParamList } from '../navigation/RootStack';
 import type { CollectionsStackParamList } from '../navigation/CollectionsStack';
@@ -271,19 +269,10 @@ export function CollectionsScreen() {
   const attentionStore = useMobileAttention();
   const attentionSnapshot = useAttentionSnapshot();
   const invitations = attentionStore ? attentionSnapshot.invitations ?? [] : receivedInvitations;
-  // 받은 승인 요청: my own Collections with proposed links / join requests waiting (the same account-scoped source as the badges).
-  const approvalOwnerCollections = approvalCollections(attentionStore ? attentionSnapshot.collections : null);
-  const approvalTotal = attentionSnapshot.counts.requests.approvals;
   const filterAttention = (option: CategoryFilter) => attentionStore ? attentionSnapshot.counts.types[option] : option === 'shared' ? receivedInvitations.length : 0;
   const [isShareRequestsVisible, setIsShareRequestsVisible] = useState(false);
-  // My own proposals waiting for approval across my whole shared list (one number from the server - the
-  // list is paged and only the active filter is loaded, so a sum of loaded cards would be wrong).
-  const [myPendingTotal, setMyPendingTotal] = useState(0);
-  // 내 링크 승인 대기: a popup of those links (not a filter and not a screen).
-  const [isMyPendingSheetVisible, setIsMyPendingSheetVisible] = useState(false);
   // My own join requests waiting for an Owner (server state): drawn as dimmed "승인 대기 중" placeholders among my shared Collections.
   // Not memberships - they open no Collection and offer no member action.
-  const [isApprovalsVisible, setIsApprovalsVisible] = useState(false);
   const withdrawnJoinIds = useRef(new Set<number>());
   useEffect(() => subscribeJoinRequestWithdrawn(requestId => {
     withdrawnJoinIds.current.add(requestId);
@@ -359,14 +348,6 @@ export function CollectionsScreen() {
       .catch(() => undefined);
   }, [authenticatedRequest]);
 
-  // Reloaded wherever the list itself is (focus, pull-to-refresh, a Push about a proposal or its result):
-  // one request, best-effort - without it the tab simply shows no number.
-  const loadMyPendingTotal = useCallback(() => {
-    getMyPendingSubmissionTotal(authenticatedRequest)
-      .then(setMyPendingTotal)
-      .catch(() => undefined);
-  }, [authenticatedRequest]);
-
   /** Every other filter's cached page may now be stale - they reload when next selected. */
   const invalidateOtherFilters = useCallback((keep: CategoryFilter) => {
     setLists(previous => {
@@ -389,7 +370,6 @@ export function CollectionsScreen() {
       invalidateOtherFilters(current);
       load(current, 'refresh');
       loadReceivedInvitations();
-      loadMyPendingTotal();
       // 받은 승인 요청 and the badges read the account-wide store, not this list: it is asked again with the list, so a request
       // that arrived or was answered elsewhere shows here without a Push or a restart.
       attentionStore?.refresh(['collections'], true).catch(() => undefined);
@@ -397,7 +377,7 @@ export function CollectionsScreen() {
       // Collection deleted, left or locked elsewhere leaves the launcher / share sheet) - independent of this screen's own
       // paginated state, and no request at all when nothing is pinned. A failure never affects what this screen shows.
       reconcileCollectionShortcuts(authenticatedRequest).catch(() => undefined);
-    }, [attentionStore, authenticatedRequest, invalidateOtherFilters, load, loadMyPendingTotal, loadReceivedInvitations]),
+    }, [attentionStore, authenticatedRequest, invalidateOtherFilters, load, loadReceivedInvitations]),
   );
 
   // Refresh signaling is deliberately separate from AppToast state: revisiting this tab must
@@ -433,7 +413,6 @@ export function CollectionsScreen() {
       invalidateOtherFilters(filterRef.current);
       load(filterRef.current, 'refresh');
       loadReceivedInvitations(event !== null);
-      loadMyPendingTotal();
     },
     // 새 링크 and 승인 요청 also change a card's attention badge, and a proposal's result (approved /
     // declined) changes the 내 승인 대기 chip (reactions/comments never do).
@@ -720,24 +699,26 @@ export function CollectionsScreen() {
    * failure the pre-toggle Collection is restored. The 즐겨찾기 filter drops an unfavorited row at
    * once and reloads to pick up a newly favorited one.
    */
+  const applyCollectionToLists = (replacement: Collection) =>
+    setLists(previous => {
+      const next = { ...previous };
+      for (const key of FILTERS) {
+        const items = next[key].items.map(existing => (existing.id === replacement.id ? replacement : existing));
+        next[key] = {
+          ...next[key],
+          items: key === 'favorites' && !replacement.isFavorite ? items.filter(existing => existing.id !== replacement.id) : items,
+          isLoaded: key === 'favorites' && replacement.isFavorite && filterRef.current !== 'favorites' ? false : next[key].isLoaded,
+        };
+      }
+      return next;
+    });
+
   const toggleFavoriteAction = async (collection: Collection) => {
     if (togglingFavoriteId !== null) {
       return;
     }
     const desiredIsFavorite = !collection.isFavorite;
-    const applyToLists = (replacement: Collection) =>
-      setLists(previous => {
-        const next = { ...previous };
-        for (const key of FILTERS) {
-          const items = next[key].items.map(existing => (existing.id === replacement.id ? replacement : existing));
-          next[key] = {
-            ...next[key],
-            items: key === 'favorites' && !replacement.isFavorite ? items.filter(existing => existing.id !== replacement.id) : items,
-            isLoaded: key === 'favorites' && replacement.isFavorite && filterRef.current !== 'favorites' ? false : next[key].isLoaded,
-          };
-        }
-        return next;
-      });
+    const applyToLists = applyCollectionToLists;
 
     setTogglingFavoriteId(collection.id);
     setFavoriteToggleError(null);
@@ -815,7 +796,6 @@ export function CollectionsScreen() {
       await cancelMyJoinRequest(authenticatedRequest, joinToWithdraw.requestId);
       invalidateOtherFilters(filterRef.current);
       load(filterRef.current, 'refresh');
-      loadMyPendingTotal();
       attentionStore?.refresh(['collections'], true).catch(() => undefined);
     } catch {
       showNotificationToast(t('submissions.cancelFailed'));
@@ -849,55 +829,40 @@ export function CollectionsScreen() {
       openItem: { itemId: row.link.itemId, focus: null, shared: !row.link.isMine },
     });
   };
-  // Long-press on a card: 즐겨찾기 / 알림 / 수정 / 잠금 설정 / 앱 바로가기 / 삭제 or 나가기 (see useCollectionLongPressMenu). Edit, lock,
-  // delete and leave are the Collection's own screen's dialogs, opened there.
-  const collectionMenu = useCollectionLongPressMenu({
-    onToggleFavorite: collection => { toggleFavoriteAction(collection).catch(() => undefined); },
+  // Long-press on a card starts multi-selection (see useCollectionSelection): the bottom bar then offers 즐겨찾기, 잠금, 바로가기,
+  // 삭제/나가기 and - for one Collection - 더보기. A single Collection's edit, lock, share, delete and leave are still its own screen's
+  // dialogs, opened there.
+  const collectionSelection = useCollectionSelection({
+    collections: activeList.items,
+    onCollectionUpdated: applyCollectionToLists,
+    onChanged: () => { invalidateOtherFilters(filterRef.current); load(filterRef.current, 'refresh'); },
     onManage: (collection, pendingAction) => navigation.navigate('CollectionDetails', { collectionId: collection.id, pendingAction }),
+    isLoading: isLoading || isRefreshing,
   });
 
   // The long-press hint: only with at least one real Collection on screen (a pending-approval placeholder is not one);
-  // opening the menu is the taught gesture.
+  // starting selection is the taught gesture.
   const longPressHint = useOneTimeHint('collectionLongPress', listData.some(entry => !('pendingJoin' in entry)));
   const { markPerformed: markLongPressPerformed } = longPressHint;
   const openCollectionMenu = (collection: Collection) => {
     markLongPressPerformed();
-    collectionMenu.openMenu(collection);
+    collectionSelection.startSelection(collection);
   };
 
   const pullToRefresh = usePullToRefresh(isRefreshing, () => {
     load(filter, 'refresh');
     loadReceivedInvitations(true);
-    loadMyPendingTotal();
   });
 
   return (
     <TabScreenSafeArea onTouchStart={closeSuggestionsOnOutsideTouch} style={styles.safeArea}>
       <View collapsable={false} pointerEvents="none" ref={overlayRootRef} style={styles.overlayRoot} />
-      <FlatList
-        key={gridListKey(viewMode, viewMode === 'grid', gridColumns)}
-        contentContainerStyle={styles.content}
-        // A tap on a card while the keyboard is up opens it at once (and the suggestions step aside as the list is dragged).
-        keyboardShouldPersistTaps="handled"
-        // The field moves with the list: the panel follows it (one measurement per frame), also when the list scrolls itself to show the focused input.
-        onScroll={suggestionsOpen ? measureOverlay : undefined}
-        onScrollBeginDrag={() => setSuggestionsDismissed(true)}
-        scrollEventThrottle={16}
-        data={listData}
-        keyExtractor={entry => ('pendingJoin' in entry ? `join-${entry.pendingJoin.requestId}` : entry.id.toString())}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
-        refreshControl={pullToRefresh.refreshControl}
-        numColumns={viewMode === 'grid' ? gridColumns : 1}
-        // With columns these count rows (a row of tiles each), not cards.
-        initialNumToRender={viewMode === 'grid' ? 5 : 10}
-        maxToRenderPerBatch={viewMode === 'grid' ? 3 : 10}
-        windowSize={7}
-        // Android: cards scrolled far away drop their native views (and photos) entirely.
-        removeClippedSubviews={Platform.OS === 'android'}
-        ListHeaderComponent={
-          <View>
-            <SubscriptionExpiredNotice />
+      {collectionSelection.topBar}
+      {/* Header: title + add and the four filters scroll away with the cards; the search / view switch stays at the top.
+          The field moves with the list: the suggestion panel follows it (one measurement per scroll event). */}
+      <CollapsibleHeaderLayout
+        collapsible={
+          <View style={styles.collapsibleTop}>
             <View style={styles.titleRow}>
               <ScreenTitle icon={screenIcons.collections} textStyle={styles.title} title={t('collections.title')} />
               <AddIconButton {...createTarget} compact accessibilityLabel={t('collections.create')} onPress={openCreateDialog} />
@@ -942,46 +907,12 @@ export function CollectionsScreen() {
               ))}
             </View>
 
-            {/* 내 승인 대기 N: a full-width row right under the four filters. N is how many LINKS of mine
-                wait in all (one number from the server); tapping it opens a popup listing exactly those
-                links - what, in which Collection, since when - without selecting a filter or entering
-                a Collection first. Neutral, never the red attention color. Hidden at 0. */}
-            {filter === 'shared' && myPendingTotal > 0 ? (
-              <PendingActionRow
-                accessibilityLabel={t('collections.myPendingA11y', { count: myPendingTotal })}
-                statusText={t('collections.myPendingStatus', { count: myPendingTotal })}
-                variant="status"
-                label={t('collections.myPendingSubmissions')}
-                onPress={() => setIsMyPendingSheetVisible(true)}
-                style={styles.myPendingRow}
-                testID="collections-filter-my-pending"
-              />
-            ) : null}
 
-            {/* Requests are shared-Collection work: only on 공유 컬렉션, only while something waits, and always the same
-                row (bell, label, pending text, chevron). 받은 승인 요청 = links/join requests I answer as Owner;
-                받은 초대 요청 = invitations I received; 보낸 승인 요청 (above) = my own waiting proposals. */}
-            {filter === 'shared' && approvalOwnerCollections.length > 0 ? (
-              <PendingActionRow
-                accessibilityLabel={t('collections.pendingSubmissionsA11y', { count: approvalTotal })}
-                count={approvalTotal}
-                label={t('collections.pendingSubmissions')}
-                onPress={() => setIsApprovalsVisible(true)}
-                style={styles.myPendingRow}
-                testID="collections-received-approvals"
-              />
-            ) : null}
-            {filter === 'shared' && invitations.length > 0 ? (
-              <PendingActionRow
-                accessibilityLabel={t('collections.shareRequestCount', { count: invitations.length })}
-                count={invitations.length}
-                label={t('collections.shareRequests')}
-                onPress={() => setIsShareRequestsVisible(true)}
-                style={styles.myPendingRow}
-                testID="collections-share-requests"
-              />
-            ) : null}
-
+          </View>
+        }
+        onScrollEvent={suggestionsOpen ? measureOverlay : undefined}
+        pinned={
+          <View style={styles.pinnedSearch}>
             <View style={styles.searchSection}>
               <View style={styles.searchRow} testID="collections-search-row">
                 <View collapsable={false} onLayout={measureOverlay} onTouchStart={markTouchInSearch} ref={searchAnchorRef} style={styles.searchField}>
@@ -1006,40 +937,87 @@ export function CollectionsScreen() {
               {isSearching ? <ActivityIndicator size="small" style={styles.searchSpinner} testID="collections-search-loading" /> : null}
             </View>
 
-            {longPressHint.isVisible ? <HintBanner message={t('hints.collectionLongPress')} onDismiss={longPressHint.dismiss} testID="collections-long-press-hint" /> : null}
-            {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
-            {/* With cards already on screen a failed refresh keeps them, with the shared load-failure state above them (as 보관함
-                does); with none it is the centered state below. */}
-            {error && activeList.items.length > 0 ? <LoadFailureState compact onRetry={() => load(filter, 'refresh')} testID="collections-refresh-failure" /> : null}
           </View>
         }
-        ListEmptyComponent={
-          isActiveInitialLoading ? (
-            renderSkeletons(viewMode === 'grid' ? FIRST_PAGE_SKELETON_GRID_ROWS : FIRST_PAGE_SKELETON_LIST_ROWS, 'collections-first-page-loading')
-          ) : error ? (
-            <LoadFailureState onRetry={() => load(filter, 'initial')} testID="collections-list-error" />
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.empty} testID={searchTerm !== '' ? 'collections-search-empty' : undefined}>
-                {searchTerm !== '' ? t('history.searchEmpty') : t(FILTER_EMPTY_KEYS[filter])}
-              </Text>
-            </View>
-          )
-        }
-        renderItem={({ item }) => 'pendingJoin' in item ? (
-          <PendingJoinCard join={item.pendingJoin} onPress={() => setJoinToWithdraw(item.pendingJoin)} variant={viewMode} />
-        ) : viewMode === 'grid' ? (
-          <CollectionTile
-            collection={item}
-            isFavoriteToggleDisabled={togglingFavoriteId !== null}
-            isTogglingFavorite={togglingFavoriteId === item.id}
-            onLongPress={() => openCollectionMenu(item)}
-            onPress={() => openCollection(item)}
-            onToggleFavorite={() => toggleFavoriteAction(item)}
-          />
-        ) : <CollectionListRow collection={item} isFavoriteToggleDisabled={togglingFavoriteId !== null} isTogglingFavorite={togglingFavoriteId === item.id} onLongPress={() => openCollectionMenu(item)} onPress={() => openCollection(item)} onToggleFavorite={() => toggleFavoriteAction(item)} />}
-        ListFooterComponent={isLoadingMore ? renderSkeletons(viewMode === 'grid' ? 1 : NEXT_PAGE_SKELETON_LIST_ROWS, 'collections-next-page-loading') : undefined}
-      />
+        resetKey="collections"
+        testID="collections-fixed-header"
+      >
+        {list => (
+            <AnimatedFlatList
+              ref={list.listRef}
+              onScroll={list.onScroll}
+              key={gridListKey(viewMode, viewMode === 'grid', gridColumns)}
+              extraData={collectionSelection.selection}
+              contentContainerStyle={[styles.content, list.contentInset(listData.length > 0)]}
+              // A tap on a card while the keyboard is up opens it at once (and the suggestions step aside as the list is dragged).
+              keyboardShouldPersistTaps="handled"
+              onScrollBeginDrag={() => setSuggestionsDismissed(true)}
+              scrollEventThrottle={list.scrollEventThrottle}
+              data={listData}
+              keyExtractor={entry => ('pendingJoin' in entry ? `join-${entry.pendingJoin.requestId}` : entry.id.toString())}
+              onEndReached={loadMore}
+              onEndReachedThreshold={0.5}
+              refreshControl={list.withRefreshOffset(pullToRefresh.refreshControl)}
+              numColumns={viewMode === 'grid' ? gridColumns : 1}
+              // With columns these count rows (a row of tiles each), not cards.
+              initialNumToRender={viewMode === 'grid' ? 5 : 10}
+              maxToRenderPerBatch={viewMode === 'grid' ? 3 : 10}
+              windowSize={7}
+              // Android: cards scrolled far away drop their native views (and photos) entirely.
+              removeClippedSubviews={Platform.OS === 'android'}
+              ListHeaderComponent={
+                <View>
+                  <SubscriptionExpiredNotice />
+                  {/* Proposals and join requests are managed in each Collection's own screen (검토할 요청); the list only keeps the cards' own
+                      attention counts and 받은 초대 요청, which belongs to no Collection yet. */}
+                  {filter === 'shared' && invitations.length > 0 ? (
+                    <PendingActionRow
+                      accessibilityLabel={t('collections.shareRequestCount', { count: invitations.length })}
+                      count={invitations.length}
+                      label={t('collections.shareRequests')}
+                      onPress={() => setIsShareRequestsVisible(true)}
+                      style={styles.myPendingRow}
+                      testID="collections-share-requests"
+                    />
+                  ) : null}
+
+                  {longPressHint.isVisible ? <HintBanner message={t('hints.collectionLongPress')} onDismiss={longPressHint.dismiss} testID="collections-long-press-hint" /> : null}
+                  {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
+                  {/* With cards already on screen a failed refresh keeps them, with the shared load-failure state above them (as 보관함
+                      does); with none it is the centered state below. */}
+                  {error && activeList.items.length > 0 ? <LoadFailureState compact onRetry={() => load(filter, 'refresh')} testID="collections-refresh-failure" /> : null}
+                </View>
+              }
+              ListEmptyComponent={
+                isActiveInitialLoading ? (
+                  renderSkeletons(viewMode === 'grid' ? FIRST_PAGE_SKELETON_GRID_ROWS : FIRST_PAGE_SKELETON_LIST_ROWS, 'collections-first-page-loading')
+                ) : error ? (
+                  <LoadFailureState onRetry={() => load(filter, 'initial')} testID="collections-list-error" />
+                ) : (
+                  <View style={styles.emptyContainer}>
+                    <Text style={styles.empty} testID={searchTerm !== '' ? 'collections-search-empty' : undefined}>
+                      {searchTerm !== '' ? t('history.searchEmpty') : t(FILTER_EMPTY_KEYS[filter])}
+                    </Text>
+                  </View>
+                )
+              }
+              renderItem={({ item }) => 'pendingJoin' in item ? (
+                <PendingJoinCard join={item.pendingJoin} onPress={() => setJoinToWithdraw(item.pendingJoin)} variant={viewMode} />
+              ) : viewMode === 'grid' ? (
+                <CollectionTile
+                  collection={item}
+                  isFavoriteToggleDisabled={togglingFavoriteId !== null}
+                  isTogglingFavorite={togglingFavoriteId === item.id}
+                  onLongPress={() => openCollectionMenu(item)}
+                  onPress={() => openCollection(item)}
+                  onToggleFavorite={() => toggleFavoriteAction(item)}
+                  selection={collectionSelection.cardSelection(item)}
+                />
+              ) : <CollectionListRow collection={item} selection={collectionSelection.cardSelection(item)} isFavoriteToggleDisabled={togglingFavoriteId !== null} isTogglingFavorite={togglingFavoriteId === item.id} onLongPress={() => openCollectionMenu(item)} onPress={() => openCollection(item)} onToggleFavorite={() => toggleFavoriteAction(item)} />}
+              ListFooterComponent={isLoadingMore ? renderSkeletons(viewMode === 'grid' ? 1 : NEXT_PAGE_SKELETON_LIST_ROWS, 'collections-next-page-loading') : undefined}
+            />
+        )}
+      </CollapsibleHeaderLayout>
 
       {panelFrame ? (
         <CollectionSuggestionPanel
@@ -1056,20 +1034,7 @@ export function CollectionsScreen() {
         />
       ) : null}
 
-      {collectionMenu.element}
-
-      <ReceivedApprovalsSheet
-        collections={approvalOwnerCollections}
-        onClose={() => setIsApprovalsVisible(false)}
-        onOpen={collection => {
-          setIsApprovalsVisible(false);
-          // Links first (the Owner's queue); only join requests waiting -> that list. Either way the Collection's own lock gate applies.
-          navigation.navigate('CollectionDetails', (collection.pendingSubmissionCount ?? 0) > 0
-            ? { collectionId: collection.id, openApprovals: true }
-            : { collectionId: collection.id, openJoinRequests: true });
-        }}
-        visible={isApprovalsVisible}
-      />
+      {collectionSelection.element}
 
       <ReceivedInvitationsSheet
         authenticatedRequest={authenticatedRequest}
@@ -1078,21 +1043,6 @@ export function CollectionsScreen() {
         onResponded={handleInvitationResponded}
         onStale={() => loadReceivedInvitations(true)}
         visible={isShareRequestsVisible}
-      />
-
-      <ApprovalSubmissionSheet
-        authenticatedRequest={authenticatedRequest}
-        collectionId={null}
-        expectedCount={myPendingTotal}
-        onChanged={() => {
-          // One of my proposals was cancelled: the number and the cards' own pending counts follow.
-          loadMyPendingTotal();
-          load(filterRef.current, 'refresh');
-        }}
-        onClose={() => setIsMyPendingSheetVisible(false)}
-        onTotalLoaded={setMyPendingTotal}
-        variant="mine"
-        visible={isMyPendingSheetVisible}
       />
 
       <ConfirmDialog
@@ -1125,9 +1075,11 @@ interface CollectionTileProps {
   readonly isFavoriteToggleDisabled: boolean;
   readonly isTogglingFavorite: boolean;
   readonly onPress: () => void;
-  /** Long-press / the screen-reader "options" action: the Collection menu (see useCollectionLongPressMenu). */
+  /** Long-press / the screen-reader "options" action: the Collection selection (see useCollectionSelection). */
   readonly onLongPress: () => void;
   readonly onToggleFavorite: () => void;
+  /** Multi-selection is on: a tap chooses / un-chooses the card (nothing else on it reacts) - see SelectionOverlay. */
+  readonly selection?: { readonly selected: boolean; readonly onToggle: () => void };
 }
 
 /**
@@ -1147,8 +1099,10 @@ function CollectionTile({
   onLongPress,
   onPress,
   onToggleFavorite,
+  selection,
 }: CollectionTileProps) {
   const { t } = useTranslation();
+  const [starTap, bumpStar] = useStarTap();
   const gridColumns = useCollectionTileColumns();
 
   // Only what tells Collections apart at a glance: icon (or photo), name, and the lock / shared /
@@ -1172,7 +1126,10 @@ function CollectionTile({
           {/* The press shows on the icon tile only (its own 56pt shape), never on the name. The root stays the same element pressed or
               not, so nothing is rebuilt under the finger. */}
           {pressed ? <View pointerEvents="none" style={styles.tilePressedLayer} testID="collection-tile-pressed-layer" /> : null}
-          <CollectionStatusBadges isLocked={isCollectionLocked(collection)} isShared={isCollaborative(collection)} />
+          {/* While selecting, the chosen picture alone is framed (thin border + tint) and the check circle on its top-start corner, where the lock badge used to be (free of other markers:
+              the padlock is before the name). The shared, star and count badges keep their places above the frame. */}
+          {selection ? <SelectionImageFrame borderRadius={radii.md + 7} selected={selection.selected} /> : null}
+          <CollectionStatusBadges isShared={isCollaborative(collection)} />
           {/* Approvals waiting + unread 새 링크 - the free bottom-end corner (the star holds the top end). */}
           <CountBadge count={collection.attentionCount ?? 0} style={styles.tileAttention} testID={`collection-attention-${collection.id}`} />
           {/* The caller's own favorite mark - Owner and Contributor alike, never someone else's. */}
@@ -1182,21 +1139,17 @@ function CollectionTile({
             }
             accessibilityRole="button"
             accessibilityState={{ disabled: isFavoriteToggleDisabled, busy: isTogglingFavorite }}
-            disabled={isFavoriteToggleDisabled}
             hitSlop={8}
-            onPress={onToggleFavorite}
+            onPress={() => { if (isFavoriteToggleDisabled) return; bumpStar(); onToggleFavorite(); }}
             style={styles.starBadge}
           >
-            <StarIcon
-              color={collection.isFavorite ? colors.warning : colors.border}
-              filled={collection.isFavorite}
-              size={13}
-            />
+            <FavoriteStar active={collection.isFavorite} playToken={starTap} size={13} />
           </Pressable>
         </View>
-        <CollectionNameLabel name={collection.name} style={styles.tileNameRow} textStyle={styles.tileLabel} />
+        <CollectionNameLabel isLocked={isCollectionLocked(collection)} lockSize={12} name={collection.name} style={styles.tileNameRow} textStyle={styles.tileLabel} />
         </>}
       </Pressable>
+      {selection ? <SelectionTouchLayer accessibilityLabel={attentionLabel(collection, t) ?? collection.name} onToggle={selection.onToggle} selected={selection.selected} /> : null}
     </View>
   );
 }
@@ -1260,9 +1213,12 @@ const styles = themedStyles(() => ({
   },
   // See DailyInboxScreen's identical remark - this tab screen's viewport already excludes the
   // real (non-overlay) Juple tab bar, so no tabBarHeight/insets.bottom belongs in this padding.
+  collapsibleTop: { paddingHorizontal: spacing.xl, paddingTop: spacing.xl },
+  pinnedSearch: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm },
   content: {
     flexGrow: 1,
-    padding: spacing.xl,
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.xl,
   },
   // An invisible, touch-transparent measuring box the size of the screen's content area: the container the panel's frame is relative to.
   overlayRoot: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
@@ -1307,7 +1263,8 @@ const styles = themedStyles(() => ({
   // Same border width everywhere - no layout shift.
   filterGrid: {
     gap: spacing.sm,
-    marginBottom: spacing.md,
+    // 4dp + the pinned search row's 8dp top padding = the 12dp gap the screen always had (and 8dp under the status bar once collapsed).
+    marginBottom: spacing.xs,
   },
   filterRow: {
     flexDirection: 'row',
@@ -1400,7 +1357,7 @@ const styles = themedStyles(() => ({
   // tileIconSlot (sized exactly to the icon itself) rather than the full grid cell, so it lands on
   // the icon's actual corner regardless of the cell's on-screen width.
   // Overlaps the icon's bottom-end corner like the other markers - never over the name.
-  tileAttention: { bottom: -6, end: -8, position: 'absolute' },
+  tileAttention: { bottom: -6, end: -8, position: 'absolute', zIndex: 5 },
   starBadge: {
     alignItems: 'center',
     backgroundColor: colors.surface,
@@ -1411,6 +1368,7 @@ const styles = themedStyles(() => ({
     right: -4,
     top: -4,
     width: 22,
+    zIndex: 5,
     ...cardShadow,
   },
   tileLabel: {
@@ -1433,8 +1391,9 @@ const styles = themedStyles(() => ({
  * shared at its bottom-start, and every row (owned or shared) has the caller's own favorite star.
  * Like the tile: no link count or participant names - just what identifies the Collection.
  */
-function CollectionListRow({ collection, isFavoriteToggleDisabled, isTogglingFavorite, onLongPress, onPress, onToggleFavorite }: CollectionTileProps) {
+function CollectionListRow({ collection, isFavoriteToggleDisabled, isTogglingFavorite, onLongPress, onPress, onToggleFavorite, selection }: CollectionTileProps) {
   const { t } = useTranslation();
+  const [starTap, bumpStar] = useStarTap();
   return <Pressable
     accessibilityActions={[{ name: 'options', label: t('collections.collectionActionsA11y') }]}
     accessibilityLabel={attentionLabel(collection, t)}
@@ -1447,15 +1406,17 @@ function CollectionListRow({ collection, isFavoriteToggleDisabled, isTogglingFav
   >
     <View style={styles.listIconSlot}>
       <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} imageVersion={collection.iconImageVersion} size={48} />
-      <CollectionStatusBadges isLocked={isCollectionLocked(collection)} isShared={isCollaborative(collection)} size={18} />
+      {selection ? <SelectionImageFrame borderRadius={radii.md + 6} markSize={18} selected={selection.selected} /> : null}
+      <CollectionStatusBadges isShared={isCollaborative(collection)} size={18} />
     </View>
     <View style={styles.listText}>
-      <CollectionNameLabel name={collection.name} textStyle={styles.listName} />
+      <CollectionNameLabel isLocked={isCollectionLocked(collection)} lockSize={15} name={collection.name} textStyle={styles.listName} />
     </View>
     <CountBadge count={collection.attentionCount ?? 0} testID={`collection-attention-${collection.id}`} />
-    <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isFavoriteToggleDisabled, busy: isTogglingFavorite }} disabled={isFavoriteToggleDisabled} hitSlop={8} onPress={onToggleFavorite} style={styles.listFavorite}>
-      <StarIcon color={collection.isFavorite ? colors.warning : colors.border} filled={collection.isFavorite} size={20} />
+    <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isFavoriteToggleDisabled, busy: isTogglingFavorite }} hitSlop={8} onPress={() => { if (isFavoriteToggleDisabled) return; bumpStar(); onToggleFavorite(); }} style={styles.listFavorite}>
+      <FavoriteStar active={collection.isFavorite} playToken={starTap} size={20} />
     </Pressable>
+    {selection ? <SelectionTouchLayer accessibilityLabel={attentionLabel(collection, t) ?? collection.name} onToggle={selection.onToggle} selected={selection.selected} /> : null}
   </Pressable>;
 }
 
@@ -1465,7 +1426,9 @@ function CollectionListRow({ collection, isFavoriteToggleDisabled, isTogglingFav
  */
 function attentionLabel(collection: Collection, t: TFunction): string | undefined {
   const count = collection.attentionCount ?? 0;
-  const base = count > 0 ? t('collections.attentionA11y', { name: collection.name, count }) : undefined;
+  const attention = count > 0 ? t('collections.attentionA11y', { name: collection.name, count }) : undefined;
+  // The padlock before the name is decoration: a locked Collection says so in its spoken label.
+  const base = isCollectionLocked(collection) ? `${attention ?? collection.name}, ${t('collections.lockedA11y')}` : attention;
   // The crown is decorative: a Collection of mine says so in its spoken label ("내 컬렉션, 이름").
   return isOwnedByMe(collection) ? `${t('collections.myCategoriesTab')}, ${base ?? collection.name}` : base;
 }

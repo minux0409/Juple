@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Image, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { Pressable } from './Pressable';
 import { SwipeableItemRow } from './SwipeableItemRow';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +14,7 @@ import { resolveSiteInfo } from '../items/resolveSiteInfo';
 import { useTheme } from '../theme/ThemeContext';
 import { colors, themedStyles } from '../theme/tokens';
 import { useSavedLinkColumns } from '../layout/responsiveGrid';
+import { SelectionCheckMark } from '../selection/SelectionCheckMark';
 
 /** Image view: tiles per line, and the small gap between tiles, both across and down. */
 export const SAVED_LINK_IMAGE_COLUMNS = 3;
@@ -56,6 +57,11 @@ interface SavedLinkImageTileProps {
   /** Absent: the tile has no swipe (a locked tile never has one either). */
   readonly swipeActions?: SavedLinkImageSwipeActions;
   readonly swipeDisabled?: boolean;
+  /** Multi-selection is on: a tap chooses / un-chooses the tile (no menu, no swipe) and the check mark shows `selected`. */
+  readonly selecting?: boolean;
+  readonly selected?: boolean;
+  /** Pass a STABLE callback (the tile is memoized). */
+  readonly onToggleSelect?: (item: ItemHistoryEntry) => void;
 }
 
 /**
@@ -65,13 +71,38 @@ interface SavedLinkImageTileProps {
  * plain link glyph, on a neutral square. A locked Collection's link (redacted by the server) is a lock on
  * a neutral square - never its thumbnail, site or text, in the accessibility label either.
  */
-function SavedLinkImageTileView({ item, onPress, onLongPress, swipeActions, swipeDisabled }: SavedLinkImageTileProps) {
+function SavedLinkImageTileView({ item, onPress, onLongPress, swipeActions, swipeDisabled, selecting, selected, onToggleSelect }: SavedLinkImageTileProps) {
   const { t } = useTranslation();
   useTheme(); // memoized: it would not follow its parent's re-render, so it reads the theme itself
   // The URL that failed, not a flag: a refresh brings a fresh signed URL that deserves its own attempt.
   // Before any early return (hook order): the kept URI for this photo, else this response's fresh URL, else the fallback.
   const thumbnail = resolveEffectiveThumbnail(item);
   const { uri: imageUrl, onError } = useStableImageUri(thumbnail.cacheKey, thumbnail.url);
+
+  if (selecting && onToggleSelect) {
+    // A locked (redacted) tile can be chosen too (it is still one of the person's links) - it just shows the lock instead of a picture.
+    const selectSiteId = item.isCollectionLocked ? null : resolveSiteInfo(item.url).id;
+    const lockedPicture = item.isCollectionLocked ? <View style={styles.fallback}><LockIcon color={colors.textSecondary} size={28} /></View> : null;
+    const selectablePicture = lockedPicture ?? (imageUrl !== null ? (
+      <Image onError={onError} resizeMode="cover" source={{ uri: imageUrl }} style={styles.picture} />
+    ) : (
+      <View style={styles.fallback}>{selectSiteId !== null ? <SiteIcon siteId={selectSiteId} size={48} /> : <LinkIcon color={colors.textSecondary} size={30} />}</View>
+    ));
+    return (
+      <Pressable
+        accessibilityLabel={item.isCollectionLocked ? t('item.lockedLinkPlaceholder') : resolveSavedLinkDisplayTitle(item.title, item.url, t).text}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: selected === true }}
+        onPress={() => onToggleSelect(item)}
+        style={[styles.tile, selected === true && styles.tileSelected]}
+        testID="saved-link-image-tile-select"
+      >
+        {selectablePicture}
+        {selected === true ? <View pointerEvents="none" style={styles.selectedVeil} /> : null}
+        <SelectionCheckMark selected={selected === true} />
+      </Pressable>
+    );
+  }
 
   if (item.isCollectionLocked) {
     return (
@@ -135,6 +166,8 @@ interface SavedLinkImageRowProps {
   readonly swipeActions?: SavedLinkImageSwipeActions;
   readonly swipeDisabled?: boolean;
   readonly testID?: string;
+  /** Multi-selection (see the tile's `selecting`). */
+  readonly selection?: { readonly isActive: boolean; readonly selectedIds: ReadonlySet<number>; readonly onToggle: (item: ItemHistoryEntry) => void };
 }
 
 /**
@@ -142,13 +175,13 @@ interface SavedLinkImageRowProps {
  * below the line. A short last line keeps the same square size (empty slots hold the width), and the
  * whole grid is just such lines inside the screen's ONE virtualized list.
  */
-export function SavedLinkImageRow({ items, onPress, onLongPress, swipeActions, swipeDisabled, testID }: SavedLinkImageRowProps) {
+export function SavedLinkImageRow({ items, onPress, onLongPress, swipeActions, swipeDisabled, testID, selection }: SavedLinkImageRowProps) {
   const { image: columns } = useSavedLinkColumns();
   return (
     <View style={styles.row} testID={testID}>
       {Array.from({ length: columns }, (_, index) => {
         const item = items[index];
-        return item ? <SavedLinkImageTile item={item} key={item.id} onLongPress={onLongPress} onPress={onPress} swipeActions={swipeActions} swipeDisabled={swipeDisabled} /> : <View key={`empty-${index}`} style={styles.slot} />;
+        return item ? <SavedLinkImageTile item={item} key={item.id} onLongPress={onLongPress} onPress={onPress} onToggleSelect={selection?.onToggle} selected={selection?.selectedIds.has(item.id)} selecting={selection?.isActive} swipeActions={swipeActions} swipeDisabled={swipeDisabled} /> : <View key={`empty-${index}`} style={styles.slot} />;
       })}
     </View>
   );
@@ -168,6 +201,8 @@ const styles = themedStyles(() => ({
   // width 100%: the tiles are flex:1 squares, so a line with no width of its own (e.g. a row-direction parent shrink-wrapping it) collapses to 0.
   row: { columnGap: SAVED_LINK_IMAGE_GUTTER, flexDirection: 'row', marginBottom: SAVED_LINK_IMAGE_GUTTER, width: '100%' },
   tile: { aspectRatio: 1, flex: 1, overflow: 'hidden' },
+  tileSelected: { borderColor: colors.brand, borderWidth: 2 },
+  selectedVeil: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(90,68,238,0.18)' },
   swipeContent: { aspectRatio: 1, width: '100%' },
   slot: { aspectRatio: 1, flex: 1 },
   picture: { backgroundColor: colors.surfaceMuted, height: '100%', width: '100%' },

@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, Modal, StyleSheet, Text } from 'react-native';
+import { FlatList, Modal, StyleSheet, Text, View } from 'react-native';
 import i18n from '../../i18n';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { SwipeableItemRow } from '../../components/SwipeableItemRow';
@@ -111,7 +111,7 @@ function renderPart(element: React.ReactElement) {
   });
   return part;
 }
-const header = (renderer: ReactTestRenderer.ReactTestRenderer) => renderPart(getList(renderer).props.ListHeaderComponent);
+const header = (renderer: ReactTestRenderer.ReactTestRenderer) => renderPart(<View>{renderer.root.findAll(node => node.props.testID === 'history-fixed-header' && typeof node.type === 'string')[0].props.children}{getList(renderer).props.ListHeaderComponent}</View>);
 const renderRow = (renderer: ReactTestRenderer.ReactTestRenderer, row: FlatRow) => renderPart(getList(renderer).props.renderItem({ item: row, index: 0 }));
 const historyCalls = () => jest.mocked(getItemHistory).mock.calls.map(([, options]) => options ?? {});
 
@@ -132,7 +132,7 @@ afterEach(() => {
 });
 
 describe('DateHistoryScreen header', () => {
-  it('puts 보관함 alone on its title row, then ONE controls row with the List/Grid/Image switch at its end, then the search - no sort chips', async () => {
+  it('puts 보관함 and the List/Grid/Image switch on ONE title row (title one line, switch at the end), then the search - no sort chips', async () => {
     serve(links(3));
     const renderer = await renderScreen();
 
@@ -140,11 +140,10 @@ describe('DateHistoryScreen header', () => {
     const part = header(renderer);
     const title = part.root.findAll(node => node.props.children === '보관함' && typeof node.type === 'string')[0];
     const titleRow = part.root.findAll(node => node.findAll(inner => inner === title).length > 0 && StyleSheet.flatten(node.props.style)?.justifyContent === 'space-between')[0];
-    expect(titleRow.findAllByType(ViewModeToggle)).toHaveLength(0);
+    expect(titleRow.findAllByType(ViewModeToggle)).toHaveLength(1);
 
     const controls = part.root.findAll(node => node.props.testID === 'history-view-controls' && typeof node.type === 'string')[0];
-    const children = controls.children as ReactTestRenderer.ReactTestInstance[];
-    expect(children[children.length - 1].type).toBe(ViewModeToggle);
+    expect(controls.findAllByType(ViewModeToggle)).toHaveLength(1);
     expect(part.root.findByType(ViewModeToggle).props.showImage).toBe(true);
     const everything = part.root.findAll(() => true);
     expect(everything.findIndex(node => node.type === ViewModeToggle)).toBeLessThan(everything.findIndex(node => node.type === SearchField));
@@ -319,5 +318,72 @@ describe('buildFlatRows', () => {
   it('keys every row by its first link, so a later page never reshuffles the lines already there', () => {
     const more = [...items, ...[4, 5, 6, 7].map(id => makeItem({ id }))];
     expect(buildFlatRows(more, 'image').slice(0, 1).map(row => row.key)).toEqual(buildFlatRows(items, 'image').map(row => row.key));
+  });
+});
+
+describe('Archive: long-press starts multi-selection (the same as Home)', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+    mockStore.clear();
+  });
+
+  const topBar = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByProps({ testID: 'selection-top-bar' });
+
+  it('long-press selects the link and shows the selection header; a tap chooses another without opening it', async () => {
+    serve(links(3));
+    const renderer = await renderScreen();
+    const first = renderRow(renderer, rows(renderer).find(candidate => candidate.kind === 'flatItem')!);
+    const onLongPress = first.root.findByType(SwipeableItemRow).props.onLongPress;
+    expect(topBar(renderer)).toHaveLength(0);
+
+    await act(async () => onLongPress());
+
+    expect(topBar(renderer).length).toBeGreaterThan(0);
+    expect(renderer.root.findByProps({ testID: 'selection-count' }).props.children).toBe(i18n.t('selection.selectedCount', { count: 1 }));
+    const second = renderRow(renderer, rows(renderer).filter(candidate => candidate.kind === 'flatItem')[1]);
+    const selection = second.root.findByType(SwipeableItemRow).props.selection;
+    expect(selection.selected).toBe(false);
+    await act(async () => selection.onToggle());
+    expect(renderer.root.findByProps({ testID: 'selection-count' }).props.children).toBe(i18n.t('selection.selectedCount', { count: 2 }));
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('전체 선택 chooses what is loaded; the close button ends selection', async () => {
+    serve(links(3));
+    const renderer = await renderScreen();
+    const first = renderRow(renderer, rows(renderer).find(candidate => candidate.kind === 'flatItem')!);
+    const onLongPress = first.root.findByType(SwipeableItemRow).props.onLongPress;
+    await act(async () => onLongPress());
+
+    await act(async () => renderer.root.findByProps({ testID: 'selection-toggle-all' }).props.onPress());
+    expect(renderer.root.findByProps({ testID: 'selection-count' }).props.children).toBe(i18n.t('selection.selectedCount', { count: 3 }));
+
+    await act(async () => renderer.root.findByProps({ testID: 'selection-exit' }).props.onPress());
+    expect(topBar(renderer)).toHaveLength(0);
+  });
+});
+
+describe('DateHistoryScreen fixed header', () => {
+  it('keeps the title row and search outside the scrolling list; the list is the only scroller', async () => {
+    serve(links(3));
+    const renderer = await renderScreen();
+    const fixed = renderer.root.findAll(node => node.props.testID === 'history-fixed-header' && typeof node.type === 'string')[0];
+    expect(fixed.findAll(node => node.props.testID === 'history-search').length).toBeGreaterThan(0);
+    expect(fixed.findAllByType(FlatList)).toHaveLength(0);
+    expect(getList(renderer).findAll(node => node.props.testID === 'history-search')).toHaveLength(0);
+  });
+});
+
+describe('DateHistoryScreen pinned search line', () => {
+  it('centers the search field and never stretches the view switch (it keeps its own 40dp height once the title has collapsed)', async () => {
+    serve(links(3));
+    const renderer = await renderScreen();
+    const frame = renderer.root.findAll(node => node.props.testID === 'history-fixed-header' && typeof node.type === 'string')[0];
+    const line = frame.findAll(node => typeof node.type === 'string' && node.findAll(inner => inner.props.testID === 'history-search').length > 0 && StyleSheet.flatten(node.props.style)?.flexDirection === 'row')[0];
+    expect(StyleSheet.flatten(line.props.style)).toMatchObject({ alignItems: 'center', flexDirection: 'row' });
+    // The gap below the line is the line's (not the field's), so it cannot take part in the vertical centering.
+    expect(StyleSheet.flatten(line.props.style).marginBottom).toBe(12);
+    const field = line.children[0] as ReactTestRenderer.ReactTestInstance;
+    expect(StyleSheet.flatten(field.props.style).marginBottom).toBeUndefined();
   });
 });

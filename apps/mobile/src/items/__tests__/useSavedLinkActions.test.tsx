@@ -1,69 +1,54 @@
-import Clipboard from '@react-native-clipboard/clipboard';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import i18n from '../../i18n';
-import { ActionMenuDialog } from '../../components/ActionMenuDialog';
+import { Linking } from 'react-native';
 import { useSavedLinkActions, type SavedLinkActionTarget } from '../useSavedLinkActions';
 import { copySavedLinkUrl } from '../copyLink';
-
-const mockToast = jest.fn();
-jest.mock('../../components/AppToast', () => ({ useAppToast: () => ({ showNotificationToast: mockToast }) }));
-jest.mock('../../collections/useItemCollectionChange', () => ({ useItemCollectionChange: () => ({ start: jest.fn(), element: null }) }));
+import Clipboard from '@react-native-clipboard/clipboard';
 
 const ORIGINAL_URL = 'https://shop.example.com/item?id=7&utm=abc';
 const target = { id: 7, url: ORIGINAL_URL, isCollectionLocked: false } as unknown as SavedLinkActionTarget;
 
-function Harness({ onActions }: { readonly onActions: (actions: ReturnType<typeof useSavedLinkActions>) => void }) {
-  const actions = useSavedLinkActions({ onEdit: jest.fn(), onDelete: jest.fn(), onCollectionsChanged: jest.fn() });
+function Harness({ onActions, onLongPress }: { readonly onActions: (actions: ReturnType<typeof useSavedLinkActions>) => void; readonly onLongPress: (item: SavedLinkActionTarget) => void }) {
+  const actions = useSavedLinkActions({ onLongPress });
   onActions(actions);
   return actions.element;
 }
 
-async function openMenu() {
+async function render(onLongPress: (item: SavedLinkActionTarget) => void = jest.fn()) {
   let hook!: ReturnType<typeof useSavedLinkActions>;
-  let renderer!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
-    renderer = ReactTestRenderer.create(<Harness onActions={value => { hook = value; }} />);
+    ReactTestRenderer.create(<Harness onActions={value => { hook = value; }} onLongPress={onLongPress} />);
   });
-  await act(async () => hook.menuProps(target).onLongPress!());
-  return { renderer, labels: () => renderer.root.findByType(ActionMenuDialog).props.actions as { label: string; onPress: () => void }[] };
+  return () => hook;
 }
 
-describe('saved link long-press menu: 링크 복사', () => {
-  beforeEach(() => {
-    mockToast.mockClear();
-    jest.mocked(Clipboard.setString).mockClear();
+describe('saved link card wiring (long-press now starts multi-selection)', () => {
+  it('a long-press hands the card to the selection - there is no centered menu any more', async () => {
+    const onLongPress = jest.fn();
+    const hook = await render(onLongPress);
+    await act(async () => hook().menuProps(target).onLongPress!());
+    expect(onLongPress).toHaveBeenCalledWith(target);
   });
 
-  it('offers 링크 복사 right after 링크 열기 and copies the ORIGINAL url (never a Juple share link), then says so', async () => {
-    const { labels } = await openMenu();
-    expect(labels().map(action => action.label)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('common.edit'), i18n.t('collections.changeCollection'), i18n.t('common.delete')]);
-    await act(async () => labels()[1].onPress());
-    expect(Clipboard.setString).toHaveBeenCalledWith(ORIGINAL_URL);
-    expect(mockToast).toHaveBeenCalledWith(i18n.t('item.linkCopied'));
+  it('a locked (redacted) card can be neither selected nor opened from its card', async () => {
+    const hook = await render();
+    const locked = { ...target, isCollectionLocked: true } as SavedLinkActionTarget;
+    expect(hook().menuProps(locked).onLongPress).toBeUndefined();
+    expect(hook().originalLinkProps(locked).onOpenOriginal).toBeUndefined();
   });
 
-  it('a clipboard that cannot be written is reported, not silently ignored', async () => {
-    jest.mocked(Clipboard.setString).mockImplementationOnce(() => {
-      throw new Error('denied');
-    });
-    const { labels } = await openMenu();
-    await act(async () => labels()[1].onPress());
-    expect(mockToast).toHaveBeenCalledWith(i18n.t('item.linkCopyFailed'));
+  it('바로가기 opens the saved original page', async () => {
+    const openUrl = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+    const hook = await render();
+    await act(async () => hook().originalLinkProps(target).onOpenOriginal!());
+    expect(openUrl).toHaveBeenCalledWith(ORIGINAL_URL);
+    openUrl.mockRestore();
   });
 
-  it('copySavedLinkUrl reports success / failure', () => {
+  it('copySavedLinkUrl reports success / failure of the clipboard', () => {
     expect(copySavedLinkUrl(ORIGINAL_URL)).toBe(true);
     jest.mocked(Clipboard.setString).mockImplementationOnce(() => {
       throw new Error('denied');
     });
     expect(copySavedLinkUrl(ORIGINAL_URL)).toBe(false);
-  });
-
-  it('a locked (redacted) card has no menu at all, so nothing can be copied from it', async () => {
-    let hook!: ReturnType<typeof useSavedLinkActions>;
-    await act(async () => {
-      ReactTestRenderer.create(<Harness onActions={value => { hook = value; }} />);
-    });
-    expect(hook.menuProps({ ...target, isCollectionLocked: true } as SavedLinkActionTarget).onLongPress).toBeUndefined();
   });
 });

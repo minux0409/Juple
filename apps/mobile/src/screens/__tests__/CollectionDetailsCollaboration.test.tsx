@@ -8,10 +8,8 @@ import { CollectionReviewRequestsSheet } from '../../collections/CollectionRevie
 import { PendingActionRow } from '../../components/PendingActionRow';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ApprovalSubmissionSheet } from '../../collections/ApprovalSubmissionSheet';
-import { JoinRequestsSheet } from '../../collections/JoinRequestsSheet';
 import { CollectionParticipantsSheet } from '../../collections/CollectionParticipantsSheet';
 import { ParticipantAvatarStack } from '../../components/ParticipantAvatarStack';
-import { QuickReactionBar } from '../../reactions/QuickReactionBar';
 import { ReactionChips } from '../../reactions/ReactionChips';
 import { ReactionPickerDialog } from '../../reactions/ReactionPickerDialog';
 import ReactTestRenderer, { act } from 'react-test-renderer';
@@ -22,7 +20,6 @@ import { ApiError } from '../../api/ApiError';
 import { AppToastProvider } from '../../components/AppToast';
 import { CollectionDetailsScreen } from '../CollectionDetailsScreen';
 import { shareItem } from '../../items/shareItem';
-import { CategoryPickerModal } from '../../collections/CategoryPickerModal';
 import { SwipeableItemRow } from '../../components/SwipeableItemRow';
 import { SavedLinkGridCard as GridCardComponent } from '../../components/SavedLinkGridCard';
 import { UserAvatar } from '../../components/UserAvatar';
@@ -31,11 +28,8 @@ import { CrownIcon } from '../../icons/CrownIcon';
 import { CollectionLinkShareSheet } from '../../collections/CollectionLinkShareSheet';
 import {
   addItemToCollection,
-  addItemToCollections,
   setItemReaction,
   removeItemReaction,
-  copyCollectionItems,
-  transferCollectionItem,
   getCollection,
   getCollectionShareLink,
   removeItemFromCollection,
@@ -61,20 +55,6 @@ import {
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
 });
-
-/** The destination picker's own controls - the one list/grid picker behind 복제, 내 컬렉션으로 복사 and 이동. */
-const destinationOption = (renderer: ReactTestRenderer.ReactTestRenderer, id: number) =>
-  renderer.root.findAll(node => node.props.testID === `category-picker-option-${id}` && typeof node.props.onPress === 'function')[0];
-const destinationSubmit = (renderer: ReactTestRenderer.ReactTestRenderer) =>
-  renderer.root.findAll(node => node.props.testID === 'category-picker-submit' && typeof node.props.onPress === 'function')[0];
-const destinationPicker = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findByType(CategoryPickerModal);
-/** Chooses these destinations, then presses the picker's action. */
-async function chooseDestinations(renderer: ReactTestRenderer.ReactTestRenderer, ...ids: number[]) {
-  for (const id of ids) {
-    await act(async () => destinationOption(renderer, id).props.onPress());
-  }
-  await act(async () => destinationSubmit(renderer).props.onPress());
-}
 
 jest.mock('@react-navigation/bottom-tabs', () => ({ useBottomTabBarHeight: () => 80 }));
 jest.mock('@react-navigation/native', () => ({
@@ -268,7 +248,7 @@ function renderPart(element: React.ReactElement) {
 }
 
 const header = (renderer: ReactTestRenderer.ReactTestRenderer) =>
-  renderPart(<>{renderer.root.findByProps({ testID: 'collection-details-toolbar' }).props.children}{findItemList(renderer).props.ListHeaderComponent}</>);
+  renderPart(<>{renderer.root.findByProps({ testID: 'collection-details-toolbar' }).props.children}{renderer.root.findAll(node => node.props.testID === 'collection-details-fixed-header' && typeof node.type === 'string')[0].props.children}{findItemList(renderer).props.ListHeaderComponent}</>);
 
 const row = (renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) =>
   renderPart(findItemList(renderer).props.renderItem({ item, index: 0 }));
@@ -359,12 +339,6 @@ async function recipientMenuLabels(renderer: ReactTestRenderer.ReactTestRenderer
   return (menu?.props.actions ?? []).map((action: { label: string }) => action.label);
 }
 
-async function pressMenu(renderer: ReactTestRenderer.ReactTestRenderer, label: string) {
-  await recipientMenuLabels(renderer);
-  const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible);
-  await act(async () => menu?.props.actions.find((action: { label: string }) => action.label === label).onPress());
-}
-
 describe('CollectionDetailsScreen - shared with me: 새 링크 알림 and 내 컬렉션으로 복사', () => {
   const myOwn = makeCollection({ id: 7, name: 'My Picks', accessRole: 'owner' });
 
@@ -408,130 +382,6 @@ describe('CollectionDetailsScreen - shared with me: 새 링크 알림 and 내 �
     expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.newLinkNotificationsError'))).toBe(true);
   });
 
-  it('copies the picked links into a Collection of my own and reports the result', async () => {
-    jest.mocked(copyCollectionItems).mockResolvedValue({ copiedCount: 1, skippedCount: 1, unavailableCount: 0 });
-    const renderer = await renderScreen();
-
-    await pressMenu(renderer, i18n.t('collections.copyToMine'));
-    // Selection mode: rows are checkboxes - a tap picks, never opens the link.
-    const pick = (item: CollectionItemEntry) => {
-      const part = row(renderer, item);
-      const checkbox = part.root.findAll(node => node.props.accessibilityRole === 'checkbox' && typeof node.props.onPress === 'function')[0];
-      act(() => checkbox.props.onPress());
-    };
-    pick(theirs);
-    pick(mine);
-    expect(mockNavigate).not.toHaveBeenCalled();
-    expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.copySelectedCount', { count: 2 }))).toBe(true);
-    // Picking again unpicks.
-    pick(mine);
-    pick(mine);
-
-    const confirm = renderer.root.findAll(node => node.props.testID === 'collection-copy-confirm' && typeof node.props.onPress === 'function')[0];
-    await act(async () => confirm.props.onPress());
-    // Only my own Collections are offered (owned scope - no scope parameter).
-    expect(getCollections).toHaveBeenLastCalledWith(expect.anything(), { limit: 50 });
-    // The same picker as 복제: nothing is copied by choosing alone - 복사 does it.
-    await act(async () => destinationOption(renderer, 7).props.onPress());
-    expect(copyCollectionItems).not.toHaveBeenCalled();
-    await act(async () => destinationSubmit(renderer).props.onPress());
-
-    expect(copyCollectionItems).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, [2, 1], 7, null);
-    expect(renderer.root.findAllByType(Text).some(node => node.props.children === '2개 중 1개를 복사했어요. 1개는 이미 컬렉션에 있어요.')).toBe(true);
-    // Selection mode is over.
-    expect(renderer.root.findAll(node => node.props.testID === 'collection-copy-bar')).toHaveLength(0);
-  });
-
-  describe('내 컬렉션으로 복사 into several of my Collections at once (the same picker as 복제)', () => {
-    const other = makeCollection({ id: 8, name: 'More Picks', accessRole: 'owner' });
-    const third = makeCollection({ id: 9, name: 'Third Picks', accessRole: 'owner' });
-
-    async function openCopyPicker() {
-      jest.mocked(getCollections).mockResolvedValue({ items: [myOwn, other, third], nextCursor: null });
-      const renderer = await renderScreen();
-      await pressMenu(renderer, i18n.t('collections.copyToMine'));
-      const checkbox = row(renderer, theirs).root.findAll(node => node.props.accessibilityRole === 'checkbox' && typeof node.props.onPress === 'function')[0];
-      act(() => checkbox.props.onPress());
-      const confirm = renderer.root.findAll(node => node.props.testID === 'collection-copy-confirm' && typeof node.props.onPress === 'function')[0];
-      await act(async () => confirm.props.onPress());
-      return renderer;
-    }
-    const hasToast = (renderer: ReactTestRenderer.ReactTestRenderer, text: string) =>
-      renderer.root.findAllByType(Text).some(node => node.props.children === text);
-
-    it('has the list/grid toggle, order chips, a selected count, and "+ 새 컬렉션 만들기" - and nothing is selected at first', async () => {
-      const renderer = await openCopyPicker();
-      const modal = destinationPicker(renderer);
-
-      expect(modal.props.visible).toBe(true);
-      expect(modal.findAllByType(ViewModeToggle)).toHaveLength(1);
-      expect(modal.props.sort.value).toBe('newest');
-      expect(modal.props.createLabel).toBe('추가');
-      expect(modal.props.createAccessibilityLabel).toBe('새 컬렉션 만들기');
-      expect(modal.props.title).toBe(i18n.t('collections.copyPickerTitle'));
-      expect(renderer.root.findAllByType(Text).some(node => node.props.children === '0개 선택됨')).toBe(true);
-      expect(destinationSubmit(renderer).props.disabled).toBe(true);
-      expect(destinationSubmit(renderer).findAllByType(Text)[0].props.children).toBe(i18n.t('collections.copyAction'));
-    });
-
-    it('several destinations: the same links are copied into each, one request per destination, and the result says so once', async () => {
-      jest.mocked(copyCollectionItems).mockResolvedValue({ copiedCount: 1, skippedCount: 0, unavailableCount: 0 });
-      const renderer = await openCopyPicker();
-
-      await chooseDestinations(renderer, 7, 8);
-
-      expect(copyCollectionItems).toHaveBeenCalledTimes(2);
-      expect(copyCollectionItems).toHaveBeenNthCalledWith(1, expect.anything(), COLLECTION_ID, [theirs.itemId], 7, null);
-      expect(copyCollectionItems).toHaveBeenNthCalledWith(2, expect.anything(), COLLECTION_ID, [theirs.itemId], 8, null);
-      expect(destinationPicker(renderer).props.visible).toBe(false);
-      expect(hasToast(renderer, i18n.t('collections.copyResultMulti', { links: 1, collections: 2 }))).toBe(true);
-      expect(renderer.root.findAll(node => node.props.testID === 'collection-copy-bar')).toHaveLength(0);
-    });
-
-    it('one destination failing does not hide what the others did: it is reported, naming how many failed', async () => {
-      jest.mocked(copyCollectionItems)
-        .mockResolvedValueOnce({ copiedCount: 1, skippedCount: 0, unavailableCount: 0 })
-        .mockRejectedValueOnce(new ApiError('unavailable', 503));
-      const renderer = await openCopyPicker();
-
-      await chooseDestinations(renderer, 7, 8);
-
-      expect(copyCollectionItems).toHaveBeenCalledTimes(2);
-      expect(destinationPicker(renderer).props.visible).toBe(false);
-      expect(hasToast(renderer, `${i18n.t('collections.copyResultAll', { count: 1 })} ${i18n.t('collections.copyDestinationsFailed', { count: 1 })}`)).toBe(true);
-    });
-
-    it('every destination failing keeps the picker, the choice and the selection for another try', async () => {
-      jest.mocked(copyCollectionItems).mockRejectedValue(new ApiError('unavailable', 503));
-      const renderer = await openCopyPicker();
-
-      await chooseDestinations(renderer, 7, 8);
-
-      const modal = destinationPicker(renderer);
-      expect(modal.props.visible).toBe(true);
-      expect(modal.props.error).toBe(i18n.t('collections.copyError'));
-      expect([...modal.props.selectedIds]).toEqual([7, 8]);
-      expect(renderer.root.findAll(node => node.props.testID === 'collection-copy-bar').length).toBeGreaterThan(0);
-    });
-
-    it('"+ 새 컬렉션 만들기" is chosen at once next to the others', async () => {
-      const { createCollection } = jest.requireMock('../../collections/api/collectionsApi');
-      createCollection.mockResolvedValue(makeCollection({ id: 21, name: 'Fresh', accessRole: 'owner' }));
-      jest.mocked(copyCollectionItems).mockResolvedValue({ copiedCount: 1, skippedCount: 0, unavailableCount: 0 });
-      const renderer = await openCopyPicker();
-
-      await act(async () => renderer.root.findAll(node => node.props.accessibilityLabel === '새 컬렉션 만들기' && typeof node.props.onPress === 'function')[0].props.onPress());
-      await act(async () => {
-        await destinationPicker(renderer).props.onCreateCollection('Fresh', 'Folder', 'blue');
-      });
-      await act(async () => destinationOption(renderer, 7).props.onPress());
-      await act(async () => destinationSubmit(renderer).props.onPress());
-
-      expect(copyCollectionItems).toHaveBeenNthCalledWith(1, expect.anything(), COLLECTION_ID, [theirs.itemId], 21, null);
-      expect(copyCollectionItems).toHaveBeenNthCalledWith(2, expect.anything(), COLLECTION_ID, [theirs.itemId], 7, null);
-    });
-  });
-
   it('never offers copying while the content is still behind the share password', async () => {
     jest.mocked(getCollection).mockResolvedValue(
       makeCollection({ accessRole: 'viewer', isSharePasswordProtected: true, ownerJupleId: 'K7MP4Q8N' }),
@@ -543,174 +393,6 @@ describe('CollectionDetailsScreen - shared with me: 새 링크 알림 and 내 �
     const top = header(renderer);
     expect(headerButtonIds(top)).toEqual(['collection-details-favorite', 'collection-details-notifications', 'collection-details-more']);
     expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.lockSetTitle'), i18n.t('collections.leaveAction')]);
-  });
-});
-
-describe('CollectionDetailsScreen - 전체 선택 for 내 컬렉션으로 복사', () => {
-  const allItems = (count: number) =>
-    Array.from({ length: count }, (_, index) => makeItem({ itemId: index + 1, title: `Link ${index + 1}` }));
-
-  /** Serves \`items\` page by page the way the server does (newest first, opaque cursor = offset). */
-  function serve(items: CollectionItemEntry[]) {
-    jest.mocked(getCollectionItems).mockImplementation(async (_request, _id, options) => {
-      const offset = options?.cursor ? Number(options.cursor) : 0;
-      const limit = options?.limit ?? 50;
-      const page = items.slice(offset, offset + limit);
-      return { items: page, nextCursor: offset + limit < items.length ? String(offset + limit) : null };
-    });
-  }
-
-  const selectAll = (renderer: ReactTestRenderer.ReactTestRenderer) =>
-    renderer.root.findAll(node => node.props.testID === 'collection-copy-select-all' && typeof node.props.onPress === 'function')[0];
-  const copyButton = (renderer: ReactTestRenderer.ReactTestRenderer) =>
-    renderer.root.findAll(node => node.props.testID === 'collection-copy-confirm' && typeof node.props.onPress === 'function')[0];
-  const hasText = (renderer: ReactTestRenderer.ReactTestRenderer, text: string) =>
-    renderer.root.findAllByType(Text).some(node => node.props.children === text);
-  const pressSelectAll = async (renderer: ReactTestRenderer.ReactTestRenderer) => {
-    const onPress = selectAll(renderer).props.onPress;
-    await act(async () => {
-      await onPress();
-    });
-  };
-
-  afterEach(() => {
-    jest.clearAllMocks();
-    clearCollectionUnlockGrants();
-  });
-
-  it('a link without a picture keeps its media slot while selecting, so the selection mark sits on the slot and never on the title; no open button there', async () => {
-    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N', itemCount: 2 }));
-    serve(allItems(2));
-    jest.mocked(getCollections).mockResolvedValue({ items: [makeCollection({ id: 7, name: 'My Picks' })], nextCursor: null });
-    const renderer = await renderScreen();
-    await pressMenu(renderer, i18n.t('collections.copyToMine'));
-
-    const selectRow = (id: number) => renderer.root.findAll(node => node.props.testID === `collection-copy-select-${id}` && typeof node.props.onPress === 'function')[0];
-    for (const id of [1, 2]) {
-      const selected = selectRow(id);
-      expect(selected.findAll(node => node.props.testID === 'saved-link-thumbnail-placeholder' && typeof node.type === 'string')).toHaveLength(1);
-      expect(selected.findAll(node => node.props.testID === 'saved-link-open-original')).toHaveLength(0);
-    }
-  });
-
-  it('selects every link of the Collection - also those on pages not loaded yet - and 전체 해제 clears them', async () => {
-    const items = allItems(130);
-    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N', itemCount: 130 }));
-    serve(items);
-    jest.mocked(getCollections).mockResolvedValue({ items: [makeCollection({ id: 7, name: 'My Picks' })], nextCursor: null });
-    jest.mocked(copyCollectionItems).mockResolvedValue({ copiedCount: 130, skippedCount: 0, unavailableCount: 0 });
-    const renderer = await renderScreen();
-    await pressMenu(renderer, i18n.t('collections.copyToMine'));
-
-    // Nothing picked: 복사 is off, and the action reads 전체 선택.
-    expect(copyButton(renderer).props.disabled).toBe(true);
-    expect(selectAll(renderer).props.accessibilityLabel).toBe('전체 선택');
-    expect(hasText(renderer, '전체 선택')).toBe(true);
-    const loadsBefore = jest.mocked(getCollectionItems).mock.calls.length;
-
-    await pressSelectAll(renderer);
-
-    // Read from the server with its largest page, newest first - two pages for 130.
-    const selectAllCalls = jest.mocked(getCollectionItems).mock.calls.slice(loadsBefore);
-    expect(selectAllCalls).toHaveLength(2);
-    expect(selectAllCalls[0][2]).toEqual(expect.objectContaining({ limit: 100, sort: 'dateDesc' }));
-    expect(hasText(renderer, i18n.t('collections.copySelectedCount', { count: 130 }))).toBe(true);
-    expect(copyButton(renderer).props.disabled).toBe(false);
-    expect(hasText(renderer, '전체 해제')).toBe(true);
-    expect(selectAll(renderer).props.accessibilityLabel).toBe('전체 선택 해제');
-    // Not over the limit, so no notice.
-    expect(hasText(renderer, i18n.t('collections.copySelectionLimit', { max: 200 }))).toBe(false);
-
-    await act(async () => {
-      selectAll(renderer).props.onPress();
-    });
-    expect(hasText(renderer, i18n.t('collections.copySelectedCount', { count: 0 }))).toBe(true);
-    expect(copyButton(renderer).props.disabled).toBe(true);
-    expect(hasText(renderer, '전체 선택')).toBe(true);
-
-    // Selected again and copied: exactly the server's 130 ids go to the copy.
-    await pressSelectAll(renderer);
-    await act(async () => copyButton(renderer).props.onPress());
-    await chooseDestinations(renderer, 7);
-    expect(copyCollectionItems).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, items.map(item => item.itemId), 7, null);
-  });
-
-  it('over 200 links: offers 200개까지 선택, takes the newest 200 and says so', async () => {
-    const items = allItems(250);
-    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N', itemCount: 250 }));
-    serve(items);
-    const renderer = await renderScreen();
-    await pressMenu(renderer, i18n.t('collections.copyToMine'));
-
-    expect(hasText(renderer, '200개까지 선택')).toBe(true);
-    expect(selectAll(renderer).props.accessibilityLabel).toBe('200개까지 선택');
-    const loadsBefore = jest.mocked(getCollectionItems).mock.calls.length;
-
-    await pressSelectAll(renderer);
-
-    // Stops reading at 200 - never pages through the whole Collection.
-    expect(jest.mocked(getCollectionItems).mock.calls.length - loadsBefore).toBe(2);
-    expect(hasText(renderer, i18n.t('collections.copySelectedCount', { count: 200 }))).toBe(true);
-    expect(hasText(renderer, i18n.t('collections.copySelectionLimit', { max: 200 }))).toBe(true);
-    expect(hasText(renderer, '전체 해제')).toBe(true);
-  });
-
-  it('selects only what the server lists - links no longer available are never picked', async () => {
-    // The Collection says 3, but one of them was deleted meanwhile: the server lists 2.
-    const listed = allItems(2);
-    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N', itemCount: 3 }));
-    serve(listed);
-    const renderer = await renderScreen();
-    await pressMenu(renderer, i18n.t('collections.copyToMine'));
-
-    await pressSelectAll(renderer);
-
-    expect(hasText(renderer, i18n.t('collections.copySelectedCount', { count: 2 }))).toBe(true);
-    // All that could be selected is selected - it offers 전체 해제, not another 전체 선택.
-    expect(hasText(renderer, '전체 해제')).toBe(true);
-  });
-
-  it('unpicking one link after 전체 선택 offers 전체 선택 again', async () => {
-    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N', itemCount: 2 }));
-    serve([mine, theirs]);
-    const renderer = await renderScreen();
-    await pressMenu(renderer, i18n.t('collections.copyToMine'));
-    await pressSelectAll(renderer);
-
-    expect(hasText(renderer, i18n.t('collections.copySelectedCount', { count: 2 }))).toBe(true);
-
-    const checkbox = row(renderer, mine).root.findAll(node => node.props.accessibilityRole === 'checkbox' && typeof node.props.onPress === 'function')[0];
-    act(() => checkbox.props.onPress());
-    expect(hasText(renderer, i18n.t('collections.copySelectedCount', { count: 1 }))).toBe(true);
-    expect(hasText(renderer, '전체 선택')).toBe(true);
-  });
-
-  it('a failed read selects nothing and says why', async () => {
-    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N', itemCount: 2 }));
-    serve([mine, theirs]);
-    const renderer = await renderScreen();
-    await pressMenu(renderer, i18n.t('collections.copyToMine'));
-    jest.mocked(getCollectionItems).mockRejectedValueOnce(new Error('offline'));
-
-    await pressSelectAll(renderer);
-
-    expect(hasText(renderer, i18n.t('collections.copySelectedCount', { count: 0 }))).toBe(true);
-    expect(copyButton(renderer).props.disabled).toBe(true);
-    expect(selectAll(renderer).props.disabled).toBe(false);
-  });
-
-  it('the selection bar wraps instead of overflowing on a narrow (320dp) screen', async () => {
-    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N', itemCount: 2 }));
-    serve([mine, theirs]);
-    const renderer = await renderScreen();
-    await pressMenu(renderer, i18n.t('collections.copyToMine'));
-
-    const summary = selectAll(renderer).parent!;
-    const flat = (style: unknown) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean));
-    const summaryStyle = flat(renderer.root.findAll(node => node.props.style && flat(node.props.style).flexWrap === 'wrap' && node.findAll(child => child === summary).length > 0)[0]?.props.style);
-    expect(summaryStyle).toEqual(expect.objectContaining({ flex: 1, flexWrap: 'wrap', minWidth: 0 }));
-    // The control keeps the 44dp touch target.
-    expect(flat(selectAll(renderer).props.style).minHeight).toBeGreaterThanOrEqual(44);
   });
 });
 
@@ -796,201 +478,11 @@ describe('CollectionDetailsScreen - emoji reactions to the links of a shared Col
     clearCollectionUnlockGrants();
   });
 
-  async function openMenu(renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) {
-    const onLongPress = row(renderer, item).root.findByType(SwipeableItemRow).props.onLongPress;
-    await act(async () => onLongPress());
-  }
-  const bar = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByType(QuickReactionBar);
-  const visibleMenu = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible);
-  const quick = (renderer: ReactTestRenderer.ReactTestRenderer, key: string) =>
-    renderer.root.findAll(node => node.props.testID === `quick-reaction-${key}` && typeof node.props.onPress === 'function')[0];
   /** The chip row as drawn (the component itself is always mounted; it draws nothing without reactions). */
   const chips = (renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) =>
     row(renderer, item).root.findAll(node => typeof node.type === 'string' && node.props.testID === `reaction-chips-${item.itemId}`);
-  /** iOS shows the picker once the menu has finished closing - which the OS reports through onDismiss. */
-  const finishMenuDismiss = async (renderer: ReactTestRenderer.ReactTestRenderer) => {
-    const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => typeof dialog.props.onDismiss === 'function');
-    await act(async () => menu?.props.onDismiss());
-  };
   const chipText = (renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) =>
     row(renderer, item).root.findAllByType(Text).map(node => [node.props.children].flat().join(''));
-
-  describe('the long-press menu', () => {
-    it('opens with the quick reactions on top and the existing actions below, unchanged - for someone else\'s link', async () => {
-      const other = link(2);
-      jest.mocked(getCollection).mockResolvedValue(sharedWithMe());
-      jest.mocked(getCollectionItems).mockResolvedValue({ items: [other], nextCursor: null });
-      const renderer = await renderScreen();
-
-      await openMenu(renderer, other);
-
-      expect(bar(renderer)).toHaveLength(1);
-      expect(visibleMenu(renderer)!.props.actions.map((action: { label: string }) => action.label)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('item.saveDialogTitle'), i18n.t('safety.reportLink')]);
-    });
-
-    it('링크 신고하기 is the red (destructive) entry with its flag icon; 열기 / 복사 / 저장 keep the normal color', async () => {
-      const other = link(2);
-      jest.mocked(getCollection).mockResolvedValue(sharedWithMe());
-      jest.mocked(getCollectionItems).mockResolvedValue({ items: [other], nextCursor: null });
-      const renderer = await renderScreen();
-
-      await openMenu(renderer, other);
-
-      const actions = visibleMenu(renderer)!.props.actions as readonly { label: string; destructive?: boolean; icon?: unknown }[];
-      const byLabel = (label: string) => actions.find(action => action.label === label)!;
-      expect(byLabel(i18n.t('safety.reportLink')).destructive).toBe(true);
-      expect(byLabel(i18n.t('safety.reportLink')).icon).toBe(FlagIcon);
-      for (const label of [i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('item.saveDialogTitle')]) {
-        expect(byLabel(label).destructive).toBeFalsy();
-      }
-    });
-
-    it('and for my own link in someone else\'s Collection - 복제 and 이동 stay as they were', async () => {
-      jest.mocked(getCollection).mockResolvedValue(sharedWithMe());
-      jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
-      const renderer = await renderScreen();
-
-      await openMenu(renderer, mine);
-
-      expect(bar(renderer)).toHaveLength(1);
-      expect(visibleMenu(renderer)!.props.actions.map((action: { label: string }) => action.label))
-        .toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('common.edit'), i18n.t('collections.addToOther'), i18n.t('collections.moveToOther'), i18n.t('collections.removeFromCollection')]);
-    });
-
-    it('every accepted role gets it - Viewer, Submitter, Contributor - and so does the Owner of a Collection with members', async () => {
-      for (const accessRole of ['viewer', 'submitter', 'contributor'] as const) {
-        jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole, ownerJupleId: 'K7MP4Q8N', otherParticipantCount: 1 }));
-        jest.mocked(getCollectionItems).mockResolvedValue({ items: [link(2)], nextCursor: null });
-        const renderer = await renderScreen();
-        await openMenu(renderer, link(2));
-        expect(bar(renderer)).toHaveLength(1);
-      }
-      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true }));
-      jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
-      const ownerRenderer = await renderScreen();
-      await openMenu(ownerRenderer, mine);
-      expect(bar(ownerRenderer)).toHaveLength(1);
-    });
-
-    it('a private Collection (nobody else in it, even with a public link) gets no reaction UI at all', async () => {
-      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: false, isPublicShareActive: true }));
-      jest.mocked(getCollectionItems).mockResolvedValue({ items: [{ ...mine, reactions: [{ key: 'heart', count: 1 }] }], nextCursor: null });
-      const renderer = await renderScreen();
-
-      await openMenu(renderer, mine);
-
-      expect(bar(renderer)).toHaveLength(0);
-      expect(chips(renderer, mine)).toHaveLength(0);
-      expect(visibleMenu(renderer)!.props.header).toBeUndefined();
-      expect(visibleMenu(renderer)!.props.actions.map((action: { label: string }) => action.label))
-        .toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('common.edit'), i18n.t('collections.addToOther'), i18n.t('collections.moveToOther'), i18n.t('collections.removeFromCollection')]);
-    });
-
-    it('marks my current reaction in the quick row', async () => {
-      const other = link(2, { reactions: [{ key: 'laugh', count: 2 }], myReaction: 'laugh' });
-      jest.mocked(getCollection).mockResolvedValue(sharedWithMe());
-      jest.mocked(getCollectionItems).mockResolvedValue({ items: [other], nextCursor: null });
-      const renderer = await renderScreen();
-
-      await openMenu(renderer, other);
-
-      expect(bar(renderer)[0].props.myReaction).toBe('laugh');
-      expect(quick(renderer, 'laugh').props.accessibilityState).toEqual({ selected: true });
-      expect(quick(renderer, 'heart').props.accessibilityState).toEqual({ selected: false });
-    });
-  });
-
-  describe('choosing a reaction', () => {
-    const setup = async (other: CollectionItemEntry) => {
-      jest.mocked(getCollection).mockResolvedValue(sharedWithMe());
-      jest.mocked(getCollectionItems).mockResolvedValue({ items: [other], nextCursor: null });
-      const renderer = await renderScreen();
-      await openMenu(renderer, other);
-      return renderer;
-    };
-
-    it('add: one PUT, the menu closes, and the card shows the chip at once', async () => {
-      const other = link(2);
-      jest.mocked(setItemReaction).mockResolvedValue({ reactions: [{ key: 'heart', count: 1 }], myReaction: 'heart' });
-      const renderer = await setup(other);
-
-      await act(async () => quick(renderer, 'heart').props.onPress());
-
-      expect(setItemReaction).toHaveBeenCalledTimes(1);
-      expect(setItemReaction).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, 2, 'heart', null);
-      expect(removeItemReaction).not.toHaveBeenCalled();
-      expect(visibleMenu(renderer)).toBeUndefined();
-      expect(chips(renderer, other)).toHaveLength(1);
-      expect(chipText(renderer, other)).toEqual(expect.arrayContaining(['❤️', '1']));
-    });
-
-    it('the same reaction again takes it back with DELETE', async () => {
-      const other = link(2, { reactions: [{ key: 'heart', count: 2 }], myReaction: 'heart' });
-      jest.mocked(removeItemReaction).mockResolvedValue({ reactions: [{ key: 'heart', count: 1 }], myReaction: null });
-      const renderer = await setup(other);
-
-      await act(async () => quick(renderer, 'heart').props.onPress());
-
-      expect(removeItemReaction).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, 2, null);
-      expect(setItemReaction).not.toHaveBeenCalled();
-      expect(chipText(renderer, other)).toEqual(expect.arrayContaining(['❤️', '1']));
-    });
-
-    it('another reaction changes it - one PUT, the old chip loses one and the new one appears', async () => {
-      const other = link(2, { reactions: [{ key: 'heart', count: 1 }], myReaction: 'heart' });
-      jest.mocked(setItemReaction).mockResolvedValue({ reactions: [{ key: 'fire', count: 1 }], myReaction: 'fire' });
-      const renderer = await setup(other);
-      expect(bar(renderer)).toHaveLength(1);
-
-      // 🔥 is not in the quick row: through the picker.
-      await act(async () => quick(renderer, 'more').props.onPress());
-      await finishMenuDismiss(renderer);
-      await act(async () => renderer.root.findAll(node => node.props.testID === 'reaction-option-fire' && typeof node.props.onPress === 'function')[0].props.onPress());
-
-      expect(setItemReaction).toHaveBeenCalledTimes(1);
-      expect(setItemReaction).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, 2, 'fire', null);
-      expect(chipText(renderer, other)).toEqual(expect.arrayContaining(['🔥', '1']));
-      expect(chipText(renderer, other)).not.toContain('❤️');
-    });
-
-    it('"+" closes the menu and opens the picker - never two modals at once', async () => {
-      const other = link(2);
-      const renderer = await setup(other);
-
-      await act(async () => quick(renderer, 'more').props.onPress());
-      expect(visibleMenu(renderer)).toBeUndefined();
-      await finishMenuDismiss(renderer);
-
-      const pickers = renderer.root.findAllByType(ReactionPickerDialog);
-      expect(pickers).toHaveLength(1);
-      expect(pickers[0].props.visible).toBe(true);
-      expect(pickers[0].props.myReaction).toBeNull();
-      expect(setItemReaction).not.toHaveBeenCalled();
-    });
-
-    it('closing the picker without choosing sends nothing', async () => {
-      const other = link(2);
-      const renderer = await setup(other);
-      await act(async () => quick(renderer, 'more').props.onPress());
-      await finishMenuDismiss(renderer);
-
-      await act(async () => renderer.root.findByType(ReactionPickerDialog).props.onClose());
-
-      expect(renderer.root.findByType(ReactionPickerDialog).props.visible).toBe(false);
-      expect(setItemReaction).not.toHaveBeenCalled();
-    });
-
-    it('a failure puts the card back as it was and says so', async () => {
-      const other = link(2);
-      jest.mocked(setItemReaction).mockRejectedValue(new ApiError('unavailable', 503));
-      const renderer = await setup(other);
-
-      await act(async () => quick(renderer, 'heart').props.onPress());
-
-      expect(chips(renderer, other)).toHaveLength(0);
-      expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('reactions.error'))).toBe(true);
-    });
-  });
 
   describe('the reaction chips on a card', () => {
     it('a link nobody reacted to has no chip row at all - a clean card', async () => {
@@ -1065,7 +557,6 @@ describe('CollectionDetailsScreen - emoji reactions to the links of a shared Col
       const renderer = await renderScreen();
 
       expect(renderer.root.findAllByType(ReactionChips)).toHaveLength(0);
-      expect(bar(renderer)).toHaveLength(0);
       expect(setItemReaction).not.toHaveBeenCalled();
     });
   });
@@ -1280,26 +771,6 @@ describe('CollectionDetailsScreen - Owner viewing a Contributor\'s link', () => 
 
   afterEach(() => jest.clearAllMocks());
 
-  it('can remove the association, but gets no Add/Move menu for an Item that is not theirs - only the copy', async () => {
-    const renderer = await renderScreen();
-    const theirRow = row(renderer, theirs);
-
-    const actionNames = theirRow.root
-      .findAll(node => Array.isArray(node.props.accessibilityActions))[0]
-      .props.accessibilityActions.map((action: { name: string }) => action.name);
-    expect(actionNames).toContain('delete');
-    // No trailing "..." on any List row any more; the menu is a long press.
-    expect(hasLabel(theirRow, i18n.t('collections.itemManageAction'))).toBe(false);
-    expect(hasLabel(row(renderer, mine), i18n.t('collections.itemManageAction'))).toBe(false);
-    const menuOf = async (item: CollectionItemEntry) => {
-      const onLongPress = row(renderer, item).root.findByType(SwipeableItemRow).props.onLongPress;
-      await act(async () => onLongPress());
-      return (renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)?.props.actions ?? [])
-        .map((action: { label: string }) => action.label);
-    };
-    expect(await menuOf(theirs)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('item.saveDialogTitle'), i18n.t('safety.reportLink'), i18n.t('collections.removeFromCollection')]);
-  });
-
   it('offers no report action for any link in the Collection menu (another member\'s or my own) - reporting stays on comments and people', async () => {
     const renderer = await renderScreen();
     for (const item of [theirs, mine]) {
@@ -1312,26 +783,6 @@ describe('CollectionDetailsScreen - Owner viewing a Contributor\'s link', () => 
     expect(renderer.root.findAllByType(ReportModal).every(modal => modal.props.target === null)).toBe(true);
   });
 
-  it('링크 저장 on a member\'s link opens the ordinary 새 링크 검토 with that link\'s address and title - nothing is copied or saved by the menu', async () => {
-    jest.mocked(getCollections).mockResolvedValue({ items: [makeCollection({ id: 9, name: 'Other of mine', accessRole: 'owner' })], nextCursor: null });
-    const renderer = await renderScreen();
-
-    const onTheirLongPress = row(renderer, theirs).root.findByType(SwipeableItemRow).props.onLongPress;
-    await act(async () => onTheirLongPress());
-    const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
-    await act(async () => menu.props.actions.find((action: { label: string }) => action.label === i18n.t('item.saveDialogTitle')).onPress());
-
-    expect(mockNavigate).toHaveBeenLastCalledWith('NewLinkReview', { url: theirs.url, initialTitle: theirs.title ?? null, preselectedCollectionId: null });
-    // The old copy request (and its destination picker) is not involved; the other member's link and owner are untouched.
-    expect(copyCollectionItems).not.toHaveBeenCalled();
-    expect(destinationPicker(renderer).props.visible).toBe(false);
-
-    // My own link here has 복제 and 이동 (never the copy) - 이동 works here too, as add + remove.
-    const onMyLongPress = row(renderer, mine).root.findByType(SwipeableItemRow).props.onLongPress;
-    await act(async () => onMyLongPress());
-    expect((renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)?.props.actions ?? [])
-      .map((action: { label: string }) => action.label)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('common.edit'), i18n.t('collections.addToOther'), i18n.t('collections.moveToOther'), i18n.t('collections.removeFromCollection')]);
-  });
 });
 
 describe('CollectionDetailsScreen - who added each link', () => {
@@ -1449,143 +900,6 @@ describe('CollectionDetailsScreen - who added each link', () => {
   });
 });
 
-describe('CollectionDetailsScreen - long press on a link: 내 컬렉션으로 복사 for someone else\'s link', () => {
-  const othersLink = makeItem({ itemId: 2, title: 'Theirs', isMine: false, memo: null });
-  const myLinkHere = makeItem({ itemId: 1, title: 'Mine', isMine: true, memo: 'my memo' });
-  const myCollection = makeCollection({ id: 7, name: 'My Picks', accessRole: 'owner' });
-
-  afterEach(() => jest.clearAllMocks());
-
-  const longPress = async (renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) => {
-    const swipeRow = row(renderer, item).root.findByType(SwipeableItemRow);
-    if (!swipeRow.props.onLongPress) {
-      return false;
-    }
-    await act(async () => swipeRow.props.onLongPress());
-    return true;
-  };
-  const visibleMenuLabels = (renderer: ReactTestRenderer.ReactTestRenderer) =>
-    (renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)?.props.actions ?? [])
-      .map((action: { label: string }) => action.label);
-
-  it.each(['contributor', 'viewer'] as const)('as a %s: another member\'s link offers only 링크 저장 (the ordinary save screen), never a move', async role => {
-    jest.mocked(getCollection).mockImplementation(async (_request, id) =>
-      (id === myCollection.id ? myCollection : makeCollection({ accessRole: role, ownerJupleId: 'K7MP4Q8N' })));
-    jest.mocked(getCollectionItems).mockResolvedValue({ items: [myLinkHere, othersLink], nextCursor: null });
-    jest.mocked(getCollections).mockResolvedValue({ items: [myCollection], nextCursor: null });
-    const renderer = await renderScreen();
-
-    expect(await longPress(renderer, othersLink)).toBe(true);
-    expect(visibleMenuLabels(renderer)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('item.saveDialogTitle'), i18n.t('safety.reportLink')]);
-    expect(visibleMenuLabels(renderer)).not.toContain(i18n.t('collections.moveToOther'));
-
-    const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
-    await act(async () => menu.props.actions.find((action: { label: string }) => action.label === i18n.t('item.saveDialogTitle')).onPress());
-
-    // 링크 저장: the ordinary save screen with this link - no copy request, no destination picker, no selection mode.
-    expect(mockNavigate).toHaveBeenLastCalledWith('NewLinkReview', expect.objectContaining({ url: othersLink.url, preselectedCollectionId: null }));
-    expect(copyCollectionItems).not.toHaveBeenCalled();
-    expect(destinationPicker(renderer).props.visible).toBe(false);
-    expect(renderer.root.findAll(node => node.props.testID === 'collection-copy-bar')).toHaveLength(0);
-  });
-
-  it.each(['contributor', 'viewer'] as const)('as a %s: my own link in someone else\'s Collection now has a long press too - 복제 and 이동, never the copy - and keeps its swipe remove', async role => {
-    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: role, ownerJupleId: 'K7MP4Q8N' }));
-    jest.mocked(getCollectionItems).mockResolvedValue({ items: [myLinkHere, othersLink], nextCursor: null });
-    const renderer = await renderScreen();
-
-    expect(await longPress(renderer, myLinkHere)).toBe(true);
-    expect(visibleMenuLabels(renderer)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('common.edit'), i18n.t('collections.addToOther'), i18n.t('collections.moveToOther'), i18n.t('collections.removeFromCollection')]);
-    expect(visibleMenuLabels(renderer)).not.toContain(i18n.t('collections.copyToMine'));
-    // The swipe remove stays (the server lets a member remove only their own links).
-    expect(row(renderer, myLinkHere).root.findByType(SwipeableItemRow).props.onDelete).toEqual(expect.any(Function));
-  });
-
-  it('복제 of my own link in someone else\'s Collection puts the same link into my other Collections (never a copy of it)', async () => {
-    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N' }));
-    jest.mocked(getCollectionItems).mockResolvedValue({ items: [myLinkHere], nextCursor: null });
-    jest.mocked(getCollections).mockImplementation(async (_request, options = {}) =>
-      options.itemId !== undefined
-        ? { items: [], nextCursor: null }
-        : { items: [myCollection, makeCollection({ id: 8, name: 'More', accessRole: 'owner' })], nextCursor: null });
-    jest.mocked(addItemToCollections).mockResolvedValue({ addedCount: 2, skippedCount: 0 });
-    const renderer = await renderScreen();
-
-    await longPress(renderer, myLinkHere);
-    const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
-    await act(async () => menu.props.actions.find((action: { label: string }) => action.label === i18n.t('collections.addToOther')).onPress());
-    await chooseDestinations(renderer, 7, 8);
-
-    expect(addItemToCollections).toHaveBeenCalledWith(expect.anything(), 1, [7, 8], {});
-    expect(copyCollectionItems).not.toHaveBeenCalled();
-  });
-
-  it('이동 of my own link out of someone else\'s Collection: added to the destination first, then removed from here - never the Owner-only atomic move', async () => {
-    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N', itemCount: 2 }));
-    jest.mocked(getCollectionItems).mockResolvedValue({ items: [myLinkHere, othersLink], nextCursor: null });
-    jest.mocked(getCollections).mockResolvedValue({ items: [myCollection], nextCursor: null });
-    jest.mocked(addItemToCollection).mockResolvedValue('added');
-    jest.mocked(removeItemFromCollection).mockResolvedValue(undefined);
-    const order: string[] = [];
-    jest.mocked(addItemToCollection).mockImplementation(async () => { order.push('add'); return 'added'; });
-    jest.mocked(removeItemFromCollection).mockImplementation(async () => { order.push('remove'); });
-    const renderer = await renderScreen();
-
-    await longPress(renderer, myLinkHere);
-    const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
-    await act(async () => menu.props.actions.find((action: { label: string }) => action.label === i18n.t('collections.moveToOther')).onPress());
-    await chooseDestinations(renderer, 7);
-
-    expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 7, 1, { unlockToken: null });
-    expect(removeItemFromCollection).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, 1);
-    expect(order).toEqual(['add', 'remove']);
-    expect(transferCollectionItem).not.toHaveBeenCalled();
-    expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('toast.moveSuccess'))).toBe(true);
-  });
-
-  it('a failed removal after the add leaves the link in both - an error is shown, never a silent loss', async () => {
-    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N' }));
-    jest.mocked(getCollectionItems).mockResolvedValue({ items: [myLinkHere], nextCursor: null });
-    jest.mocked(getCollections).mockResolvedValue({ items: [myCollection], nextCursor: null });
-    jest.mocked(addItemToCollection).mockResolvedValue('added');
-    jest.mocked(removeItemFromCollection).mockRejectedValue(new ApiError('unavailable', 503));
-    const renderer = await renderScreen();
-
-    await longPress(renderer, myLinkHere);
-    const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
-    await act(async () => menu.props.actions.find((action: { label: string }) => action.label === i18n.t('collections.moveToOther')).onPress());
-    await chooseDestinations(renderer, 7);
-
-    // The picker stays open with the reason; the link was only added, never lost.
-    expect(destinationPicker(renderer).props.visible).toBe(true);
-    expect(destinationPicker(renderer).props.error).toBe(i18n.t('collections.moveError'));
-  });
-
-  it('the Owner\'s own link keeps 복제 / 이동 - unchanged', async () => {
-    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: false }));
-    jest.mocked(getCollectionItems).mockResolvedValue({ items: [myLinkHere], nextCursor: null });
-    const renderer = await renderScreen();
-
-    expect(await longPress(renderer, myLinkHere)).toBe(true);
-    expect(visibleMenuLabels(renderer)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('item.copyLink'), i18n.t('common.edit'), i18n.t('collections.addToOther'), i18n.t('collections.moveToOther'), i18n.t('collections.removeFromCollection')]);
-  });
-
-  it('a link whose address is hidden (a locked card) cannot be taken to 링크 저장', async () => {
-    const hidden = { ...othersLink, url: '' };
-    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'viewer', ownerJupleId: 'K7MP4Q8N' }));
-    jest.mocked(getCollectionItems).mockResolvedValue({ items: [hidden], nextCursor: null });
-    const renderer = await renderScreen();
-
-    await longPress(renderer, hidden);
-    const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
-    mockNavigate.mockClear();
-    await act(async () => menu.props.actions.find((action: { label: string }) => action.label === i18n.t('item.saveDialogTitle')).onPress());
-
-    expect(mockNavigate).not.toHaveBeenCalled();
-    expect(copyCollectionItems).not.toHaveBeenCalled();
-  });
-});
-
 describe('CollectionDetailsScreen - 컬렉션에서 제거 of my own link in someone else\'s Collection', () => {
   afterEach(() => jest.clearAllMocks());
 
@@ -1671,8 +985,9 @@ describe('CollectionDetailsScreen - requests to review', () => {
     expect(StyleSheet.flatten(rowStyle(reviewRow))).toMatchObject({ minHeight: 44, backgroundColor: colors.brandSoft });
     await act(async () => reviewRow.props.onPress());
     expect(sheet(renderer).props).toMatchObject({ visible: true, approvalCount: 3, joinCount: 2 });
-    expect(renderer.root.findAllByType(ApprovalSubmissionSheet).every(node => !node.props.visible)).toBe(true);
-    expect(renderer.root.findByType(JoinRequestsSheet).props.visible).toBe(false);
+    // One sheet: it opens on the type chooser, and no separate list sheet exists to be raised.
+    expect(sheet(renderer).props.initialPage).toBe('types');
+    expect(renderer.root.findAllByType(ApprovalSubmissionSheet).filter(node => node.props.variant === 'owner')).toHaveLength(0);
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
@@ -1691,17 +1006,12 @@ describe('CollectionDetailsScreen - requests to review', () => {
     const renderer = await renderScreen();
     const openReview = pendingEntry(renderer)!.props.onPress;
     await act(async () => openReview());
-    await act(async () => {
-      sheet(renderer).props.onClose();
-      sheet(renderer).props.onOpenJoinRequests();
-    });
-    const joinSheet = renderer.root.findByType(JoinRequestsSheet);
-    expect(joinSheet.props.visible).toBe(true);
+    expect(sheet(renderer).props.visible).toBe(true);
 
     jest.mocked(getCollection).mockResolvedValue(makeCollection({ ...owner, pendingSubmissionCount: 1 }));
     await act(async () => {
-      joinSheet.props.onChanged();
-      joinSheet.props.onClose();
+      sheet(renderer).props.onChanged();
+      sheet(renderer).props.onClose();
     });
     expect(pendingEntry(renderer)?.props.count).toBe(1);
 
@@ -2379,5 +1689,63 @@ describe('CollectionDetailsScreen - share password (recipient)', () => {
     expect(part!.root.findAll(node => node.props.testID === 'collection-unlock-panel').length).toBeGreaterThan(0);
     expect(part!.root.findAll(node => node.props.testID === 'collection-share-password-panel')).toHaveLength(0);
     expect(unlockSharePassword).not.toHaveBeenCalled();
+  });
+});
+
+describe('CollectionDetailsScreen - long-press starts multi-selection (no centered menu)', () => {
+  const memberLink = makeItem({ itemId: 2, title: 'Member link', isMine: false });
+
+  beforeEach(() => {
+    jest.mocked(getCollection).mockResolvedValue(
+      makeCollection({ accessRole: 'owner', hasCollaborators: true, ownerJupleId: 'K7MP4Q8N', otherParticipantCount: 1 }),
+    );
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine, memberLink], nextCursor: null });
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+    clearCollectionUnlockGrants();
+  });
+
+  const topBar = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByProps({ testID: 'selection-top-bar' });
+  const selectionOf = (renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) =>
+    row(renderer, item).root.findByType(SwipeableItemRow).props.selection;
+
+  it('a long-press selects that link, shows the selection header and turns every row into a checkbox', async () => {
+    const renderer = await renderScreen();
+    expect(topBar(renderer)).toHaveLength(0);
+    expect(selectionOf(renderer, mine)).toBeUndefined();
+
+    const onLongPress = row(renderer, mine).root.findByType(SwipeableItemRow).props.onLongPress;
+    await act(async () => onLongPress());
+
+    expect(topBar(renderer).length).toBeGreaterThan(0);
+    expect(renderer.root.findByProps({ testID: 'selection-count' }).props.children).toBe(i18n.t('selection.selectedCount', { count: 1 }));
+    expect(selectionOf(renderer, mine).selected).toBe(true);
+    expect(selectionOf(renderer, memberLink).selected).toBe(false);
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('while selecting, a tap chooses the other link and does not open anything; the close button ends selection', async () => {
+    const renderer = await renderScreen();
+    const onLongPress = row(renderer, mine).root.findByType(SwipeableItemRow).props.onLongPress;
+    await act(async () => onLongPress());
+
+    const toggleMember = selectionOf(renderer, memberLink).onToggle;
+    await act(async () => toggleMember());
+    expect(renderer.root.findByProps({ testID: 'selection-count' }).props.children).toBe(i18n.t('selection.selectedCount', { count: 2 }));
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    await act(async () => renderer.root.findByProps({ testID: 'selection-exit' }).props.onPress());
+    expect(topBar(renderer)).toHaveLength(0);
+    expect(selectionOf(renderer, mine)).toBeUndefined();
+  });
+
+  it('a locked Collection has no long-press at all', async () => {
+    jest.mocked(getCollectionItems).mockRejectedValue(lockedError);
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', isLocked: true }));
+    const renderer = await renderScreen();
+    expect(renderer.root.findAllByType(SwipeableItemRow)).toHaveLength(0);
+    expect(topBar(renderer)).toHaveLength(0);
   });
 });

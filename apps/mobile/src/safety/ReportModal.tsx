@@ -10,6 +10,8 @@ import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/t
 import { LinkIcon } from '../icons/LinkIcon';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
 import { usablePreviewImageUrl } from '../items/usablePreviewImageUrl';
+import { ApiError } from '../api/ApiError';
+import { runBatch } from '../selection/runBatch';
 import { REPORT_DETAILS_MAX_LENGTH, REPORT_REASONS, submitReport, type ReportReason, type ReportTarget } from './safetyApi';
 
 /** The reported link as the person knows it: its title and picture - never its long address (the server keeps the address as the report's evidence). */
@@ -41,14 +43,35 @@ interface ReportModalProps {
   readonly onClose: () => void;
   /** The report was received (or was already open): the screen says so in its own message. */
   readonly onReported: (alreadyReported: boolean) => void;
+  /**
+   * Several links reported at once (multi-selection): `target` is the first of them (it decides the title) and each entry here becomes its
+   * OWN report with the same reason and explanation - one request per link, never one report holding several. The answer lists each
+   * link's own outcome; if every one failed the dialog stays open with the draft for another try.
+   */
+  readonly bulkTargets?: readonly ReportTarget[];
+  readonly onBulkReported?: (outcome: BulkReportOutcome) => void;
 }
+
+/** One entry per submitted target, in the order given. */
+export interface BulkReportOutcome {
+  readonly received: readonly ReportTarget[];
+  readonly alreadyReported: readonly ReportTarget[];
+  readonly failed: readonly ReportTarget[];
+  /** The server's report limit was reached: the rest were not even sent. */
+  readonly rateLimited: boolean;
+}
+
+/** At most this many report requests are in flight together (the reports endpoint is rate limited per person). */
+const BULK_REPORT_CONCURRENCY = 2;
+/** Longer than runBatch ever waits: a report refused for the hour is not retried within this action. */
+const REPORT_LIMIT_RETRY_AFTER_SECONDS = 3600;
 
 /**
  * 신고: why (one of the server's reasons, nothing pre-selected), an optional explanation, send. A report goes only through the API;
  * the server decides what may be reported and answers the same for "no such thing" and "you may not see it". A failure stays in the
  * dialog with the draft kept.
  */
-export function ReportModal({ target, targetLabel, targetPreview, onClose, onReported }: ReportModalProps) {
+export function ReportModal({ target, targetLabel, targetPreview, onClose, onReported, bulkTargets, onBulkReported }: ReportModalProps) {
   const { t } = useTranslation();
   const request = useAuthenticatedApi();
   const [reason, setReason] = useState<ReportReason | null>(null);
@@ -79,6 +102,35 @@ export function ReportModal({ target, targetLabel, targetPreview, onClose, onRep
     setIsSending(true);
     setFailed(false);
     try {
+      if (bulkTargets && bulkTargets.length > 0 && onBulkReported) {
+        // Once the server says the report limit is reached, nothing more is sent (every further request would only be refused).
+        let rateLimited = false;
+        const outcome = await runBatch(bulkTargets, async entry => {
+          if (rateLimited) {
+            // Not sent at all; the long wait tells runBatch not to retry it.
+            throw new ApiError('tooManyRequests', 429, 'rateLimited', REPORT_LIMIT_RETRY_AFTER_SECONDS);
+          }
+          try {
+            return await submitReport(request, entry, reason, details);
+          } catch (caughtError) {
+            if (caughtError instanceof ApiError && caughtError.kind === 'tooManyRequests') {
+              rateLimited = true;
+            }
+            throw caughtError;
+          }
+        }, BULK_REPORT_CONCURRENCY);
+        if (outcome.succeeded.length === 0) {
+          setFailed(true);
+          return;
+        }
+        onBulkReported({
+          received: outcome.succeeded.filter(entry => !entry.value.alreadyReported).map(entry => entry.id),
+          alreadyReported: outcome.succeeded.filter(entry => entry.value.alreadyReported).map(entry => entry.id),
+          failed: outcome.failed.map(entry => entry.id),
+          rateLimited,
+        });
+        return;
+      }
       const receipt = await submitReport(request, target, reason, details);
       onReported(receipt.alreadyReported);
     } catch {
@@ -110,7 +162,7 @@ export function ReportModal({ target, targetLabel, targetPreview, onClose, onRep
       onClose={onClose}
       size="large"
       testID="report-modal"
-      title={t(target.type === 'Item' ? 'safety.reportLink' : target.type === 'Collection' || target.type === 'PublicShare' ? 'safety.reportCollection' : 'safety.report')}
+      title={bulkTargets && bulkTargets.length > 1 ? t('selection.reportLinksTitle', { count: bulkTargets.length }) : t(target.type === 'Item' ? 'safety.reportLink' : target.type === 'Collection' || target.type === 'PublicShare' ? 'safety.reportCollection' : 'safety.report')}
       visible
     >
       <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>

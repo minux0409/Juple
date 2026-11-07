@@ -6,7 +6,6 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
   ActivityIndicator,
-  FlatList,
   Platform,
   Text,
   View,
@@ -27,6 +26,7 @@ import { SavedLinkImageRow,
 import { SavedLinkGridCell, useSavedLinkGridCellStyle } from '../components/SavedLinkGridCard';
 import { useSavedLinkColumns, type SavedLinkColumns } from '../layout/responsiveGrid';
 import { ViewModeToggle } from '../components/ViewModeToggle';
+import { AnimatedFlatList, CollapsibleHeaderLayout } from '../components/CollapsibleHeaderLayout';
 import { SearchField } from '../components/SearchField';
 import { savedLinkLayout } from '../components/savedLinkLayout';
 import { useArchiveSearch } from '../items/useArchiveSearch';
@@ -43,6 +43,7 @@ import { deleteItem, restoreItem, type ItemHistoryEntry } from '../items/api/ite
 import { shareItem } from '../items/shareItem';
 import { useItemCardOpen } from '../items/useItemCardOpen';
 import { useSavedLinkActions } from '../items/useSavedLinkActions';
+import { useSavedLinkSelection } from '../items/useSavedLinkSelection';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, spacing, themedStyles } from '../theme/tokens';
 import { useViewModePreference, type SavedLinkViewMode } from '../settings/viewModePreference';
@@ -156,12 +157,20 @@ export function DateHistoryScreen() {
     () => { refresh(); },
   );
 
-  // Long-press on a link card: 링크 열기 / 수정 / 컬렉션 변경 / 삭제 (shared with Home - see useSavedLinkActions).
-  const linkActions = useSavedLinkActions({
+  // Long-press on a link card starts multi-selection (shared with Home - see useSavedLinkSelection). Wired through a ref because the
+  // selection needs the card wiring's openLink and the card wiring needs the selection's start.
+  const startSelectionRef = useRef<(item: ItemHistoryEntry) => void>(() => undefined);
+  const linkActions = useSavedLinkActions({ onLongPress: item => startSelectionRef.current(item as ItemHistoryEntry) });
+  const linkSelection = useSavedLinkSelection({
+    items: search.items,
     onEdit: item => { itemCardOpen.open(item).catch(() => undefined); },
-    onDelete: item => confirmDelete(item.id),
-    onCollectionsChanged: () => { refresh(); },
+    onOpenOriginal: item => { linkActions.openLink(item).catch(() => undefined); },
+    onDeleted: ids => { ids.forEach(id => search.removeItem(id)); },
+    onChanged: () => { refresh(); },
+    isLoading: search.isLoading,
   });
+  startSelectionRef.current = linkSelection.startSelection;
+  const onImageLongPress = useCallback((item: ItemHistoryEntry) => startSelectionRef.current(item), []);
 
   // One stable open callback for every image tile (the tiles are memoized) - the same open path as a card.
   const itemCardOpenRef = useRef(itemCardOpen);
@@ -232,6 +241,7 @@ export function DateHistoryScreen() {
             onDelete={() => confirmDelete(row.item.id)}
             onPress={() => { itemCardOpen.open(row.item).catch(() => undefined); }}
             onShare={getSavedLinkSwipeActions(row.item).share ? () => runShare(row.item) : undefined}
+            selection={linkSelection.rowSelection(row.item)}
           >
             <SavedLinkRow dateDisplayMode={row.dateDisplayMode} isActionInFlight={actionInFlightItemId === row.item.id} item={row.item} {...linkActions.originalLinkProps(row.item)} preferEffectiveThumbnail />
           </SwipeableItemRow>
@@ -252,6 +262,7 @@ export function DateHistoryScreen() {
                 onDelete={() => confirmDelete(item.id)}
                 onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
                 onShare={getSavedLinkSwipeActions(item).share ? () => runShare(item) : undefined}
+                selection={linkSelection.rowSelection(item)}
                 preferEffectiveThumbnail
               />
             ))}
@@ -259,7 +270,7 @@ export function DateHistoryScreen() {
           </View>
         );
       case 'flatImageRow':
-        return <SavedLinkImageRow items={row.items} onLongPress={linkActions.openMenu} onPress={openItem} swipeActions={imageSwipeActions} swipeDisabled={actionInFlightItemId !== null} testID={`history-flat-image-row-${row.key}`} />;
+        return <SavedLinkImageRow items={row.items} onLongPress={onImageLongPress} onPress={openItem} selection={linkSelection.imageSelection} swipeActions={imageSwipeActions} swipeDisabled={actionInFlightItemId !== null} testID={`history-flat-image-row-${row.key}`} />;
       case 'searchStatus':
         return row.status === 'loading' ? (
           <ActivityIndicator style={styles.searchStatus} testID="history-search-loading" />
@@ -281,22 +292,23 @@ export function DateHistoryScreen() {
 
   return (
     <TabScreenSafeArea style={styles.safeArea}>
-      <FlatList
-        contentContainerStyle={styles.content}
-        data={flatRows}
-        initialNumToRender={12}
-        keyboardShouldPersistTaps="handled"
-        keyExtractor={row => row.key}
-        ListHeaderComponent={
-          <View>
-            <View style={styles.titleRow}>
-              <ScreenTitle icon={screenIcons.archive} textStyle={styles.title} title={t('history.title')} />
+      {linkSelection.topBar}
+      {/* Header: the title + view switch scroll away with the links; the search (with the view switch beside it once the title is gone) stays at the top. */}
+      <CollapsibleHeaderLayout
+        collapsible={
+          <View style={styles.collapsibleTop}>
+            {/* One line: [archive icon] 보관함 (one line, ellipsized) at the start, the fixed-width List / Grid / Image switch at the end; the search is below. */}
+            <View style={styles.titleRow} testID="history-view-controls">
+              <ScreenTitle icon={screenIcons.archive} textStyle={styles.title} title={t('history.title')} numberOfLines={1} />
+              <View style={styles.viewModeToggle}>
+                <ViewModeToggle onChange={changeViewMode} showImage value={viewMode} />
+              </View>
             </View>
-            {swipeHint.isVisible ? <HintBanner message={t('hints.savedLinkSwipe')} onDismiss={swipeHint.dismiss} testID="history-swipe-hint" /> : null}
-            {/* [List | Grid | Image] how each link is shown (end edge), then the search - the links are always newest first. */}
-            <View style={styles.sortRow} testID="history-view-controls">
-              <ViewModeToggle onChange={changeViewMode} showImage style={styles.viewModeToggle} value={viewMode} />
-            </View>
+          </View>
+        }
+        pinned={({ isCollapsed }) => (
+          <View style={styles.pinnedSearch}>
+            <View style={styles.searchLine}>
             <View style={styles.searchBox}>
               <SearchField
                 clearLabel={t('history.searchClear')}
@@ -307,28 +319,51 @@ export function DateHistoryScreen() {
                 value={searchText}
               />
             </View>
+            {isCollapsed ? <ViewModeToggle onChange={changeViewMode} showImage value={viewMode} /> : null}
+            </View>
             {/* One character: a small hint right under the field (nothing is searched yet). 0 characters: nothing; 2+: the search runs. */}
             {searchText.trim().length === 1 ? (
               <Text accessibilityLiveRegion="polite" style={styles.searchHint} testID="history-search-hint">{t('history.searchMinHint')}</Text>
             ) : null}
-            {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
           </View>
-        }
-        maxToRenderPerBatch={10}
-        onScrollBeginDrag={closeOpenRow}
-        scrollEnabled={swipeScrollEnabled}
-        onEndReached={() => (!search.error && !search.moreError ? search.loadMore() : undefined)}
-        onContentSizeChange={viewportFill.onContentSizeChange}
-        onEndReachedThreshold={END_REACHED_THRESHOLD}
-        onLayout={viewportFill.onLayout}
-        refreshControl={pullToRefresh.refreshControl}
-        // Android: rows scrolled far away drop their native views (and images) entirely.
-        removeClippedSubviews={Platform.OS === 'android'}
-        renderItem={({ item: row }) => renderFlatRow(row)}
-        windowSize={7}
-      />
+        )}
+        testID="history-fixed-header"
+      >
+        {list => (
+            <AnimatedFlatList
+              ref={list.listRef}
+              onScroll={list.onScroll}
+              scrollEventThrottle={list.scrollEventThrottle}
+              contentContainerStyle={[styles.content, list.contentInset(flatRows.length > 0)]}
+              extraData={linkSelection.selection}
+              data={flatRows}
+              initialNumToRender={12}
+              keyboardShouldPersistTaps="handled"
+              keyExtractor={row => row.key}
+              ListHeaderComponent={
+                <View>
+                  {swipeHint.isVisible ? <HintBanner message={t('hints.savedLinkSwipe')} onDismiss={swipeHint.dismiss} testID="history-swipe-hint" /> : null}
+                  {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
+                </View>
+              }
+              maxToRenderPerBatch={10}
+              onScrollBeginDrag={closeOpenRow}
+              scrollEnabled={swipeScrollEnabled}
+              onEndReached={() => (!search.error && !search.moreError ? search.loadMore() : undefined)}
+              onContentSizeChange={viewportFill.onContentSizeChange}
+              onEndReachedThreshold={END_REACHED_THRESHOLD}
+              onLayout={viewportFill.onLayout}
+              refreshControl={list.withRefreshOffset(pullToRefresh.refreshControl)}
+              // Android: rows scrolled far away drop their native views (and images) entirely.
+              removeClippedSubviews={Platform.OS === 'android'}
+              renderItem={({ item: row }) => renderFlatRow(row)}
+              windowSize={7}
+            />
+        )}
+      </CollapsibleHeaderLayout>
       {itemCardOpen.dialog}
       {linkActions.element}
+      {linkSelection.element}
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('common.delete')}
@@ -355,9 +390,15 @@ const styles = themedStyles(() => ({
   },
   // See DailyInboxScreen's identical remark - this tab screen's viewport already excludes the
   // real (non-overlay) Juple tab bar, so no tabBarHeight/insets.bottom belongs in this padding.
+  collapsibleTop: { paddingHorizontal: spacing.xl, paddingTop: spacing.xl },
+  pinnedSearch: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm },
+  // Vertically centered, never stretched: the view switch keeps its own 40dp height (the same as in the title row) beside the search field.
+  // The gap below the whole line belongs to the line (not to the field), so it takes no part in the centering.
+  searchLine: { alignItems: 'center', columnGap: spacing.sm, flexDirection: 'row', marginBottom: spacing.md },
   content: {
     flexGrow: 1,
-    padding: spacing.xl,
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.xl,
   },
   // The title row's gap to the search field is the row's own bottom margin (see ScreenTitle's remark on a margin on the title alone).
   titleRow: {
@@ -365,7 +406,8 @@ const styles = themedStyles(() => ({
     columnGap: spacing.sm,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: spacing.md,
+    // 4dp + the pinned search's 8dp top padding = the 12dp gap the screen always had.
+    marginBottom: spacing.xs,
   },
   title: {
     color: colors.textPrimary,
@@ -374,11 +416,10 @@ const styles = themedStyles(() => ({
     fontWeight: '800',
   },
   // The hint sits close under the field (the box's own bottom gap is taken back), so showing it moves the list down by one compact line only.
-  searchBox: { marginBottom: spacing.md },
+  searchBox: { flex: 1, minWidth: 0 },
   searchHint: { color: colors.textSecondary, fontSize: 12, marginBottom: spacing.sm, marginTop: -spacing.sm },
-  // The view switch alone, on the end edge.
-  sortRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.md },
-  viewModeToggle: { marginStart: 'auto' },
+  // The switch keeps its natural (fixed) width on the title row's end edge; the title gives way first.
+  viewModeToggle: { flexShrink: 0 },
   // The flat list's tiles: the same cells as everywhere, with nothing between lines but their own gap.
   flatGridRow: { flexDirection: 'row' },
   searchStatus: { marginTop: spacing.xl },

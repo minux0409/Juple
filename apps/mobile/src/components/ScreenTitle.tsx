@@ -14,6 +14,8 @@ interface ScreenTitleProps {
   readonly title: string;
   readonly textStyle?: StyleProp<TextStyle>;
   readonly testID?: string;
+  /** Defaults to 2 (a long translation wraps); a title that shares its row with a control passes 1 to ellipsize instead. */
+  readonly numberOfLines?: number;
 }
 
 /**
@@ -33,12 +35,12 @@ export function ScreenTitleGlyph({ icon: Icon }: { readonly icon: ScreenTitleIco
  * screen's own header, on a back-button screen as the stack header's title. The icon is decoration
  * (the title is what is announced); a long translation shrinks and wraps the text, never the icon.
  */
-export function ScreenTitle({ icon, title, textStyle, testID }: ScreenTitleProps) {
+export function ScreenTitle({ icon, title, textStyle, testID, numberOfLines = 2 }: ScreenTitleProps) {
   useTheme(); // rendered by the native header, which is not one of the screens' themed wrappers
   return (
     <View style={styles.row} testID={testID}>
       <ScreenTitleGlyph icon={icon} />
-      <Text accessibilityRole="header" numberOfLines={2} style={[styles.title, textStyle]}>{title}</Text>
+      <Text accessibilityRole="header" numberOfLines={numberOfLines} style={[styles.title, textStyle]}>{title}</Text>
     </View>
   );
 }

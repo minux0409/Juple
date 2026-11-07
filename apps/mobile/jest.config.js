@@ -24,6 +24,9 @@ module.exports = {
   transformIgnorePatterns: [
     'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-native-async-storage|@react-native-firebase|@react-navigation|standard-navigation|react-native-app-auth|react-native-base64|uuid|react-native-image-picker)/)',
   ],
+  // Generated Android build output (old source copies, caches) is never test input.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/android/.*/build/', '<rootDir>/ios/build/'],
+  modulePathIgnorePatterns: ['<rootDir>/android/.*/build/', '<rootDir>/ios/build/'],
   moduleNameMapper: {
     '^react-native-localize$': 'react-native-localize/mock',
     // Fixed app/OS facts instead of the native module (which does not exist under Jest).

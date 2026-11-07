@@ -1,5 +1,5 @@
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
-import type { GoogleCatalog, RestoreOutcome, VerifyOutcome, VerifyResponse } from './types';
+import type { AppleCatalog, GoogleCatalog, RestoreOutcome, VerifyOutcome, VerifyResponse } from './types';
 
 const VERIFY_OUTCOMES: readonly VerifyOutcome[] = ['verified', 'pending', 'notEntitled'];
 const RESTORE_OUTCOMES: readonly RestoreOutcome[] = ['restored', 'nothingFound', 'belongsToAnotherJupleAccount', 'temporaryFailure'];
@@ -22,9 +22,12 @@ export async function getGoogleCatalog(request: AuthenticatedApiRequest): Promis
     typeof body.basePlanId !== 'string' ||
     typeof body.obfuscatedAccountId !== 'string'
   ) {
-    return { enabled: false, productId: null, basePlanId: null, obfuscatedAccountId: null };
+    return { enabled: false, productId: null, basePlanId: null, basePlanIds: [], obfuscatedAccountId: null };
   }
-  return { enabled: true, productId: body.productId, basePlanId: body.basePlanId, obfuscatedAccountId: body.obfuscatedAccountId };
+  // An older server answers only `basePlanId`: then that one plan is the whole catalog.
+  const listed = Array.isArray(body.basePlanIds) ? body.basePlanIds.filter((plan): plan is string => typeof plan === 'string' && plan.length > 0) : [];
+  const basePlanIds = listed.length > 0 ? listed : [body.basePlanId];
+  return { enabled: true, productId: body.productId, basePlanId: body.basePlanId, basePlanIds, obfuscatedAccountId: body.obfuscatedAccountId };
 }
 
 /**
@@ -44,5 +47,38 @@ export async function verifyGooglePurchase(request: AuthenticatedApiRequest, pur
 /** Restore: the tokens Google Play says the device holds (each is verified server-side), or none to refresh the account's own purchases. */
 export async function restoreGooglePurchases(request: AuthenticatedApiRequest, purchaseTokens: readonly string[]): Promise<RestoreOutcome> {
   const response = await request<{ outcome?: string }>({ method: 'POST', path: '/api/v1/billing/google/restore', body: { purchaseTokens } });
+  return RESTORE_OUTCOMES.find(candidate => candidate === response.body?.outcome) ?? 'temporaryFailure';
+}
+
+/** The non-secret App Store purchase configuration. A disabled or malformed answer is "not enabled" - never a guessed product. */
+export async function getAppleCatalog(request: AuthenticatedApiRequest): Promise<AppleCatalog> {
+  const response = await request<{ enabled?: unknown; productIds?: unknown; appAccountToken?: unknown }>({ method: 'GET', path: '/api/v1/billing/apple/catalog' });
+  const body = response.body;
+  const productIds = Array.isArray(body?.productIds) ? body.productIds.filter((id): id is string => typeof id === 'string' && id.length > 0) : [];
+  if (!body || body.enabled !== true || productIds.length === 0 || typeof body.appAccountToken !== 'string' || body.appAccountToken.length === 0) {
+    return { enabled: false, productIds: [], appAccountToken: null };
+  }
+  return { enabled: true, productIds, appAccountToken: body.appAccountToken };
+}
+
+/**
+ * Hands the signed transaction (the JWS StoreKit 2 produced) to the server. The server checks Apple's signature and then reads the
+ * subscription's state again from the App Store Server API: nothing in it - price, expiry, state - is ever believed by the server or
+ * decided here. Throws ApiError (409 purchaseBelongsToAnotherAccount, 400 purchaseNotAllowed / invalidTransaction, 503 storeUnavailable).
+ */
+export async function verifyAppleTransaction(request: AuthenticatedApiRequest, signedTransaction: string): Promise<VerifyResponse> {
+  const response = await request<{ outcome?: string; state?: string }>({ method: 'POST', path: '/api/v1/billing/apple/verify', body: { signedTransaction } });
+  const body = response.body;
+  const outcome = VERIFY_OUTCOMES.find(candidate => candidate === body?.outcome);
+  if (!body || !outcome) {
+    throw new Error('Unexpected verification response.');
+  }
+  // There is nothing to acknowledge on the App Store: `acknowledged` is always true there.
+  return { outcome, state: typeof body.state === 'string' ? body.state : 'unknown', acknowledged: true };
+}
+
+/** Restore: the signed transactions StoreKit says the device holds (each verified server-side), or none to refresh the account's own purchases. */
+export async function restoreAppleTransactions(request: AuthenticatedApiRequest, signedTransactions: readonly string[]): Promise<RestoreOutcome> {
+  const response = await request<{ outcome?: string }>({ method: 'POST', path: '/api/v1/billing/apple/restore', body: { signedTransactions } });
   return RESTORE_OUTCOMES.find(candidate => candidate === response.body?.outcome) ?? 'temporaryFailure';
 }

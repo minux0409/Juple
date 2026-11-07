@@ -141,6 +141,8 @@ describe('connection lifecycle and offer', () => {
       offer: {
         productId: 'juple_monthly',
         basePlanId: 'monthly',
+        plan: 'monthly',
+        priceAmount: 1500,
         offerToken: 'token-monthly',
         localizedPrice: '₩1,500',
         currencyCode: 'KRW',
@@ -418,5 +420,81 @@ describe('restore', () => {
 
     expect(await makeBilling(api).billing.restore()).toEqual({ kind: 'unavailable', reason: 'disabled' });
     expect(getAvailablePurchases).not.toHaveBeenCalled();
+  });
+});
+
+describe('monthly and yearly base plans', () => {
+  const TWO_PLANS: GoogleCatalog = { ...CATALOG, basePlanIds: ['monthly', 'yearly'] };
+  const yearlyOffer = () =>
+    offer({
+      id: 'yearly-offer',
+      basePlanIdAndroid: 'yearly',
+      offerTokenAndroid: 'token-yearly',
+      pricingPhasesAndroid: {
+        pricingPhaseList: [{ formattedPrice: '₩15,000', priceCurrencyCode: 'KRW', billingPeriod: 'P1Y', billingCycleCount: 0, priceAmountMicros: '15000000000', recurrenceMode: 1 }],
+      },
+    });
+
+  it('prices both plans from the store, each with its own period and amount - no number of the app\'s own', async () => {
+    (fetchProducts as jest.Mock).mockResolvedValue([product([offer(), yearlyOffer()])]);
+    const { billing } = makeBilling(makeApi({ getCatalog: jest.fn(async () => TWO_PLANS) }));
+
+    const result = await billing.loadPlans();
+
+    expect(result.kind).toBe('ready');
+    const offers = result.kind === 'ready' ? result.offers : [];
+    expect(offers.map(candidate => [candidate.plan, candidate.localizedPrice, candidate.priceAmount, candidate.billingPeriod])).toEqual([
+      ['monthly', '₩1,500', 1500, 'P1M'],
+      ['yearly', '₩15,000', 15000, 'P1Y'],
+    ]);
+  });
+
+  it('reads the plan from the store billing period, not from the base plan name', async () => {
+    (fetchProducts as jest.Mock).mockResolvedValue([product([offer({ basePlanIdAndroid: 'plan-a' }), yearlyOffer()])]);
+    const { billing } = makeBilling(makeApi({ getCatalog: jest.fn(async () => ({ ...CATALOG, basePlanId: 'plan-a', basePlanIds: ['plan-a', 'yearly'] })) }));
+
+    const result = await billing.loadPlans();
+
+    expect(result.kind === 'ready' && result.offers.map(candidate => candidate.plan)).toEqual(['monthly', 'yearly']);
+  });
+
+  it('buys the yearly plan with the yearly offer token, and the monthly one by default', async () => {
+    (fetchProducts as jest.Mock).mockResolvedValue([product([offer(), yearlyOffer()])]);
+    const { billing } = makeBilling(makeApi({ getCatalog: jest.fn(async () => TWO_PLANS) }));
+
+    const yearly = billing.purchase('yearly');
+    await flush();
+    emitPurchase(purchasedUpdate());
+    await yearly;
+    expect(requestPurchase).toHaveBeenLastCalledWith({
+      type: 'subs',
+      request: { google: { skus: ['juple_monthly'], subscriptionOffers: [{ sku: 'juple_monthly', offerToken: 'token-yearly' }], obfuscatedAccountId: 'opaque-account-key' } },
+    });
+
+    const monthly = billing.purchase();
+    await flush();
+    emitPurchase(purchasedUpdate('purchase-token-2'));
+    await monthly;
+    expect(requestPurchase).toHaveBeenLastCalledWith({
+      type: 'subs',
+      request: { google: { skus: ['juple_monthly'], subscriptionOffers: [{ sku: 'juple_monthly', offerToken: 'token-monthly' }], obfuscatedAccountId: 'opaque-account-key' } },
+    });
+  });
+
+  it('does not start a purchase for a plan the store did not return', async () => {
+    (fetchProducts as jest.Mock).mockResolvedValue([product([offer()])]);
+    const { billing } = makeBilling(makeApi({ getCatalog: jest.fn(async () => TWO_PLANS) }));
+
+    expect(await billing.purchase('yearly')).toEqual({ kind: 'unavailable', reason: 'offerNotFound' });
+    expect(requestPurchase).not.toHaveBeenCalled();
+  });
+
+  it('loadOffer (the older single-plan call) still answers with the monthly offer', async () => {
+    (fetchProducts as jest.Mock).mockResolvedValue([product([yearlyOffer(), offer()])]);
+    const { billing } = makeBilling(makeApi({ getCatalog: jest.fn(async () => TWO_PLANS) }));
+
+    const result = await billing.loadOffer();
+
+    expect(result.kind === 'ready' && result.offer.billingPeriod).toBe('P1M');
   });
 });

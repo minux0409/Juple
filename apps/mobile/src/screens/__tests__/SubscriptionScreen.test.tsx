@@ -33,7 +33,11 @@ beforeAll(async () => {
   await i18n.changeLanguage('en');
 });
 beforeEach(() => {
-  store = { loadOffer: jest.fn().mockResolvedValue(readyOffer), purchase: jest.fn(), restore: jest.fn(), canManageSubscription: true, openSubscriptionManagement: jest.fn().mockResolvedValue(undefined) };
+  store = { loadOffer: jest.fn().mockResolvedValue(readyOffer), loadPlans: jest.fn(async () => {
+    // Most tests below describe the monthly plan only: the plans call answers with whatever loadOffer says, as one monthly plan.
+    const result = await store.loadOffer();
+    return result.kind === 'ready' ? { kind: 'ready' as const, plans: [{ key: 'monthly' as const, ...result.offer, priceAmount: null }] } : result;
+  }), purchase: jest.fn(), restore: jest.fn(), canManageSubscription: true, openSubscriptionManagement: jest.fn().mockResolvedValue(undefined) };
   jest.mocked(useSubscriptionStore).mockReturnValue(store);
   jest.mocked(useOptionalAuth).mockReturnValue(undefined);
   mockAuth();
@@ -64,7 +68,7 @@ describe('SubscriptionScreen', () => {
   it('shows the monthly plan with the price exactly as the store localized it', async () => {
     const renderer = await renderScreen();
 
-    expect(texts(renderer)).toEqual(expect.arrayContaining([i18n.t('subscription.planName'), i18n.t('subscription.cadence')]));
+    expect(texts(renderer)).toEqual(expect.arrayContaining([i18n.t('subscription.planName'), i18n.t('subscription.plan.monthlyRenew')]));
     expect(texts(renderer).join('|')).toContain('$0.99 / month');
     expect(byId(renderer, 'subscription-subscribe')[0].props.disabled).toBe(false);
   });
@@ -89,7 +93,7 @@ describe('SubscriptionScreen', () => {
     const retry = renderer.root.findAll(node => node.props.testID === 'subscription-unavailable' && typeof node.props.onRetry === 'function')[0]
       ?? renderer.root.findAll(node => typeof node.props.onRetry === 'function')[0];
     await act(async () => retry.props.onRetry());
-    expect(store.loadOffer).toHaveBeenCalledTimes(2);
+    expect(store.loadPlans).toHaveBeenCalledTimes(2);
     expect(texts(renderer).join('|')).toContain('$0.99');
   });
 

@@ -1,4 +1,5 @@
 import { Platform, Share } from 'react-native';
+import { formatLinkList } from './formatLinkList';
 
 /**
  * Shares an Item's original URL as-is via the OS Share Sheet - never a Juple-branded link, never
@@ -17,4 +18,16 @@ export async function shareItem(url: string, title: string | null): Promise<void
     Platform.OS === 'ios' ? { title: title ?? undefined, url } : { title: title ?? undefined, message: url };
 
   await Share.share(content);
+}
+
+/**
+ * Shares several original URLs as ONE text (one per line) through the OS Share Sheet - the form both platforms really support for
+ * more than one link (`message`; iOS's `url` takes a single address), the addresses separated by one blank line. A single link goes through shareItem unchanged.
+ */
+export async function shareLinks(urls: readonly string[], title: string | null = null): Promise<void> {
+  if (urls.length === 1) {
+    await shareItem(urls[0], title);
+    return;
+  }
+  await Share.share({ message: formatLinkList(urls) });
 }

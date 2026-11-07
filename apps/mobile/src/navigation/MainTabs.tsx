@@ -1,4 +1,4 @@
-import { createBottomTabNavigator, type BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
+import { BottomTabBar, createBottomTabNavigator, type BottomTabBarButtonProps, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
@@ -14,6 +14,8 @@ import { screenIcons } from './screenIcons';
 import { useAttentionSnapshot } from '../attention/attentionContext';
 import { formatBadgeCount } from '../components/badgeCount';
 import { CollectionsStack, type CollectionsStackParamList } from './CollectionsStack';
+import { SelectionBarProvider } from '../selection/SelectionBarContext';
+import { SelectionBarSlot } from '../selection/SelectionActionBar';
 
 export type MainTabParamList = {
   Home: undefined;
@@ -86,6 +88,18 @@ function renderMyPageButton(props: BottomTabBarButtonProps) {
   return <TourTabButton {...props} tourId={TOUR_TARGETS.tabMyPage} />;
 }
 
+/**
+ * The tab bar slot: the ordinary tab bar, or - while a screen is in multi-selection mode - that screen's floating action bar in its place
+ * (the same slot, so the list above ends where it begins). The tab bar's own look and animation are untouched.
+ */
+function JupleTabBar(props: BottomTabBarProps) {
+  return <SelectionBarSlot fallback={<BottomTabBar {...props} />} />;
+}
+
+function renderTabBar(props: BottomTabBarProps) {
+  return <JupleTabBar {...props} />;
+}
+
 export function MainTabs() {
   const { t } = useTranslation();
   const { counts } = useAttentionSnapshot();
@@ -93,7 +107,9 @@ export function MainTabs() {
   useTheme();
 
   return (
+    <SelectionBarProvider>
     <Tab.Navigator
+      tabBar={renderTabBar}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.brandText,
@@ -150,5 +166,6 @@ export function MainTabs() {
         options={{ tabBarLabel: t('tabs.myPage'), tabBarIcon: renderMyPageIcon, tabBarButton: renderMyPageButton, tabBarBadge: badge(counts.myPage) }}
       />
     </Tab.Navigator>
+    </SelectionBarProvider>
   );
 }

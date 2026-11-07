@@ -12,7 +12,7 @@ import { CollectionShareScreen } from '../screens/CollectionShareScreen';
 import { CustomerCenterScreen } from '../screens/CustomerCenterScreen';
 import { HelpGuideScreen } from '../screens/HelpGuideScreen';
 import { HelpGuideSectionScreen } from '../screens/HelpGuideSectionScreen';
-import { SubscriptionScreen } from '../screens/SubscriptionScreen';
+import { MembershipScreen } from '../screens/MembershipScreen';
 import { SupportInquiryDetailScreen } from '../screens/SupportInquiryDetailScreen';
 import { SupportInquiryScreen } from '../screens/SupportInquiryScreen';
 import { TutorialScreen } from '../screens/TutorialScreen';
@@ -285,7 +285,7 @@ export function RootStack() {
             <Stack.Screen component={themedScreen(CustomerCenterScreen)} name="CustomerCenter" options={{ title: t('customerCenter.title'), ...headerTitleWithIcon(screenIcons.customerCenter, t('customerCenter.title')) }} />
             {/* Always registered: an account whose free period ended is sent here to subscribe or restore. Only the My Page ENTRY is limited to internal-test builds. */}
             {isSubscriptionProgramLive ? (
-              <Stack.Screen component={themedScreen(SubscriptionScreen)} name="Subscription" options={{ title: t('subscription.title'), ...headerTitleWithIcon(screenIcons.subscription, t('subscription.title')) }} />
+              <Stack.Screen component={themedScreen(MembershipScreen)} name="Subscription" options={{ title: t('membership.title'), ...headerTitleWithIcon(screenIcons.subscription, t('membership.title')) }} />
             ) : null}
             <Stack.Screen component={themedScreen(NoticesScreen)} name="Notices" options={{ title: t('notices.title'), ...headerTitleWithIcon(screenIcons.notices, t('notices.title')) }} />
             <Stack.Screen component={themedScreen(NoticeDetailScreen)} name="NoticeDetail" options={{ title: t('notices.title'), ...headerTitleWithIcon(screenIcons.notices, t('notices.title')) }} />

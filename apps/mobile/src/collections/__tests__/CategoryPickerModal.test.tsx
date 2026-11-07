@@ -82,7 +82,7 @@ describe('CategoryPickerModal selection indicator', () => {
 
     expect(renderer.root.findAllByType(KeyIcon)).toHaveLength(0);
     expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-share-password')).toHaveLength(0);
-    expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-locked').length).toBeGreaterThan(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-name-lock').length).toBeGreaterThan(0);
   });
 
   it('shows a CheckIcon and marks the row selected for an option in selectedIds', () => {

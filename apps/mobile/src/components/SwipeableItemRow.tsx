@@ -13,7 +13,8 @@ import {
 import { Pressable } from './Pressable';
 import { ShareIcon } from '../icons/ShareIcon';
 import { TrashIcon } from '../icons/TrashIcon';
-import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
+import { SelectionCheckMark } from '../selection/SelectionCheckMark';
 import { closeOpenRow, notifyRowClosed, notifyRowOpened, setSwipeScrollLock } from './swipeableRowCoordinator';
 
 const ACTION_WIDTH = 76;
@@ -127,6 +128,16 @@ interface SwipeableItemRowProps {
   readonly testID?: string;
   /** Overrides the content Pressable's own accessibility label - e.g. CollectionDetailsScreen's "Item N, long-press for options", which needs the row's position, not just its content. */
   readonly accessibilityLabel?: string;
+  /**
+   * Multi-selection (long-press -> selection mode): while this is given, the row is a checkbox - a tap only chooses / un-chooses
+   * it, the row cannot be swiped and none of its inner controls respond; a gallery-style check mark and a frame show the state.
+   */
+  readonly selection?: RowSelection;
+}
+
+export interface RowSelection {
+  readonly selected: boolean;
+  readonly onToggle: () => void;
 }
 
 /**
@@ -153,6 +164,7 @@ export function SwipeableItemRow({
   onLongPress,
   onOpenOriginal,
   accessibilityLabel,
+  selection,
   testID,
 }: SwipeableItemRowProps) {
   const { t } = useTranslation();
@@ -431,11 +443,27 @@ export function SwipeableItemRow({
           {children}
         </Pressable>
       </Animated.View>
+      {selection ? (
+        <>
+          {/* Selection mode: this layer takes every touch, so the card's own press, swipe and inner controls stay out of it. */}
+          <Pressable
+            accessibilityLabel={accessibilityLabel}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: selection.selected }}
+            onPress={selection.onToggle}
+            style={[styles.selectionLayer, selection.selected && styles.selectionLayerSelected]}
+            testID="swipeable-row-select"
+          />
+          <SelectionCheckMark selected={selection.selected} />
+        </>
+      ) : null}
     </View>
   );
 }
 
 const styles = themedStyles(() => ({
+  selectionLayer: { ...StyleSheet.absoluteFill, borderRadius: radii.lg, zIndex: 2 },
+  selectionLayerSelected: { backgroundColor: 'rgba(90,68,238,0.10)', borderColor: colors.brand, borderWidth: 2 },
   wrapper: {
     overflow: 'hidden',
   },

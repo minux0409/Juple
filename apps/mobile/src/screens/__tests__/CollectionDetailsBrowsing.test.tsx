@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, Image, StyleSheet, Text } from 'react-native';
+import { FlatList, Image, StyleSheet, Text, View } from 'react-native';
 import i18n from '../../i18n';
 import { CollectionDetailsScreen } from '../CollectionDetailsScreen';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
@@ -159,7 +159,7 @@ const listedIds = (renderer: ReactTestRenderer.ReactTestRenderer) =>
 const header = (renderer: ReactTestRenderer.ReactTestRenderer) => {
   let part!: ReactTestRenderer.ReactTestRenderer;
   act(() => {
-    part = ReactTestRenderer.create(getList(renderer).props.ListHeaderComponent);
+    part = ReactTestRenderer.create(<View>{renderer.root.findAll(node => node.props.testID === 'collection-details-fixed-header' && typeof node.type === 'string')[0].props.children}{getList(renderer).props.ListHeaderComponent}</View>);
   });
   return part;
 };

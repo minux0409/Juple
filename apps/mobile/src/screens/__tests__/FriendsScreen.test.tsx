@@ -364,6 +364,13 @@ describe('FriendsScreen - a friend row', () => {
     expect(controls.marginBottom).toBeGreaterThan(frame.marginBottom as number);
   });
 
+  it('keeps the search and the List/Grid switch outside the scrolling friends list (fixed under the tabs)', async () => {
+    const renderer = await renderScreen();
+    const list = renderer.root.findByProps({ testID: 'friends-list' });
+    expect(list.findAll(node => node.props.testID === 'friends-search-row')).toHaveLength(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'friends-search-row' && typeof node.type === 'string')).toHaveLength(1);
+  });
+
   it('List: the trailing ID is always there - also without a nickname, when the name itself falls back to the @ID', async () => {
     const renderer = await renderScreen();
     expect(byId(renderer, 'friend-7-id').props.children).toBe('K7MP4Q8N');

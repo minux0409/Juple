@@ -1,7 +1,7 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
-import { JoinRequestsSheet } from '../../collections/JoinRequestsSheet';
+import { CollectionReviewRequestsSheet } from '../../collections/CollectionReviewRequestsSheet';
 import { AppToastProvider } from '../../components/AppToast';
 import { CollectionDetailsScreen } from '../CollectionDetailsScreen';
 import { getCollection, getCollectionItemSections, getCollectionItems, type Collection } from '../../collections/api/collectionsApi';
@@ -161,7 +161,8 @@ describe('CollectionDetailsScreen - notifications', () => {
 
   describe('a 참여 요청 notification (openJoinRequests)', () => {
     /** The 참여 요청 bottom sheet of the screen just rendered, and any navigation to a management screen (there is none any more). */
-    const sheetOf = () => ({ props: { visible: mounted[mounted.length - 1].root.findAllByType(JoinRequestsSheet).some(sheet => sheet.props.visible === true) } });
+    // The ONE review sheet, opened straight on its 참여 요청 page.
+    const sheetOf = () => ({ props: { visible: mounted[mounted.length - 1].root.findAllByType(CollectionReviewRequestsSheet).some(sheet => sheet.props.visible === true && sheet.props.initialPage === 'join') } });
     const managementNavigations = (navigation: Awaited<ReturnType<typeof renderScreen>>) =>
       jest.mocked(navigation.navigate).mock.calls.filter(([name]) => name === 'CollectionJoinRequests' || name === 'CollectionShare');
 

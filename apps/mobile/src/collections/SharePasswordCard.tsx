@@ -11,6 +11,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { systemAnnouncesCopy } from '../items/copyLink';
 import { useAppToast } from '../components/AppToast';
 import { EyeIcon } from '../icons/EyeIcon';
 import { EyeOffIcon } from '../icons/EyeOffIcon';
@@ -99,11 +100,6 @@ interface SharePasswordCardProps {
  * Owner's lock first: without this visit's lock grant the server refuses the reveal, and the card
  * asks for the lock password right here (the same prompt as the Collection itself), then reveals.
  */
-/** Android 13 (API 33) and newer confirm every clipboard copy themselves; showing ours too would say it twice. */
-function systemAnnouncesCopy(): boolean {
-  return Platform.OS === 'android' && Number(Platform.Version) >= 33;
-}
-
 export function SharePasswordCard({ collectionId, authenticatedRequest, onModeChange }: SharePasswordCardProps) {
   const { t } = useTranslation();
   const [status, setStatus] = useState<SharePasswordStatus | null>(null);

@@ -14,8 +14,15 @@ describe('shouldOfferSubscriptionEntry', () => {
     expect(shouldOfferSubscriptionEntry('android', enabled, false)).toBe(false);
   });
 
-  it('never offers it on iOS (or any other platform), whatever the catalog says', () => {
-    expect(shouldOfferSubscriptionEntry('ios', enabled, true)).toBe(false);
+  it('is offered on iOS too - but only with the App Store catalog enabled and the program live', () => {
+    expect(shouldOfferSubscriptionEntry('ios', { enabled: true }, true)).toBe(true);
+    expect(shouldOfferSubscriptionEntry('ios', { enabled: false }, true)).toBe(false);
+    expect(shouldOfferSubscriptionEntry('ios', { enabled: true }, false)).toBe(false);
+    expect(shouldOfferSubscriptionEntry('ios', null, true)).toBe(false);
+  });
+
+  it('never offers it on any platform that has no store (web, anything else), whatever the catalog says', () => {
     expect(shouldOfferSubscriptionEntry('web', enabled, true)).toBe(false);
+    expect(shouldOfferSubscriptionEntry('windows', enabled, true)).toBe(false);
   });
 });

@@ -14,12 +14,15 @@ import {
 } from 'react-native-iap';
 import { ApiError } from '../api/ApiError';
 import { BILLING_ERROR_CODES } from './billingApi';
+import { planKeyForPeriod, type PlanKey } from './subscriptionPricing';
 import type {
   GoogleCatalog,
   GoogleOffer,
   OfferResult,
+  OfferUnavailableReason,
   PurchaseResult,
   RestoreOutcome,
+  PlansResult,
   RestoreResult,
   VerificationFailureReason,
   VerifyResponse,
@@ -41,10 +44,12 @@ export interface GoogleBillingDeps {
 }
 
 export interface GoogleBilling {
-  /** The store's localized offer for the configured monthly base plan (price comes from Google Play, never from here). */
+  /** The store's localized offer for the monthly plan (price comes from Google Play, never from here). Kept for callers that only know one plan. */
   loadOffer: () => Promise<OfferResult>;
-  /** Starts the Google Play purchase flow. Resolves only after the SERVER has answered - never from the store callback alone. */
-  purchase: () => Promise<PurchaseResult>;
+  /** The store's localized offers for every allowlisted base plan (monthly and yearly): prices come from Google Play, never from here. */
+  loadPlans: () => Promise<PlansResult>;
+  /** Starts the Google Play purchase flow for a plan (monthly by default). Resolves only after the SERVER has answered - never from the store callback alone. */
+  purchase: (plan?: PlanKey) => Promise<PurchaseResult>;
   /** Server-verified restore: nothing the device reports is trusted until the Backend has checked it. */
   restore: () => Promise<RestoreResult>;
   /** Releases the store connection and listeners. */
@@ -56,7 +61,7 @@ const USER_CANCELLED = 'user-cancelled';
 const PENDING_CODES = new Set(['pending', 'deferred-payment']);
 const ALREADY_OWNED = 'already-owned';
 
-type OfferState = { readonly offer: GoogleOffer } | null;
+type OffersState = { readonly productId: string; readonly offers: readonly GoogleOffer[] } | null;
 
 /**
  * The Android (Google Play) purchase flow. Strict order, enforced here and nowhere else:
@@ -75,7 +80,7 @@ export function createGoogleBilling(deps: GoogleBillingDeps): GoogleBilling {
   let updateSubscription: EventSubscription | null = null;
   let errorSubscription: EventSubscription | null = null;
   let waiter: ((result: PurchaseResult) => void) | null = null;
-  let activeOffer: OfferState = null;
+  let activeOffers: OffersState = null;
   const inFlight = new Map<string, Promise<PurchaseResult>>();
 
   const settle = (result: PurchaseResult): void => {
@@ -100,7 +105,7 @@ export function createGoogleBilling(deps: GoogleBillingDeps): GoogleBilling {
 
   const handlePurchase = (purchase: Purchase): Promise<PurchaseResult> => {
     // Only the configured subscription is ours; any other store item is none of this module's business.
-    if (!activeOffer || purchase.productId !== activeOffer.offer.productId) {
+    if (!activeOffers || purchase.productId !== activeOffers.productId) {
       return Promise.resolve({ kind: 'error', code: 'unexpected-product' });
     }
     if (purchase.purchaseState === 'pending') {
@@ -146,7 +151,12 @@ export function createGoogleBilling(deps: GoogleBillingDeps): GoogleBilling {
     return verified.outcome === 'verified' ? { kind: 'verified', state: verified.state } : { kind: 'notEntitled' };
   };
 
-  const loadOffer = async (): Promise<OfferResult> => {
+  type OffersResult =
+    | { readonly kind: 'ready'; readonly offers: readonly GoogleOffer[] }
+    | { readonly kind: 'unavailable'; readonly reason: OfferUnavailableReason };
+
+  /** Every allowlisted base plan of the ONE membership subscription, each with its own localized recurring price. */
+  const loadOffers = async (): Promise<OffersResult> => {
     if (platform !== 'android') {
       return { kind: 'unavailable', reason: 'unsupportedPlatform' };
     }
@@ -169,37 +179,62 @@ export function createGoogleBilling(deps: GoogleBillingDeps): GoogleBilling {
         return { kind: 'unavailable', reason: 'productNotFound' };
       }
 
-      // The configured monthly base plan; among its offers the plain one (a single, recurring pricing phase - no store trial/intro).
-      const forBasePlan = (product.subscriptionOffers ?? []).filter(candidate => candidate.basePlanIdAndroid === catalog.basePlanId && candidate.offerTokenAndroid);
-      const offer = forBasePlan.find(candidate => (candidate.pricingPhasesAndroid?.pricingPhaseList.length ?? 1) === 1) ?? forBasePlan[0];
-      if (!offer?.offerTokenAndroid) {
+      const planIds = catalog.basePlanIds && catalog.basePlanIds.length > 0 ? catalog.basePlanIds : [catalog.basePlanId];
+      const offers: GoogleOffer[] = [];
+      for (const basePlanId of planIds) {
+        // Among a base plan's offers the plain one (a single, recurring pricing phase - no store trial/intro).
+        const forBasePlan = (product.subscriptionOffers ?? []).filter(candidate => candidate.basePlanIdAndroid === basePlanId && candidate.offerTokenAndroid);
+        const offer = forBasePlan.find(candidate => (candidate.pricingPhasesAndroid?.pricingPhaseList.length ?? 1) === 1) ?? forBasePlan[0];
+        if (!offer?.offerTokenAndroid) {
+          continue;
+        }
+        const phases = offer.pricingPhasesAndroid?.pricingPhaseList ?? [];
+        const recurring = phases[phases.length - 1];
+        const micros = recurring?.priceAmountMicros === undefined ? Number.NaN : Number(recurring.priceAmountMicros);
+        offers.push({
+          productId: catalog.productId,
+          basePlanId,
+          // The plan is read from the store's own billing period, not guessed from a base plan name; a store that reports no period for
+          // a catalog with ONE plan keeps it monthly, as before.
+          plan: planKeyForPeriod(recurring?.billingPeriod) ?? (planIds.length === 1 ? 'monthly' : null),
+          offerToken: offer.offerTokenAndroid,
+          localizedPrice: recurring?.formattedPrice ?? offer.displayPrice,
+          currencyCode: recurring?.priceCurrencyCode ?? offer.currency ?? null,
+          billingPeriod: recurring?.billingPeriod ?? null,
+          priceAmount: Number.isFinite(micros) && micros > 0 ? micros / 1_000_000 : null,
+          obfuscatedAccountId: catalog.obfuscatedAccountId,
+        });
+      }
+      if (offers.length === 0) {
         return { kind: 'unavailable', reason: 'offerNotFound' };
       }
-
-      const phases = offer.pricingPhasesAndroid?.pricingPhaseList ?? [];
-      const recurring = phases[phases.length - 1];
-      const ready: GoogleOffer = {
-        productId: catalog.productId,
-        basePlanId: catalog.basePlanId,
-        offerToken: offer.offerTokenAndroid,
-        localizedPrice: recurring?.formattedPrice ?? offer.displayPrice,
-        currencyCode: recurring?.priceCurrencyCode ?? offer.currency ?? null,
-        billingPeriod: recurring?.billingPeriod ?? null,
-        obfuscatedAccountId: catalog.obfuscatedAccountId,
-      };
-      activeOffer = { offer: ready };
-      return { kind: 'ready', offer: ready };
+      activeOffers = { productId: catalog.productId, offers };
+      return { kind: 'ready', offers };
     } catch {
       return { kind: 'unavailable', reason: 'storeUnavailable' };
     }
   };
 
-  const purchase = async (): Promise<PurchaseResult> => {
-    const loaded = await loadOffer();
+  const loadOffer = async (): Promise<OfferResult> => {
+    const loaded = await loadOffers();
+    if (loaded.kind !== 'ready') {
+      return loaded;
+    }
+    const offer = loaded.offers.find(candidate => candidate.plan === 'monthly') ?? loaded.offers[0];
+    return { kind: 'ready', offer };
+  };
+
+  const loadPlans = async (): Promise<PlansResult> => loadOffers();
+
+  const purchase = async (plan: PlanKey = 'monthly'): Promise<PurchaseResult> => {
+    const loaded = await loadOffers();
     if (loaded.kind !== 'ready') {
       return { kind: 'unavailable', reason: loaded.reason };
     }
-    const { offer } = loaded;
+    const offer = loaded.offers.find(candidate => candidate.plan === plan);
+    if (!offer) {
+      return { kind: 'unavailable', reason: 'offerNotFound' };
+    }
 
     const outcome = new Promise<PurchaseResult>(resolve => {
       waiter = resolve;
@@ -260,7 +295,7 @@ export function createGoogleBilling(deps: GoogleBillingDeps): GoogleBilling {
     errorSubscription = null;
     const wasConnected = connected !== null;
     connected = null;
-    activeOffer = null;
+    activeOffers = null;
     if (wasConnected) {
       try {
         await endConnection();
@@ -270,7 +305,7 @@ export function createGoogleBilling(deps: GoogleBillingDeps): GoogleBilling {
     }
   };
 
-  return { loadOffer, purchase, restore, dispose };
+  return { loadOffer, loadPlans, purchase, restore, dispose };
 }
 
 function mapStoreError(error: PurchaseError): PurchaseResult {

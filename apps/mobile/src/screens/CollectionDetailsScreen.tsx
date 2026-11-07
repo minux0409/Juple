@@ -6,7 +6,6 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
   ActivityIndicator,
-  FlatList,
   Linking,
   Platform,
   Text,
@@ -17,7 +16,6 @@ import {
 import { Pressable } from '../components/Pressable';
 import { TabScreenSafeArea } from '../components/TabScreenSafeArea';
 import { usePullToRefresh } from '../components/PullRefreshControl';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { collectionShortcutService } from '../shortcuts/CollectionShortcutService';
@@ -25,12 +23,9 @@ import { getCollectionCapabilities } from '../collections/collectionCapabilities
 import {
   deleteCollection,
   addItemToCollection,
-  addItemToCollections,
-  copyCollectionItems,
   getCollectionShareLink,
   getCollection,
   getCollectionNotificationPreference,
-  getCollectionItems,
   removeItemFromCollection,
   renameCollection,
   restoreCollection,
@@ -38,15 +33,9 @@ import {
   setCollectionFavorite,
   setCollectionIcon,
   setCollectionNotificationPreference,
-  transferCollectionItem,
-  undoTransferCollectionItem,
-  MAX_ITEMS_PER_COPY,
   type Collection,
   type CollectionItemEntry,
 } from '../collections/api/collectionsApi';
-import { CategoryPickerModal } from '../collections/CategoryPickerModal';
-import { formatReplicateResultMessage, useCollectionDestinationPicker, type PickedDestination } from '../collections/useCollectionDestinationPicker';
-import { formatCopyResultMessage } from '../collections/copyResultMessage';
 import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
 import { LogoutIcon } from '../icons/LogoutIcon';
 import { isCollaborative, isCollectionLocked, isSharedWithMe } from '../collections/collectionAccess';
@@ -58,14 +47,11 @@ import { emitCollectionNewLinksRead, setUnreadCount } from '../notifications/not
 import { CollectionLinkShareSheet } from '../collections/CollectionLinkShareSheet';
 import { getCollectionParticipants, leaveCollection, type CollectionParticipants } from '../collections/api/collaborationApi';
 import { ApprovalSubmissionSheet } from '../collections/ApprovalSubmissionSheet';
-import { JoinRequestsSheet } from '../collections/JoinRequestsSheet';
 import { CollectionParticipantsSheet } from '../collections/CollectionParticipantsSheet';
-import { FlagIcon } from '../icons/FlagIcon';
-import { ReportModal, type ReportTargetPreview } from '../safety/ReportModal';
-import type { ReportTarget } from '../safety/safetyApi';
 import { CollectionUnlockModal } from '../collections/CollectionUnlockModal';
 import { CollectionUnlockPanel } from '../collections/CollectionUnlockPanel';
 import { CollectionHeaderTitle } from '../collections/CollectionHeaderTitle';
+import { useCollectionLinkSelection } from '../collections/useCollectionLinkSelection';
 import { CollectionReviewRequestsSheet } from '../collections/CollectionReviewRequestsSheet';
 import { useLayoutDirection } from '../i18n/layoutDirection';
 import { applyCollectionIconImageChange, getIconImageSaveErrorMessage, type CollectionIconImageChange } from '../collections/collectionIconImage';
@@ -74,7 +60,7 @@ import {
   type CollectionColorValue,
 } from '../collections/collectionColors';
 import { resolveCollectionIconKey, type CollectionIconKey } from '../collections/collectionIcons';
-import { contentGateOfError, getCollectionItemsErrorMessage, isCollectionLockedError, useCollectionItems } from '../collections/useCollectionItems';
+import { isCollectionLockedError, useCollectionItems } from '../collections/useCollectionItems';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LoadFailureState } from '../components/LoadFailureState';
@@ -86,7 +72,6 @@ import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { ActionMenuDialog, type ActionMenuDialogAction } from '../components/ActionMenuDialog';
 import { isHttpUrl } from '../share/resolveIncomingShare';
 import { ParticipantAvatarStack } from '../components/ParticipantAvatarStack';
-import { QuickReactionBar } from '../reactions/QuickReactionBar';
 import { ReactionChips } from '../reactions/ReactionChips';
 import { ReactionPickerDialog } from '../reactions/ReactionPickerDialog';
 import { useRecentReactions } from '../reactions/recentReactions';
@@ -106,18 +91,15 @@ import { BellIcon } from '../icons/BellIcon';
 import { BackArrowIcon } from '../icons/BackArrowIcon';
 import { ChevronIcon } from '../icons/ChevronIcon';
 import { BellOffIcon } from '../icons/BellOffIcon';
-import { CheckIcon } from '../icons/CheckIcon';
-import { ArchiveIcon } from '../icons/ArchiveIcon';
 import { CopyIcon } from '../icons/CopyIcon';
-import { copySavedLinkUrl } from '../items/copyLink';
 import { EditIcon } from '../icons/EditIcon';
-import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { LockIcon } from '../icons/LockIcon';
-import { MoveIcon } from '../icons/MoveIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { UnlockIcon } from '../icons/UnlockIcon';
 import { ShareIcon } from '../icons/ShareIcon';
-import { StarIcon } from '../icons/StarIcon';
+import { FavoriteStar, useStarTap } from '../components/FavoriteStar';
+import { AnimatedFlatList, CollapsibleHeaderLayout } from '../components/CollapsibleHeaderLayout';
+import { LinkIcon } from '../icons/LinkIcon';
 import { MoreIcon } from '../icons/MoreIcon';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
 import { buildFlatItemRows, type FlatItemRow } from '../items/flatItemRows';
@@ -130,7 +112,7 @@ import { showCollectionsListAction } from '../navigation/collectionNavigation';
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import type { SocialPushEventType } from '../push/pushEvents';
 import { useViewModePreference, type SavedLinkViewMode } from '../settings/viewModePreference';
-import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
+import { colors, minTouchTarget, spacing, themedStyles } from '../theme/tokens';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 import { useLeaveWhenCollectionLost } from '../collections/useLeaveWhenCollectionLost';
@@ -152,12 +134,6 @@ function getCollectionLoadNotice(error: unknown, t: TFunction): string | null {
     }
   }
   return null;
-}
-
-/** A target Collection that needs its lock (or, shared with me, its share password) opened first. */
-function gateNoticeKey(error: unknown): string | null {
-  const gate = contentGateOfError(error);
-  return gate === 'sharePassword' ? 'collections.sharePasswordRequiredForAction' : gate === 'lock' ? 'collections.lockRequiredForAction' : null;
 }
 
 function getRenameErrorMessage(error: unknown, t: TFunction): string {
@@ -312,9 +288,6 @@ const LIVE_REFRESH_EVENTS: readonly SocialPushEventType[] = [
   'joinRequest',
 ];
 
-/** 전체 선택 reads the Collection with the item API's largest page (its maximum is 100). */
-const COPY_SELECT_ALL_PAGE_SIZE = 100;
-
 export function CollectionDetailsScreen({ route, navigation }: Props) {
   const swipeScrollEnabled = useSwipeAwareScrollEnabled();
   const direction = useLayoutDirection();
@@ -330,7 +303,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // Inside the 컬렉션 tab: the Juple tab bar below already reserves the system nav/gesture-area inset (as on the other tab screens),
   // so the layout adds none of its own. Toasts sit above the tab bar, like Home's; the raw inset is still needed by the
   // full-window destination picker sheet.
-  const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   useToastBottomAnchor(tabBarHeight);
 
@@ -356,9 +328,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [itemActionInFlightId, setItemActionInFlightId] = useState<number | null>(null);
 
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
+  const [starTap, bumpStar] = useStarTap();
 
   const [isParticipantsSheetVisible, setIsParticipantsSheetVisible] = useState(false);
-  const [reporting, setReporting] = useState<{ readonly target: ReportTarget; readonly label: string; readonly preview?: ReportTargetPreview } | null>(null);
   const [ownerRequestSheet, setOwnerRequestSheet] = useState<'review' | 'approvals' | 'join' | null>(null);
   // 참여 요청 (people waiting to join): a bottom sheet of its own, opened from its row or from a 참여 요청 notification.
   const [isMyApprovalSheetVisible, setIsMyApprovalSheetVisible] = useState(false);
@@ -372,34 +344,22 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   );
   const { recent: recentReactions, recordRecent: recordRecentReaction } = useRecentReactions();
   const [reactionPickerItem, setReactionPickerItem] = useState<CollectionItemEntry | null>(null);
-  const pendingReactionPickerRef = useRef<CollectionItemEntry | null>(null);
-  // iOS cannot present a dialog while the link menu is still closing: such a follow-up waits here for its onDismiss.
-  const pendingAfterItemMenuRef = useRef<(() => void) | null>(null);
   // Everyone accepted into a shared Collection (the avatars under its title) - null while unknown or not shared.
   const [participants, setParticipants] = useState<CollectionParticipants | null>(null);
   const [participantsFailed, setParticipantsFailed] = useState(false);
 
   const [pendingUnlinkItemId, setPendingUnlinkItemId] = useState<number | null>(null);
-  const [actionMenuItem, setActionMenuItem] = useState<CollectionItemEntry | null>(null);
-  const [isItemActionMenuVisible, setIsItemActionMenuVisible] = useState(false);
   const [isCollectionMenuVisible, setIsCollectionMenuVisible] = useState(false);
 
   const [notice, setNotice] = useState<string | null>(null);
   // 새 링크 알림 - the caller's own setting for this Collection (null until loaded / not offered).
   const [newLinkNotifications, setNewLinkNotifications] = useState<boolean | null>(null);
   const notificationRequestRef = useRef(0);
-  // 내 컬렉션으로 복사: non-null while selecting (the chosen link ids, in the order they were picked).
-  const [selectedItemIds, setSelectedItemIds] = useState<ReadonlySet<number> | null>(null);
-  // 전체 선택 in progress (it reads the Collection's links from the server), and how many links the
-  // last one selected - so 전체 해제 is offered exactly while that full selection is untouched.
-  const [isSelectingAllForCopy, setIsSelectingAllForCopy] = useState(false);
-  const [selectAllForCopyCount, setSelectAllForCopyCount] = useState<number | null>(null);
   // A member's way to pass on the Owner's public link: its URL while it is on (checked on every
   // focus with the Collection itself, so a link the Owner turned off elsewhere disappears then).
   const [memberShareUrl, setMemberShareUrl] = useState<string | null>(null);
   const [isCheckingShareLink, setIsCheckingShareLink] = useState(false);
   const [isLinkShareSheetVisible, setIsLinkShareSheetVisible] = useState(false);
-  const [isCopying, setIsCopying] = useState(false);
   const [lockDialogMode, setLockDialogMode] = useState<CollectionLockDialogMode | null>(null);
   // An Owner management action (edit/delete/share) waiting for the password on a locked Collection;
   // it runs right after a successful unlock, so the user never has to find the menu again.
@@ -414,8 +374,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const columns = useSavedLinkColumns();
   const gridCellStyle = useSavedLinkGridCellStyle();
   const [searchText, setSearchText] = useState('');
-  // Picking links to copy marks each card, which an image tile has no room for: selection shows Grid instead.
-  const layoutMode: SavedLinkViewMode = selectedItemIds && viewMode === 'image' ? 'grid' : viewMode;
+  const layoutMode: SavedLinkViewMode = viewMode;
   // The Collection's links are ONE list, always newest added first (the server's order: added time, then id), a page at a
   // time as it scrolls - no date sections to open and no other order to pick. A search shows the server's results in the
   // same order.
@@ -456,19 +415,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // One stable callback for every (memoized) image tile - the same open path as a card's tap (set below, where the
   // Collection is known).
   const openCollectionItemRef = useRef<(item: CollectionItemEntry) => void>(() => undefined);
+  const openLinkInBrowserRef = useRef<(url: string) => void>(() => undefined);
   const openImageTile = useCallback((rowItem: ItemHistoryEntry) => {
     const entry = entryByRowItem.get(rowItem);
     if (entry) {
       openCollectionItemRef.current(entry);
-    }
-  }, []);
-  // An image tile's long-press opens this screen's own link menu (the one a List row / Grid tile opens) - set each render
-  // from the same rule: no menu while the content is locked.
-  const openImageTileMenuRef = useRef<(item: CollectionItemEntry) => void>(() => undefined);
-  const openImageTileMenu = useCallback((rowItem: ItemHistoryEntry) => {
-    const entry = entryByRowItem.get(rowItem);
-    if (entry) {
-      openImageTileMenuRef.current(entry);
     }
   }, []);
   // The image tiles' swipe (set below, where the Collection is known): 컬렉션에서 제거 for what this person may remove, 공유.
@@ -573,6 +524,40 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     // The same rule as a card: the Owner any link, a member only what they added (the server enforces it too).
     canDelete: (rowItem: ItemHistoryEntry) => isOwner || entryByRowItem.get(rowItem)?.isMine !== false,
   }), [baseImageSwipeActions, isOwner, removeFromCollectionLabel]);
+  // Long-press on a link starts multi-selection (see useCollectionLinkSelection): the bottom bar's actions follow the Collection's kind
+  // and the authors of the chosen links. Handlers that need things defined further down are read when pressed.
+  const linkSelection = useCollectionLinkSelection({
+    collectionId,
+    collection,
+    isOwner,
+    isContentLocked,
+    isLoading: isLoading || isRefreshing || search.isLoading,
+    reactionsEnabled: !isContentLocked && collection !== null && (isSharedWithMe(collection) || collection.hasCollaborators === true),
+    loadedItems: search.isSearching ? search.items : items,
+    onRemoved: ids => {
+      ids.forEach(removeLocally);
+      setCollection(previous => (previous ? { ...previous, itemCount: Math.max(0, previous.itemCount - ids.length) } : previous));
+    },
+    onChanged: () => { loadCollection().catch(() => undefined); refresh(); },
+    onOpenOriginal: url => openLinkInBrowserRef.current(url),
+    onEditOwn: item => openCollectionItemRef.current(item),
+    onSaveOther: item => {
+      if (isHttpUrl(item.url)) {
+        navigation.navigate('NewLinkReview', { url: item.url, initialTitle: item.title ?? null, preselectedCollectionId: null });
+      }
+    },
+    onReact: item => setReactionPickerItem(item),
+    onNotice: message => setNotice(message),
+  });
+  const startSelectionRef = useRef(linkSelection.startSelection);
+  startSelectionRef.current = linkSelection.startSelection;
+  // One stable long-press for the (memoized) image tiles.
+  const startImageSelection = useCallback((rowItem: ItemHistoryEntry) => {
+    const entry = entryByRowItem.get(rowItem);
+    if (entry) {
+      startSelectionRef.current(entry);
+    }
+  }, []);
   // Whatever this screen learns about the Collection (opened, renamed, locked, role changed) also keeps its app shortcut
   // right - a renamed one gets the new label, a locked or read-only one is removed - with no request of its own.
   useEffect(() => {
@@ -659,108 +644,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     if (url && collection) {
       await shareItem(url, collection.name).catch(() => undefined);
       setIsLinkShareSheetVisible(false);
-    }
-  };
-
-  const toggleCopySelection = (itemId: number) => {
-    if (!selectedItemIds) {
-      return;
-    }
-    const next = new Set(selectedItemIds);
-    if (next.has(itemId)) {
-      next.delete(itemId);
-    } else if (next.size >= MAX_ITEMS_PER_COPY) {
-      setNotice(t('collections.copySelectionLimit', { max: MAX_ITEMS_PER_COPY }));
-      return;
-    } else {
-      next.add(itemId);
-    }
-    setSelectedItemIds(next);
-  };
-
-  /**
-   * 전체 선택: every link of this Collection that can be copied - read from the server page by page
-   * (the existing item pages, newest first), never just the pages this screen happened to load. The
-   * copy takes at most MAX_ITEMS_PER_COPY at once, so a larger Collection gets its newest
-   * MAX_ITEMS_PER_COPY and says so - it is never presented as "all". Only links the server still
-   * lists (active, visible to me) are ever selected.
-   */
-  const selectAllForCopy = async () => {
-    if (!selectedItemIds || isSelectingAllForCopy) {
-      return;
-    }
-    setIsSelectingAllForCopy(true);
-    try {
-      const ids = new Set<number>();
-      let cursor: string | undefined;
-      do {
-        const page = await getCollectionItems(authenticatedRequest, collectionId, {
-          limit: COPY_SELECT_ALL_PAGE_SIZE,
-          cursor,
-          sort: 'dateDesc',
-          unlockToken: getCollectionUnlockToken(collectionId),
-        });
-        page.items.forEach(entry => ids.add(entry.itemId));
-        cursor = page.nextCursor ?? undefined;
-      } while (cursor && ids.size < MAX_ITEMS_PER_COPY);
-      const selectable = [...ids].slice(0, MAX_ITEMS_PER_COPY);
-      setSelectedItemIds(new Set(selectable));
-      setSelectAllForCopyCount(selectable.length);
-      if (cursor || ids.size > MAX_ITEMS_PER_COPY) {
-        showNotificationToast(t('collections.copySelectionLimit', { max: MAX_ITEMS_PER_COPY }));
-      }
-    } catch (caughtError) {
-      setNotice(getCollectionItemsErrorMessage(caughtError, t));
-    } finally {
-      setIsSelectingAllForCopy(false);
-    }
-  };
-
-  const clearCopySelection = () => {
-    setSelectedItemIds(new Set());
-    setSelectAllForCopyCount(null);
-  };
-
-  /**
-   * 내 컬렉션으로 복사 into every chosen destination - one request per destination (the server copies
-   * into one Collection at a time), one after the other. The shared-Collection copy never links another
-   * member's Item into my Collections: the server makes my own new Item of the link's URL, title and
-   * automatic preview only. Nothing copied anywhere (every destination failed) rejects, so the picker
-   * stays open for another try; if only some failed, what was copied is reported and the rest named.
-   */
-  const copyToDestinations = async (destinations: readonly PickedDestination[]) => {
-    const itemIds = selectedItemIds ? [...selectedItemIds] : [];
-    if (itemIds.length === 0 || isCopying) {
-      return;
-    }
-    setIsCopying(true);
-    try {
-      const totals = { copiedCount: 0, skippedCount: 0, unavailableCount: 0 };
-      let firstFailure: unknown = null;
-      let failedCount = 0;
-      for (const destination of destinations) {
-        try {
-          const result = await copyCollectionItems(authenticatedRequest, collectionId, itemIds, destination.collection.id, destination.unlockToken);
-          totals.copiedCount += result.copiedCount;
-          totals.skippedCount += result.skippedCount;
-          totals.unavailableCount += result.unavailableCount;
-        } catch (caughtError) {
-          firstFailure ??= caughtError;
-          failedCount += 1;
-        }
-      }
-      if (failedCount === destinations.length) {
-        throw firstFailure;
-      }
-      setSelectedItemIds(null);
-      setSelectAllForCopyCount(null);
-      const isCleanMulti = destinations.length > 1 && failedCount === 0 && totals.skippedCount === 0 && totals.unavailableCount === 0;
-      const summary = isCleanMulti
-        ? t('collections.copyResultMulti', { links: itemIds.length, collections: destinations.length })
-        : formatCopyResultMessage(totals, t);
-      showNotificationToast(failedCount > 0 ? `${summary} ${t('collections.copyDestinationsFailed', { count: failedCount })}` : summary);
-    } finally {
-      setIsCopying(false);
     }
   };
 
@@ -1140,152 +1023,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     setPendingUnlinkItemId(previous => previous ?? itemId);
   };
 
-  /** The link menu's rows that open a dialog of their own: close the menu, then (on iOS: once it has gone) run the action. */
-  const afterItemMenu = (action: () => void) => {
-    setIsItemActionMenuVisible(false);
-    setActionMenuItem(null);
-    if (Platform.OS === 'ios') {
-      pendingAfterItemMenuRef.current = action;
-    } else {
-      action();
-    }
-  };
-
   const openLinkInBrowser = (url: string) => {
     // No Linking.canOpenURL pre-check - see ItemDetailsScreen.openOriginalUrl (Android package visibility).
     Linking.openURL(url).catch(() => setNotice(t('item.urlOpenFailed')));
   };
-
-  /**
-   * 다른 컬렉션으로 이동 of one of MY links: into one other Collection of mine. Between two Collections
-   * nobody else is in it is the server's one atomic move (with its Undo). Anything shared - a shared
-   * Collection I am a member of, or my own that has members - composes the two permitted steps
-   * instead: add to the destination first, then remove from here. A failure between them leaves the
-   * link in both Collections, never in neither.
-   */
-  const moveItemTo = async (item: CollectionItemEntry, destination: PickedDestination) => {
-    const target = destination.collection;
-    const itemId = item.itemId;
-    const canTransferAtomically = isOwner && collection?.hasCollaborators !== true && target.hasCollaborators !== true;
-    let targetMembershipCreated: boolean | null = null;
-    if (canTransferAtomically) {
-      try {
-        const moved = await transferCollectionItem(authenticatedRequest, collectionId, itemId, target.id, destination.unlockToken);
-        targetMembershipCreated = moved.targetMembershipCreated;
-      } catch (caughtError) {
-        // Someone with a still-pending invitation also makes the server refuse the atomic move.
-        if (!(caughtError instanceof ApiError && caughtError.kind === 'conflict' && caughtError.code === 'collaborationActive')) {
-          throw caughtError;
-        }
-      }
-    }
-    if (targetMembershipCreated === null) {
-      await addItemToCollection(authenticatedRequest, target.id, itemId, { unlockToken: destination.unlockToken });
-      await removeItemFromCollection(authenticatedRequest, collectionId, itemId);
-    }
-    removeLocally(itemId);
-    setCollection(previous => previous ? { ...previous, itemCount: Math.max(0, previous.itemCount - 1) } : previous);
-    if (targetMembershipCreated === null) {
-      showNotificationToast(t('toast.moveSuccess'));
-      return;
-    }
-    const created = targetMembershipCreated;
-    showUndoToast({ actionLabel: t('toast.undoAction'), message: t('toast.moveSuccess'), noticeTitle: t('common.notice'), confirmLabel: t('common.confirm'), undoErrorMessage: t('toast.undoMoveError'), onUndo: async () => {
-      await undoTransferCollectionItem(authenticatedRequest, collectionId, itemId, target.id, created);
-      setCollection(previous => previous ? { ...previous, itemCount: previous.itemCount + 1 } : previous);
-      await refresh();
-    } });
-  };
-
-  /** 다른 컬렉션에 복제: one of MY links into several of my Collections in one request (never a copy of the link). */
-  const replicateItemTo = async (item: CollectionItemEntry, destinations: readonly PickedDestination[]) => {
-    const unlockTokens: Record<number, string> = {};
-    destinations.forEach(destination => {
-      if (destination.unlockToken) {
-        unlockTokens[destination.collection.id] = destination.unlockToken;
-      }
-    });
-    const result = await addItemToCollections(authenticatedRequest, item.itemId, destinations.map(destination => destination.collection.id), unlockTokens);
-    showNotificationToast(formatReplicateResultMessage(result, t));
-  };
-
-  // The one destination picker (list/grid, order, several or one destination, "+ 새 컬렉션 만들기")
-  // serves all three link actions: 복제 and 내 컬렉션으로 복사 take any number of destinations, 이동 one.
-  const [pickerMode, setPickerMode] = useState<'replicate' | 'copy' | 'move' | null>(null);
-  const pickerModeRef = useRef<'replicate' | 'copy' | 'move' | null>(null);
-  const pickerItemRef = useRef<CollectionItemEntry | null>(null);
-  const destinationPicker = useCollectionDestinationPicker(authenticatedRequest, t, {
-    selection: pickerMode === 'move' ? 'single' : 'multiple',
-    onSubmit: async destinations => {
-      const mode = pickerModeRef.current;
-      const item = pickerItemRef.current;
-      if (mode === 'copy') {
-        await copyToDestinations(destinations);
-      } else if (mode === 'move' && item) {
-        await moveItemTo(item, destinations[0]);
-      } else if (mode === 'replicate' && item) {
-        await replicateItemTo(item, destinations);
-      }
-    },
-    errorMessage: caughtError => {
-      if (caughtError instanceof ApiError) {
-        if (caughtError.kind === 'unauthorized') {
-          return t('errors.unauthorized');
-        }
-        if (caughtError.code === 'collectionLocked') {
-          // A grant expired between choosing and the action - choosing that Collection again asks for its password.
-          return t('collections.lockRequiredForAction');
-        }
-      }
-      if (pickerModeRef.current === 'copy') {
-        return caughtError instanceof ApiError && caughtError.kind === 'badRequest'
-          ? t('collections.copySelectionLimit', { max: MAX_ITEMS_PER_COPY })
-          : t(gateNoticeKey(caughtError) ?? 'collections.copyError');
-      }
-      return pickerModeRef.current === 'move' ? t(gateNoticeKey(caughtError) ?? 'collections.moveError') : t('collections.replicateError');
-    },
-  });
-  const openDestinationPicker = (mode: 'replicate' | 'copy' | 'move', item: CollectionItemEntry | null, options?: Parameters<typeof destinationPicker.open>[0]) => {
-    pickerModeRef.current = mode;
-    pickerItemRef.current = item;
-    setPickerMode(mode);
-    destinationPicker.open(options);
-  };
-  const closeDestinationPicker = () => {
-    destinationPicker.close();
-  };
-
-  /**
-   * Another member's link: 링크 저장 - the ordinary 새 링크 검토 screen, opened with that link's address and title as starting values.
-   * Nothing is copied or saved here: the person chooses the Collection(s) (or none, a new one, a locked one, an approval-first one),
-   * may change the title and write their own memo, and confirms Save, which makes a new link of their own through the normal save
-   * pipeline. The other member's memo, photos, comments and reactions never travel, and their link is left as it is.
-   */
-  const openSaveLink = () => {
-    setIsItemActionMenuVisible(false);
-    const item = actionMenuItem;
-    setActionMenuItem(null);
-    if (item && isHttpUrl(item.url)) {
-      navigation.navigate('NewLinkReview', { url: item.url, initialTitle: item.title ?? null, preselectedCollectionId: null });
-    }
-  };
-
-  /** My own link (here or in someone else's Collection): 다른 컬렉션에 복제 / 이동. */
-  const openReplicatePicker = () => {
-    setIsItemActionMenuVisible(false);
-    if (actionMenuItem) {
-      openDestinationPicker('replicate', actionMenuItem, { containedItemId: actionMenuItem.itemId });
-    }
-    setActionMenuItem(null);
-  };
-
-  const openMovePicker = () => {
-    setIsItemActionMenuVisible(false);
-    if (actionMenuItem) {
-      openDestinationPicker('move', actionMenuItem, { disabledIds: [collectionId] });
-    }
-    setActionMenuItem(null);
-  };
+  openLinkInBrowserRef.current = openLinkInBrowser;
 
   const backButton = (
     <Pressable accessibilityLabel={t('common.back')} accessibilityRole="button"
@@ -1311,21 +1053,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     recordRecentReaction(key);
     itemReactions.react(item.itemId, item, key).catch(() => undefined);
   };
-  /** The menu's "+": the picker takes the menu's place - on iOS only once the menu has finished closing. */
-  const openReactionPicker = () => {
-    const item = actionMenuItem;
-    setIsItemActionMenuVisible(false);
-    setActionMenuItem(null);
-    if (!item) {
-      return;
-    }
-    if (Platform.OS === 'ios') {
-      pendingReactionPickerRef.current = item;
-    } else {
-      setReactionPickerItem(item);
-    }
-  };
-
   // The participant row exists from the first render whenever someone else is in the Collection (the
   // Collection itself says how many) - placeholder circles until the full list arrives, then the real
   // photos in the same place. Never a line of names. If the list cannot be loaded, the Collection's own
@@ -1355,13 +1082,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
   };
   openCollectionItemRef.current = openCollectionItem;
-  openImageTileMenuRef.current = entry => {
-    if (!isContentLocked) {
-      setActionMenuItem(entry);
-      setIsItemActionMenuVisible(true);
-    }
-  };
-
   imageSwipeHandlersRef.current = { unlink: confirmUnlinkItem, share: item => { shareItemAction(item).catch(() => undefined); } };
 
   // `column`: the item's column in a Grid row on the screen's content edge (see edgeAlignedCellPadding).
@@ -1369,13 +1089,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     // Another member's link: opened as the read-only shared view (the owner-only ItemDetails
     // would be a 404 anyway), and never offered Add/Move - those act on one's own Items.
     const isMine = item.isMine !== false;
-    // My own link - in my Collection or someone else's: 복제 / 이동 (the server checks each step).
-    const canManageItem = isMine && !isContentLocked;
-    // Someone else's link - in a Collection shared with me, or in my own shared one (added by a
-    // member): only ever 내 컬렉션으로 복사 (a copy that becomes my own Item) - never move/remove
-    // from here, and only once the content is open to me.
-    const canCopyToMine = !isMine && !isContentLocked;
-    const openItemMenu = () => { setActionMenuItem(item); setIsItemActionMenuVisible(true); };
     // Reactions: only in a Collection other people are in (shared with me, or mine with members), once its
     // content is open - never in a private one, and never in the public link's views.
     const addedBy = showItemAdders ? describeItemAdder(item.addedBy, t) : null;
@@ -1395,33 +1108,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     const frameStyle = containerStyle ?? (isGrid ? savedLinkGridLayout.swipeContainer : savedLinkLayout.card);
     const cellStyle = column === undefined ? gridCellStyle : [gridCellStyle, edgeAlignedCellPadding(column, columns.grid)];
     const inCell = (node: ReactElement) => (wrapInGridCell ? <View style={cellStyle}>{node}</View> : node);
-    if (selectedItemIds) {
-      // 내 컬렉션으로 복사 selection: a tap only picks/unpicks - no swipe actions, menus or navigation.
-      const isSelected = selectedItemIds.has(item.itemId);
-      return inCell(
-        <Pressable
-          accessibilityLabel={item.title ?? item.url}
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: isSelected, disabled: isCopying }}
-          disabled={isCopying}
-          onPress={() => toggleCopySelection(item.itemId)}
-          style={frameStyle}
-          testID={`collection-copy-select-${item.itemId}`}
-        >
-          <View>
-            {layoutMode === 'grid' ? (
-              <SavedLinkGridCard addedBy={addedBy} dateDisplayMode="dateTime" isActionInFlight={false} item={toSavedLinkRowItem(item)} preferEffectiveThumbnail />
-            ) : (
-              <SavedLinkRow addedBy={addedBy} dateDisplayMode="dateTime" isActionInFlight={false} item={toSavedLinkRowItem(item)} preferEffectiveThumbnail />
-            )}
-            {/* Overlay: the selection mark sits on the card's top-start corner in both layouts. */}
-            <View style={[styles.selectionMark, isSelected && styles.selectionMarkSelected]}>
-              {isSelected ? <CheckIcon color={colors.surface} size={14} /> : null}
-            </View>
-          </View>
-        </Pressable>
-      );
-    }
     // 바로가기 (List and Grid cards): the saved original page; the card's own tap still opens the link in this app.
     const openOriginal = () => openLinkInBrowser(item.url);
     return inCell(
@@ -1436,7 +1122,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         deleteLabel={t('collections.removeFromCollection')}
         // Long-press opens the 복제/이동 menu in both List and Grid - the one way in (a List row no
         // longer has its own trailing "..." for it).
-        onLongPress={canManageItem || canCopyToMine || reactionsEnabled ? openItemMenu : undefined}
+        onLongPress={isContentLocked ? undefined : () => linkSelection.startSelection(item)}
+        selection={linkSelection.rowSelection(item)}
         onPress={() => openCollectionItem(item)}
         onShare={() => shareItemAction(item)}
       >
@@ -1463,31 +1150,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     );
   };
 
-  /**
-   * A link's long-press menu in this Collection: 링크 열기 first; my own link - 수정 (the same Item Details a tap opens),
-   * 복제 / 이동 (this Collection's way of changing a link's Collection); another member's link - 내 컬렉션으로 복사;
-   * then the destructive 컬렉션에서 제거 last, for exactly whom the swipe offers it (the Owner any link, a member their own).
-   * It never deletes anyone's link - the server enforces the same.
-   */
-  const linkMenuActions = (menuItem: CollectionItemEntry): ActionMenuDialogAction[] => [
-    { label: t('item.goToUrlA11y'), icon: ExternalLinkIcon, onPress: () => { setIsItemActionMenuVisible(false); setActionMenuItem(null); openLinkInBrowser(menuItem.url); } },
-    { label: t('item.copyLink'), icon: CopyIcon, onPress: () => { setIsItemActionMenuVisible(false); setActionMenuItem(null); showNotificationToast(t(copySavedLinkUrl(menuItem.url) ? 'item.linkCopied' : 'item.linkCopyFailed')); } },
-    ...(menuItem.isMine === false
-      ? [
-        // Somebody else's link: 링크 저장, and it can be reported (mine cannot; a personal Collection never has anyone else's link).
-        { label: t('item.saveDialogTitle'), icon: ArchiveIcon, onPress: openSaveLink },
-        { label: t('safety.reportLink'), destructive: true, icon: FlagIcon, onPress: () => afterItemMenu(() => setReporting({ target: { type: 'Item', itemId: menuItem.itemId, collectionId }, label: menuItem.title ?? menuItem.url, preview: { title: menuItem.title, url: menuItem.url, imageUrl: menuItem.previewImageUrl } })) },
-      ]
-      : [
-        { label: t('common.edit'), icon: EditIcon, onPress: () => { setIsItemActionMenuVisible(false); setActionMenuItem(null); openCollectionItem(menuItem); } },
-        { label: t('collections.addToOther'), icon: CopyIcon, onPress: openReplicatePicker },
-        { label: t('collections.moveToOther'), icon: MoveIcon, onPress: openMovePicker },
-      ]),
-    ...(isOwner || menuItem.isMine !== false
-      ? [{ label: t('collections.removeFromCollection'), destructive: true, icon: TrashIcon, onPress: () => afterItemMenu(() => confirmUnlinkItem(menuItem.itemId)) }]
-      : []),
-  ];
-
   const closeCollectionMenuThen = (action: () => void) => () => {
     setIsCollectionMenuVisible(false);
     action();
@@ -1510,10 +1172,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         // (a share password first) and there is something to copy. 새 링크 알림 is the header's bell.
         ...(isContentLocked || items.length === 0
           ? []
-          : [{ label: t('collections.copyToMine'), icon: CopyIcon, onPress: closeCollectionMenuThen(() => {
-            setSelectAllForCopyCount(null);
-            setSelectedItemIds(new Set());
-          }) }]),
+          : [{ label: t('collections.copyToMine'), icon: CopyIcon, onPress: closeCollectionMenuThen(() => linkSelection.begin()) }]),
         // Their own personal lock (their lock password; the Owner and the other members are not affected): a confirmation to set it,
         // the password to remove it.
         collection.isMemberLocked
@@ -1534,8 +1193,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       <View style={styles.headerActions} testID="collection-details-toolbar">
         {/* The caller's own favorite mark - a Contributor has one too; it changes
             nothing for anyone else, so it is not an Owner-only control. */}
-        <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }} disabled={isTogglingFavorite} onPress={toggleFavoriteAction} style={styles.toolbarButton} testID="collection-details-favorite">
-          <StarIcon color={collection.isFavorite ? colors.warning : colors.border} filled={collection.isFavorite} size={20} />
+        <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }} onPress={() => { if (isTogglingFavorite) return; bumpStar(); toggleFavoriteAction().catch(() => undefined); }} style={styles.toolbarButton} testID="collection-details-favorite">
+          <FavoriteStar active={collection.isFavorite} playToken={starTap} size={20} />
         </Pressable>
         {/* 새 링크 알림 - a plain on/off toggle of the caller's own preference, shown once it is known. */}
         {offersNewLinkNotifications && newLinkNotifications !== null ? (
@@ -1604,8 +1263,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const reviewTitle = t('collections.reviewRequests');
   const reviewStatus = t('collections.myPendingStatus', { count: reviewRequestCount });
   const participantCount = participants?.participants.length ?? otherParticipants + 1;
-  const listHeader = (
-    <View>
+  // Scrolls away with the links: the big detail header (title, participants, review requests).
+  const collapsibleDetails = (
+    <View style={styles.collapsibleTop}>
       <CollectionHeaderTitle
         key={collection.id}
         collectionId={collection.id}
@@ -1648,6 +1308,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           testID="collection-details-review-requests"
         />
       ) : null}
+    </View>
+  );
+  // Stays at the top: the link search and the count / view switch.
+  const pinnedControls = (
+    <View style={styles.pinnedControls}>
       {/* 링크 검색 right under the actions - the server-backed search of this Collection. */}
       {isContentLocked ? null : (
         <View style={styles.searchBox}>
@@ -1665,10 +1330,22 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       {/* The content row: how many links are shown (the Collection's, or the search's once its results are complete) on the start side,
           List / Grid / Image at the end edge - links are always newest first, so there is no order to pick. */}
       <View style={styles.sortRow} testID="collection-view-controls">
-        {linkCount !== null ? <Text numberOfLines={1} style={styles.linkCount} testID="collection-link-count">{t('collections.linkCount', { count: linkCount })}</Text> : null}
+        {linkCount !== null ? (
+          <View style={styles.linkCountCluster}>
+            <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.linkCountIcon}>
+              <LinkIcon color={colors.textSecondary} size={18} />
+            </View>
+            <Text numberOfLines={1} style={styles.linkCount} testID="collection-link-count">{t('collections.linkCount', { count: linkCount })}</Text>
+          </View>
+        ) : null}
         <View style={styles.sortRowSpacer} />
         <ViewModeToggle onChange={changeViewMode} showImage tinted style={styles.viewModeToggle} value={viewMode} />
       </View>
+    </View>
+  );
+  // Scrolls with the links: the submitter's pending row and load failures.
+  const listHeader = (
+    <View>
       {/* A submitter's 내 승인 대기: MY OWN proposed links that the Owner has not answered yet - a long
           action row of the same family as the Owner's 승인 대기 (same size, shape and shadow, neutral
           color), directly under the sort / List-Grid controls and right before the first link. Separate
@@ -1724,151 +1401,115 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           </View>
         );
       case 'flatImageRow':
-        return <SavedLinkImageRow items={row.items.map(toSavedLinkRowItem)} onLongPress={openImageTileMenu} onPress={openImageTile} swipeActions={imageSwipeActions} swipeDisabled={itemActionInFlightId !== null || isRefreshing} testID={`collection-flat-image-row-${row.key}`} />;
+        return <SavedLinkImageRow items={row.items.map(toSavedLinkRowItem)} onLongPress={startImageSelection} onPress={openImageTile} selection={linkSelection.imageSelection} swipeActions={imageSwipeActions} swipeDisabled={itemActionInFlightId !== null || isRefreshing} testID={`collection-flat-image-row-${row.key}`} />;
     }
   };
 
   return (
     <TabScreenSafeArea style={[styles.safeArea, { backgroundColor: pageBackground }]} testID="collection-details-screen">
-      {toolbar}
+      {/* While selecting, the selection header (close, count, 전체 선택) takes the toolbar's place, as in a gallery. */}
+      {linkSelection.topBar ?? toolbar}
       {/* Only the password prompt of a locked Collection takes text here - it must stay above the keyboard. */}
       <KeyboardSafeView enabled={isContentLocked}>
-      {search.isSearching && !isContentLocked ? (
-        <FlatList
-          key="collection-search"
-          contentContainerStyle={styles.content}
-          style={styles.list}
-          data={searchRows}
-          keyExtractor={row => row.key}
-          keyboardShouldPersistTaps="handled"
-          refreshControl={pullToRefresh.refreshControl}
-          ListHeaderComponent={listHeader}
-          ListEmptyComponent={search.isLoading ? (
-            <ActivityIndicator style={styles.searchStatus} testID="collection-search-loading" />
-          ) : search.error ? (
-            <LoadFailureState error={search.error} onRetry={search.refresh} testID="collection-search-error" />
-          ) : search.settledTerm !== null ? (
-            <CenteredEmptyState message={t('history.searchEmpty')} />
-          ) : undefined}
-          ListFooterComponent={search.items.length > 0 && search.error ? (
-            <RefreshFailureNotice onRetry={search.loadMore} testID="collection-search-more-error" />
-          ) : search.isLoadingMore ? <ActivityIndicator style={styles.searchStatus} /> : undefined}
-          onContentSizeChange={viewportFill.onContentSizeChange}
-          onEndReached={search.loadMore}
-          onEndReachedThreshold={END_REACHED_THRESHOLD}
-          onLayout={viewportFill.onLayout}
-          onScrollBeginDrag={closeOpenRow}
-          scrollEnabled={swipeScrollEnabled}
-          renderItem={renderFlatRow}
-        />
-      ) : layoutMode === 'image' ? (
-        // Image: the loaded links three tiles to a line, the next page as the end comes near.
-        <FlatList
-          key="image-list"
-          contentContainerStyle={styles.content}
-          style={styles.list}
-          data={isContentLocked ? [] : imageRows}
-          keyExtractor={row => row.key}
-          initialNumToRender={12}
-          maxToRenderPerBatch={10}
-          windowSize={7}
-          removeClippedSubviews={Platform.OS === 'android'}
-          refreshControl={pullToRefresh.refreshControl}
-          ListHeaderComponent={listHeader}
-          ListEmptyComponent={listEmpty}
-          ListFooterComponent={pageFooter}
-          onEndReached={loadNextPage}
-          onEndReachedThreshold={END_REACHED_THRESHOLD}
-          onScrollBeginDrag={closeOpenRow}
-          scrollEnabled={swipeScrollEnabled}
-          renderItem={renderFlatRow}
-        />
-      ) : (
-        <FlatList
-          key={gridListKey(layoutMode, layoutMode === 'grid', columns.grid)}
-          contentContainerStyle={styles.content}
-          style={styles.list}
-          data={isContentLocked ? [] : items}
-          keyExtractor={(item: CollectionItemEntry) => item.itemId.toString()}
-          numColumns={layoutMode === 'grid' ? columns.grid : 1}
-          initialNumToRender={12}
-          maxToRenderPerBatch={10}
-          windowSize={7}
-          removeClippedSubviews={Platform.OS === 'android'}
-          refreshControl={pullToRefresh.refreshControl}
-          ListHeaderComponent={listHeader}
-          ListEmptyComponent={listEmpty}
-          ListFooterComponent={pageFooter}
-          onEndReached={loadNextPage}
-          onEndReachedThreshold={END_REACHED_THRESHOLD}
-          onScrollBeginDrag={closeOpenRow}
-          scrollEnabled={swipeScrollEnabled}
-          renderItem={({ item, index }) => renderCollectionItem(item, undefined, layoutMode === 'grid' ? index % columns.grid : undefined)}
-        />
-      )}
+      <CollapsibleHeaderLayout
+        backgroundColor={pageBackground}
+        collapsible={collapsibleDetails}
+        pinned={pinnedControls}
+        resetKey={`${search.isSearching && !isContentLocked ? 'search' : 'items'}-${layoutMode}`}
+        testID="collection-details-fixed-header"
+      >
+        {list => (
+          <>
+          {search.isSearching && !isContentLocked ? (
+            <AnimatedFlatList
+              ref={list.listRef}
+              onScroll={list.onScroll}
+              scrollEventThrottle={list.scrollEventThrottle}
+              key="collection-search"
+              extraData={linkSelection.selection}
+              contentContainerStyle={[styles.content, list.contentInset(searchRows.length > 0)]}
+              style={styles.list}
+              data={searchRows}
+              keyExtractor={row => row.key}
+              keyboardShouldPersistTaps="handled"
+              refreshControl={list.withRefreshOffset(pullToRefresh.refreshControl)}
+              ListHeaderComponent={listHeader}
+              ListEmptyComponent={search.isLoading ? (
+                <ActivityIndicator style={styles.searchStatus} testID="collection-search-loading" />
+              ) : search.error ? (
+                <LoadFailureState error={search.error} onRetry={search.refresh} testID="collection-search-error" />
+              ) : search.settledTerm !== null ? (
+                <CenteredEmptyState message={t('history.searchEmpty')} />
+              ) : undefined}
+              ListFooterComponent={search.items.length > 0 && search.error ? (
+                <RefreshFailureNotice onRetry={search.loadMore} testID="collection-search-more-error" />
+              ) : search.isLoadingMore ? <ActivityIndicator style={styles.searchStatus} /> : undefined}
+              onContentSizeChange={viewportFill.onContentSizeChange}
+              onEndReached={search.loadMore}
+              onEndReachedThreshold={END_REACHED_THRESHOLD}
+              onLayout={viewportFill.onLayout}
+              onScrollBeginDrag={closeOpenRow}
+              scrollEnabled={swipeScrollEnabled}
+              renderItem={renderFlatRow}
+            />
+          ) : layoutMode === 'image' ? (
+            // Image: the loaded links three tiles to a line, the next page as the end comes near.
+            <AnimatedFlatList
+              ref={list.listRef}
+              onScroll={list.onScroll}
+              scrollEventThrottle={list.scrollEventThrottle}
+              key="image-list"
+              extraData={linkSelection.selection}
+              contentContainerStyle={[styles.content, list.contentInset(!isContentLocked && imageRows.length > 0)]}
+              style={styles.list}
+              data={isContentLocked ? [] : imageRows}
+              keyExtractor={row => row.key}
+              initialNumToRender={12}
+              maxToRenderPerBatch={10}
+              windowSize={7}
+              removeClippedSubviews={Platform.OS === 'android'}
+              refreshControl={list.withRefreshOffset(pullToRefresh.refreshControl)}
+              ListHeaderComponent={listHeader}
+              ListEmptyComponent={listEmpty}
+              ListFooterComponent={pageFooter}
+              onEndReached={loadNextPage}
+              onEndReachedThreshold={END_REACHED_THRESHOLD}
+              onScrollBeginDrag={closeOpenRow}
+              scrollEnabled={swipeScrollEnabled}
+              renderItem={renderFlatRow}
+            />
+          ) : (
+            <AnimatedFlatList
+              ref={list.listRef}
+              onScroll={list.onScroll}
+              scrollEventThrottle={list.scrollEventThrottle}
+              key={gridListKey(layoutMode, layoutMode === 'grid', columns.grid)}
+              extraData={linkSelection.selection}
+              contentContainerStyle={[styles.content, list.contentInset(!isContentLocked && items.length > 0)]}
+              style={styles.list}
+              data={isContentLocked ? [] : items}
+              keyExtractor={(item: CollectionItemEntry) => item.itemId.toString()}
+              numColumns={layoutMode === 'grid' ? columns.grid : 1}
+              initialNumToRender={12}
+              maxToRenderPerBatch={10}
+              windowSize={7}
+              removeClippedSubviews={Platform.OS === 'android'}
+              refreshControl={list.withRefreshOffset(pullToRefresh.refreshControl)}
+              ListHeaderComponent={listHeader}
+              ListEmptyComponent={listEmpty}
+              ListFooterComponent={pageFooter}
+              onEndReached={loadNextPage}
+              onEndReachedThreshold={END_REACHED_THRESHOLD}
+              onScrollBeginDrag={closeOpenRow}
+              scrollEnabled={swipeScrollEnabled}
+              renderItem={({ item, index }) => renderCollectionItem(item, undefined, layoutMode === 'grid' ? index % columns.grid : undefined)}
+            />
+          )}
+          </>
+        )}
+      </CollapsibleHeaderLayout>
       </KeyboardSafeView>
-      {selectedItemIds ? (
-        <View style={styles.selectionBar} testID="collection-copy-bar">
-          {/* [N개 선택됨 · 전체 선택] on the start side (wrapping onto two lines on a narrow screen),
-              [취소] [복사] on the end. */}
-          <View style={styles.selectionSummary}>
-            <Text numberOfLines={1} style={styles.selectionCount}>{t('collections.copySelectedCount', { count: selectedItemIds.size })}</Text>
-            {(() => {
-              const total = collection.itemCount;
-              const isAllSelected =
-                selectedItemIds.size > 0
-                && (selectedItemIds.size === selectAllForCopyCount || selectedItemIds.size >= Math.min(total, MAX_ITEMS_PER_COPY));
-              const label = isAllSelected
-                ? t('collections.copyClearAll')
-                : total > MAX_ITEMS_PER_COPY
-                  ? t('collections.copySelectUpTo', { max: MAX_ITEMS_PER_COPY })
-                  : t('collections.copySelectAll');
-              return (
-                <Pressable
-                  accessibilityLabel={isAllSelected ? t('collections.copyClearAllA11y') : label}
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: isCopying || isSelectingAllForCopy, busy: isSelectingAllForCopy }}
-                  disabled={isCopying || isSelectingAllForCopy}
-                  hitSlop={8}
-                  onPress={isAllSelected ? clearCopySelection : () => {
-                    selectAllForCopy().catch(() => undefined);
-                  }}
-                  style={styles.selectionAllAction}
-                  testID="collection-copy-select-all"
-                >
-                  {isSelectingAllForCopy ? (
-                    <ActivityIndicator size="small" />
-                  ) : (
-                    <Text numberOfLines={1} style={styles.selectionAllLabel}>{label}</Text>
-                  )}
-                </Pressable>
-              );
-            })()}
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            disabled={isCopying}
-            onPress={() => {
-              setSelectAllForCopyCount(null);
-              setSelectedItemIds(null);
-            }}
-            style={styles.selectionButton}
-            testID="collection-copy-cancel"
-          >
-            <Text style={styles.selectionCancelLabel}>{t('common.cancel')}</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled: selectedItemIds.size === 0 || isCopying, busy: isCopying }}
-            disabled={selectedItemIds.size === 0 || isCopying}
-            onPress={() => openDestinationPicker('copy', null)}
-            style={[styles.selectionButton, styles.selectionPrimary, (selectedItemIds.size === 0 || isCopying) && styles.disabledButton]}
-            testID="collection-copy-confirm"
-          >
-            {isCopying ? <ActivityIndicator color={colors.onBrand} /> : <Text style={styles.selectionPrimaryLabel}>{t('collections.copyAction')}</Text>}
-          </Pressable>
-        </View>
-      ) : null}
+      {linkSelection.element}
       <CategoryEditorDialog
         error={editError}
         initialColor={resolveEffectiveCollectionColorValue(collection.color, collection.id)}
@@ -1921,33 +1562,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         visible={pendingUnlinkItemId !== null}
       />
       <ActionMenuDialog
-        header={actionMenuItem && reactionsEnabled ? (
-          <QuickReactionBar
-            myReaction={itemReactions.reactionsOf(actionMenuItem.itemId, actionMenuItem).myReaction}
-            onMore={openReactionPicker}
-            onSelect={key => {
-              const item = actionMenuItem;
-              setIsItemActionMenuVisible(false);
-              setActionMenuItem(null);
-              reactToItem(item, key);
-            }}
-          />
-        ) : undefined}
-        onDismiss={() => {
-          const afterMenu = pendingAfterItemMenuRef.current;
-          pendingAfterItemMenuRef.current = null;
-          afterMenu?.();
-          if (pendingReactionPickerRef.current) {
-            setReactionPickerItem(pendingReactionPickerRef.current);
-            pendingReactionPickerRef.current = null;
-          }
-        }}
-        actions={actionMenuItem ? linkMenuActions(actionMenuItem) : []}
-        cancelLabel={t('common.cancel')}
-        onCancel={() => { setIsItemActionMenuVisible(false); setActionMenuItem(null); }}
-        visible={isItemActionMenuVisible}
-      />
-      <ActionMenuDialog
         actions={collectionMenuActions}
         cancelLabel={t('common.cancel')}
         onCancel={() => setIsCollectionMenuVisible(false)}
@@ -1998,47 +1612,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         recent={recentReactions}
         visible={reactionPickerItem !== null}
       />
-      <CategoryPickerModal
-        bottomInset={insets.bottom}
-        collectionPool={destinationPicker.collections}
-        createError={destinationPicker.createError}
-        createAccessibilityLabel={t('collections.copyCreateNew')}
-        createLabel={t('collections.addTile')}
-        disabledIds={destinationPicker.disabledIds}
-        error={destinationPicker.error}
-        loadFailure={destinationPicker.loadFailure}
-        onRetryLoad={destinationPicker.retryLoad}
-        isCreateDialogVisible={destinationPicker.isCreateDialogVisible}
-        isCreatingCollection={destinationPicker.isCreating}
-        isLoadingMore={destinationPicker.isLoadingMore}
-        isLoadingOptions={destinationPicker.isLoading}
-        onClose={closeDestinationPicker}
-        onCloseCreateDialog={destinationPicker.closeCreateDialog}
-        onCreateCollection={destinationPicker.submitNewCollection}
-        onLoadMore={destinationPicker.loadMore}
-        onOpenCreateDialog={destinationPicker.openCreateDialog}
-        onToggle={destinationPicker.toggle}
-        onUnlockCancel={destinationPicker.cancelUnlock}
-        onUnlockGranted={destinationPicker.onUnlockGranted}
-        onUnlockStateChanged={destinationPicker.onUnlockStateChanged}
-        selectedIds={destinationPicker.selectedIds}
-        sort={{ value: destinationPicker.sort, onChange: destinationPicker.changeSort }}
-        submit={{
-          label: pickerMode === 'copy'
-            ? t('collections.copyAction')
-            : pickerMode === 'move'
-              ? t('collections.moveAction')
-              : destinationPicker.selectedIds.size > 0
-                ? t('collections.replicateSubmitCount', { count: destinationPicker.selectedIds.size })
-                : t('collections.replicateSubmit'),
-          onSubmit: destinationPicker.submit,
-          isSubmitting: destinationPicker.isSubmitting,
-        }}
-        title={pickerMode === 'copy' ? t('collections.copyPickerTitle') : t('collections.targetPickerTitle')}
-        unlockTarget={destinationPicker.unlockTarget}
-        viewModeKey="replicatePickerViewMode"
-        visible={destinationPicker.isVisible}
-      />
       <CollectionLinkShareSheet
         authenticatedRequest={authenticatedRequest}
         collectionId={collectionId}
@@ -2057,32 +1630,17 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         }}
         visible={isLinkShareSheetVisible && !isOwner}
       />
+      {/* 검토할 요청: ONE sheet - the type chooser and the 링크 승인 / 참여 요청 lists slide inside it (a notification may open straight on a list). */}
       <CollectionReviewRequestsSheet
         approvalCount={pendingSubmissions}
+        authenticatedRequest={authenticatedRequest}
+        collectionId={collectionId}
+        initialPage={ownerRequestSheet === 'approvals' ? 'approvals' : ownerRequestSheet === 'join' ? 'join' : 'types'}
         joinCount={pendingJoins}
-        onClose={() => setOwnerRequestSheet(null)}
-        onOpenApprovals={() => runUnlocked(() => setOwnerRequestSheet('approvals'))}
-        onOpenJoinRequests={() => runUnlocked(() => setOwnerRequestSheet('join'))}
-        visible={ownerRequestSheet === 'review' && isOwner && pendingUnlockAction === null}
-      />
-      {/* 승인 대기 popups (status lists, not places): the Owner's queue, and my own waiting links in this Collection. */}
-      <ApprovalSubmissionSheet
-        authenticatedRequest={authenticatedRequest}
-        collectionId={collectionId}
-        expectedCount={collection.pendingSubmissionCount ?? 0}
+        onBeforeOpenList={runUnlocked}
         onChanged={refreshAll}
         onClose={() => setOwnerRequestSheet(null)}
-        variant="owner"
-        visible={ownerRequestSheet === 'approvals' && isOwner && pendingUnlockAction === null}
-      />
-      {/* 참여 요청: the applicants waiting to join - its own sheet in the same family as the approval queue above. */}
-      <JoinRequestsSheet
-        authenticatedRequest={authenticatedRequest}
-        collectionId={collectionId}
-        expectedCount={collection.pendingJoinRequestCount ?? 0}
-        onChanged={refreshAll}
-        onClose={() => setOwnerRequestSheet(null)}
-        visible={ownerRequestSheet === 'join' && isOwner && pendingUnlockAction === null}
+        visible={ownerRequestSheet !== null && isOwner && pendingUnlockAction === null}
       />
       <ApprovalSubmissionSheet
         authenticatedRequest={authenticatedRequest}
@@ -2100,16 +1658,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         }}
         variant="mine"
         visible={isMyApprovalSheetVisible && pendingUnlockAction === null}
-      />
-      <ReportModal
-        onClose={() => setReporting(null)}
-        onReported={alreadyReported => {
-          setReporting(null);
-          setNotice(t(alreadyReported ? 'safety.reportAlready' : 'safety.reportReceived'));
-        }}
-        target={reporting?.target ?? null}
-        targetLabel={reporting?.label}
-        targetPreview={reporting?.preview}
       />
       <CollectionParticipantsSheet
         authenticatedRequest={authenticatedRequest}
@@ -2148,6 +1696,9 @@ const styles = themedStyles(() => ({
   list: {
     flex: 1,
   },
+  // Same side gutter as the list's content; no background of its own (the page background shows through, one colour).
+  collapsibleTop: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
+  pinnedControls: { paddingHorizontal: spacing.md },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
@@ -2194,48 +1745,12 @@ const styles = themedStyles(() => ({
     fontSize: 14,
     marginTop: 12,
   },
-  selectionMark: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 11,
-    borderWidth: 2,
-    height: 22,
-    justifyContent: 'center',
-    position: 'absolute',
-    start: spacing.xs,
-    top: spacing.xs,
-    width: 22,
-  },
-  selectionMarkSelected: { backgroundColor: colors.brand, borderColor: colors.brandText },
-  selectionBar: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderTopColor: colors.divider,
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  selectionSummary: { alignItems: 'center', columnGap: spacing.md, flex: 1, flexDirection: 'row', flexWrap: 'wrap', minWidth: 0 },
-  selectionCount: { color: colors.textPrimary, flexShrink: 1, fontSize: 15, fontWeight: '600' },
-  selectionAllAction: { justifyContent: 'center', minHeight: minTouchTarget },
-  selectionAllLabel: { color: colors.brandText, fontSize: 15, fontWeight: '600' },
-  selectionButton: {
-    alignItems: 'center',
-    borderRadius: radii.md,
-    justifyContent: 'center',
-    minHeight: minTouchTarget,
-    minWidth: minTouchTarget,
-    paddingHorizontal: spacing.md,
-  },
-  selectionCancelLabel: { color: colors.textSecondary, fontSize: 15, fontWeight: '600' },
-  selectionPrimary: { backgroundColor: colors.brand },
-  selectionPrimaryLabel: { color: colors.onBrand, fontSize: 15, fontWeight: '700' },
   skeletonRow: { overflow: 'hidden' },
   // Wraps only when the sort chips and the three-option view switch genuinely do not fit side by side (the switch keeps the end edge).
   sortRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm },
+  // [chain icon 18dp] 6dp [링크 n개]: one line, the text ellipsizes before the end-edge switch moves.
+  linkCountCluster: { alignItems: 'center', columnGap: 6, flexDirection: 'row', flexShrink: 1, minWidth: 0 },
+  linkCountIcon: { flexShrink: 0 },
   linkCount: { color: colors.textSecondary, flexShrink: 1, fontSize: 13, fontWeight: '600' },
   viewModeToggle: { marginStart: 'auto' },
   flatGridRow: { flexDirection: 'row' },
