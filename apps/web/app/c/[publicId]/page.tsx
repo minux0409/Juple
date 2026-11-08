@@ -4,14 +4,16 @@ import type { Metadata } from 'next';
 import { LANGUAGE_COOKIE } from '../../../lib/appI18n';
 import { getDictionary, resolvePublicLocale } from '../../../lib/i18n';
 import { isKakaoTalkIosInApp, resolveClientPlatform } from '../../../lib/platform';
-import { planSharePage } from '../../../lib/installCta';
+import { planInstallCta, planSharePage } from '../../../lib/installCta';
 import { androidOpenInAppUrl, canonicalShareUrl, kakaoOpenInSafariUrl, normalizeHost, WEB_ONLY_PARAM } from '../../../lib/shareLinks';
 import { buildShareMetadata, loadShareView } from '../../../lib/shareView';
 import { storeConfig } from '../../../lib/storeConfig';
 import { isValidPublicId, unlockCookieName } from '../../../lib/unlockCookie';
 import { PublicStatePage } from '../../_components/PublicStatePage';
 import { AutoOpenInApp } from './AutoOpenInApp';
+import { InstallBanner } from './InstallBanner';
 import { InstallCta } from './InstallCta';
+import { ShareHeader } from './ShareHeader';
 import { ItemList } from './ItemList';
 import { LockedGate } from './LockedGate';
 
@@ -81,6 +83,8 @@ export default async function PublicCollectionPage({ params, searchParams }: Pag
     notFound();
   }
 
+  // The canonical address the share button hands on - the same https /c/{publicId} the app shares (no query, no webonly flag).
+  const shareUrl = host ? canonicalShareUrl(host, publicId) : `/c/${encodeURIComponent(publicId)}`;
   const openInAppUrl = host ? androidOpenInAppUrl(host, publicId) : undefined;
   const kakaoSafariUrl = host && isKakaoTalkIosInApp(requestHeaders.get('user-agent')) ? kakaoOpenInSafariUrl(canonicalShareUrl(host, publicId)) : undefined;
   const installCta = (
@@ -136,8 +140,15 @@ export default async function PublicCollectionPage({ params, searchParams }: Pag
   if (view.kind === 'private') {
     return (
       <main>
-        <p className="brand">Juple</p>
-        <h1 className="collectionName">{view.name}</h1>
+        <ShareHeader
+          copiedLabel={dict.linkCopied}
+          copyFailedLabel={dict.copyFailed}
+          look={view.look}
+          name={view.name}
+          publicId={publicId}
+          shareLabel={dict.shareCollection}
+          shareUrl={shareUrl}
+        />
         {installCta}
         <div className="notFound">
           <p className="notFoundTitle">{dict.privateTitle}</p>
@@ -148,13 +159,39 @@ export default async function PublicCollectionPage({ params, searchParams }: Pag
     );
   }
 
+  // The ready view's install note is the quiet bottom banner: only a store that the public can really use is linked (the Play listing
+  // only once GOOGLE_PLAY_URL is set explicitly), and a missing listing is said plainly instead of linking a dead page.
+  const bannerPlan = planInstallCta({
+    platform,
+    googlePlayUrl: storeConfig.shareGooglePlayUrl,
+    appStoreUrl: storeConfig.appStoreUrl,
+    hasOpenInAppUrl: Boolean(openInAppUrl),
+  });
+  const bannerStores = [
+    ...(bannerPlan.googlePlay && storeConfig.shareGooglePlayUrl ? [{ href: storeConfig.shareGooglePlayUrl, label: dict.googlePlay }] : []),
+    ...(bannerPlan.appStore && storeConfig.appStoreUrl ? [{ href: storeConfig.appStoreUrl, label: dict.appStore }] : []),
+  ];
+  const bannerOpen = kakaoSafariUrl
+    ? { href: kakaoSafariUrl, label: dict.openInSafari }
+    : bannerPlan.open && openInAppUrl
+      ? { href: openInAppUrl, label: dict.openInApp }
+      : undefined;
+  const soonNote = bannerStores.length > 0 ? undefined : platform === 'ios' ? dict.iosSoon : platform === 'android' ? dict.androidSoon : dict.desktopSoon;
+
   return (
-    <main>
-      <p className="brand">Juple</p>
-      <h1 className="collectionName">{view.name}</h1>
-      {installCta}
+    <main className="shareMain">
+      <ShareHeader
+        copiedLabel={dict.linkCopied}
+        copyFailedLabel={dict.copyFailed}
+        look={view.look}
+        name={view.name}
+        publicId={publicId}
+        shareLabel={dict.shareCollection}
+        shareUrl={shareUrl}
+      />
       <ItemList
         apiBaseUrl={apiBaseUrl}
+        countLabel={dict.linkCount}
         emptyLabel={dict.emptyState}
         initialItems={view.items}
         initialNextCursor={view.nextCursor}
@@ -163,9 +200,11 @@ export default async function PublicCollectionPage({ params, searchParams }: Pag
         loadMoreLabel={dict.loadMore}
         openLabel={dict.open}
         publicId={publicId}
+        viewLabels={{ group: dict.viewModeLabel, list: dict.viewList, grid: dict.viewGrid, image: dict.viewImage }}
       />
       {/* A whole Collection can no longer be reported (its links and people can, inside the signed-in app). */}
       <p className="footerNote">{dict.footerNote}</p>
+      <InstallBanner dismissLabel={dict.bannerDismiss} open={bannerOpen} soonNote={soonNote} stores={bannerStores} text={dict.bannerText} title={dict.bannerTitle} />
       {autoOpen}
     </main>
   );

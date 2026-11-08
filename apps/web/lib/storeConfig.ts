@@ -17,7 +17,13 @@ import { resolveAppDownload } from './appDownload.ts';
 export const storeConfig = {
   // The Android package's real Play listing unless the environment says otherwise (lib/appDownload.ts is the one source).
   googlePlayUrl: resolveAppDownload({ googlePlayUrl: process.env.GOOGLE_PLAY_URL }).googlePlayUrl as string | undefined,
-  appStoreUrl: process.env.APP_STORE_URL || undefined,
+  /**
+   * The Google Play address the PUBLIC share page may offer. Unlike googlePlayUrl above it has NO default listing: it is shown only
+   * when GOOGLE_PLAY_URL is explicitly set (https), i.e. once the app is installable by the general public. While Android is in a
+   * closed test the listing is not reachable for visitors, so the share page must not present it as an install link.
+   */
+  shareGooglePlayUrl: (/^https:\/\//i.test(process.env.GOOGLE_PLAY_URL?.trim() ?? '') ? process.env.GOOGLE_PLAY_URL?.trim() : undefined) as string | undefined,
+  appStoreUrl: (/^https:\/\//i.test(process.env.APP_STORE_URL?.trim() ?? '') ? process.env.APP_STORE_URL?.trim() : undefined) as string | undefined,
   /**
    * Apple Smart App Banner's numeric App Store id (e.g. "123456789", no "id" prefix) - a
    * different, more specific value than appStoreUrl above, normally only known once a real App

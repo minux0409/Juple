@@ -43,8 +43,10 @@ export function ItemCard({ item, openLabel }: { item: PublicCollectionItem; open
   const [isImageBroken, setIsImageBroken] = useState(false);
   const domain = getDisplayDomain(item.url);
 
-  return (
-    <li className="itemCard">
+  // Defense in depth: the server only stores http(s) links, but an anonymous page never trusts a stored string as an href.
+  const safeUrl = isSafeHttpUrl(item.url);
+  const body = (
+    <>
       <div className="itemThumb">
         {imageUrl && !isImageBroken ? (
           // A plain <img>: next/image would need every remote host allow-listed up front, and these
@@ -66,13 +68,25 @@ export function ItemCard({ item, openLabel }: { item: PublicCollectionItem; open
       <div className="itemBody">
         <p className="itemTitle">{item.title ?? domain}</p>
         <p className="itemDomain">{domain}</p>
-        {/* Defense in depth: the server only stores http(s) links, but an anonymous page never trusts a stored string as an href. */}
-        {isSafeHttpUrl(item.url) ? (
-          <a className="itemOpenLink" href={item.url} rel="noopener noreferrer" target="_blank">
-            {openLabel}
-          </a>
-        ) : null}
       </div>
+      {safeUrl ? (
+        <svg aria-hidden className="itemOpenIcon" fill="none" height="18" viewBox="0 0 24 24" width="18">
+          <path d="M14.5 4H20v5.5M20 4l-9 9M18 13.5V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" />
+        </svg>
+      ) : null}
+    </>
+  );
+
+  // The whole card opens the original page in a new tab; an unusable address stays a plain, non-clickable card.
+  return (
+    <li className="itemCard">
+      {safeUrl ? (
+        <a aria-label={`${openLabel}: ${item.title ?? domain}`} className="itemCardLink" href={item.url} rel="noopener noreferrer" target="_blank">
+          {body}
+        </a>
+      ) : (
+        <div className="itemCardLink">{body}</div>
+      )}
     </li>
   );
 }

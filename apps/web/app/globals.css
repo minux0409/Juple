@@ -468,3 +468,366 @@ main.legalMain a:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* ---- shared Collection page: header, link count, tappable cards, bottom install banner ---------------------------------------- */
+main.shareMain {
+  /* Room for the fixed install banner so the last link is never covered. */
+  padding-bottom: calc(220px + env(safe-area-inset-bottom));
+  padding-top: calc(24px + env(safe-area-inset-top));
+}
+
+.shareHeader {
+  margin: 0 0 12px;
+}
+
+/* Mobile CollectionDetails toolbar: brand at the start, the share icon at the end edge (44x44 touch target, 20px icon). */
+.shareToolbar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  min-height: 44px;
+}
+
+.shareToolbar .brand {
+  margin: 0;
+}
+
+.shareIconButton {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  flex: none;
+  height: 44px;
+  justify-content: center;
+  margin-inline-end: -12px;
+  padding: 0;
+  width: 44px;
+}
+
+.shareIconButton:active {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+/* [56px circular tile] 8px [name, 20px/700, two lines] - the mobile CollectionHeaderTitle. */
+.shareTitleRow {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.shareTile {
+  align-items: center;
+  border-radius: 50%;
+  display: inline-flex;
+  flex: none;
+  height: 56px;
+  justify-content: center;
+  overflow: hidden;
+  width: 56px;
+}
+
+.shareTileImage {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.shareHeader .collectionName {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  flex: 1;
+  font-size: 20px;
+  line-height: 1.25;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.shareIconButton:focus-visible,
+.viewOption:focus-visible,
+.installBannerClose:focus-visible,
+.itemCardLink:focus-visible,
+.installCtaButton:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.shareNotice {
+  color: var(--text-muted);
+  font-size: 13px;
+  grid-area: notice;
+  margin: 0;
+  min-height: 0;
+}
+
+.shareNotice:empty {
+  display: none;
+}
+
+/* count (chain icon 18px + 6px + text) at the start, the view switch at the end edge */
+.shareControls {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.linkCount {
+  align-items: center;
+  color: var(--text-muted);
+  column-gap: 6px;
+  display: flex;
+  flex: 0 1 auto;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+  min-width: 0;
+}
+
+.linkCount span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkCountIcon {
+  flex: none;
+}
+
+.viewToggle {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  border-radius: 12px;
+  display: inline-flex;
+  flex: none;
+  margin-inline-start: auto;
+  padding: 2px;
+}
+
+.viewOption {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  height: 36px;
+  justify-content: center;
+  padding: 0;
+  width: 44px;
+}
+
+.viewOptionSelected {
+  background: color-mix(in srgb, var(--brand) 16%, transparent);
+  color: var(--brand);
+}
+
+.glyphList,
+.glyphGrid,
+.glyphImage {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.glyphList {
+  flex-direction: column;
+  gap: 3px;
+  width: 16px;
+}
+
+.glyphList i {
+  background: currentColor;
+  border-radius: 2px;
+  display: block;
+  height: 2px;
+  width: 16px;
+}
+
+.glyphGrid {
+  gap: 3px;
+  width: 13px;
+}
+
+.glyphImage {
+  gap: 2.5px;
+  height: 20px;
+  width: 20px;
+}
+
+.glyphGrid i,
+.glyphImage i {
+  background: currentColor;
+  border-radius: 1px;
+  display: block;
+  height: 5px;
+  width: 5px;
+}
+
+/* Grid: two cards per row, picture on top. Image: three picture tiles per row with a small title. */
+.itemList-grid,
+.itemList-image {
+  display: grid;
+  gap: 12px;
+}
+
+.itemList-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.itemList-image {
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.itemList-grid .itemCard,
+.itemList-image .itemCard {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.itemList-grid .itemCardLink,
+.itemList-image .itemCardLink {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  padding: 8px;
+}
+
+.itemList-grid .itemThumb,
+.itemList-image .itemThumb {
+  aspect-ratio: 1 / 1;
+  flex: none;
+  height: auto;
+  width: 100%;
+}
+
+.itemList-image .itemThumb {
+  aspect-ratio: 1 / 1;
+}
+
+.itemList-grid .itemOpenIcon,
+.itemList-image .itemOpenIcon,
+.itemList-image .itemDomain {
+  display: none;
+}
+
+.itemList-image .itemTitle {
+  font-size: 11px;
+  line-height: 1.3;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.itemList-grid .itemBody,
+.itemList-image .itemBody {
+  min-width: 0;
+}
+
+.itemCard {
+  padding: 0;
+}
+
+.itemCardLink {
+  align-items: center;
+  color: inherit;
+  display: flex;
+  gap: 14px;
+  min-height: 44px;
+  min-width: 0;
+  padding: 14px 16px;
+  text-decoration: none;
+  width: 100%;
+}
+
+a.itemCardLink:active {
+  background: var(--background);
+}
+
+.itemCard .itemDomain {
+  margin: 0;
+}
+
+.itemTitle {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.itemOpenIcon {
+  color: var(--text-muted);
+  flex: none;
+}
+
+.installBanner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.14);
+  left: 12px;
+  margin: 0 auto;
+  max-width: 616px;
+  padding: 14px 44px 14px 16px;
+  position: fixed;
+  right: 12px;
+  z-index: 20;
+}
+
+.installBannerClose {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  height: 44px;
+  justify-content: center;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 44px;
+}
+
+.installBannerTitle {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 2px;
+}
+
+.installBannerText,
+.installBannerSoon {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.4;
+  margin: 0 0 10px;
+}
+
+.installBannerSoon {
+  font-weight: 600;
+}
+
+.installBannerButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.installBannerButtons .installCtaButton {
+  align-items: center;
+  display: inline-flex;
+  min-height: 44px;
+}

@@ -53,6 +53,20 @@ interface Dictionary {
   readonly featureShareTitle: string;
   readonly featureShareText: string;
   readonly notFoundHome: string;
+  readonly shareCollection: string;
+  readonly linkCopied: string;
+  readonly copyFailed: string;
+  readonly linkCount: string;
+  readonly viewModeLabel: string;
+  readonly viewList: string;
+  readonly viewGrid: string;
+  readonly viewImage: string;
+  readonly bannerTitle: string;
+  readonly bannerText: string;
+  readonly bannerDismiss: string;
+  readonly iosSoon: string;
+  readonly androidSoon: string;
+  readonly desktopSoon: string;
 }
 
 const dictionaries: Record<Locale, Dictionary> = {
@@ -99,6 +113,20 @@ const dictionaries: Record<Locale, Dictionary> = {
     featureShareTitle: 'Share and collaborate',
     featureShareText: 'Share a collection with a link, or invite friends to collect links in it together.',
     notFoundHome: 'Go to the Juple home page',
+    shareCollection: 'Share',
+    linkCopied: 'Link copied',
+    copyFailed: "Couldn't copy the link. Please copy it from the address bar.",
+    linkCount: '{count} links',
+    viewModeLabel: 'View',
+    viewList: 'List view',
+    viewGrid: 'Grid view',
+    viewImage: 'Image view',
+    bannerTitle: 'Get more from the Juple app',
+    bannerText: 'Save the links you like, build your own collections, and share them with friends.',
+    bannerDismiss: 'Close',
+    iosSoon: 'The iPhone app is coming soon. You can keep browsing this collection here.',
+    androidSoon: 'The Android app is coming soon. You can keep browsing this collection here.',
+    desktopSoon: 'The Juple app is coming soon. You can keep browsing this collection here.',
   },
   ko: {
     open: '열기',
@@ -143,6 +171,20 @@ const dictionaries: Record<Locale, Dictionary> = {
     featureShareTitle: '공유·협업',
     featureShareText: '컬렉션을 링크로 공유하거나, 친구를 초대해 함께 링크를 모을 수 있어요.',
     notFoundHome: 'Juple 홈으로 가기',
+    shareCollection: '공유',
+    linkCopied: '링크를 복사했어요',
+    copyFailed: '링크를 복사하지 못했어요. 주소창의 주소를 복사해 주세요.',
+    linkCount: '링크 {count}개',
+    viewModeLabel: '보기 방식',
+    viewList: '목록 보기',
+    viewGrid: '그리드 보기',
+    viewImage: '이미지 보기',
+    bannerTitle: 'Juple 앱으로 더 편리하게',
+    bannerText: '마음에 드는 링크를 저장하고, 나만의 컬렉션을 만들고, 친구와 간편하게 공유해 보세요.',
+    bannerDismiss: '닫기',
+    iosSoon: 'iPhone 앱은 곧 출시됩니다. 지금은 여기서 컬렉션을 계속 둘러보세요.',
+    androidSoon: 'Android 앱은 곧 출시됩니다. 지금은 여기서 컬렉션을 계속 둘러보세요.',
+    desktopSoon: 'Juple 앱은 곧 출시됩니다. 지금은 여기서 컬렉션을 계속 둘러보세요.',
   },
 };
 

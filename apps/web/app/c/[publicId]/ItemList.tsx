@@ -9,6 +9,7 @@ import {
   type PublicCollectionItemsPage,
 } from '../../../lib/publicApi';
 import { ItemCard } from './ItemCard';
+import { ViewToggle, type ViewMode } from './ViewToggle';
 
 interface ItemListProps {
   readonly apiBaseUrl: string;
@@ -19,12 +20,15 @@ interface ItemListProps {
   readonly loadMoreLabel: string;
   readonly loadingLabel: string;
   readonly emptyLabel: string;
+  /** '{count}' is replaced by the exact number of links, shown only when no further page remains. */
+  readonly countLabel: string;
   /**
    * A locked share's grant is an HttpOnly cookie this component cannot (and must not) read, so its
    * further pages come through this app's own same-origin route handler, which attaches the grant
    * server-side. An unlocked share keeps calling the Public API directly.
    */
   readonly isLocked: boolean;
+  readonly viewLabels: { readonly group: string; readonly list: string; readonly grid: string; readonly image: string };
 }
 
 async function fetchNextPage(
@@ -71,8 +75,11 @@ export function ItemList({
   loadMoreLabel,
   loadingLabel,
   emptyLabel,
+  countLabel,
   isLocked,
+  viewLabels,
 }: ItemListProps) {
+  const [mode, setMode] = useState<ViewMode>('list');
   const [items, setItems] = useState(initialItems);
   const [nextCursor, setNextCursor] = useState(initialNextCursor);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -115,7 +122,20 @@ export function ItemList({
 
   return (
     <>
-      <ul className="itemList">
+      {/* Mobile content row: the link count (chain icon + text) at the start, List / Grid / Image at the end edge. The public API has no
+          total, so the number is shown only once every page is loaded (then it is exact) - never an "8+" estimate. */}
+      <div className="shareControls">
+        {nextCursor ? null : (
+          <p className="linkCount">
+            <svg aria-hidden className="linkCountIcon" fill="none" height="18" viewBox="0 0 24 24" width="18">
+              <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" />
+            </svg>
+            <span>{countLabel.replace('{count}', String(items.length))}</span>
+          </p>
+        )}
+        <ViewToggle labels={viewLabels} onChange={setMode} value={mode} />
+      </div>
+      <ul className={`itemList itemList-${mode}`}>
         {items.map((item, index) => (
           <ItemCard key={`${item.url}-${index}`} item={item} openLabel={openLabel} />
         ))}

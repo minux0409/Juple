@@ -8,6 +8,24 @@ import { hasVisibleProfile, isPublicShare } from './sharedCollectionEntry.ts';
 
 export const ITEMS_PAGE_LIMIT = 50;
 
+/** The Collection's own tile (icon / color / profile photo) - its look only, never any content. */
+export interface ShareLook {
+  readonly icon: string | null;
+  readonly color: string | null;
+  /** Only an https address is ever kept (an http picture would be mixed content on this page). */
+  readonly iconImageUrl: string | null;
+}
+
+export function shareLookOf(collection: { readonly icon?: string | null; readonly color?: string | null; readonly iconImageUrl?: string | null }): ShareLook {
+  let iconImageUrl: string | null = null;
+  try {
+    iconImageUrl = collection.iconImageUrl && new URL(collection.iconImageUrl).protocol === 'https:' ? collection.iconImageUrl : null;
+  } catch {
+    iconImageUrl = null;
+  }
+  return { icon: collection.icon ?? null, color: collection.color ?? null, iconImageUrl };
+}
+
 export type ShareView =
   /** Unknown, revoked or deleted - never distinguished. */
   | { readonly kind: 'notFound' }
@@ -16,10 +34,11 @@ export type ShareView =
   /** Password required (or the grant expired): nothing about the content was fetched. */
   | { readonly kind: 'locked' }
   /** The link exists but the Collection is not public: only its name is known. Joining is requested in the app - no content is fetched here. */
-  | { readonly kind: 'private'; readonly name: string }
+  | { readonly kind: 'private'; readonly name: string; readonly look: ShareLook }
   | {
       readonly kind: 'ready';
       readonly name: string;
+      readonly look: ShareLook;
       readonly isLocked: boolean;
       readonly items: readonly PublicCollectionItem[];
       readonly nextCursor: string | null;
@@ -54,7 +73,7 @@ export async function loadShareView(
 
     // 공용 컬렉션 OFF: nothing of the content is requested, let alone shown.
     if (!isPublicShare(collection)) {
-      return { kind: 'private', name: collection.name };
+      return { kind: 'private', name: collection.name, look: shareLookOf(collection) };
     }
 
     const firstPage = await api.getItems(apiBaseUrl, publicId, { limit: ITEMS_PAGE_LIMIT, unlockToken });
@@ -69,6 +88,7 @@ export async function loadShareView(
     return {
       kind: 'ready',
       name: collection.name,
+      look: shareLookOf(collection),
       isLocked: collection.isLocked,
       items: firstPage.items.map(item => ({ title: item.title, url: item.url, previewImageUrl: item.previewImageUrl })),
       nextCursor: firstPage.nextCursor,

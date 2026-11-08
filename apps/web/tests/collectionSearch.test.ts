@@ -114,8 +114,8 @@ describe('컬렉션 검색: the screen', () => {
 describe('컬렉션 검색: strings', () => {
   it('the placeholder exists in all 17 languages (translated); the empty and clear words are the Archive\'s', () => {
     const en = getAppDictionary('en');
-    assert.equal(en.collectionListSearchPlaceholder, 'Search collections or links');
-    assert.equal(getAppDictionary('ko').collectionListSearchPlaceholder, '컬렉션 또는 링크 검색');
+    assert.equal(en.collectionListSearchPlaceholder, 'Search');
+    assert.equal(getAppDictionary('ko').collectionListSearchPlaceholder, '검색');
     for (const language of APP_LANGUAGES) {
       const words = getAppDictionary(language);
       assert.ok(words.collectionListSearchPlaceholder.trim().length > 0, language);

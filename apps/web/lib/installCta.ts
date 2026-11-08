@@ -30,7 +30,7 @@ export function planInstallCta({ platform, googlePlayUrl, appStoreUrl, hasOpenIn
 export type ShareSection = 'brand' | 'title' | 'cta' | 'lockedGate' | 'items' | 'footer';
 
 export interface SharePagePlan {
-  /** Top to bottom. The install / open block comes right after the title - never only after the item list. */
+  /** Top to bottom. On a readable share the install / open block is the quiet bottom banner (after the links); elsewhere it sits under the title. */
   readonly sections: readonly ShareSection[];
   /** Try to hand the page over to the installed Android app once, on load. */
   readonly autoHandoff: boolean;
@@ -44,7 +44,7 @@ export interface SharePagePlan {
 export function planSharePage(kind: 'ready' | 'locked' | 'private' | 'notFound' | 'unavailable', platform: ClientPlatform, webOnly: boolean): SharePagePlan {
   const autoHandoff = platform === 'android' && !webOnly && (kind === 'ready' || kind === 'locked' || kind === 'private');
   if (kind === 'ready') {
-    return { sections: ['brand', 'title', 'cta', 'items', 'footer'], autoHandoff };
+    return { sections: ['brand', 'title', 'items', 'cta', 'footer'], autoHandoff };
   }
   if (kind === 'private') {
     // The app asks "이 컬렉션에 참여하시겠습니까?"; here only the name and how to open the app.

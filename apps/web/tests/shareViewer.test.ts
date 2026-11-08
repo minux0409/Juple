@@ -6,7 +6,8 @@ import { planInstallCta, planSharePage } from '../lib/installCta.ts';
 import { resolveClientPlatform } from '../lib/platform.ts';
 import { LOCKED } from '../lib/publicApi.ts';
 import { androidOpenInAppUrl, canonicalShareUrl, normalizeHost } from '../lib/shareLinks.ts';
-import { buildShareMetadata, loadShareView, type ShareApi } from '../lib/shareView.ts';
+import { buildShareMetadata, loadShareView, shareLookOf, type ShareApi } from '../lib/shareView.ts';
+import { storeConfig } from '../lib/storeConfig.ts';
 import { securityHeaders } from '../lib/securityHeaders.ts';
 
 const API = 'https://api.test';
@@ -69,7 +70,7 @@ describe('loadShareView - a private link (공용 컬렉션 OFF)', () => {
     const api = fakeApi({ getCollection: async () => ({ name: '비공개', isLocked: false, isPublic: false }) });
     const view = await loadShareView(API, ID, undefined, api);
 
-    assert.deepEqual(view, { kind: 'private', name: '비공개' });
+    assert.deepEqual(view, { kind: 'private', name: '비공개', look: { icon: null, color: null, iconImageUrl: null } });
     assert.deepEqual(api.calls, []);
   });
 
@@ -80,7 +81,7 @@ describe('loadShareView - a private link (공용 컬렉션 OFF)', () => {
   });
 
   it('keeps the previews plain and offers the app hand-off, with no item section', () => {
-    const meta = buildShareMetadata({ kind: 'private', name: '비공개' }, 'https://dev.juple.co.kr/c/x', 'desc');
+    const meta = buildShareMetadata({ kind: 'private', name: '비공개', look: { icon: null, color: null, iconImageUrl: null } }, 'https://dev.juple.co.kr/c/x', 'desc');
     assert.equal(meta.title, 'Juple');
     assert.equal('alternates' in meta, false);
     const plan = planSharePage('private', 'android', false);
@@ -96,7 +97,7 @@ describe('loadShareView - a private link (공용 컬렉션 OFF)', () => {
 });
 
 describe('buildShareMetadata', () => {
-  const ready = { kind: 'ready', name: '내 여행', isLocked: false, items: [], nextCursor: null } as const;
+  const ready = { kind: 'ready', name: '내 여행', look: { icon: null, color: null, iconImageUrl: null }, isLocked: false, items: [], nextCursor: null } as const;
 
   it('names a readable share, is never indexable and carries no image or item content', () => {
     const meta = buildShareMetadata(ready, 'https://dev.juple.co.kr/c/x', 'desc');
@@ -190,11 +191,11 @@ describe('web safety and copy', () => {
 });
 
 describe('Android app handoff plan', () => {
-  it('a valid Android share hands off once and puts the open / install block right after the title, before the links', () => {
+  it('a valid Android share hands off once; the install note is the quiet bottom banner, after the links', () => {
     const plan = planSharePage('ready', 'android', false);
     assert.equal(plan.autoHandoff, true);
-    assert.deepEqual(plan.sections, ['brand', 'title', 'cta', 'items', 'footer']);
-    assert.ok(plan.sections.indexOf('cta') < plan.sections.indexOf('items'));
+    assert.deepEqual(plan.sections, ['brand', 'title', 'items', 'cta', 'footer']);
+    assert.ok(plan.sections.indexOf('cta') > plan.sections.indexOf('items'));
   });
 
   it('a locked share also hands off (the app then applies its own lock flow) and keeps the open block above the password form', () => {
@@ -255,5 +256,60 @@ describe('iOS KakaoTalk in-app browser', () => {
     assert.equal(isKakaoTalkIosInApp('Mozilla/5.0 (Linux; Android 14) KAKAOTALK 11.0.0'), false);
     assert.equal(isKakaoTalkIosInApp('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0) Safari/604.1'), false);
     assert.equal(kakaoOpenInSafariUrl('https://juple.co.kr/c/abc'), 'kakaotalk://web/openExternal?url=https%3A%2F%2Fjuple.co.kr%2Fc%2Fabc');
+  });
+});
+
+describe('mobile web share page (look, store policy, share)', () => {
+  it('keeps only the Collection look and drops a non-https profile picture', async () => {
+    const view = await loadShareView(API, ID, undefined, fakeApi({
+      getCollection: async () => ({ name: '내 여행', isLocked: false, icon: 'Plane', color: '#6751FC', iconImageUrl: 'http://x.test/a.png' }),
+    }));
+    assert.equal(view.kind, 'ready');
+    if (view.kind === 'ready') {
+      assert.deepEqual(view.look, { icon: 'Plane', color: '#6751FC', iconImageUrl: null });
+    }
+    assert.equal(shareLookOf({ iconImageUrl: 'https://x.test/a.png' }).iconImageUrl, 'https://x.test/a.png');
+    assert.equal(shareLookOf({ iconImageUrl: 'not a url' }).iconImageUrl, null);
+  });
+
+  it('the share page offers Google Play only from an explicit https GOOGLE_PLAY_URL - no default listing while Android is a closed test', () => {
+    assert.equal(storeConfig.shareGooglePlayUrl, /^https:\/\//i.test(process.env.GOOGLE_PLAY_URL?.trim() ?? '') ? process.env.GOOGLE_PLAY_URL?.trim() : undefined);
+    const page = source('app/c/[publicId]/page.tsx');
+    assert.match(page, /googlePlayUrl: storeConfig\.shareGooglePlayUrl/);
+    assert.doesNotMatch(page, /storeConfig\.googlePlayUrl/);
+  });
+
+  it('without a public listing an iPhone / Android visitor gets a plain note, not a link; with one, only their own store', () => {
+    const banner = source('app/c/[publicId]/InstallBanner.tsx');
+    assert.match(banner, /soonNote \? <p/);
+    const none = planInstallCta({ platform: 'ios', googlePlayUrl: undefined, appStoreUrl: undefined, hasOpenInAppUrl: true });
+    assert.equal(none.appStore, false);
+    assert.equal(none.googlePlay, false);
+    assert.equal(planInstallCta({ platform: 'ios', googlePlayUrl: 'https://p.test', appStoreUrl: 'https://a.test', hasOpenInAppUrl: true }).googlePlay, false);
+  });
+
+  it('the share button uses the system share sheet, falls back to copying the canonical link, and ignores a cancelled sheet', () => {
+    const header = source('app/c/[publicId]/ShareHeader.tsx');
+    assert.match(header, /navigator\.share\(\{ title: name, url \}\)/);
+    assert.match(header, /AbortError/);
+    assert.match(header, /copyText\(url\)/);
+    assert.match(header, /aria-live="polite"/);
+    assert.match(source('app/c/[publicId]/page.tsx'), /canonicalShareUrl\(host, publicId\)/);
+  });
+
+  it('a link card opens the original page in a new tab only for http(s) addresses', () => {
+    const card = source('app/c/[publicId]/ItemCard.tsx');
+    assert.match(card, /isSafeHttpUrl\(item\.url\)/);
+    assert.match(card, /rel="noopener noreferrer" target="_blank"/);
+  });
+
+  it('the share control is the mobile share icon (no text button) and the list has List / Grid / Image modes', () => {
+    const header = source('app/c/[publicId]/ShareHeader.tsx');
+    assert.match(header, /className="shareIconButton"/);
+    assert.doesNotMatch(header, /<span>\{shareLabel\}<\/span>/);
+    assert.match(header, /aria-label=\{shareLabel\}/);
+    const toggle = source('app/c/[publicId]/ViewToggle.tsx');
+    for (const mode of ["'list'", "'grid'", "'image'"]) assert.ok(toggle.includes(mode), mode);
+    assert.match(source('app/c/[publicId]/ItemList.tsx'), /itemList-\$\{mode\}/);
   });
 });
