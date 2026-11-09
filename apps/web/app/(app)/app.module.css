@@ -59,6 +59,11 @@
   --text-secondary: var(--app-text-secondary);
   --border: var(--app-border);
   --favorite: var(--warning);
+  /* The mobile star: icon-stroke colour (mobile colors.border) while off, the Juple wordmark gradient (coral - pink - violet) while on. */
+  --star-off: #9a9a9a;
+  --star-grad-1: #ff6a5c;
+  --star-grad-2: #f2389a;
+  --star-grad-3: #6a5cff;
   --danger: #ff8a8a; /* destructive: the same light coral in Light and Dark */
   --danger-soft: #fdecea;
   /* Danger as text (>= 4.5:1) and as an outline (>= 3:1) on the Light surfaces; the coral fill itself is too light for either. */
@@ -181,6 +186,7 @@
   --shadow-raised: 0 4px 16px rgba(0, 0, 0, 0.4);
   --shadow-bar: 0 2px 4px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.5);
   --brand-glow: 0 4px 14px rgba(103, 81, 252, 0.3);
+  --star-off: #6b7482;
 }
 
 /* One focus ring for every interactive element of the app (keyboard only). */
@@ -290,8 +296,7 @@
   cursor: pointer;
 }
 
-.filterTabs,
-.sortChips {
+.filterTabs {
   display: inline-flex;
   gap: 4px;
   flex-wrap: wrap;
@@ -339,18 +344,6 @@
   border-color: var(--brand-text);
   background: var(--brand-soft);
   color: var(--brand-text);
-}
-
-.sortArrow,
-.sortArrowHidden {
-  display: inline-block;
-  width: 1em;
-  font-size: 13px;
-  text-align: center;
-}
-
-.sortArrowHidden {
-  visibility: hidden;
 }
 
 /* the List / Grid / Image switch (mobile ViewModeToggle) */
@@ -586,7 +579,7 @@
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: var(--space-6) var(--page-pad-x) 64px;
+  padding: var(--space-6) var(--page-pad-x) calc(64px + var(--selection-room, 0px));
 }
 
 .contentInner {
@@ -3422,7 +3415,7 @@ a.imageBody:hover .imageTile img {
 
   .content {
     padding-top: 20px;
-    padding-bottom: 40px;
+    padding-bottom: calc(40px + var(--selection-room, 0px));
   }
 
   .pageTitle {
@@ -7927,6 +7920,11 @@ button.reactionChipMine:hover {
   box-shadow: var(--shadow-card);
 }
 
+/* While a selection runs, a card's quick actions are not tappable (the mobile selection layer covers them): choosing never toggles a favorite. */
+[data-selecting='true'] .collectionActions {
+  pointer-events: none;
+}
+
 @media (hover: hover) {
   .collectionActionsGrid {
     opacity: 0;
@@ -9099,22 +9097,33 @@ button.reactionChipMine:hover {
   color: var(--brand-text);
 }
 
-.selectionBar {
-  position: sticky;
+/* The dock: fixed to the BROWSER window (never to a page ancestor) and exactly as wide as the content column, so the bar inside is
+   centred on the content beside the side bar. --dock-left / --dock-right are measured from the column (see SelectionToolbar). */
+.selectionBarDock {
+  position: fixed;
+  left: var(--dock-left, 0px);
+  right: var(--dock-right, 0px);
   bottom: max(var(--space-4), env(safe-area-inset-bottom));
   z-index: 20;
+  display: flex;
+  justify-content: center;
+  padding-inline: var(--page-pad-x, 16px);
+  pointer-events: none;
+}
+
+.selectionBar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   width: min(100%, 820px);
-  margin: var(--space-4) auto 0;
   padding: var(--space-2);
   border: 1px solid var(--app-border);
   border-radius: var(--radius-lg);
   background: var(--app-surface);
   color: var(--app-text);
   box-shadow: var(--shadow-bar);
+  pointer-events: auto;
   animation: selectionBarIn var(--motion-base) var(--ease-out);
 }
 
@@ -9456,23 +9465,174 @@ a.imageBody:hover .imageTile {
   }
 }
 
-/* ---- favorite: a short springy pop when a star is turned on (data-pop is set only right after the click) ---- */
-.shell [data-pop='true'] svg {
-  animation: favoritePop 420ms var(--ease-spring);
+/* ---- favorite star (the mobile FavoriteStar): outline off, Juple-gradient fill on; ON ~270ms pop + 8-particle burst, OFF ~190ms ---- */
+.favStar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: var(--star-size);
+  height: var(--star-size);
+  overflow: visible;
+  pointer-events: none;
 }
 
-@keyframes favoritePop {
+.favStarSvg {
+  display: block;
+  overflow: visible;
+}
+
+.favStarOutline {
+  fill: none;
+  stroke: var(--star-off);
+  stroke-width: 1.75;
+  stroke-linejoin: round;
+}
+
+.favStar[data-active='true'] .favStarOutline {
+  stroke: var(--star-grad-2);
+}
+
+.favStarFill {
+  stroke-width: 1.75;
+  stroke-linejoin: round;
+  opacity: 0;
+  transform: scale(0);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.favStar[data-active='true'] .favStarFill {
+  opacity: 1;
+  transform: none;
+}
+
+.favStarStop1 {
+  stop-color: var(--star-grad-1);
+}
+
+.favStarStop2 {
+  stop-color: var(--star-grad-2);
+}
+
+.favStarStop3 {
+  stop-color: var(--star-grad-3);
+}
+
+.favStar[data-play='on'] .favStarSvg {
+  animation: favStarOn 270ms var(--ease-out);
+}
+
+.favStar[data-play='on'] .favStarFill {
+  animation: favStarFillIn 100ms var(--ease-out) both;
+}
+
+.favStar[data-play='off'] .favStarSvg {
+  animation: favStarOff 190ms var(--ease-out);
+}
+
+.favStar[data-play='off'] .favStarFill {
+  animation: favStarFillOut 190ms ease-in both;
+}
+
+@keyframes favStarOn {
+  0% {
+    transform: scale(0.85);
+  }
+  28% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes favStarOff {
   0% {
     transform: scale(1);
   }
-  35% {
-    transform: scale(1.32) rotate(-8deg);
-  }
-  70% {
-    transform: scale(0.94);
+  39% {
+    transform: scale(0.85);
   }
   100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes favStarFillIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes favStarFillOut {
+  from {
+    opacity: 1;
     transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: scale(0);
+  }
+}
+
+/* The particle layer is a zero-size overlay centred on the star: nothing is clipped and no parent box has to be big enough. */
+.favStarBurst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.favStarDot,
+.favStarRay {
+  position: absolute;
+  background: var(--tone);
+  opacity: 0;
+  animation: favStarParticle 270ms var(--ease-out) both;
+}
+
+.favStarDot {
+  left: calc(var(--star-dot) / -2);
+  top: calc(var(--star-dot) / -2);
+  width: var(--star-dot);
+  height: var(--star-dot);
+  border-radius: 50%;
+}
+
+.favStarRay {
+  left: calc(var(--star-ray-width) / -2);
+  top: calc(var(--star-ray) / -2);
+  width: var(--star-ray-width);
+  height: var(--star-ray);
+  border-radius: var(--star-ray-width);
+}
+
+@keyframes favStarParticle {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--deg)) translateY(calc(var(--star-inner) * -1)) scale(0.5);
+  }
+  8% {
+    opacity: 1;
+  }
+  30% {
+    transform: rotate(var(--deg)) translateY(calc(var(--star-inner) * -1 - (var(--star-outer) - var(--star-inner)) * 0.4)) scale(1);
+  }
+  60% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--deg)) translateY(calc(var(--star-outer) * -1)) scale(0.45);
   }
 }
 
@@ -9739,7 +9899,9 @@ a.imageBody:hover .imageTile {
   .linkList > .linkCard,
   .linkGrid > .linkCard,
   .imageGrid > .imageCell,
-  .shell [data-pop='true'] svg,
+  .favStar[data-play] .favStarSvg,
+  .favStar[data-play] .favStarFill,
+  .favStarBurst,
   .dialog[open]::backdrop,
   .panelDialog[open]::backdrop {
     animation: none;

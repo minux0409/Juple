@@ -52,10 +52,10 @@ describe('Home 즐겨찾기: every favorite, not the first few', () => {
     assert.deepEqual(sortFavorites([collection(1, '나'), collection(2, '가')], 'title', 'ko').map(i => i.id), [2, 1]);
   });
 
-  it('the component scrolls inside itself, keeps the view and sort per browser, and shows the empty sentence', () => {
+  it('the component scrolls inside itself, keeps the view per browser (no sort control, as on mobile), and shows the empty sentence', () => {
     const favorites = source('app/(app)/HomeFavorites.tsx');
     assert.match(favorites, /COLLECTION_VIEW_MODE_STORAGE_KEY/);
-    assert.match(favorites, /HOME_FAVORITES_SORT_STORAGE_KEY/);
+    assert.doesNotMatch(favorites, /SortChips|HOME_FAVORITES_SORT_STORAGE_KEY/);
     assert.match(favorites, /role="region" tabIndex=\{0\}/);
     assert.match(favorites, /dictionary\.emptyFavorites/);
     assert.match(favorites, /<CollectionCard collection=\{collection\} dictionary=\{dictionary\} layout=\{layout\} \/>/);

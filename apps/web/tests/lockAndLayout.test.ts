@@ -55,7 +55,7 @@ describe('review page: Collection search and the picker box', () => {
     assert.match(css, /\.reviewFooter \{\s*position: sticky;\s*bottom: 0;/);
     // Only the pill / ⋯ menu panel, the 되돌리기 snackbar and the guided tour's layer (notices over the window) are fixed - never a form footer.
     const fixedRules = [...css.matchAll(/([^{}]+)\{[^{}]*position: fixed/g)].map(match => match[1].trim().split('\n').pop());
-    assert.deepEqual(fixedRules, ['.floatingPanel', '.toastHost', '.tourRoot']);
+    assert.deepEqual(fixedRules, ['.floatingPanel', '.toastHost', '.tourRoot', '.selectionBarDock']);
     assert.match(css, /\.pageHeader,\s*\.detailHeader \{\s*margin-bottom: var\(--header-gap\);/);
     assert.match(source('app/(app)/ItemForm.tsx'), /className=\{styles\.reviewFooter\}/);
   });
@@ -114,7 +114,7 @@ describe('locked Collections on the Web', () => {
     const details = source('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx');
     assert.match(details, /\{gate \? \(\s*<div className=\{styles\.collectionGateCenter\}>\s*<UnlockPanel/);
     assert.doesNotMatch(details, /collectionLockedWebMessage/);
-    for (const call of ['collectionSectionsPath(collection.id), headers: unlockHeaders(collection.id)', 'cursor), headers: unlockHeaders(collection.id)', 'collectionNamePagePath(collectionId, direction, cursor), headers: unlockHeaders(collectionId)']) {
+    for (const call of ['collectionSectionsPath(collection.id), headers: unlockHeaders(collection.id)', 'cursor), headers: unlockHeaders(collection.id)']) {
       assert.ok(details.includes(call), call);
     }
     assert.match(details, /\/participants` \}\)/, 'participants need no grant (membership is not content)');

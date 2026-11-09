@@ -7,11 +7,9 @@ import { affectsList, removesFromList } from '../../../lib/itemChanges';
 import {
   ARCHIVE_SEARCH_DEBOUNCE_MS,
   ARCHIVE_SECTIONS_PATH,
-  ARCHIVE_SORT_STORAGE_KEY,
   archiveFlatPagePath,
   archiveSectionPagePath,
   normalizeArchiveQuery,
-  parseArchiveSort,
   type ArchiveSort,
 } from '../../../lib/archiveView';
 import type { AppDictionary } from '../../../lib/appI18n';
@@ -27,7 +25,6 @@ import { appendPage, canLoadMore, failLoadingMore, firstPage, startLoadingMore, 
 import { recordLinkOpened } from '../../../lib/recentLinks';
 import { SavedLinkList } from '../SavedLinkList';
 import { SearchField } from '../SearchField';
-import { SortChips } from '../SortChips';
 import { useStoredChoice } from '../useStoredChoice';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { PageHeader } from '../PageHeader';
@@ -43,7 +40,6 @@ import styles from '../app.module.css';
  */
 export function ArchiveView() {
   const { api, dictionary, locale, onSessionLost } = useSignedInApp();
-  const [sort, setSort] = useStoredChoice(ARCHIVE_SORT_STORAGE_KEY, parseArchiveSort);
   const [viewMode, setViewMode] = useStoredChoice(VIEW_MODE_STORAGE_KEYS.archive, parseViewMode);
   const searchParams = useSearchParams();
   const [text, setText] = useState(() => searchParams.get('q') ?? '');
@@ -75,7 +71,6 @@ export function ArchiveView() {
         <div className={styles.archiveBar}>
           <SearchField onChange={setText} placeholder={dictionary.archiveSearchPlaceholder} value={text} />
           <div className={styles.archiveBarSwitches}>
-            <SortChips dictionary={dictionary} onPressName={() => setSort('name')} onPressTime={() => setSort('time')} sort={sort === 'name' ? 'title' : 'newest'} />
             <SelectModeButton label={dictionary.selectionSelectItems} />
             <ViewModeToggle
               groupLabel={dictionary.viewModeLabel}
@@ -88,8 +83,8 @@ export function ArchiveView() {
         {tooShort ? <p className={styles.searchHint}>{dictionary.archiveSearchMinHint}</p> : null}
       </div>
       </StickyControls>
-      {term !== null || sort === 'name' ? (
-        <ArchiveFlat api={api} dictionary={dictionary} key={`${sort}|${term ?? ''}`} onSessionLost={onSessionLost} sort={sort} term={term} viewMode={viewMode} />
+      {term !== null ? (
+        <ArchiveFlat api={api} dictionary={dictionary} key={term ?? ''} onSessionLost={onSessionLost} sort="time" term={term} viewMode={viewMode} />
       ) : (
         <DateSections
           dictionary={dictionary}

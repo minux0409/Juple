@@ -141,7 +141,7 @@ describe('the bell and its panel', () => {
     assert.doesNotMatch(css, /utility/);
     // The bell never floats: the fixed rules are the pill / ⋯ menu panel (it escapes a scrolling list) and the 되돌리기 snackbar.
     const fixedRules = [...css.matchAll(/([^{}]+)\{[^{}]*position: fixed/g)].map(match => match[1].trim().split('\n').pop());
-    assert.deepEqual(fixedRules, ['.floatingPanel', '.toastHost', '.tourRoot'], 'never fixed to the window');
+    assert.deepEqual(fixedRules, ['.floatingPanel', '.toastHost', '.tourRoot', '.selectionBarDock'], 'never fixed to the window');
   });
 
   it('the button: named with the count, a badge only when unread, expanded state, a dialog panel', () => {
@@ -333,7 +333,6 @@ describe('Collection attention (its own meaning, not the bell)', () => {
     const details = read('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx');
     assert.match(details, /path: collectionNewLinksReadPath\(collectionId\)/);
     assert.match(details, /\.then\(result => \{\s*markContentOpened\(\);\s*return result\.sections;/);
-    assert.match(details, /onOpened\(\);\s*setState\(\{ kind: 'loaded', \.\.\.firstPage\(page\.items, page\.nextCursor\) \}\);/);
     assert.doesNotMatch(details, /submission-requests\/read/, '승인 대기 is a task: untouched');
   });
 });

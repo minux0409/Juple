@@ -84,11 +84,10 @@ describe('every list hears the signal', () => {
     assert.match(sections, /removeItemFromSections/);
   });
 
-  it('보관함 passes the personal scope, a Collection its own; Home / flat archive / by-name remove locally', () => {
+  it('보관함 passes the personal scope, a Collection its own; Home / flat archive remove locally', () => {
     assert.match(source('app/(app)/archive/ArchiveView.tsx'), /scope=\{\{ kind: 'personal' \}\}/);
     const details = source('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx');
     assert.match(details, /scope=\{\{ kind: 'collection', collectionId: collection\.id \}\}/);
-    assert.match(details, /entry\.itemId !== change\.itemId/);
     assert.match(source('app/(app)/HomeView.tsx'), /link\.id !== change\.itemId/);
     assert.match(source('app/(app)/archive/ArchiveView.tsx'), /link\.id !== change\.itemId/);
   });

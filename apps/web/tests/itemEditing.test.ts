@@ -470,8 +470,8 @@ describe('Web V2: the mobile design language (theme/tokens.ts) as one token laye
     assert.match(block('.textInput,\n.textArea'), /min-height: var\(--field-height\);/);
   });
 
-  it('every switch is one segmented family: sort, list/grid/image, collection filters and friends tabs', () => {
-    const container = block('.filterTabs,\n.sortChips');
+  it('every switch is one segmented family: list/grid/image, collection filters and friends tabs', () => {
+    const container = block('.filterTabs');
     const toggle = block('.toggle');
     for (const text of [container, toggle]) {
       assert.match(text, /padding: 4px;/);
@@ -560,7 +560,7 @@ describe('Web V2 completion: archive search, share screen, friend picker, rail, 
     assert.deepEqual([named.searchParams.get('sort'), named.searchParams.get('cursor'), named.searchParams.get('q')], ['name', 'c1', null]);
     const view = source('app/(app)/archive/ArchiveView.tsx');
     assert.match(view, /<SearchField onChange=\{setText\} placeholder=\{dictionary\.archiveSearchPlaceholder\}/);
-    assert.match(view, /key=\{`\$\{sort\}\|\$\{term \?\? ''\}`\}/, 'a new term / order starts over: an older answer can never land on a newer query');
+    assert.match(view, /key=\{term \?\? ''\}/, 'a new term / order starts over: an older answer can never land on a newer query');
     assert.match(view, /window\.history\.replaceState/, 'the term lives in the address: back / forward / reload return to it');
     assert.match(view, /term !== null \? dictionary\.searchEmpty : dictionary\.archiveEmpty/);
   });

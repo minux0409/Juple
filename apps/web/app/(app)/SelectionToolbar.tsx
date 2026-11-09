@@ -1,6 +1,7 @@
 'use client';
 
-import type { ComponentProps } from 'react';
+import { useLayoutEffect, useRef, useState, type ComponentProps } from 'react';
+import { createPortal } from 'react-dom';
 import { formatMessage, type AppDictionary } from '../../lib/appI18n';
 import { Glyph } from './Glyph';
 import styles from './app.module.css';
@@ -16,8 +17,11 @@ export interface SelectionAction {
 
 /**
  * The bar of a running selection (mobile SelectionTopBar + the bottom action bar, one bar on the Web): how many are chosen, the actions
- * for them, 전체 선택 when the page offers it, and 선택 종료. It floats at the bottom of the content (above the mobile-width tab row),
- * so it never pushes the list; it rises in with a short slide and leaves the same way.
+ * for them, 전체 선택 when the page offers it, and 선택 종료. It is docked to the bottom of the BROWSER window (position: fixed),
+ * centred on the content column beside the side bar - collapsing / expanding the side bar re-centres it (the column is measured) - and
+ * never moves with scrolling. It is rendered through a portal into the app shell: no page ancestor (the page entrance transform,
+ * overflow, contain) can become its containing block, while the shell keeps the colour tokens. Its own height is added as bottom room of
+ * the content column keeps the last link reachable; it rises in with a short slide and leaves the same way.
  *
  * The bar itself never deletes anything: a destructive action only opens its confirmation.
  */
@@ -36,8 +40,52 @@ export function SelectionToolbar({
   readonly onSelectAll?: () => void;
   readonly busy?: boolean;
 }) {
-  return (
-    <div aria-label={dictionary.selectionSelectItems} className={styles.selectionBar} data-selection-bar role="toolbar">
+  // The bar exists only after the person starts a selection (client side), so the shell can be looked up right away.
+  const [target] = useState<HTMLElement | null>(() => (typeof document === 'undefined' ? null : (document.querySelector<HTMLElement>('[data-app-shell]') ?? document.body)));
+  const [span, setSpan] = useState({ left: 0, right: 0 });
+  const barRef = useRef<HTMLDivElement | null>(null);
+
+  // The content column (the shell's <main>): the dock spans exactly it, so the bar is centred on the content and follows the side bar.
+  useLayoutEffect(() => {
+    const shell = document.querySelector<HTMLElement>('[data-app-shell]');
+    const main = shell?.querySelector<HTMLElement>('main') ?? null;
+    if (!main) {
+      return undefined;
+    }
+    const measure = () => {
+      const rect = main.getBoundingClientRect();
+      setSpan({ left: Math.max(0, Math.round(rect.left)), right: Math.max(0, Math.round(document.documentElement.clientWidth - rect.right)) });
+    };
+    measure();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(main);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
+
+  // The bar's own height becomes extra room at the end of the content column (--selection-room on the shell, read by .content), so the
+  // last link and button can always be scrolled clear of it, wherever on the page the selection lives. It leaves with the bar.
+  useLayoutEffect(() => {
+    const bar = barRef.current;
+    if (!bar || !target) {
+      return undefined;
+    }
+    const measure = () => target.style.setProperty('--selection-room', `${Math.ceil(bar.getBoundingClientRect().height)}px`);
+    measure();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(bar);
+    return () => {
+      observer?.disconnect();
+      target.style.removeProperty('--selection-room');
+    };
+  }, [target]);
+
+  const bar = (
+    <div className={styles.selectionBarDock} data-selection-dock style={{ '--dock-left': `${span.left}px`, '--dock-right': `${span.right}px` } as React.CSSProperties}>
+    <div aria-label={dictionary.selectionSelectItems} className={styles.selectionBar} data-selection-bar ref={barRef} role="toolbar">
       <button aria-label={dictionary.selectionExit} className={styles.selectionBarIcon} onClick={onExit} title={dictionary.selectionExit} type="button">
         <Glyph name="Close" size={18} />
       </button>
@@ -68,5 +116,7 @@ export function SelectionToolbar({
         ))}
       </div>
     </div>
+    </div>
   );
+  return target ? createPortal(bar, target) : null;
 }

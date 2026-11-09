@@ -71,32 +71,23 @@ describe('3. selectable chips: one border, no movement', () => {
     assert.doesNotMatch(rule('.filterTab'), /border|padding/);
   });
 
-  it("the sort arrow's room is kept on the unselected chip too, so selecting never resizes a chip or moves its neighbour", () => {
-    const chips = source('app/(app)/SortChips.tsx');
-    assert.equal((chips.match(/className=\{(?:!?timeSelected) \? styles\.sortArrow : styles\.sortArrowHidden\}/g) ?? []).length, 2);
-    assert.doesNotMatch(chips, /\? <span aria-hidden className=\{styles\.sortArrow\}>/);
-    assert.match(rule('.sortArrow,\n.sortArrowHidden'), /display: inline-block;\s*width: 1em;/);
-    assert.match(rule('.sortArrowHidden'), /visibility: hidden;/);
-  });
-
   it('the list / grid / image switch already shared its border - it stays that way', () => {
     assert.match(rule('.toggleButton,\n.toggleButtonSelected'), /border: 1px solid transparent;/);
   });
 });
 
-describe('4. loading skeletons follow the chosen view, for either sort', () => {
-  it('이름순 (the whole Collection), 시간순 (its date sections) and the first load all draw the current view mode', () => {
+describe('4. loading skeletons follow the chosen view, in every list', () => {
+  it('the Collection date sections and the first load all draw the current view mode', () => {
     const view = source('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx');
-    assert.match(view, /if \(state\.kind === 'loading'\) \{\s*return <SavedLinkSkeleton count=\{6\} mode=\{viewMode\} \/>;/);
     assert.match(view, /<CollectionHeaderSkeleton \/>[\s\S]{0,160}<SavedLinkSkeleton count=\{4\} mode=\{viewMode\} \/>/);
     assert.match(source('app/(app)/DateSections.tsx'), /if \(sectionsState\.kind === 'loading'\) \{[\s\S]{0,120}return <SavedLinkSkeleton count=\{4\} mode=\{viewMode\} \/>;/);
     assert.doesNotMatch(view + source('app/(app)/DateSections.tsx'), /<SavedLinkSkeleton count=\{\d\} mode="list" \/>/);
   });
 
-  it('a sort switch remounts the list (its own loading state); the next page keeps the paging skeleton, not the whole list', () => {
+  it('a re-read remounts the list (its own loading state); the next page keeps the paging skeleton, not the whole list', () => {
     const view = source('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx');
-    assert.match(view, /key=\{`name-\$\{sort\}-\$\{contentToken\}`\}/);
-    assert.match(view, /key=\{`\$\{sort\}-\$\{contentToken\}`\}/);
+    assert.match(view, /key=\{`time-\$\{contentToken\}`\}/);
+    assert.doesNotMatch(view, /SortChips|CollectionByName/);
     assert.match(source('app/(app)/DateSections.tsx'), /skeleton=\{<SavedLinkSkeleton count=\{skeletonCount\(section, page\.items\.length\)\} mode=\{viewMode\} \/>\}/);
   });
 });

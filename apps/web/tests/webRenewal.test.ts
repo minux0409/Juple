@@ -273,11 +273,34 @@ describe('shell and motion', () => {
     assert.doesNotMatch(renewal, /#[0-9a-fA-F]{3,8}\b|rgba?\(/, 'Light and Dark follow the tokens');
   });
 
-  it('a star pops only right after it was turned on (never on load)', () => {
-    const hook = app('useFavoritePop.ts');
-    assert.match(hook, /const turnedOn = isFavorite && !previous\.current;/);
-    assert.match(app('collections/CollectionsView.tsx'), /data-pop=\{favoritePop\}/);
-    assert.match(css, /\.shell \[data-pop='true'\] svg \{\s*animation: favoritePop/);
+  it('the star is the mobile FavoriteStar: gradient fill on, outline off, a play only after the person\'s own tap (never on load, a rollback or a bulk action)', () => {
+    const star = app('FavoriteStar.tsx');
+    // the mobile polygon, gradient stops and particle count
+    assert.match(star, /'12 3 14\.6 8\.9 21 9\.6 16\.2 13\.9 17\.5 20\.2 12 17 6\.5 20\.2 7\.8 13\.9 3 9\.6 9\.4 8\.9'/);
+    assert.match(star, /const PARTICLES = 8;/);
+    assert.match(star, /const PENDING_TTL_MS = 1500;/);
+    assert.match(star, /if \(!userTap\) \{/);
+    for (const view of ['collections/CollectionsView.tsx', 'collections/[collectionId]/CollectionDetailsView.tsx']) {
+      const text = app(view);
+      assert.match(text, /<FavoriteStar active=\{collection\.isFavorite === true\} playToken=\{starTap\} size=\{20\} \/>/);
+      assert.match(text, /bumpStar\(\);\s*onToggleFavorite\(\);/, 'the tap arms the play, then the optimistic toggle runs');
+    }
+    const mobile = readFileSync(join(root, '..', 'mobile', 'src', 'components', 'FavoriteStar.tsx'), 'utf8');
+    assert.match(mobile, /const ON_BURST_MS = 270;/);
+    assert.match(mobile, /const OFF_FILL_MS = 190;/);
+    assert.match(css, /\.favStar\[data-play='on'\] \.favStarSvg \{\s*animation: favStarOn 270ms/);
+    assert.match(css, /\.favStar\[data-play='off'\] \.favStarSvg \{\s*animation: favStarOff 190ms/);
+    assert.match(css, /--star-off: #9a9a9a;/);
+    assert.match(css, /--star-off: #6b7482;/);
+    assert.match(mobile, /border: '#9A9A9A'|inactiveColor = colors\.border/);
+    // the star never moves its card: the particles overlay is zero-size and absolute, the star keeps its own box
+    assert.match(css, /\.favStarBurst \{[^}]*position: absolute;[^}]*width: 0;[^}]*height: 0;/);
+    assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.favStar\[data-play\] \.favStarSvg,[\s\S]*animation: none;/);
+  });
+
+  it('while a selection runs the cards\' quick actions (the favorite star) are not tappable: choosing never toggles a favorite, and the star keeps its own state', () => {
+    assert.match(css, /\[data-selecting='true'\] \.collectionActions \{\s*pointer-events: none;/);
+    assert.match(app('collections/CollectionsView.tsx'), /data-selecting=\{selection\.active \? 'true' : undefined\}/);
   });
 });
 
@@ -342,5 +365,14 @@ describe('second pass: move, report, lock, docked controls, store guidance', () 
     assert.match(section, /href=\{APP_STORE_SUBSCRIPTIONS_URL\}/);
     assert.match(section, /data-store-guide="unknown"/);
     assert.match(source('lib/subscription.ts'), /value\.platform === 'google' \|\| value\.platform === 'apple' \? value\.platform : null/);
+  });
+});
+
+describe('mobile parity: the 시간순 / 이름순 sort controls stay removed', () => {
+  it('no sort chips component or sort-chip dictionary use in Home, 보관함, 컬렉션 상세', () => {
+    for (const file of ['HomeFavorites.tsx', 'archive/ArchiveView.tsx', 'collections/[collectionId]/CollectionDetailsView.tsx']) {
+      assert.doesNotMatch(app(file), /SortChips|dictionary\.sortTime|dictionary\.sortName|sortGroupLabel/, file);
+    }
+    assert.throws(() => app('SortChips.tsx'));
   });
 });

@@ -224,3 +224,128 @@ for (const store of ['google', 'apple', 'unknown']) {
     }
   });
 }
+
+// ---- Round: the selection bar is docked to the browser window, the sort chips are gone, the star is the mobile star ----
+const barGeometry = `(() => {
+  const dock = document.querySelector('[data-selection-dock]').getBoundingClientRect();
+  const bar = document.querySelector('[data-selection-bar]').getBoundingClientRect();
+  const main = document.querySelector('main').getBoundingClientRect();
+  return { dockPosition: getComputedStyle(document.querySelector('[data-selection-dock]')).position, parent: document.querySelector('[data-selection-dock]').parentElement.hasAttribute('data-app-shell'),
+    barLeft: bar.left, barRight: bar.right, barTop: bar.top, barBottom: bar.bottom, mainLeft: main.left, mainRight: main.right, vh: innerHeight, vw: document.documentElement.clientWidth, dockLeft: dock.left, dockRight: dock.right };
+})()`;
+
+for (const width of [390, 768, 1440]) {
+  it(`selection bar at ${width}px: fixed to the browser window, centred on the content column, never moves on scroll, nothing hidden behind it`, async () => {
+    const tab = await open('lang=ko&view=list', width, 'light');
+    try {
+      await tab.evaluate(`document.querySelectorAll('[data-select-check]')[0].click()`);
+      await tab.until(`!!document.querySelector('[data-selection-bar]')`);
+      await tab.wait(350);
+      const first = await tab.evaluate(barGeometry);
+      assert.equal(first.dockPosition, 'fixed');
+      assert.equal(first.parent, true, 'rendered through a portal into the shell (no page transform can be its containing block)');
+      assert.ok(first.vh - first.barBottom >= 8 && first.vh - first.barBottom < 40, `bar sits at the window bottom (${first.vh - first.barBottom}px gap)`);
+      assert.ok(first.barLeft >= first.mainLeft - 1 && first.barRight <= first.mainRight + 1, 'inside the content column');
+      assert.ok(Math.abs((first.barLeft + first.barRight) / 2 - (first.mainLeft + first.mainRight) / 2) <= 1.5, 'centred on the content column, not on the window');
+      assert.ok(first.barLeft >= 0 && first.barRight <= first.vw, 'inside the window with a side margin');
+      if (width >= 861) assert.ok(first.mainLeft > 100, 'a side bar exists beside the column');
+      // Scrolling never moves it: at the middle and at the very end of the page.
+      for (const target of ['document.documentElement.scrollHeight / 2', 'document.documentElement.scrollHeight']) {
+        await tab.evaluate(`window.scrollTo(0, ${target})`);
+        await tab.wait(150);
+        const moved = await tab.evaluate(barGeometry);
+        assert.ok(Math.abs(moved.barTop - first.barTop) < 1 && Math.abs(moved.barBottom - first.barBottom) < 1, `bar stayed put (${first.barTop} -> ${moved.barTop})`);
+      }
+      // At the end of the page the last content is above the bar (the spacer gives the room).
+      const clear = await tab.evaluate(`(() => { const last = document.querySelector('[data-fixture-membership]').getBoundingClientRect(); const bar = document.querySelector('[data-selection-bar]').getBoundingClientRect(); return bar.top - last.bottom; })()`);
+      assert.ok(clear >= 0, `last content ends ${clear}px above the bar`);
+      assert.equal(await tab.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true);
+      if (width === 390) {
+        // Narrow: the action buttons never overlap each other or leave the bar.
+        const overlap = await tab.evaluate(`(() => { const bar = document.querySelector('[data-selection-bar]').getBoundingClientRect(); const rects = [...document.querySelectorAll('[data-selection-bar] button')].map(b => b.getBoundingClientRect()); let bad = 0; rects.forEach((a, i) => { if (a.left < bar.left - 0.5 || a.right > bar.right + 0.5) bad++; rects.slice(i + 1).forEach(b => { if (a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5) bad++; }); }); return bad; })()`);
+        assert.equal(overlap, 0, 'buttons do not overlap');
+      }
+      await capture(tab, `selection-bar-${width}`);
+      await tab.evaluate(`window.scrollTo(0, 0)`);
+      await tab.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+      await tab.until(`!document.querySelector('[data-selection-bar]')`);
+      assert.equal(await tab.evaluate(`getComputedStyle(document.querySelector('[data-app-shell]')).getPropertyValue('--selection-room').trim()`), '', 'the extra room leaves with the bar');
+    } finally {
+      await tab.close();
+    }
+  });
+}
+
+it('selection bar follows the side bar: collapsing and expanding re-centres it on the content column', async () => {
+  const tab = await open('lang=ko&view=list', 1440, 'light');
+  try {
+    await tab.evaluate(`document.querySelectorAll('[data-select-check]')[0].click()`);
+    await tab.until(`!!document.querySelector('[data-selection-bar]')`);
+    await tab.wait(350);
+    const expanded = await tab.evaluate(barGeometry);
+    await tab.evaluate(`document.querySelector('[data-sidebar-toggle]').click()`);
+    await tab.wait(600);
+    const collapsed = await tab.evaluate(barGeometry);
+    assert.ok(collapsed.mainLeft < expanded.mainLeft - 100, 'the column moved left');
+    assert.ok(Math.abs((collapsed.barLeft + collapsed.barRight) / 2 - (collapsed.mainLeft + collapsed.mainRight) / 2) <= 1.5, 'centred again after collapsing');
+    await tab.evaluate(`document.querySelector('[data-sidebar-toggle]').click()`);
+    await tab.wait(600);
+    const again = await tab.evaluate(barGeometry);
+    assert.ok(Math.abs((again.barLeft + again.barRight) / 2 - (again.mainLeft + again.mainRight) / 2) <= 1.5, 'centred again after expanding');
+    assert.ok(Math.abs(again.barLeft - expanded.barLeft) <= 1.5);
+    await capture(tab, 'selection-bar-sidebar-collapsed-1440');
+  } finally {
+    await tab.close();
+  }
+});
+
+it('no 시간순 / 이름순 sort control exists on the page (mobile removed it)', async () => {
+  const tab = await open('lang=ko&view=list', 1440, 'light');
+  try {
+    assert.equal(await tab.evaluate(`!document.querySelector('[role="group"][aria-label*="정렬"]') && !/시간순|이름순/.test(document.querySelector('main').textContent)`), true);
+  } finally {
+    await tab.close();
+  }
+});
+
+it('favorite star: gradient fill on, outline off; a tap plays ON (8 particles) and OFF (none); a silent change plays nothing; the layout never shifts; selection state is separate', async () => {
+  const tab = await open('lang=ko&view=list', 1440, 'light');
+  try {
+    const state = `(() => { const s = document.querySelector('[data-favorite-star]'); const box = s.parentElement.getBoundingClientRect(); return { active: s.dataset.active, play: s.dataset.play ?? null, particles: s.querySelectorAll('[class*="favStarDot"], [class*="favStarRay"]').length, w: box.width, h: box.height, top: box.top, fillOpacity: getComputedStyle(s.querySelector('[class*="favStarFill"]')).opacity, outline: getComputedStyle(s.querySelector('[class*="favStarOutline"]')).stroke }; })()`;
+    const off = await tab.evaluate(state);
+    assert.equal(off.active, 'false');
+    assert.equal(off.fillOpacity, '0');
+    assert.equal(off.outline, 'rgb(154, 154, 154)', 'off = the mobile icon-stroke colour');
+    await tab.evaluate(`document.querySelector('[data-star-button]').click()`);
+    await tab.wait(60);
+    const playing = await tab.evaluate(state);
+    assert.equal(playing.play, 'on');
+    assert.equal(playing.particles, 8);
+    assert.equal(playing.w, off.w, 'the star button does not grow while playing');
+    assert.equal(playing.top, off.top, 'nothing moves');
+    await capture(tab, 'star-on-burst');
+    await tab.wait(450);
+    const on = await tab.evaluate(state);
+    assert.equal(on.active, 'true');
+    assert.equal(on.play, null);
+    assert.equal(on.particles, 0);
+    assert.equal(on.fillOpacity, '1');
+    assert.equal(on.outline, 'rgb(242, 56, 154)', 'on = the Juple pink outline over the gradient fill');
+    await tab.evaluate(`document.querySelector('[data-star-button]').click()`);
+    await tab.wait(60);
+    const closing = await tab.evaluate(state);
+    assert.equal(closing.play, 'off');
+    assert.equal(closing.particles, 0, 'OFF has no particles');
+    await tab.wait(450);
+    assert.equal((await tab.evaluate(state)).active, 'false');
+    // A state change that was not the person's own tap (a rollback, a bulk action, a re-read) is drawn instantly.
+    await tab.evaluate(`document.querySelector('[data-star-silent]').click()`);
+    await tab.wait(60);
+    const silent = await tab.evaluate(state);
+    assert.equal(silent.active, 'true');
+    assert.equal(silent.play, null);
+    assert.equal(silent.particles, 0);
+  } finally {
+    await tab.close();
+  }
+});

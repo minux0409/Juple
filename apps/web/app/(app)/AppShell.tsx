@@ -93,7 +93,7 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
   const { shellRef, headerRef } = useTopBarOffset();
 
   return (
-    <div className={styles.shell} data-sidebar={sidebar} ref={shellRef}>
+    <div className={styles.shell} data-app-shell data-sidebar={sidebar} ref={shellRef}>
       <header className={styles.sidebar} ref={headerRef}>
         <div className={styles.sidebarTop}>
           <Link aria-label={collapsed ? 'Juple' : undefined} className={styles.sidebarBrand} href="/">

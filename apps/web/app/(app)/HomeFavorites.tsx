@@ -3,12 +3,10 @@
 import { useEffect, useState } from 'react';
 import { isSessionLost } from '../../lib/authSession';
 import { COLLECTION_VIEW_MODE_STORAGE_KEY, COLLECTION_VIEW_MODES, parseCollectionViewMode, type CollectionSummary } from '../../lib/collectionsView';
-import { HOME_FAVORITES_SORT_STORAGE_KEY, loadAllFavorites, parseFavoritesSort, sortFavorites } from '../../lib/homeFavorites';
-import { nextDateSort, nextNameSort } from '../../lib/collectionDetails';
+import { loadAllFavorites } from '../../lib/homeFavorites';
 import { useSignedInApp } from './AppRoot';
 import { CollectionCard } from './collections/CollectionsView';
 import { LoadFailed } from './PageStates';
-import { SortChips } from './SortChips';
 import { CollectionSkeleton } from './Skeletons';
 import { useStoredChoice } from './useStoredChoice';
 import { ViewModeToggle } from './ViewModeToggle';
@@ -21,16 +19,15 @@ type FavoritesState =
 
 /**
  * Home's 즐겨찾기: every favorite Collection (all pages of the 즐겨찾기 scope), as the same cards the Collections page draws, in List or
- * Grid and in the chosen sort (both kept per browser). About six show at once; the rest are inside the box, which scrolls by itself
+ * Grid (kept per browser) in the server's own order - no sort control, as on mobile. About six show at once; the rest are inside the box, which scrolls by itself
  * (mouse, touch and keyboard) so the page does not grow with the number of favorites. A locked or shared Collection keeps its marks
  * and its rules - a card only links to the Collection, whose own gate decides what opens.
  */
 export function HomeFavorites() {
-  const { api, dictionary, locale, onSessionLost } = useSignedInApp();
+  const { api, dictionary, onSessionLost } = useSignedInApp();
   const [state, setState] = useState<FavoritesState>({ kind: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
   const [viewMode, setViewMode] = useStoredChoice(COLLECTION_VIEW_MODE_STORAGE_KEY, parseCollectionViewMode);
-  const [sort, setSort] = useStoredChoice(HOME_FAVORITES_SORT_STORAGE_KEY, parseFavoritesSort);
 
   useEffect(() => {
     let ignore = false;
@@ -61,7 +58,7 @@ export function HomeFavorites() {
     setReloadToken(token => token + 1);
   };
 
-  const items = state.kind === 'loaded' ? sortFavorites(state.items, sort, locale) : [];
+  const items = state.kind === 'loaded' ? state.items : [];
   const layout = viewMode === 'grid' ? 'grid' : 'list';
 
   return (
@@ -78,14 +75,6 @@ export function HomeFavorites() {
           value={viewMode}
         />
       </div>
-      {state.kind === 'loaded' && state.items.length > 1 ? (
-        <SortChips
-          dictionary={dictionary}
-          onPressName={() => setSort(sort === 'title' || sort === 'titleDesc' ? nextNameSort(sort) : 'title')}
-          onPressTime={() => setSort(sort === 'newest' || sort === 'oldest' ? nextDateSort(sort) : 'newest')}
-          sort={sort}
-        />
-      ) : null}
       {state.kind === 'loading' ? <CollectionSkeleton count={layout === 'grid' ? 4 : 3} mode={layout} /> : null}
       {state.kind === 'failed' ? <LoadFailed dictionary={dictionary} onRetry={retry} /> : null}
       {state.kind === 'loaded' && items.length === 0 ? <p className={styles.emptyState}>{dictionary.emptyFavorites}</p> : null}

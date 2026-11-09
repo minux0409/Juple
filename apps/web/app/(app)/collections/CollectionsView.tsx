@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { loadPendingJoins, filterPendingJoins, type PendingJoin } from '../../../lib/pendingJoins';
 import { shareEntryTileKey } from '../../../lib/sharedCollectionEntry';
 import { PendingJoinDialog } from './PendingJoinDialog';
-import { useFavoritePop } from '../useFavoritePop';
+import { FavoriteStar, useStarTap } from '../FavoriteStar';
 import { useCollectionSelection } from './useCollectionSelection';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -462,7 +462,7 @@ function CollectionCardActions({
   const canShare = open && canShareCollection(collection, null);
   const canEdit = open && canEditCollection(collection);
   const favoriteLabel = collection.isFavorite ? dictionary.removeFavorite : dictionary.addFavorite;
-  const favoritePop = useFavoritePop(collection.isFavorite === true);
+  const [starTap, bumpStar] = useStarTap();
   return (
     <div className={layout === 'grid' ? `${styles.collectionActions} ${styles.collectionActionsGrid}` : styles.collectionActions} data-collection-actions>
       <button
@@ -470,13 +470,15 @@ function CollectionCardActions({
         aria-pressed={collection.isFavorite}
         className={collection.isFavorite ? styles.cardActionActive : styles.cardAction}
         data-card-action="favorite"
-        data-pop={favoritePop}
         disabled={favoriteBusy}
-        onClick={onToggleFavorite}
+        onClick={() => {
+          bumpStar();
+          onToggleFavorite();
+        }}
         title={favoriteLabel}
         type="button"
       >
-        <Glyph name={collection.isFavorite ? 'StarFilled' : 'Star'} size={18} />
+        <FavoriteStar active={collection.isFavorite === true} playToken={starTap} size={20} />
       </button>
       {canShare ? (
         <Link aria-label={dictionary.shareAction} className={styles.cardAction} data-card-action="share" href={collectionShareHref(collection.id)} title={dictionary.shareAction}>

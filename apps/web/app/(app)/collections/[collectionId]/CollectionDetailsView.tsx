@@ -3,20 +3,13 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatMessage, type AppDictionary } from '../../../../lib/appI18n';
-import type { AppApi } from '../../../../lib/appApi';
 import { isSessionLost } from '../../../../lib/authSession';
 import {
-  COLLECTION_SORT_STORAGE_KEY,
   collectionPath,
   collectionSectionPagePath,
   collectionSectionsPath,
-  collectionNamePagePath,
   contentGateOf,
-  isNameSort,
   isNotFound,
-  nextDateSort,
-  nextNameSort,
-  parseLinkSort,
   type CollectionDetail,
 } from '../../../../lib/collectionDetails';
 import { canEditCollection } from '../../../../lib/collectionEditor';
@@ -43,10 +36,8 @@ import {
   parseRouteId,
   parseViewMode,
   VIEW_MODE_STORAGE_KEYS,
-  type CollectionItemEntry,
   type CollectionItemsPage,
   type DateSection,
-  type LinkViewMode,
 } from '../../../../lib/savedLinks';
 import { useSignedInApp } from '../../AppRoot';
 import { useSafety } from '../../SafetyProvider';
@@ -55,8 +46,6 @@ import { DateSections } from '../../DateSections';
 import { Glyph } from '../../Glyph';
 import { BackButton, LoadFailed, Notice } from '../../PageStates';
 import { CollectionHeaderSkeleton, SavedLinkSkeleton } from '../../Skeletons';
-import { SavedLinkList } from '../../SavedLinkList';
-import { SortChips } from '../../SortChips';
 import { useItemsChanged } from '../../useItemsChanged';
 import { affectsList, removesFromList } from '../../../../lib/itemChanges';
 import { useStoredChoice } from '../../useStoredChoice';
@@ -65,12 +54,10 @@ import { BackRow } from '../../PageHeader';
 import { REQUESTS_PARAM } from '../../../../lib/collectionApprovals';
 import { ReceivedRequestsDialog } from '../ReceivedRequestsDialog';
 import { RequestActionButton } from '../RequestActionButton';
-import { useFavoritePop } from '../../useFavoritePop';
+import { FavoriteStar, useStarTap } from '../../FavoriteStar';
 import { CollectionLinkSelection, SelectModeButton } from '../../LinkSelection';
 import { StickyControls } from '../../StickyControls';
 import styles from '../../app.module.css';
-import { LoadMore } from '../../InfiniteScroll';
-import { appendPage, canLoadMore, failLoadingMore, firstPage, startLoadingMore, type PagedState } from '../../../../lib/paging';
 
 type HeaderState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | { readonly kind: 'notFound' } | { readonly kind: 'loaded'; readonly collection: CollectionDetail };
 
@@ -87,13 +74,12 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
   const collectionId = parseRouteId(collectionIdParam);
   const [header, setHeader] = useState<HeaderState>(collectionId === null ? { kind: 'notFound' } : { kind: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
-  const [storedSort, setStoredSort] = useStoredChoice(COLLECTION_SORT_STORAGE_KEY, parseLinkSort);
   const [viewMode, setViewMode] = useStoredChoice(VIEW_MODE_STORAGE_KEYS.collectionDetails, parseViewMode);
   const [gate, setGate] = useState<'lock' | 'sharePassword' | null>(null);
   // Bumped after an unlock: the links are read again (with the grant), showing skeletons meanwhile.
   const [contentToken, setContentToken] = useState(0);
   // A link was deleted / removed / edited in the Quick Detail sheet over this page. A deletion or this Collection's membership removal
-  // is taken out of the lists by the lists themselves (DateSections / CollectionByName); here the header count follows at once and is
+  // is taken out of the lists by the lists themselves (DateSections); here the header count follows at once and is
   // then read again. An edit reads the header and the links again. A membership removed from ANOTHER Collection changes nothing here.
   useItemsChanged(change => {
     if (collectionId === null) {
@@ -354,7 +340,6 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
       },
     );
   };
-  const sort = storedSort;
   const blockedBy = (error: unknown) => {
     const kind = contentGateOf(error);
     if (kind) {
@@ -540,13 +525,6 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
         <CollectionLinkSelection collectionId={collection.id} role={collection.accessRole ?? 'owner'} source={collection}>
           <StickyControls>
           <div className={styles.toolbar}>
-            <SortChips
-              dictionary={dictionary}
-              nameDisabled={false}
-              onPressName={() => setStoredSort(nextNameSort(sort))}
-              onPressTime={() => setStoredSort(nextDateSort(sort))}
-              sort={sort}
-            />
             <SelectModeButton label={dictionary.selectionSelectItems} />
             <ViewModeToggle
               groupLabel={dictionary.viewModeLabel}
@@ -556,26 +534,13 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
             />
           </div>
           </StickyControls>
-          {isNameSort(sort) ? (
-            <CollectionByName
-              api={api}
-              showAdders={showAdders}
-              collectionId={collection.id}
-              dictionary={dictionary}
-              direction={sort === 'titleDesc' ? 'desc' : 'asc'}
-              key={`name-${sort}-${contentToken}`}
-              onBlocked={blockedBy}
-              onOpened={markContentOpened}
-              onSessionLost={onSessionLost}
-              viewMode={viewMode}
-            />
-          ) : (
+          {(
             <DateSections
               dictionary={dictionary}
               emptyText={dictionary.collectionItemsEmpty}
-              key={`${sort}-${contentToken}`}
+              key={`time-${contentToken}`}
               loadPage={(section, cursor) =>
-                api<CollectionItemsPage>({ path: collectionSectionPagePath(collection.id, section, sort === 'oldest' ? 'oldest' : 'newest', cursor), headers: unlockHeaders(collection.id) }).then(page => ({
+                api<CollectionItemsPage>({ path: collectionSectionPagePath(collection.id, section, 'newest', cursor), headers: unlockHeaders(collection.id) }).then(page => ({
                   links: page.items.map(entry => inCollectionContext(collectionLinkView(entry, collection.id, { showAdder: showAdders }), collection.id)),
                   nextCursor: page.nextCursor,
                 }))
@@ -589,7 +554,6 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
               locale={locale}
               onBlocked={blockedBy}
               onSessionLost={onSessionLost}
-              reversed={sort === 'oldest'}
               scope={{ kind: 'collection', collectionId: collection.id }}
               viewMode={viewMode}
             />
@@ -630,7 +594,7 @@ function CollectionHeader({
 }) {
   // Mobile: the circles exist whenever someone else is in it (the Collection says how many); the full list replaces the
   // placeholders, and if it cannot be loaded the Collection's own preview of people stands in.
-  const favoritePop = useFavoritePop(collection.isFavorite === true);
+  const [starTap, bumpStar] = useStarTap();
   const others = collection.otherParticipantCount ?? collection.participantPreview?.length ?? 0;
   const { profile } = useSignedInApp();
   const stackPeople = participants ? participants.participants : participantsFailed ? participantsWithSelf(collection.participantPreview ?? [], collection.accessRole, profile) : null;
@@ -661,13 +625,15 @@ function CollectionHeader({
           aria-label={collection.isFavorite ? dictionary.removeFavorite : dictionary.addFavorite}
           aria-pressed={collection.isFavorite}
           className={collection.isFavorite ? styles.iconButtonActive : styles.iconButton}
-          data-pop={favoritePop}
           disabled={isTogglingFavorite}
-          onClick={onToggleFavorite}
+          onClick={() => {
+            bumpStar();
+            onToggleFavorite();
+          }}
           title={collection.isFavorite ? dictionary.removeFavorite : dictionary.addFavorite}
           type="button"
         >
-          <Glyph name={collection.isFavorite ? 'StarFilled' : 'Star'} size={20} />
+          <FavoriteStar active={collection.isFavorite === true} playToken={starTap} size={20} />
         </button>
         {canShareCollection(collection, memberShareUrl) ? (
           <button
@@ -692,113 +658,3 @@ function CollectionHeader({
   );
 }
 
-type NameState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | ({ readonly kind: 'loaded' } & PagedState<CollectionItemEntry>);
-
-/** 이름순: one SQL/keyset page at a time; ties stay newest-added then highest Item id on the server. */
-function CollectionByName({
-  api,
-  collectionId,
-  dictionary,
-  direction,
-  showAdders,
-  viewMode,
-  onBlocked,
-  onOpened,
-  onSessionLost,
-}: {
-  readonly api: AppApi;
-  readonly collectionId: number;
-  readonly dictionary: AppDictionary;
-  readonly direction: 'asc' | 'desc';
-  /** A shared Collection: each link shows who added it (never in a personal one). */
-  readonly showAdders: boolean;
-  readonly viewMode: LinkViewMode;
-  readonly onBlocked: (error: unknown) => boolean;
-  /** The links were read (the content is open). */
-  readonly onOpened: () => void;
-  readonly onSessionLost: () => void;
-}) {
-  const [state, setState] = useState<NameState>({ kind: 'loading' });
-  const [reloadToken, setReloadToken] = useState(0);
-  // A deleted / removed link leaves the loaded list at once (no refetch - the whole Collection is already here).
-  useItemsChanged(change => {
-    if (removesFromList(change, { kind: 'collection', collectionId })) {
-      setState(current => (current.kind === 'loaded' ? { ...current, items: current.items.filter(entry => entry.itemId !== change.itemId) } : current));
-    }
-  });
-
-  useEffect(() => {
-    let ignore = false;
-    api<CollectionItemsPage>({ path: collectionNamePagePath(collectionId, direction, null), headers: unlockHeaders(collectionId) }).then(
-      page => {
-        if (ignore) {
-          return;
-        }
-        onOpened();
-        setState({ kind: 'loaded', ...firstPage(page.items, page.nextCursor) });
-      },
-      error => {
-        if (ignore) {
-          return;
-        }
-        if (isSessionLost(error)) {
-          onSessionLost();
-          return;
-        }
-        if (!onBlocked(error)) {
-          setState({ kind: 'failed' });
-        }
-      },
-    );
-    return () => {
-      ignore = true;
-    };
-    // Parent callbacks intentionally do not remount a page; collection/sort/retry are the read identity.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, collectionId, direction, reloadToken]);
-
-  const loadMore = () => {
-    if (state.kind !== 'loaded' || !canLoadMore(state)) {
-      return;
-    }
-    const cursor = state.nextCursor;
-    setState({ ...state, ...startLoadingMore(state) });
-    api<CollectionItemsPage>({ path: collectionNamePagePath(collectionId, direction, cursor), headers: unlockHeaders(collectionId) }).then(
-      page => setState(current => current.kind === 'loaded'
-        ? { kind: 'loaded', ...appendPage(current, page, entry => entry.itemId) }
-        : current),
-      error => {
-        if (isSessionLost(error)) {
-          onSessionLost();
-          return;
-        }
-        if (!onBlocked(error)) {
-          setState(current => current.kind === 'loaded' ? { kind: 'loaded', ...failLoadingMore(current) } : current);
-        }
-      },
-    );
-  };
-
-  if (state.kind === 'loading') {
-    return <SavedLinkSkeleton count={6} mode={viewMode} />;
-  }
-  if (state.kind === 'failed') {
-    return (
-      <LoadFailed
-        dictionary={dictionary}
-        onRetry={() => {
-          setState({ kind: 'loading' });
-          setReloadToken(token => token + 1);
-        }}
-      />
-    );
-  }
-  if (state.items.length === 0) {
-    return <p className={styles.emptyState}>{dictionary.collectionItemsEmpty}</p>;
-  }
-  const links = state.items.map(entry => inCollectionContext(collectionLinkView(entry, collectionId, { showAdder: showAdders }), collectionId));
-  return <>
-    <SavedLinkList dictionary={dictionary} links={links} mode={viewMode} />
-    <LoadMore dictionary={dictionary} onLoadMore={loadMore} skeleton={<SavedLinkSkeleton count={6} mode={viewMode} />} state={state} />
-  </>;
-}

@@ -9,6 +9,7 @@ import { SavedLinkList } from '../(app)/SavedLinkList';
 import { RequestActionButton } from '../(app)/collections/RequestActionButton';
 import { SubscriptionSection } from '../(app)/me/MyPageSections';
 import { ViewModeToggle } from '../(app)/ViewModeToggle';
+import { FavoriteStar, useStarTap } from '../(app)/FavoriteStar';
 import { PageHeader } from '../(app)/PageHeader';
 import { getAppDictionary } from '../../lib/appDictionary';
 import { formatMessage, isAppLanguage, type AppLanguage } from '../../lib/appI18n';
@@ -32,6 +33,20 @@ function links(): readonly LinkView[] {
     href: `/items/${index + 1}`,
     externalUrl: index === 5 ? null : `https://site${index}.example.com/${index}`,
   }));
+}
+
+/** A star button wired exactly like a Collection card's: the tap arms the play, then the (optimistic) state flips; "silent" flips it with no tap. */
+function StarFixture() {
+  const [active, setActive] = useState(false);
+  const [token, bump] = useStarTap();
+  return (
+    <div data-fixture-star>
+      <button className={styles.cardAction} data-star-button onClick={() => { bump(); setActive(value => !value); }} type="button">
+        <FavoriteStar active={active} playToken={token} size={20} />
+      </button>
+      <button data-star-silent onClick={() => setActive(value => !value)} type="button">silent</button>
+    </div>
+  );
 }
 
 export default function Page() {
@@ -83,6 +98,7 @@ export default function Page() {
                 <SavedLinkList dictionary={dictionary} links={links()} mode={mode} />
               </section>
             </PersonalLinkSelection>
+            <StarFixture />
             <div data-fixture-membership>
               <SubscriptionSection />
             </div>
