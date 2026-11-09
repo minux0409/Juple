@@ -44,7 +44,7 @@ describe('the free-period notice', () => {
   it('is a card on Home, never a modal or a blocker, with no price and no payment text', () => {
     const notice = source('app/(app)/TrialNotice.tsx');
     assert.doesNotMatch(notice, /dialog|showModal|role="alertdialog"/i);
-    assert.match(source('app/(app)/HomeView.tsx'), /<TrialNotice \/>\s*<AddLinkForm \/>/);
+    assert.match(source('app/(app)/HomeView.tsx'), /<TrialNotice \/>\s*(<StickyControls>\s*)?<AddLinkForm \/>/);
     for (const file of ['app/(app)/TrialNotice.tsx', 'lib/trialNotice.ts']) {
       assert.doesNotMatch(source(file), /price|currency|KRW|USD|₩/i, file);
     }

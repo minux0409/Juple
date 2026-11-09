@@ -149,7 +149,8 @@ describe('내 페이지: nested settings - app side bar | inner settings list | 
       ['me/ProfileEditView.tsx', 'dictionary.profileEdit'],
       ['me/language/page.tsx', 'dictionary.languageTitle'],
       ['me/collection-lock/page.tsx', 'dictionary.collectionLock'],
-      ['me/subscription/page.tsx', 'dictionary.subscriptionTitle'],
+      // 구독 is now 멤버십, as on mobile (MembershipScreen / membership.title).
+      ['me/subscription/page.tsx', 'dictionary.membershipTitle'],
       ['me/account/page.tsx', 'dictionary.accountSectionTitle'],
     ];
     for (const [file, title] of titles) {

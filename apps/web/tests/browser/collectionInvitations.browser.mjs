@@ -162,7 +162,8 @@ const navCount = href => `document.querySelector('nav a[href="${href}"] [data-at
 const typeCount = filter => `document.querySelector('[data-collection-filter="${filter}"] [data-attention-badge]')?.textContent ?? '0'`;
 const geometry = `(() => {
   const group = document.querySelector('[data-collection-sections]');
-  const rects = [...group.children].map(el => el.getBoundingClientRect());
+  // The toolbar is docked on its own (it stays at the top while the page scrolls) and still opens the same 12px rhythm.
+  const rects = [document.querySelector('[data-collection-toolbar]'), ...group.children].map(el => el.getBoundingClientRect());
   return {
     gaps: rects.slice(1).map((rect, i) => rect.top - rects[i].bottom),
     badgesFit: [...document.querySelectorAll('[data-collection-filter] [data-attention-badge],nav [data-attention-badge]')].every(el => {
@@ -540,11 +541,24 @@ for (const width of [1280,393,320]) for (const theme of ['light','dark']) {
    await tab.until(`document.querySelector('[data-pending-join="901"]').className.includes('pendingJoinGrid')`);
    await capture(tab,`pending-grid-${width}-${theme}`);
 
+   // The waiting tile opens the cancel question directly (no status step); Escape and the backdrop only close it.
    await tab.evaluate(`document.querySelector('[data-pending-join="901"]').click()`);
-   await tab.until(`document.querySelector('dialog[open]')?.textContent.includes('승인 대기 중')`);
-   await tab.evaluate(`[...document.querySelectorAll('dialog[open] button')].find(b=>b.textContent==='요청 취소').click()`);
-   await tab.until(`document.querySelector('dialog[open]')?.textContent.includes('참여 요청을 취소할까요?')`);
+   await tab.until(`!!document.querySelector('dialog[open] [data-withdraw-join="confirm"]')`);
+   await tab.key('Escape', 'Escape', 27);
+   await tab.until(`!document.querySelector('dialog[open]')`);
+   await tab.send('Input.dispatchMouseEvent',{type:'mousePressed',x:3,y:3,button:'left',clickCount:1});
+   await tab.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:3,y:3,button:'left',clickCount:1});
+   assert.equal(await tab.evaluate(`!!document.querySelector('[data-pending-join="901"]')`),true,'closing never withdraws');
    assert.equal(await tab.evaluate(`sessionStorage.getItem('fixtureJoinState')`),null);
+   await tab.evaluate(`document.querySelector('[data-pending-join="901"]').click()`);
+   await tab.until(`!!document.querySelector('dialog[open] [data-withdraw-join="confirm"]')`);
+   const box=await tab.evaluate(`(()=>{const r=document.querySelector('dialog[open]').getBoundingClientRect();return {x:Math.max(2,r.left-8),y:Math.max(2,r.top-8)};})()`);
+   await tab.send('Input.dispatchMouseEvent',{type:'mousePressed',x:box.x,y:box.y,button:'left',clickCount:1});
+   await tab.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:box.x,y:box.y,button:'left',clickCount:1});
+   await tab.until(`!document.querySelector('dialog[open]')`);
+   assert.equal(await tab.evaluate(`!!document.querySelector('[data-pending-join="901"]')`),true,'the backdrop never withdraws');
+   await tab.evaluate(`document.querySelector('[data-pending-join="901"]').click()`);
+   await tab.until(`!!document.querySelector('dialog[open] [data-withdraw-join="confirm"]')`);
    await capture(tab,`pending-${width}-${theme}`);
    await tab.evaluate(`[...document.querySelectorAll('dialog[open] button')].find(b=>b.textContent==='요청 취소').click()`);
    await tab.until(`!document.querySelector('[data-pending-join="901"]')`);
@@ -559,9 +573,7 @@ it('pending cancellation failure keeps the card; approval refresh replaces it wi
  try {
   await tab.until(`!!document.querySelector('[data-pending-join="901"]')`);
   await tab.evaluate(`document.querySelector('[data-pending-join="901"]').click()`);
-  await tab.until(`!!document.querySelector('dialog[open]')`);
-  await tab.evaluate(`[...document.querySelectorAll('dialog[open] button')].find(b=>b.textContent==='요청 취소').click()`);
-  await tab.until(`document.querySelector('dialog[open]').textContent.includes('참여 요청을 취소할까요?')`);
+  await tab.until(`!!document.querySelector('dialog[open] [data-withdraw-join="confirm"]')`);
   await tab.evaluate(`[...document.querySelectorAll('dialog[open] button')].find(b=>b.textContent==='요청 취소').click()`);
   await tab.until(`!!document.querySelector('dialog[open] [role="alert"]')`);
   assert.equal(await tab.evaluate(`!!document.querySelector('[data-pending-join="901"]')`),true);

@@ -19,7 +19,8 @@ export interface Entitlement {
 
 export interface StoreSubscription {
   readonly state: 'none' | 'active' | 'gracePeriod';
-  readonly platform: 'google' | null;
+  /** Which store owns the live subscription; null when none is live or the server did not name it (an older server: never guessed). */
+  readonly platform: 'google' | 'apple' | null;
   readonly currentPeriodEndsAtUtc: string | null;
   readonly autoRenewing: boolean | null;
   readonly startedAtUtc: string | null;
@@ -93,7 +94,7 @@ export function parseStoreSubscription(raw: unknown): StoreSubscription | null {
   }
   return {
     state,
-    platform: value.platform === 'google' ? 'google' : null,
+    platform: value.platform === 'google' || value.platform === 'apple' ? value.platform : null,
     currentPeriodEndsAtUtc: timestampOrNull(value.currentPeriodEndsAtUtc),
     autoRenewing: typeof value.autoRenewing === 'boolean' ? value.autoRenewing : null,
     startedAtUtc: timestampOrNull(value.startedAtUtc),
@@ -154,6 +155,9 @@ export function describeSubscription(storeSubscription: StoreSubscription | null
 
 /** Where a Google Play subscription is managed (mobile useSubscriptionStore PLAY_SUBSCRIPTIONS_URL) - a public Play page. */
 export const PLAY_SUBSCRIPTIONS_URL = 'https://play.google.com/store/account/subscriptions';
+
+/** The App Store's own subscription-management page (mobile useSubscriptionStore APP_STORE_SUBSCRIPTIONS_URL) - a public Apple page. */
+export const APP_STORE_SUBSCRIPTIONS_URL = 'https://apps.apple.com/account/subscriptions';
 
 /**
  * Whether the Web shows 구독 at all (the settings entry and its page): only while the server says the paid program is live

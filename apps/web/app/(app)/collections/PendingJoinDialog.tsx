@@ -7,12 +7,15 @@ import { Modal } from '../Modal';
 import styles from '../app.module.css';
 
 /** Both the shared list and a reopened share link resolve the same server-owned request. */
-export function PendingJoinDialog({ publicId, requestId, onClose, onWithdrawn, children }: {
+export function PendingJoinDialog({ publicId, requestId, onClose, onWithdrawn, children, cancelFirst = false }: {
   readonly publicId: string; readonly requestId?: number; readonly children?: ReactNode;
   readonly onClose: () => void; readonly onWithdrawn: () => void;
+  /** The Collections list's waiting tile: the dialog IS the "요청 취소" question (no status step first). Its keep button, the
+      backdrop, Escape and the close button only close it; only 요청 취소 withdraws. */
+  readonly cancelFirst?: boolean;
 }) {
   const { api, dictionary: d, onSessionLost } = useSignedInApp();
-  const [confirm, setConfirm] = useState(false);
+  const [confirm, setConfirm] = useState(cancelFirst);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,14 +35,14 @@ export function PendingJoinDialog({ publicId, requestId, onClose, onWithdrawn, c
   return <Modal open title={confirm ? d.cancelJoinTitle : d.shareEntryPendingTitle} closeLabel={d.close}
     onClose={() => { if (!busyRef.current) onClose(); }}>
     <div className={styles.pendingJoinDialogBody}><p className={styles.dialogMessage}>{confirm ? d.cancelJoinMessage : d.shareEntryPendingMessage}</p>
-    {!confirm ? children : null}
+    {!confirm || cancelFirst ? children : null}
     {error ? <p role="alert" className={styles.fieldError}>{error}</p> : null}
     <div className={styles.formActions}>
       <button type="button" className={styles.settingsAction} disabled={busy}
-        onClick={() => { if (confirm) { setConfirm(false); setError(null); } else setConfirm(true); }}>
+        onClick={() => { if (cancelFirst) onClose(); else if (confirm) { setConfirm(false); setError(null); } else setConfirm(true); }}>
         {confirm ? d.submissionsKeepRequest : d.submissionsCancelRequest}
       </button>
-      <button type="button" className={styles.primaryAction} disabled={busy}
+      <button type="button" className={confirm ? styles.dangerAction : styles.primaryAction} disabled={busy} data-withdraw-join={confirm ? 'confirm' : undefined}
         onClick={() => { if (confirm) void withdraw(); else onClose(); }}>
         {busy ? d.processing : confirm ? d.submissionsCancelRequest : d.confirm}
       </button>

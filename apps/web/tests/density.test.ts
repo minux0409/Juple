@@ -55,7 +55,8 @@ describe('Web-native layout: only real data fills the space', () => {
 
   it('Home: the add panel and today\'s links in the main column; exact counts, all favorites and the recently opened links beside them', () => {
     const home = source('app/(app)/HomeView.tsx');
-    assert.match(home, /<AddLinkForm \/>\s*<div className={styles.dashboard}>\s*<div className={styles.dashboardMain}>/);
+    // The add panel may be docked (StickyControls: it stays at the top while the page scrolls, as on mobile) - same order.
+    assert.match(home, /<AddLinkForm \/>\s*(<\/StickyControls>\s*)?<div className={styles.dashboard}>\s*<div className={styles.dashboardMain}>/);
     assert.match(home, /<Glyph className=\{styles\.addLinkIcon\} name="Link"/);
     // The 새 컬렉션 / 보관함 shortcut buttons are gone from Home (both pages are still in the navigation).
     assert.doesNotMatch(home, /href="\/collections\/new"|href="\/archive"|styles\.quickAction/);

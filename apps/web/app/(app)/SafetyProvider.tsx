@@ -17,6 +17,8 @@ import {
   type ReportReason,
   type ReportTarget,
 } from '../../lib/safety';
+import { reportEach, type BulkReportOutcome } from '../../lib/selectionRules';
+import { ApiHttpError } from '../../lib/appApi';
 import { useSignedInApp } from './AppRoot';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useToast } from './Toaster';
@@ -31,6 +33,11 @@ export interface BlockSubject {
 interface SafetyApi {
   /** Opens the report dialog for something that is not the caller's own (the server refuses their own, and anything they cannot see). */
   readonly report: (target: ReportTarget) => void;
+  /**
+   * 신고 of several links at once (mobile ReportModal bulkTargets): ONE reason and explanation, but each link is its own report, sent one
+   * after the other; the server's rate limit stops the rest. `onDone` gets which were received / already reported / not sent.
+   */
+  readonly reportMany: (targets: readonly ReportTarget[], onDone: (outcome: BulkReportOutcome<ReportTarget>) => void) => void;
   /** Asks "block this user?" and, once confirmed, blocks. `onBlocked` runs after the server accepted it. */
   readonly block: (subject: BlockSubject, onBlocked?: () => void) => void;
   /** Who the caller blocked, as the server says (null until it answered): a person already in it is offered 차단 해제, never 차단 again. */
@@ -59,7 +66,7 @@ export function useSafety(): SafetyApi {
 export function SafetyProvider({ children }: { readonly children: React.ReactNode }) {
   const { api, dictionary, onSessionLost } = useSignedInApp();
   const toast = useToast();
-  const [reporting, setReporting] = useState<ReportTarget | null>(null);
+  const [reporting, setReporting] = useState<{ readonly targets: readonly ReportTarget[]; readonly onDone?: (outcome: BulkReportOutcome<ReportTarget>) => void } | null>(null);
   const [blocking, setBlocking] = useState<{ readonly subject: BlockSubject; readonly onBlocked?: () => void } | null>(null);
   const [blockBusy, setBlockBusy] = useState(false);
   const [blockedIds, setBlockedIds] = useState<ReadonlySet<string> | null>(null);
@@ -146,7 +153,8 @@ export function SafetyProvider({ children }: { readonly children: React.ReactNod
 
   const value = useMemo<SafetyApi>(
     () => ({
-      report: target => setReporting(target),
+      report: target => setReporting({ targets: [target] }),
+      reportMany: (targets, onDone) => setReporting({ targets, onDone }),
       block: (subject, onBlocked) => setBlocking({ subject, onBlocked }),
       blockedIds,
       unblock,
@@ -158,7 +166,7 @@ export function SafetyProvider({ children }: { readonly children: React.ReactNod
   return (
     <SafetyContext.Provider value={value}>
       {children}
-      {reporting ? <ReportDialog onClose={() => setReporting(null)} target={reporting} /> : null}
+      {reporting ? <ReportDialog onClose={() => setReporting(null)} onDone={reporting.onDone} targets={reporting.targets} /> : null}
       <ConfirmDialog
         busy={blockBusy}
         cancelLabel={dictionary.cancel}
@@ -175,7 +183,7 @@ export function SafetyProvider({ children }: { readonly children: React.ReactNod
 }
 
 /** 신고: why, optionally in words, send. The reason is a required choice (nothing is pre-selected: a report is deliberate). */
-function ReportDialog({ target, onClose }: { readonly target: ReportTarget; readonly onClose: () => void }) {
+function ReportDialog({ targets, onClose, onDone }: { readonly targets: readonly ReportTarget[]; readonly onClose: () => void; readonly onDone?: (outcome: BulkReportOutcome<ReportTarget>) => void }) {
   const { api, dictionary, onSessionLost } = useSignedInApp();
   const toast = useToast();
   const ref = useRef<HTMLDialogElement>(null);
@@ -201,6 +209,25 @@ function ReportDialog({ target, onClose }: { readonly target: ReportTarget; read
     sending.current = true;
     setBusy(true);
     setFailed(false);
+    if (onDone) {
+      // Several links: each is its own report; the caller says what happened and keeps what was not sent selected.
+      void reportEach(
+        targets,
+        target => api<unknown>({ method: 'POST', path: reportPath(target), body: reportBody(target, reason, details) }).then(parseReportReceipt),
+        error => error instanceof ApiHttpError && error.status === 429,
+      ).then(outcome => {
+        if (outcome.failed.length === targets.length && !outcome.rateLimited) {
+          sending.current = false;
+          setBusy(false);
+          setFailed(true);
+          return;
+        }
+        onDone(outcome);
+        onClose();
+      });
+      return;
+    }
+    const target = targets[0];
     api<unknown>({ method: 'POST', path: reportPath(target), body: reportBody(target, reason, details) }).then(
       raw => {
         toast.showNotice(parseReportReceipt(raw).alreadyReported ? dictionary.safetyReportAlready : dictionary.safetyReportReceived);
@@ -232,7 +259,7 @@ function ReportDialog({ target, onClose }: { readonly target: ReportTarget; read
     >
       <div className={styles.dialogHead}>
         <h2 className={styles.dialogTitle} id={titleId}>
-          {dictionary.safetyReport}
+          {targets.length > 1 ? formatMessage(dictionary.selectionReportLinksTitle, { count: targets.length }) : dictionary.safetyReport}
         </h2>
       </div>
       <form className={styles.editorDialogForm} noValidate onSubmit={submit}>

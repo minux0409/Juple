@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { loadPendingJoins, filterPendingJoins, type PendingJoin } from '../../../lib/pendingJoins';
 import { shareEntryTileKey } from '../../../lib/sharedCollectionEntry';
 import { PendingJoinDialog } from './PendingJoinDialog';
+import { useFavoritePop } from '../useFavoritePop';
+import { useCollectionSelection } from './useCollectionSelection';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { formatMessage, type AppDictionary } from '../../../lib/appI18n';
@@ -34,7 +36,7 @@ import { formatBadgeCount } from '../../../lib/notifications';
 import { appendPage, canLoadMore, failLoadingMore, firstPage, startLoadingMore, type PagedState } from '../../../lib/paging';
 import { collectionHref, collectionShareHref } from '../../../lib/savedLinks';
 import { canEditCollection } from '../../../lib/collectionEditor';
-import { canShareCollection, participantsWithSelf } from '../../../lib/collectionSharing';
+import { canShareCollection, isSharedWithMe, participantsWithSelf } from '../../../lib/collectionSharing';
 import { collectionPath } from '../../../lib/collectionDetails';
 import { useSignedInApp } from '../AppRoot';
 import { CollectionGlyph, Glyph } from '../Glyph';
@@ -52,10 +54,13 @@ import { useStoredChoice } from '../useStoredChoice';
 import { TOUR_TARGETS, tourTarget } from '../../../lib/tour';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { PageHeader } from '../PageHeader';
+import { StickyControls } from '../StickyControls';
 import styles from '../app.module.css';
 import sectionStyles from './CollectionSections.module.css';
 import { AttentionBadge } from '../AttentionBadge';
 import { useAttention } from '../useAttention';
+
+const NO_COLLECTIONS: readonly CollectionSummary[] = [];
 
 type ListState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | ({ readonly kind: 'loaded' } & PagedState<CollectionSummary>);
 
@@ -236,6 +241,28 @@ export function CollectionsView() {
     );
   };
 
+  // Multi-selection (bulk 즐겨찾기 / 삭제 / 나가기): its answers change the list in place, like the single toggle above.
+  const selection = useCollectionSelection({
+    items: state.kind === 'loaded' ? state.items : NO_COLLECTIONS,
+    onFavoriteChanged: updated => {
+      setState(current =>
+        current.kind !== 'loaded'
+          ? current
+          : { ...current, items: current.items.flatMap(item => (item.id !== updated.id ? [item] : filter === 'favorites' && !updated.isFavorite ? [] : [updated])) },
+      );
+      attentionStore.collectionChanged(updated);
+    },
+    onRemoved: ids => {
+      const gone = new Set(ids);
+      setState(current => (current.kind !== 'loaded' ? current : { ...current, items: current.items.filter(item => !gone.has(item.id)) }));
+      void attentionStore.refresh(undefined, true);
+    },
+    onLocked: ids => {
+      const locked = new Set(ids);
+      setState(current => (current.kind !== 'loaded' ? current : { ...current, items: current.items.map(item => (locked.has(item.id) ? { ...item, isLocked: true, isMemberLocked: isSharedWithMe(item) ? true : item.isMemberLocked } : item)) }));
+    },
+  });
+
   const loadMore = () => {
     if (state.kind !== 'loaded' || !canLoadMore(state)) {
       return;
@@ -260,7 +287,8 @@ export function CollectionsView() {
   return (
     <section aria-busy={state.kind === 'loading' || searching} className={styles.page}>
       <PageHeader icon="Folder" title={dictionary.navCollections} />
-      <div className={sectionStyles.sections} data-collection-sections>
+      <StickyControls>
+        <div className={sectionStyles.sections} data-collection-toolbar>
       {/* One toolbar: the mobile filters, then how they are shown and 새 컬렉션 (always in reach). It wraps on a narrow window. */}
       <div className={styles.toolbar}>
         <div aria-label={dictionary.collectionsFilterLabel} className={styles.filterTabs} role="group">
@@ -279,6 +307,12 @@ export function CollectionsView() {
           ))}
         </div>
         <div className={styles.headerActions}>
+          {!selection.active && state.kind === 'loaded' && state.items.length > 0 ? (
+            <button aria-label={dictionary.selectionSelectItems} className={styles.selectModeButton} data-select-mode onClick={selection.arm} title={dictionary.selectionSelectItems} type="button">
+              <Glyph name="Check" size={16} />
+              <span>{dictionary.selectionSelectItems}</span>
+            </button>
+          ) : null}
           <ViewModeToggle
             groupLabel={dictionary.viewModeLabel}
             labels={{ list: dictionary.viewList, grid: dictionary.viewGrid, image: dictionary.viewImage }}
@@ -294,6 +328,9 @@ export function CollectionsView() {
         </div>
       </div>
 
+        </div>
+      </StickyControls>
+      <div className={`${sectionStyles.sections} ${styles.afterDockedToolbar}`} data-collection-sections>
       {/* Requests are shared-Collection work: only 공유 컬렉션 carries them - 받은 승인 요청 (links / join requests I answer as Owner), then 받은 초대 요청. */}
       {filter === 'shared' ? <SentRequestsEntry /> : null}
       {filter === 'shared' ? <ReceivedRequestsEntry /> : null}
@@ -327,7 +364,7 @@ export function CollectionsView() {
       ) : null}
       {state.kind === 'loaded' && (state.items.length > 0 || shownPending.length > 0) ? (
         <>
-          <ul aria-busy={searching} className={searching ? `${viewMode === 'grid' ? styles.collectionGrid : styles.collectionList} ${styles.listSearching}` : viewMode === 'grid' ? styles.collectionGrid : styles.collectionList}>
+          <ul aria-busy={searching} data-selecting={selection.active ? 'true' : undefined} className={searching ? `${viewMode === 'grid' ? styles.collectionGrid : styles.collectionList} ${styles.listSearching}` : viewMode === 'grid' ? styles.collectionGrid : styles.collectionList}>
             {shownPending.map(join => <li className={styles.collectionCard} key={`join-${join.requestId}`}>
               <button type="button" className={`${styles.pendingJoinCard} ${viewMode === 'grid' ? styles.pendingJoinGrid : ''}`}
                 onClick={() => setOpenedJoin(join)} data-pending-join={join.requestId}>
@@ -338,22 +375,40 @@ export function CollectionsView() {
                 <span className={styles.pendingJoinText}><strong dir="auto">{join.name}</strong><span>{dictionary.joinPending}</span></span>
               </button>
             </li>)}
-            {state.items.map(collection => (
-              <li className={styles.collectionCard} key={collection.id}>
-                <CollectionCard
-                  collection={collection}
-                  dictionary={dictionary}
-                  favoriteBusy={togglingId === collection.id}
-                  layout={viewMode === 'grid' ? 'grid' : 'list'}
-                  onToggleFavorite={() => toggleFavorite(collection)}
-                />
-              </li>
-            ))}
+            {state.items.map(collection => {
+              const chosen = selection.isSelected(collection.id);
+              return (
+                <li className={chosen ? `${styles.collectionCard} ${styles.cardSelected}` : styles.collectionCard} data-selected={chosen ? 'true' : undefined} key={collection.id}>
+                  <CollectionCard
+                    collection={collection}
+                    dictionary={dictionary}
+                    favoriteBusy={togglingId === collection.id}
+                    layout={viewMode === 'grid' ? 'grid' : 'list'}
+                    onCardClick={event => selection.cardClick(collection, event)}
+                    onToggleFavorite={() => toggleFavorite(collection)}
+                  />
+                  <button
+                    aria-label={collection.name}
+                    aria-pressed={chosen}
+                    className={styles.selectCheck}
+                    data-select-check
+                    onClick={event => selection.check(collection, event)}
+                    title={dictionary.selectionToggleHint}
+                    type="button"
+                  >
+                    <span aria-hidden className={styles.selectCheckMark}>
+                      <Glyph name="Check" size={14} />
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
           <LoadMore dictionary={dictionary} onLoadMore={loadMore} skeleton={<CollectionSkeleton count={viewMode === 'grid' ? 5 : 3} mode={viewMode} />} state={state} />
         </>
       ) : null}
-      {openedJoin ? <PendingJoinDialog publicId={openedJoin.publicId} requestId={openedJoin.requestId}
+      {selection.ui}
+      {openedJoin ? <PendingJoinDialog cancelFirst publicId={openedJoin.publicId} requestId={openedJoin.requestId}
         onClose={() => setOpenedJoin(null)} onWithdrawn={() => {
           setPendingJoins(items => items.filter(item => item.requestId !== openedJoin.requestId));
           setOpenedJoin(null); setReloadToken(token => token + 1);
@@ -407,6 +462,7 @@ function CollectionCardActions({
   const canShare = open && canShareCollection(collection, null);
   const canEdit = open && canEditCollection(collection);
   const favoriteLabel = collection.isFavorite ? dictionary.removeFavorite : dictionary.addFavorite;
+  const favoritePop = useFavoritePop(collection.isFavorite === true);
   return (
     <div className={layout === 'grid' ? `${styles.collectionActions} ${styles.collectionActionsGrid}` : styles.collectionActions} data-collection-actions>
       <button
@@ -414,6 +470,7 @@ function CollectionCardActions({
         aria-pressed={collection.isFavorite}
         className={collection.isFavorite ? styles.cardActionActive : styles.cardAction}
         data-card-action="favorite"
+        data-pop={favoritePop}
         disabled={favoriteBusy}
         onClick={onToggleFavorite}
         title={favoriteLabel}
@@ -441,6 +498,7 @@ export function CollectionCard({
   layout,
   favoriteBusy = false,
   onToggleFavorite,
+  onCardClick,
 }: {
   readonly collection: CollectionSummary;
   readonly dictionary: AppDictionary;
@@ -448,13 +506,15 @@ export function CollectionCard({
   readonly favoriteBusy?: boolean;
   /** Present: the card carries its quick actions (the Collections list). */
   readonly onToggleFavorite?: () => void;
+  /** A running selection takes the click (it calls preventDefault); otherwise the card opens as usual. */
+  readonly onCardClick?: (event: React.MouseEvent) => void;
 }) {
   const actions = onToggleFavorite ? (
     <CollectionCardActions collection={collection} dictionary={dictionary} favoriteBusy={favoriteBusy} layout={layout} onToggleFavorite={onToggleFavorite} />
   ) : null;
   return (
     <>
-      <CollectionCardBody collection={collection} dictionary={dictionary} hasActions={actions !== null} layout={layout} />
+      <CollectionCardBody collection={collection} dictionary={dictionary} hasActions={actions !== null} layout={layout} onCardClick={onCardClick} />
       {actions}
     </>
   );
@@ -465,12 +525,14 @@ function CollectionCardBody({
   dictionary,
   layout,
   hasActions,
+  onCardClick,
 }: {
   readonly collection: CollectionSummary;
   readonly dictionary: AppDictionary;
   readonly layout: 'grid' | 'list';
   /** The quick actions carry the favorite mark, so the card does not draw a second star. */
   readonly hasActions: boolean;
+  readonly onCardClick?: (event: React.MouseEvent) => void;
 }) {
   const attention = collection.attentionCount ?? 0;
   if (layout === 'grid') {
@@ -480,6 +542,7 @@ function CollectionCardBody({
         aria-label={attention > 0 ? formatMessage(dictionary.collectionAttentionA11y, { name: collection.name, count: attention }) : undefined}
         className={styles.collectionBodyGrid}
         href={collectionHref(collection.id)}
+        onClick={onCardClick}
       >
         <div className={styles.collectionCover}>
           <CollectionTileView collection={collection} fill size={96} />
@@ -514,6 +577,7 @@ function CollectionCardBody({
       aria-label={attention > 0 ? formatMessage(dictionary.collectionAttentionA11y, { name: collection.name, count: attention }) : undefined}
       className={styles.collectionBody}
       href={collectionHref(collection.id)}
+      onClick={onCardClick}
     >
       <span className={styles.tileWithBadge}>
         <CollectionTileView collection={collection} size={72} />

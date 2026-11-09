@@ -31,6 +31,8 @@ import { SortChips } from '../SortChips';
 import { useStoredChoice } from '../useStoredChoice';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { PageHeader } from '../PageHeader';
+import { StickyControls } from '../StickyControls';
+import { PersonalLinkSelection, SelectModeButton } from '../LinkSelection';
 import styles from '../app.module.css';
 
 /**
@@ -65,13 +67,16 @@ export function ArchiveView() {
   const tooShort = text.trim().length > 0 && normalizeArchiveQuery(text) === null;
 
   return (
+    <PersonalLinkSelection>
     <section className={styles.page}>
       <PageHeader icon="Archive" title={dictionary.navArchive} />
+      <StickyControls>
       <div className={styles.searchBlock}>
         <div className={styles.archiveBar}>
           <SearchField onChange={setText} placeholder={dictionary.archiveSearchPlaceholder} value={text} />
           <div className={styles.archiveBarSwitches}>
             <SortChips dictionary={dictionary} onPressName={() => setSort('name')} onPressTime={() => setSort('time')} sort={sort === 'name' ? 'title' : 'newest'} />
+            <SelectModeButton label={dictionary.selectionSelectItems} />
             <ViewModeToggle
               groupLabel={dictionary.viewModeLabel}
               labels={{ list: dictionary.viewList, grid: dictionary.viewGrid, image: dictionary.viewImage }}
@@ -82,6 +87,7 @@ export function ArchiveView() {
         </div>
         {tooShort ? <p className={styles.searchHint}>{dictionary.archiveSearchMinHint}</p> : null}
       </div>
+      </StickyControls>
       {term !== null || sort === 'name' ? (
         <ArchiveFlat api={api} dictionary={dictionary} key={`${sort}|${term ?? ''}`} onSessionLost={onSessionLost} sort={sort} term={term} viewMode={viewMode} />
       ) : (
@@ -98,6 +104,7 @@ export function ArchiveView() {
         />
       )}
     </section>
+    </PersonalLinkSelection>
   );
 }
 

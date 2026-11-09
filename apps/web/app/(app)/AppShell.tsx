@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { activeMainNav, MAIN_NAV_ITEMS } from '../../lib/appNavigation';
 import { navTourTarget } from '../../lib/tour';
 import { forgetUnlocksOutside } from '../../lib/collectionUnlock';
@@ -17,7 +17,12 @@ import { clearReactionStore } from '../../lib/reactionStore';
 import { useNotificationActions } from './notifications/useNotificationActions';
 import { useAttention } from './useAttention';
 import { AttentionBadge } from './AttentionBadge';
+import { useStoredChoice } from './useStoredChoice';
 import styles from './app.module.css';
+
+/** The side bar's per-browser width choice (wide screens only; the narrow top bar has no collapsed form). */
+const SIDEBAR_STORAGE_KEY = 'juple.web.sidebar';
+const parseSidebar = (stored: string | null): 'expanded' | 'collapsed' => (stored === 'collapsed' ? 'collapsed' : 'expanded');
 
 /**
  * The signed-in app's frame: the Juple icon and name, the main destinations with the mobile icons (lib/appNavigation.ts - the mobile
@@ -82,19 +87,46 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
   // Signed out (the shell goes away): nobody's unread count stays. The bell itself lives in each page's header.
   useEffect(() => () => { resetUnreadCount(); clearReactionStore(); }, [store]);
   const active = activeMainNav(pathname);
+  const [sidebar, setSidebar] = useStoredChoice(SIDEBAR_STORAGE_KEY, parseSidebar);
+  const collapsed = sidebar === 'collapsed';
+  const { navRef, position: indicatorPosition } = useActiveIndicator(active, collapsed);
+  const { shellRef, headerRef } = useTopBarOffset();
 
   return (
-    <div className={styles.shell}>
-      <header className={styles.sidebar}>
-        <Link className={styles.sidebarBrand} href="/">
-          <BrandIcon size={32} />
-          <span>Juple</span>
-        </Link>
-        <nav aria-label={dictionary.mainNavigation} className={styles.nav}>
+    <div className={styles.shell} data-sidebar={sidebar} ref={shellRef}>
+      <header className={styles.sidebar} ref={headerRef}>
+        <div className={styles.sidebarTop}>
+          <Link aria-label={collapsed ? 'Juple' : undefined} className={styles.sidebarBrand} href="/">
+            <BrandIcon size={32} />
+            <span>Juple</span>
+          </Link>
+          <button
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? dictionary.sidebarExpand : dictionary.sidebarCollapse}
+            className={styles.sidebarToggle}
+            data-sidebar-toggle
+            onClick={() => setSidebar(collapsed ? 'expanded' : 'collapsed')}
+            title={collapsed ? dictionary.sidebarExpand : dictionary.sidebarCollapse}
+            type="button"
+          >
+            <Glyph className={styles.sidebarToggleIcon} name="Chevron" size={18} />
+          </button>
+        </div>
+        <nav aria-label={dictionary.mainNavigation} className={styles.nav} data-indicator={indicatorPosition ? 'ready' : undefined} ref={navRef}>
+          {/* One marker for the whole list, moved (transform) to the active destination - it slides from the previous one. */}
+          {indicatorPosition ? <span aria-hidden className={styles.navIndicator} style={{ transform: `translateY(${indicatorPosition.top}px)`, height: indicatorPosition.height }} /> : null}
           {MAIN_NAV_ITEMS.map(item => (
-            <Link aria-current={item.href === active ? 'page' : undefined} className={item.href === active ? styles.navLinkActive : styles.navLink} href={item.href} key={item.href} {...navTourTarget(item.href)}>
+            <Link
+              aria-current={item.href === active ? 'page' : undefined}
+              aria-label={collapsed ? dictionary[item.labelKey] : undefined}
+              className={item.href === active ? styles.navLinkActive : styles.navLink}
+              href={item.href}
+              key={item.href}
+              title={collapsed ? dictionary[item.labelKey] : undefined}
+              {...navTourTarget(item.href)}
+            >
               <Glyph className={styles.navIcon} name={item.icon} size={20} />
-              <span>{dictionary[item.labelKey]}</span>
+              <span className={styles.navLabel}>{dictionary[item.labelKey]}</span>
               <AttentionBadge count={counts[item.href] ?? 0} />
             </Link>
           ))}
@@ -106,4 +138,60 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
       </main>
     </div>
   );
+}
+
+/**
+ * Where the side bar's active marker sits: the active link's offset inside the list (measured, so a long translated name or a
+ * collapsed bar never misplaces it). Nothing is drawn until the first measurement - the marker never slides in from the top on load.
+ */
+function useActiveIndicator(active: string | null, collapsed: boolean) {
+  const navRef = useRef<HTMLElement>(null);
+  const [position, setPosition] = useState<{ readonly top: number; readonly height: number } | null>(null);
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) {
+      return;
+    }
+    const measure = () => {
+      const link = nav.querySelector<HTMLElement>('[aria-current="page"]');
+      // The narrow top bar (a row) draws its own active state: the marker is only for the vertical side bar.
+      if (!link || getComputedStyle(nav).flexDirection !== 'column') {
+        setPosition(null);
+        return;
+      }
+      setPosition(previous => (previous && previous.top === link.offsetTop && previous.height === link.offsetHeight ? previous : { top: link.offsetTop, height: link.offsetHeight }));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(nav);
+    return () => observer.disconnect();
+  }, [active, collapsed]);
+  return { navRef, position };
+}
+
+/**
+ * --shell-top-offset: how much of the window's top the shell itself covers - the sticky top bar on narrow screens (its height changes
+ * with a long translated label or a large font), 0 beside the side bar. Docked page controls (StickyControls) sit right under it.
+ */
+function useTopBarOffset() {
+  const shellRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const shell = shellRef.current;
+    const header = headerRef.current;
+    if (!shell || !header) {
+      return;
+    }
+    const update = () => {
+      // The narrow top bar spans the whole shell; the side bar is a column beside the content and covers nothing above it.
+      const covering = header.getBoundingClientRect().width >= shell.getBoundingClientRect().width - 1;
+      shell.style.setProperty('--shell-top-offset', covering ? `${header.offsetHeight}px` : '0px');
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(header);
+    observer.observe(shell);
+    return () => observer.disconnect();
+  }, []);
+  return { shellRef, headerRef };
 }

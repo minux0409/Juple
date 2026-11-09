@@ -36,10 +36,13 @@ export function ReceivedRequestsDialog({
   onClose,
   onChanged,
   review = false,
+  initialQueue,
 }: {
   readonly collection: { readonly id: number; readonly name: string };
   readonly open: boolean;
   readonly review?: boolean;
+  /** Opened from one of the two request buttons: that queue (링크 승인 요청 / 참여 요청) is shown first. */
+  readonly initialQueue?: 'link' | 'person';
   readonly onClose: () => void;
   /** Something was answered (the caller refreshes what it shows: its counts, its links). */
   readonly onChanged: () => void;
@@ -49,17 +52,17 @@ export function ReceivedRequestsDialog({
   // The Modal renders its body only while open, so every opening starts from a fresh load.
   return (
     <Modal closeLabel={dictionary.close} onClose={() => { if (!busyRef.current) onClose(); }} open={open} title={review ? dictionary.requestsReviewTitle : dictionary.requestsPendingSubmissions}>
-      <RequestsBody collectionId={collection.id} review={review} onBusyChange={value => { busyRef.current = value; }} onChanged={onChanged} />
+      <RequestsBody collectionId={collection.id} initialQueue={initialQueue} review={review} onBusyChange={value => { busyRef.current = value; }} onChanged={onChanged} />
     </Modal>
   );
 }
 
-function RequestsBody({ collectionId, onBusyChange, onChanged, review }: { readonly collectionId: number; readonly review: boolean; readonly onBusyChange: (busy: boolean) => void; readonly onChanged: () => void }) {
+function RequestsBody({ collectionId, onBusyChange, onChanged, review, initialQueue }: { readonly collectionId: number; readonly review: boolean; readonly initialQueue?: 'link' | 'person'; readonly onBusyChange: (busy: boolean) => void; readonly onChanged: () => void }) {
   const collection = { id: collectionId };
   const { api, dictionary, locale, onSessionLost } = useSignedInApp();
   const { store } = useAttention();
   const [state, setState] = useState<Loaded>({ kind: 'loading' });
-  const [queue, setQueue] = useState<'link' | 'person' | null>(null);
+  const [queue, setQueue] = useState<'link' | 'person' | null>(initialQueue ?? null);
   const [reload, setReload] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);

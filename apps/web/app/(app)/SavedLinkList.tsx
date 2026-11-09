@@ -8,6 +8,7 @@ import { Glyph } from './Glyph';
 import { LinkImage } from './LinkImage';
 import { SiteIcon } from './SiteIcon';
 import { CardReactions } from './CardReactions';
+import { isSelectableLink, useLinkSelection, type LinkSelectionApi } from './LinkSelection';
 import styles from './app.module.css';
 
 export function linkTitleText(title: LinkDisplayTitle, dictionary: AppDictionary): string {
@@ -42,14 +43,48 @@ export function SavedLinkList({
   /** The person's own list (Home, 보관함): called when the saved original page is opened from a card (a note for 최근 조회한 링크). */
   readonly onOpenOriginal?: (link: LinkView) => void;
 }) {
+  // Inside a page that offers multi-selection (Home, 보관함, a Collection): each selectable card carries its check, and while a
+  // selection runs a click on the card chooses it instead of opening it. Elsewhere (최근 조회한 링크) the list is never selectable.
+  const selection = useLinkSelection();
   return (
-    <ul className={mode === 'list' ? styles.linkList : mode === 'grid' ? styles.linkGrid : styles.imageGrid}>
-      {links.map(link => (
-        <li className={mode === 'image' ? styles.imageCell : link.reactions ? `${styles.linkCard} ${styles.linkCardColumn}` : styles.linkCard} key={link.id}>
-          <LinkEntry dictionary={dictionary} link={link} mode={mode} onOpenOriginal={onOpenOriginal} />
-        </li>
-      ))}
+    <ul className={mode === 'list' ? styles.linkList : mode === 'grid' ? styles.linkGrid : styles.imageGrid} data-selecting={selection?.active ? 'true' : undefined}>
+      {links.map(link => {
+        const selectable = selection !== null && isSelectableLink(link);
+        const selected = selectable && selection.isSelected(link.id);
+        const base = mode === 'image' ? styles.imageCell : link.reactions ? `${styles.linkCard} ${styles.linkCardColumn}` : styles.linkCard;
+        return (
+          <li className={selected ? `${base} ${styles.cardSelected}` : base} data-selected={selected ? 'true' : undefined} key={link.id}>
+            <LinkEntry
+              dictionary={dictionary}
+              link={link}
+              mode={mode}
+              onMainClick={selectable ? event => { selection.onCardClick(link, links, event); } : undefined}
+              onOpenOriginal={onOpenOriginal}
+            />
+            {selectable ? <SelectCheck dictionary={dictionary} link={link} order={links} selected={selected} selection={selection} /> : null}
+          </li>
+        );
+      })}
     </ul>
+  );
+}
+
+/** A card's selection check (mobile selection mark): appears on hover / focus, always while a selection runs; Shift+click = a range. */
+function SelectCheck({ link, order, selected, selection, dictionary }: { readonly link: LinkView; readonly order: readonly LinkView[]; readonly selected: boolean; readonly selection: LinkSelectionApi; readonly dictionary: AppDictionary }) {
+  return (
+    <button
+      aria-label={linkTitleText(link.title, dictionary)}
+      aria-pressed={selected}
+      className={styles.selectCheck}
+      data-select-check
+      onClick={event => selection.onCheck(link, order, event)}
+      title={dictionary.selectionToggleHint}
+      type="button"
+    >
+      <span aria-hidden className={styles.selectCheckMark}>
+        <Glyph name="Check" size={14} />
+      </span>
+    </button>
   );
 }
 
@@ -111,7 +146,7 @@ function MetaContent({ link, dictionary }: { readonly link: LinkView; readonly d
   );
 }
 
-function LinkEntry({ link, mode, dictionary, onOpenOriginal }: { readonly link: LinkView; readonly mode: LinkViewMode; readonly dictionary: AppDictionary; readonly onOpenOriginal?: (link: LinkView) => void }) {
+function LinkEntry({ link, mode, dictionary, onOpenOriginal, onMainClick }: { readonly link: LinkView; readonly mode: LinkViewMode; readonly dictionary: AppDictionary; readonly onOpenOriginal?: (link: LinkView) => void; readonly onMainClick?: (event: React.MouseEvent) => void }) {
   const title = linkTitleText(link.title, dictionary);
   const technical = link.title.kind === 'text' && link.title.technical;
   const body =
@@ -168,11 +203,11 @@ function LinkEntry({ link, mode, dictionary, onOpenOriginal }: { readonly link: 
   const main = (
     <>
       {link.href ? (
-        <Link className={className} href={link.href} title={mode === 'image' ? title : undefined}>
+        <Link className={className} href={link.href} onClick={onMainClick} title={mode === 'image' ? title : undefined}>
           {body}
         </Link>
       ) : (
-        <div aria-disabled className={className} title={mode === 'image' ? title : undefined}>
+        <div aria-disabled className={className} onClick={onMainClick} title={mode === 'image' ? title : undefined}>
           {body}
         </div>
       )}

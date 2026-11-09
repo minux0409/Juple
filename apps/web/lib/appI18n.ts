@@ -1,4 +1,5 @@
 import type { MobileStringKey } from './appI18nMobileKeys.ts';
+import type { RenewalStrings } from './appDictionaryRenewal.ts';
 
 /**
  * Strings of the signed-in Web app, in the mobile app's 17 languages.
@@ -180,7 +181,7 @@ export interface WebOnlyStrings {
   readonly appAppStore: string;
 }
 
-export type AppDictionary = WebOnlyStrings & Readonly<Record<MobileStringKey, string>>;
+export type AppDictionary = WebOnlyStrings & RenewalStrings & Readonly<Record<MobileStringKey, string>>;
 
 /** Fills {name} placeholders - the mobile strings' {{name}} values, with single braces. */
 export function formatMessage(template: string, values: Readonly<Record<string, string | number>>): string {

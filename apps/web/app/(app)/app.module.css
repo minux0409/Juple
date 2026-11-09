@@ -106,6 +106,9 @@
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06);
   --shadow-floating: 0 2px 4px rgba(16, 24, 40, 0.05), 0 8px 20px rgba(16, 24, 40, 0.06);
   --shadow-raised: 0 2px 4px rgba(16, 24, 40, 0.05), 0 8px 20px rgba(16, 24, 40, 0.06);
+  /* A bar that floats over the content (the selection bar), and the violet glow of a hovered request button. */
+  --shadow-bar: 0 2px 4px rgba(16, 24, 40, 0.05), 0 12px 32px rgba(16, 24, 40, 0.14);
+  --brand-glow: 0 4px 14px rgba(103, 81, 252, 0.16);
 
   /* Content widths by purpose: a form (narrow), a list or a reading page (medium), the working views (wide). */
   --content-narrow: 900px;
@@ -176,6 +179,8 @@
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-floating: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 20px rgba(0, 0, 0, 0.4);
   --shadow-raised: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-bar: 0 2px 4px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.5);
+  --brand-glow: 0 4px 14px rgba(103, 81, 252, 0.3);
 }
 
 /* One focus ring for every interactive element of the app (keyboard only). */
@@ -8943,4 +8948,821 @@ button.reactionChipMine:hover {
   justify-content: start;
   align-items: baseline;
   column-gap: 8px;
+}
+
+/* ======================================================================================================================
+   Web renewal - multi-selection, the collapsible side bar with a moving destination marker, request action buttons, membership
+   plans, and the motion layer. Motion uses transform / opacity (the side bar width is the one layout transition), stays within
+   120-350ms, and everything here is switched off for prefers-reduced-motion at the end of this section.
+   ==================================================================================================================== */
+.shell {
+  --motion-fast: 140ms;
+  --motion-base: 220ms;
+  --motion-layout: 280ms;
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --sidebar-collapsed-width: 76px;
+}
+
+/* ---- multi-selection: a card's check, the chosen state, the selection bar ---- */
+.linkCard,
+.imageCell,
+.collectionCard {
+  position: relative;
+}
+
+.selectCheck {
+  position: absolute;
+  top: var(--space-1);
+  inset-inline-start: var(--space-1);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+
+/* The visible 24px circle inside the 40px hit area. */
+.selectCheckMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1.5px solid var(--app-border);
+  border-radius: 50%;
+  background: var(--app-surface);
+  color: transparent;
+  box-shadow: var(--shadow-card);
+  transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+}
+
+.linkCard:hover > .selectCheck,
+.imageCell:hover > .selectCheck,
+.collectionCard:hover > .selectCheck,
+.selectCheck:focus-visible,
+[data-selecting='true'] .selectCheck,
+.selectCheck[aria-pressed='true'] {
+  opacity: 1;
+}
+
+.selectCheck:hover .selectCheckMark {
+  border-color: var(--brand);
+  color: var(--brand-text);
+}
+
+.selectCheck[aria-pressed='true'] .selectCheckMark {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: var(--on-brand);
+  animation: selectPop var(--motion-base) var(--ease-spring);
+}
+
+.selectCheck:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -4px;
+}
+
+/* A List row's check sits at the row's start edge, centred on it (a row has no free corner). */
+.linkList > .linkCard > .selectCheck {
+  top: 50%;
+  margin-top: -20px;
+  inset-inline-start: 0;
+}
+
+.cardSelected.linkCard,
+.cardSelected.collectionCard {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 1px var(--brand), var(--shadow-card);
+}
+
+.linkList > .cardSelected.linkCard {
+  background: var(--nav-active-bg);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+
+[dir='rtl'] .linkList > .cardSelected.linkCard {
+  box-shadow: inset -3px 0 0 var(--brand);
+}
+
+.cardSelected.imageCell .imageTile {
+  outline: 3px solid var(--brand);
+  outline-offset: -3px;
+}
+
+/* While a selection runs the card is a toggle: no lift, and an image that is not chosen dims a little. */
+[data-selecting='true'] .linkCard:has(a:hover) {
+  transform: none;
+}
+
+[data-selecting='true'] .imageCell:not(.cardSelected) .imageTile {
+  opacity: 0.88;
+}
+
+@keyframes selectPop {
+  0% {
+    transform: scale(0.8);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+.selectModeButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
+}
+
+.selectModeButton:hover {
+  border-color: var(--brand-line);
+  background: var(--app-surface-hover);
+  color: var(--brand-text);
+}
+
+.selectionBar {
+  position: sticky;
+  bottom: max(var(--space-4), env(safe-area-inset-bottom));
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  width: min(100%, 820px);
+  margin: var(--space-4) auto 0;
+  padding: var(--space-2);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-lg);
+  background: var(--app-surface);
+  color: var(--app-text);
+  box-shadow: var(--shadow-bar);
+  animation: selectionBarIn var(--motion-base) var(--ease-out);
+}
+
+@keyframes selectionBarIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.selectionBarIcon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+}
+
+.selectionBarIcon:hover {
+  background: var(--app-surface-muted);
+  color: var(--app-text);
+}
+
+.selectionBarCount {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.selectionBarText {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--brand-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.selectionBarText:hover:not(:disabled) {
+  background: var(--brand-soft);
+}
+
+.selectionBarSpacer {
+  flex: 1 1 0;
+}
+
+.selectionBarActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.selectionBarAction {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--app-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+}
+
+.selectionBarAction:hover:not(:disabled) {
+  background: var(--app-surface-muted);
+  color: var(--brand-text);
+}
+
+.selectionBarAction:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.selectionBarDanger {
+  color: var(--danger-text);
+}
+
+.selectionBarDanger:hover:not(:disabled) {
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+.selectionBarAction:disabled,
+.selectionBarText:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.selectionBar :where(button):focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Narrow: icons only in the action row (the names stay as accessible labels / tooltips). */
+@media (max-width: 560px) {
+  .selectionBarActionLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .selectionBarAction {
+    width: 44px;
+    justify-content: center;
+    padding: 0;
+  }
+}
+
+/* ---- side bar: collapse to icons (the toggle sits beside the logotype); one marker moves to the active destination ---- */
+.navIndicator,
+.sidebarToggle {
+  display: none;
+}
+
+.sidebarTop {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.sidebarTop > .sidebarBrand {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+@media (min-width: 861px) {
+  .shell {
+    transition: grid-template-columns var(--motion-layout) var(--ease-out);
+  }
+
+  .shell[data-sidebar='collapsed'] {
+    grid-template-columns: var(--sidebar-collapsed-width) minmax(0, 1fr);
+  }
+
+  .sidebar {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .nav {
+    position: relative;
+  }
+
+  /* The soft tint + accent bar of the active destination, moved with transform (its height comes from the active link). */
+  .navIndicator {
+    position: absolute;
+    top: 0;
+    inset-inline: 0;
+    z-index: 0;
+    display: block;
+    border-radius: var(--radius-control);
+    background: linear-gradient(var(--nav-active-indicator), var(--nav-active-indicator)) left center / 3px 56% no-repeat, var(--nav-active-bg);
+    pointer-events: none;
+    transition: transform var(--motion-layout) var(--ease-out), height var(--motion-layout) var(--ease-out);
+  }
+
+  [dir='rtl'] .navIndicator {
+    background-position: right center, 0 0;
+  }
+
+  .nav[data-indicator='ready'] .navLinkActive {
+    background: transparent;
+  }
+
+  .navLink,
+  .navLinkActive {
+    z-index: 1;
+  }
+
+  .sidebarToggle {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--app-text-tertiary);
+    cursor: pointer;
+    transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+  }
+
+  .sidebarToggle:hover {
+    background: var(--nav-hover-bg);
+    color: var(--app-text);
+  }
+
+  .sidebarToggle:focus-visible {
+    outline: 2px solid var(--nav-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .sidebarToggleIcon {
+    transform: rotate(90deg);
+    transition: transform var(--motion-layout) var(--ease-out);
+  }
+
+  [dir='rtl'] .sidebarToggleIcon,
+  .shell[data-sidebar='collapsed'] .sidebarToggleIcon {
+    transform: rotate(-90deg);
+  }
+
+  [dir='rtl'] .shell[data-sidebar='collapsed'] .sidebarToggleIcon {
+    transform: rotate(90deg);
+  }
+
+  .shell[data-sidebar='collapsed'] .sidebarTop {
+    flex-direction: column;
+  }
+
+  .shell[data-sidebar='collapsed'] .navLink,
+  .shell[data-sidebar='collapsed'] .navLinkActive {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .shell[data-sidebar='collapsed'] .navLabel,
+  .shell[data-sidebar='collapsed'] .sidebarBrand > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  /* A collapsed destination keeps its count: the badge moves onto the icon's corner. */
+  .shell[data-sidebar='collapsed'] .navLink > [data-attention-badge],
+  .shell[data-sidebar='collapsed'] .navLinkActive > [data-attention-badge] {
+    position: absolute;
+    top: 4px;
+    inset-inline-end: 6px;
+  }
+
+  .shell[data-sidebar='collapsed'] .sidebarBrand {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .shell[data-sidebar='collapsed'] .sidebarApp {
+    display: none;
+  }
+}
+
+.navLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* nav press feedback (both layouts) */
+.navLink,
+.navLinkActive {
+  transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+}
+
+.navLink:active,
+.navLinkActive:active {
+  transform: scale(0.98);
+}
+
+/* ---- content: a light entrance for every page (on mount only - nothing re-animates while a page updates) ---- */
+.page {
+  animation: pageEnter var(--motion-base) var(--ease-out) both;
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- cards: hover lift + softer shadow; a newly shown card fades up into place (a page loaded, a view switched, an undo) ---- */
+.linkGrid > .linkCard:has(a:hover),
+.collectionCard:has(a:hover) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-raised);
+}
+
+a.imageBody .imageTile {
+  transition: transform var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), opacity var(--motion-fast) var(--ease-out);
+}
+
+a.imageBody:hover .imageTile {
+  transform: translateY(-2px);
+}
+
+.linkList > .linkCard,
+.linkGrid > .linkCard,
+.imageGrid > .imageCell {
+  animation: cardEnter var(--motion-base) var(--ease-out) both;
+}
+
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- favorite: a short springy pop when a star is turned on (data-pop is set only right after the click) ---- */
+.shell [data-pop='true'] svg {
+  animation: favoritePop 420ms var(--ease-spring);
+}
+
+@keyframes favoritePop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.32) rotate(-8deg);
+  }
+  70% {
+    transform: scale(0.94);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* ---- dialogs: the backdrop fades in with the panel ---- */
+.dialog[open]::backdrop,
+.panelDialog[open]::backdrop {
+  animation: backdropIn var(--motion-base) var(--ease-out);
+}
+
+@keyframes backdropIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---- request actions (Collection Details): 받은 승인 요청 / 참여 요청 as two independent buttons ---- */
+.requestActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.requestAction {
+  display: flex;
+  flex: 1 1 260px;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  min-height: 56px;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--brand-line);
+  border-radius: var(--radius-lg);
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: transform var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
+}
+
+.requestAction:hover {
+  border-color: var(--brand);
+  box-shadow: var(--brand-glow);
+  transform: translateY(-1px);
+}
+
+.requestAction:active {
+  transform: scale(0.99);
+}
+
+.requestAction:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
+
+.requestActionIcon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--app-surface);
+  color: var(--brand-text);
+}
+
+/* The name may take two lines, then ends with an ellipsis - the icon, badge and chevron never move. */
+.requestActionLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.requestActionBadge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: var(--on-brand);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.requestActionChevron {
+  flex: 0 0 auto;
+  transform: rotate(-90deg);
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+
+.requestActionChevron:dir(rtl) {
+  transform: rotate(90deg);
+}
+
+.requestAction:hover .requestActionChevron {
+  transform: rotate(-90deg) translateY(2px);
+}
+
+.requestAction:hover .requestActionChevron:dir(rtl) {
+  transform: rotate(90deg) translateY(2px);
+}
+
+/* ---- membership (read-only on the Web) ---- */
+.membershipStatus {
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--brand-soft);
+  color: var(--app-text);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.membershipPlansCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.membershipPlansTitle {
+  margin: 0;
+  font-size: var(--text-section-title);
+  font-weight: 700;
+}
+
+.membershipFacts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding-inline-start: 1.25em;
+  list-style: disc;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.membershipFacts > li::marker {
+  color: var(--brand-text);
+}
+
+.membershipPlans {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: var(--space-3);
+}
+
+.membershipPlan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-lg);
+  background: var(--app-surface);
+}
+
+.membershipPlanRecommended {
+  border-color: var(--brand-line);
+  box-shadow: inset 0 0 0 1px var(--brand-line);
+}
+
+.membershipPlanHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.membershipPlanName {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.membershipPill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 var(--space-2);
+  border-radius: 999px;
+  background: var(--brand);
+  color: var(--on-brand);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.membershipPlanNote {
+  margin: 0;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+/* ---- docked page controls (mobile CollapsibleHeaderLayout): the title scrolls away, the controls stay ---- */
+.stickySentinel {
+  height: 0;
+  margin-bottom: calc(-1 * var(--page-gap));
+}
+
+.stickyControls {
+  position: sticky;
+  top: var(--shell-top-offset, 0px);
+  z-index: 12;
+  margin-inline: calc(-1 * var(--space-3));
+  padding: var(--space-2) var(--space-3);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: transparent;
+  transition: background-color var(--motion-base) var(--ease-out), box-shadow var(--motion-base) var(--ease-out);
+}
+
+.stickyControls[data-stuck='true'] {
+  background: var(--app-surface);
+  box-shadow: var(--shadow-floating);
+}
+
+/* Collections: the docked toolbar and the sections under it keep the one 12px rhythm of the sections themselves. */
+.stickyControls + .afterDockedToolbar {
+  margin-top: calc(12px - var(--page-gap) - var(--space-2));
+}
+
+/* ---- reduced motion: nothing of this section moves (colour changes stay, instantly) ---- */
+@media (prefers-reduced-motion: reduce) {
+  .shell,
+  .navIndicator,
+  .sidebarToggleIcon,
+  .selectCheck,
+  .selectCheckMark,
+  .selectModeButton,
+  .selectionBarAction,
+  .requestAction,
+  .requestActionChevron,
+  .stickyControls,
+  .navLink,
+  .navLinkActive,
+  a.imageBody .imageTile {
+    transition: none;
+  }
+
+  .page,
+  .selectionBar,
+  .selectCheck[aria-pressed='true'] .selectCheckMark,
+  .linkList > .linkCard,
+  .linkGrid > .linkCard,
+  .imageGrid > .imageCell,
+  .shell [data-pop='true'] svg,
+  .dialog[open]::backdrop,
+  .panelDialog[open]::backdrop {
+    animation: none;
+  }
+
+  .linkGrid > .linkCard:has(a:hover),
+  .collectionCard:has(a:hover),
+  a.imageBody:hover .imageTile,
+  .requestAction:hover,
+  .requestAction:active,
+  .navLink:active,
+  .navLinkActive:active,
+  .selectionBarAction:active:not(:disabled),
+  .requestAction:hover .requestActionChevron,
+  .requestAction:hover .requestActionChevron:dir(rtl) {
+    transform: none;
+  }
+
+  .requestActionChevron {
+    transform: rotate(-90deg);
+  }
+
+  .requestActionChevron:dir(rtl) {
+    transform: rotate(90deg);
+  }
 }

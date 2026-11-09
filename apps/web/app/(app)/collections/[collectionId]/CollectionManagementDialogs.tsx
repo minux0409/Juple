@@ -154,7 +154,7 @@ export function CollectionManagementDialogs({
         open={mode === 'delete' || mode === 'leave' || mode === 'lock'}
         title={mode === 'delete' ? dictionary.collectionDeleteConfirmTitle : mode === 'leave' ? dictionary.collectionLeaveConfirmTitle : lockConfigured === false ? dictionary.lockSetTitle : dictionary.lockConfirmTitle}
       />
-      <Modal closeLabel={dictionary.close} onClose={onClose} open={mode === 'remove'} title={dictionary.lockRemoveConfirmTitle}>
+      <Modal keepOnBackdrop closeLabel={dictionary.close} onClose={onClose} open={mode === 'remove'} title={dictionary.lockRemoveConfirmTitle}>
         <form className={styles.modalForm} noValidate onSubmit={removeLock}>
           <p className={styles.dialogMessage}>{dictionary.lockRemoveConfirmMessage}</p>
           <label className={styles.formRow}>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useBackdropDismiss } from './useBackdropDismiss';
 import styles from './app.module.css';
 
 /**
@@ -31,6 +32,8 @@ export function ConfirmDialog({
   readonly onCancel: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  // The backdrop is "cancel", like Escape: the confirmed action only ever runs from its own button.
+  const backdrop = useBackdropDismiss(onCancel, !busy);
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) {
@@ -53,6 +56,8 @@ export function ConfirmDialog({
           onCancel();
         }
       }}
+      onClick={backdrop.onClick}
+      onPointerDown={backdrop.onPointerDown}
       ref={ref}
     >
       <div className={styles.dialogHead}>

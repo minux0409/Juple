@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ApiHttpError } from '../../../lib/appApi';
 import { formatMessage } from '../../../lib/appI18n';
 import { DATA_EXPORT_PATH, dataExportDownloadUrl, formatMegabytes, parseDataExportLinks, parseDataExportSummary, type DataExportLinks, type DataExportSummary } from '../../../lib/dataExport';
-import { describeSubscription, PLAY_SUBSCRIPTIONS_URL } from '../../../lib/subscription';
+import { APP_STORE_SUBSCRIPTIONS_URL, describeSubscription, PLAY_SUBSCRIPTIONS_URL } from '../../../lib/subscription';
 import { useSignedInApp } from '../AppRoot';
 import { Glyph } from '../Glyph';
 import styles from '../app.module.css';
@@ -56,14 +56,36 @@ export function SubscriptionSection({ showTitle = true }: { readonly showTitle?:
       rows.push({ label: dictionary.subscriptionEndedOn, value: date(view.endedAtUtc) });
       break;
   }
-  const subscribedOnPlay = storeSubscription?.platform === 'google' && (view.kind === 'active' || view.kind === 'gracePeriod' || view.kind === 'canceled');
+  const subscribedNow = view.kind === 'active' || view.kind === 'gracePeriod' || view.kind === 'canceled';
+  const subscribedOnPlay = storeSubscription?.platform === 'google' && subscribedNow;
+  const subscribedOnAppStore = storeSubscription?.platform === 'apple' && subscribedNow;
+  // A live subscription whose store the server did not name (an API revision before "apple" existed): never guessed.
+  const subscribedUnknownStore = subscribedNow && storeSubscription?.platform !== 'google' && storeSubscription?.platform !== 'apple';
+  // The one sentence of mobile MembershipStatus - the state the Backend reported, nothing computed here.
+  const membershipLine =
+    view.kind === 'trial'
+      ? view.endsAtUtc
+        ? formatMessage(dictionary.membershipStatusTrial, { date: date(view.endsAtUtc) ?? '' })
+        : null
+      : subscribedNow
+        ? dictionary.membershipStatusActive
+        : view.kind === 'expired' || view.kind === 'revoked' || (view.kind === 'none' && entitlement?.status === 'expired')
+          ? dictionary.membershipStatusEnded
+          : view.kind === 'none'
+            ? dictionary.membershipStatusNone
+            : null;
 
   return (
     <section aria-labelledby="my-page-subscription" className={styles.settingsSection} id={MY_PAGE_SECTION_IDS.subscription}>
       {showTitle ? (
         <h2 className={styles.myPageSectionTitle} id="my-page-subscription">
-          {dictionary.subscriptionTitle}
+          {dictionary.membershipTitle}
         </h2>
+      ) : null}
+      {membershipLine ? (
+        <p className={styles.membershipStatus} data-membership-status>
+          {membershipLine}
+        </p>
       ) : null}
       <div className={styles.settingsCard}>
         <div className={styles.settingsRow}>
@@ -89,10 +111,52 @@ export function SubscriptionSection({ showTitle = true }: { readonly showTitle?:
             </a>
           </>
         ) : null}
-        {/* The Web never sells: no price, plan or purchase here - starting a subscription and paying are the app's. */}
+        {/* An App Store subscriber: Apple's OWN subscriptions page and its cancel steps - nothing of Google Play. */}
+        {subscribedOnAppStore ? (
+          <>
+            <p className={styles.settingsNote} data-store-guide="apple">{dictionary.membershipCancelHowIos}</p>
+            <a className={`${styles.settingsRow} ${styles.settingsRowAction}`} href={APP_STORE_SUBSCRIPTIONS_URL} rel="noopener noreferrer" target="_blank">
+              <span className={styles.settingsLabel}>{dictionary.subscriptionManage}</span>
+              <Glyph className={styles.settingsRowIcon} name="ExternalLink" size={16} />
+            </a>
+          </>
+        ) : null}
+        {/* The server did not name the store (an older API revision): both stores' own cancel steps, never a guess of which, and no link. */}
+        {subscribedUnknownStore ? (
+          <>
+            <p className={styles.settingsNote} data-store-guide="unknown">{dictionary.membershipCancelHowIos}</p>
+            <p className={styles.settingsNote}>{dictionary.membershipCancelHowAndroid}</p>
+          </>
+        ) : null}
+        {/* The Web never sells: no price or purchase here - starting a subscription and paying are the app's. */}
         <p className={styles.settingsNote} data-subscription-app-only>
           {dictionary.subscriptionWebAppOnly}
         </p>
+      </div>
+      {/* The two plans the apps sell (mobile SubscriptionScreen), described without a price: prices come only from each store, inside
+          the app, and the Web has no store - nothing here can be bought or looks like a checkout. */}
+      <div className={`${styles.settingsCard} ${styles.membershipPlansCard}`} data-membership-plans>
+        <p className={styles.membershipPlansTitle}>{dictionary.membershipPlansHeading}</p>
+        <div className={styles.membershipPlans}>
+          <div className={styles.membershipPlan} data-plan="monthly">
+            <div className={styles.membershipPlanHead}>
+              <p className={styles.membershipPlanName}>{dictionary.membershipPlanMonthlyName}</p>
+            </div>
+            <p className={styles.membershipPlanNote}>{dictionary.membershipPlanMonthlyRenew}</p>
+          </div>
+          <div className={`${styles.membershipPlan} ${styles.membershipPlanRecommended}`} data-plan="yearly">
+            <div className={styles.membershipPlanHead}>
+              <p className={styles.membershipPlanName}>{dictionary.membershipPlanYearlyName}</p>
+              <span className={styles.membershipPill}>{dictionary.membershipPlanRecommended}</span>
+            </div>
+            <p className={styles.membershipPlanNote}>{dictionary.membershipPlanYearlyRenew}</p>
+          </div>
+        </div>
+        <ul className={styles.membershipFacts}>
+          <li>{dictionary.membershipPlansInAppNote}</li>
+          <li>{dictionary.membershipSharedAccount}</li>
+          <li>{dictionary.membershipDataKept}</li>
+        </ul>
       </div>
       {dataRetention ? (
         <div className={styles.settingsCard} data-retention-state>

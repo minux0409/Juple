@@ -24,7 +24,7 @@ export default function SubscriptionPage() {
     return null;
   }
   return (
-    <SettingsPage title={dictionary.subscriptionTitle}>
+    <SettingsPage title={dictionary.membershipTitle}>
       <SubscriptionSection showTitle={false} />
     </SettingsPage>
   );

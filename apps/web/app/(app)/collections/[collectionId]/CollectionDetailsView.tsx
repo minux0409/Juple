@@ -64,7 +64,10 @@ import { ViewModeToggle } from '../../ViewModeToggle';
 import { BackRow } from '../../PageHeader';
 import { REQUESTS_PARAM } from '../../../../lib/collectionApprovals';
 import { ReceivedRequestsDialog } from '../ReceivedRequestsDialog';
-import { RequestRow } from '../RequestRow';
+import { RequestActionButton } from '../RequestActionButton';
+import { useFavoritePop } from '../../useFavoritePop';
+import { CollectionLinkSelection, SelectModeButton } from '../../LinkSelection';
+import { StickyControls } from '../../StickyControls';
 import styles from '../../app.module.css';
 import { LoadMore } from '../../InfiniteScroll';
 import { appendPage, canLoadMore, failLoadingMore, firstPage, startLoadingMore, type PagedState } from '../../../../lib/paging';
@@ -125,6 +128,8 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
   const wantsRequests = useSearchParams().get(REQUESTS_PARAM) === '1';
   const [requestsMode, setRequestsMode] = useState<'review' | 'direct' | null>(wantsRequests ? 'direct' : null);
   const requestsOpen = requestsMode !== null;
+  // Which queue the dialog opens on: one of the two request buttons, or both (a notification's entry).
+  const [requestsQueue, setRequestsQueue] = useState<'link' | 'person' | undefined>(undefined);
   const [managementMode, setManagementMode] = useState<CollectionManagementMode>(null);
   // Arrived here from 내 컬렉션으로 복제: how the copy went (in memory only; see CloneResultBanner).
   const [cloneResult, setCloneResult] = useState(() => (collectionId === null ? null : peekCloneResult(collectionId)));
@@ -365,8 +370,9 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
     setContentToken(token => token + 1);
   };
 
-  const reviewRequestCount = (collection.pendingSubmissionCount ?? 0) + (collection.pendingJoinRequestCount ?? 0);
-  const reviewStatus = formatMessage(dictionary.requestsMyPendingStatus, { count: reviewRequestCount });
+  const pendingSubmissions = collection.pendingSubmissionCount ?? 0;
+  const pendingJoins = collection.pendingJoinRequestCount ?? 0;
+  const reviewRequestCount = pendingSubmissions + pendingJoins;
 
   // Who added each link is shown only in a shared Collection (never repeated avatars of "me" in a personal one).
   const showAdders = shouldShowLinkAdders(collection, []);
@@ -424,18 +430,37 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
         participants={participants}
         participantsFailed={participantsFailed}
       />
-      {/* The Owner's received requests (links proposed for approval, people asking to join): one entry with the localized total. */}
+      {/* The Owner's received requests: 받은 승인 요청 (links proposed for approval) and 참여 요청 (people asking to join) are two
+          independent buttons, each with its own count, each opening its own queue - the same server calls and rules as before. */}
       {!isSharedWithMe(collection) && !gate && reviewRequestCount > 0 ? (
-        <RequestRow
-          accessibleLabel={dictionary.requestsReviewTitle + ', ' + reviewStatus}
-          count={reviewRequestCount}
-          expanded={requestsOpen}
-          label={dictionary.requestsReviewTitle}
-          statusText={reviewStatus}
-          variant="review"
-          onClick={() => setRequestsMode('review')}
-          testId="collection-received-requests"
-        />
+        <div className={styles.requestActions} data-collection-received-requests>
+          {pendingSubmissions > 0 ? (
+            <RequestActionButton
+              accessibleLabel={formatMessage(dictionary.requestsPendingSubmissionsA11y, { count: pendingSubmissions })}
+              count={pendingSubmissions}
+              icon="Link"
+              label={dictionary.requestsPendingSubmissions}
+              onClick={() => {
+                setRequestsQueue('link');
+                setRequestsMode('review');
+              }}
+              testId="link-submissions"
+            />
+          ) : null}
+          {pendingJoins > 0 ? (
+            <RequestActionButton
+              accessibleLabel={formatMessage(dictionary.requestsJoinRequestsA11y, { count: pendingJoins })}
+              count={pendingJoins}
+              icon="People"
+              label={dictionary.requestsJoinRequests}
+              onClick={() => {
+                setRequestsQueue('person');
+                setRequestsMode('review');
+              }}
+              testId="join-requests"
+            />
+          ) : null}
+        </div>
       ) : null}
       {!isSharedWithMe(collection) && !gate ? (
         <ReceivedRequestsDialog
@@ -444,7 +469,12 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
             setReloadToken(token => token + 1);
             setContentToken(token => token + 1);
           }}
-          onClose={() => setRequestsMode(null)}
+          initialQueue={requestsQueue}
+          key={`${requestsMode ?? 'closed'}-${requestsQueue ?? 'all'}`}
+          onClose={() => {
+            setRequestsMode(null);
+            setRequestsQueue(undefined);
+          }}
           open={requestsOpen}
           review={requestsMode === 'review'}
         />
@@ -507,7 +537,8 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
           onUnlocked={afterUnlock}
         /></div>
       ) : (
-        <>
+        <CollectionLinkSelection collectionId={collection.id} role={collection.accessRole ?? 'owner'} source={collection}>
+          <StickyControls>
           <div className={styles.toolbar}>
             <SortChips
               dictionary={dictionary}
@@ -516,6 +547,7 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
               onPressTime={() => setStoredSort(nextDateSort(sort))}
               sort={sort}
             />
+            <SelectModeButton label={dictionary.selectionSelectItems} />
             <ViewModeToggle
               groupLabel={dictionary.viewModeLabel}
               labels={{ list: dictionary.viewList, grid: dictionary.viewGrid, image: dictionary.viewImage }}
@@ -523,6 +555,7 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
               value={viewMode}
             />
           </div>
+          </StickyControls>
           {isNameSort(sort) ? (
             <CollectionByName
               api={api}
@@ -561,7 +594,7 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
               viewMode={viewMode}
             />
           )}
-        </>
+        </CollectionLinkSelection>
       )}
     </section>
   );
@@ -597,6 +630,7 @@ function CollectionHeader({
 }) {
   // Mobile: the circles exist whenever someone else is in it (the Collection says how many); the full list replaces the
   // placeholders, and if it cannot be loaded the Collection's own preview of people stands in.
+  const favoritePop = useFavoritePop(collection.isFavorite === true);
   const others = collection.otherParticipantCount ?? collection.participantPreview?.length ?? 0;
   const { profile } = useSignedInApp();
   const stackPeople = participants ? participants.participants : participantsFailed ? participantsWithSelf(collection.participantPreview ?? [], collection.accessRole, profile) : null;
@@ -627,6 +661,7 @@ function CollectionHeader({
           aria-label={collection.isFavorite ? dictionary.removeFavorite : dictionary.addFavorite}
           aria-pressed={collection.isFavorite}
           className={collection.isFavorite ? styles.iconButtonActive : styles.iconButton}
+          data-pop={favoritePop}
           disabled={isTogglingFavorite}
           onClick={onToggleFavorite}
           title={collection.isFavorite ? dictionary.removeFavorite : dictionary.addFavorite}

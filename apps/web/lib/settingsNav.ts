@@ -60,7 +60,7 @@ export function settingsNavLabel(key: SettingsNavKey, dictionary: AppDictionary)
     case 'collectionLock':
       return dictionary.collectionLock;
     case 'subscription':
-      return dictionary.subscriptionTitle;
+      return dictionary.membershipTitle;
     case 'account':
       return dictionary.accountSectionTitle;
     case 'help':

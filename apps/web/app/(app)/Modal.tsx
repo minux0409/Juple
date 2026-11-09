@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { ModalCloseButton } from './ModalCloseButton';
+import { useBackdropDismiss } from './useBackdropDismiss';
 import styles from './app.module.css';
 
 /** A modal panel (native <dialog>: focus kept inside, Escape closes) with a title and a close button. */
@@ -11,6 +12,7 @@ export function Modal({
   closeLabel,
   onClose,
   wide = false,
+  keepOnBackdrop = false,
   children,
 }: {
   readonly open: boolean;
@@ -19,9 +21,13 @@ export function Modal({
   readonly onClose: () => void;
   /** The Collection share screen's four cards need the room (about 900px), not the 520px of a short list. */
   readonly wide?: boolean;
+  /** A dialog with typed input (a password, a comment, a crop): the backdrop does not close it, so a stray click loses nothing. */
+  readonly keepOnBackdrop?: boolean;
   readonly children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  // A click on the dimmed area outside the panel closes it like Escape / the close button (it never runs an action).
+  const backdrop = useBackdropDismiss(onClose, !keepOnBackdrop);
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) {
@@ -42,6 +48,8 @@ export function Modal({
         event.preventDefault();
         onClose();
       }}
+      onClick={backdrop.onClick}
+      onPointerDown={backdrop.onPointerDown}
       ref={ref}
     >
       <div className={styles.panelHeader}>

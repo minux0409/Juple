@@ -1,6 +1,7 @@
 import type { AppDictionary, AppLanguage, WebOnlyStrings } from './appI18n.ts';
 import { MOBILE_STRINGS } from './appI18nMobile.generated.ts';
 import { PUBLIC_ENTRY_STRINGS } from './appDictionaryPublicEntry.ts';
+import { RENEWAL_STRINGS } from './appDictionaryRenewal.ts';
 
 /**
  * Server only: builds one language's dictionary for the signed-in Web app (the layout hands it to the page). The 17-language table
@@ -167,6 +168,7 @@ export function getAppDictionary(language: AppLanguage): AppDictionary {
   const webOnly = language === 'ko' ? WEB_ONLY.ko : language === 'en' ? WEB_ONLY.en : { ...WEB_ONLY.en, ...PUBLIC_ENTRY_STRINGS[language] };
   return {
     ...webOnly,
+    ...RENEWAL_STRINGS[language],
     ...MOBILE_STRINGS[language],
   };
 }
