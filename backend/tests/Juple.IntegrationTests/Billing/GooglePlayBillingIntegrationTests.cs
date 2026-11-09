@@ -239,9 +239,25 @@ public sealed class GooglePlayBillingIntegrationTests : IAsyncLifetime
         var columns = await _db.Database.SqlQueryRaw<string>(
             "SELECT t.name + '.' + c.name + ':' + ty.name AS [Value] FROM sys.columns c JOIN sys.tables t ON t.object_id = c.object_id JOIN sys.schemas s ON s.schema_id = t.schema_id JOIN sys.types ty ON ty.user_type_id = c.user_type_id WHERE s.name = 'billing' AND (c.name LIKE '%Token%' OR c.name LIKE '%Handle%') AND c.name NOT LIKE '%AtUtc'")
             .ToListAsync();
-        // Hashes (binary) and sealed handles (varbinary): never a character column that could hold a token.
-        Assert.All(columns, column => Assert.Contains("binary", column, StringComparison.Ordinal));
-        Assert.Contains(columns, column => column.StartsWith("StorePurchases.VerificationHandleEncrypted", StringComparison.Ordinal));
+        // Account identifiers that only share the word "Token" - not a store purchase token: Apple's App Account Token is the keyed-hash
+        // UUID Juple hands StoreKit for one account (AppleAccountLink), the counterpart of Google's obfuscated account id. It must stay a
+        // fixed 16-byte uniqueidentifier (a column type that cannot hold a token string). Named exactly, so no other column slips through.
+        var accountIdentifierColumns = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["AppleAccountLinks.AppAccountToken"] = "uniqueidentifier",
+        };
+        foreach (var (name, type) in accountIdentifierColumns)
+        {
+            Assert.Contains($"{name}:{type}", columns);
+        }
+
+        // Every purchase-token column - hashes (binary) and sealed handles (varbinary) - is never a character column that could hold a token.
+        var purchaseTokenColumns = columns.Where(column => !accountIdentifierColumns.ContainsKey(column[..column.IndexOf(':')])).ToList();
+        Assert.All(purchaseTokenColumns, column => Assert.Contains("binary", column, StringComparison.Ordinal));
+        Assert.Contains(purchaseTokenColumns, column => column.StartsWith("StorePurchases.VerificationHandleEncrypted", StringComparison.Ordinal));
+        // The store-event token is kept sealed and as a hash only - both stay in the checked set, never exempted.
+        Assert.Contains("StoreEvents.EncryptedToken:varbinary", purchaseTokenColumns);
+        Assert.Contains("StoreEvents.TokenHash:binary", purchaseTokenColumns);
     }
 
     [Fact]
