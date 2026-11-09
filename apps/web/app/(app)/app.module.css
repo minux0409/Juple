@@ -5542,6 +5542,7 @@ ul.friendGrid > * + * {
 
 .quickTop {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--space-5);
 }
@@ -5619,13 +5620,15 @@ ul.friendGrid > * + * {
   white-space: nowrap;
 }
 
-/* The link's actions beside its name: one fixed 44px column (링크 열기, 수정, 삭제 / 컬렉션에서 제거), so the name always keeps the
-   remaining width. The sheet's 닫기 stays in its own bar above. */
+/* The link's actions (링크 열기, 복사, 수정, 더보기, 삭제 / 컬렉션에서 제거): their own toolbar row UNDER the title, never a column beside
+   the sheet's edge, so no action can sit next to or under the sheet's 닫기 (X), which stays alone in its fixed bar above. */
 .quickActions {
   display: flex;
-  flex: 0 0 44px;
-  flex-direction: column;
+  flex: 1 0 100%;
+  flex-direction: row;
+  flex-wrap: wrap;
   gap: 8px;
+  order: 3;
 }
 
 .quickActionButton,
@@ -9089,6 +9092,12 @@ button.reactionChipMine:hover {
   white-space: nowrap;
   cursor: pointer;
   transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
+}
+
+.selectModeButtonActive {
+  border-color: var(--brand-line);
+  background: var(--brand-soft);
+  color: var(--brand-text);
 }
 
 .selectModeButton:hover {

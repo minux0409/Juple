@@ -33,6 +33,8 @@ export interface LinkSelectionApi {
   readonly onCardClick: (link: LinkView, order: readonly LinkView[], event: MouseEvent) => boolean;
   /** 항목 선택 from the page's toolbar: starts a selection with nothing chosen yet (touch screens have no hover to show the checks). */
   readonly arm: () => void;
+  /** 선택 종료: ends the selection and clears what was chosen (the same exit as Escape and the bar's close). */
+  readonly exit: () => void;
 }
 
 const LinkSelectionContext = createContext<LinkSelectionApi | null>(null);
@@ -119,8 +121,9 @@ function useLinkSelectionState() {
         return true;
       },
       arm: () => setArmed(true),
+      exit,
     }),
-    [active, state.selected],
+    [active, exit, state.selected],
   );
 
   const selectedLinks = [...state.selected].map(id => known.get(id)).filter((link): link is LinkView => link !== undefined);
@@ -265,16 +268,47 @@ export function PersonalLinkSelection({ children, selectAllIds }: { readonly chi
   );
 }
 
-/** 항목 선택: the toolbar button that starts a selection (hidden while one runs - the selection bar takes over). */
+/**
+ * 항목 선택 / 선택 종료: the toolbar button of a selection. It stays in the SAME place for the whole selection - only its words, icon and
+ * pressed state change: 항목 선택 starts one (with nothing chosen yet), 선택 종료 ends it and clears what was chosen. It stays while the
+ * selection is active even with 0 chosen; the bottom bar (the count and the actions) comes on top of it, not instead of it.
+ */
 export function SelectModeButton({ label }: { readonly label: string }) {
   const selection = useLinkSelection();
-  if (!selection || selection.active) {
+  const { dictionary } = useSignedInApp();
+  if (!selection) {
     return null;
   }
+  return <SelectModeToggle active={selection.active} exitLabel={dictionary.selectionExit} label={label} onArm={selection.arm} onExit={selection.exit} />;
+}
+
+/** The one button, shared by every list that has a selection (links here, Collections in CollectionsView). */
+export function SelectModeToggle({
+  active,
+  label,
+  exitLabel,
+  onArm,
+  onExit,
+}: {
+  readonly active: boolean;
+  readonly label: string;
+  readonly exitLabel: string;
+  readonly onArm: () => void;
+  readonly onExit: () => void;
+}) {
+  const text = active ? exitLabel : label;
   return (
-    <button aria-label={label} className={styles.selectModeButton} data-select-mode onClick={selection.arm} title={label} type="button">
-      <Glyph name="Check" size={16} />
-      <span>{label}</span>
+    <button
+      aria-label={text}
+      aria-pressed={active}
+      className={active ? `${styles.selectModeButton} ${styles.selectModeButtonActive}` : styles.selectModeButton}
+      data-select-mode={active ? 'active' : 'idle'}
+      onClick={active ? onExit : onArm}
+      title={text}
+      type="button"
+    >
+      <Glyph name={active ? 'Close' : 'Check'} size={16} />
+      <span>{text}</span>
     </button>
   );
 }

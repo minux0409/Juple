@@ -349,3 +349,45 @@ it('favorite star: gradient fill on, outline off; a tap plays ON (8 particles) a
     await tab.close();
   }
 });
+
+for (const width of [390, 768, 1440]) {
+  it(`항목 선택 / 선택 종료 at ${width}px: one button in the same place, kept at 0 chosen, ends and clears the selection, Escape still ends it`, async () => {
+    const tab = await open('lang=ko&view=list', width, 'light');
+    try {
+      const button = `document.querySelector('[data-select-mode]')`;
+      const state = `(() => { const b = ${button}; const r = b.getBoundingClientRect(); return { mode: b.dataset.selectMode, text: b.textContent.trim(), pressed: b.getAttribute('aria-pressed'), top: Math.round(r.top + scrollY), left: Math.round(r.left) }; })()`;
+      const idle = await tab.evaluate(state);
+      assert.deepEqual([idle.mode, idle.text, idle.pressed], ['idle', '항목 선택', 'false']);
+      // Start: nothing chosen yet - the button stays, now 선택 종료, in the same place; the bar shows with 0 chosen.
+      await tab.evaluate(`${button}.click()`);
+      await tab.until(`!!document.querySelector('[data-selection-bar]')`);
+      await tab.wait(250);
+      const armed = await tab.evaluate(state);
+      assert.deepEqual([armed.mode, armed.text, armed.pressed], ['active', '선택 종료', 'true']);
+      assert.ok(Math.abs(armed.top - idle.top) <= 2 && Math.abs(armed.left - idle.left) <= 2 || width < 861, `same place (${idle.top},${idle.left}) -> (${armed.top},${armed.left})`);
+      assert.equal(await tab.evaluate(`document.querySelectorAll('li[data-selected="true"]').length`), 0);
+      // Choose one: the button is still there; the count follows.
+      await tab.evaluate(`document.querySelectorAll('[data-select-check]')[1].click()`);
+      await tab.wait(150);
+      assert.equal(await tab.evaluate(`document.querySelectorAll('li[data-selected="true"]').length`), 1);
+      assert.equal((await tab.evaluate(state)).mode, 'active');
+      // 선택 종료 ends it and clears what was chosen.
+      await tab.evaluate(`${button}.click()`);
+      await tab.until(`!document.querySelector('[data-selection-bar]')`);
+      assert.equal(await tab.evaluate(`document.querySelectorAll('li[data-selected="true"]').length`), 0);
+      assert.deepEqual([(await tab.evaluate(state)).mode, (await tab.evaluate(state)).text], ['idle', '항목 선택']);
+      // Escape still ends a selection (and the button returns to 항목 선택).
+      await tab.evaluate(`${button}.click()`);
+      await tab.until(`!!document.querySelector('[data-selection-bar]')`);
+      await tab.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+      await tab.until(`!document.querySelector('[data-selection-bar]')`);
+      assert.equal((await tab.evaluate(state)).mode, 'idle');
+      assert.equal(await tab.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true);
+      await tab.evaluate(`${button}.click()`);
+      await tab.until(`!!document.querySelector('[data-selection-bar]')`);
+      await capture(tab, `select-mode-active-${width}`);
+    } finally {
+      await tab.close();
+    }
+  });
+}

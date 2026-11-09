@@ -67,6 +67,11 @@ async function measure(kind, { delay = 150, failure = false, width = 1280, heigh
       const shot = await tab.send('Page.captureScreenshot', { format: 'png' });
       writeFileSync(join(process.env.QUICK_SCREENSHOT_DIR, `quick-${kind}-${width}${failure ? '-failed' : ''}.png`), Buffer.from(shot.result.data, 'base64'));
     }
+    if (!failure) {
+      // The sheet's 닫기 (X, fixed bar) never touches the link's actions (their own row): no rectangle of one intersects the other.
+      const overlap = await tab.evaluate(`(() => { const x = document.querySelector('dialog[open] header button').getBoundingClientRect(); return [...document.querySelectorAll('dialog[open] [data-item-detail] [class*="quickActions"] > *')].filter(el => { const r = el.getBoundingClientRect(); return r.left < x.right && x.left < r.right && r.top < x.bottom && x.top < r.bottom; }).length; })()`);
+      assert.equal(overlap, 0, '닫기 and the link actions do not overlap');
+    }
     const samples = await tab.evaluate(`window.__samples ?? []`);
     const facts = await tab.evaluate(`({ mounts: Number(document.querySelector('[data-mounts]').textContent), calls: JSON.parse(sessionStorage.getItem('quickCalls') ?? '[]'), noOverflow: document.documentElement.scrollWidth <= innerWidth, vh: innerHeight })`);
     const heights = samples.map(sample => sample.h);

@@ -274,5 +274,5 @@ export function useCollectionSelection({
     </>
   );
 
-  return { active, isSelected: (id: number) => state.selected.has(id), check, cardClick, arm: () => setArmed(true), ui };
+  return { active, isSelected: (id: number) => state.selected.has(id), check, cardClick, arm: () => setArmed(true), exit, ui };
 }

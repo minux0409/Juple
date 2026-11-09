@@ -110,7 +110,7 @@ describe('Quick Detail sheet: size and responsiveness', () => {
     assert.match(css, /@media \(max-width: 859px\) \{\s*\.quickSheet\[open\] \{\s*padding: 0;\s*\}\s*\.quickPanel \{\s*width: 100%;[^}]*max-height: 90vh;[^}]*border-radius: 24px 24px 0 0;/);
   });
 
-  it('the link actions are one vertical icon-only stack beside the name (링크 열기, 수정, 삭제 / 컬렉션에서 제거) - no action footer', () => {
+  it('the link actions are one icon-only toolbar row under the name, apart from the sheet 닫기 (링크 열기, 수정, 삭제 / 컬렉션에서 제거) - no action footer', () => {
     const content = source('app/(app)/items/[itemId]/ItemDetailContent.tsx');
     const stack = content.slice(content.indexOf('className={styles.quickActions}'), content.indexOf('</div>', content.indexOf('className={styles.quickActions}')));
     const open = stack.indexOf('name="ExternalLink"');
@@ -129,7 +129,10 @@ describe('Quick Detail sheet: size and responsiveness', () => {
     // no second set of the same actions
     assert.doesNotMatch(content, /quickFooter|OpenLinkButton/);
     assert.doesNotMatch(css, /\.quickFooter|\.quickOpenIcon/);
-    assert.match(css, /\.quickActions \{\s*display: flex;\s*flex: 0 0 44px;\s*flex-direction: column;\s*gap: 8px;/);
+    assert.match(css, /\.quickActions \{\s*display: flex;\s*flex: 1 0 100%;\s*flex-direction: row;\s*flex-wrap: wrap;\s*gap: 8px;\s*order: 3;/);
+    assert.match(css, /\.quickTop \{\s*display: flex;\s*flex-wrap: wrap;/);
+    // the X lives in the sheet's own bar (outside the scrolling content that holds the actions)
+    assert.match(source('app/(app)/items/[itemId]/QuickDetailSheet.tsx'), /<header className=\{styles\.quickBar\}>[\s\S]*<ModalCloseButton[\s\S]*<\/header>\s*<div className=\{styles\.quickScroll\}>/);
     assert.match(css, /\.quickActionButton,\s*\.quickActionDanger \{[^}]*width: 44px;[^}]*height: 44px;/);
     assert.equal(getAppDictionary('ko').removeFromCollectionAction, '컬렉션에서 제거');
   });
