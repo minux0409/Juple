@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { describe, it } from 'node:test';
 import { RENEWAL_STRINGS } from '../lib/appDictionaryRenewal.ts';
 import { APP_LANGUAGES } from '../lib/appI18n.ts';
+import { storeConfig } from '../lib/storeConfig.ts';
+import { planInstallCta } from '../lib/installCta.ts';
 import { DEFAULT_APP_STORE_URL, DEFAULT_GOOGLE_PLAY_URL, membershipStoreLinks, resolveAppDownload } from '../lib/appDownload.ts';
 
 const root = join(import.meta.dirname, '..');
@@ -61,5 +63,30 @@ describe('Web membership policy: subscriptions are bought only in the mobile app
     // the store links are anchors, never a button / form / fetch of ours
     const prompt = page.slice(page.indexOf('data-membership-get-app'), page.indexOf('data-membership-plans'));
     assert.doesNotMatch(prompt, /<button|<form|fetch\(|api\(|request\(/);
+  });
+
+  it('environment overrides are https-only; dangerous or malformed values fall back to the official listings', () => {
+    assert.equal(resolveAppDownload({ appStoreUrl: ' https://apps.apple.com/app/id1 ' }).appStoreUrl, 'https://apps.apple.com/app/id1');
+    assert.equal(resolveAppDownload({ googlePlayUrl: 'https://play.test/x' }).googlePlayUrl, 'https://play.test/x');
+    for (const bad of ['javascript:alert(1)', 'data:text/html,x', 'http://apps.apple.com/x', 'itms-apps://x', '//evil.test', 'apps.apple.com/x', '', '   ']) {
+      assert.equal(resolveAppDownload({ appStoreUrl: bad, googlePlayUrl: bad }).appStoreUrl, DEFAULT_APP_STORE_URL, bad);
+      assert.equal(resolveAppDownload({ appStoreUrl: bad, googlePlayUrl: bad }).googlePlayUrl, DEFAULT_GOOGLE_PLAY_URL, bad);
+    }
+  });
+
+  it('the public share page uses the same source: official App Store by default, per-visitor store choice unchanged', () => {
+    assert.equal(storeConfig.appStoreUrl, resolveAppDownload({ appStoreUrl: process.env.APP_STORE_URL }).appStoreUrl);
+    assert.match(storeConfig.appStoreUrl ?? '', /^https:\/\//);
+    const config = readFileSync(join(root, 'lib', 'storeConfig.ts'), 'utf8');
+    assert.match(config, /appStoreUrl: resolveAppDownload\(\{ appStoreUrl: process\.env\.APP_STORE_URL \}\)\.appStoreUrl/);
+    const urls = { googlePlayUrl: DEFAULT_GOOGLE_PLAY_URL, appStoreUrl: DEFAULT_APP_STORE_URL, hasOpenInAppUrl: true };
+    assert.deepEqual(planInstallCta({ platform: 'ios', ...urls }), { open: false, googlePlay: false, appStore: true, comingSoon: false });
+    assert.deepEqual(planInstallCta({ platform: 'android', ...urls }), { open: true, googlePlay: true, appStore: false, comingSoon: false });
+    assert.deepEqual(planInstallCta({ platform: 'other', ...urls }), { open: false, googlePlay: true, appStore: true, comingSoon: false });
+  });
+
+  it('every store URL in the Web source goes through lib/appDownload.ts (no second hard-coded listing)', () => {
+    const hardCoded = sources(root).filter(file => /apps\.apple\.com\/[a-z]{2}\/app\/|play\.google\.com\/store\/apps\/details/.test(readFileSync(file, 'utf8')));
+    assert.deepEqual(hardCoded.map(file => file.slice(root.length + 1).replaceAll('\\', '/')), ['lib/appDownload.ts']);
   });
 });

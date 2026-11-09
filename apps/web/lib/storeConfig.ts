@@ -1,8 +1,8 @@
 /**
  * Store listing / Smart App Banner config for the "install Juple" CTA on the Public Collection
- * Sharing Web Viewer (see app/c/[publicId]/InstallCta.tsx). No real Google Play/App Store listing
- * exists yet (see docs/architecture.md) - every field here is optional and defaults to `undefined`
- * rather than a guessed/placeholder URL. Callers must hide the corresponding UI entirely when a
+ * Sharing Web Viewer (see app/c/[publicId]/InstallCta.tsx). Store listings come from lib/appDownload.ts (official
+ * defaults, https-only environment overrides); the share-page Google Play address and the Smart App Banner id stay `undefined`
+ * until configured, never a guessed/placeholder URL. Callers must hide the corresponding UI entirely when a
  * field is undefined; never render a dead-end button.
  *
  * Plain (non-NEXT_PUBLIC_) runtime env vars, read fresh on every request - InstallCta and
@@ -23,7 +23,8 @@ export const storeConfig = {
    * closed test the listing is not reachable for visitors, so the share page must not present it as an install link.
    */
   shareGooglePlayUrl: (/^https:\/\//i.test(process.env.GOOGLE_PLAY_URL?.trim() ?? '') ? process.env.GOOGLE_PLAY_URL?.trim() : undefined) as string | undefined,
-  appStoreUrl: (/^https:\/\//i.test(process.env.APP_STORE_URL?.trim() ?? '') ? process.env.APP_STORE_URL?.trim() : undefined) as string | undefined,
+  // The official App Store listing unless APP_STORE_URL (https only) overrides it - the same single source as the signed-in app.
+  appStoreUrl: resolveAppDownload({ appStoreUrl: process.env.APP_STORE_URL }).appStoreUrl as string | undefined,
   /**
    * Apple Smart App Banner's numeric App Store id (e.g. "123456789", no "id" prefix) - a
    * different, more specific value than appStoreUrl above, normally only known once a real App

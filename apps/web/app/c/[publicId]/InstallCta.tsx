@@ -20,7 +20,7 @@ interface InstallCtaProps {
  * "Install Juple" CTA - Server Component (no client JS needed, both links are static). Renders
  * only a plain note when no store is both configured and relevant to this visitor, rather than a
  * dead-end button: no real Google Play/App Store listing exists yet (see docs/architecture.md and
- * lib/storeConfig.ts). Never fabricates a play.google.com/apps.apple.com URL.
+ * lib/storeConfig.ts). Store URLs come only from lib/appDownload.ts.
  *
  * On a platform that can only ever use one store (Android/iOS), showing the other store's badge
  * is not just unhelpful but actively wrong (an iPhone visitor cannot install anything from Google
