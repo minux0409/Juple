@@ -139,7 +139,8 @@ public sealed class CurrentUserBootstrapController : ControllerBase
     /// <summary>
     /// Whether the account owns a verified store subscription (additive; an older client ignores it) - NOT the same as Entitlement: with the
     /// program off, Entitlement.Status is null ("not required") while this can still be "active". State is none | active | gracePeriod.
-    /// Platform is "google" while owned. CurrentPeriodEndsAtUtc is when the paid period ends; AutoRenewing false means it was cancelled and
+    /// Platform is "google" (Google Play) or "apple" (App Store) while owned; null for a source this build does not name (additive: an older
+    /// client that only knows "google" reads "apple" as unknown, as before). CurrentPeriodEndsAtUtc is when the paid period ends; AutoRenewing false means it was cancelled and
     /// will not renew. StartedAtUtc is the store's own subscription start time; EndedState ("expired"/"revoked") and EndedAtUtc describe how the
     /// last subscription ended when none is owned now (descriptive only). No purchase token, order id, internal id or raw store response is ever exposed.
     /// </summary>
@@ -176,7 +177,7 @@ public sealed class CurrentUserBootstrapController : ControllerBase
 
             return new(
                 ownership.State == StoreSubscriptionState.GracePeriod ? "gracePeriod" : "active",
-                ownership.Source switch { StoreSource.GooglePlay => "google", _ => null },
+                ownership.Source switch { StoreSource.GooglePlay => "google", StoreSource.AppStore => "apple", _ => null },
                 ownership.ProductId,
                 ownership.CurrentPeriodEndsAtUtc,
                 ownership.AutoRenewing,

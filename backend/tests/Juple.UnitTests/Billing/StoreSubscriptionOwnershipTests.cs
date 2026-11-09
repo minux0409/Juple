@@ -181,6 +181,30 @@ public sealed class StoreSubscriptionOwnershipTests
         }
     }
 
+    [Theory]
+    [InlineData(StoreSource.GooglePlay, "google")]
+    [InlineData(StoreSource.AppStore, "apple")]
+    public void ThePlatform_NamesTheStoreThatOwnsTheLiveSubscription(StoreSource source, string expected)
+    {
+        var purchase = new OwnedStorePurchase(source, "juple_monthly", StorePurchaseState.Active, Now + TimeSpan.FromDays(3), true);
+
+        var response = CurrentUserBootstrapController.StoreSubscriptionResponse.From(StoreSubscriptionOwnership.From([purchase], Now));
+
+        Assert.Equal("active", response.State);
+        Assert.Equal(expected, response.Platform);
+    }
+
+    [Fact]
+    public void AnEndedSubscription_NamesNoPlatform()
+    {
+        var ended = new OwnedStorePurchase(StoreSource.AppStore, "juple_monthly", StorePurchaseState.Expired, Now - TimeSpan.FromDays(1), false);
+
+        var response = CurrentUserBootstrapController.StoreSubscriptionResponse.From(StoreSubscriptionOwnership.From([ended], Now));
+
+        Assert.Equal("none", response.State);
+        Assert.Null(response.Platform);
+    }
+
     [Fact]
     public void NoSubscription_IsAnExplicitNone_NotAMissingObject()
     {
