@@ -16,6 +16,8 @@ export interface RenewalStrings {
   readonly membershipPlansHeading: string;
   /** 멤버십: why no price is shown on the Web (prices come from each store, inside the app). */
   readonly membershipPlansInAppNote: string;
+  /** 멤버십 (not subscribed): subscribing happens only in the mobile app; the Web sells nothing. */
+  readonly membershipGetInApp: string;
 }
 
 export const RENEWAL_STRINGS: Readonly<Record<AppLanguage, RenewalStrings>> = {
@@ -25,6 +27,7 @@ export const RENEWAL_STRINGS: Readonly<Record<AppLanguage, RenewalStrings>> = {
     selectionToggleHint: '선택 · Shift+클릭으로 범위 선택',
     membershipPlansHeading: '멤버십 플랜',
     membershipPlansInAppNote: '가격은 Juple 앱에서 이용 중인 스토어(Google Play, App Store) 기준으로 표시돼요.',
+    membershipGetInApp: 'Juple 멤버십은 모바일 앱에서 구독할 수 있어요.',
   },
   en: {
     sidebarCollapse: 'Collapse sidebar',
@@ -32,6 +35,7 @@ export const RENEWAL_STRINGS: Readonly<Record<AppLanguage, RenewalStrings>> = {
     selectionToggleHint: 'Select · Shift+click to select a range',
     membershipPlansHeading: 'Membership plans',
     membershipPlansInAppNote: 'Prices are shown in the Juple app, from your store (Google Play or the App Store).',
+    membershipGetInApp: 'You can subscribe to Juple Membership in the mobile app.',
   },
   ja: {
     sidebarCollapse: 'サイドバーを折りたたむ',
@@ -39,6 +43,7 @@ export const RENEWAL_STRINGS: Readonly<Record<AppLanguage, RenewalStrings>> = {
     selectionToggleHint: '選択 · Shift+クリックで範囲選択',
     membershipPlansHeading: 'メンバーシッププラン',
     membershipPlansInAppNote: '価格はJupleアプリで、ご利用のストア（Google Play、App Store）に基づいて表示されます。',
+    membershipGetInApp: 'Jupleメンバーシップはモバイルアプリで登録できます。',
   },
   'zh-Hans': {
     sidebarCollapse: '收起侧边栏',
@@ -46,6 +51,7 @@ export const RENEWAL_STRINGS: Readonly<Record<AppLanguage, RenewalStrings>> = {
     selectionToggleHint: '选择 · Shift+点击可选择范围',
     membershipPlansHeading: '会员方案',
     membershipPlansInAppNote: '价格会在 Juple 应用中按你使用的商店（Google Play、App Store）显示。',
+    membershipGetInApp: '你可以在移动应用中订阅 Juple 会员。',
   },
   'zh-Hant': {
     sidebarCollapse: '收合側邊欄',
@@ -53,6 +59,7 @@ export const RENEWAL_STRINGS: Readonly<Record<AppLanguage, RenewalStrings>> = {
     selectionToggleHint: '選取 · Shift+點按可選取範圍',
     membershipPlansHeading: '會員方案',
     membershipPlansInAppNote: '價格會在 Juple 應用程式中依你使用的商店（Google Play、App Store）顯示。',
+    membershipGetInApp: '你可以在行動應用程式中訂閱 Juple 會員。',
   },
   es: {
     sidebarCollapse: 'Contraer barra lateral',
@@ -60,6 +67,7 @@ export const RENEWAL_STRINGS: Readonly<Record<AppLanguage, RenewalStrings>> = {
     selectionToggleHint: 'Seleccionar · Mayús+clic para seleccionar un rango',
     membershipPlansHeading: 'Planes de membresía',
     membershipPlansInAppNote: 'Los precios se muestran en la app de Juple, según tu tienda (Google Play o App Store).',
+    membershipGetInApp: 'Puedes suscribirte a la membresía de Juple en la app móvil.',
   },
   fr: {
     sidebarCollapse: 'Réduire la barre latérale',
@@ -67,6 +75,7 @@ export const RENEWAL_STRINGS: Readonly<Record<AppLanguage, RenewalStrings>> = {
     selectionToggleHint: 'Sélectionner · Maj+clic pour sélectionner une plage',
     membershipPlansHeading: "Formules d'abonnement",
     membershipPlansInAppNote: "Les prix sont affichés dans l'app Juple, selon votre boutique (Google Play ou App Store).",
+    membershipGetInApp: "Vous pouvez vous abonner à l'abonnement Juple dans l'app mobile.",
   },
   de: {
     sidebarCollapse: 'Seitenleiste einklappen',
@@ -74,6 +83,7 @@ export const RENEWAL_STRINGS: Readonly<Record<AppLanguage, RenewalStrings>> = {
     selectionToggleHint: 'Auswählen · Umschalt+Klick wählt einen Bereich',
     membershipPlansHeading: 'Mitgliedschaftspläne',
     membershipPlansInAppNote: 'Die Preise werden in der Juple-App angezeigt, je nach deinem Store (Google Play oder App Store).',
+    membershipGetInApp: 'Die Juple-Mitgliedschaft kannst du in der mobilen App abonnieren.',
   },
   it: {
     sidebarCollapse: 'Comprimi barra laterale',
@@ -81,6 +91,7 @@ export const RENEWAL_STRINGS: Readonly<Record<AppLanguage, RenewalStrings>> = {
     selectionToggleHint: 'Seleziona · Maiusc+clic per selezionare un intervallo',
     membershipPlansHeading: 'Piani di abbonamento',
     membershipPlansInAppNote: "I prezzi sono mostrati nell'app Juple, in base al tuo store (Google Play o App Store).",
+    membershipGetInApp: "Puoi abbonarti all'abbonamento Juple nell'app mobile.",
   },
   'pt-BR': {
     sidebarCollapse: 'Recolher barra lateral',
@@ -88,6 +99,7 @@ export const RENEWAL_STRINGS: Readonly<Record<AppLanguage, RenewalStrings>> = {
     selectionToggleHint: 'Selecionar · Shift+clique para selecionar um intervalo',
     membershipPlansHeading: 'Planos de assinatura',
     membershipPlansInAppNote: 'Os preços aparecem no app Juple, de acordo com a sua loja (Google Play ou App Store).',
+    membershipGetInApp: 'Você pode assinar a assinatura Juple no app móvel.',
   },
   vi: {
     sidebarCollapse: 'Thu gọn thanh bên',
@@ -95,6 +107,7 @@ export const RENEWAL_STRINGS: Readonly<Record<AppLanguage, RenewalStrings>> = {
     selectionToggleHint: 'Chọn · Shift+nhấp để chọn một dải',
     membershipPlansHeading: 'Gói thành viên',
     membershipPlansInAppNote: 'Giá được hiển thị trong ứng dụng Juple, theo cửa hàng bạn dùng (Google Play hoặc App Store).',
+    membershipGetInApp: 'Bạn có thể đăng ký gói thành viên Juple trong ứng dụng di động.',
   },
   th: {
     sidebarCollapse: 'ยุบแถบด้านข้าง',
@@ -102,6 +115,7 @@ export const RENEWAL_STRINGS: Readonly<Record<AppLanguage, RenewalStrings>> = {
     selectionToggleHint: 'เลือก · Shift+คลิกเพื่อเลือกเป็นช่วง',
     membershipPlansHeading: 'แพ็กเกจสมาชิก',
     membershipPlansInAppNote: 'ราคาจะแสดงในแอป Juple ตามสโตร์ที่คุณใช้ (Google Play หรือ App Store)',
+    membershipGetInApp: 'คุณสามารถสมัครสมาชิก Juple ได้ในแอปบนมือถือ',
   },
   id: {
     sidebarCollapse: 'Ciutkan bilah samping',
@@ -109,6 +123,7 @@ export const RENEWAL_STRINGS: Readonly<Record<AppLanguage, RenewalStrings>> = {
     selectionToggleHint: 'Pilih · Shift+klik untuk memilih rentang',
     membershipPlansHeading: 'Paket keanggotaan',
     membershipPlansInAppNote: 'Harga ditampilkan di aplikasi Juple, sesuai toko Anda (Google Play atau App Store).',
+    membershipGetInApp: 'Anda dapat berlangganan keanggotaan Juple di aplikasi seluler.',
   },
   ru: {
     sidebarCollapse: 'Свернуть боковую панель',
@@ -116,6 +131,7 @@ export const RENEWAL_STRINGS: Readonly<Record<AppLanguage, RenewalStrings>> = {
     selectionToggleHint: 'Выбрать · Shift+щелчок — выбрать диапазон',
     membershipPlansHeading: 'Тарифы подписки',
     membershipPlansInAppNote: 'Цены показываются в приложении Juple — по данным вашего магазина (Google Play или App Store).',
+    membershipGetInApp: 'Подписаться на членство Juple можно в мобильном приложении.',
   },
   tr: {
     sidebarCollapse: 'Kenar çubuğunu daralt',
@@ -123,6 +139,7 @@ export const RENEWAL_STRINGS: Readonly<Record<AppLanguage, RenewalStrings>> = {
     selectionToggleHint: 'Seç · Aralık seçmek için Shift+tıklayın',
     membershipPlansHeading: 'Üyelik planları',
     membershipPlansInAppNote: "Fiyatlar Juple uygulamasında, kullandığınız mağazaya göre (Google Play veya App Store) gösterilir.",
+    membershipGetInApp: 'Juple üyeliğine mobil uygulamadan abone olabilirsiniz.',
   },
   ar: {
     sidebarCollapse: 'طي الشريط الجانبي',
@@ -130,6 +147,7 @@ export const RENEWAL_STRINGS: Readonly<Record<AppLanguage, RenewalStrings>> = {
     selectionToggleHint: 'تحديد · Shift+نقرة لتحديد نطاق',
     membershipPlansHeading: 'خطط العضوية',
     membershipPlansInAppNote: 'تظهر الأسعار في تطبيق Juple حسب متجرك (Google Play أو App Store).',
+    membershipGetInApp: 'يمكنك الاشتراك في عضوية Juple من تطبيق الجوال.',
   },
   hi: {
     sidebarCollapse: 'साइडबार छोटा करें',
@@ -137,5 +155,6 @@ export const RENEWAL_STRINGS: Readonly<Record<AppLanguage, RenewalStrings>> = {
     selectionToggleHint: 'चुनें · रेंज चुनने के लिए Shift+क्लिक करें',
     membershipPlansHeading: 'सदस्यता प्लान',
     membershipPlansInAppNote: 'कीमतें Juple ऐप में आपके स्टोर (Google Play या App Store) के अनुसार दिखाई जाती हैं।',
+    membershipGetInApp: 'आप Juple सदस्यता की सदस्यता मोबाइल ऐप में ले सकते हैं।',
   },
 };

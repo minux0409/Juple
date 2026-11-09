@@ -9,6 +9,7 @@ import {
   isInAppBrowser,
   OPEN_APP_PATH,
   CONTINUE_ON_WEB_KEY,
+  DEFAULT_APP_STORE_URL,
   DEFAULT_GOOGLE_PLAY_URL,
   planMobileLanding,
   resolveAppDownload,
@@ -25,14 +26,15 @@ const IPAD = 'Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15
 const DESKTOP = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
 
 describe('app download config (one source)', () => {
-  it('Google Play is the real listing of com.juple.app unless the environment overrides it; the App Store is never invented', () => {
+  it('Google Play is the real listing of com.juple.app unless the environment overrides it; the App Store is the official listing', () => {
     assert.equal(ANDROID_PACKAGE_ID, 'com.juple.app');
     assert.equal(DEFAULT_GOOGLE_PLAY_URL, 'https://play.google.com/store/apps/details?id=com.juple.app');
-    assert.deepEqual(resolveAppDownload({}), { googlePlayUrl: DEFAULT_GOOGLE_PLAY_URL, appStoreUrl: null });
-    assert.deepEqual(resolveAppDownload({ googlePlayUrl: '', appStoreUrl: '' }), { googlePlayUrl: DEFAULT_GOOGLE_PLAY_URL, appStoreUrl: null });
+    assert.equal(DEFAULT_APP_STORE_URL, 'https://apps.apple.com/kr/app/id6826603114');
+    assert.deepEqual(resolveAppDownload({}), { googlePlayUrl: DEFAULT_GOOGLE_PLAY_URL, appStoreUrl: DEFAULT_APP_STORE_URL });
+    assert.deepEqual(resolveAppDownload({ googlePlayUrl: '', appStoreUrl: '' }), { googlePlayUrl: DEFAULT_GOOGLE_PLAY_URL, appStoreUrl: DEFAULT_APP_STORE_URL });
     assert.equal(resolveAppDownload({ appStoreUrl: 'https://apps.apple.com/app/id1' }).appStoreUrl, 'https://apps.apple.com/app/id1');
     // only https links are ever offered
-    assert.equal(resolveAppDownload({ appStoreUrl: 'javascript:alert(1)' }).appStoreUrl, null);
+    assert.equal(resolveAppDownload({ appStoreUrl: 'javascript:alert(1)' }).appStoreUrl, DEFAULT_APP_STORE_URL);
     assert.equal(resolveAppDownload({ googlePlayUrl: 'http://x.test' }).googlePlayUrl, DEFAULT_GOOGLE_PLAY_URL);
     // the public share page reads the same source
     assert.equal(storeConfig.googlePlayUrl, process.env.GOOGLE_PLAY_URL ? resolveAppDownload({ googlePlayUrl: process.env.GOOGLE_PLAY_URL }).googlePlayUrl : DEFAULT_GOOGLE_PLAY_URL);
@@ -57,7 +59,8 @@ describe('mobile detection and the landing plan', () => {
   it('Android: open + Google Play; iPhone: App Store only when configured, otherwise a disabled "coming soon" - never Google Play', () => {
     const noStore = resolveAppDownload({});
     assert.deepEqual(planMobileLanding('android', noStore), { open: true, googlePlay: true, appStore: false, appStoreSoon: false });
-    assert.deepEqual(planMobileLanding('ios', noStore), { open: false, googlePlay: false, appStore: false, appStoreSoon: true });
+    assert.deepEqual(planMobileLanding('ios', noStore), { open: false, googlePlay: false, appStore: true, appStoreSoon: false });
+    assert.deepEqual(planMobileLanding('ios', { googlePlayUrl: DEFAULT_GOOGLE_PLAY_URL, appStoreUrl: null }), { open: false, googlePlay: false, appStore: false, appStoreSoon: true });
     assert.deepEqual(planMobileLanding('ios', resolveAppDownload({ appStoreUrl: 'https://apps.apple.com/app/id1' })), { open: false, googlePlay: false, appStore: true, appStoreSoon: false });
   });
 

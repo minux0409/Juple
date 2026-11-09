@@ -1,7 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { ApiHttpError } from '../../../lib/appApi';
+import { membershipStoreLinks } from '../../../lib/appDownload';
+import { resolveClientPlatform } from '../../../lib/platform';
 import { formatMessage } from '../../../lib/appI18n';
 import { DATA_EXPORT_PATH, dataExportDownloadUrl, formatMegabytes, parseDataExportLinks, parseDataExportSummary, type DataExportLinks, type DataExportSummary } from '../../../lib/dataExport';
 import { APP_STORE_SUBSCRIPTIONS_URL, describeSubscription, PLAY_SUBSCRIPTIONS_URL } from '../../../lib/subscription';
@@ -18,7 +20,14 @@ export const MY_PAGE_SECTION_IDS = { subscription: 'subscription', account: 'acc
  * says so to everyone (subscriptionWebAppOnly).
  */
 export function SubscriptionSection({ showTitle = true }: { readonly showTitle?: boolean } = {}) {
-  const { dictionary, locale, entitlement, storeSubscription, dataRetention, dataExportEnabled } = useSignedInApp();
+  const { dictionary, locale, entitlement, storeSubscription, dataRetention, dataExportEnabled, appDownload } = useSignedInApp();
+  // The visitor's own phone store only after hydration; until then (and on desktop / tablet) both official stores.
+  const platform = useSyncExternalStore(
+    () => () => undefined,
+    () => resolveClientPlatform(navigator.userAgent),
+    () => 'other' as const,
+  );
+  const stores = membershipStoreLinks(platform, appDownload);
   const view = describeSubscription(storeSubscription, entitlement);
   const date = (utc: string | null) => (utc ? new Intl.DateTimeFormat(locale, { dateStyle: 'long' }).format(new Date(utc)) : null);
 
@@ -129,9 +138,30 @@ export function SubscriptionSection({ showTitle = true }: { readonly showTitle?:
           </>
         ) : null}
         {/* The Web never sells: no price or purchase here - starting a subscription and paying are the app's. */}
-        <p className={styles.settingsNote} data-subscription-app-only>
-          {dictionary.subscriptionWebAppOnly}
-        </p>
+        {subscribedNow ? (
+          <p className={styles.settingsNote} data-subscription-app-only>
+            {dictionary.subscriptionWebAppOnly}
+          </p>
+        ) : (
+          <div className={styles.membershipGetApp} data-membership-get-app>
+            <p className={styles.settingsNote} data-subscription-app-only>
+              {dictionary.membershipGetInApp}
+            </p>
+            {/* Plain links to the two official store listings: the way into the app, never a payment step. */}
+            <div className={styles.membershipGetAppStores}>
+              {stores.googlePlay ? (
+                <a className={styles.settingsAction} data-store="google-play" href={stores.googlePlay} rel="noopener noreferrer" target="_blank">
+                  {dictionary.appGetOnGooglePlay}
+                </a>
+              ) : null}
+              {stores.appStore ? (
+                <a className={styles.settingsAction} data-store="app-store" href={stores.appStore} rel="noopener noreferrer" target="_blank">
+                  {dictionary.appGetOnAppStore}
+                </a>
+              ) : null}
+            </div>
+          </div>
+        )}
       </div>
       {/* The two plans the apps sell (mobile SubscriptionScreen), described without a price: prices come only from each store, inside
           the app, and the Web has no store - nothing here can be bought or looks like a checkout. */}

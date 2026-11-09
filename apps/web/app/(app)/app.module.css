@@ -9766,3 +9766,27 @@ a.imageBody:hover .imageTile {
     transform: rotate(90deg);
   }
 }
+
+/* 멤버십 (not subscribed): the "subscribe in the mobile app" prompt and the official store links - wraps, never overflows. */
+.membershipGetApp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.membershipGetAppStores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.membershipGetAppStores > a {
+  flex: 1 1 200px;
+  min-width: 0;
+  justify-content: center;
+  text-align: center;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}

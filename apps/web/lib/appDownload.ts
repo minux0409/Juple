@@ -2,22 +2,29 @@ import { ANDROID_PACKAGE } from './shareLinks.ts';
 
 /**
  * Where people get the Juple app - the ONE place (the sidebar card, the mobile landing and the public share page all read it).
- * Google Play is the real listing of the Android package (the same URL the app's own update policy opens). The App Store has no
- * listing yet: its URL comes only from configuration (APP_STORE_URL) and is never invented - without it the iPhone / App Store
- * button is shown as "coming soon", never as a link.
+ * Google Play is the real listing of the Android package (the same URL the app's own update policy opens). The App Store
+ * listing: DEFAULT_APP_STORE_URL, overridable by configuration (APP_STORE_URL).
  */
 export const ANDROID_PACKAGE_ID = ANDROID_PACKAGE;
 export const DEFAULT_GOOGLE_PLAY_URL = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE_ID}`;
 
+/** The official App Store listing of the iOS app (the real one); APP_STORE_URL may override it, an invalid value never replaces it. */
+export const DEFAULT_APP_STORE_URL = 'https://apps.apple.com/kr/app/id6826603114';
+
 export interface AppDownload {
   readonly googlePlayUrl: string;
-  /** null = no App Store listing configured. */
+  /** null only if a caller builds an AppDownload without a listing; resolveAppDownload always has the official one. */
   readonly appStoreUrl: string | null;
 }
 
 export function resolveAppDownload(env: { readonly googlePlayUrl?: string | undefined; readonly appStoreUrl?: string | undefined }): AppDownload {
   const https = (value: string | undefined) => (value && /^https:\/\//i.test(value.trim()) ? value.trim() : null);
-  return { googlePlayUrl: https(env.googlePlayUrl) ?? DEFAULT_GOOGLE_PLAY_URL, appStoreUrl: https(env.appStoreUrl) };
+  return { googlePlayUrl: https(env.googlePlayUrl) ?? DEFAULT_GOOGLE_PLAY_URL, appStoreUrl: https(env.appStoreUrl) ?? DEFAULT_APP_STORE_URL };
+}
+
+/** The store(s) a membership prompt links to for a visitor: a phone sees its own store, anyone else (desktop, tablet, unknown) both. */
+export function membershipStoreLinks(os: 'android' | 'ios' | 'other', download: AppDownload): { readonly googlePlay: string | null; readonly appStore: string | null } {
+  return { googlePlay: os === 'ios' ? null : download.googlePlayUrl, appStore: os === 'android' ? null : download.appStoreUrl };
 }
 
 export type MobileOs = 'android' | 'ios';
