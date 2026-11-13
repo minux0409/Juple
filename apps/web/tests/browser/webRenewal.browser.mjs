@@ -61,8 +61,9 @@ const open = async (query, width, theme) => {
   await tab.until(`!!document.querySelector('[data-select-check]') && !!document.querySelector('[data-fixture-membership] [data-plan]')`);
   // The real theme path: the stored 화면 모드 preference, applied before paint by the bootstrap script / ThemeProvider.
   await tab.evaluate(`localStorage.setItem('juple.themePreference', '${theme}')`);
-  await tab.evaluate('location.reload()');
-  await tab.until(`document.documentElement.dataset.theme === '${theme}' && !!document.querySelector('[data-select-check]') && !!document.querySelector('[data-fixture-membership] [data-plan]')`);
+  // The light theme is the default: without a marker the wait below could be satisfied by the OLD document, before the reload starts.
+  await tab.evaluate('window.__beforeReload = true; setTimeout(() => location.reload(), 50); true');
+  await tab.until(`window.__beforeReload === undefined && document.documentElement.dataset.theme === '${theme}' && !!document.querySelector('[data-select-check]') && !!document.querySelector('[data-fixture-membership] [data-plan]')`);
   // Let the entrance animations finish before measuring.
   await tab.wait(450);
   return tab;

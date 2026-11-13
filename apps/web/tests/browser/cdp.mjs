@@ -61,11 +61,17 @@ export async function openPage(chrome, url, port) {
   };
   const until = async (expression, timeoutMs = 60_000) => {
     const started = Date.now();
+    let lastError = null;
     while (Date.now() - started < timeoutMs) {
-      if (await evaluate(expression)) return true;
+      try {
+        if (await evaluate(expression)) return true;
+      } catch (error) {
+        // A page that is navigating / reloading destroys the execution context mid-call: that is a moment, not a failure - try again.
+        lastError = error;
+      }
       await wait(150);
     }
-    throw new Error(`timed out waiting for: ${expression}`);
+    throw new Error(`timed out waiting for: ${expression}${lastError ? ` (last error: ${lastError.message})` : ''}`);
   };
   const key = async (name, code, windowsVirtualKeyCode, text) => {
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key: name, code, windowsVirtualKeyCode, text });

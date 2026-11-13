@@ -152,8 +152,7 @@
 :global(html[data-theme='dark']) .agreementPage,
 :global(html[data-theme='dark']) .toastHost,
 :global(html[data-theme='dark']) .tourRoot,
-:global(html[data-theme='dark']) .mobileLanding,
-:global(html[data-theme='dark']) .collectionDialog {
+:global(html[data-theme='dark']) .mobileLanding {
   --app-background: #101318;
   --app-surface: #181c23;
   --app-surface-muted: #20252e;
@@ -6834,7 +6833,8 @@ button.reactionChipMine:hover {
 :global(html[data-theme='dark']) .agreementPage,
 :global(html[data-theme='dark']) .toastHost,
 :global(html[data-theme='dark']) .tourRoot,
-:global(html[data-theme='dark']) .mobileLanding {
+:global(html[data-theme='dark']) .mobileLanding,
+:global(html[data-theme='dark']) .collectionDialog {
   --brand-gradient-soft: linear-gradient(135deg, rgba(254, 162, 72, 0.16), rgba(253, 97, 107, 0.14) 30%, rgba(241, 51, 197, 0.12) 58%, rgba(103, 81, 252, 0.18) 82%, rgba(81, 161, 253, 0.18));
   --brand-line: rgba(103, 81, 252, 0.4);
   --brand-wash: linear-gradient(135deg, rgba(254, 162, 72, 0.1), rgba(253, 97, 107, 0.09) 30%, rgba(241, 51, 197, 0.08) 58%, rgba(103, 81, 252, 0.12) 82%, rgba(81, 161, 253, 0.12));
@@ -10657,18 +10657,21 @@ a.imageBody:hover .imageTile {
 }
 
 @media (max-width: 480px) {
+  /* a phone keeps the preview beside its name (a stacked preview pushed the icons below the fold) */
   .ceHero {
-    flex-direction: column;
-    align-items: stretch;
-    text-align: center;
+    gap: var(--space-3, 12px);
+    padding: var(--space-3, 12px);
   }
 
   .cePreviewTile {
-    align-self: center;
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
   }
 
-  .cePhotoActions {
-    justify-content: center;
+  .cePreviewName,
+  .cePreviewNameEmpty {
+    font-size: 16px;
   }
 }
 
@@ -10709,4 +10712,46 @@ a.imageBody:hover .imageTile {
   .selectCheck:hover .selectCheckMark {
     transform: none;
   }
+}
+
+/* The details foot always sits at the very bottom of the sheet (no empty band under it when the content is short). */
+.quickScroll:has(.detailFooter) {
+  display: flex;
+  flex-direction: column;
+}
+
+.quickScroll > .quickContent:has(.detailFooter) {
+  flex: 1 0 auto;
+}
+
+.quickContent > .detailFooter {
+  margin-top: auto;
+}
+
+/* A list row with a selection check keeps its own gutter while a selection runs (and always on a touch screen): the check never covers the thumbnail. */
+.linkList > .linkCard:has(> .selectCheck) {
+  transition: padding-inline-start var(--motion-fast, 140ms) var(--ease-out, ease-out);
+}
+
+.linkList[data-selecting='true'] > .linkCard:has(> .selectCheck) {
+  padding-inline-start: 36px;
+}
+
+@media (hover: none) {
+  .linkList > .linkCard:has(> .selectCheck) {
+    padding-inline-start: 36px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .linkList > .linkCard:has(> .selectCheck) {
+    transition: none;
+  }
+}
+
+/* The new-Collection dialog is drawn into <main>, but it carries its own token scope (it can be portalled): it needs the action colour and the soft line too, or 만들기 had no background wherever it was drawn outside the shell. */
+.collectionDialog[open] {
+  --brand-cta: var(--brand);
+  --brand-line: color-mix(in srgb, var(--brand) 24%, transparent);
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
 }

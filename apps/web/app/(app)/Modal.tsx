@@ -59,7 +59,7 @@ export function Modal({
         <ModalCloseButton label={closeLabel} onClick={onClose} />
       </div>
       {/* The body scrolls on its own under the header: content can never paint over the title or the close button. */}
-      <div className={styles.panelScroll} data-modal-body>
+      <div className={styles.panelScroll} data-modal-body tabIndex={-1}>
         {open ? children : null}
       </div>
     </dialog>

@@ -29,6 +29,8 @@ export function NewCollectionDialog({
     const dialog = ref.current;
     if (dialog && !dialog.open) {
       dialog.showModal();
+      // showModal() focuses the first focusable thing - in a modern Chrome that is the scrolling body (a focus ring around it), not the name field.
+      dialog.querySelector<HTMLInputElement>('input')?.focus();
     }
   }, []);
 

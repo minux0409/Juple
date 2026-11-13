@@ -149,7 +149,7 @@ describe('5. controls are not text', () => {
 
 describe('6. modal header never painted over', () => {
   it('a fixed header row over a body that scrolls on its own', () => {
-    assert.match(source('app/(app)/Modal.tsx'), /<div className=\{styles\.panelScroll\} data-modal-body>/);
+    assert.match(source('app/(app)/Modal.tsx'), /<div className=\{styles\.panelScroll\} data-modal-body tabIndex=\{-1\}>/);
     assert.match(css, /\.panelDialog\[open\] \{\s*display: flex;\s*flex-direction: column;\s*overflow: hidden;/);
     assert.match(rule('.panelScroll'), /min-height: 0;\s*overflow-y: auto;/);
     assert.match(css, /\.panelDialog \.panelHeader \{\s*position: relative;\s*z-index: 1;\s*flex: 0 0 auto;/);
