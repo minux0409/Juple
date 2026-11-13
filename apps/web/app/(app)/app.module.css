@@ -9076,36 +9076,6 @@ button.reactionChipMine:hover {
   }
 }
 
-.selectModeButton {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: var(--control-height);
-  padding: 0 var(--space-3);
-  border: 1px solid var(--app-border);
-  border-radius: 999px;
-  background: var(--app-surface);
-  color: var(--app-text-secondary);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
-}
-
-.selectModeButtonActive {
-  border-color: var(--brand-line);
-  background: var(--brand-soft);
-  color: var(--brand-text);
-}
-
-.selectModeButton:hover {
-  border-color: var(--brand-line);
-  background: var(--app-surface-hover);
-  color: var(--brand-text);
-}
-
 /* The dock: fixed to the BROWSER window (never to a page ancestor) and exactly as wide as the content column, so the bar inside is
    centred on the content beside the side bar. --dock-left / --dock-right are measured from the column (see SelectionToolbar). */
 .selectionBarDock {
@@ -9891,7 +9861,6 @@ a.imageBody:hover .imageTile {
   .sidebarToggleIcon,
   .selectCheck,
   .selectCheckMark,
-  .selectModeButton,
   .selectionBarAction,
   .requestAction,
   .requestActionChevron,
@@ -9960,4 +9929,784 @@ a.imageBody:hover .imageTile {
   text-align: center;
   text-decoration: none;
   overflow-wrap: anywhere;
+}
+
+/* ======================================================================================================================
+   UI polish round - one quiet system for the recently added pieces: sign-in card, multi-selection, link details (edit in place),
+   photo placeholder, new-Collection dialog. Tokens only; motion is short (<= 240ms) and every moving part is switched off under
+   prefers-reduced-motion at the end of this block.
+   ==================================================================================================================== */
+
+/* ---- sign-in: the brand is already above the card (or beside it on a wide screen) - the card holds the title and the one action ---- */
+.signInCard .signInTitle {
+  margin-top: 0;
+}
+
+.signInCard {
+  animation: polishRise 320ms var(--ease-out, cubic-bezier(0.2, 0.7, 0.2, 1)) both;
+}
+
+.signInButton {
+  transition: transform 160ms var(--ease-out, ease-out), box-shadow 160ms var(--ease-out, ease-out), filter 160ms var(--ease-out, ease-out);
+}
+
+.signInButton:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--brand) 32%, transparent);
+}
+
+.signInButton:active {
+  transform: none;
+}
+
+.signInButton:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 3px;
+}
+
+@keyframes polishRise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- multi-selection: the card's own check IS the way in (no toolbar button) ---- */
+.selectCheck {
+  transition: opacity var(--motion-fast, 140ms) var(--ease-out, ease-out), transform var(--motion-fast, 140ms) var(--ease-out, ease-out);
+  transform: scale(0.92);
+}
+
+.linkCard:hover > .selectCheck,
+.imageCell:hover > .selectCheck,
+.collectionCard:hover > .selectCheck,
+.selectCheck:focus-visible,
+[data-selecting='true'] .selectCheck,
+.selectCheck[aria-pressed='true'] {
+  transform: none;
+}
+
+.selectCheckMark {
+  border-width: 2px;
+  border-color: var(--app-text-tertiary, var(--app-border));
+  background: color-mix(in srgb, var(--app-surface) 92%, transparent);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--app-text) 22%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.selectCheck:hover .selectCheckMark {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  transform: scale(1.08);
+}
+
+.selectCheck[aria-pressed='true'] .selectCheckMark,
+.selectCheck[aria-pressed='true']:hover .selectCheckMark {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: var(--on-brand);
+  transform: none;
+}
+
+/* A touch screen has no hover: the check is always there, quiet until it is used. */
+@media (hover: none) {
+  .selectCheck {
+    opacity: 1;
+    transform: none;
+  }
+
+  .selectCheck:not([aria-pressed='true']) .selectCheckMark {
+    border-width: 1.5px;
+    opacity: 0.86;
+  }
+}
+
+.cardSelected.linkCard,
+.cardSelected.collectionCard {
+  background: color-mix(in srgb, var(--brand-soft) 62%, var(--app-surface));
+}
+
+.linkGrid > .linkCard,
+.collectionCard {
+  transition: transform var(--motion-base, 220ms) var(--ease-out, ease-out), box-shadow var(--motion-base, 220ms) var(--ease-out, ease-out), border-color var(--motion-fast, 140ms) var(--ease-out, ease-out), background-color var(--motion-fast, 140ms) var(--ease-out, ease-out);
+}
+
+.selectionBar {
+  border-radius: 20px;
+}
+
+/* ---- the photo: a placeholder that invites, an overlay that stays out of the way ---- */
+.photoEditor {
+  border-radius: var(--radius-lg, 16px);
+}
+
+.photoEditorOverlay {
+  align-items: flex-end;
+  justify-content: center;
+  padding: var(--space-4, 16px);
+  background: linear-gradient(to top, color-mix(in srgb, black 62%, transparent), transparent 70%);
+  opacity: 0;
+  transition: opacity var(--motion-fast, 140ms) var(--ease-out, ease-out);
+}
+
+.photoEditor:hover .photoEditorOverlay,
+.photoEditor:focus-within .photoEditorOverlay {
+  opacity: 1;
+}
+
+.photoEditorOverlay button {
+  min-height: 40px;
+  padding: 0 var(--space-4, 16px);
+  border: 1px solid color-mix(in srgb, white 55%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, black 42%, transparent);
+  color: white;
+  font-size: 14px;
+  font-weight: 650;
+  backdrop-filter: blur(8px);
+  transition: background-color var(--motion-fast, 140ms) var(--ease-out, ease-out), transform var(--motion-fast, 140ms) var(--ease-out, ease-out);
+}
+
+.photoEditorOverlay button:hover:not(:disabled) {
+  background: color-mix(in srgb, black 66%, transparent);
+  transform: translateY(-1px);
+}
+
+/* Without a photo: a soft, dashed frame with the icon and the one button in the middle (never a button floating under an icon). */
+.photoEditorIsEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-5, 24px) var(--space-4, 16px);
+  border: 1.5px dashed var(--brand-line, var(--brand));
+  background: var(--brand-gradient-soft, var(--app-surface-muted));
+  transition: border-color var(--motion-fast, 140ms) var(--ease-out, ease-out);
+}
+
+.photoEditorIsEmpty:hover,
+.photoEditorIsEmpty:focus-within {
+  border-color: var(--brand);
+}
+
+.photoEditorIsEmpty .itemMedia {
+  position: absolute;
+  inset: 0;
+  aspect-ratio: auto;
+  background: transparent;
+  pointer-events: none;
+}
+
+.photoEditorIsEmpty .itemMediaFallback {
+  display: none;
+}
+
+.photoEditorIsEmpty:has(.itemMedia) {
+  aspect-ratio: 4 / 3;
+}
+
+.photoEditorGlyph {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--app-surface);
+  color: var(--brand-text);
+  box-shadow: var(--shadow-card);
+}
+
+.photoEditorEmpty {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.photoEditorEmpty button {
+  min-height: 40px;
+  padding: 0 var(--space-4, 16px);
+  border: 1px solid var(--brand-line, var(--app-border));
+  border-radius: 999px;
+  background: var(--app-surface);
+  color: var(--brand-text);
+  font-size: 14px;
+  font-weight: 650;
+  box-shadow: var(--shadow-card);
+  transition: background-color var(--motion-fast, 140ms) var(--ease-out, ease-out), border-color var(--motion-fast, 140ms) var(--ease-out, ease-out), transform var(--motion-fast, 140ms) var(--ease-out, ease-out);
+}
+
+.photoEditorEmpty button:hover:not(:disabled) {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  transform: translateY(-1px);
+}
+
+/* ---- link details: the details ARE the editor (photo, title, source, memo, Collections; delete / save at the foot) ---- */
+.detailLayout {
+  display: grid;
+  grid-template-columns: minmax(200px, 290px) minmax(0, 1fr);
+  gap: var(--space-5, 24px);
+  align-items: start;
+  padding-top: var(--space-2, 8px);
+}
+
+.itemEdMedia {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  min-width: 0;
+}
+
+.itemEdMedia .photoEditor {
+  min-height: 0;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-xl, 20px);
+  box-shadow: var(--shadow-card);
+}
+
+.itemEdMedia .itemMedia {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: 0;
+}
+
+.detailMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+  min-width: 0;
+}
+
+.detailTitleInput {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md, 12px);
+  background: transparent;
+  color: var(--app-text);
+  font: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  transition: border-color var(--motion-fast, 140ms) var(--ease-out, ease-out), background-color var(--motion-fast, 140ms) var(--ease-out, ease-out);
+}
+
+.detailTitleInput::placeholder {
+  color: var(--app-text-tertiary, var(--app-text-secondary));
+  font-weight: 600;
+}
+
+.detailTitleInput:hover {
+  background: var(--app-surface-hover);
+}
+
+.detailTitleInput:focus {
+  outline: none;
+  border-color: var(--brand);
+  background: var(--app-surface);
+  box-shadow: 0 0 0 3px var(--brand-line, var(--brand));
+}
+
+.detailSource {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 12px);
+  min-width: 0;
+  padding: var(--space-2, 8px) var(--space-2, 8px) var(--space-2, 8px) var(--space-3, 12px);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-lg, 16px);
+  background: var(--app-surface-muted);
+}
+
+.itemEdSite {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  min-width: 0;
+  margin: 0;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.itemEdSite > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detailSourceActions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: var(--space-1, 4px);
+}
+
+.detailSourceActions .quickActionButton {
+  width: 40px;
+  height: 40px;
+  border-color: transparent;
+  border-radius: var(--radius-md, 12px);
+  background: var(--app-surface);
+  box-shadow: var(--shadow-card);
+  transition: transform var(--motion-fast, 140ms) var(--ease-out, ease-out), border-color var(--motion-fast, 140ms) var(--ease-out, ease-out), color var(--motion-fast, 140ms) var(--ease-out, ease-out);
+}
+
+.detailSourceActions .quickActionButton:hover {
+  transform: translateY(-1px);
+}
+
+.detailSourceActions .quickActionButton:focus-visible,
+.detailPencil:focus-visible,
+.cePhotoButton:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.detailField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  min-width: 0;
+}
+
+.detailLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.itemEdMemo {
+  width: 100%;
+  min-height: 88px;
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-lg, 16px);
+  background: var(--app-surface);
+  color: var(--app-text);
+  font: inherit;
+  line-height: 1.55;
+  resize: vertical;
+  transition: border-color var(--motion-fast, 140ms) var(--ease-out, ease-out), box-shadow var(--motion-fast, 140ms) var(--ease-out, ease-out);
+}
+
+.itemEdMemo:hover {
+  border-color: var(--brand-line, var(--app-border));
+}
+
+.itemEdMemo:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-line, var(--brand));
+}
+
+.detailCollections {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3, 12px);
+  padding: var(--space-2, 8px) var(--space-2, 8px) var(--space-2, 8px) var(--space-3, 12px);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-lg, 16px);
+  background: var(--app-surface);
+}
+
+.detailCollectionsList {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-height: 40px;
+  min-width: 0;
+}
+
+.detailPencil {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md, 12px);
+  background: var(--app-surface-muted);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--motion-fast, 140ms) var(--ease-out, ease-out), color var(--motion-fast, 140ms) var(--ease-out, ease-out), transform var(--motion-fast, 140ms) var(--ease-out, ease-out);
+}
+
+.detailPencil:hover:not(:disabled) {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  transform: translateY(-1px);
+}
+
+.detailPencil:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.detailSaved {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  color: var(--app-text-tertiary, var(--app-text-secondary));
+  font-size: 13px;
+}
+
+/* The foot: always visible while the details scroll under it. */
+.detailFooter {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 12px);
+  margin-inline: calc(var(--space-6, 32px) * -1);
+  padding: var(--space-3, 12px) var(--space-6, 32px) var(--space-4, 16px);
+  border-top: 1px solid var(--app-divider);
+  background: color-mix(in srgb, var(--app-surface) 94%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.quickScroll > .quickContent:has(.detailFooter) {
+  padding-bottom: 0;
+}
+
+.quickPageCard .detailFooter {
+  margin-inline: calc(var(--space-5, 24px) * -1);
+  padding-inline: var(--space-5, 24px);
+}
+
+.detailDelete,
+.detailSave {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2, 8px);
+  min-height: 46px;
+  padding: 0 var(--space-5, 24px);
+  border-radius: var(--radius-lg, 16px);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--motion-fast, 140ms) var(--ease-out, ease-out), background-color var(--motion-fast, 140ms) var(--ease-out, ease-out), box-shadow var(--motion-fast, 140ms) var(--ease-out, ease-out), border-color var(--motion-fast, 140ms) var(--ease-out, ease-out);
+}
+
+.detailDelete {
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--danger-text);
+}
+
+.detailDelete:hover:not(:disabled) {
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
+}
+
+.detailSave {
+  flex: 1 1 auto;
+  max-width: 320px;
+  margin-inline-start: auto;
+  border: 1px solid transparent;
+  background: var(--brand-cta, var(--brand));
+  color: var(--on-brand);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--brand) 28%, transparent);
+}
+
+.detailSave:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--brand) 36%, transparent);
+}
+
+.detailSave:disabled {
+  background: var(--app-surface-muted);
+  color: var(--app-text-tertiary, var(--app-text-secondary));
+  box-shadow: none;
+  cursor: default;
+}
+
+.detailDelete:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.detailDelete:focus-visible,
+.detailSave:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 3px;
+}
+
+.detailCollectionsDialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+  padding: var(--space-4, 16px) var(--space-5, 24px) var(--space-5, 24px);
+}
+
+.detailDialogFoot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 859px) {
+  .detailFooter {
+    margin-inline: calc(var(--space-5, 24px) * -1);
+    padding-inline: var(--space-5, 24px);
+  }
+}
+
+@media (max-width: 640px) {
+  .detailLayout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4, 16px);
+  }
+
+  .itemEdMedia .photoEditor {
+    aspect-ratio: 16 / 10;
+  }
+
+  .detailSave {
+    max-width: none;
+  }
+}
+
+/* ---- new Collection (dialog): the live preview, then the choices as cards ---- */
+.ceHero {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4, 16px);
+  margin-bottom: var(--space-2, 8px);
+  padding: var(--space-4, 16px);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-xl, 20px);
+  background: var(--app-surface-muted);
+}
+
+.cePreviewTile {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  overflow: hidden;
+  border-radius: 24px;
+  box-shadow: var(--shadow-floating);
+  transition: background-color var(--motion-base, 220ms) var(--ease-out, ease-out), color var(--motion-base, 220ms) var(--ease-out, ease-out);
+}
+
+.cePreviewTile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cePreviewSide {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  min-width: 0;
+}
+
+.cePreviewName,
+.cePreviewNameEmpty {
+  margin: 0;
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cePreviewNameEmpty {
+  color: var(--app-text-tertiary, var(--app-text-secondary));
+  font-weight: 600;
+}
+
+.cePhotoActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+}
+
+.cePhotoButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 var(--space-4, 16px);
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: border-color var(--motion-fast, 140ms) var(--ease-out, ease-out), background-color var(--motion-fast, 140ms) var(--ease-out, ease-out), color var(--motion-fast, 140ms) var(--ease-out, ease-out), transform var(--motion-fast, 140ms) var(--ease-out, ease-out);
+}
+
+.cePhotoButton:hover:not(:disabled) {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  transform: translateY(-1px);
+}
+
+.cePhotoButton:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* The choices (icon cards, colors) - used by the page form and the dialog alike. */
+.iconGrid {
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: var(--space-2, 8px);
+  padding: var(--space-2, 8px);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-lg, 16px);
+  background: var(--app-surface-muted);
+}
+
+.iconOption,
+.iconOptionSelected {
+  height: 52px;
+  border: 2px solid transparent;
+  border-radius: var(--radius-md, 12px);
+  background: var(--app-surface);
+  box-shadow: var(--shadow-card);
+  transition: transform var(--motion-fast, 140ms) var(--ease-out, ease-out), border-color var(--motion-fast, 140ms) var(--ease-out, ease-out), background-color var(--motion-fast, 140ms) var(--ease-out, ease-out), box-shadow var(--motion-fast, 140ms) var(--ease-out, ease-out);
+}
+
+.iconOption:hover {
+  border-color: var(--brand-line, var(--app-border));
+  color: var(--app-text);
+  transform: translateY(-1px);
+}
+
+.iconOptionSelected {
+  border-color: var(--brand);
+  transform: none;
+}
+
+.iconOption:focus-visible,
+.iconOptionSelected:focus-visible,
+.swatch:focus-visible,
+.swatchSelected:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.swatchRow {
+  gap: var(--space-3, 12px);
+}
+
+.swatch,
+.swatchSelected {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border: 2px solid var(--app-surface);
+  box-shadow: 0 0 0 1px var(--app-border);
+  transition: transform var(--motion-fast, 140ms) var(--ease-out, ease-out), box-shadow var(--motion-fast, 140ms) var(--ease-out, ease-out);
+}
+
+.swatch:hover {
+  transform: scale(1.1);
+}
+
+/* the ring takes the swatch's own color (its inline color), so the chosen color is unmistakable */
+.swatchSelected {
+  box-shadow: 0 0 0 2px var(--app-surface), 0 0 0 4px currentColor;
+}
+
+.editorSection .editorLegend {
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.editorDialogFields {
+  gap: var(--space-5, 24px);
+}
+
+.editorDialogFoot .formActions {
+  gap: var(--space-2, 8px);
+}
+
+@media (max-width: 480px) {
+  .ceHero {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .cePreviewTile {
+    align-self: center;
+  }
+
+  .cePhotoActions {
+    justify-content: center;
+  }
+}
+
+/* ---- reduced motion: colors still change, nothing moves ---- */
+@media (prefers-reduced-motion: reduce) {
+  .signInCard,
+  .signInButton,
+  .selectCheck,
+  .selectCheckMark,
+  .linkGrid > .linkCard,
+  .collectionCard,
+  .photoEditorOverlay,
+  .photoEditorOverlay button,
+  .photoEditorEmpty button,
+  .detailSourceActions .quickActionButton,
+  .detailPencil,
+  .detailDelete,
+  .detailSave,
+  .cePreviewTile,
+  .cePhotoButton,
+  .iconOption,
+  .iconOptionSelected,
+  .swatch,
+  .swatchSelected {
+    animation: none;
+    transition: none;
+  }
+
+  .signInButton:hover,
+  .photoEditorOverlay button:hover:not(:disabled),
+  .photoEditorEmpty button:hover:not(:disabled),
+  .detailSourceActions .quickActionButton:hover,
+  .detailPencil:hover:not(:disabled),
+  .detailSave:hover:not(:disabled),
+  .cePhotoButton:hover:not(:disabled),
+  .iconOption:hover,
+  .swatch:hover,
+  .selectCheck:hover .selectCheckMark {
+    transform: none;
+  }
 }

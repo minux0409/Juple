@@ -8,7 +8,7 @@ import { SiteIcon } from './SiteIcon';
 import styles from './app.module.css';
 
 /** The 대표 사진 of a link's page (own photo, else the automatic preview); without one, the site's badge (else the link glyph). */
-export function ItemPhoto({ photoUrl, url, dictionary }: { readonly photoUrl: string | null; readonly url: string; readonly dictionary: AppDictionary }) {
+export function ItemPhoto({ photoUrl, url, dictionary, cacheKey = null }: { readonly photoUrl: string | null; readonly url: string; readonly dictionary: AppDictionary; readonly cacheKey?: string | null }) {
   return (
     <div className={styles.itemMedia}>
       <LinkImage
@@ -18,6 +18,7 @@ export function ItemPhoto({ photoUrl, url, dictionary }: { readonly photoUrl: st
             <SiteIcon siteId={siteIdOf(url)} size={64} />
           </span>
         }
+        cacheKey={cacheKey}
         src={photoUrl}
       />
     </div>

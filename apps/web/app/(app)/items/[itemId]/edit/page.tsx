@@ -1,12 +1,20 @@
-import { parseLockedContext } from '../../../../../lib/itemOpenGrant';
-import { ItemEditView } from './ItemEditView';
+import { redirect } from 'next/navigation';
 
 type Search = { lockedBy?: string | string[]; collectionId?: string | string[] };
 
+/**
+ * The details edit themselves now (the title, memo, photo and Collections are changed right on the link's details), so there is no
+ * separate editor page any more. An old address of it (a bookmark, a reload) leads to the details with the same context.
+ */
 export default async function ItemEditPage({ params, searchParams }: { params: Promise<{ itemId: string }>; searchParams: Promise<Search> }) {
   const { itemId } = await params;
   const search = await searchParams;
-  const lockedBy = parseLockedContext(typeof search.lockedBy === 'string' ? search.lockedBy : null);
-  const fromCollectionId = lockedBy === null ? parseLockedContext(typeof search.collectionId === 'string' ? search.collectionId : null) : null;
-  return <ItemEditView fromCollectionId={fromCollectionId} itemIdParam={itemId} key={`${itemId}-${lockedBy ?? ''}-${fromCollectionId ?? ''}`} lockedBy={lockedBy} />;
+  const context = new URLSearchParams();
+  if (typeof search.lockedBy === 'string') {
+    context.set('lockedBy', search.lockedBy);
+  } else if (typeof search.collectionId === 'string') {
+    context.set('collectionId', search.collectionId);
+  }
+  const query = context.toString();
+  redirect(`/items/${encodeURIComponent(itemId)}${query ? `?${query}` : ''}`);
 }

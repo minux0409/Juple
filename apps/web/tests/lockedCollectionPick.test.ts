@@ -25,10 +25,9 @@ describe('choosing a locked Collection in the link form', () => {
   });
 
   it('both screens use the one picker inside the link form, so the one guard covers both', () => {
-    for (const screen of ['app/(app)/items/new/NewLinkReviewView.tsx', 'app/(app)/items/[itemId]/edit/ItemEditView.tsx']) {
-      const view = source(screen);
-      assert.match(view, /<ItemFormLayout onSubmit=\{\(\) => void save\(\)\}>[\s\S]*<ItemCollectionsSection[\s\S]*<\/ItemFormLayout>/, screen);
-    }
+    assert.match(source('app/(app)/items/new/NewLinkReviewView.tsx'), /<ItemFormLayout onSubmit=\{\(\) => void save\(\)\}>[\s\S]*<ItemCollectionsSection[\s\S]*<\/ItemFormLayout>/);
+    // The link's details open the very same picker in their Collection dialog.
+    assert.match(source('app/(app)/items/[itemId]/ItemDetailContent.tsx'), /<Modal[\s\S]*?open=\{editingCollections\}[\s\S]*<CollectionPicker[\s\S]*session=\{editor\.pickerSession\}/);
     assert.match(source('app/(app)/ItemForm.tsx'), /<form[\s\S]*onSubmit=[\s\S]*<CollectionPicker \{\.\.\.props\} \/>/);
     const picker = source('app/(app)/CollectionPicker.tsx');
     assert.match(picker, /<PasswordDialog cancelLabel=\{dictionary\.cancel\} onCancel=\{closePrompt\} open=\{pending !== null\}>\s*\{pending \? \(\s*<UnlockPanel/);
@@ -48,7 +47,7 @@ describe('choosing a locked Collection in the link form', () => {
     assert.doesNotMatch(panel.slice(panel.indexOf('caught => {')), /onUnlocked\(\)/);
     // The screens add the Collection with a functional update: the answer comes after the prompt, from an older render.
     assert.match(source('app/(app)/items/new/NewLinkReviewView.tsx'), /const toggle = \(collection: CollectionSummary\) => \{\s*setSelected\(previous => \{/);
-    assert.match(source('app/(app)/items/[itemId]/edit/ItemEditView.tsx'), /const toggleCollection = \(collection: CollectionSummary\) => \{\s*setStaged\(previous => \{/);
+    assert.match(source('app/(app)/items/[itemId]/useItemEditor.ts'), /const toggleCollection = \(collection: CollectionSummary\) => \{\s*setStaged\(previous => \{/);
   });
 
   it('the save sends the unlocked Collection with its grant (new link) and adds it with its grant (edit)', () => {
@@ -64,6 +63,6 @@ describe('choosing a locked Collection in the link form', () => {
     assert.deepEqual(diff.toAdd.map(entry => entry.id), [42]);
     assert.deepEqual(diff.toRemoveIds, []);
     assert.equal(session.tokenFor(42), 'grant-42');
-    assert.match(source('app/(app)/items/[itemId]/edit/ItemEditView.tsx'), /applyItemMembershipChanges\(api, itemId, toAdd, toRemoveIds, collectionId => pickerSession\.tokenFor\(collectionId\), dictionary\)/);
+    assert.match(source('app/(app)/items/[itemId]/useItemEditor.ts'), /applyItemMembershipChanges\(api, itemId, toAdd, toRemoveIds, collectionId => pickerSession\.tokenFor\(collectionId\), dictionary\)/);
   });
 });

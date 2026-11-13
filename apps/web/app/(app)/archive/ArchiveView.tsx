@@ -29,7 +29,7 @@ import { useStoredChoice } from '../useStoredChoice';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { PageHeader } from '../PageHeader';
 import { StickyControls } from '../StickyControls';
-import { PersonalLinkSelection, SelectModeButton } from '../LinkSelection';
+import { PersonalLinkSelection } from '../LinkSelection';
 import styles from '../app.module.css';
 
 /**
@@ -71,7 +71,6 @@ export function ArchiveView() {
         <div className={styles.archiveBar}>
           <SearchField onChange={setText} placeholder={dictionary.archiveSearchPlaceholder} value={text} />
           <div className={styles.archiveBarSwitches}>
-            <SelectModeButton label={dictionary.selectionSelectItems} />
             <ViewModeToggle
               groupLabel={dictionary.viewModeLabel}
               labels={{ list: dictionary.viewList, grid: dictionary.viewGrid, image: dictionary.viewImage }}

@@ -20,8 +20,6 @@ import { SelectionToolbar, type SelectionAction } from './SelectionToolbar';
 import { useSafety } from './SafetyProvider';
 import { useToast } from './Toaster';
 import { useItemsChanged } from './useItemsChanged';
-import { Glyph } from './Glyph';
-import styles from './app.module.css';
 
 /** What a saved-link list needs from a running selection (SavedLinkList reads it; without a provider a list is never selectable). */
 export interface LinkSelectionApi {
@@ -31,8 +29,6 @@ export interface LinkSelectionApi {
   readonly onCheck: (link: LinkView, order: readonly LinkView[], event: MouseEvent) => void;
   /** A click on the card itself: true when the selection took it (the caller then does not open the link). */
   readonly onCardClick: (link: LinkView, order: readonly LinkView[], event: MouseEvent) => boolean;
-  /** 항목 선택 from the page's toolbar: starts a selection with nothing chosen yet (touch screens have no hover to show the checks). */
-  readonly arm: () => void;
   /** 선택 종료: ends the selection and clears what was chosen (the same exit as Escape and the bar's close). */
   readonly exit: () => void;
 }
@@ -54,13 +50,11 @@ function dialogIsOpen(): boolean {
  */
 function useLinkSelectionState() {
   const [state, setState] = useState<MultiSelectState<number>>(emptySelection);
-  const [armed, setArmed] = useState(false);
   // The LinkView of every card that was chosen (its address for 링크 복사), kept with the selection - never re-read from the server.
   const [known, setKnown] = useState<ReadonlyMap<number, LinkView>>(new Map());
-  const active = armed || state.selected.size > 0;
+  const active = state.selected.size > 0;
 
   const exit = useCallback(() => {
-    setArmed(false);
     setState(emptySelection());
   }, []);
 
@@ -120,7 +114,6 @@ function useLinkSelectionState() {
         setState(current => (intent === 'range' ? selectRange(current, selectable, link.id) : toggleSelection(current, link.id)));
         return true;
       },
-      arm: () => setArmed(true),
       exit,
     }),
     [active, exit, state.selected],
@@ -265,51 +258,6 @@ export function PersonalLinkSelection({ children, selectAllIds }: { readonly chi
         />
       ) : null}
     </LinkSelectionContext.Provider>
-  );
-}
-
-/**
- * 항목 선택 / 선택 종료: the toolbar button of a selection. It stays in the SAME place for the whole selection - only its words, icon and
- * pressed state change: 항목 선택 starts one (with nothing chosen yet), 선택 종료 ends it and clears what was chosen. It stays while the
- * selection is active even with 0 chosen; the bottom bar (the count and the actions) comes on top of it, not instead of it.
- */
-export function SelectModeButton({ label }: { readonly label: string }) {
-  const selection = useLinkSelection();
-  const { dictionary } = useSignedInApp();
-  if (!selection) {
-    return null;
-  }
-  return <SelectModeToggle active={selection.active} exitLabel={dictionary.selectionExit} label={label} onArm={selection.arm} onExit={selection.exit} />;
-}
-
-/** The one button, shared by every list that has a selection (links here, Collections in CollectionsView). */
-export function SelectModeToggle({
-  active,
-  label,
-  exitLabel,
-  onArm,
-  onExit,
-}: {
-  readonly active: boolean;
-  readonly label: string;
-  readonly exitLabel: string;
-  readonly onArm: () => void;
-  readonly onExit: () => void;
-}) {
-  const text = active ? exitLabel : label;
-  return (
-    <button
-      aria-label={text}
-      aria-pressed={active}
-      className={active ? `${styles.selectModeButton} ${styles.selectModeButtonActive}` : styles.selectModeButton}
-      data-select-mode={active ? 'active' : 'idle'}
-      onClick={active ? onExit : onArm}
-      title={text}
-      type="button"
-    >
-      <Glyph name={active ? 'Close' : 'Check'} size={16} />
-      <span>{text}</span>
-    </button>
   );
 }
 

@@ -17,7 +17,7 @@ import {
   type IconImageChange,
 } from '../../../lib/collectionEditor';
 import { collectionTile } from '../../../lib/collectionsView';
-import { CollectionGlyph } from '../Glyph';
+import { CollectionGlyph, Glyph } from '../Glyph';
 import styles from '../app.module.css';
 
 /** The photo types the server accepts for a Collection icon (mobile: JPEG / PNG / WebP - checked again by the server). */
@@ -101,14 +101,47 @@ export function CollectionEditor({
         </label>
         {nameError ? <p className={styles.fieldError} role="alert">{nameError}</p> : null}
 
+        {layout === 'dialog' ? (
+          /* What the Collection will look like, live: the chosen icon (or photo) on the chosen color, with the name under it - and the photo
+             choice right beside it. Everything below only changes what this shows. */
+          <section aria-label={dictionary.collectionIconSection} className={styles.ceHero} data-collection-preview>
+            <div className={styles.cePreviewTile} style={{ background: tile.background, color: tile.icon }}>
+              {previewImage ? (
+                // eslint-disable-next-line @next/next/no-img-element -- a local preview or the Collection's own photo
+                <img alt="" src={previewImage} />
+              ) : (
+                <CollectionGlyph icon={icon} size={40} />
+              )}
+            </div>
+            <div className={styles.cePreviewSide}>
+              <p className={name.trim() ? styles.cePreviewName : styles.cePreviewNameEmpty} dir="auto">
+                {name.trim() || dictionary.collectionNamePlaceholder}
+              </p>
+              <div className={styles.cePhotoActions}>
+                <button className={styles.cePhotoButton} disabled={isSubmitting} onClick={() => photoInput.current?.click()} type="button">
+                  <Glyph name="Image" size={16} />
+                  {previewImage ? dictionary.iconPhotoChange : dictionary.iconPhotoChoose}
+                </button>
+                {previewImage ? (
+                  <button className={styles.cePhotoButton} disabled={isSubmitting} onClick={() => setImage({ kind: 'remove' })} type="button">
+                    <Glyph name="Trash" size={16} />
+                    {dictionary.iconPhotoRemove}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
         <fieldset className={styles.editorSection}>
           <legend className={styles.editorLegend}>{dictionary.collectionIconSection}</legend>
-          <PhotoEditor hasPhoto={!!previewImage} busy={isSubmitting}
-            changeLabel={previewImage ? dictionary.iconPhotoChange : dictionary.iconPhotoChoose}
-            removeLabel={dictionary.iconPhotoRemove} onChange={() => photoInput.current?.click()}
-            onRemove={() => setImage({ kind: 'remove' })}>
-            {previewImage ? <LinkImage eager fallback={null} src={previewImage} className={styles.photoEditorImage} /> : <CollectionGlyph icon={icon} size={56} />}
-          </PhotoEditor>
+          {layout === 'dialog' ? null : (
+            <PhotoEditor hasPhoto={!!previewImage} busy={isSubmitting}
+              changeLabel={previewImage ? dictionary.iconPhotoChange : dictionary.iconPhotoChoose}
+              removeLabel={dictionary.iconPhotoRemove} onChange={() => photoInput.current?.click()}
+              onRemove={() => setImage({ kind: 'remove' })}>
+              {previewImage ? <LinkImage eager fallback={null} src={previewImage} className={styles.photoEditorImage} /> : <CollectionGlyph icon={icon} size={56} />}
+            </PhotoEditor>
+          )}
           <input accept={PHOTO_TYPES} aria-label={dictionary.iconPhotoChoose} hidden ref={photoInput} disabled={isSubmitting}
             onChange={event => { const file = event.target.files?.[0]; if (file) setImage({ kind: 'set', file }); event.target.value = ''; }} type="file" />
           <div className={styles.iconGrid} role="radiogroup">
@@ -120,7 +153,7 @@ export function CollectionEditor({
                 key={key}
                 onClick={() => setIcon(key)}
                 role="radio"
-                style={icon === key ? { background: tile.background, color: tile.icon } : undefined}
+                style={icon === key ? { background: tile.background, color: tile.icon, borderColor: tile.icon, boxShadow: `0 0 0 3px ${tile.background}` } : undefined}
                 type="button"
               >
                 <CollectionGlyph icon={key} size={22} />
@@ -142,7 +175,7 @@ export function CollectionEditor({
                   key={key}
                   onClick={() => setColor(key)}
                   role="radio"
-                  style={{ background: swatch.icon }}
+                  style={{ background: swatch.icon, color: swatch.icon }}
                   title={key}
                   type="button"
                 />

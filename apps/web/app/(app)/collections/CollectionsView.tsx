@@ -6,7 +6,6 @@ import { shareEntryTileKey } from '../../../lib/sharedCollectionEntry';
 import { PendingJoinDialog } from './PendingJoinDialog';
 import { FavoriteStar, useStarTap } from '../FavoriteStar';
 import { useCollectionSelection } from './useCollectionSelection';
-import { SelectModeToggle } from '../LinkSelection';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { formatMessage, type AppDictionary } from '../../../lib/appI18n';
@@ -308,9 +307,6 @@ export function CollectionsView() {
           ))}
         </div>
         <div className={styles.headerActions}>
-          {selection.active || (state.kind === 'loaded' && state.items.length > 0) ? (
-            <SelectModeToggle active={selection.active} exitLabel={dictionary.selectionExit} label={dictionary.selectionSelectItems} onArm={selection.arm} onExit={selection.exit} />
-          ) : null}
           <ViewModeToggle
             groupLabel={dictionary.viewModeLabel}
             labels={{ list: dictionary.viewList, grid: dictionary.viewGrid, image: dictionary.viewImage }}

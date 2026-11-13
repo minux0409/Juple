@@ -55,7 +55,7 @@ import { REQUESTS_PARAM } from '../../../../lib/collectionApprovals';
 import { ReceivedRequestsDialog } from '../ReceivedRequestsDialog';
 import { RequestActionButton } from '../RequestActionButton';
 import { FavoriteStar, useStarTap } from '../../FavoriteStar';
-import { CollectionLinkSelection, SelectModeButton } from '../../LinkSelection';
+import { CollectionLinkSelection } from '../../LinkSelection';
 import { StickyControls } from '../../StickyControls';
 import styles from '../../app.module.css';
 
@@ -525,7 +525,6 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
         <CollectionLinkSelection collectionId={collection.id} role={collection.accessRole ?? 'owner'} source={collection}>
           <StickyControls>
           <div className={styles.toolbar}>
-            <SelectModeButton label={dictionary.selectionSelectItems} />
             <ViewModeToggle
               groupLabel={dictionary.viewModeLabel}
               labels={{ list: dictionary.viewList, grid: dictionary.viewGrid, image: dictionary.viewImage }}

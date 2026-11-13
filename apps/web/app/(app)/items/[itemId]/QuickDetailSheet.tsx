@@ -1,12 +1,14 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { setItemOverlayOpen } from '../../../../lib/itemOverlay';
 import { useSignedInApp } from '../../AppRoot';
 import { Glyph } from '../../Glyph';
 import { ModalCloseButton } from '../../ModalCloseButton';
+import { ConfirmDialog } from '../../ConfirmDialog';
 import { ItemDetailContent } from './ItemDetailContent';
+import { LeaveGuardContext } from './LeaveGuard';
 import styles from '../../app.module.css';
 
 /**
@@ -43,6 +45,12 @@ export function QuickSheetFrame({ children }: { readonly children: React.ReactNo
   const { dictionary } = useSignedInApp();
   const router = useRouter();
   const ref = useRef<HTMLDialogElement>(null);
+  // A view inside may hold unsaved edits (the details): leaving then asks first. Back / forward in the browser are the browser's own.
+  const dirty = useRef(false);
+  const [confirmingLeave, setConfirmingLeave] = useState(false);
+  const setDirty = useCallback((value: boolean) => {
+    dirty.current = value;
+  }, []);
 
   useEffect(() => {
     const dialog = ref.current;
@@ -55,7 +63,13 @@ export function QuickSheetFrame({ children }: { readonly children: React.ReactNo
     return () => setItemOverlayOpen(false);
   }, []);
 
-  const close = () => router.back();
+  const close = () => {
+    if (dirty.current) {
+      setConfirmingLeave(true);
+      return;
+    }
+    router.back();
+  };
 
   return (
     <dialog
@@ -81,8 +95,24 @@ export function QuickSheetFrame({ children }: { readonly children: React.ReactNo
           <h1 className={styles.quickBarTitle}>{dictionary.itemDetailsTitle}</h1>
           <ModalCloseButton label={dictionary.close} onClick={close} />
         </header>
-        <div className={styles.quickScroll}>{children}</div>
+        <div className={styles.quickScroll}>
+          <LeaveGuardContext.Provider value={setDirty}>{children}</LeaveGuardContext.Provider>
+        </div>
       </div>
+      <ConfirmDialog
+        cancelLabel={dictionary.continueEditing}
+        confirmLabel={dictionary.leave}
+        destructive
+        message={dictionary.unsavedChangesMessage}
+        onCancel={() => setConfirmingLeave(false)}
+        onConfirm={() => {
+          setConfirmingLeave(false);
+          dirty.current = false;
+          router.back();
+        }}
+        open={confirmingLeave}
+        title={dictionary.unsavedChangesTitle}
+      />
     </dialog>
   );
 }

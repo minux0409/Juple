@@ -222,7 +222,7 @@ export function NewLinkReviewView({ url, title: initialTitle = '', image: initia
       <PageHeader bell={false} title={dictionary.reviewTitle} />
       <ItemFormLayout onSubmit={() => void save()}>
         <ItemFormTop media={<>
-          <PhotoEditor hasPhoto={!!(pickedUrl || previewImageUrl)} busy={isSaving} changeLabel={pickedUrl || previewImageUrl ? dictionary.changePhoto : dictionary.addPhoto} removeLabel={dictionary.removePhoto}
+          <PhotoEditor placeholderGlyph hasPhoto={!!(pickedUrl || previewImageUrl)} busy={isSaving} changeLabel={pickedUrl || previewImageUrl ? dictionary.changePhoto : dictionary.addPhoto} removeLabel={dictionary.removePhoto}
             onChange={() => photoInput.current?.click()} onRemove={() => { photoTouched.current = true; setPickedPhoto(null); setPreviewImageUrl(null); }}>
             <ItemPhoto dictionary={dictionary} photoUrl={pickedUrl || previewImageUrl} url={url} />
           </PhotoEditor>

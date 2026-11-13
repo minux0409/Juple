@@ -1,17 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { AppDictionary } from '../../../../lib/appI18n';
 import { isSessionLost } from '../../../../lib/authSession';
 import { collectionTile, type CollectionSummary } from '../../../../lib/collectionsView';
 import { unlockHeaders, unlockTokenFor } from '../../../../lib/collectionUnlock';
 import { grantHeaders, isCollaborationActive, itemRestorePath, membershipPath, moveStrategy, moveUndoPath, replicatePath, replicateResultMessage, transferPath, type ReplicateResult } from '../../../../lib/collectionOperations';
 import { recordLinkOpened } from '../../../../lib/recentLinks';
-import { representativePhotoKey, representativePhotoUrl, type ItemImage } from '../../../../lib/itemDetails';
-import { itemContextSearch, itemDeleteErrorMessage, itemEditHref, membershipErrorMessage } from '../../../../lib/itemEdit';
+import { isRemovalOwnerOnly, ITEM_IMAGE_ACCEPT, itemDeleteErrorMessage, membershipErrorMessage } from '../../../../lib/itemEdit';
 import { notifyItemsChanged } from '../../../../lib/itemChanges';
-import { markEditOpenedFromDetails } from '../../../../lib/itemOverlay';
 import { collectionHref, displayTitleOf, isSafeHttpUrl, parseRouteId, siteIdOf, siteOf } from '../../../../lib/savedLinks';
 import { SavedAtValue } from '../../SavedAtValue';
 import { useSignedInApp } from '../../AppRoot';
@@ -22,11 +20,18 @@ import { DestinationDialog, type PickedDestination } from '../../DestinationDial
 import { ActionMenu } from '../../Popover';
 import { CollectionGlyph, Glyph } from '../../Glyph';
 import { CopyLinkButton } from '../../CopyLinkButton';
-import { LinkImage } from '../../LinkImage';
 import { LoadFailed, Notice } from '../../PageStates';
+import { LinkImage } from '../../LinkImage';
 import { SiteIcon } from '../../SiteIcon';
+import { CollectionPicker } from '../../CollectionPicker';
+import { ItemPhoto } from '../../ItemParts';
+import { Modal } from '../../Modal';
+import { PhotoEditor } from '../../PhotoEditor';
+import { SaveOutcomeDialog } from '../../SaveOutcomeDialog';
 import { linkTitleText } from '../../SavedLinkList';
 import { GatedLink } from './GatedLink';
+import { useLeaveGuard } from './LeaveGuard';
+import { useItemEditor } from './useItemEditor';
 import { useItemRecord, type ListState } from './useItemRecord';
 import styles from '../../app.module.css';
 
@@ -60,7 +65,23 @@ export function ItemDetailContent({
   const { api, dictionary, locale, onSessionLost } = useSignedInApp();
   const toast = useToast();
   const itemId = parseRouteId(itemIdParam);
-  const { state, images, collections, reload, reloadCollections, unlock } = useItemRecord(itemId, lockedBy);
+  const record = useItemRecord(itemId, lockedBy);
+  const { state, collections, reload, reloadCollections, unlock } = record;
+  // Saving ends the visit like deleting does: the lists under the sheet read the link again, then the sheet closes.
+  const editor = useItemEditor({
+    itemId,
+    record,
+    onSaved: () => {
+      if (itemId !== null) {
+        notifyItemsChanged({ kind: 'updated', itemId });
+      }
+      toast.showNotice(dictionary.itemSaved);
+      onLeave();
+    },
+  });
+  useLeaveGuard(editor.isDirty);
+  const [editingCollections, setEditingCollections] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -104,17 +125,10 @@ export function ItemDetailContent({
   }
 
   const { item } = state;
-  // Until (or without) the photo list, the chosen cover stands in for the own photo.
-  const coverAsImage: readonly ItemImage[] = item.coverImage?.readUrl ? [{ id: item.coverImage.id ?? 0, readUrl: item.coverImage.readUrl }] : [];
-  const photoUrl = representativePhotoUrl(item.previewImageUrl, images.kind === 'loaded' ? images.items : coverAsImage, item.coverImage?.id);
-  const photoKey = representativePhotoKey(images.kind === 'loaded' ? images.items : coverAsImage, item.coverImage?.id);
   const title = displayTitleOf(item.title, item.url);
   const technical = title.kind === 'text' && title.technical;
   const siteId = siteIdOf(item.url);
   const site = siteOf(item.url) ?? item.url;
-  // No picture: no empty media frame - a compact badge of the site heads the details instead.
-  const hasImage = photoUrl !== null;
-  const search = itemContextSearch({ lockedBy, fromCollectionId });
   const removeFromCollection = fromCollectionId !== null;
 
   /** 다른 컬렉션에 복제: more memberships of this one Item in one request (never a copy of it); what was already there is skipped. */
@@ -227,100 +241,127 @@ export function ItemDetailContent({
 
   return (
     <article className={styles.quickContent} data-item-detail>
-      <div className={styles.quickTop}>
-        <QuickThumb dictionary={dictionary} photoKey={photoKey} photoUrl={hasImage ? photoUrl : null} siteId={siteId} />
-        <div className={styles.quickHead}>
-          <h2 className={styles.quickTitle} dir={technical ? 'ltr' : 'auto'}>
-            {linkTitleText(title, dictionary)}
-          </h2>
-          <p className={styles.quickSite} dir="ltr">
-            {siteId ? <SiteIcon siteId={siteId} size={16} /> : null}
-            <span>{site}</span>
-          </p>
-        </div>
-        {/* The link's actions, one icon-only column beside its name: 링크 열기, 수정, then 삭제 - or, opened from a Collection,
-            컬렉션에서 제거 (only that membership; the link itself stays). The sheet's own 닫기 is in its bar, apart from these. */}
-        <div className={styles.quickActions}>
-          {isSafeHttpUrl(item.url) ? (
-            <a aria-label={dictionary.openLink} className={styles.quickActionButton} href={item.url} onAuxClick={noteOpened} onClick={noteOpened} rel="noopener noreferrer" target="_blank" title={dictionary.openLink}>
-              <Glyph name="ExternalLink" size={20} />
-            </a>
-          ) : null}
-          {isSafeHttpUrl(item.url) ? <CopyLinkButton url={item.url} /> : null}
-          <Link
-            aria-label={dictionary.edit}
-            className={styles.quickActionButton}
-            href={itemEditHref(itemId, search)}
-            onClick={() => {
-              // The editor comes back by going back to these details (their data is read again there).
-              markEditOpenedFromDetails();
-            }}
-            title={dictionary.edit}
+      <div className={styles.detailLayout}>
+        {/* The picture: hover (or focus, or touch) shows 사진 변경 over it - the link's photo is changed right here, never on another screen. */}
+        <div className={styles.itemEdMedia}>
+          <PhotoEditor
+            placeholderGlyph
+            busy={editor.photoBusy}
+            changeLabel={editor.photoBusy ? dictionary.uploading : editor.photoUrl ? dictionary.changePhoto : dictionary.addPhoto}
+            hasPhoto={editor.photoUrl !== null}
+            onChange={() => fileInput.current?.click()}
+            onRemove={editor.ownPhoto ? () => editor.setConfirmingPhotoDelete(true) : undefined}
+            removeLabel={dictionary.removePhoto}
           >
-            <Glyph name="Edit" size={20} />
-          </Link>
-          {/* Opened IN a Collection: 다른 컬렉션에 복제 / 이동 behind one ⋯ (the column never grows a row per action). */}
-          {removeFromCollection ? (
-            <ActionMenu
-              actions={[
-                { key: 'replicate', label: dictionary.addToOther, icon: 'Copy', onSelect: () => setDestination('replicate') },
-                { key: 'move', label: dictionary.moveToOther, icon: 'Move', onSelect: () => setDestination('move') },
-              ]}
-              className={styles.quickActionButton}
-              label={dictionary.linkActionsLabel}
-            />
+            <ItemPhoto cacheKey={editor.photoKey} dictionary={dictionary} photoUrl={editor.photoUrl} url={item.url} />
+          </PhotoEditor>
+          <input accept={ITEM_IMAGE_ACCEPT} aria-label={dictionary.addPhoto} hidden onChange={event => {
+              const file = event.target.files?.[0];
+              event.target.value = '';
+              editor.pickPhoto(file);
+            }} ref={fileInput} type="file" />
+          {editor.photoError ? (
+            <p className={styles.fieldError} role="alert">
+              {editor.photoError}
+            </p>
           ) : null}
-          <button
-            aria-label={removeFromCollection ? dictionary.removeFromCollectionAction : dictionary.delete}
-            className={styles.quickActionDanger}
-            disabled={busy}
-            onClick={() => setConfirming(true)}
-            title={removeFromCollection ? dictionary.removeFromCollectionAction : dictionary.delete}
-            type="button"
-          >
-            <Glyph name="Trash" size={20} />
-          </button>
         </div>
-      </div>
 
-      <dl className={styles.quickGroups}>
-        {item.memo?.trim() ? (
-          <div className={styles.quickGroup}>
-            <dt className={styles.quickLabel}>
+        <div className={styles.detailMain}>
+          <input
+            aria-label={dictionary.titleLabel}
+            className={styles.detailTitleInput}
+            dir={technical ? 'ltr' : 'auto'}
+            onChange={event => editor.setTitle(event.target.value)}
+            onKeyDown={event => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                void editor.save();
+              }
+            }}
+            placeholder={linkTitleText(title, dictionary)}
+            value={editor.title}
+          />
+          {/* Where it is from, with 바로가기 and 복사 right beside it (no separate action row). */}
+          <div className={styles.detailSource}>
+            <p className={styles.itemEdSite} dir="ltr">
+              {siteId ? <SiteIcon siteId={siteId} size={18} /> : null}
+              <span>{site}</span>
+            </p>
+            <div className={styles.detailSourceActions}>
+              {isSafeHttpUrl(item.url) ? (
+                <a aria-label={dictionary.openLink} className={styles.quickActionButton} href={item.url} onAuxClick={noteOpened} onClick={noteOpened} rel="noopener noreferrer" target="_blank" title={dictionary.openLink}>
+                  <Glyph name="ExternalLink" size={18} />
+                </a>
+              ) : null}
+              {isSafeHttpUrl(item.url) ? <CopyLinkButton url={item.url} /> : null}
+              {/* Opened IN a Collection: 다른 컬렉션에 복제 / 이동 behind one ⋯ (the row never grows a button per action). */}
+              {removeFromCollection ? (
+                <ActionMenu
+                  actions={[
+                    { key: 'replicate', label: dictionary.addToOther, icon: 'Copy', onSelect: () => setDestination('replicate') },
+                    { key: 'move', label: dictionary.moveToOther, icon: 'Move', onSelect: () => setDestination('move') },
+                  ]}
+                  className={styles.quickActionButton}
+                  label={dictionary.linkActionsLabel}
+                />
+              ) : null}
+            </div>
+          </div>
+
+          <label className={styles.detailField}>
+            <span className={styles.detailLabel}>
               <Glyph name="Edit" size={16} />
               {dictionary.memo}
-            </dt>
-            <dd className={styles.quickValue}>
-              <p className={styles.quickMemo} dir="auto">
-                {item.memo}
-              </p>
-            </dd>
+            </span>
+            <textarea className={styles.itemEdMemo} dir="auto" onChange={event => editor.setMemo(event.target.value)} placeholder={dictionary.memoPlaceholder} rows={3} value={editor.memo} />
+          </label>
+
+          <div className={styles.detailField}>
+            <span className={styles.detailLabel}>
+              <Glyph name="Folder" size={16} />
+              {dictionary.collectionsLabel}
+            </span>
+            <div className={styles.detailCollections}>
+              <div className={styles.detailCollectionsList}>
+                <ItemCollections dictionary={dictionary} onRetry={reloadCollections} selected={editor.selected} state={collections} />
+              </div>
+              <button
+                aria-label={dictionary.edit}
+                className={styles.detailPencil}
+                data-edit-collections
+                disabled={collections.kind !== 'loaded'}
+                onClick={() => {
+                  editor.loadDestinationsNow();
+                  setEditingCollections(true);
+                }}
+                title={dictionary.edit}
+                type="button"
+              >
+                <Glyph name="Edit" size={18} />
+              </button>
+            </div>
           </div>
-        ) : null}
-        <div className={`${styles.quickGroup} ${styles.collectionsGroup}`}>
-          <dt className={styles.quickLabel}>
-            <Glyph name="Folder" size={16} />
-            {dictionary.collectionsLabel}
-          </dt>
-          <dd className={styles.quickValue}>
-            <ItemCollections dictionary={dictionary} onRetry={reloadCollections} state={collections} />
-          </dd>
-        </div>
-        <div className={`${styles.quickGroup} ${styles.savedGroup}`}>
-          <dt className={styles.quickLabel}>
-            <Glyph name="Clock" size={16} />
-            {dictionary.savedAt}
-          </dt>
-          <dd className={styles.quickValue}>
+
+          <p className={styles.detailSaved}>
+            <Glyph name="Clock" size={14} />
+            <span>{dictionary.savedAt}</span>
             <SavedAtValue locale={locale} utc={item.savedAtUtc} />
-          </dd>
+          </p>
         </div>
-      </dl>
+      </div>
 
       {actionError ? (
         <p className={styles.fieldError} role="alert">
           {actionError}
         </p>
+      ) : null}
+      {editor.saveError ? (
+        <div className={styles.fieldError} role="alert">
+          {editor.saveError.split('\n').map(line => (
+            <p key={line}>{line}</p>
+          ))}
+        </div>
       ) : null}
       {linkNotice ? (
         <p className={styles.formNotice} role="status">
@@ -342,6 +383,58 @@ export function ItemDetailContent({
       {/* Opened from a Collection that has other people in it: that Collection's reactions and comments on this link (mobile
           ItemDetails' collaboration hand-off). Never for a link opened from Home / 보관함 - it is not IN a Collection there. */}
       {fromCollectionId !== null ? <ItemCollaboration collectionId={fromCollectionId} itemId={itemId} /> : null}
+
+      {/* The two main actions, always in reach at the foot of the sheet (mobile): 삭제 (or 컬렉션에서 제거) and 저장 - which only wakes up
+          once something changed. */}
+      <footer className={styles.detailFooter}>
+        <button
+          className={styles.detailDelete}
+          disabled={busy || editor.saving}
+          onClick={() => setConfirming(true)}
+          type="button"
+        >
+          <Glyph name="Trash" size={18} />
+          {removeFromCollection ? dictionary.removeFromCollectionAction : dictionary.delete}
+        </button>
+        <button className={styles.detailSave} data-detail-save disabled={editor.saving || !editor.isDirty} onClick={() => void editor.save()} type="button">
+          {editor.saving ? dictionary.saving : dictionary.save}
+        </button>
+      </footer>
+
+      <Modal closeLabel={dictionary.close} onClose={() => setEditingCollections(false)} open={editingCollections} title={dictionary.collectionsLabel}>
+        <div className={styles.detailCollectionsDialog}>
+          <CollectionPicker
+            clearable
+            destinations={editor.membershipsReady ? editor.options : null}
+            failed={editor.destinationsFailed || collections.kind === 'failed'}
+            isDeselectBlocked={collection => editor.original.has(collection.id) && isRemovalOwnerOnly(collection)}
+            noneSelected={editor.selected.length === 0}
+            onCreated={editor.onCreated}
+            onRefreshed={editor.onRefreshed}
+            onToggle={editor.toggleCollection}
+            onUnavailable={editor.onUnavailable}
+            selectedIds={editor.selectedIds}
+            session={editor.pickerSession}
+          />
+          <div className={styles.detailDialogFoot}>
+            <button className={styles.primaryAction} onClick={() => setEditingCollections(false)} type="button">
+              {dictionary.confirm}
+            </button>
+          </div>
+        </div>
+      </Modal>
+      <SaveOutcomeDialog confirmLabel={dictionary.confirm} message={editor.outcome} onConfirm={onLeave} />
+      <ConfirmDialog
+        busy={editor.photoBusy}
+        cancelLabel={dictionary.cancel}
+        confirmLabel={editor.photoBusy ? dictionary.deleting : dictionary.delete}
+        destructive
+        message={dictionary.deletePhotoConfirmMessage}
+        onCancel={() => editor.setConfirmingPhotoDelete(false)}
+        onConfirm={editor.removePhoto}
+        open={editor.confirmingPhotoDelete}
+        title={dictionary.deletePhotoConfirmTitle}
+      />
       <ConfirmDialog
         busy={busy}
         cancelLabel={dictionary.cancel}
@@ -379,7 +472,8 @@ export function QuickThumb({ photoUrl, photoKey = null, siteId, dictionary }: { 
   );
 }
 
-function ItemCollections({ state, dictionary, onRetry }: { readonly state: ListState<CollectionSummary>; readonly dictionary: AppDictionary; readonly onRetry: () => void }) {
+/** The Collections the link is in - as staged (a change made in the dialog shows at once; it is saved with 저장). */
+function ItemCollections({ state, selected, dictionary, onRetry }: { readonly state: ListState<CollectionSummary>; readonly selected: readonly CollectionSummary[]; readonly dictionary: AppDictionary; readonly onRetry: () => void }) {
   if (state.kind === 'loading') {
     return <span className={styles.stateMessage}>…</span>;
   }
@@ -393,12 +487,12 @@ function ItemCollections({ state, dictionary, onRetry }: { readonly state: ListS
       </span>
     );
   }
-  if (state.items.length === 0) {
+  if (selected.length === 0) {
     return <span className={styles.stateMessage}>{dictionary.noCollection}</span>;
   }
   return (
     <ul className={styles.collectionChips}>
-      {state.items.map(collection => {
+      {selected.map(collection => {
         const tile = collectionTile(collection.color, collection.id);
         return (
           <li key={collection.id}>

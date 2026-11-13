@@ -359,7 +359,7 @@ describe('collaboration: words and layout', () => {
 
   it('the composer stays in reach at the bottom of the scrolling body; the sheet bar and action column are untouched', () => {
     assert.match(css, /\.commentComposer \{\s*position: sticky;\s*bottom: 0;/);
-    assert.match(source('app/(app)/items/[itemId]/QuickDetailSheet.tsx'), /<div className=\{styles\.quickScroll\}>\{children\}<\/div>/);
+    assert.match(source('app/(app)/items/[itemId]/QuickDetailSheet.tsx'), /<div className=\{styles\.quickScroll\}>\s*<LeaveGuardContext\.Provider value=\{setDirty\}>\{children\}<\/LeaveGuardContext\.Provider>\s*<\/div>/);
   });
 
   it('narrow screens: the picker grid is six per row and the text wraps instead of overflowing', () => {

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { SignedInAppContext } from '../(app)/AppRoot';
 import { ToastProvider } from '../(app)/Toaster';
-import { PersonalLinkSelection, SelectModeButton } from '../(app)/LinkSelection';
+import { PersonalLinkSelection } from '../(app)/LinkSelection';
 import { SavedLinkList } from '../(app)/SavedLinkList';
 import { RequestActionButton } from '../(app)/collections/RequestActionButton';
 import { SubscriptionSection } from '../(app)/me/MyPageSections';
@@ -91,7 +91,6 @@ export default function Page() {
                 <StickyControls>
                 <div className={styles.sectionBar}>
                   <h2 className={styles.sectionTitle}>{formatMessage(dictionary.selectionSelectedCount, { count: 0 })}</h2>
-                  <SelectModeButton label={dictionary.selectionSelectItems} />
                   <ViewModeToggle groupLabel={dictionary.viewModeLabel} labels={{ list: dictionary.viewList, grid: dictionary.viewGrid, image: dictionary.viewImage }} onChange={setMode} value={mode} />
                 </div>
                 </StickyControls>

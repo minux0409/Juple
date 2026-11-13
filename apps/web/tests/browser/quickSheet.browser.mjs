@@ -69,7 +69,7 @@ async function measure(kind, { delay = 150, failure = false, width = 1280, heigh
     }
     if (!failure) {
       // The sheet's 닫기 (X, fixed bar) never touches the link's actions (their own row): no rectangle of one intersects the other.
-      const overlap = await tab.evaluate(`(() => { const x = document.querySelector('dialog[open] header button').getBoundingClientRect(); return [...document.querySelectorAll('dialog[open] [data-item-detail] [class*="quickActions"] > *')].filter(el => { const r = el.getBoundingClientRect(); return r.left < x.right && x.left < r.right && r.top < x.bottom && x.top < r.bottom; }).length; })()`);
+      const overlap = await tab.evaluate(`(() => { const x = document.querySelector('dialog[open] header button').getBoundingClientRect(); return [...document.querySelectorAll('dialog[open] [data-item-detail] [class*="detailSourceActions"] > *')].filter(el => { const r = el.getBoundingClientRect(); return r.left < x.right && x.left < r.right && r.top < x.bottom && x.top < r.bottom; }).length; })()`);
       assert.equal(overlap, 0, '닫기 and the link actions do not overlap');
     }
     const samples = await tab.evaluate(`window.__samples ?? []`);
@@ -167,5 +167,96 @@ it('다른 사람의 링크 (Web): when the server refuses the removal nothing d
     await tab.wait(800);
     assert.deepEqual(JSON.parse(await tab.evaluate(`sessionStorage.getItem('quickChanges') ?? '[]'`)), [], 'no "removed" signal after a refusal');
     assert.equal(await tab.evaluate(`!!document.querySelector('[data-item-detail]')`), true, 'the link is still shown');
+  } finally { await tab.close(); }
+});
+
+/** Opens my own link's details (the sheet) and waits until the editable details are drawn. */
+async function openOwnLink(width = 1280, height = 900) {
+  const tab = await openFixture(`${origin}/quick-sheet-test-harness?kind=item&delay=100`);
+  await tab.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 600 });
+  await tab.until(`!!document.querySelector('[data-open-sheet]') && Object.keys(document.querySelector('[data-open-sheet]')).some(key => key.startsWith('__reactProps'))`);
+  await tab.evaluate(`document.querySelector('[data-open-sheet]').click()`);
+  await tab.until(`!!document.querySelector('[data-item-detail] [data-detail-save]')`);
+  await tab.wait(600);
+  return tab;
+}
+const typeInto = (selector, text) =>
+  `(() => { const field = document.querySelector('${selector}'); const proto = field instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(field, ${JSON.stringify(text)}); field.dispatchEvent(new Event('input', { bubbles: true })); })()`;
+
+for (const width of [1280, 768, 393]) {
+  it(`링크 상세 (${width}px): the details ARE the editor - title, source with 바로가기 + 복사, memo, Collections with a pencil; 삭제 / 저장 at the foot`, async () => {
+    const tab = await openOwnLink(width, width < 600 ? 800 : 900);
+    try {
+      const facts = await tab.evaluate(`(() => {
+        const root = document.querySelector('[data-item-detail]');
+        const box = element => element.getBoundingClientRect();
+        const save = root.querySelector('[data-detail-save]');
+        const source = root.querySelector('[class*="detailSource"]');
+        const actions = [...source.querySelectorAll('a, button')].map(el => el.getAttribute('aria-label'));
+        return {
+          title: root.querySelector('input[class*="detailTitleInput"]').value,
+          memo: root.querySelector('textarea').value,
+          oldActionColumn: !!root.querySelector('[class*="quickActions"]'),
+          editLink: !!root.querySelector('a[href*="/edit"]'),
+          sourceActions: actions,
+          saveDisabled: save.disabled,
+          saveBox: box(save).bottom <= innerHeight + 1,
+          footerButtons: [...root.querySelectorAll('footer button')].map(el => el.textContent.trim()),
+          pencil: !!root.querySelector('[data-edit-collections]'),
+          noOverflow: document.documentElement.scrollWidth <= innerWidth,
+        };
+      })()`);
+      assert.equal(facts.title, '내 링크 - 보관함에서 열기');
+      assert.equal(facts.memo, '메모', 'the memo is typed right on the details');
+      assert.equal(facts.oldActionColumn, false, 'no action row under the photo any more');
+      assert.equal(facts.editLink, false, 'no 수정 link to another screen');
+      assert.deepEqual(facts.sourceActions.slice(0, 2), ['링크 열기', '링크 복사'], '바로가기 + 복사 sit right beside the site');
+      assert.equal(facts.saveDisabled, true, 'nothing changed: 저장 is asleep');
+      assert.equal(facts.saveBox, true, '저장 is always in reach (docked foot)');
+      assert.deepEqual(facts.footerButtons, ['삭제', '저장']);
+      assert.equal(facts.pencil, true);
+      assert.equal(facts.noOverflow, true);
+      // Typing a memo wakes 저장 up; putting it back puts it to sleep again.
+      await tab.evaluate(typeInto('[data-item-detail] textarea', '새 메모'));
+      await tab.wait(150);
+      assert.equal(await tab.evaluate(`document.querySelector('[data-detail-save]').disabled`), false, 'a change enables 저장');
+      await tab.evaluate(typeInto('[data-item-detail] textarea', '메모'));
+      await tab.wait(150);
+      assert.equal(await tab.evaluate(`document.querySelector('[data-detail-save]').disabled`), true, 'no change left: 저장 sleeps again');
+      if (process.env.QUICK_SCREENSHOT_DIR) {
+        mkdirSync(process.env.QUICK_SCREENSHOT_DIR, { recursive: true });
+        const shot = await tab.send('Page.captureScreenshot', { format: 'png' });
+        writeFileSync(join(process.env.QUICK_SCREENSHOT_DIR, `detail-edit-${width}.png`), Buffer.from(shot.result.data, 'base64'));
+      }
+    } finally { await tab.close(); }
+  });
+}
+
+it('링크 상세: without a photo the placeholder is a dashed frame with the icon and 사진 추가 in the MIDDLE (not floating under it)', async () => {
+  const tab = await openOwnLink();
+  try {
+    const place = await tab.evaluate(`(() => {
+      const frame = document.querySelector('[data-item-detail] [data-photo-editor="empty"]');
+      const f = frame.getBoundingClientRect();
+      const b = frame.querySelector('button').getBoundingClientRect();
+      return { dx: Math.abs((b.left + b.width / 2) - (f.left + f.width / 2)), fromTop: (b.top + b.height / 2 - f.top) / f.height, label: frame.querySelector('button').textContent.trim(), dashed: getComputedStyle(frame).borderTopStyle };
+    })()`);
+    assert.ok(place.dx <= 3, `the button is centred horizontally (${place.dx}px off)`);
+    assert.ok(place.fromTop > 0.4 && place.fromTop < 0.85, `the button sits in the middle part of the frame (${place.fromTop})`);
+    assert.equal(place.dashed, 'dashed');
+    assert.equal(place.label, '사진 추가');
+  } finally { await tab.close(); }
+});
+
+it('링크 상세: the pencil opens the Collection dialog; closing the sheet on unsaved edits asks first', async () => {
+  const tab = await openOwnLink();
+  try {
+    await tab.until(`!document.querySelector('[data-edit-collections]').disabled`, 15_000).catch(() => undefined);
+    // Unsaved edit -> the sheet's X asks.
+    await tab.evaluate(typeInto('[data-item-detail] textarea', '지우면 안 되는 메모'));
+    await tab.wait(200);
+    await tab.evaluate(`document.querySelector('dialog[open] header button').click()`);
+    await tab.until(`[...document.querySelectorAll('dialog')].some(dialog => dialog.open && dialog.textContent.includes('저장하지 않은 변경'))`);
+    assert.equal(await tab.evaluate(`!!document.querySelector('[data-item-detail] textarea') && document.querySelector('[data-item-detail] textarea').value`), '지우면 안 되는 메모', 'the typed memo is still there');
   } finally { await tab.close(); }
 });

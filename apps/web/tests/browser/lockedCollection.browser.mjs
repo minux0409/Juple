@@ -60,7 +60,7 @@ after(async () => {
 
 const PAGES = [
   { name: '새 링크 검토 (/items/new)', url: REVIEW_URL, kept: ['선택 안 함'], keptAfterUnlock: ['test'] },
-  { name: '링크 수정 (/items/7/edit)', url: EDIT_URL, kept: ['plain'], keptAfterUnlock: ['plain', 'test'] },
+  { name: '링크 상세 (Collection 선택)', url: EDIT_URL, kept: ['plain'], keptAfterUnlock: ['plain', 'test'] },
 ];
 
 const clickByText = text => `[...document.querySelectorAll('button')].find(b => b.textContent.trim() === ${JSON.stringify(text)}).click(); true`;

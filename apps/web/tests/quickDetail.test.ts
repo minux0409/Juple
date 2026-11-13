@@ -41,7 +41,7 @@ describe('Quick Detail sheet: behaviour', () => {
     assert.match(sheet, /dialog\.showModal\(\)/);
     assert.match(sheet, /onCancel=\{event => \{\s*event\.preventDefault\(\);\s*close\(\);/);
     assert.match(sheet, /event\.target === event\.currentTarget/);
-    assert.match(sheet, /const close = \(\) => router\.back\(\);/);
+    assert.match(sheet, /const close = \(\) => \{\s*if \(dirty\.current\) \{\s*setConfirmingLeave\(true\);\s*return;\s*\}\s*router\.back\(\);\s*\};/);
     assert.match(sheet, /<ModalCloseButton label={dictionary.close}/);
     assert.match(sheet, /aria-label=\{dictionary\.itemDetailsTitle\}/);
     assert.doesNotMatch(sheet, /router\.(push|replace)|window\.history\.(push|replace)State/, 'closing never creates history');
@@ -53,26 +53,24 @@ describe('Quick Detail sheet: behaviour', () => {
     assert.match(shell, /if \(isItemOverlayOpen\(\)\) \{\s*return;\s*\}\s*forgetUnlocksOutside\(pathname\);/);
   });
 
-  it('the details keep every rule: owner page read, 수정 -> the editor route, 삭제 / 컬렉션에서 삭제 with the visit grant, a locked card asks its password', () => {
+  it('the details keep every rule: owner page read, edited in place (no editor route), 삭제 / 컬렉션에서 삭제 with the visit grant, a locked card asks its password', () => {
     const content = source('app/(app)/items/[itemId]/ItemDetailContent.tsx');
-    assert.match(content, /itemEditHref\(itemId, search\)/);
+    assert.doesNotMatch(content, /itemEditHref|markEditOpenedFromDetails/, 'no separate editor screen');
+    assert.match(content, /useItemEditor\(\{/);
     assert.match(content, /api<void>\(\{ method: 'DELETE', path: `\/api\/v1\/items\/\$\{itemId\}` \}\)/);
     assert.match(content, /method: 'DELETE', path: `\/api\/v1\/collections\/\$\{fromCollectionId\}\/items\/\$\{itemId\}`, headers: unlockHeaders\(fromCollectionId\)/);
     assert.match(content, /state\.kind === 'gated' && lockedBy !== null && itemId !== null\) \{\s*return <GatedLink/);
     assert.doesNotMatch(content, /\/permanent/);
-    assert.match(content, /\{item\.memo\?\.trim\(\) \? \(/, 'the memo only when it is written (nothing invented)');
-    assert.match(content, /<QuickThumb dictionary=\{dictionary\} photoKey=\{photoKey\} photoUrl=\{hasImage \? photoUrl : null\} siteId=\{siteId\} \/>/, 'the picture only when there is one');
-    assert.match(content, /return photoUrl !== null \? \(\s*<div className=\{styles\.quickThumb\}>/);
+    assert.match(content, /<textarea className=\{styles.itemEdMemo\}[^>]*onChange=\{event => editor\.setMemo\(event\.target\.value\)\}/, 'the memo is typed right on the details');
+    assert.match(content, /<PhotoEditor[\s\S]*placeholderGlyph[\s\S]*<ItemPhoto cacheKey=\{editor\.photoKey\}/, 'the photo is changed on the details; without one a placeholder invites');
   });
 
-  it('after 삭제 the lists under the sheet read themselves again; 수정 goes back to the details and tells them too', () => {
+  it('after 삭제 or 저장 the lists under the sheet read themselves again', () => {
     assert.match(source('app/(app)/items/[itemId]/ItemDetailContent.tsx'), /setConfirming\(false\);[\s\S]*?notifyItemsChanged\([\s\S]*?\);\s*onLeave\(\);/);
     for (const file of ['HomeView.tsx', 'archive/ArchiveView.tsx', 'DateSections.tsx', 'collections/[collectionId]/CollectionDetailsView.tsx']) {
       assert.match(source(`app/(app)/${file}`), /useItemsChanged\(change =>/, file);
     }
-    const editor = source('app/(app)/items/[itemId]/edit/ItemEditView.tsx');
-    assert.match(editor, /if \(itemId !== null\) \{\s*notifyItemsChanged\(\{ kind: 'updated', itemId \}\);\s*\}\s*if \(takeEditOpenedFromDetails\(\)\) \{\s*router\.back\(\);\s*\} else \{\s*window\.location\.replace\(detailsHref\);/);
-    assert.match(source('app/(app)/items/[itemId]/ItemDetailContent.tsx'), /markEditOpenedFromDetails\(\);/);
+    assert.match(source('app/(app)/items/[itemId]/ItemDetailContent.tsx'), /onSaved: \(\) => \{\s*if \(itemId !== null\) \{\s*notifyItemsChanged\(\{ kind: 'updated', itemId \}\);\s*\}[\s\S]*?onLeave\(\);/);
   });
 
   it('the signal and the overlay flag are plain in-memory modules (nothing stored, nothing sent)', async () => {
@@ -110,30 +108,26 @@ describe('Quick Detail sheet: size and responsiveness', () => {
     assert.match(css, /@media \(max-width: 859px\) \{\s*\.quickSheet\[open\] \{\s*padding: 0;\s*\}\s*\.quickPanel \{\s*width: 100%;[^}]*max-height: 90vh;[^}]*border-radius: 24px 24px 0 0;/);
   });
 
-  it('the link actions are one icon-only toolbar row under the name, apart from the sheet 닫기 (링크 열기, 수정, 삭제 / 컬렉션에서 제거) - no action footer', () => {
+  it('the source row carries 바로가기 + 복사 beside the site; the foot carries 삭제 and 저장 (only awake once something changed) - no action row under the photo', () => {
     const content = source('app/(app)/items/[itemId]/ItemDetailContent.tsx');
-    const stack = content.slice(content.indexOf('className={styles.quickActions}'), content.indexOf('</div>', content.indexOf('className={styles.quickActions}')));
-    const open = stack.indexOf('name="ExternalLink"');
-    const edit = stack.indexOf('name="Edit"');
-    const remove = stack.indexOf('name="Trash"');
-    assert.ok(open > 0 && open < edit && edit < remove, 'order: open, edit, then the destructive action');
-    // icon-only, each named for assistive technology and with a tooltip
-    assert.match(stack, /aria-label=\{dictionary\.openLink\}[^>]*title=\{dictionary\.openLink\}/);
-    assert.match(stack, /aria-label=\{dictionary\.edit\}[\s\S]*?title=\{dictionary\.edit\}/);
-    assert.match(stack, /aria-label=\{removeFromCollection \? dictionary\.removeFromCollectionAction : dictionary\.delete\}[\s\S]*?title=\{removeFromCollection \? dictionary\.removeFromCollectionAction : dictionary\.delete\}/);
-    assert.doesNotMatch(stack, /\{dictionary\.(openLink|edit|delete|removeFromCollection)\}\s*</, 'no visible text in the buttons');
+    const row = content.slice(content.indexOf('className={styles.detailSource}'), content.indexOf('className={styles.detailField}'));
+    assert.ok(row.indexOf('name="ExternalLink"') > 0 && row.indexOf('name="ExternalLink"') < row.indexOf('<CopyLinkButton'), 'open, then copy, right beside the site');
+    assert.match(row, /aria-label=\{dictionary\.openLink\}[^>]*title=\{dictionary\.openLink\}/);
+    assert.doesNotMatch(content, /className=\{styles\.quickActions\}|name="Edit" size=\{20\}/, 'the old action column is gone');
+    // the foot: 삭제 (or 컬렉션에서 제거 inside a Collection) and 저장
+    const foot = content.slice(content.indexOf('<footer className={styles.detailFooter}>'), content.indexOf('</footer>'));
+    assert.ok(foot.indexOf('styles.detailDelete') < foot.indexOf('styles.detailSave'), 'delete, then save');
+    assert.match(foot, /removeFromCollection \? dictionary\.removeFromCollectionAction : dictionary\.delete/);
+    assert.match(foot, /disabled=\{editor\.saving \|\| !editor\.isDirty\}/, 'save is enabled only when something changed');
     // the context decides what the destructive action does - unchanged: a Collection membership, never the link itself, there
     assert.match(content, /const request = removeFromCollection\s*\? api<void>\(\{ method: 'DELETE', path: `\/api\/v1\/collections\/\$\{fromCollectionId\}\/items\/\$\{itemId\}`/);
     assert.match(content, /<ConfirmDialog[\s\S]*?destructive[\s\S]*?onConfirm=\{run\}/);
-    assert.match(stack, /href=\{itemEditHref\(itemId, search\)\}/);
-    // no second set of the same actions
-    assert.doesNotMatch(content, /quickFooter|OpenLinkButton/);
-    assert.doesNotMatch(css, /\.quickFooter|\.quickOpenIcon/);
-    assert.match(css, /\.quickActions \{\s*display: flex;\s*flex: 1 0 100%;\s*flex-direction: row;\s*flex-wrap: wrap;\s*gap: 8px;\s*order: 3;/);
-    assert.match(css, /\.quickTop \{\s*display: flex;\s*flex-wrap: wrap;/);
-    // the X lives in the sheet's own bar (outside the scrolling content that holds the actions)
+    // the Collections row ends in a pencil that opens the Collection dialog
+    assert.match(content, /className=\{styles\.detailPencil\}[\s\S]*?setEditingCollections\(true\)/);
+    // the X lives in the sheet's own bar (outside the scrolling content that holds the footer)
     assert.match(source('app/(app)/items/[itemId]/QuickDetailSheet.tsx'), /<header className=\{styles\.quickBar\}>[\s\S]*<ModalCloseButton[\s\S]*<\/header>\s*<div className=\{styles\.quickScroll\}>/);
-    assert.match(css, /\.quickActionButton,\s*\.quickActionDanger \{[^}]*width: 44px;[^}]*height: 44px;/);
+    assert.match(css, /\.detailFooter \{\s*position: sticky;\s*bottom: 0;/);
+    assert.match(css, /\.detailSourceActions \.quickActionButton \{[^}]*width: 40px;[^}]*height: 40px;/);
     assert.equal(getAppDictionary('ko').removeFromCollectionAction, '컬렉션에서 제거');
   });
 
@@ -290,7 +284,7 @@ describe('Saved date in every link detail (own and shared, sheet and page)', () 
 
 describe('Saved date sits right after its label', () => {
   it('all four detail views mark the Saved row as savedGroup, and its grid is label-width + 8px, start-aligned', () => {
-    for (const file of ['app/(app)/items/[itemId]/ItemDetailContent.tsx', 'app/(app)/collections/[collectionId]/items/[itemId]/SharedItemContent.tsx', 'app/(app)/collections/[collectionId]/items/[itemId]/SharedItemView.tsx']) {
+    for (const file of ['app/(app)/collections/[collectionId]/items/[itemId]/SharedItemContent.tsx', 'app/(app)/collections/[collectionId]/items/[itemId]/SharedItemView.tsx']) {
       assert.match(source(file), /styles\.savedGroup\}`\}>\s*<dt className=\{styles\.(quick|info)Label\}>\s*<Glyph name="Clock"/, file);
     }
     const css = source('app/(app)/app.module.css');
@@ -303,13 +297,10 @@ describe('Saved date sits right after its label', () => {
 });
 
 describe('Collections row of the own link detail sits right after its label', () => {
-  it('the 컬렉션 row uses the same label-width + 8px start-aligned grid; the chips keep their own wrapping 8px gap', () => {
-    assert.match(source('app/(app)/items/[itemId]/ItemDetailContent.tsx'), /styles\.collectionsGroup\}`\}>\s*<dt className=\{styles\.quickLabel\}>\s*<Glyph name="Folder"/);
+  it('the 컬렉션 row is the label, the chips (their own wrapping 8px gap) and a pencil at its end', () => {
+    assert.match(source('app/(app)/items/[itemId]/ItemDetailContent.tsx'), /<Glyph name="Folder" size=\{16\} \/>\s*\{dictionary\.collectionsLabel\}[\s\S]*?className=\{styles\.detailCollections\}[\s\S]*?className=\{styles\.detailPencil\}/);
     const css = source('app/(app)/app.module.css');
-    const rule = css.match(/\.quickGroup\.collectionsGroup \{([^}]*)\}/)?.[1] ?? '';
-    assert.match(rule, /grid-template-columns: max-content minmax\(0, 1fr\);/);
-    assert.match(rule, /column-gap: 8px;/);
-    assert.doesNotMatch(rule, /space-between/);
+    assert.match(css, /\.detailCollections \{[^}]*justify-content: space-between;/);
     assert.match(css, /\.collectionChips \{\s*display: flex;\s*flex-wrap: wrap;\s*gap: 8px;/);
   });
 });

@@ -26,7 +26,7 @@ import { useStoredChoice } from './useStoredChoice';
 import { ViewModeToggle } from './ViewModeToggle';
 import { PageHeader } from './PageHeader';
 import { StickyControls } from './StickyControls';
-import { PersonalLinkSelection, SelectModeButton } from './LinkSelection';
+import { PersonalLinkSelection } from './LinkSelection';
 import { LoadMore } from './InfiniteScroll';
 import { appendPage, canLoadMore, failLoadingMore, firstPage, startLoadingMore, type PagedState } from '../../lib/paging';
 import styles from './app.module.css';
@@ -194,7 +194,6 @@ export function HomeView() {
               <h2 className={styles.sectionTitle} id="home-today">
                 {dictionary.homeTitle}
               </h2>
-              {state.kind === 'loaded' && state.items.length > 0 ? <SelectModeButton label={dictionary.selectionSelectItems} /> : null}
               <ViewModeToggle
                 groupLabel={dictionary.viewModeLabel}
                 labels={{ list: dictionary.viewList, grid: dictionary.viewGrid, image: dictionary.viewImage }}

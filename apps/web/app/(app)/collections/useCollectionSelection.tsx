@@ -37,16 +37,14 @@ export function useCollectionSelection({
   const { api, dictionary, onSessionLost } = useSignedInApp();
   const toast = useToast();
   const [state, setState] = useState<MultiSelectState<number>>(emptySelection);
-  const [armed, setArmed] = useState(false);
   const [dialog, setDialog] = useState<'delete' | 'leave' | 'lock' | null>(null);
   const [busy, setBusy] = useState(false);
   const selected = items.filter(collection => state.selected.has(collection.id));
-  const active = armed || selected.length > 0;
+  const active = selected.length > 0;
   const plan = planCollectionBulk(selected);
   const lockTargets = lockableCollections(selected);
 
   const exit = useCallback(() => {
-    setArmed(false);
     setState(emptySelection());
   }, []);
 
@@ -274,5 +272,5 @@ export function useCollectionSelection({
     </>
   );
 
-  return { active, isSelected: (id: number) => state.selected.has(id), check, cardClick, arm: () => setArmed(true), exit, ui };
+  return { active, isSelected: (id: number) => state.selected.has(id), check, cardClick, exit, ui };
 }

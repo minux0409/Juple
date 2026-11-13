@@ -55,10 +55,6 @@ export function Landing({
           </ul>
         </section>
         <section className={styles.signInCard} aria-labelledby="sign-in-title">
-          <div className={styles.signInCardLockup}>
-            <BrandIcon size={34} />
-            <span className={styles.brandWordmarkSmall}>Juple</span>
-          </div>
           <h2 className={styles.signInTitle} id="sign-in-title">{dictionary.signInTitle}</h2>
           <p className={styles.signInDescription}>{dictionary.signInDescription}</p>
           {notice ? <p className={styles.notice} role="alert">{notice}</p> : null}

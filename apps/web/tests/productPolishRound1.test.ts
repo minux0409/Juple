@@ -97,9 +97,10 @@ describe('Product polish 1: Collections card actions follow the person\'s real p
 });
 
 describe('Product polish 1: new Collection from the link editor', () => {
-  it('Item Edit hands the picker onCreated: offered at once, chosen for the link, nothing duplicated', () => {
-    const edit = source('app/(app)/items/[itemId]/edit/ItemEditView.tsx');
-    assert.match(edit, /onCreated=\{created => \{/);
+  it('the link details hand the picker onCreated: offered at once, chosen for the link, nothing duplicated', () => {
+    const edit = source('app/(app)/items/[itemId]/useItemEditor.ts');
+    assert.match(source('app/(app)/items/[itemId]/ItemDetailContent.tsx'), /onCreated=\{editor\.onCreated\}/);
+    assert.match(edit, /onCreated: \(created: CollectionSummary\) => \{/);
     assert.match(edit, /setDestinations\(previous => \[created, \.\.\.\(previous \?\? \[\]\)\.filter\(entry => entry\.id !== created\.id\)\]\)/);
     assert.match(edit, /base\.some\(entry => entry\.id === created\.id\) \? base : \[\.\.\.base, created\]/);
     // the picker owns the create request and its validation (the same one the Collections page uses) - not duplicated here

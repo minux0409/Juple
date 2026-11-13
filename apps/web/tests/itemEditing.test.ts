@@ -42,7 +42,8 @@ function recordingApi(answers: Array<number | Error | { status: number; body: un
 describe('item editing: owner-only, mobile rules', () => {
   it('Edit and delete live only on the owner page; another member\'s shared view has neither', () => {
     const details = source('app/(app)/items/[itemId]/ItemDetailContent.tsx');
-    assert.match(details, /itemEditHref\(itemId, search\)/);
+    assert.match(details, /useItemEditor\(\{/);
+    assert.doesNotMatch(details, /itemEditHref/, 'the details edit in place: no separate editor route to link to');
     // The owner page is GET /api/v1/items/{id} (404 for anyone else): the buttons exist only in its loaded state.
     assert.match(details, /state\.kind !== 'loaded' \|\| itemId === null\) \{\s*return null;/);
     const shared = source('app/(app)/collections/[collectionId]/items/[itemId]/SharedItemView.tsx');
@@ -61,19 +62,21 @@ describe('item editing: owner-only, mobile rules', () => {
     assert.equal(edit.isItemDraftDirty({ title: 'a', memo: 'x' }, { title: 'a', memo: '' }), true);
     assert.equal(edit.itemSaveErrorMessage(new ApiHttpError(400, null), ko), ko.errorInvalidInput);
     assert.equal(edit.itemSaveErrorMessage(new ApiHttpError(500, null), ko), ko.itemSaveError);
-    const view = source('app/(app)/items/[itemId]/edit/ItemEditView.tsx');
+    const view = source('app/(app)/items/[itemId]/useItemEditor.ts');
     assert.match(view, /method: 'PUT', path: itemDetailsPath\(itemId\), body: itemDetailsBody\(title, memo\)/);
     // The editor cannot change the saved URL (mobile cannot either): it is shown, never an input.
     assert.doesNotMatch(view, /name="url"|setUrl|itemUrlPath/);
   });
 
-  it('the editor route is its own page, so back / forward / refresh work', () => {
+  it('the old editor address only leads to the details (they edit in place now)', () => {
     assert.equal(edit.itemEditHref(5), '/items/5/edit');
     assert.equal(edit.itemEditHref(5, '?lockedBy=3'), '/items/5/edit?lockedBy=3');
     assert.equal(edit.itemContextSearch({ lockedBy: 3, fromCollectionId: null }), '?lockedBy=3');
     assert.equal(edit.itemContextSearch({ lockedBy: null, fromCollectionId: 8 }), '?collectionId=8');
     assert.equal(edit.itemContextSearch({ lockedBy: null, fromCollectionId: null }), '');
-    assert.ok(readFileSync(new URL('../app/(app)/items/[itemId]/edit/page.tsx', import.meta.url), 'utf8').includes('ItemEditView'));
+    const page = readFileSync(new URL('../app/(app)/items/[itemId]/edit/page.tsx', import.meta.url), 'utf8');
+    assert.match(page, /redirect\(`\/items\/\$\{encodeURIComponent\(itemId\)\}/);
+    assert.doesNotMatch(page, /ItemEditView/);
   });
 });
 
@@ -125,10 +128,10 @@ describe('item editing: Collection assignment (mobile applyItemMembershipChanges
   });
 
   it('the editor saves details first, then Collections; duplicate clicks are one save; input is kept on failure', () => {
-    const view = source('app/(app)/items/[itemId]/edit/ItemEditView.tsx');
+    const view = source('app/(app)/items/[itemId]/useItemEditor.ts');
     assert.ok(view.indexOf('itemDetailsPath(itemId)') < view.indexOf('applyItemMembershipChanges(api'));
-    assert.match(view, /if \(savingRef\.current \|\| !isDirty\) \{\s*return;/);
-    assert.match(view, /disabled=\{saving \|\| !isDirty\}/);
+    assert.match(view, /if \(savingRef\.current \|\| !isDirty \|\| itemId === null\) \{\s*return;/);
+    assert.match(source('app/(app)/items/[itemId]/ItemDetailContent.tsx'), /disabled=\{editor\.saving \|\| !editor\.isDirty\}/);
     // A failed part returns before the page leaves: the typed values and the staged choice stay.
     assert.match(view, /setSaveError\(itemSaveErrorMessage\(caught, dictionary\)\);\s*return;/);
     assert.match(view, /setSaveError\(result\.failureMessages\.join\('\\n'\)\);\s*return;/);
@@ -239,11 +242,11 @@ describe('item photo (one per link, immediate, server-verified)', () => {
     const form = edit.imageUploadForm(new Blob(['x'], { type: 'image/png' }), 'a.png');
     assert.ok(form.get('file') instanceof Blob);
     assert.equal((form.get('file') as File).name, 'a.png');
-    const view = source('app/(app)/items/[itemId]/edit/ItemEditView.tsx');
+    const view = source('app/(app)/items/[itemId]/useItemEditor.ts');
     assert.match(view, /method: 'POST', path: itemImageUploadPath\(itemId\), body: imageUploadForm\(file/);
     assert.match(view, /method: 'DELETE', path: itemImagePath\(itemId, ownPhoto\.id\)/);
     // A photo change is confirmed (delete), immediate, and never staged with 저장.
-    assert.match(view, /open=\{confirmingPhotoDelete\}/);
+    assert.match(source('app/(app)/items/[itemId]/ItemDetailContent.tsx'), /open=\{editor\.confirmingPhotoDelete\}/);
   });
 
   it('mirrors only the server\'s own limits: not empty, 10 MB at most; the format is the server\'s call', () => {
@@ -294,7 +297,7 @@ describe('deleting a link goes to 삭제 이력', () => {
     assert.match(details, /onClick=\{\(\) => setConfirming\(true\)\}/, 'the button only opens the question');
     assert.match(details, /api<void>\(\{ method: 'DELETE', path: `\/api\/v1\/items\/\$\{itemId\}` \}\)/);
     assert.doesNotMatch(details, /\/permanent|emptyTrash|items\/trash/);
-    assert.doesNotMatch(source('app/(app)/items/[itemId]/edit/ItemEditView.tsx'), /\/permanent|method: 'DELETE', path: `\/api\/v1\/items\/\$\{itemId\}`/);
+    assert.doesNotMatch(source('app/(app)/items/[itemId]/useItemEditor.ts'), /\/permanent|method: 'DELETE', path: `\/api\/v1\/items\/\$\{itemId\}`/);
     assert.equal(ko.itemDeleteConfirmTitle, '링크를 삭제할까요?');
     assert.equal(ko.itemDeleteConfirmMessage, '삭제한 링크는 삭제 이력에서 복구할 수 있어요.');
   });
@@ -312,23 +315,23 @@ describe('deleting a link goes to 삭제 이력', () => {
   });
 });
 
-describe('leaving the editor with unsaved changes', () => {
-  it('asks in the mobile words; 취소 and 뒤로 go through the same question; reload uses the browser\'s own prompt only', () => {
-    const view = source('app/(app)/items/[itemId]/edit/ItemEditView.tsx');
-    assert.match(view, /const requestLeave = \(\) => \{\s*if \(isDirty && !savingRef\.current\) \{\s*setConfirmingLeave\(true\);/);
-    assert.match(view, /onClick=\{requestLeave\}/);
-    assert.match(view, /window\.addEventListener\('beforeunload', warn\)/);
-    assert.match(view, /cancelLabel=\{dictionary\.continueEditing\}/);
+describe('leaving the details with unsaved changes', () => {
+  it('the sheet asks in the mobile words before it closes on edits; reload uses the browser\'s own prompt only', () => {
+    const sheet = source('app/(app)/items/[itemId]/QuickDetailSheet.tsx');
+    assert.match(sheet, /if \(dirty\.current\) \{\s*setConfirmingLeave\(true\);\s*return;/);
+    assert.match(sheet, /cancelLabel=\{dictionary\.continueEditing\}/);
+    assert.match(sheet, /<ModalCloseButton label=\{dictionary\.close\} onClick=\{close\} \/>/, 'the X goes through the same question');
+    assert.match(source('app/(app)/items/[itemId]/ItemDetailContent.tsx'), /useLeaveGuard\(editor\.isDirty\);/);
+    assert.match(source('app/(app)/items/[itemId]/useItemEditor.ts'), /window\.addEventListener\('beforeunload', warn\)/);
     assert.equal(ko.unsavedChangesTitle, '저장하지 않은 변경 사항');
     assert.equal(ko.continueEditing, '계속 편집');
     assert.equal(ko.leave, '나가기');
   });
 });
 
-describe('새 링크 and 링크 수정 are one form family', () => {
+describe('새 링크 form family (the link details edit in place and reuse the same picker / memo rules)', () => {
   const views = {
     new: source('app/(app)/items/new/NewLinkReviewView.tsx'),
-    edit: source('app/(app)/items/[itemId]/edit/ItemEditView.tsx'),
   };
   const shared = source('app/(app)/ItemForm.tsx');
 
@@ -351,7 +354,7 @@ describe('새 링크 and 링크 수정 are one form family', () => {
   it('Collections and memo are outside the metadata column (a full-width card of their own)', () => {
     const top = shared.slice(shared.indexOf('export function ItemFormTop'), shared.indexOf('export function ItemFormSections'));
     assert.doesNotMatch(top, /CollectionPicker|<textarea/);
-    const edit = views.edit;
+    const edit = views.new;
     assert.ok(edit.indexOf('</ItemFormTop>') < edit.indexOf('<ItemCollectionsSection'));
     assert.ok(edit.indexOf('<ItemCollectionsSection') < edit.indexOf('<ItemMemoSection'), 'memo comes after Collections');
     assert.ok(edit.indexOf('<ItemMemoSection') < edit.indexOf('<ItemFormFooter>'));
@@ -359,9 +362,8 @@ describe('새 링크 and 링크 수정 are one form family', () => {
     assert.ok(edit.indexOf('<ItemFormTop') < edit.indexOf('<PhotoEditor') && edit.indexOf('<PhotoEditor') < edit.indexOf('</ItemFormTop>'));
   });
 
-  it('the editor starts with the link\'s current Collections selected; the footer is 취소 + 저장 (new: 저장)', () => {
-    assert.match(views.edit, /const selected = staged \?\? memberships \?\? EMPTY_COLLECTIONS;/);
-    assert.match(views.edit, /<ItemFormFooter>\s*<button className=\{styles\.settingsAction\}[^>]*onClick=\{requestLeave\}/);
+  it('the details start with the link\'s current Collections selected; 새 링크\'s footer is 저장', () => {
+    assert.match(source('app/(app)/items/[itemId]/useItemEditor.ts'), /const selected = staged \?\? memberships \?\? EMPTY_COLLECTIONS;/);
     assert.doesNotMatch(views.new, /onClick=\{requestLeave\}/);
     assert.match(views.new, /<ItemFormFooter>\s*<button className=\{styles\.primaryAction\}/);
   });
@@ -390,7 +392,7 @@ describe('design consistency: page header, form spacing, tokens', () => {
       assert.match(text, /<PageHeader/, page);
       assert.doesNotMatch(text, /styles\.pageHeader\b|styles\.pageTitle/, `${page} has no private header markup`);
     }
-    for (const page of ['items/new/NewLinkReviewView.tsx', 'items/[itemId]/edit/ItemEditView.tsx']) {
+    for (const page of ['items/new/NewLinkReviewView.tsx']) {
       assert.match(source(`app/(app)/${page}`), /<PageHeader bell=\{false\}/, page);
     }
   });
@@ -689,7 +691,7 @@ describe('Web V4: a content workspace', () => {
     assert.match(review, /disabled=\{isSaving\} type="submit"/);
     assert.doesNotMatch(review, /hasDecision|setNoneChosen/);
     // Edit starts from the link's own memberships (unchanged).
-    assert.match(source('app/(app)/items/[itemId]/edit/ItemEditView.tsx'), /const selected = staged \?\? memberships \?\? EMPTY_COLLECTIONS;/);
+    assert.match(source('app/(app)/items/[itemId]/useItemEditor.ts'), /const selected = staged \?\? memberships \?\? EMPTY_COLLECTIONS;/);
   });
 
   it('link rows: the title is one line (ellipsis), the memo is the line under it, when / where is at the end - no memo column', () => {
@@ -706,21 +708,21 @@ describe('Web V4: a content workspace', () => {
     assert.match(css, /\.linkList > \.linkCard \{\s*border: 0;\s*border-bottom: 1px solid var\(--border-subtle\);\s*border-radius: 0;\s*background: transparent;/);
   });
 
-  it('Item Detail with a picture: a 180px thumbnail beside title / site / open icon, then grouped rows - one component for sheet and page', () => {
+  it('Item Detail: the photo (hover 사진 변경) beside the title / source / memo / Collections - one component for sheet and page', () => {
     const content = source('app/(app)/items/[itemId]/ItemDetailContent.tsx');
-    assert.match(content, /const hasImage = photoUrl !== null;/);
-    assert.match(content, /<QuickThumb dictionary=\{dictionary\} photoKey=\{photoKey\} photoUrl=\{hasImage \? photoUrl : null\} siteId=\{siteId\} \/>/);
-    assert.match(content, /return photoUrl !== null \? \(\s*<div className=\{styles\.quickThumb\}>/);
-    assert.match(css, /\.quickThumb \{[^}]*width: clamp\(200px, 40%, 300px\);[^}]*aspect-ratio: 4 \/ 3;/);
-    assert.match(css, /\.quickTitle \{[^}]*-webkit-line-clamp: 3;/);
-    assert.match(css, /\.quickGroup \{\s*display: grid;\s*grid-template-columns: 112px minmax\(0, 1fr\);[^}]*border-top: 1px solid var\(--app-divider\);/);
+    assert.match(content, /<div className=\{styles\.detailLayout\}>[\s\S]*?<div className=\{styles.itemEdMedia\}>[\s\S]*?<div className=\{styles\.detailMain\}>/);
+    assert.match(css, /\.detailLayout \{[^}]*grid-template-columns: minmax\(200px, 290px\) minmax\(0, 1fr\);/);
+    assert.match(css, /\.photoEditor:hover \.photoEditorOverlay,\s*\.photoEditor:focus-within \.photoEditorOverlay \{\s*opacity: 1;/);
+    assert.match(css, /@media \(max-width: 640px\) \{\s*\.detailLayout \{\s*grid-template-columns: minmax\(0, 1fr\);/);
   });
 
-  it('Item Detail without a picture: no media frame at all - a compact site badge instead of an empty placeholder', () => {
-    const content = source('app/(app)/items/[itemId]/ItemDetailContent.tsx');
-    assert.match(content, /\) : \(\s*<span aria-hidden className=\{styles\.quickSiteTile\}>/);
-    assert.match(css, /\.quickSiteTile \{[^}]*width: 64px;[^}]*height: 64px;/);
-    assert.doesNotMatch(content, /styles\.itemDetail\b|<ItemPhoto/);
+  it('Item Detail without a photo: a dashed placeholder with the icon and the one 사진 추가 button in the middle', () => {
+    const editor = source('app/(app)/PhotoEditor.tsx');
+    assert.match(editor, /styles\.photoEditorIsEmpty/);
+    assert.match(editor, /placeholderGlyph/);
+    assert.match(css, /\.photoEditorIsEmpty \{\s*display: flex;\s*flex-direction: column;\s*align-items: center;\s*justify-content: center;/);
+    assert.match(css, /\.photoEditorIsEmpty \{[^}]*border: 1\.5px dashed/);
+    assert.match(source('app/(app)/items/new/NewLinkReviewView.tsx'), /<PhotoEditor placeholderGlyph/);
   });
 
   it('the facts are typography and dividers (no boxed rows); delete is quiet; open is the one primary', () => {
