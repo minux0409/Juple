@@ -188,12 +188,12 @@ describe('the pages use the selection', () => {
 });
 
 describe('requests', () => {
-  it('Collection Details: 받은 승인 요청 and 참여 요청 are two independent buttons, each with its own count and its own queue', () => {
+  it('Collection Details: ONE 검토할 요청 entry with the total count; the dialog separates 승인 요청 and 참여 요청', () => {
     const details = app('collections/[collectionId]/CollectionDetailsView.tsx');
-    assert.match(details, /label=\{dictionary\.requestsPendingSubmissions\}/);
-    assert.match(details, /label=\{dictionary\.requestsJoinRequests\}/);
-    assert.match(details, /setRequestsQueue\('link'\)/);
-    assert.match(details, /setRequestsQueue\('person'\)/);
+    assert.match(details, /label=\{dictionary\.requestsReviewTitle\}/);
+    assert.match(details, /count=\{reviewRequestCount\}/);
+    assert.doesNotMatch(details, /setRequestsQueue/);
+    assert.equal((details.match(/<RequestActionButton/g) ?? []).length, 1);
     assert.match(app('collections/ReceivedRequestsDialog.tsx'), /useState<'link' \| 'person' \| null>\(initialQueue \?\? null\)/);
     const button = app('collections/RequestActionButton.tsx');
     assert.match(button, /styles\.requestActionBadge/);

@@ -1187,8 +1187,9 @@ for (const theme of THEMES) {
         } else {
           assert.ok(f.av.b <= f.fields.t + 1, 'a narrow screen stacks them (photo first)');
         }
-        assert.ok(f.actions.t >= Math.max(f.av.b, f.fields.b) - 1, 'the buttons are under the section');
-        assert.ok(Math.abs(f.btns[f.btns.length - 1].r - f.card.r) <= 2 || width <= 640, '저장 ends at the right edge of the form');
+        assert.ok(f.actions.t >= f.nick.b - 1, 'the buttons are under the name + ID fields');
+        if (width > 640) assert.ok(Math.abs(f.av.b - f.fields.b) <= 2, `the photo tile and the text column end together (${Math.round(f.av.b)} vs ${Math.round(f.fields.b)})`);
+        assert.ok(Math.abs(f.btns[f.btns.length - 1].r - f.fields.r) <= 2, '저장 ends at the right edge of the text column');
         assert.ok(new Set(f.btns.map(b => Math.round(b.h))).size === 1 && f.btns[0].h >= 43, `the two buttons share one 44px height (${f.btns.map(b => Math.round(b.h))})`);
         assert.equal(f.idTag, 'SPAN', 'the Juple ID stays a read-only value (never an input)');
         assert.equal(f.nickValue, '주플 사용자');

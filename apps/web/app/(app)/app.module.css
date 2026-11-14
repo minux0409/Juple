@@ -6701,6 +6701,7 @@ button.reactionChipMine:hover {
   z-index: 60;
   display: flex;
   justify-content: center;
+  /* bottom-CENTER: the strip spans the window and the snackbar sits on its horizontal middle, whatever the page's side navigation */
   padding: 0 var(--space-4) calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
   pointer-events: none;
 }
@@ -6708,17 +6709,31 @@ button.reactionChipMine:hover {
 .toast {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-3);
-  width: min(520px, 100%);
-  min-height: 52px;
-  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
-  border-radius: var(--radius-lg);
+  width: fit-content;
+  min-width: min(280px, 100%);
+  max-width: min(520px, 100%);
+  min-height: 48px;
+  margin-inline: auto;
+  padding: var(--space-2) var(--space-5);
+  border-radius: 999px;
   /* An inverse surface, so it reads over any page in light and dark. */
   background: var(--app-text);
   color: var(--app-surface);
-  box-shadow: 0 8px 28px rgba(16, 24, 40, 0.28);
+  box-shadow: 0 10px 30px rgba(16, 24, 40, 0.26), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
   pointer-events: auto;
-  animation: toastIn 160ms ease-out;
+  animation: toastIn 200ms var(--ease-out, ease-out);
+}
+
+/* With an action (되돌리기) or a close button the bar is a little squarer and its text reads from the start. */
+.toast:has(.toastAction, .toastClose) {
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-5);
+  border-radius: var(--radius-xl, 20px);
+}
+
+.toast:has(.toastAction, .toastClose) .toastText {
+  text-align: start;
 }
 
 .toastError {
@@ -6733,6 +6748,7 @@ button.reactionChipMine:hover {
   font-weight: 600;
   line-height: 1.4;
   overflow-wrap: anywhere;
+  text-align: center;
 }
 
 .toastAction,
@@ -6780,7 +6796,7 @@ button.reactionChipMine:hover {
 @keyframes toastIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(10px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -9656,6 +9672,11 @@ a.imageBody:hover .imageTile {
   transition: transform var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
 }
 
+/* A single 검토할 요청 entry reads as one compact entry, not a full-width banner. */
+.requestActions > .requestAction {
+  max-width: 440px;
+}
+
 .requestAction:hover {
   border-color: var(--brand);
   box-shadow: var(--brand-glow);
@@ -11021,4 +11042,96 @@ a.imageBody:hover .imageTile {
 /* The profile section is exactly as wide as its content (photo + gap + the 440px fields), so 저장 ends where the fields end. */
 .profileEditCard {
   max-width: calc(160px + var(--space-6) + 440px);
+}
+
+/* ======================================================================================================================
+   Home rail: panel -> section -> card. The panel is the surface, the cards inside it sit one step apart (soft fill, a defined edge, a
+   quiet shadow) so a favorite or a recent link never looks cut off or glued to the panel. Rows are NOT flat here (the page-wide list
+   rule removes their border), and the list no longer bleeds past the panel's padding.
+   ==================================================================================================================== */
+.railCard .surfaceSection .linkList {
+  margin: 0;
+  gap: 8px;
+}
+
+/* Room for the 1px edge, the shadow and the hover lift inside the scroll boxes (overflow would otherwise clip them). */
+.railCard .recentScroll {
+  margin: -3px;
+  padding: 3px;
+}
+
+.railCard .homeFavList > .collectionCard,
+.railCard .homeFavGrid > .collectionCard,
+.railCard .recentScroll .linkList > .linkCard,
+.railCard .recentScroll .linkGrid > .linkCard {
+  border: 1px solid color-mix(in srgb, var(--app-text) 11%, var(--app-border));
+  border-radius: var(--radius-lg);
+  background: var(--surface-soft);
+  box-shadow: var(--shadow-card);
+}
+
+.railCard .homeFavList > .collectionCard:has(a:hover),
+.railCard .homeFavGrid > .collectionCard:has(a:hover),
+.railCard .recentScroll .linkList > .linkCard:has(a:hover),
+.railCard .recentScroll .linkGrid > .linkCard:has(a:hover) {
+  border-color: var(--brand-text);
+  background: var(--surface);
+  box-shadow: var(--shadow-raised);
+}
+
+.railCard .recentScroll .linkList > .linkCard:last-child {
+  border-bottom: 1px solid color-mix(in srgb, var(--app-text) 11%, var(--app-border));
+}
+
+/* The section titles keep a clear step above their cards. */
+.railCard .sectionBar {
+  margin-bottom: var(--space-3);
+}
+
+/* ======================================================================================================================
+   Profile edit (desktop): ONE bordered card, two balanced columns of the same height - the photo tile on the left, nickname / Juple ID /
+   저장·취소 on the right (the buttons sit at the column's bottom end, so the columns end together). A narrow screen stacks them.
+   ==================================================================================================================== */
+.profileEditCard {
+  /* photo tile 200 + gap + the 440px fields + the card's own padding and border: exactly its content, never wider */
+  max-width: calc(200px + var(--space-5) + 440px + 2 * var(--space-5) + 2px);
+  padding: var(--space-5);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.profileEditBody {
+  align-items: stretch;
+  gap: var(--space-5);
+}
+
+.profileEditBody .profileEditAvatar {
+  justify-content: center;
+  align-self: stretch;
+  width: 200px;
+  padding: var(--space-5) var(--space-4);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-soft);
+}
+
+.profileEditBody .profileEditFields {
+  max-width: 440px;
+}
+
+.profileEditBody .profileEditActions {
+  margin-top: auto;
+  padding-top: var(--space-2);
+}
+
+@media (max-width: 640px) {
+  .profileEditCard {
+    padding: var(--space-4);
+  }
+
+  .profileEditBody .profileEditAvatar {
+    width: 100%;
+  }
 }

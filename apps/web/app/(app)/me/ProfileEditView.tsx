@@ -190,8 +190,6 @@ export function ProfileEditView() {
             @{formatJupleId(profile.jupleId)}
           </span>
         </div>
-        </div>
-        </div>
         {error ? <p className={styles.formError} role="alert">{error}</p> : null}
         {saved ? <p className={styles.formNotice} role="status">{dictionary.itemSaved}</p> : null}
         <div className={styles.profileEditActions}>
@@ -211,6 +209,8 @@ export function ProfileEditView() {
           <button className={styles.primaryAction} disabled={busy || (!nicknameChanged && !pickedPhoto)} type="submit">
             {isSaving ? dictionary.saving : dictionary.save}
           </button>
+        </div>
+        </div>
         </div>
       </form>
       <ConfirmDialog

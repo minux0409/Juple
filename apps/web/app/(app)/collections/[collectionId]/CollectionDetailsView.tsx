@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatMessage, type AppDictionary } from '../../../../lib/appI18n';
+import { formatBadgeCount } from '../../../../lib/notifications';
 import { isSessionLost } from '../../../../lib/authSession';
 import {
   collectionPath,
@@ -114,8 +115,6 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
   const wantsRequests = useSearchParams().get(REQUESTS_PARAM) === '1';
   const [requestsMode, setRequestsMode] = useState<'review' | 'direct' | null>(wantsRequests ? 'direct' : null);
   const requestsOpen = requestsMode !== null;
-  // Which queue the dialog opens on: one of the two request buttons, or both (a notification's entry).
-  const [requestsQueue, setRequestsQueue] = useState<'link' | 'person' | undefined>(undefined);
   const [managementMode, setManagementMode] = useState<CollectionManagementMode>(null);
   // Arrived here from 내 컬렉션으로 복제: how the copy went (in memory only; see CloneResultBanner).
   const [cloneResult, setCloneResult] = useState(() => (collectionId === null ? null : peekCloneResult(collectionId)));
@@ -415,36 +414,18 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
         participants={participants}
         participantsFailed={participantsFailed}
       />
-      {/* The Owner's received requests: 받은 승인 요청 (links proposed for approval) and 참여 요청 (people asking to join) are two
-          independent buttons, each with its own count, each opening its own queue - the same server calls and rules as before. */}
+      {/* The Owner's received requests, like mobile: ONE 검토할 요청 entry with the total count. The dialog it opens lists 받은 승인 요청
+          (links proposed for approval) and 참여 요청 (people asking to join) - the same server calls and rules as before. */}
       {!isSharedWithMe(collection) && !gate && reviewRequestCount > 0 ? (
         <div className={styles.requestActions} data-collection-received-requests>
-          {pendingSubmissions > 0 ? (
-            <RequestActionButton
-              accessibleLabel={formatMessage(dictionary.requestsPendingSubmissionsA11y, { count: pendingSubmissions })}
-              count={pendingSubmissions}
-              icon="Link"
-              label={dictionary.requestsPendingSubmissions}
-              onClick={() => {
-                setRequestsQueue('link');
-                setRequestsMode('review');
-              }}
-              testId="link-submissions"
-            />
-          ) : null}
-          {pendingJoins > 0 ? (
-            <RequestActionButton
-              accessibleLabel={formatMessage(dictionary.requestsJoinRequestsA11y, { count: pendingJoins })}
-              count={pendingJoins}
-              icon="People"
-              label={dictionary.requestsJoinRequests}
-              onClick={() => {
-                setRequestsQueue('person');
-                setRequestsMode('review');
-              }}
-              testId="join-requests"
-            />
-          ) : null}
+          <RequestActionButton
+            accessibleLabel={`${dictionary.requestsReviewTitle}, ${formatBadgeCount(reviewRequestCount)}`}
+            count={reviewRequestCount}
+            icon="Bell"
+            label={dictionary.requestsReviewTitle}
+            onClick={() => setRequestsMode('review')}
+            testId="review-requests"
+          />
         </div>
       ) : null}
       {!isSharedWithMe(collection) && !gate ? (
@@ -454,12 +435,8 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
             setReloadToken(token => token + 1);
             setContentToken(token => token + 1);
           }}
-          initialQueue={requestsQueue}
-          key={`${requestsMode ?? 'closed'}-${requestsQueue ?? 'all'}`}
-          onClose={() => {
-            setRequestsMode(null);
-            setRequestsQueue(undefined);
-          }}
+          key={requestsMode ?? 'closed'}
+          onClose={() => setRequestsMode(null)}
           open={requestsOpen}
           review={requestsMode === 'review'}
         />
