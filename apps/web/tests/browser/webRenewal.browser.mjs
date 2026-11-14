@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { after, before, it } from 'node:test';
-import { findChrome, openPage } from './cdp.mjs';
+import { findChrome, openPage, closeAllPages } from './cdp.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const harness = `${root}app/renewal-test-harness`;
@@ -41,6 +41,7 @@ before(async () => {
 });
 
 after(async () => {
+  await closeAllPages();
   if (owned) {
     rmSync(harness, { recursive: true, force: true });
     for (let attempt = 0; attempt < 30; attempt++) {

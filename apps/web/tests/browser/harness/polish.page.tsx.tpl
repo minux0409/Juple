@@ -18,7 +18,7 @@ import { Landing } from '../(app)/Landing';
 import { ApiHttpError } from '../../lib/appApi';
 import { subscribeItemsChanged } from '../../lib/itemChanges';
 import { getAppDictionary } from '../../lib/appDictionary';
-import { isAppLanguage, type AppLanguage } from '../../lib/appI18n';
+import { isAppLanguage, isRtlLanguage, type AppLanguage } from '../../lib/appI18n';
 import { resolveAppDownload } from '../../lib/appDownload';
 import { AppShell } from './AppShell';
 
@@ -77,6 +77,8 @@ function createApi() {
     }
     await new Promise(resolve => setTimeout(resolve, 40));
     const flags = new URLSearchParams(window.location.search);
+    const failOn = flags.get('failOn');
+    if (failOn && method !== 'GET' && clean.endsWith('/' + failOn)) throw new ApiHttpError(500, null);
     if (flags.get('fail') === 'details' && method === 'PUT' && clean === '/api/v1/items/7/details') throw new ApiHttpError(500, null);
     if (method === 'POST' && clean === '/api/v1/items/7/images') return { id: 5, readUrl: 'https://blob.example.test/items/7/cover.png' };
     if (method === 'DELETE' && /^\/api\/v1\/items\/7\/images\/\d+$/.test(clean)) return undefined;
@@ -99,7 +101,9 @@ function createApi() {
     if (/^\/api\/v1\/collections\/\d+\/items\/sections$/.test(clean)) return { sections: [{ key: 'today', kind: 'today', year: null, month: null, fromUtc: new Date(Date.now() - 86_400_000).toISOString(), toUtc: null, count: 8 }] };
     if (/^\/api\/v1\/collections\/\d+\/items$/.test(clean)) {
       return {
-        items: entries().map(entry => ({ itemId: entry.id, url: entry.url, title: entry.title, memo: entry.memo, previewImageUrl: null, coverImage: null, addedAtUtc: entry.savedAtUtc, isMine: true, addedBy: { kind: 'me', jupleId: 'ME', displayName: 'Me' } })),
+        items: entries().map(entry => (entry.id >= 5
+          ? { itemId: entry.id, url: entry.url, title: entry.title, memo: null, previewImageUrl: null, coverImage: null, addedAtUtc: entry.savedAtUtc, isMine: false, addedBy: { kind: 'member', jupleId: 'MINA', displayName: 'Mina' } }
+          : { itemId: entry.id, url: entry.url, title: entry.title, memo: entry.memo, previewImageUrl: null, coverImage: null, addedAtUtc: entry.savedAtUtc, isMine: true, addedBy: { kind: 'me', jupleId: 'ME', displayName: 'Me' } })),
         nextCursor: null,
       };
     }
@@ -161,7 +165,7 @@ export default function Page() {
   if (scene === 'home') content = <HomeView />;
   else if (scene === 'archive') content = <ArchiveView />;
   else if (scene === 'collections') content = <CollectionsView />;
-  else if (scene === 'collection') content = <CollectionDetailsView collectionIdParam="10" />;
+  else if (scene === 'collection') content = <CollectionDetailsView collectionIdParam={query.get('cid') ?? '10'} />;
   else if (scene === 'save') content = <NewLinkReviewView url="https://www.youtube.com/watch?v=abc123" />;
   else if (scene === 'detail') {
     content = (
@@ -177,12 +181,14 @@ export default function Page() {
   } else content = null;
 
   return (
-    <SignedInAppContext.Provider value={value as never}>
-      <ToastProvider>
-        <SafetyProvider>
+    <div dir={isRtlLanguage(language) ? 'rtl' : 'ltr'} lang={language}>
+      <SignedInAppContext.Provider value={value as never}>
+        <ToastProvider>
+          <SafetyProvider>
             <AppShell>{content}</AppShell>
-        </SafetyProvider>
-      </ToastProvider>
-    </SignedInAppContext.Provider>
+          </SafetyProvider>
+        </ToastProvider>
+      </SignedInAppContext.Provider>
+    </div>
   );
 }

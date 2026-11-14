@@ -11,7 +11,7 @@ import {
 } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { before, after, it } from 'node:test';
-import { findChrome, openPage } from './cdp.mjs';
+import { findChrome, openPage, closeAllPages } from './cdp.mjs';
 const root = fileURLToPath(new URL('../../', import.meta.url)),
   harness = `${root}app/notice-test-harness`,
   origin = 'http://localhost:3196';
@@ -45,6 +45,7 @@ before(async () => {
   throw new Error('Mock server timeout');
 });
 after(async () => {
+  await closeAllPages();
   if (owned) {
     unlinkSync(`${harness}/page.tsx`);
     rmdirSync(harness);

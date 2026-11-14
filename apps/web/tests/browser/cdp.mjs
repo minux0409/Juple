@@ -17,7 +17,18 @@ export function findChrome() {
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-export async function openPage(chrome, url, port) {
+/** Every page opened and not yet closed: a test that fails while it is being set up never reaches its own finally, and a leaked Chrome keeps Node alive. */
+const livePages = new Set();
+
+/** Closes whatever is still open (call from after()) - nothing is force-killed: each page closes its own socket and browser. */
+export async function closeAllPages() {
+  for (const page of [...livePages]) {
+    await page.close();
+  }
+}
+
+/** Starts Chrome and connects to a new tab; a Chrome that never exposes its debugging port is killed and its profile removed before the error leaves (nothing is leaked). */
+async function launch(chrome, url, port) {
   const profile = mkdtempSync(join(tmpdir(), 'juple-chrome-'));
   const browser = spawn(
     chrome,
@@ -33,6 +44,28 @@ export async function openPage(chrome, url, port) {
       await wait(200);
     }
   }
+  if (!socket) {
+    browser.kill();
+    await wait(300);
+    try {
+      rmSync(profile, { recursive: true, force: true });
+    } catch {
+      // The profile is a temp dir; Windows may still hold it for a moment.
+    }
+    throw new Error(`Chrome did not expose its debugging port ${port}`);
+  }
+  return { browser, socket, profile };
+}
+
+export async function openPage(chrome, url, port) {
+  let started;
+  try {
+    started = await launch(chrome, url, port);
+  } catch {
+    // A slow machine: once more, on a fresh port.
+    started = await launch(chrome, url, port + 5000);
+  }
+  const { browser, socket, profile } = started;
   await new Promise(resolve => socket.addEventListener('open', resolve));
   let nextId = 0;
   const pending = new Map();
@@ -77,7 +110,7 @@ export async function openPage(chrome, url, port) {
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key: name, code, windowsVirtualKeyCode, text });
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key: name, code, windowsVirtualKeyCode });
   };
-  return {
+  const page = {
     send,
     evaluate,
     until,
@@ -85,6 +118,7 @@ export async function openPage(chrome, url, port) {
     wait,
     onEvent: listener => listeners.push(listener),
     close: async () => {
+      livePages.delete(page);
       socket.close();
       browser.kill();
       await wait(300);
@@ -95,4 +129,6 @@ export async function openPage(chrome, url, port) {
       }
     },
   };
+  livePages.add(page);
+  return page;
 }

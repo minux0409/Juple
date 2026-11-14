@@ -5,7 +5,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, rmdirSync, unlinkSyn
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { after, before, it } from 'node:test';
-import { findChrome, openPage } from './cdp.mjs';
+import { findChrome, openPage, closeAllPages } from './cdp.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const harness = `${root}app/invitation-test-harness`;
@@ -26,6 +26,7 @@ before(async () => {
   throw new Error('Local Mock server startup timeout');
 });
 after(async () => {
+  await closeAllPages();
   if (owned) {
     unlinkSync(`${harness}/page.tsx`);
     rmdirSync(harness);

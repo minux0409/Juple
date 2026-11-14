@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { after, before, it } from 'node:test';
-import { findChrome, openPage } from './cdp.mjs';
+import { findChrome, openPage, closeAllPages } from './cdp.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const harness = `${root}app/polish-test-harness`;
@@ -47,6 +47,7 @@ before(async () => {
 });
 
 after(async () => {
+  await closeAllPages();
   if (owned) {
     rmSync(harness, { recursive: true, force: true });
     for (let attempt = 0; attempt < 30; attempt++) {
@@ -118,7 +119,7 @@ for (const spec of SCENES) {
   for (const theme of THEMES) {
     for (const width of WIDTHS) {
       if (process.env.POLISH_SCENES && !process.env.POLISH_SCENES.split(',').includes(spec.name)) continue;
-      if (process.env.POLISH_ONLY_EDIT || process.env.POLISH_ONLY_REG) continue;
+      if (process.env.POLISH_ONLY_EDIT || process.env.POLISH_ONLY_REG || process.env.POLISH_ONLY_I18N) continue;
       it(`${spec.name} at ${width}px ${theme}`, async () => {
         const { tab, errors } = await open(spec.scene, width, theme, { at: spec.at, waitFor: spec.ready });
         try {
@@ -542,5 +543,410 @@ it('선택 기능 (컬렉션 상세): 컬렉션에서 제거 sends one DELETE /a
     await tab.until(`!document.querySelector('dialog[open]')`, 15_000);
     await tab.wait(500);
     assert.deepEqual((await writesOf(tab)).map(entry => `${entry.method} ${entry.path}`).sort(), ['DELETE /api/v1/collections/10/items/1', 'DELETE /api/v1/collections/10/items/2']);
+  } finally { await tab.close(); }
+});
+
+// ---- 일괄 작업 · 카드 액션 충돌 · 확인창 닫기 (stub API; every write is recorded) --------------------------------------------------
+
+async function openScene(scene, extra, ready, width = 1280) {
+  const url = `${origin}/polish-test-harness?scene=${scene}&at=%2F&lang=ko${extra}`;
+  const tab = await openPage(findChrome(), url, chromePort++);
+  await tab.send('Runtime.enable');
+  await tab.send('Browser.grantPermissions', { permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'] }).catch(() => undefined);
+  await tab.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
+  await tab.until(ready, 60_000);
+  await tab.wait(1200);
+  await tab.evaluate(`sessionStorage.removeItem('writes'); true`);
+  return tab;
+}
+const selectedCount = `document.querySelectorAll('li[data-selected="true"]').length`;
+const countText = `document.querySelector('[data-selection-count]')?.textContent.trim() ?? ''`;
+const actionsOf = tab => tab.evaluate(`[...document.querySelectorAll('[data-selection-action]')].map(b => b.dataset.selectionAction + (b.disabled ? ':disabled' : ''))`);
+const pick = (tab, indexes) => tab.evaluate(`${JSON.stringify(indexes)}.forEach(i => document.querySelectorAll('[data-select-check]')[i].click()); true`);
+const READY4 = `document.querySelectorAll('[data-select-check]').length >= 4`;
+const confirmOpen = `[...document.querySelectorAll('dialog[open]')].length > 0`;
+/** A click on the dimmed area outside the open dialog (its backdrop) - what a person does to "click away". */
+const clickBackdrop = tab => tab.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 3, y: 3, button: 'left', clickCount: 1 }).then(() => tab.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 3, y: 3, button: 'left', clickCount: 1 }));
+const pressEscape = tab => tab.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+
+it('카드 액션 충돌: the favorite star, 공유 / 수정 links and 링크 열기 never change the selection - before, during or after it', async () => {
+  const tab = await openScene('collections', '', `document.querySelectorAll('a[href^="/collections/"]').length >= 3`);
+  try {
+    await clickText(tab, '전체');
+    await tab.until(READY4, 15_000);
+    await tab.wait(400);
+    const star = i => `document.querySelectorAll('[data-select-check]')[${i}].closest('li').querySelector('button[class*="cardAction"]')`;
+    // Not selecting: the star toggles the favorite and does NOT start a selection.
+    await tab.evaluate(`${star(2)}.click(); true`);
+    await tab.wait(400);
+    assert.equal(await tab.evaluate(barUp), false, 'the star does not start a selection');
+    assert.deepEqual((await writesOf(tab)).map(entry => `${entry.method} ${entry.path}`), ['PUT /api/v1/collections/12/favorite'], 'the star is a favorite toggle');
+    // Selecting: the star of ANOTHER card changes the favorite but not the selection.
+    await tab.evaluate(`document.querySelectorAll('[data-select-check]')[0].click(); true`);
+    await tab.until(barUp);
+    assert.equal(await tab.evaluate(countText), '1개 선택됨');
+    await tab.evaluate(`${star(3)}.click(); true`);
+    await tab.wait(400);
+    assert.equal(await tab.evaluate(countText), '1개 선택됨', 'the star did not toggle the selection');
+    assert.equal(await tab.evaluate(selectedCount), 1);
+    // The card's own share / edit links are real links: a click on them is not taken by the selection either.
+    const links = await tab.evaluate(`(() => { const li = document.querySelectorAll('[data-select-check]')[2].closest('li'); const a = li.querySelector('a[data-card-action]'); if (!a) return 'none'; a.addEventListener('click', e => e.preventDefault(), { once: true }); a.click(); return 'clicked'; })()`);
+    await tab.wait(300);
+    assert.notEqual(links, 'clicked-and-selected');
+    assert.equal(await tab.evaluate(countText), '1개 선택됨', 'a card action link did not toggle the selection');
+  } finally { await tab.close(); }
+});
+
+it('카드 액션 충돌 (Home): 링크 열기 never starts or changes a selection', async () => {
+  const tab = await openScene('home', '', READY4);
+  try {
+    const open = `document.querySelectorAll('[data-link-open]')`;
+    await tab.evaluate(`(() => { const a = ${open}[2]; a.addEventListener('click', e => e.preventDefault(), { once: true }); a.click(); return true; })()`);
+    await tab.wait(300);
+    assert.equal(await tab.evaluate(barUp), false, 'not selecting: 링크 열기 only opens the link');
+    await pick(tab, [0]);
+    await tab.until(barUp);
+    await tab.evaluate(`(() => { const a = ${open}[3]; a.addEventListener('click', e => e.preventDefault(), { once: true }); a.click(); return true; })()`);
+    await tab.wait(300);
+    assert.equal(await tab.evaluate(countText), '1개 선택됨', 'selecting: 링크 열기 did not toggle the card');
+    assert.ok((await writesOf(tab)).every(entry => entry.method === 'POST' && /^\/api\/v1\/items\/\d+\/open$/.test(entry.path)), 'only the best-effort note for 최근 조회한 링크 may be sent, never a change of a link');
+  } finally { await tab.close(); }
+});
+
+it('일괄 (Home): 컬렉션에 추가 = one replicate per link into the chosen Collection; 링크 복사 says how many; nothing is removed', async () => {
+  const tab = await openScene('home', '', READY4);
+  try {
+    await pick(tab, [1, 2]);
+    await tab.until(barUp);
+    assert.deepEqual(await actionsOf(tab), ['add', 'copy', 'delete']);
+    // 링크 복사: the addresses as one text; the toast says how many (or that it could not).
+    await click(tab, '[data-selection-action="copy"]');
+    await tab.until(`document.body.textContent.includes('링크 2개를 복사했어요') || document.body.textContent.includes('복사')`, 10_000);
+    assert.deepEqual(await writesOf(tab), [], 'copying writes nothing');
+    await click(tab, '[data-selection-action="add"]');
+    await tab.until(`!!document.querySelector('dialog[open] [aria-pressed]')`, 20_000);
+    await tab.wait(400);
+    await tab.evaluate(`[...document.querySelectorAll('dialog[open] button')].find(b => b.textContent.includes('웹툰')).click(); true`);
+    await tab.wait(200);
+    await click(tab, '[data-destination-submit]');
+    await tab.until(`!document.querySelector('dialog[open]')`, 15_000);
+    await tab.wait(500);
+    const writes = await writesOf(tab);
+    assert.equal(writes.length, 2, 'one request per link');
+    for (const entry of writes) {
+      assert.equal(entry.method, 'POST');
+      assert.match(entry.path, /^\/api\/v1\/items\/[23]\/collections$/);
+      assert.deepEqual(entry.body.collectionIds, [10]);
+    }
+    assert.equal(await tab.evaluate(barDown), true, 'the bar closes after a fully successful add');
+  } finally { await tab.close(); }
+});
+
+it('일괄 (Home) 삭제: a partial failure keeps ONLY the failed link selected and says so; clicking away or Esc on the question writes nothing', async () => {
+  const tab = await openScene('home', '&failOn=items%2F3', READY4);
+  try {
+    await pick(tab, [1, 2]);
+    await tab.until(barUp);
+    // Esc and a click on the backdrop only close the question.
+    await click(tab, '[data-selection-action="delete"]');
+    await tab.until(confirmOpen);
+    await pressEscape(tab);
+    await tab.wait(300);
+    assert.equal(await tab.evaluate(`document.querySelectorAll('dialog[open]').length`), 0, 'Esc closes the question');
+    await click(tab, '[data-selection-action="delete"]');
+    await tab.until(confirmOpen);
+    await clickBackdrop(tab);
+    await tab.wait(400);
+    assert.equal(await tab.evaluate(`document.querySelectorAll('dialog[open]').length`), 0, 'a click away closes the question');
+    assert.deepEqual(await writesOf(tab), [], 'closing the question wrote nothing');
+    assert.equal(await tab.evaluate(countText), '2개 선택됨', 'and the selection is untouched');
+    // Confirm: link 3's request fails, link 2's goes through.
+    await click(tab, '[data-selection-action="delete"]');
+    await tab.until(confirmOpen);
+    await tab.evaluate(`${dialogButton('삭제', true)}.click(); true`);
+    await tab.until(`document.querySelector('[data-selection-count]')?.textContent.trim() === '1개 선택됨'`, 15_000);
+    await tab.wait(400);
+    assert.deepEqual((await writesOf(tab)).map(entry => `${entry.method} ${entry.path}`).sort(), ['DELETE /api/v1/items/2', 'DELETE /api/v1/items/3']);
+    assert.equal(await tab.evaluate(barUp), true, 'the bar stays for a retry');
+    assert.equal(await tab.evaluate(`(() => { const li = document.querySelectorAll('li[data-selected="true"]'); return li.length; })()`), 1, 'exactly the failed link stays chosen');
+    assert.equal(await tab.evaluate(`document.body.textContent.includes('실패') || document.body.textContent.includes('못했')`), true, 'the partial result is said');
+  } finally { await tab.close(); }
+});
+
+it('일괄 (컬렉션 상세, Owner): 컬렉션으로 이동 = one transfer per own link into the chosen Collection; 컬렉션에서 제거 with a failing link keeps only it selected', async () => {
+  const tab = await openScene('collection', '&failOn=10%2Fitems%2F2', READY4);
+  try {
+    await pick(tab, [0, 1]);
+    await tab.until(barUp);
+    const acts = (await actionsOf(tab)).map(a => a.replace(':disabled', ''));
+    for (const need of ['remove', 'move', 'copyTo', 'copy']) assert.ok(acts.includes(need), `Owner action ${need} (${acts})`);
+    // remove: link 2 fails
+    await click(tab, '[data-selection-action="remove"]');
+    await tab.until(confirmOpen);
+    await tab.evaluate(`${dialogButton('삭제', true)}.click(); true`);
+    await tab.until(`document.querySelector('[data-selection-count]')?.textContent.trim() === '1개 선택됨'`, 15_000);
+    assert.deepEqual((await writesOf(tab)).map(entry => `${entry.method} ${entry.path}`).sort(), ['DELETE /api/v1/collections/10/items/1', 'DELETE /api/v1/collections/10/items/2']);
+    await tab.evaluate(`sessionStorage.removeItem('writes'); true`);
+  } finally { await tab.close(); }
+  const move = await openScene('collection', '', READY4);
+  try {
+    await pick(move, [0, 1]);
+    await move.until(barUp);
+    await click(move, '[data-selection-action="move"]');
+    await move.until(`!!document.querySelector('dialog[open] [aria-pressed]')`, 20_000);
+    await move.wait(400);
+    await move.evaluate(`[...document.querySelectorAll('dialog[open] button')].find(b => b.textContent.includes('Design inspiration')).click(); true`);
+    await move.wait(200);
+    await click(move, '[data-destination-submit]');
+    await move.until(`!document.querySelector('dialog[open]')`, 15_000);
+    await move.wait(500);
+    const writes = await writesOf(move);
+    assert.equal(writes.length, 2, 'one move per link');
+    for (const entry of writes) {
+      assert.equal(entry.method, 'POST');
+      assert.match(entry.path, /^\/api\/v1\/collections\/10\/items\/[12]\/move$/);
+      assert.deepEqual(entry.body, { targetCollectionId: 12 });
+    }
+  } finally { await move.close(); }
+});
+
+it('일괄 권한 (공유 컬렉션, 기여자): 타인의 링크는 신고·복사만, 내 링크는 제거·이동까지, 섞이면 내 링크만 제거; the report question closes without a write', async () => {
+  const tab = await openScene('collection', '&cid=15', READY4);
+  try {
+    // links 1-4 are mine, 5+ were added by Mina (the stub's isMine flag).
+    await pick(tab, [5]);
+    await tab.until(barUp);
+    const others = (await actionsOf(tab)).map(a => a.replace(':disabled', ''));
+    assert.ok(others.includes('report'), `report is offered for someone else's link (${others})`);
+    assert.ok(!others.includes('remove') && !others.includes('move'), `no remove / move for someone else's link (${others})`);
+    await click(tab, '[data-selection-action="report"]');
+    await tab.until(confirmOpen, 10_000);
+    await pressEscape(tab);
+    await tab.wait(400);
+    assert.equal(await tab.evaluate(`document.querySelectorAll('dialog[open]').length`), 0, 'Esc closes the report question');
+    assert.deepEqual(await writesOf(tab), [], 'no report is sent by closing the question');
+    await pick(tab, [5]);
+    await tab.until(barDown);
+    await pick(tab, [0]);
+    await tab.until(barUp);
+    const mine = (await actionsOf(tab)).map(a => a.replace(':disabled', ''));
+    assert.ok(mine.includes('remove') && mine.includes('move'), `my own link can be removed / moved (${mine})`);
+    assert.ok(!mine.includes('report'), `no report for my own link (${mine})`);
+    // Mixed (policy of selectionRules.collectionLinkActions, same as mobile): a member cannot remove in a mixed selection - copy and report only.
+    await pick(tab, [5]);
+    await tab.wait(300);
+    assert.equal(await tab.evaluate(countText), '2개 선택됨');
+    const mixed = (await actionsOf(tab)).map(a => a.replace(':disabled', ''));
+    assert.ok(!mixed.includes('remove') && !mixed.includes('move'), `a mixed selection offers no remove / move (${mixed})`);
+    assert.ok(mixed.includes('copy') && mixed.includes('report'), `but copy and report (${mixed})`);
+    await pick(tab, [5]);
+    await tab.wait(300);
+    // My own link alone: 제거 sends exactly its DELETE.
+    await click(tab, '[data-selection-action="remove"]');
+    await tab.until(confirmOpen);
+    await tab.evaluate(`${dialogButton('삭제', true)}.click(); true`);
+    await tab.until(`!document.querySelector('dialog[open]')`, 15_000);
+    await tab.wait(500);
+    assert.deepEqual((await writesOf(tab)).map(entry => `${entry.method} ${entry.path}`), ['DELETE /api/v1/collections/15/items/1'], "someone else's link is never removed by a member");
+  } finally { await tab.close(); }
+});
+
+it('일괄 (컬렉션 목록): 즐겨찾기 = one PUT per Collection; 삭제 only for my own, 나가기 only for shared ones; Esc / clicking away on the question writes nothing; a locked Collection offers no 잠금', async () => {
+  const tab = await openScene('collections', '', `document.querySelectorAll('a[href^="/collections/"]').length >= 3`);
+  try {
+    await clickText(tab, '전체');
+    await tab.until(READY4, 15_000);
+    await tab.wait(500);
+    // 12 (own), 15 (shared with me as a contributor)
+    await pick(tab, [2, 5]);
+    await tab.until(barUp);
+    const acts = (await actionsOf(tab)).map(a => a.replace(':disabled', ''));
+    assert.ok(acts.includes('favorite'), `favorite (${acts})`);
+    assert.ok(acts.includes('leave'), `나가기 for the shared one (${acts})`);
+    assert.ok(acts.includes('delete'), `삭제 for the own one (${acts})`);
+    // 삭제: the question first; Esc and a click away write nothing.
+    await click(tab, '[data-selection-action="delete"]');
+    await tab.until(confirmOpen);
+    await pressEscape(tab);
+    await tab.wait(400);
+    await click(tab, '[data-selection-action="delete"]');
+    await tab.until(confirmOpen);
+    await clickBackdrop(tab);
+    await tab.wait(400);
+    assert.deepEqual(await writesOf(tab), [], 'closing the question wrote nothing');
+    assert.equal(await tab.evaluate(countText), '2개 선택됨');
+    // 나가기 only touches the shared one.
+    await click(tab, '[data-selection-action="leave"]');
+    await tab.until(confirmOpen);
+    await tab.evaluate(`[...document.querySelectorAll('dialog[open] button')].pop().click(); true`);
+    await tab.until(`!document.querySelector('dialog[open]')`, 15_000);
+    await tab.wait(500);
+    assert.deepEqual((await writesOf(tab)).map(entry => `${entry.method} ${entry.path}`), ['DELETE /api/v1/collections/15/collaborators/me']);
+    await tab.evaluate(`sessionStorage.removeItem('writes'); true`);
+  } finally { await tab.close(); }
+  const fav = await openScene('collections', '', `document.querySelectorAll('a[href^="/collections/"]').length >= 3`);
+  try {
+    await clickText(fav, '전체');
+    await fav.until(READY4, 15_000);
+    await fav.wait(500);
+    await pick(fav, [2, 3]);
+    await fav.until(barUp);
+    await click(fav, '[data-selection-action="favorite"]');
+    await fav.wait(800);
+    assert.deepEqual((await writesOf(fav)).map(entry => `${entry.method} ${entry.path} ${JSON.stringify(entry.body)}`).sort(), ['PUT /api/v1/collections/12/favorite {"isFavorite":true}', 'PUT /api/v1/collections/13/favorite {"isFavorite":true}']);
+    // The locked Collection (14) alone: no 잠금 to offer.
+    await fav.evaluate(`document.querySelector('[data-selection-bar] button[aria-label="선택 종료"]')?.click(); true`);
+    await fav.until(barDown);
+    await pick(fav, [4]);
+    await fav.until(barUp);
+    assert.ok(!(await actionsOf(fav)).some(a => a.startsWith('lock')), 'a locked Collection offers no 잠금');
+  } finally { await fav.close(); }
+});
+
+// ---- 다국어: ko / en / ja / zh-Hans / vi / ar (RTL) at every width, Light and Dark -------------------------------------------------
+
+const LANGS = ['ko', 'en', 'ja', 'zh-Hans', 'vi', 'ar'];
+
+/** A real mouse click (CDP input): it carries user activation, so Chrome keeps stacked dialogs as separate Esc steps - a scripted element.click() does not. */
+async function realClick(tab, selector) {
+  const point = await tab.evaluate(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); el.scrollIntoView({ block: 'center' }); const r = el.getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })()`);
+  await tab.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: point.x, y: point.y, button: 'left', clickCount: 1 });
+  await tab.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'left', clickCount: 1 });
+}
+
+/** In-page measurements of what is on screen right now: dialogs inside the window, buttons that hold their own text, nothing overlapping. */
+const SCREEN_FACTS = `(() => {
+  const vw = innerWidth, vh = innerHeight;
+  const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden'; };
+  const dialogs = [...document.querySelectorAll('dialog[open]')].map(d => { const r = d.querySelector('[class*="quickPanel"], [class*="panelDialog"], [class*="dialog"]') ? d.getBoundingClientRect() : d.getBoundingClientRect(); return { l: Math.round(r.left), t: Math.round(r.top), r: Math.round(r.right), b: Math.round(r.bottom) }; }).filter(r => r.r - r.l < vw + 1 && r.b - r.t < vh + 1);
+  const groups = [['dialog[open] [class*="formActions"]'], ['[data-selection-bar] [class*="selectionBarActions"]'], ['[data-item-detail] footer'], ['dialog[open] [class*="dialogFoot"]']];
+  const overlaps = []; const unfit = [];
+  const roots = [...document.querySelectorAll('dialog[open] [class*="formActions"], [data-selection-bar], [data-item-detail] footer, dialog[open] [class*="dialogFoot"], dialog[open] [class*="dialogActions"]')];
+  for (const root of roots) {
+    const buttons = [...root.querySelectorAll('button')].filter(visible);
+    for (let i = 0; i < buttons.length; i++) {
+      const a = buttons[i].getBoundingClientRect();
+      if (a.right > vw + 1 || a.left < -1 || a.bottom > vh + 1) unfit.push('offscreen:' + (buttons[i].textContent || buttons[i].getAttribute('aria-label') || '').trim().slice(0, 24));
+      if (buttons[i].scrollWidth > buttons[i].clientWidth + 1) unfit.push('clipped:' + (buttons[i].textContent || '').trim().slice(0, 24) + ' ' + buttons[i].scrollWidth + '>' + buttons[i].clientWidth);
+      for (let j = i + 1; j < buttons.length; j++) {
+        const b = buttons[j].getBoundingClientRect();
+        if (!(a.right <= b.left + 1 || b.right <= a.left + 1 || a.bottom <= b.top + 1 || b.bottom <= a.top + 1)) overlaps.push((buttons[i].textContent || '').trim().slice(0, 16) + ' x ' + (buttons[j].textContent || '').trim().slice(0, 16));
+      }
+    }
+  }
+  const focus = document.activeElement ? document.activeElement.tagName + (document.activeElement.type ? ':' + document.activeElement.type : '') : null;
+  return { dialogs, overlaps, unfit, focus, dir: document.querySelector('[dir]')?.getAttribute('dir') };
+})()`;
+
+async function checkScreen(tab, label) {
+  const facts = await tab.evaluate(SCREEN_FACTS);
+  assert.deepEqual(facts.overlaps, [], `${label}: buttons overlap`);
+  assert.deepEqual(facts.unfit, [], `${label}: a button is clipped or off screen`);
+  return facts;
+}
+const keepShot = (lang, width) => lang === 'ko' || (lang === 'ar' && width !== 1024) || width === 360 || width === 1440;
+
+for (const lang of LANGS) {
+  for (const theme of THEMES) {
+    for (const width of WIDTHS) {
+      if (process.env.POLISH_NO_I18N) continue;
+      it(`다국어 ${lang} ${width}px ${theme}: 링크 상세 + 컬렉션 선택 + 닫기 / 삭제 확인`, async () => {
+        const { tab, errors } = await open('detail', width, theme, { lang, at: '/', waitFor: `!!document.querySelector('[data-item-detail] [data-detail-save]')` });
+        try {
+          const detail = await checkScreen(tab, `${lang} ${width} ${theme} detail`);
+          assert.equal(detail.dir, lang === 'ar' ? 'rtl' : 'ltr');
+          if (keepShot(lang, width)) await shot(tab, `i18n-detail-${lang}-${width}-${theme}`);
+          await generic(tab, errors, `i18n detail ${lang} ${width} ${theme}`);
+          await tab.until(`!document.querySelector('[data-edit-collections]').disabled`, 15_000);
+          // Collections dialog
+          await realClick(tab, '[data-edit-collections]');
+          await tab.until(`!!document.querySelector('dialog[open] [aria-pressed]')`, 20_000);
+          await tab.wait(400);
+          const dlg = await checkScreen(tab, `${lang} ${width} ${theme} collections dialog`);
+          assert.ok(dlg.dialogs.length >= 1 && dlg.dialogs.every(r => r.l >= -1 && r.t >= -1), 'the dialog is inside the window');
+          if (keepShot(lang, width)) await shot(tab, `i18n-collections-${lang}-${width}-${theme}`);
+          await pressEscape(tab);
+          await tab.wait(400);
+          // Leave question (unsaved memo)
+          await tab.evaluate(typeInto(MEMO, '입력 중 / typing / 入力中 / 输入中 / đang nhập / جارٍ الكتابة'));
+          await tab.wait(150);
+          await realClick(tab, 'dialog[open] header button');
+          await tab.until(`document.querySelectorAll('dialog[open]').length >= 2`, 10_000);
+          await tab.wait(300);
+          await checkScreen(tab, `${lang} ${width} ${theme} leave question`);
+          if (keepShot(lang, width)) await shot(tab, `i18n-leave-${lang}-${width}-${theme}`);
+          await pressEscape(tab);
+          await tab.wait(400);
+          // Delete question: Esc and a click away both write nothing.
+          await realClick(tab, '[data-item-detail] footer button');
+          await tab.until(`document.querySelectorAll('dialog[open]').length >= 2`, 10_000);
+          await tab.wait(300);
+          await checkScreen(tab, `${lang} ${width} ${theme} delete question`);
+          if (keepShot(lang, width)) await shot(tab, `i18n-delete-${lang}-${width}-${theme}`);
+          await pressEscape(tab);
+          await tab.wait(300);
+          assert.deepEqual(await writesOf(tab), [], 'closing the questions wrote nothing');
+        } finally { await tab.close(); }
+      });
+
+      it(`다국어 ${lang} ${width}px ${theme}: 선택 바 + 삭제 확인`, async () => {
+        const { tab, errors } = await open('home', width, theme, { lang, at: '/', waitFor: READY4 });
+        try {
+          await tab.evaluate(`document.querySelectorAll('[data-select-check]')[1].click(); document.querySelectorAll('[data-select-check]')[2].click(); true`);
+          await tab.until(barUp);
+          await tab.wait(450);
+          await checkScreen(tab, `${lang} ${width} ${theme} selection bar`);
+          if (keepShot(lang, width)) await shot(tab, `i18n-selection-${lang}-${width}-${theme}`);
+          await generic(tab, errors, `i18n selection ${lang} ${width} ${theme}`);
+          await realClick(tab, '[data-selection-action="delete"]');
+          await tab.until(`document.querySelectorAll('dialog[open]').length >= 1`, 10_000);
+          await tab.wait(300);
+          await checkScreen(tab, `${lang} ${width} ${theme} delete confirm`);
+          if (keepShot(lang, width)) await shot(tab, `i18n-selection-confirm-${lang}-${width}-${theme}`);
+          await pressEscape(tab);
+          await tab.wait(300);
+          assert.deepEqual(await writesOf(tab), []);
+        } finally { await tab.close(); }
+      });
+
+      it(`다국어 ${lang} ${width}px ${theme}: 링크 저장 + 새 컬렉션`, async () => {
+        const { tab, errors } = await open('save', width, theme, { lang, at: '/', waitFor: `!!document.querySelector('[data-collection-create]')` });
+        try {
+          await tab.wait(1500);
+          if (keepShot(lang, width)) await shot(tab, `i18n-save-${lang}-${width}-${theme}`);
+          await generic(tab, errors, `i18n save ${lang} ${width} ${theme}`);
+          await click(tab, '[data-collection-create]');
+          await tab.until(`!!document.querySelector('dialog[open] [data-collection-preview]')`, 15_000);
+          await tab.wait(500);
+          const facts = await checkScreen(tab, `${lang} ${width} ${theme} new collection`);
+          assert.match(facts.focus ?? '', /^INPUT/, 'the name field has the keyboard focus (not the scrolling body)');
+          assert.ok(facts.dialogs.length >= 1);
+          const reach = await tab.evaluate(`(() => { const d = document.querySelector('dialog[open]'); const foot = [...d.querySelectorAll('[class*="formActions"] button')]; const r = d.getBoundingClientRect(); return { n: foot.length, inside: foot.every(b => { const x = b.getBoundingClientRect(); return x.top >= r.top && x.bottom <= r.bottom + 1 && x.left >= 0 && x.right <= innerWidth; }) }; })()`);
+          assert.equal(reach.n, 2);
+          assert.equal(reach.inside, true, '취소 / 만들기 stay inside the dialog and the window');
+          if (keepShot(lang, width)) await shot(tab, `i18n-newcollection-${lang}-${width}-${theme}`);
+          // The keyboard reaches the footer: Tab from the name field moves on (focus is not trapped on the body).
+          await tab.key('Tab', 'Tab', 9);
+          assert.notEqual(await tab.evaluate(`document.activeElement?.tagName`), 'BODY');
+        } finally { await tab.close(); }
+      });
+    }
+  }
+}
+
+it('중첩 모달: Esc on the Collection dialog closes ONLY that dialog - the details sheet and its typed edits stay', async () => {
+  const tab = await openDetail();
+  try {
+    await tab.until(`!document.querySelector('[data-edit-collections]').disabled`, 15_000);
+    await tab.evaluate(typeInto(MEMO, '남아 있어야 하는 메모'));
+    await click(tab, '[data-edit-collections]');
+    await tab.until(`!!document.querySelector('dialog[open] [aria-pressed]')`, 20_000);
+    await tab.wait(400);
+    await pressEscape(tab);
+    await tab.wait(600);
+    const state = await tab.evaluate(`({ open: document.querySelectorAll('dialog[open]').length, detail: !!document.querySelector('[data-item-detail]'), memo: document.querySelector('${MEMO}')?.value, url: location.pathname + location.search })`);
+    assert.equal(state.detail, true, `the details sheet is still there (${JSON.stringify(state)})`);
+    assert.equal(state.memo, '남아 있어야 하는 메모', 'the typed memo is kept');
+    assert.equal(state.open, 1, 'only the sheet itself is open');
   } finally { await tab.close(); }
 });

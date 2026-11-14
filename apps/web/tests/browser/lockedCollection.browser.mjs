@@ -10,7 +10,7 @@ import { spawn } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { after, before, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { findChrome, openPage } from './cdp.mjs';
+import { findChrome, openPage, closeAllPages } from './cdp.mjs';
 
 const webRoot = fileURLToPath(new URL('../../', import.meta.url));
 const harnessDir = `${webRoot}app/browser-test-harness`;
@@ -47,6 +47,7 @@ before(async () => {
 });
 
 after(async () => {
+  await closeAllPages();
   if (server) {
     // The dev server spawns children: on Windows kill the whole tree.
     if (process.platform === 'win32') spawn('taskkill', ['/PID', String(server.pid), '/T', '/F'], { stdio: 'ignore' });
