@@ -6,18 +6,15 @@ import { useItemsChanged } from '../useItemsChanged';
 import { affectsList, removesFromList } from '../../../lib/itemChanges';
 import {
   ARCHIVE_SEARCH_DEBOUNCE_MS,
-  ARCHIVE_SECTIONS_PATH,
   archiveFlatPagePath,
-  archiveSectionPagePath,
   normalizeArchiveQuery,
   type ArchiveSort,
 } from '../../../lib/archiveView';
 import type { AppDictionary } from '../../../lib/appI18n';
 import type { AppApi } from '../../../lib/appApi';
 import { isSessionLost } from '../../../lib/authSession';
-import { historyLinkView, parseViewMode, VIEW_MODE_STORAGE_KEYS, type DateSection, type ItemHistoryPage, type LinkView, type LinkViewMode } from '../../../lib/savedLinks';
+import { historyLinkView, parseViewMode, VIEW_MODE_STORAGE_KEYS, type ItemHistoryPage, type LinkView, type LinkViewMode } from '../../../lib/savedLinks';
 import { useSignedInApp } from '../AppRoot';
-import { DateSections } from '../DateSections';
 import { LoadMore } from '../InfiniteScroll';
 import { LoadFailed } from '../PageStates';
 import { SavedLinkSkeleton } from '../Skeletons';
@@ -33,13 +30,13 @@ import { PersonalLinkSelection } from '../LinkSelection';
 import styles from '../app.module.css';
 
 /**
- * 보관함 - every link the person has saved, read the mobile way (DateHistoryScreen): 시간순 = the 오늘 / 어제 / 이번 주 / month sections,
- * 이름순 = the whole archive A-Z as one list; List / Grid / Image. 검색 (mobile useArchiveSearch) asks the server (`q`, 2+ characters,
- * debounced) over the WHOLE archive and shows the result as one flat list in the chosen order; clearing it returns to the sections.
+ * 보관함 - every link the person has saved as ONE continuous feed, newest SAVED first (the server's order: SavedAtUtc, then id), like a social
+ * feed: no date sections or accordions; List / Grid / Image. 검색 (mobile useArchiveSearch) asks the server (`q`, 2+ characters, debounced)
+ * over the WHOLE archive and shows the result in the same feed; clearing it returns to the full feed.
  * The typed term lives in the address (?q=), so back / forward and a reload come back to the same search.
  */
 export function ArchiveView() {
-  const { api, dictionary, locale, onSessionLost } = useSignedInApp();
+  const { api, dictionary, onSessionLost } = useSignedInApp();
   const [viewMode, setViewMode] = useStoredChoice(VIEW_MODE_STORAGE_KEYS.archive, parseViewMode);
   const searchParams = useSearchParams();
   const [text, setText] = useState(() => searchParams.get('q') ?? '');
@@ -82,21 +79,8 @@ export function ArchiveView() {
         {tooShort ? <p className={styles.searchHint}>{dictionary.archiveSearchMinHint}</p> : null}
       </div>
       </StickyControls>
-      {term !== null ? (
-        <ArchiveFlat api={api} dictionary={dictionary} key={term ?? ''} onSessionLost={onSessionLost} sort="time" term={term} viewMode={viewMode} />
-      ) : (
-        <DateSections
-          dictionary={dictionary}
-          emptyText={dictionary.archiveEmpty}
-          key="time"
-          loadPage={(section, cursor) => loadHistoryPage(api, archiveSectionPagePath(section, cursor))}
-          loadSections={() => api<{ readonly sections: readonly DateSection[] }>({ path: ARCHIVE_SECTIONS_PATH }).then(result => result.sections)}
-          locale={locale}
-          onSessionLost={onSessionLost}
-          scope={{ kind: 'personal' }}
-          viewMode={viewMode}
-        />
-      )}
+      {/* ONE continuous feed, newest saved first - with or without a search; never split into 오늘 / 어제 / 이번 주 / month sections. */}
+      <ArchiveFlat api={api} dictionary={dictionary} key={term ?? ''} onSessionLost={onSessionLost} sort="time" term={term} viewMode={viewMode} />
     </section>
     </PersonalLinkSelection>
   );

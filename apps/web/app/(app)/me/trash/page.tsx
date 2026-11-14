@@ -111,16 +111,7 @@ export default function TrashPage() {
   return (
     <SettingsPage
       icon="Trash"
-      actions={
-        items && items.length > 0 ? (
-          <button className={styles.dangerAction} disabled={busy} onClick={() => setPending({ kind: 'empty' })} type="button">
-            <Glyph name="Trash" size={16} />
-            {dictionary.trashEmptyAction}
-          </button>
-        ) : null
-      }
       backHref={null}
-      subtitle={formatMessage(dictionary.trashLimitNotice, { count: TRASH_LIST_LIMIT })}
       title={dictionary.trashTitle}
       width="medium"
     >
@@ -142,6 +133,15 @@ export default function TrashPage() {
         />
       ) : null}
       {items && items.length === 0 ? <p className={styles.emptyState}>{dictionary.trashEmpty}</p> : null}
+      {items && items.length > 0 ? (
+        <div className={styles.trashToolbar} data-trash-toolbar>
+          {/* 비우기 acts on this list, so it sits with the list (not in the page header). */}
+          <button className={styles.trashEmptyButton} disabled={busy} onClick={() => setPending({ kind: 'empty' })} type="button">
+            <Glyph name="Trash" size={16} />
+            {dictionary.trashEmptyAction}
+          </button>
+        </div>
+      ) : null}
       {items && items.length > 0 ? (
         <ul className={styles.trashGrid}>
           {items.map(entry => {
@@ -194,6 +194,12 @@ export default function TrashPage() {
             );
           })}
         </ul>
+      ) : null}
+      {/* The 50-link limit is a note at the END of the list (not under the title), small and centred. */}
+      {items && items.length > 0 ? (
+        <p className={styles.trashNotice} data-trash-notice>
+          {formatMessage(dictionary.trashLimitNotice, { count: TRASH_LIST_LIMIT })}
+        </p>
       ) : null}
       <ConfirmDialog
         busy={busy}

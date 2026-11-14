@@ -10755,3 +10755,270 @@ a.imageBody:hover .imageTile {
   --brand-line: color-mix(in srgb, var(--brand) 24%, transparent);
   --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
+
+/* ======================================================================================================================
+   Layout round 5 - details foot, 친구 tabs, 삭제 이력 list tools, profile section. Tokens only.
+   ONE action-button family (shared by these screens): 44px high, --radius-lg, 15px / 700, the same padding;
+   Primary = brand fill, Secondary = outlined, Destructive = danger outline.
+   ==================================================================================================================== */
+
+/* ---- link details: 삭제 + 저장 side by side at the foot's end ---- */
+.detailFooter {
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top-color: color-mix(in srgb, var(--app-divider) 70%, transparent);
+}
+
+.detailDelete,
+.detailSave {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: var(--radius-lg);
+}
+
+.detailDelete {
+  min-width: 116px;
+  border: 1px solid var(--danger-border);
+  background: var(--app-surface);
+  color: var(--danger-text);
+}
+
+.detailSave {
+  min-width: 148px;
+  max-width: none;
+  margin-inline-start: 0;
+}
+
+@media (max-width: 640px) {
+  /* a phone: the two share the width equally */
+  .detailFooter {
+    gap: var(--space-2);
+  }
+
+  .detailDelete,
+  .detailSave {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 var(--space-3);
+  }
+}
+
+/* ---- 친구: four tabs with one sliding selection pill ---- */
+.slideTabs {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  width: 100%;
+  max-width: 100%;
+  padding: 4px;
+  border-radius: var(--radius-lg);
+  background: var(--app-surface-muted);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.slideTabs::-webkit-scrollbar {
+  display: none;
+}
+
+.slidePill {
+  pointer-events: none;
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  width: var(--slide-w, 0px);
+  border-radius: var(--radius-md);
+  background: var(--app-surface);
+  box-shadow: var(--shadow-card), 0 0 0 1px var(--brand-line, var(--app-border));
+  opacity: 0;
+  transform: translateX(var(--slide-x, 0px));
+}
+
+.slideTabs[data-ready='true'] .slidePill {
+  opacity: 1;
+  transition: transform var(--motion-base, 220ms) var(--ease-out, ease-out), width var(--motion-base, 220ms) var(--ease-out, ease-out);
+}
+
+.slideTab,
+.slideTabSelected {
+  position: relative;
+  display: inline-flex;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--app-text-secondary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--motion-fast, 140ms) var(--ease-out, ease-out);
+}
+
+.slideTab:hover {
+  color: var(--app-text);
+}
+
+.slideTabSelected {
+  color: var(--brand-text);
+  font-weight: 750;
+}
+
+.slideTab:focus-visible,
+.slideTabSelected:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: -3px;
+}
+
+/* ---- 삭제 이력: 비우기 with the list, the limit note under it ---- */
+.trashToolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-3);
+}
+
+.trashEmptyButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-md);
+  background: var(--app-surface);
+  color: var(--danger-text);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background-color var(--motion-fast, 140ms) var(--ease-out, ease-out);
+}
+
+.trashEmptyButton:hover:not(:disabled) {
+  background: var(--danger-soft);
+}
+
+.trashEmptyButton:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.trashEmptyButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.trashNotice {
+  margin: var(--space-5) 0 var(--space-2);
+  color: var(--app-text-tertiary, var(--app-text-secondary));
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* ---- profile: photo | name + ID as one section, actions at its bottom end ---- */
+.profileEditCard {
+  width: 100%;
+  max-width: 720px;
+  gap: var(--space-5);
+}
+
+.profileEditBody {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-6);
+}
+
+.profileEditBody .profileEditAvatar {
+  flex-direction: column;
+  justify-content: flex-start;
+  width: 160px;
+}
+
+.profileEditFields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 440px;
+  min-width: 0;
+}
+
+.profileEditActions .primaryAction,
+.profileEditActions .settingsAction {
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: var(--radius-lg);
+}
+
+.profileEditActions .primaryAction {
+  min-width: 128px;
+}
+
+@media (max-width: 640px) {
+  .profileEditBody {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: var(--space-4);
+  }
+
+  .profileEditBody .profileEditAvatar {
+    width: auto;
+  }
+
+  .profileEditFields {
+    max-width: none;
+  }
+
+  .profileEditActions {
+    justify-content: stretch;
+  }
+
+  .profileEditActions .primaryAction,
+  .profileEditActions .settingsAction {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slideTabs[data-ready='true'] .slidePill,
+  .slideTab,
+  .slideTabSelected,
+  .trashEmptyButton {
+    transition: none;
+  }
+}
+
+/* 차단한 사용자 rows: the hidden-Collection links read like the other small meta lines (not the browser's default link type). */
+.personCards [data-blocked-user] a {
+  color: var(--brand-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.personCards [data-blocked-user] a:hover {
+  text-decoration: underline;
+}
+
+/* The profile section is exactly as wide as its content (photo + gap + the 440px fields), so 저장 ends where the fields end. */
+.profileEditCard {
+  max-width: calc(160px + var(--space-6) + 440px);
+}

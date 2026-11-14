@@ -141,8 +141,8 @@ describe('blocking', () => {
     assert.match(provider, /method: 'POST', path: blockPath\(subject\.jupleId\)/);
     // Not a settings entry of its own and not a Friends tab: a link at the top of Friends opens the page, which lists and unblocks through the API.
     assert.doesNotMatch(source('lib/settingsNav.ts'), /blockedUsers/);
-    assert.match(source('app/(app)/me/friends/page.tsx'), /href="\/me\/blocked-users"/);
-    assert.match(source('app/(app)/me/blocked-users/page.tsx'), /method: 'DELETE', path: blockPath\(pending\.jupleId\)/);
+    assert.match(source('app/(app)/me/friends/page.tsx'), /<BlockedUsersPanel \/>/, 'the fourth Friends tab');
+    assert.match(source('app/(app)/me/blocked-users/BlockedUsersPanel.tsx'), /method: 'DELETE', path: blockPath\(pending\.jupleId\)/);
   });
 
   it('every safety string exists in every language', () => {
@@ -215,7 +215,7 @@ describe('shared Collection reports, blocks and restriction on the Web', () => {
     assert.match(provider, /path: BLOCKED_USERS_PATH/);
     assert.match(provider, /method: 'DELETE', path: blockPath\(subject\.jupleId\)/);
     // the 차단한 사용자 page tells the shared list after it unblocks
-    assert.match(source('app/(app)/me/blocked-users/page.tsx'), /safety\.refreshBlocked\(\)/);
+    assert.match(source('app/(app)/me/blocked-users/BlockedUsersPanel.tsx'), /safety\.refreshBlocked\(\)/);
   });
 });
 

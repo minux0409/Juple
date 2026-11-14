@@ -199,10 +199,14 @@ describe('내 페이지: nested settings - app side bar | inner settings list | 
     }
   });
 
-  it('inside the frame there is no 뒤로 (the inner list is the way); 친구 and 삭제 이력 have no 뒤로 and 삭제 이력 explains its limit under the title', () => {
+  it('inside the frame there is no 뒤로 (the inner list is the way); 친구 and 삭제 이력 have no 뒤로; 삭제 이력 has its limit note at the end of the list and 비우기 with the list', () => {
     assert.match(page('me/SettingsPage.tsx'), /backHref && !framed \? <BackButton/);
     assert.match(page('me/friends/page.tsx'), /<SettingsPage backHref=\{null\} icon="People" title=\{dictionary\.friendsTitle\}/);
-    assert.match(page('me/trash/page.tsx'), /backHref=\{null\}\s*subtitle=\{formatMessage\(dictionary\.trashLimitNotice/);
+    const trash = page('me/trash/page.tsx');
+    assert.match(trash, /backHref=\{null\}/);
+    assert.doesNotMatch(trash, /subtitle=|actions=\{/, 'neither the note nor 비우기 is in the page header');
+    assert.ok(trash.indexOf('data-trash-toolbar') < trash.indexOf('<ul className={styles.trashGrid}>') && trash.indexOf('<ul className={styles.trashGrid}>') < trash.indexOf('data-trash-notice'), '비우기 above the list, the note after it');
+    assert.match(trash, /formatMessage\(dictionary\.trashLimitNotice, \{ count: TRASH_LIST_LIMIT \}\)/);
   });
 
   it('layout: [app side bar][settings rail 280-320px][wide pane]; the rail is a full-height column, not a floating card; below 860px it is a row of tabs', () => {

@@ -7,20 +7,23 @@ import { APP_LANGUAGES, formatMessage } from '../lib/appI18n.ts';
 const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const friends = source('app/(app)/me/friends/page.tsx');
 
-describe('Friends: three tabs - 친구, 받은 요청, 보낸 요청 (차단한 사용자 is a link, not a tab)', () => {
-  it('has exactly the three tabs; the blocked list is another page, and Friends never fetches it', () => {
-    assert.ok(friends.includes("type Tab = 'friends' | 'incoming' | 'outgoing';"));
-    for (const key of ['friends', 'incoming', 'outgoing']) {
+describe('Friends: four tabs - 친구, 받은 요청, 보낸 요청, 차단한 사용자', () => {
+  it('has the four tabs in that order; the blocked list is the shared panel, mounted only while its tab is open (the page itself fetches nothing)', () => {
+    assert.ok(friends.includes("type Tab = 'friends' | 'incoming' | 'outgoing' | 'blocked';"));
+    for (const key of ['friends', 'incoming', 'outgoing', 'blocked']) {
       assert.ok(friends.includes(`['${key}', dictionary.`), key);
     }
     assert.doesNotMatch(friends, /BLOCKED_USERS_PATH/);
-    assert.match(friends, /href="\/me\/blocked-users"/);
+    assert.doesNotMatch(friends, /href="\/me\/blocked-users"/, 'no separate button above the tabs any more');
+    assert.match(friends, /\{tab === 'blocked' \? <BlockedUsersPanel \/> : null\}/);
+    assert.ok(friends.indexOf("['outgoing'") < friends.indexOf("['blocked'"), 'the fourth tab comes last');
     assert.ok(friends.includes("searchParams.get('requests') === 'incoming'"));
     assert.ok(friends.includes("tab === 'incoming' || tab === 'outgoing'"));
   });
 
   it('/me/blocked-users is the list with 차단 해제, and it is no settings entry of its own', () => {
-    assert.match(source('app/(app)/me/blocked-users/page.tsx'), /BLOCKED_USERS_PATH[\s\S]*dictionary\.safetyUnblock/);
+    assert.match(source('app/(app)/me/blocked-users/BlockedUsersPanel.tsx'), /BLOCKED_USERS_PATH[\s\S]*dictionary\.safetyUnblock/);
+    assert.match(source('app/(app)/me/blocked-users/page.tsx'), /<BlockedUsersPanel \/>/);
     assert.doesNotMatch(source('lib/settingsNav.ts'), /blocked/i);
   });
 });

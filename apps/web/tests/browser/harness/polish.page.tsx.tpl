@@ -2,7 +2,7 @@
 // Test-only (copied to app/polish-test-harness/ by tests/browser/polish.browser.mjs and deleted afterwards).
 // The REAL screens (Home, 보관함, Collections, a Collection, the link details sheet, 링크 저장, the sign-in card) inside the real app shell, on a
 // local stub API. Every write is recorded in sessionStorage ('writes') so a test can read the exact request that would have been sent.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { SignedInAppContext } from '../(app)/AppRoot';
 import { ToastProvider } from '../(app)/Toaster';
@@ -15,6 +15,9 @@ import { NewLinkReviewView } from '../(app)/items/new/NewLinkReviewView';
 import { QuickSheetFrame } from '../(app)/items/[itemId]/QuickDetailSheet';
 import { ItemDetailContent } from '../(app)/items/[itemId]/ItemDetailContent';
 import { Landing } from '../(app)/Landing';
+import FriendsPage from '../(app)/me/friends/page';
+import TrashPage from '../(app)/me/trash/page';
+import { ProfileEditView } from '../(app)/me/ProfileEditView';
 import { ApiHttpError } from '../../lib/appApi';
 import { subscribeItemsChanged } from '../../lib/itemChanges';
 import { getAppDictionary } from '../../lib/appDictionary';
@@ -82,6 +85,11 @@ function createApi() {
     if (flags.get('fail') === 'details' && method === 'PUT' && clean === '/api/v1/items/7/details') throw new ApiHttpError(500, null);
     if (method === 'POST' && clean === '/api/v1/items/7/images') return { id: 5, readUrl: 'https://blob.example.test/items/7/cover.png' };
     if (method === 'DELETE' && /^\/api\/v1\/items\/7\/images\/\d+$/.test(clean)) return undefined;
+    if (clean === '/api/v1/friends') return { items: [{ friendshipId: 1, jupleId: 'MINA0001', displayName: 'Mina Park', myNote: '대학 동기', friendsSinceUtc: '2026-09-01T00:00:00Z' }, { friendshipId: 2, jupleId: 'JOON0002', displayName: null, myNote: null, friendsSinceUtc: '2026-10-01T00:00:00Z' }], nextCursor: null };
+    if (clean === '/api/v1/friends/requests') return { items: [{ requestId: 11, jupleId: 'ANNA0003', displayName: 'Anna', direction: 'incoming', createdAtUtc: '2026-11-10T00:00:00Z' }, { requestId: 12, jupleId: 'KIMS0004', displayName: 'Kim S.', direction: 'incoming', createdAtUtc: '2026-11-11T00:00:00Z' }, { requestId: 13, jupleId: 'LEEJ0005', displayName: 'Lee J.', direction: 'outgoing', createdAtUtc: '2026-11-12T00:00:00Z' }] };
+    if (clean === '/api/v1/users/me/blocked-users') return { items: [{ jupleId: 'BLOK0006', displayName: 'Blocked Person', blockedAtUtc: '2026-11-01T00:00:00Z', hiddenCollections: [] }, { jupleId: 'BLOK0007', displayName: null, blockedAtUtc: '2026-10-20T00:00:00Z', hiddenCollections: [{ id: 15, name: 'Shared by Mina' }] }] };
+    if (clean === '/api/v1/items/trash' && method === 'GET') return { items: new URLSearchParams(window.location.search).get('trash') === '0' ? [] : TITLES.slice(0, 4).map(([url, title], index) => ({ id: 100 + index, url, title: title || null, deletedAtUtc: new Date(Date.now() - index * 86_400_000).toISOString(), representativeImage: null, previewImageUrl: null, coverImage: null })) };
+    if (clean.endsWith('/profile/display-name') && method === 'PUT') return { ...(request.body as object), displayName: (request.body as { displayName: string }).displayName, jupleId: 'AB12CD34' };
     if (clean === '/api/v1/items/history/count') return { count: 8 };
     if (clean === '/api/v1/items/history/sections') return { sections: [{ key: 'today', kind: 'today', year: null, month: null, fromUtc: new Date(Date.now() - 86_400_000).toISOString(), toUtc: null, count: 8 }] };
     if (clean === '/api/v1/items/history') return { items: entries(), nextCursor: null };
@@ -132,8 +140,10 @@ export default function Page() {
       languagePreference: 'system',
       setLanguagePreference() {},
       account: { homeAccountId: 'fixture' },
-      profile: null,
-      updateProfile() {},
+      profile: scene === 'profile' ? { displayName: '주플 사용자', jupleId: 'AB12CD34', profileImageUrl: null } : null,
+      updateProfile(next: unknown) {
+        record('profileUpdates', JSON.stringify(next));
+      },
       entitlement: null,
       storeSubscription: null,
       dataRetention: null,
@@ -147,9 +157,18 @@ export default function Page() {
       apiBaseUrl: '',
       appDownload: resolveAppDownload({}),
     }),
-    [dictionary, language],
+    [dictionary, language, scene],
   );
 
+  // The signed-in screens only ever mount in the browser (after sign-in): no server render, so a stored view mode is read on the first render.
+  const mounted = useSyncExternalStore(
+    () => () => undefined,
+    () => true,
+    () => false,
+  );
+  if (!mounted) {
+    return null;
+  }
   if (scene === 'landing') {
     return (
       <Landing
@@ -166,6 +185,9 @@ export default function Page() {
   else if (scene === 'archive') content = <ArchiveView />;
   else if (scene === 'collections') content = <CollectionsView />;
   else if (scene === 'collection') content = <CollectionDetailsView collectionIdParam={query.get('cid') ?? '10'} />;
+  else if (scene === 'friends') content = <FriendsPage />;
+  else if (scene === 'trash') content = <TrashPage />;
+  else if (scene === 'profile') content = <ProfileEditView />;
   else if (scene === 'save') content = <NewLinkReviewView url="https://www.youtube.com/watch?v=abc123" />;
   else if (scene === 'detail') {
     content = (

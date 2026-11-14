@@ -29,11 +29,13 @@ import { Glyph } from '../../Glyph';
 import { CollectionTileView } from '../../collections/CollectionsView';
 import { TOUR_TARGETS, tourTarget } from '../../../../lib/tour';
 import { SearchField } from '../../SearchField';
+import { SlidingTabs } from '../../SlidingTabs';
+import { BlockedUsersPanel } from '../blocked-users/BlockedUsersPanel';
 import { SettingsPage } from '../SettingsPage';
 import styles from '../../app.module.css';
 import { useAttention } from '../../useAttention';
 
-type Tab = 'friends' | 'incoming' | 'outgoing';
+type Tab = 'friends' | 'incoming' | 'outgoing' | 'blocked';
 type FriendsState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | ({ readonly kind: 'loaded' } & PagedState<Friend>);
 type Confirm = { readonly kind: 'remove'; readonly friend: Friend } | { readonly kind: 'decline'; readonly request: FriendRequest } | null;
 
@@ -63,7 +65,7 @@ export default function FriendsPage() {
   const incomingEntry = searchParams.get('requests') === 'incoming';
   const { api, dictionary, onSessionLost } = useSignedInApp();
   const { store: attentionStore, snapshot: attention } = useAttention();
-  const [tab, setTab] = useState<Tab>(incomingEntry ? 'incoming' : 'friends');
+  const [tab, setTab] = useState<Tab>(incomingEntry ? 'incoming' : searchParams.get('tab') === 'blocked' ? 'blocked' : 'friends');
   const selectTab = (next: Tab) => {
     setTab(next);
     if (incomingEntry) {
@@ -190,12 +192,6 @@ export default function FriendsPage() {
 
   return (
     <SettingsPage backHref={null} icon="People" title={dictionary.friendsTitle} width="medium">
-      <p>
-        <Link className={styles.settingsAction} data-blocked-users href="/me/blocked-users">
-          <Glyph name="Block" size={16} />
-          {dictionary.safetyBlockedUsers}
-        </Link>
-      </p>
       <AddFriend
         friends={friends.kind === 'loaded' ? friends.items : []}
         onSent={request => {
@@ -210,20 +206,21 @@ export default function FriendsPage() {
           {message.text}
         </p>
       ) : null}
-      <div className={styles.filterTabs} role="tablist" {...tourTarget(TOUR_TARGETS.friendsTabs)}>
+      <SlidingTabs label={dictionary.friendsTitle} tourProps={tourTarget(TOUR_TARGETS.friendsTabs)}>
         {(
           [
             ['friends', dictionary.friendsTitle, null],
             ['incoming', dictionary.friendsTabIncoming, incoming.length],
             ['outgoing', dictionary.friendsTabOutgoing, outgoing.length],
+            ['blocked', dictionary.safetyBlockedUsers, null],
           ] as const
         ).map(([key, label, count]) => (
-          <button aria-selected={tab === key} className={tab === key ? styles.filterTabSelected : styles.filterTab} key={key} onClick={() => selectTab(key)} role="tab" type="button">
+          <button aria-selected={tab === key} className={tab === key ? styles.slideTabSelected : styles.slideTab} data-blocked-users={key === 'blocked' ? '' : undefined} key={key} onClick={() => selectTab(key)} role="tab" type="button">
             {label}
             {count ? <span className={styles.countPill}>{count}</span> : null}
           </button>
         ))}
-      </div>
+      </SlidingTabs>
 
       {tab === 'friends' ? (
         <>
@@ -257,6 +254,8 @@ export default function FriendsPage() {
         </>
       ) : null}
 
+
+      {tab === 'blocked' ? <BlockedUsersPanel /> : null}
 
       {tab === 'incoming' || tab === 'outgoing' ? (
         <>

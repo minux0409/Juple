@@ -150,6 +150,8 @@ export function ProfileEditView() {
         onCancel={() => setCropSource(null)}
       />
       <form className={styles.profileEditCard} noValidate onSubmit={save}>
+        {/* One profile section: the photo (and its actions) beside the name and ID on a wide screen, stacked on a narrow one. */}
+        <div className={styles.profileEditBody}>
         <div className={styles.profileEditAvatar}>
           <PhotoEditor hasPhoto={hasPhoto} busy={busy} changeLabel={hasPhoto ? dictionary.changePhoto : dictionary.profilePhotoChoose} removeLabel={dictionary.removePhoto}
             onChange={() => photoInput.current?.click()} onRemove={() => (pickedPhoto ? removePhoto() : setIsRemoveConfirmOpen(true))}>
@@ -164,6 +166,7 @@ export function ProfileEditView() {
             </p>
           ) : null}
         </div>
+        <div className={styles.profileEditFields}>
         <label className={styles.profileEditField}>
           <span className={styles.fieldLabel}>{dictionary.nickname}</span>
           <input
@@ -186,6 +189,8 @@ export function ProfileEditView() {
           <span className={styles.profileEditReadOnly} dir="ltr">
             @{formatJupleId(profile.jupleId)}
           </span>
+        </div>
+        </div>
         </div>
         {error ? <p className={styles.formError} role="alert">{error}</p> : null}
         {saved ? <p className={styles.formNotice} role="status">{dictionary.itemSaved}</p> : null}

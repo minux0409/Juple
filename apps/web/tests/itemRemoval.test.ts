@@ -85,7 +85,9 @@ describe('every list hears the signal', () => {
   });
 
   it('보관함 passes the personal scope, a Collection its own; Home / flat archive remove locally', () => {
-    assert.match(source('app/(app)/archive/ArchiveView.tsx'), /scope=\{\{ kind: 'personal' \}\}/);
+    // 보관함 is ONE flat feed now (no date sections): nothing of DateSections is left in it.
+    assert.doesNotMatch(source('app/(app)/archive/ArchiveView.tsx'), /DateSections|ARCHIVE_SECTIONS_PATH|archiveSectionPagePath/);
+    assert.match(source('app/(app)/archive/ArchiveView.tsx'), /<ArchiveFlat api=\{api\}/);
     const details = source('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx');
     assert.match(details, /scope=\{\{ kind: 'collection', collectionId: collection\.id \}\}/);
     assert.match(source('app/(app)/HomeView.tsx'), /link\.id !== change\.itemId/);

@@ -950,3 +950,305 @@ it('중첩 모달: Esc on the Collection dialog closes ONLY that dialog - the de
     assert.equal(state.open, 1, 'only the sheet itself is open');
   } finally { await tab.close(); }
 });
+
+// ---- layout round 5: details foot, 보관함 feed, 친구 tabs, 삭제 이력, profile ---------------------------------------------------------
+
+const L5_WIDTHS = [390, 768, 1024, 1440, 1920];
+const rect = `(el => { const r = el.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height }; })`;
+
+async function openL5(scene, width, theme, { extra = '', lang = 'ko', ready, store, keepCalls = false } = {}) {
+  const url = `${origin}/polish-test-harness?scene=${scene}&at=%2F&lang=${lang}${extra}`;
+  const tab = await openPage(findChrome(), url, chromePort++);
+  const errors = [];
+  tab.onEvent(event => {
+    if (event.method === 'Runtime.exceptionThrown') errors.push(event.params.exceptionDetails.text + ' ' + (event.params.exceptionDetails.exception?.description ?? '').slice(0, 240));
+  });
+  await tab.send('Runtime.enable');
+  await tab.send('Emulation.setDeviceMetricsOverride', { width, height: width >= 1920 ? 1080 : width >= 1024 ? 900 : 844, deviceScaleFactor: 1, mobile: width < 600 });
+  await tab.until(`location.pathname.includes('polish-test-harness') && document.readyState === 'complete' && !!document.querySelector('main')`, 60_000);
+  await tab.evaluate(`localStorage.setItem('juple.themePreference', '${theme}'); localStorage.setItem('juple.desktopSidebar', 'expanded'); ${store ? `localStorage.setItem(${JSON.stringify(store[0])}, ${JSON.stringify(store[1])});` : ''} window.__beforeReload = true; setTimeout(() => location.reload(), 50); true`);
+  await tab.until(`window.__beforeReload === undefined && document.documentElement.dataset.theme === '${theme}' && document.readyState === 'complete' && !!document.querySelector('main')`, 60_000);
+  await tab.until(ready, 30_000);
+  await tab.evaluate(`sessionStorage.removeItem('writes'); ${keepCalls ? '' : "sessionStorage.removeItem('calls');"} true`);
+  await tab.wait(900);
+  return { tab, errors };
+}
+const callsOf = async tab => JSON.parse(await tab.evaluate(`sessionStorage.getItem('calls') ?? '[]'`));
+
+// 1) details foot: 삭제 + 저장 side by side at the END of the foot
+for (const theme of THEMES) {
+  for (const width of L5_WIDTHS) {
+    it(`레이아웃 ① 링크 상세 푸터 ${width}px ${theme}: 삭제 + 저장 나란히, 같은 높이, 오른쪽 끝, 저장이 Primary`, async () => {
+      const { tab, errors } = await openL5('detail', width, theme, { ready: `!!document.querySelector('[data-item-detail] [data-detail-save]')` });
+      try {
+        const f = await tab.evaluate(`(() => { const R = ${rect}; const foot = document.querySelector('[data-item-detail] footer'); const [del, save] = foot.querySelectorAll('button'); const fr = R(foot); const d = R(del), s = R(save); const cs = x => getComputedStyle(x); return { fr, d, s, delBorder: cs(del).borderTopColor, delColor: cs(del).color, saveBg: cs(save).backgroundColor, saveDisabled: save.disabled, rtl: getComputedStyle(foot).direction }; })()`);
+        assert.ok(Math.abs(f.d.h - f.s.h) <= 1, `same height (${f.d.h} / ${f.s.h})`);
+        assert.ok(f.s.l >= f.d.r - 1 && f.s.l - f.d.r <= 28, `삭제 and 저장 sit side by side (gap ${f.s.l - f.d.r}px)`);
+        if (width > 640) {
+          assert.ok(f.d.l > f.fr.l + f.fr.w * 0.4, `at the end of the foot, not at its far start (삭제 starts at ${Math.round(f.d.l - f.fr.l)} of ${Math.round(f.fr.w)})`);
+          assert.ok(f.s.w <= 220 && f.d.w <= 220, `neither button is stretched (${Math.round(f.d.w)} / ${Math.round(f.s.w)})`);
+          assert.ok(f.s.w >= f.d.w - 1, '저장 is the broader one');
+        } else {
+          assert.ok(Math.abs(f.s.w - f.d.w) <= 2, `a phone: equal widths (${Math.round(f.d.w)} / ${Math.round(f.s.w)})`);
+        }
+        assert.ok(f.fr.r - f.s.r <= 40, `저장 ends at the foot's end (${Math.round(f.fr.r - f.s.r)}px)`);
+        assert.notEqual(f.delBorder, 'rgba(0, 0, 0, 0)', '삭제 keeps its (red) outline');
+        await shot(tab, `l5-detail-foot-${width}-${theme}`);
+        await generic(tab, errors, `detail foot ${width} ${theme}`);
+      } finally { await tab.close(); }
+    });
+  }
+}
+
+// 2) 보관함: one continuous newest-first feed
+for (const theme of THEMES) {
+  for (const width of L5_WIDTHS) {
+    for (const view of ['list', 'grid']) {
+      it(`레이아웃 ② 보관함 ${view} ${width}px ${theme}: 날짜 그룹 없이 하나의 연속 피드`, async () => {
+        const { tab, errors } = await openL5('archive', width, theme, { store: ['juple.web.archiveViewMode', view], ready: READY4, keepCalls: true });
+        try {
+          const calls = await callsOf(tab);
+          assert.ok(!calls.some(call => call.includes('/history/sections')), `the section list is never read (${calls.join(' | ')})`);
+          const historyCalls = calls.filter(call => call.startsWith('GET /api/v1/items/history?'));
+          assert.ok(historyCalls.length >= 1 && historyCalls.every(call => !/fromUtc|toUtc/.test(call)), `one feed query without a date window (${historyCalls.join(' | ')})`);
+          const dom = await tab.evaluate(`(() => { const main = document.querySelector('main'); const links = [...main.querySelectorAll('li a[href^="/items/"]')]; const tops = links.map(a => Math.round(a.closest('li').getBoundingClientRect().top)); return { accordions: [...main.querySelectorAll('button[aria-expanded]')].filter(b => !b.closest('[class*="pageHeader"]') && !b.closest('[class*="stickyControls"]')).length, headings: [...main.querySelectorAll('h2, h3')].map(h => h.textContent.trim()), hrefs: links.map(a => a.getAttribute('href')), tops, lefts: links.map(a => Math.round(a.closest('li').getBoundingClientRect().left)), n: main.querySelectorAll('ul').length }; })()`);
+          const pressed = await tab.evaluate(`document.querySelector('[role=group] button[aria-pressed=true]')?.getAttribute('aria-label')`);
+          assert.equal(pressed, view === 'grid' ? '그리드 보기' : '목록 보기', 'the view switch shows the view that is drawn');
+          assert.equal(dom.accordions, 0, 'no date accordion');
+          assert.ok(!dom.headings.some(text => /오늘|어제|이번 주|2026년/.test(text)), `no date headings (${dom.headings})`);
+          assert.deepEqual(dom.hrefs, [...dom.hrefs].sort((a, b) => Number(a.split('/').pop()) - Number(b.split('/').pop())), 'newest saved first (the server order is kept)');
+          assert.equal(dom.hrefs.length, 8);
+          const columns = new Set(dom.lefts).size;
+          if (view === 'grid') {
+            const expected = width >= 1440 ? 3 : width >= 1024 ? 2 : width >= 768 ? 2 : 1;
+            assert.ok(columns >= expected, `the grid fills the width with ${columns} columns (>= ${expected} at ${width}px)`);
+          } else {
+            assert.equal(columns, 1, 'the list is one column of rows');
+          }
+          await shot(tab, `l5-archive-${view}-${width}-${theme}`);
+          await generic(tab, errors, `archive ${view} ${width} ${theme}`);
+        } finally { await tab.close(); }
+      });
+    }
+  }
+}
+
+it('레이아웃 ② 보관함 검색: a search stays ONE feed (q=…, no sections, no date groups) and clearing it returns to the same feed', async () => {
+  const { tab } = await openL5('archive', 1280, 'light', { ready: READY4, keepCalls: true });
+  try {
+    await tab.evaluate(typeInto('input[type=search], input[type=text], input:not([type])', '청소'));
+    await tab.wait(1200);
+    const calls = await callsOf(tab);
+    assert.ok(calls.some(call => /history\?.*q=%EC%B2%AD%EC%86%8C|history\?.*q=청소/.test(call)), `the server is asked with q (${calls.join(' | ')})`);
+    assert.ok(!calls.some(call => call.includes('/history/sections')));
+    assert.equal(await tab.evaluate(`[...document.querySelectorAll('main button[aria-expanded]')].filter(b => !b.closest('[class*="pageHeader"]') && !b.closest('[class*="stickyControls"]')).length`), 0);
+    await tab.evaluate(typeInto('input[type=search], input[type=text], input:not([type])', ''));
+    await tab.wait(1200);
+    assert.equal(await tab.evaluate(`[...document.querySelectorAll('main button[aria-expanded]')].filter(b => !b.closest('[class*="pageHeader"]') && !b.closest('[class*="stickyControls"]')).length`), 0, 'back to the full feed - still no sections');
+  } finally { await tab.close(); }
+});
+
+// 3) 친구: four tabs, the blocked list in the fourth
+const FRIEND_READY = `document.querySelectorAll('[role=tab]').length === 4 && !!document.querySelector('[class*="friendCards"] li')`;
+for (const theme of THEMES) {
+  for (const width of L5_WIDTHS) {
+    it(`레이아웃 ③ 친구 ${width}px ${theme}: 탭 4개(친구·받은 요청·보낸 요청·차단한 사용자), 위쪽 별도 버튼 없음, 선택 필이 이동`, async () => {
+      const { tab, errors } = await openL5('friends', width, theme, { ready: FRIEND_READY });
+      try {
+        const facts = await tab.evaluate(`(() => { const R = ${rect}; const tabs = [...document.querySelectorAll('[role=tab]')]; return { n: tabs.length, h: tabs.map(t => Math.round(R(t).h)), heights: new Set(tabs.map(t => Math.round(R(t).h))).size, label: tabs.map(t => t.textContent.trim()), topBtn: !!document.querySelector('main a[href=\"/me/blocked-users\"]'), selected: tabs.map(t => t.getAttribute('aria-selected')) }; })()`);
+        assert.equal(facts.n, 4);
+        assert.equal(facts.heights, 1, `every tab has the same height (${facts.h})`);
+        assert.equal(facts.topBtn, false, 'no separate 차단한 사용자 button');
+        assert.deepEqual(facts.selected, ['true', 'false', 'false', 'false']);
+        const pill = () => tab.evaluate(`(() => { const p = document.querySelector('[class*="slidePill"]'); const r = p.getBoundingClientRect(); const sel = document.querySelector('[role=tab][aria-selected=true]').getBoundingClientRect(); return { x: Math.round(r.left), w: Math.round(r.width), selX: Math.round(sel.left), selW: Math.round(sel.width), op: getComputedStyle(p).opacity }; })()`);
+        const first = await pill();
+        assert.ok(Math.abs(first.x - first.selX) <= 2 && Math.abs(first.w - first.selW) <= 2, `the pill sits under the selected tab ${JSON.stringify(first)}`);
+        // each tab: selection + content
+        const seen = [first.x];
+        for (const [index, content] of [[1, `document.querySelectorAll('[class*="requestCards"] li, [class*="friendCards"] li, [class*="personCard"]').length >= 1`], [2, `document.body.textContent.includes('Lee J.')`], [3, `document.querySelectorAll('[data-blocked-user]').length === 2`]]) {
+          await tab.evaluate(`document.querySelectorAll('[role=tab]')[${index}].click(); true`);
+          await tab.until(content, 10_000);
+          await tab.wait(400);
+          const state = await pill();
+          assert.ok(Math.abs(state.x - state.selX) <= 2 && Math.abs(state.w - state.selW) <= 2, `tab ${index}: the pill follows ${JSON.stringify(state)}`);
+          assert.equal(await tab.evaluate(`document.querySelectorAll('[role=tab][aria-selected=true]').length`), 1);
+          // the selected tab is fully visible inside the row (a scrolling row brings it into view)
+          const visible = await tab.evaluate(`(() => { const row = document.querySelector('[role=tablist]').getBoundingClientRect(); const s = document.querySelector('[role=tab][aria-selected=true]').getBoundingClientRect(); return s.left >= row.left - 1 && s.right <= row.right + 1; })()`);
+          assert.equal(visible, true, `tab ${index} is fully visible and clickable`);
+          seen.push(state.x);
+        }
+        assert.equal(await tab.evaluate(`document.querySelectorAll('[role=tab]')[3].getAttribute('aria-selected')`), 'true');
+        await shot(tab, `l5-friends-blocked-${width}-${theme}`);
+        await generic(tab, errors, `friends ${width} ${theme}`);
+      } finally { await tab.close(); }
+    });
+  }
+}
+
+it('레이아웃 ③ 친구 · 차단한 사용자 탭: the list, 차단 해제 asks first (Esc / clicking away write nothing), confirming sends DELETE .../block; arrow keys move between tabs', async () => {
+  const { tab } = await openL5('friends', 1280, 'light', { ready: FRIEND_READY });
+  try {
+    await tab.evaluate(`document.querySelectorAll('[role=tab]')[3].click(); true`);
+    await tab.until(`document.querySelectorAll('[data-blocked-user]').length === 2`, 10_000);
+    const unblock = `[...document.querySelectorAll('[data-blocked-user] button')][0]`;
+    await tab.evaluate(`${unblock}.click(); true`);
+    await tab.until(confirmOpen);
+    await pressEscape(tab);
+    await tab.wait(400);
+    await tab.evaluate(`${unblock}.click(); true`);
+    await tab.until(confirmOpen);
+    await clickBackdrop(tab);
+    await tab.wait(400);
+    assert.deepEqual(await writesOf(tab), [], 'closing the question wrote nothing');
+    await tab.evaluate(`${unblock}.click(); true`);
+    await tab.until(confirmOpen);
+    await tab.evaluate(`[...document.querySelectorAll('dialog[open] button')].pop().click(); true`);
+    await tab.until(`document.querySelectorAll('[data-blocked-user]').length === 1`, 10_000);
+    assert.deepEqual((await writesOf(tab)).map(entry => `${entry.method} ${entry.path}`), ['DELETE /api/v1/users/BLOK0006/block']);
+    // keyboard: Left from the last tab goes to the third
+    await tab.evaluate(`document.querySelectorAll('[role=tab]')[3].focus(); true`);
+    await tab.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowLeft', code: 'ArrowLeft', windowsVirtualKeyCode: 37 });
+    await tab.wait(400);
+    assert.equal(await tab.evaluate(`document.querySelectorAll('[role=tab]')[2].getAttribute('aria-selected')`), 'true');
+  } finally { await tab.close(); }
+});
+
+// 4) 삭제 이력
+for (const theme of THEMES) {
+  for (const width of L5_WIDTHS) {
+    it(`레이아웃 ④ 삭제 이력 ${width}px ${theme}: 비우기는 목록 오른쪽 위, 안내 문구는 마지막 카드 아래 가운데`, async () => {
+      const { tab, errors } = await openL5('trash', width, theme, { ready: `document.querySelectorAll('[class*="trashCard"]').length === 4` });
+      try {
+        const f = await tab.evaluate(`(() => { const R = ${rect}; const main = document.querySelector('main'); const tool = document.querySelector('[data-trash-toolbar]'); const btn = tool.querySelector('button'); const ul = document.querySelector('[class*="trashGrid"]'); const cards = [...ul.querySelectorAll('li')]; const note = document.querySelector('[data-trash-notice]'); const header = document.querySelector('[class*="pageHeader"]'); return { headerButtons: [...header.querySelectorAll('button')].filter(b => /비우기/.test(b.textContent)).length, headerText: header.textContent, btn: R(btn), ul: R(ul), tool: R(tool), last: R(cards[cards.length - 1]), note: R(note), noteText: note.textContent.trim(), noteSize: parseFloat(getComputedStyle(note).fontSize), noteAlign: getComputedStyle(note).textAlign, fixed: getComputedStyle(note).position, vh: innerHeight }; })()`);
+        assert.equal(f.headerButtons, 0, '비우기 is not in the page header');
+        assert.ok(!/50/.test(f.headerText), 'the limit note is not under the title');
+        assert.ok(f.btn.b <= f.ul.t + 1 && f.ul.t - f.btn.b <= 40, `비우기 sits right above the list (${Math.round(f.ul.t - f.btn.b)}px)`);
+        assert.ok(Math.abs(f.btn.r - f.ul.r) <= 2, `and at its right end (${Math.round(f.ul.r - f.btn.r)}px)`);
+        assert.ok(f.note.t >= f.last.b + 12, `the note is below the last card with room (${Math.round(f.note.t - f.last.b)}px)`);
+        assert.ok(f.note.t - f.last.b <= 64, 'but not far away');
+        assert.equal(f.noteAlign, 'center');
+        assert.ok(Math.abs((f.note.l + f.note.r) / 2 - (f.ul.l + f.ul.r) / 2) <= 3, 'centred under the list');
+        assert.ok(f.noteSize <= 14, `small helper text (${f.noteSize}px)`);
+        assert.notEqual(f.fixed, 'fixed');
+        assert.match(f.noteText, /50/, 'it still names the real limit');
+        await shot(tab, `l5-trash-${width}-${theme}`);
+        await generic(tab, errors, `trash ${width} ${theme}`);
+      } finally { await tab.close(); }
+    });
+  }
+}
+
+it('레이아웃 ④ 삭제 이력: 비우기 asks first (Esc / clicking away write nothing) and sends DELETE /api/v1/items/trash; the note goes with the list; restore keeps its endpoint', async () => {
+  const { tab } = await openL5('trash', 1280, 'light', { ready: `document.querySelectorAll('[class*="trashCard"]').length === 4` });
+  try {
+    const empty = `document.querySelector('[data-trash-toolbar] button').click(); true`;
+    await tab.evaluate(empty);
+    await tab.until(confirmOpen);
+    await pressEscape(tab);
+    await tab.wait(400);
+    await tab.evaluate(empty);
+    await tab.until(confirmOpen);
+    await clickBackdrop(tab);
+    await tab.wait(400);
+    assert.deepEqual(await writesOf(tab), []);
+    // restore first
+    await tab.evaluate(`[...document.querySelectorAll('[class*="trashCard"] button')].find(b => b.textContent.includes('복구')).click(); true`);
+    await tab.until(confirmOpen);
+    await tab.evaluate(`[...document.querySelectorAll('dialog[open] button')].pop().click(); true`);
+    await tab.until(`document.querySelectorAll('[class*="trashCard"]').length === 3`, 10_000);
+    assert.deepEqual((await writesOf(tab)).map(entry => `${entry.method} ${entry.path}`), ['POST /api/v1/items/100/restore']);
+    await tab.evaluate(`sessionStorage.removeItem('writes'); true`);
+    await tab.evaluate(empty);
+    await tab.until(confirmOpen);
+    await tab.evaluate(`[...document.querySelectorAll('dialog[open] button')].pop().click(); true`);
+    await tab.until(`document.querySelectorAll('[class*="trashCard"]').length === 0`, 10_000);
+    assert.deepEqual((await writesOf(tab)).map(entry => `${entry.method} ${entry.path}`), ['DELETE /api/v1/items/trash']);
+    assert.equal(await tab.evaluate(`!!document.querySelector('[data-trash-notice]') || !!document.querySelector('[data-trash-toolbar]')`), false, 'an emptied list has neither the button nor the note');
+    assert.equal(await tab.evaluate(`!!document.querySelector('[class*="emptyState"]')`), true, 'the empty state shows');
+  } finally { await tab.close(); }
+  const none = await openL5('trash', 1280, 'light', { extra: '&trash=0', ready: `!!document.querySelector('[class*="emptyState"]')` });
+  try {
+    assert.equal(await none.tab.evaluate(`!!document.querySelector('[data-trash-notice]') || !!document.querySelector('[data-trash-toolbar]')`), false, 'nothing deleted: only the empty state');
+  } finally { await none.tab.close(); }
+});
+
+// 5) 프로필
+for (const theme of THEMES) {
+  for (const width of L5_WIDTHS) {
+    it(`레이아웃 ⑤ 프로필 편집 ${width}px ${theme}: 사진 | 닉네임·ID 가로 배치(좁으면 세로), 읽기 편한 너비, 저장·취소 오른쪽 아래`, async () => {
+      const { tab, errors } = await openL5('profile', width, theme, { ready: `!!document.querySelector('[class*="profileEditCard"] input')` });
+      try {
+        const f = await tab.evaluate(`(() => { const R = ${rect}; const card = document.querySelector('[class*="profileEditCard"]'); const av = card.querySelector('[class*="profileEditAvatar"]'); const fields = card.querySelector('[class*="profileEditFields"]'); const nick = card.querySelector('input:not([type=file])'); const actions = card.querySelector('[class*="profileEditActions"]'); const btns = [...actions.querySelectorAll('button')]; const idBox = [...card.querySelectorAll('[class*="profileEditReadOnly"]')][0]; return { card: R(card), av: R(av), fields: R(fields), nick: R(nick), actions: R(actions), btns: btns.map(b => R(b)), idTag: idBox.tagName, idInputs: card.querySelectorAll('input[readonly], input[disabled]:not([type=file])').length, nickValue: nick.value }; })()`);
+        assert.ok(f.card.w <= 721, `a readable maximum width (${Math.round(f.card.w)}px)`);
+        assert.ok(f.nick.w <= 441, `the nickname field is not endless (${Math.round(f.nick.w)}px)`);
+        if (width > 640) {
+          assert.ok(f.av.r <= f.fields.l + 1, `photo on the left, name + ID on the right (${Math.round(f.av.r)} <= ${Math.round(f.fields.l)})`);
+          assert.ok(f.fields.t < f.av.b && f.av.t < f.fields.b, 'side by side (their rows overlap)');
+        } else {
+          assert.ok(f.av.b <= f.fields.t + 1, 'a narrow screen stacks them (photo first)');
+        }
+        assert.ok(f.actions.t >= Math.max(f.av.b, f.fields.b) - 1, 'the buttons are under the section');
+        assert.ok(Math.abs(f.btns[f.btns.length - 1].r - f.card.r) <= 2 || width <= 640, '저장 ends at the right edge of the form');
+        assert.ok(new Set(f.btns.map(b => Math.round(b.h))).size === 1 && f.btns[0].h >= 43, `the two buttons share one 44px height (${f.btns.map(b => Math.round(b.h))})`);
+        assert.equal(f.idTag, 'SPAN', 'the Juple ID stays a read-only value (never an input)');
+        assert.equal(f.nickValue, '주플 사용자');
+        await shot(tab, `l5-profile-${width}-${theme}`);
+        await generic(tab, errors, `profile ${width} ${theme}`);
+      } finally { await tab.close(); }
+    });
+  }
+}
+
+it('레이아웃 ⑤ 프로필: 변경 감지 - 저장 / 취소 wake up only with a change; 저장 = PUT .../profile/display-name {displayName}; 취소 restores', async () => {
+  const { tab } = await openL5('profile', 1280, 'light', { ready: `!!document.querySelector('[class*="profileEditCard"] input')` });
+  try {
+    const btns = `[...document.querySelectorAll('[class*="profileEditActions"] button')]`;
+    assert.deepEqual(await tab.evaluate(`${btns}.map(b => b.disabled)`), [true, true], 'unchanged: both asleep');
+    await tab.evaluate(typeInto('[class*="profileEditCard"] input:not([type=file])', '새 닉네임'));
+    await tab.wait(200);
+    assert.deepEqual(await tab.evaluate(`${btns}.map(b => b.disabled)`), [false, false]);
+    await tab.evaluate(`${btns}[0].click(); true`);
+    await tab.wait(300);
+    assert.equal(await tab.evaluate(`document.querySelector('[class*="profileEditCard"] input:not([type=file])').value`), '주플 사용자', '취소 restores the saved name');
+    await tab.evaluate(typeInto('[class*="profileEditCard"] input:not([type=file])', '새 닉네임'));
+    await tab.evaluate(`${btns}[1].click(); true`);
+    await tab.until(`document.body.textContent.includes('저장되었습니다') || sessionStorage.getItem('profileUpdates')`, 10_000);
+    assert.deepEqual(await writesOf(tab), [{ method: 'PUT', path: '/api/v1/users/me/profile/display-name', body: { displayName: '새 닉네임' } }]);
+  } finally { await tab.close(); }
+});
+
+// 다국어 for the three new screens
+for (const lang of LANGS) {
+  for (const theme of THEMES) {
+    for (const width of [390, 768, 1440]) {
+      it(`레이아웃 다국어 ${lang} ${width}px ${theme}: 친구 탭 · 삭제 이력 · 프로필`, async () => {
+        const f = await openL5('friends', width, theme, { lang, ready: FRIEND_READY });
+        try {
+          await f.tab.evaluate(`document.querySelectorAll('[role=tab]')[3].click(); true`);
+          await f.tab.until(`document.querySelectorAll('[data-blocked-user]').length === 2`, 10_000);
+          await f.tab.wait(500);
+          const tabs = await f.tab.evaluate(`(() => { const row = document.querySelector('[role=tablist]'); const tabs = [...row.querySelectorAll('[role=tab]')]; const r = row.getBoundingClientRect(); return { sel: (() => { const s = document.querySelector('[role=tab][aria-selected=true]').getBoundingClientRect(); return s.left >= r.left - 1 && s.right <= r.right + 1; })(), clipped: tabs.filter(t => t.scrollWidth > t.clientWidth + 1).length, heights: new Set(tabs.map(t => Math.round(t.getBoundingClientRect().height))).size }; })()`);
+          assert.equal(tabs.sel, true, 'selected tab visible');
+          assert.equal(tabs.clipped, 0, 'no tab clips its own text');
+          assert.equal(tabs.heights, 1, 'equal tab heights');
+          if (lang === 'ko' || lang === 'vi' || lang === 'ar') await shot(f.tab, `l5-i18n-friends-${lang}-${width}-${theme}`);
+          await generic(f.tab, f.errors, `friends ${lang} ${width} ${theme}`);
+        } finally { await f.tab.close(); }
+        const t = await openL5('trash', width, theme, { lang, ready: `document.querySelectorAll('[class*="trashCard"]').length === 4` });
+        try {
+          const facts = await t.tab.evaluate(`(() => { const b = document.querySelector('[data-trash-toolbar] button'); const n = document.querySelector('[data-trash-notice]'); const r = b.getBoundingClientRect(); const ul = document.querySelector('[class*="trashGrid"]').getBoundingClientRect(); return { fit: b.scrollWidth <= b.clientWidth + 1, inside: r.right <= innerWidth && r.left >= 0, noteInside: n.getBoundingClientRect().right <= innerWidth + 1 && n.getBoundingClientRect().left >= -1, noteLast: n.getBoundingClientRect().top >= ul.bottom }; })()`);
+          assert.deepEqual(facts, { fit: true, inside: true, noteInside: true, noteLast: true });
+          if (lang === 'vi' || lang === 'ar') await shot(t.tab, `l5-i18n-trash-${lang}-${width}-${theme}`);
+          await generic(t.tab, t.errors, `trash ${lang} ${width} ${theme}`);
+        } finally { await t.tab.close(); }
+        const p = await openL5('profile', width, theme, { lang, ready: `!!document.querySelector('[class*="profileEditCard"] input')` });
+        try {
+          const facts = await p.tab.evaluate(`(() => { const btns = [...document.querySelectorAll('[class*="profileEditActions"] button')]; return { fit: btns.every(b => b.scrollWidth <= b.clientWidth + 1), inside: btns.every(b => { const r = b.getBoundingClientRect(); return r.right <= innerWidth + 1 && r.left >= -1; }), overlap: (() => { const [a, b] = btns.map(x => x.getBoundingClientRect()); return !(a.right <= b.left + 1 || b.right <= a.left + 1 || a.bottom <= b.top + 1 || b.bottom <= a.top + 1); })() }; })()`);
+          assert.deepEqual(facts, { fit: true, inside: true, overlap: false });
+          if (lang === 'vi' || lang === 'ar') await shot(p.tab, `l5-i18n-profile-${lang}-${width}-${theme}`);
+          await generic(p.tab, p.errors, `profile ${lang} ${width} ${theme}`);
+        } finally { await p.tab.close(); }
+      });
+    }
+  }
+}
