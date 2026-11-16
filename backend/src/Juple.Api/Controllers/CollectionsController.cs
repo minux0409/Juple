@@ -351,7 +351,9 @@ public sealed class CollectionsController(
     /// latest CollectionDto (not 204 like Rename/Delete) so the caller can reconcile its optimistic
     /// UI state - e.g. ItemCount/UpdatedAtUtc - against the server's actual result in one round trip.
     /// </summary>
-    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
+    // Changing a favorite is a content change of the read-only policy: gated for the ACTING person only. It is a personal mark, so the
+    // method-level CollectionOwnedWrite names no Collection source and the owner's subscription is never consulted.
+    [Juple.Api.Billing.CollectionOwnedWrite]
     [HttpPut("{id:long}/favorite")]
     [CollectionPermission(CollectionPermission.Favorite)]
     public async Task<IActionResult> SetFavoriteAsync(
@@ -551,6 +553,8 @@ public sealed class CollectionsController(
         }
     }
 
+    // Removing your OWN data is never held back by an ended subscription (data rights): it creates nothing; restoring stays gated.
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpDelete("{id:long}")]
     [CollectionPermission(CollectionPermission.Delete, requireUnlock: true)]
     public Task<IActionResult> DeleteAsync(long id, CancellationToken cancellationToken) =>
@@ -730,6 +734,8 @@ public sealed class CollectionsController(
             cancellationToken);
 
     /// <summary>Withdraws only the caller's own still-pending join request. No Collection or membership is deleted.</summary>
+    // Withdrawing my own waiting request is an exit action (like cancelling my own proposal or friend request): never held back.
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpDelete("join-requests/mine/{requestId:long}")]
     public Task<IActionResult> CancelMyJoinRequestAsync(long requestId,
         [FromServices] Juple.Application.Collections.Join.ICollectionJoinService joinService,
@@ -1391,6 +1397,8 @@ public sealed class CollectionsController(
             cancellationToken);
 
     /// <summary>Takes the caller's reaction to this link back; having none is a success too. Answers the link's reactions as they are now.</summary>
+    // Removing your OWN data is never held back by an ended subscription (data rights): it creates nothing; restoring stays gated.
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpDelete("{id:long}/items/{itemId:long}/reaction")]
     public Task<IActionResult> RemoveReactionAsync(
         long id,
@@ -1471,6 +1479,8 @@ public sealed class CollectionsController(
             cancellationToken);
 
     /// <summary>Takes the caller's heart back. Idempotent: {liked: false, likeCount}.</summary>
+    // Removing your OWN data is never held back by an ended subscription (data rights): it creates nothing; restoring stays gated.
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpDelete("{id:long}/items/{itemId:long}/comments/{commentId:long}/like")]
     public Task<IActionResult> UnlikeCommentAsync(
         long id,
@@ -1503,6 +1513,8 @@ public sealed class CollectionsController(
             cancellationToken);
 
     /// <summary>Deletes a comment: its author, or the Collection's Owner for any. 403 for another member; one that is gone already is a success (204).</summary>
+    // Removing your OWN data is never held back by an ended subscription (data rights): it creates nothing; restoring stays gated.
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpDelete("{id:long}/items/{itemId:long}/comments/{commentId:long}")]
     public Task<IActionResult> DeleteCommentAsync(
         long id,

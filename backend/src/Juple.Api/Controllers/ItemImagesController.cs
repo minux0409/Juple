@@ -121,6 +121,8 @@ public sealed class ItemImagesController(
         }
     }
 
+    // Removing your OWN data is never held back by an ended subscription (data rights): it creates nothing; restoring stays gated.
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpDelete("{imageId:long}")]
     public async Task<IActionResult> DeleteAsync(long itemId, long imageId, CancellationToken cancellationToken)
     {

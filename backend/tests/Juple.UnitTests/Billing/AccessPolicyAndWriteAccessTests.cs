@@ -506,31 +506,138 @@ public sealed class ExpiredWriteAllowlistTests
             .Order()
             .ToArray();
 
-        // Reading-like POSTs (unlock, reveal, lookup, open), protective or personal choices (favorite, lock, stop sharing, decline,
-        // cancel my own request, leave) - none of them adds or changes anyone's links or Collections.
+        // Reading-like POSTs (unlock, reveal, lookup, open), protective or exit choices (lock, stop sharing, decline, cancel my own
+        // request, leave) and removing your OWN data (an item to the trash and out of it for good, a photo, your own Collection, your own
+        // comment, heart or reaction) - none of them adds or changes content. A favorite is a content change of the read-only policy and is
+        // gated; restoring from the trash is gated too.
         Assert.Equal(
             new[]
             {
                 "CollectionInvitations: POST collection-invitations/{invitationId:long}/decline",
                 "CollectionInvitations: POST users/lookup-by-juple-id",
+                "Collections: DELETE join-requests/mine/{requestId:long}",
                 "Collections: DELETE submissions/mine/{submissionId:long}",
+                "Collections: DELETE {id:long}",
                 "Collections: DELETE {id:long}/collaborators/me",
+                "Collections: DELETE {id:long}/items/{itemId:long}/comments/{commentId:long}",
+                "Collections: DELETE {id:long}/items/{itemId:long}/comments/{commentId:long}/like",
+                "Collections: DELETE {id:long}/items/{itemId:long}/reaction",
                 "Collections: DELETE {id:long}/share",
                 "Collections: POST {id:long}/lock/remove",
                 "Collections: POST {id:long}/member-lock/remove",
                 "Collections: POST {id:long}/share-password/reveal",
                 "Collections: POST {id:long}/share-password/unlock",
                 "Collections: POST {id:long}/unlock",
-                "Collections: PUT {id:long}/favorite",
                 "Collections: PUT {id:long}/lock",
                 "Collections: PUT {id:long}/member-lock",
                 "Friends: DELETE requests/{requestId:long}",
                 "Friends: DELETE {friendshipId:long}",
                 "Friends: POST requests/{requestId:long}/decline",
+                "ItemImages: DELETE {imageId:long}",
+                "Items: DELETE trash",
+                "Items: DELETE {id:long}",
+                "Items: DELETE {id:long}/permanent",
                 "Items: POST {id:long}/open",
                 "PublicShareWrite: DELETE submissions/mine/{submissionId:long}",
             }.Order(StringComparer.Ordinal).ToArray(),
             allowedInsideGatedControllers.Order(StringComparer.Ordinal).ToArray());
+    }
+}
+
+/// <summary>The read-only policy of an ended free month / subscription, stated on the real endpoints (docs/subscription-launch-policy.md).</summary>
+public sealed class ReadOnlyPolicyEndpointTests
+{
+    private static MethodInfo Action(Type controller, string name, string verb, string template) => controller
+        .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+        .Single(method => method.Name == name
+            && method.GetCustomAttributes().OfType<HttpMethodAttribute>().Any(attribute => attribute.HttpMethods.Contains(verb) && (attribute.Template ?? "") == template));
+
+    private static bool IsGated(Type controller, MethodInfo method) =>
+        controller.GetCustomAttribute<RequireWriteAccessAttribute>() is not null && method.GetCustomAttribute<AllowWhenSubscriptionExpiredAttribute>() is null;
+
+    private static bool StaysUsable(Type controller, MethodInfo method) =>
+        controller.GetCustomAttribute<AllowWhenSubscriptionExpiredAttribute>() is not null || method.GetCustomAttribute<AllowWhenSubscriptionExpiredAttribute>() is not null;
+
+    public static TheoryData<Type, string, string, string> Restricted => new()
+    {
+        { typeof(InboxController), "SaveAsync", "POST", "" },                                                          // a new link
+        { typeof(CollectionsController), "CreateAsync", "POST", "" },                                                  // a new Collection
+        { typeof(ItemsController), "UpdateDetailsAsync", "PUT", "{id:long}/details" },                                 // title / memo
+        { typeof(ItemImagesController), "UploadAsync", "POST", "" },                                                   // a link photo
+        { typeof(ItemsController), "SetCoverImageAsync", "PUT", "{id:long}/cover-image" },
+        { typeof(ItemsController), "RestoreAsync", "POST", "{id:long}/restore" },
+        { typeof(CollectionsController), "RenameAsync", "PUT", "{id:long}" },                                          // name
+        { typeof(CollectionsController), "SetIconAsync", "PUT", "{id:long}/icon" },
+        { typeof(CollectionsController), "SetColorAsync", "PUT", "{id:long}/color" },
+        { typeof(CollectionsController), "SetIconImageAsync", "PUT", "{id:long}/icon-image" },
+        { typeof(CollectionsController), "AddItemAsync", "PUT", "{id:long}/items/{itemId:long}" },                     // add to a Collection
+        { typeof(ItemCollectionsController), "AddAsync", "POST", "" },
+        { typeof(CollectionsController), "TransferItemAsync", "POST", "{sourceCollectionId:long}/items/{itemId:long}/move" },
+        { typeof(CollectionItemCopyController), "CopyAsync", "POST", "" },
+        { typeof(CollectionsController), "SetFavoriteAsync", "PUT", "{id:long}/favorite" },                            // favorite
+        { typeof(CollectionsController), "EnableShareAsync", "POST", "{id:long}/share" },                              // sharing
+        { typeof(CollectionsController), "InviteAsync", "POST", "{id:long}/invitations" },                             // invitations
+        { typeof(CollectionsController), "ChangeCollaboratorRoleAsync", "PUT", "{id:long}/collaborators/{jupleId}/role" },
+        { typeof(CollectionInvitationsController), "AcceptAsync", "POST", "collection-invitations/{invitationId:long}/accept" },
+        { typeof(CollectionsController), "AddCommentAsync", "POST", "{id:long}/items/{itemId:long}/comments" },        // new comments
+        { typeof(CollectionsController), "EditCommentAsync", "PUT", "{id:long}/items/{itemId:long}/comments/{commentId:long}" },
+        { typeof(CollectionsController), "SetReactionAsync", "PUT", "{id:long}/items/{itemId:long}/reaction" },        // new reactions
+        { typeof(CollectionsController), "LikeCommentAsync", "PUT", "{id:long}/items/{itemId:long}/comments/{commentId:long}/like" },
+        { typeof(FriendsController), "SendRequestAsync", "POST", "requests" },
+        { typeof(PublicShareWriteController), "AddItemAsync", "PUT", "items/{itemId:long}" },
+    };
+
+    public static TheoryData<Type, string, string, string> Allowed => new()
+    {
+        { typeof(ItemsController), "RecordOpenAsync", "POST", "{id:long}/open" },                                      // opening the original link
+        { typeof(DataExportController), "CreateLinksAsync", "POST", "links" },                                         // export
+        { typeof(AccountController), "DeleteAsync", "DELETE", "" },                                                    // account deletion
+        { typeof(SafetyController), "CreateReportAsync", "POST", "reports" },                                  // report
+        { typeof(SafetyController), "BlockAsync", "POST", "users/{jupleId}/block" },                           // block
+        { typeof(SafetyController), "UnblockAsync", "DELETE", "users/{jupleId}/block" },
+        { typeof(AppleBillingController), "VerifyAsync", "POST", "verify" },                                           // purchase / restore
+        { typeof(AppleBillingController), "RestoreAsync", "POST", "restore" },
+        { typeof(GoogleBillingController), "VerifyAsync", "POST", "verify" },
+        { typeof(GoogleBillingController), "RestoreAsync", "POST", "restore" },
+        { typeof(CollectionLockSettingsController), "ChangeAsync", "PUT", "" },                                        // security settings
+        { typeof(ItemsController), "DeleteAsync", "DELETE", "{id:long}" },                                             // removing your own data
+        { typeof(ItemsController), "PermanentlyDeleteAsync", "DELETE", "{id:long}/permanent" },
+        { typeof(ItemsController), "EmptyTrashAsync", "DELETE", "trash" },
+        { typeof(ItemImagesController), "DeleteAsync", "DELETE", "{imageId:long}" },
+        { typeof(CollectionsController), "DeleteAsync", "DELETE", "{id:long}" },
+        { typeof(CollectionsController), "DeleteCommentAsync", "DELETE", "{id:long}/items/{itemId:long}/comments/{commentId:long}" },
+        { typeof(CollectionsController), "LeaveAsync", "DELETE", "{id:long}/collaborators/me" },                       // leaving / withdrawing
+        { typeof(CollectionsController), "CancelMyJoinRequestAsync", "DELETE", "join-requests/mine/{requestId:long}" },
+    };
+
+    [Theory]
+    [MemberData(nameof(Restricted))]
+    public void AContentChange_IsGated(Type controller, string name, string verb, string template)
+    {
+        var method = Action(controller, name, verb, template);
+        Assert.True(IsGated(controller, method), $"{controller.Name}.{name} must require write access.");
+    }
+
+    [Theory]
+    [MemberData(nameof(Allowed))]
+    public void ReadingExportingLeavingAndRemovingYourOwnData_StayUsable(Type controller, string name, string verb, string template)
+    {
+        var method = Action(controller, name, verb, template);
+        Assert.True(StaysUsable(controller, method), $"{controller.Name}.{name} must stay usable when expired.");
+    }
+
+    [Fact]
+    public void TheFavorite_IsGatedForTheActorOnly_TheOwnersSubscriptionIsNeverConsulted()
+    {
+        var method = Action(typeof(CollectionsController), "SetFavoriteAsync", "PUT", "{id:long}/favorite");
+        var own = method.GetCustomAttribute<CollectionOwnedWriteAttribute>();
+
+        // The filter takes the LAST CollectionOwnedWrite of the endpoint (the action's over the controller's); this one names no source.
+        Assert.NotNull(own);
+        Assert.Empty(own!.RouteIds);
+        Assert.Empty(own.RequestProperties);
+        Assert.Null(own.PublicIdRoute);
+        Assert.Null(own.InvitationIdRoute);
     }
 }
 
@@ -641,6 +748,29 @@ public sealed class OwnerLevelWriteGateTests
                 Assert.Null(result);
             }
         }
+    }
+
+    // The favorite: the controller's Collection-owned marker first, then the action's empty one (endpoint metadata order).
+    private static readonly object[] FavoriteMetadata =
+    [
+        new CollectionOwnedWriteAttribute { RouteIds = ["id", "sourceCollectionId"], RequestProperties = ["TargetCollectionId"] },
+        new CollectionOwnedWriteAttribute(),
+    ];
+
+    [Fact]
+    public async Task Favorite_AnActiveMemberOfAnExpiredOwnersCollection_MayStillMarkIt_TheOwnerIsNotConsulted()
+    {
+        var (nextCalled, result) = await RunAsync(Active, Expired, OwnerId, "PUT", metadata: FavoriteMetadata);
+        Assert.True(nextCalled);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task Favorite_AnExpiredPerson_GetsSubscriptionRequired()
+    {
+        var (nextCalled, result) = await RunAsync(Expired, Active, OwnerId, "PUT", metadata: FavoriteMetadata);
+        Assert.False(nextCalled);
+        Assert.Equal("subscriptionRequired", CodeOf(result));
     }
 
     [Fact]

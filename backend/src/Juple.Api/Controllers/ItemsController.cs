@@ -401,6 +401,8 @@ public sealed class ItemsController(
     }
 
     /// <summary>Moves the Item to the trash (soft delete) - see DeleteItemService.</summary>
+    // Removing your OWN data is never held back by an ended subscription (data rights): it creates nothing; restoring stays gated.
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpDelete("{id:long}")]
     public Task<IActionResult> DeleteAsync(long id, CancellationToken cancellationToken) =>
         TransitionAsync(
@@ -415,6 +417,8 @@ public sealed class ItemsController(
             cancellationToken);
 
     /// <summary>Hard-deletes a single trashed Item. An active (not yet soft-deleted) Item is rejected with a 404 - see PermanentlyDeleteItemService.</summary>
+    // Removing your OWN data is never held back by an ended subscription (data rights): it creates nothing; restoring stays gated.
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpDelete("{id:long}/permanent")]
     public Task<IActionResult> PermanentlyDeleteAsync(long id, CancellationToken cancellationToken) =>
         TransitionAsync(
@@ -422,6 +426,8 @@ public sealed class ItemsController(
             cancellationToken);
 
     /// <summary>Hard-deletes every one of the caller's trashed Items - the whole server-side trash, not just what the capped trash list shows.</summary>
+    // Removing your OWN data is never held back by an ended subscription (data rights): it creates nothing; restoring stays gated.
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpDelete("trash")]
     public async Task<IActionResult> EmptyTrashAsync(CancellationToken cancellationToken)
     {
