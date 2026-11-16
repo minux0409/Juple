@@ -280,20 +280,20 @@ export function SubscriptionScreen() {
       >
         <View style={styles.planHeader}>
           <View style={[styles.radio, isSelected && styles.radioSelected]}>{isSelected ? <View style={styles.radioDot} /> : null}</View>
-          <Text numberOfLines={2} style={styles.planTitle}>{planName(plan.key)}</Text>
+          <Text lineBreakStrategyIOS="hangul-word" numberOfLines={2} style={styles.planTitle}>{planName(plan.key)}</Text>
           {isYearly ? <GradientPill label={t('subscription.plan.recommended')} testID="subscription-recommended" /> : null}
         </View>
-        <Text style={styles.planPrice} testID={`subscription-price-${plan.key}`}>{planPrice(plan)}</Text>
-        <Text style={styles.planNote}>{renewText(plan.key)}</Text>
-        {isYearly ? null : <Text style={styles.planNote} testID="subscription-manage-anytime">{t('subscription.plan.manageAnytime')}</Text>}
+        <Text lineBreakStrategyIOS="hangul-word" style={styles.planPrice} testID={`subscription-price-${plan.key}`}>{planPrice(plan)}</Text>
+        <Text lineBreakStrategyIOS="hangul-word" style={styles.planNote}>{renewText(plan.key)}</Text>
+        {isYearly ? null : <Text lineBreakStrategyIOS="hangul-word" style={styles.planNote} testID="subscription-manage-anytime">{t('subscription.plan.manageAnytime')}</Text>}
         {isYearly && badgePercent !== null ? (
           <View style={styles.savingRow}>
-            <Text style={styles.discountText} testID="subscription-discount-badge">{t('subscription.plan.discountBadge', { percent: badgePercent })}</Text>
-            {savings ? <Text style={styles.planNote} testID="subscription-savings">{t('subscription.plan.saveAmount', { amount: formatMoney(savings.amount, savings.currencyCode, locale) })}</Text> : null}
+            <Text lineBreakStrategyIOS="hangul-word" style={styles.discountText} testID="subscription-discount-badge">{t('subscription.plan.discountBadge', { percent: badgePercent })}</Text>
+            {savings ? <Text lineBreakStrategyIOS="hangul-word" style={styles.planNote} testID="subscription-savings">{t('subscription.plan.saveAmount', { amount: formatMoney(savings.amount, savings.currencyCode, locale) })}</Text> : null}
           </View>
         ) : null}
         {isYearly && perMonthAmount !== null && yearly?.currencyCode ? (
-          <Text style={styles.planNote} testID="subscription-per-month">{t('subscription.plan.perMonthEquivalent', { price: formatMoney(perMonthAmount, yearly.currencyCode, locale) })}</Text>
+          <Text lineBreakStrategyIOS="hangul-word" style={styles.planNote} testID="subscription-per-month">{t('subscription.plan.perMonthEquivalent', { price: formatMoney(perMonthAmount, yearly.currencyCode, locale) })}</Text>
         ) : null}
       </Pressable>
     );
@@ -340,32 +340,32 @@ export function SubscriptionScreen() {
               style={[styles.primaryButton, (!isReady || isBusy) && styles.disabledButton]}
               testID="subscription-subscribe"
             >
-              {isBusy ? <ActivityIndicator color={colors.onBrand} /> : <Text style={styles.primaryLabel}>{t(selected === 'yearly' ? 'subscription.subscribeYearly' : 'subscription.subscribeMonthly')}</Text>}
+              {isBusy ? <ActivityIndicator color={colors.onBrand} /> : <Text lineBreakStrategyIOS="hangul-word" style={styles.primaryLabel}>{t(selected === 'yearly' ? 'subscription.subscribeYearly' : 'subscription.subscribeMonthly')}</Text>}
             </Pressable>
             {chosen ? (
-              <Text style={styles.billingText} testID="subscription-billing-summary">
+              <Text lineBreakStrategyIOS="hangul-word" style={styles.billingText} testID="subscription-billing-summary">
                 {t(chosen.key === 'yearly' ? 'subscription.billing.summaryYearly' : 'subscription.billing.summaryMonthly', { price: chosen.localizedPrice })}
               </Text>
             ) : null}
-            <Text style={styles.billingText} testID="subscription-free-notice">{t('subscription.billing.freeNotice')}</Text>
-            <Text style={styles.billingText} testID="subscription-cancel-how">{cancelHow}</Text>
+            <Text lineBreakStrategyIOS="hangul-word" style={styles.billingText} testID="subscription-free-notice">{t('subscription.billing.freeNotice')}</Text>
+            <Text lineBreakStrategyIOS="hangul-word" style={styles.billingText} testID="subscription-cancel-how">{cancelHow}</Text>
           </>
         )}
 
         {/* While the free month runs, the card above already is the status (its end date, its days); the summary would repeat it. */}
         {trial ? null : (
           <>
-            <Text accessibilityRole="header" style={styles.sectionTitle}>{t('subscription.stateHeading')}</Text>
+            <Text lineBreakStrategyIOS="hangul-word" accessibilityRole="header" style={styles.sectionTitle}>{t('subscription.stateHeading')}</Text>
             <View style={[styles.card, styles.accessCard]} testID="subscription-status-card">
-              <Text style={styles.accessLabel} testID="subscription-status">{t(`subscription.status.${view.kind}`)}</Text>
+              <Text lineBreakStrategyIOS="hangul-word" style={styles.accessLabel} testID="subscription-status">{t(`subscription.status.${view.kind}`)}</Text>
               {rows.map(row => (
                 <View key={row.id} style={styles.row} testID={`subscription-row-${row.id}`}>
-                  <Text style={styles.rowLabel}>{row.label}</Text>
-                  <Text style={styles.rowValue} testID={`subscription-row-${row.id}-value`}>{row.value}</Text>
+                  <Text lineBreakStrategyIOS="hangul-word" style={styles.rowLabel}>{row.label}</Text>
+                  <Text lineBreakStrategyIOS="hangul-word" style={styles.rowValue} testID={`subscription-row-${row.id}-value`}>{row.value}</Text>
                 </View>
               ))}
-              {note ? <Text style={styles.accessDetail} testID="subscription-status-note">{note}</Text> : null}
-              {otherStore ? <Text style={styles.accessDetail} testID="subscription-other-store">{t(`membership.otherStore.${otherStore}`)}</Text> : null}
+              {note ? <Text lineBreakStrategyIOS="hangul-word" style={styles.accessDetail} testID="subscription-status-note">{note}</Text> : null}
+              {otherStore ? <Text lineBreakStrategyIOS="hangul-word" style={styles.accessDetail} testID="subscription-other-store">{t(`membership.otherStore.${otherStore}`)}</Text> : null}
             </View>
           </>
         )}
@@ -381,7 +381,7 @@ export function SubscriptionScreen() {
             style={[styles.primaryButton, isBusy && styles.disabledButton]}
             testID="subscription-manage"
           >
-            <Text style={styles.primaryLabel}>{t('subscription.manage')}</Text>
+            <Text lineBreakStrategyIOS="hangul-word" style={styles.primaryLabel}>{t('subscription.manage')}</Text>
           </Pressable>
         ) : null}
         <Pressable
@@ -392,28 +392,28 @@ export function SubscriptionScreen() {
           style={[styles.secondaryButton, isBusy && styles.disabledButton]}
           testID="subscription-restore"
         >
-          <Text style={styles.secondaryLabel}>{t('subscription.restore')}</Text>
+          <Text lineBreakStrategyIOS="hangul-word" style={styles.secondaryLabel}>{t('subscription.restore')}</Text>
         </Pressable>
 
         <View style={styles.legalRow} testID="subscription-legal">
           {legalLinks.termsUrl ? (
             <Pressable accessibilityRole="link" onPress={() => openLegal(legalLinks.termsUrl)} style={styles.legalLink} testID="subscription-terms">
-              <Text style={styles.legalLabel}>{t('customerCenter.terms')}</Text>
+              <Text lineBreakStrategyIOS="hangul-word" style={styles.legalLabel}>{t('customerCenter.terms')}</Text>
             </Pressable>
           ) : null}
           {legalLinks.privacyUrl ? (
             <Pressable accessibilityRole="link" onPress={() => openLegal(legalLinks.privacyUrl)} style={styles.legalLink} testID="subscription-privacy">
-              <Text style={styles.legalLabel}>{t('customerCenter.privacy')}</Text>
+              <Text lineBreakStrategyIOS="hangul-word" style={styles.legalLabel}>{t('customerCenter.privacy')}</Text>
             </Pressable>
           ) : null}
         </View>
 
-        <Text accessibilityRole="header" style={styles.sectionTitle}>{t('subscription.infoHeading')}</Text>
+        <Text lineBreakStrategyIOS="hangul-word" accessibilityRole="header" style={styles.sectionTitle}>{t('subscription.infoHeading')}</Text>
         <View style={[styles.card, styles.infoCard]} testID="subscription-info">
           {(['account', 'store', 'data'] as const).map((row, index) => (
             <View key={row} style={[styles.infoRow, index > 0 && styles.infoRowDivider]}>
-              <Text style={styles.infoTitle}>{t(`subscription.info.${row}Title`)}</Text>
-              <Text style={styles.infoBody}>{t(`subscription.info.${row}Body`)}</Text>
+              <Text lineBreakStrategyIOS="hangul-word" style={styles.infoTitle}>{t(`subscription.info.${row}Title`)}</Text>
+              <Text lineBreakStrategyIOS="hangul-word" style={styles.infoBody}>{t(`subscription.info.${row}Body`)}</Text>
             </View>
           ))}
         </View>

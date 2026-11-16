@@ -10,11 +10,11 @@ export function MembershipHeader({ badge }: { readonly badge: MembershipBadge | 
   const { t } = useTranslation();
   return (
     <View style={styles.header}>
-      <Text accessibilityRole="header" style={styles.heroTitle}>{t('membership.heroTitle')}</Text>
-      <Text style={styles.heroSubtitle}>{t('membership.heroSubtitle')}</Text>
+      <Text accessibilityRole="header" lineBreakStrategyIOS="hangul-word" maxFontSizeMultiplier={1.5} style={styles.heroTitle}>{t('membership.heroTitle')}</Text>
+      <Text lineBreakStrategyIOS="hangul-word" style={styles.heroSubtitle}>{t('membership.heroSubtitle')}</Text>
       {badge ? (
         <View style={[styles.badge, badge === 'member' || badge === 'trial' ? styles.badgeLive : badge === 'pending' ? styles.badgePending : styles.badgeEnded]} testID={`membership-badge-${badge}`}>
-          <Text numberOfLines={2} style={[styles.badgeLabel, badge === 'member' || badge === 'trial' ? styles.badgeLabelLive : styles.badgeLabelQuiet]}>{t(`membership.badge.${badge}`)}</Text>
+          <Text lineBreakStrategyIOS="hangul-word" numberOfLines={2} style={[styles.badgeLabel, badge === 'member' || badge === 'trial' ? styles.badgeLabelLive : styles.badgeLabelQuiet]}>{t(`membership.badge.${badge}`)}</Text>
         </View>
       ) : null}
     </View>
@@ -32,10 +32,10 @@ export function TrialPeriodCard({ trial }: { readonly trial: TrialProgress }) {
   return (
     <View style={styles.trialCard} testID="membership-trial-card">
       <View style={styles.trialTitleRow}>
-        <Text style={styles.trialTitle}>{t('membership.trialCard.title')}</Text>
+        <Text lineBreakStrategyIOS="hangul-word" style={styles.trialTitle}>{t('membership.trialCard.title')}</Text>
         <GradientPill label={t('membership.trialCard.dDay', { count: trial.daysLeft })} testID="membership-trial-dday" />
       </View>
-      <Text style={styles.trialDays} testID="membership-trial-days">
+      <Text lineBreakStrategyIOS="hangul-word" style={styles.trialDays} testID="membership-trial-days">
         {trial.daysLeft > 1 ? t('membership.trialCard.daysLeft', { count: trial.daysLeft }) : t('membership.trialCard.lastDay')}
       </Text>
       <View
@@ -47,8 +47,8 @@ export function TrialPeriodCard({ trial }: { readonly trial: TrialProgress }) {
       >
         <ProgressBar progress={trial.elapsed} />
       </View>
-      <Text style={styles.trialEnds} testID="membership-trial-ends">{t('membership.trialCard.endsOn', { date: endsOn })}</Text>
-      <Text style={styles.trialBody}>{t('membership.trialCard.body')}</Text>
+      <Text lineBreakStrategyIOS="hangul-word" style={styles.trialEnds} testID="membership-trial-ends">{t('membership.trialCard.endsOn', { date: endsOn })}</Text>
+      <Text lineBreakStrategyIOS="hangul-word" style={styles.trialBody}>{t('membership.trialCard.body')}</Text>
     </View>
   );
 }
@@ -58,8 +58,8 @@ export function NoPaymentNeededNote() {
   const { t } = useTranslation();
   return (
     <View style={styles.note} testID="membership-no-payment-needed">
-      <Text style={styles.noteTitle}>{t('membership.noPaymentNeeded.title')}</Text>
-      <Text style={styles.noteBody}>{t('membership.noPaymentNeeded.body')}</Text>
+      <Text lineBreakStrategyIOS="hangul-word" style={styles.noteTitle}>{t('membership.noPaymentNeeded.title')}</Text>
+      <Text lineBreakStrategyIOS="hangul-word" style={styles.noteBody}>{t('membership.noPaymentNeeded.body')}</Text>
     </View>
   );
 }

@@ -76,12 +76,12 @@ function MembershipStatus() {
         {trial ? <TrialPeriodCard trial={trial} /> : null}
         {status && !trial ? (
           <View style={styles.card} testID="membership-status">
-            <Text style={styles.status}>{status}</Text>
+            <Text lineBreakStrategyIOS="hangul-word" style={styles.status}>{status}</Text>
           </View>
         ) : null}
-        <Text style={styles.paragraph} testID="membership-cannot-subscribe">{t('membership.cannotSubscribeHere')}</Text>
-        <Text style={styles.paragraph}>{t('membership.sharedAccount')}</Text>
-        <Text style={styles.paragraph}>{t('membership.dataKept')}</Text>
+        <Text lineBreakStrategyIOS="hangul-word" style={styles.paragraph} testID="membership-cannot-subscribe">{t('membership.cannotSubscribeHere')}</Text>
+        <Text lineBreakStrategyIOS="hangul-word" style={styles.paragraph}>{t('membership.sharedAccount')}</Text>
+        <Text lineBreakStrategyIOS="hangul-word" style={styles.paragraph}>{t('membership.dataKept')}</Text>
       </ScrollView>
     </StackScreenSafeArea>
   );

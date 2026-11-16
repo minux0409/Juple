@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { AccessibilityInfo, Modal, StyleSheet, Text } from 'react-native';
+import { AccessibilityInfo, Modal, StyleSheet, Text, View } from 'react-native';
 import i18n from '../../i18n';
 import { getMyProfile } from '../../api/profileApi';
 import { useOptionalAuth } from '../../auth/AuthContext';
@@ -349,5 +349,47 @@ describe('the popups in other languages and with Reduce Motion', () => {
     const card = renderer.root.findAll(node => node.props.testID === 'welcome-trial' && typeof node.type === 'string')[0];
     // The animated value sits at its end state at once.
     expect(StyleSheet.flatten(card.props.style).opacity).toBe(1);
+  });
+});
+
+describe('one popup at a time (iOS presents one modal at a time)', () => {
+  it('a refused change while the free-month-ended popup is up waits, then shows once that popup is gone', async () => {
+    const { SubscriptionRequiredPrompt } = jest.requireActual('../SubscriptionRequiredPrompt') as typeof import('../SubscriptionRequiredPrompt');
+    const { notifySubscriptionRequired } = jest.requireActual('../subscriptionRequired') as typeof import('../subscriptionRequired');
+    auth({ entitlement: endedTrial });
+    const renderer = await mount(
+      <View>
+        <TrialEndedPrompt />
+        <SubscriptionRequiredPrompt />
+      </View>,
+    );
+    await tick();
+    expect(isShown(renderer, 'trial-ended')).toBe(true);
+
+    await act(async () => notifySubscriptionRequired('actor'));
+    const refusalVisible = () => renderer.root.findAll(node => node.type === Modal && node.props.visible === true)
+      .some(modal => modal.findAllByType(Text).some(text => text.props.children === '멤버십이 필요한 기능이에요'));
+    expect(refusalVisible()).toBe(false);
+
+    await pressIn(renderer, 'trial-ended-secondary');
+    expect(isShown(renderer, 'trial-ended')).toBe(false);
+    expect(refusalVisible()).toBe(true);
+  });
+
+  it('while the membership prompt is up, the free-month-ended popup waits for it', async () => {
+    const { SubscriptionRequiredPrompt } = jest.requireActual('../SubscriptionRequiredPrompt') as typeof import('../SubscriptionRequiredPrompt');
+    const { notifySubscriptionRequired } = jest.requireActual('../subscriptionRequired') as typeof import('../subscriptionRequired');
+    auth({ entitlement: endedTrial });
+    nav.getRootState.mockReturnValue(rootTop('Subscription'));
+    const renderer = await mount(
+      <View>
+        <TrialEndedPrompt />
+        <SubscriptionRequiredPrompt />
+      </View>,
+    );
+    await act(async () => notifySubscriptionRequired('actor'));
+    nav.getRootState.mockReturnValue(rootTop('MainTabs'));
+    await tick(2000);
+    expect(isShown(renderer, 'trial-ended')).toBe(false);
   });
 });

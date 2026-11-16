@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { reportDialogOpen, useIsOtherDialogOpen } from '../components/dialogPresence';
 import { useOptionalAuth } from '../auth/AuthContext';
 import { describeDataRetention, formatRetentionDate } from './dataRetentionView';
 import { isFreePeriodEnded } from './membershipModel';
@@ -15,8 +16,11 @@ import { subscribeSubscriptionRequired, type SubscriptionRequiredKind } from './
  *   Membership screen (which also holds 구매 복원); 닫기, Back and a tap outside only close it;
  * - the Collection's OWNER has no live access: nothing the person could buy changes it, so it is a plain notice that the
  *   Collection can be read but not changed for now.
- * Repeated refusals while it is open change nothing.
+ * Repeated refusals while it is open change nothing. A refusal that arrives while another popup is up (the free-month-ended notice)
+ * waits until that one has gone - iOS shows one modal at a time - and the membership popups wait for this one in turn.
  */
+const DIALOG_ID = 'subscriptionRequired';
+
 export function SubscriptionRequiredPrompt() {
   const { t, i18n } = useTranslation();
   const auth = useOptionalAuth();
@@ -30,6 +34,12 @@ export function SubscriptionRequiredPrompt() {
     : reason;
 
   useEffect(() => subscribeSubscriptionRequired(refusal => setKind(previous => previous ?? refusal)), []);
+  const isBehindAnother = useIsOtherDialogOpen(DIALOG_ID);
+  const isShown = kind !== null && !isBehindAnother;
+  useEffect(() => {
+    reportDialogOpen(DIALOG_ID, isShown);
+    return () => reportDialogOpen(DIALOG_ID, false);
+  }, [isShown]);
 
   const close = () => setKind(null);
   const isOwner = kind === 'owner';
@@ -49,7 +59,7 @@ export function SubscriptionRequiredPrompt() {
         }
       }}
       title={isOwner ? t('subscription.ownerRequired.title') : t('subscription.required.title')}
-      visible={kind !== null}
+      visible={isShown}
     />
   );
 }

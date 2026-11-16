@@ -1,6 +1,7 @@
 import { AppNativeModal as Modal } from './AppNativeModal';
-import { useEffect, useRef, type ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaInsetsContext, type EdgeInsets } from 'react-native-safe-area-context';
 import { Pressable } from './Pressable';
 import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 import { DialogActions } from './DialogActions';
@@ -67,6 +68,12 @@ export function ConfirmDialog({
   // elsewhere - the subscription prompt - passes '' as its message (see isHandledSubscriptionRefusal); the dialog is answered as
   // dismissed at once, so the caller's own state closes and its next message opens normally. Not time based: it is the message.
   const isEmptyNotice = visible && !onCancel && !message;
+  // iOS draws the modal over the whole screen (status bar, notch, home indicator): the card stays inside the real insets. A long text or
+  // a large accessibility font scrolls INSIDE the card, so the buttons always stay on screen.
+  const insets = useContext(InsetsContext);
+  const frame = Platform.OS === 'ios' && insets
+    ? { paddingTop: Math.max(spacing.xl, insets.top + spacing.md), paddingBottom: Math.max(spacing.xl, insets.bottom + spacing.md) }
+    : null;
   const isShown = visible && !isEmptyNotice;
   const onConfirmRef = useRef(onConfirm);
   onConfirmRef.current = onConfirm;
@@ -79,7 +86,7 @@ export function ConfirmDialog({
   return (
     <Modal animationType="fade" onDismiss={onDismiss} onRequestClose={dismiss} transparent visible={isShown}>
       <KeyboardFieldScope>
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, frame]}>
         <Pressable
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
@@ -87,10 +94,12 @@ export function ConfirmDialog({
           style={StyleSheet.absoluteFill}
         />
         <View accessibilityViewIsModal style={styles.card}>
-          <Text style={styles.title}>{title}</Text>
-          {/* An empty message means a title-only confirmation. */}
-          {message ? <Text style={styles.message}>{message}</Text> : null}
-          {children}
+          <ScrollView bounces={false} style={styles.scroll}>
+            <Text lineBreakStrategyIOS="hangul-word" style={styles.title}>{title}</Text>
+            {/* An empty message means a title-only confirmation. */}
+            {message ? <Text lineBreakStrategyIOS="hangul-word" style={styles.message}>{message}</Text> : null}
+            {children}
+          </ScrollView>
           <View style={styles.actions}>
             <DialogActions
               actions={[
@@ -105,6 +114,9 @@ export function ConfirmDialog({
     </Modal>
   );
 }
+
+/** The app's safe-area insets when a provider is above; none otherwise (a dialog rendered on its own, a test) - never a crash. */
+const InsetsContext = SafeAreaInsetsContext ?? createContext<EdgeInsets | null>(null);
 
 /** Back / outside tap on a dialog that can only be answered with its button: consumed, nothing happens. */
 function ignoreDismissRequest(): void {}
@@ -124,8 +136,14 @@ const styles = themedStyles(() => ({
     // without the cap the card stretches to nearly the whole ~840dp width of an unfolded foldable
     // and stops reading as a dialog.
     maxWidth: 400,
+    // Never taller than the space inside the insets: the text scrolls, the buttons stay.
+    maxHeight: '100%',
     padding: spacing.xl,
     width: '100%',
+  },
+  scroll: {
+    flexGrow: 0,
+    flexShrink: 1,
   },
   title: {
     color: colors.textPrimary,

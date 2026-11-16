@@ -85,8 +85,8 @@ export function MembershipPromptDialog({ visible, icon, title, body, primaryLabe
         >
           <ScrollView bounces={false} contentContainerStyle={styles.scrollContent} style={styles.scroll}>
             <GradientBadge icon={icon} />
-            <Text accessibilityRole="header" style={styles.title} testID={`${testID}-title`}>{title}</Text>
-            <Text style={styles.body} testID={`${testID}-body`}>{body}</Text>
+            <Text lineBreakStrategyIOS="hangul-word" accessibilityRole="header" style={styles.title} testID={`${testID}-title`}>{title}</Text>
+            <Text lineBreakStrategyIOS="hangul-word" style={styles.body} testID={`${testID}-body`}>{body}</Text>
           </ScrollView>
           <View style={styles.actions}>
             <DialogActions actions={actions} />
