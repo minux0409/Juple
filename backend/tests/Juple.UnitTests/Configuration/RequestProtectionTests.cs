@@ -441,6 +441,7 @@ public sealed class RequestProtectionTests
     [Theory]
     [InlineData("Collections", "AddComment", "social")]
     [InlineData("Collections", "SetReaction", "social")]
+    [InlineData("Collections", "Merge", "bulk")]
     [InlineData("Collections", "SetSharePassword", "password")]
     public void CostlyOperationsUseDedicatedBuckets(string controller, string action, string category) =>
         Assert.Equal(category, RequestProtection.Category(Context(controller, action, "POST")));
@@ -466,7 +467,7 @@ public sealed class RequestProtectionTests
             ("Inbox", "SaveAsync", "link"), ("UrlMetadata", "ResolveAsync", "metadata"),
             ("ItemImages", "UploadAsync", "image"), ("UserProfile", "SetImageAsync", "image"),
             ("Collections", "SetIconImageAsync", "image"), ("Collections", "CreateAsync", "collection-create"),
-            ("Collections", "AddCommentAsync", "social"),
+            ("Collections", "MergeAsync", "bulk"), ("Collections", "AddCommentAsync", "social"),
             ("Collections", "SetReactionAsync", "social"), ("Collections", "SetSharePasswordAsync", "password"),
             ("Collections", "UnlockAsync", "password-verify"), ("PushDevices", "RegisterAsync", "push"),
         };

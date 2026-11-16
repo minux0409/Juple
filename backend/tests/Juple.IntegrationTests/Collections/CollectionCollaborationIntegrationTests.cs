@@ -524,8 +524,10 @@ public sealed class CollectionCollaborationIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Transfer_IsBlockedForCollaborativeCollections()
+    public async Task MergeAndTransfer_AreBlockedForCollaborativeCollections()
     {
+        await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() => _collections.MergeAsync(_owner, _sharedId, _ownerOtherId));
+        await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() => _collections.MergeAsync(_owner, _ownerOtherId, _sharedId));
         await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
             _collections.TransferItemAsync(_owner, _ownerOtherId, _ownerItemElsewhere, _sharedId));
     }

@@ -221,6 +221,9 @@ public sealed class WriteAccessFilterTests
         public Task<long?> FindOwnerUserIdByPublicIdAsync(string publicId, CancellationToken cancellationToken = default) => Task.FromResult<long?>(null);
 
         public Task<long?> FindOwnerUserIdByInvitationAsync(long invitationId, CancellationToken cancellationToken = default) => Task.FromResult<long?>(null);
+
+        public Task<IReadOnlyCollection<long>> FindOwnerUserIdsByMergeOperationAsync(Guid operationToken, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyCollection<long>>([]);
     }
 
     private sealed class FixedEntitlements(Entitlement? entitlement, bool notBootstrapped = false) : IEntitlementService
@@ -574,6 +577,8 @@ public sealed class ReadOnlyPolicyEndpointTests
         { typeof(ItemCollectionsController), "AddAsync", "POST", "" },
         { typeof(CollectionsController), "TransferItemAsync", "POST", "{sourceCollectionId:long}/items/{itemId:long}/move" },
         { typeof(CollectionItemCopyController), "CopyAsync", "POST", "" },
+        { typeof(CollectionsController), "MergeAsync", "POST", "{sourceCollectionId:long}/merge" },     // merge (installed older apps)
+        { typeof(CollectionsController), "UndoMergeAsync", "POST", "merge/undo" },
         { typeof(CollectionsController), "SetFavoriteAsync", "PUT", "{id:long}/favorite" },                            // favorite
         { typeof(CollectionsController), "EnableShareAsync", "POST", "{id:long}/share" },                              // sharing
         { typeof(CollectionsController), "InviteAsync", "POST", "{id:long}/invitations" },                             // invitations
@@ -678,10 +683,12 @@ public sealed class OwnerLevelWriteGateTests
             Task.FromResult(StoreSubscriptionOwnership.None);
     }
 
-    private sealed class Owners(long? collectionOwner, long? publicOwner = null, long? invitationOwner = null) : ICollectionOwnerLookup
+    private sealed class Owners(long? collectionOwner, long? publicOwner = null, long? invitationOwner = null, long[]? mergeOwners = null) : ICollectionOwnerLookup
     {
         public Task<long?> FindOwnerUserIdByInvitationAsync(long invitationId, CancellationToken cancellationToken = default) => Task.FromResult(invitationOwner);
 
+        public Task<IReadOnlyCollection<long>> FindOwnerUserIdsByMergeOperationAsync(Guid operationToken, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyCollection<long>>(mergeOwners ?? []);
 
         public Task<long?> FindOwnerUserIdAsync(long collectionId, CancellationToken cancellationToken = default) =>
             Task.FromResult(collectionId == CollectionId ? collectionOwner : null);
@@ -699,6 +706,7 @@ public sealed class OwnerLevelWriteGateTests
         long? collectionOwner,
         string method = "POST",
         long? invitationOwner = null,
+        long[]? mergeOwners = null,
         Action<ActionExecutingContext>? configure = null,
         BillingOptions? options = null,
         params object[] metadata)
@@ -723,7 +731,7 @@ public sealed class OwnerLevelWriteGateTests
             new Identity(),
             new Entitlements(actor, owner),
             new Users(),
-            new Owners(collectionOwner, invitationOwner: invitationOwner)).OnActionExecutionAsync(
+            new Owners(collectionOwner, invitationOwner: invitationOwner, mergeOwners: mergeOwners)).OnActionExecutionAsync(
             context,
             () =>
             {
@@ -839,7 +847,7 @@ public sealed class OwnerLevelWriteGateTests
     [Fact]
     public async Task ATargetCollectionInTheRequestBody_IsChecked_NotJustTheRoute()
     {
-        // The route Collection is the actor's own; the TARGET (move / copy destination) belongs to an expired owner.
+        // The route Collection is the actor's own; the TARGET (move / merge / copy destination) belongs to an expired owner.
         var (nextCalled, result) = await RunAsync(
             Active, Expired, collectionOwner: OwnerId,
             configure: context =>
@@ -904,6 +912,7 @@ public sealed class OwnerLevelWriteGateTests
         Assert.Equal("collectionOwnerSubscriptionRequired", CodeOf(context.Result));
     }
 
+    private sealed record UndoRequest(Guid UndoOperationId);
 
     [Fact]
     public async Task AcceptingAnInvitation_ActiveActor_ActiveOwner_IsAllowed()
@@ -961,6 +970,40 @@ public sealed class OwnerLevelWriteGateTests
     }
 
     [Fact]
+    public async Task UndoingAMerge_IsGatedOnTheOwnersOfTheCollectionsThatMergeTouched()
+    {
+        var (nextCalled, result) = await RunAsync(
+            Active, Expired, null, mergeOwners: [OwnerId],
+            metadata: [new CollectionOwnedWriteAttribute { MergeOperationProperty = "UndoOperationId" }],
+            configure: context => context.ActionArguments["request"] = new UndoRequest(Guid.NewGuid()));
+        Assert.False(nextCalled);
+        Assert.Equal("collectionOwnerSubscriptionRequired", CodeOf(result));
+    }
+
+    [Fact]
+    public async Task UndoingAMerge_OnTheActorsOwnCollections_NeedsOnlyTheActorCheck()
+    {
+        // A merge only ever runs on the caller's own Collections: source and target resolve to the actor - checked once, not twice.
+        var (nextCalled, result) = await RunAsync(
+            Active, Expired, null, mergeOwners: [ActorId],
+            metadata: [new CollectionOwnedWriteAttribute { MergeOperationProperty = "UndoOperationId" }],
+            configure: context => context.ActionArguments["request"] = new UndoRequest(Guid.NewGuid()));
+        Assert.True(nextCalled);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task UndoingAMerge_ByAnExpiredActor_IsBlocked()
+    {
+        var (nextCalled, result) = await RunAsync(
+            Expired, Active, null, mergeOwners: [ActorId],
+            metadata: [new CollectionOwnedWriteAttribute { MergeOperationProperty = "UndoOperationId" }],
+            configure: context => context.ActionArguments["request"] = new UndoRequest(Guid.NewGuid()));
+        Assert.False(nextCalled);
+        Assert.Equal("subscriptionRequired", CodeOf(result));
+    }
+
+    [Fact]
     public async Task AMethodLevelDeclaration_WinsOverTheControllersOwn()
     {
         // Controller-level metadata comes first, the action's last: the action's own description of where its Collection comes from is used.
@@ -973,13 +1016,17 @@ public sealed class OwnerLevelWriteGateTests
     }
 
     [Fact]
-    public void AcceptInvitation_IsOwnerGated()
+    public void AcceptInvitation_AndUndoMerge_AreOwnerGated_NotJustActorGated()
     {
         var accept = typeof(CollectionInvitationsController).GetMethods()
             .Single(method => method.GetCustomAttributes<HttpMethodAttribute>().Any(http => http.Template == "collection-invitations/{invitationId:long}/accept"));
+        var undo = typeof(CollectionsController).GetMethods()
+            .Single(method => method.GetCustomAttributes<HttpMethodAttribute>().Any(http => http.Template == "merge/undo"));
 
         Assert.Equal("invitationId", accept.GetCustomAttribute<CollectionOwnedWriteAttribute>()!.InvitationIdRoute);
+        Assert.Equal("UndoOperationId", undo.GetCustomAttribute<CollectionOwnedWriteAttribute>()!.MergeOperationProperty);
         Assert.Null(accept.GetCustomAttribute<AllowWhenSubscriptionExpiredAttribute>());
+        Assert.Null(undo.GetCustomAttribute<AllowWhenSubscriptionExpiredAttribute>());
     }
 }
 

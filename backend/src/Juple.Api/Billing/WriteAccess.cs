@@ -61,6 +61,8 @@ public sealed class CollectionOwnedWriteAttribute : Attribute
     /// <summary>A route value holding a pending invitation id - the Collection is the one the invitation would join.</summary>
     public string? InvitationIdRoute { get; init; }
 
+    /// <summary>A request property holding a merge operation token (a Guid) - the Collections are the ones that merge touched.</summary>
+    public string? MergeOperationProperty { get; init; }
 }
 
 /// <summary>
@@ -184,6 +186,17 @@ public sealed class RequireWriteAccessFilter(
             && await ownerLookup.FindOwnerUserIdByInvitationAsync(invitationId, cancellationToken) is { } invitationOwner)
         {
             owners.Add(invitationOwner);
+        }
+
+        if (owned.MergeOperationProperty is { } operationProperty)
+        {
+            foreach (var argument in context.ActionArguments.Values)
+            {
+                if (argument?.GetType().GetProperty(operationProperty)?.GetValue(argument) is Guid token)
+                {
+                    owners.UnionWith(await ownerLookup.FindOwnerUserIdsByMergeOperationAsync(token, cancellationToken));
+                }
+            }
         }
 
         foreach (var collectionId in collectionIds)

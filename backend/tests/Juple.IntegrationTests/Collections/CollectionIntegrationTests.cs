@@ -89,7 +89,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DeletedCollection_RejectsAddAndMoveTargets()
+    public async Task DeletedCollection_RejectsAddAndMoveOrMergeTargets()
     {
         var store = new CollectionStore(_dbContext);
         var itemStore = new Juple.Infrastructure.Items.ItemStore(_dbContext);
@@ -102,6 +102,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
 
         await Assert.ThrowsAsync<CollectionNotFoundException>(() => store.AddAsync(_userId, deletedTarget.Id, item.Entry.Id, DateTimeOffset.UtcNow));
         await Assert.ThrowsAsync<CollectionNotFoundException>(() => store.TransferItemAsync(_userId, source.Id, item.Entry.Id, deletedTarget.Id));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => store.MergeAsync(_userId, source.Id, deletedTarget.Id));
     }
 
     [Fact]
