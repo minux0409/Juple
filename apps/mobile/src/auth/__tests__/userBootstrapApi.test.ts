@@ -22,7 +22,7 @@ describe('bootstrapCurrentUser', () => {
       accessToken: 'a-token',
       body: { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' },
     });
-    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null, storeSubscription: null, mobileVersionPolicy: null, dataRetention: null, dataExportEnabled: false });
+    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null, storeSubscription: null, mobileVersionPolicy: null, dataRetention: null, dataExportEnabled: false, newAccountTrialGranted: false });
   });
 
   it('reports signInRequired (never ready / unavailable) when the server refuses to create an account from a stale sign-in', async () => {
@@ -41,12 +41,22 @@ describe('bootstrapCurrentUser', () => {
     expect(result.status).toBe('unavailable');
   });
 
+  it('carries the server\'s "new account with its own free month" answer only when it is exactly true', async () => {
+    jest.mocked(requestApi).mockResolvedValue({ status: 200, body: { plan: 'Free', isNewAccount: true, newAccountTrialGranted: true } });
+    expect((await bootstrapCurrentUser('a-token', { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' })).newAccountTrialGranted).toBe(true);
+
+    for (const value of [false, 'true', 1, null, undefined]) {
+      jest.mocked(requestApi).mockResolvedValue({ status: 200, body: { plan: 'Free', newAccountTrialGranted: value } });
+      expect((await bootstrapCurrentUser('a-token', { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' })).newAccountTrialGranted).toBe(false);
+    }
+  });
+
   it('returns the Plus plan when the backend reports it', async () => {
     jest.mocked(requestApi).mockResolvedValue({ status: 200, body: { plan: 'Plus' } });
 
     const result = await bootstrapCurrentUser('a-token', { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' });
 
-    expect(result).toEqual({ status: 'ready', plan: 'Plus', entitlement: null, storeSubscription: null, mobileVersionPolicy: null, dataRetention: null, dataExportEnabled: false });
+    expect(result).toEqual({ status: 'ready', plan: 'Plus', entitlement: null, storeSubscription: null, mobileVersionPolicy: null, dataRetention: null, dataExportEnabled: false, newAccountTrialGranted: false });
   });
 
   it('carries the app-version policy of the server from the same bootstrap response - no separate request - and reads it defensively', async () => {
@@ -203,7 +213,7 @@ describe('bootstrapCurrentUser - entitlement', () => {
 
     const result = await bootstrapCurrentUser('a-token', settings);
 
-    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null, storeSubscription: null, mobileVersionPolicy: null, dataRetention: null, dataExportEnabled: false });
+    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null, storeSubscription: null, mobileVersionPolicy: null, dataRetention: null, dataExportEnabled: false, newAccountTrialGranted: false });
   });
 });
 
@@ -280,6 +290,8 @@ describe('parseStoreSubscription', () => {
       state: 'active', platform: 'google', productId: 'juple_monthly', currentPeriodEndsAtUtc: '2026-10-02T00:00:00Z', autoRenewing: false,
       startedAtUtc: null, endedState: null, endedAtUtc: null,
     });
+    expect(parseStoreSubscription({ state: 'active', platform: 'apple', productId: 'juple_yearly' })?.platform).toBe('apple');
+    expect(parseStoreSubscription({ state: 'active', platform: 'amazon' })?.platform).toBeNull();
     expect(parseStoreSubscription({ state: 'gracePeriod' })?.state).toBe('gracePeriod');
     expect(parseStoreSubscription({ state: 'none', platform: null })?.state).toBe('none');
   });

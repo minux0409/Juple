@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Modal, Text } from 'react-native';
+import { Modal, Platform, Text } from 'react-native';
 import i18n from '../../i18n';
 import { SubscriptionScreen } from '../SubscriptionScreen';
 import { useAuth, useOptionalAuth } from '../../auth/AuthContext';
@@ -20,6 +20,9 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
+
+// The store this device manages (Jest runs as iOS): a subscription held there can be managed from here.
+const OWN_STORE = Platform.OS === 'ios' ? 'apple' : 'google';
 
 const readyOffer = { kind: 'ready', offer: { localizedPrice: '$0.99', currencyCode: 'USD', billingPeriod: 'P1M' } } as const;
 
@@ -68,7 +71,7 @@ describe('SubscriptionScreen', () => {
   it('shows the monthly plan with the price exactly as the store localized it', async () => {
     const renderer = await renderScreen();
 
-    expect(texts(renderer)).toEqual(expect.arrayContaining([i18n.t('subscription.planName'), i18n.t('subscription.plan.monthlyRenew')]));
+    expect(texts(renderer)).toEqual(expect.arrayContaining([i18n.t('membership.heroTitle'), i18n.t('membership.heroSubtitle'), i18n.t('subscription.plan.monthlyRenew'), i18n.t('subscription.plan.manageAnytime')]));
     expect(texts(renderer).join('|')).toContain('$0.99 / month');
     expect(byId(renderer, 'subscription-subscribe')[0].props.disabled).toBe(false);
   });
@@ -168,7 +171,7 @@ describe('SubscriptionScreen', () => {
     startedAtUtc: null, endedState: null, endedAtUtc: null, ...overrides,
   });
   const activeStore = (overrides: Record<string, unknown> = {}) => storeOf({
-    state: 'active', platform: 'google', productId: 'juple_monthly', autoRenewing: true,
+    state: 'active', platform: OWN_STORE, productId: 'juple_monthly', autoRenewing: true,
     startedAtUtc: '2026-10-11T00:00:00Z', currentPeriodEndsAtUtc: '2026-11-11T00:00:00Z', ...overrides,
   });
   const fmt = (iso: string) => new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(iso));
@@ -220,13 +223,90 @@ describe('SubscriptionScreen', () => {
     expect(rowIds(renderer)).toEqual([]);
   });
 
-  it('running Juple trial: "free access" with the real end date and the Juple-provided note, Subscribe still available', async () => {
+  const longDate = (iso: string) => new Intl.DateTimeFormat('en', { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(iso));
+  const textOf = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) => {
+    const node = textNodes(renderer, testID)[0];
+    return node ? String(node.props.children) : null;
+  };
+
+  it('running Juple trial: the free-month card (days left, D-n, progress, the server end date), "no need to pay now", Subscribe still available', async () => {
+    // Server: verified 1 Oct, trial 20 Sep .. 20 Oct -> 19 days left, 11 of 30 days passed.
     const renderer = await screenWith(entitlementOf({}), storeOf({}));
 
-    expect(statusOf(renderer)).toBe(i18n.t('subscription.status.trial'));
-    expect(rowValue(renderer, 'trialEndsOn')).toBe(fmt('2026-10-20T00:00:00Z'));
-    expect(noteOf(renderer)).toBe(i18n.t('subscription.note.trial'));
+    expect(renderer.root.findAll(node => node.props.testID === 'membership-badge-trial')).not.toHaveLength(0);
+    expect(textOf(renderer, 'membership-trial-days')).toBe(i18n.t('membership.trialCard.daysLeft', { count: 19 }));
+    expect(texts(renderer)).toContain('D-19');
+    expect(textOf(renderer, 'membership-trial-ends')).toBe(i18n.t('membership.trialCard.endsOn', { date: longDate('2026-10-20T00:00:00Z') }));
+    const progress = renderer.root.findAll(node => node.props.testID === 'membership-trial-progress' && typeof node.type === 'string')[0];
+    expect(progress.props.accessibilityValue).toEqual({ min: 0, max: 100, now: 37 });
+    expect(texts(renderer)).toEqual(expect.arrayContaining([i18n.t('membership.noPaymentNeeded.title'), i18n.t('membership.noPaymentNeeded.body')]));
+    // The card is the status: no second summary repeating the same end date.
+    expect(renderer.root.findAll(node => node.props.testID === 'subscription-status-card')).toHaveLength(0);
     expect(byId(renderer, 'subscription-subscribe')).toHaveLength(1);
+  });
+
+  it('the last part of a day reads as "1 day left", never 0', async () => {
+    const renderer = await screenWith(entitlementOf({ verifiedAtUtc: '2026-10-19T20:00:00Z' }), storeOf({}));
+
+    expect(textOf(renderer, 'membership-trial-days')).toBe(i18n.t('membership.trialCard.lastDay'));
+    expect(texts(renderer)).toContain('D-1');
+  });
+
+  it('subscribing during the free month asks first - nothing is bought until the person confirms', async () => {
+    store.purchase.mockResolvedValue({ kind: 'verified', state: 'Active' });
+    const renderer = await screenWith(entitlementOf({}), storeOf({}));
+
+    await press(renderer, 'subscription-subscribe');
+    expect(store.purchase).not.toHaveBeenCalled();
+    expect(openDialogTexts(renderer)).toEqual(expect.arrayContaining([i18n.t('membership.trialPurchase.title'), i18n.t('membership.trialPurchase.message')]));
+
+    // Cancel: still nothing bought.
+    const cancel = renderer.root.findAll(node => node.type === Modal && node.props.visible === true)[0]
+      .findAll(node => typeof node.props.onPress === 'function' && node.findAllByType(Text).some(text => text.props.children === i18n.t('common.cancel')))[0];
+    await act(async () => cancel.props.onPress());
+    expect(store.purchase).not.toHaveBeenCalled();
+
+    // Confirm: the store purchase starts once the question has gone away (iOS presents the store sheet only then).
+    await press(renderer, 'subscription-subscribe');
+    const modal = renderer.root.findAll(node => node.type === Modal && node.props.visible === true)[0];
+    const confirm = modal.findAll(node => typeof node.props.onPress === 'function' && node.findAllByType(Text).some(text => text.props.children === i18n.t('membership.trialPurchase.confirm')))[0];
+    await act(async () => confirm.props.onPress());
+    await act(async () => {
+      renderer.root.findAll(node => node.type === Modal && typeof node.props.onDismiss === 'function').forEach(node => node.props.onDismiss());
+    });
+    expect(store.purchase).toHaveBeenCalledTimes(1);
+  });
+
+  it('outside the free month Subscribe goes straight to the store (the store sheet is the confirmation)', async () => {
+    store.purchase.mockResolvedValue({ kind: 'cancelled' });
+    const renderer = await screenWith(entitlementOf({ status: 'expired', accessFrozenAtUtc: '2026-10-20T00:00:00Z', canWrite: false }), storeOf({}));
+
+    await press(renderer, 'subscription-subscribe');
+    expect(store.purchase).toHaveBeenCalledTimes(1);
+    expect(openDialogTexts(renderer)).not.toContain(i18n.t('membership.trialPurchase.title'));
+  });
+
+  it('a purchase still being completed in the store shows "결제 확인 중" - nothing is claimed as active', async () => {
+    store.purchase.mockResolvedValue({ kind: 'pending' });
+    const renderer = await screenWith(entitlementOf({ status: 'expired', accessFrozenAtUtc: '2026-10-20T00:00:00Z', canWrite: false }), storeOf({}));
+    expect(renderer.root.findAll(node => node.props.testID === 'membership-badge-trialEnded')).not.toHaveLength(0);
+
+    await press(renderer, 'subscription-subscribe');
+
+    expect(renderer.root.findAll(node => node.props.testID === 'membership-badge-pending')).not.toHaveLength(0);
+    expect(statusOf(renderer)).toBe(i18n.t('subscription.status.none'));
+  });
+
+  it('a subscription held by the OTHER store is shown as such, with where to manage it - no Manage button that could not find it', async () => {
+    const other = OWN_STORE === 'apple' ? 'google' : 'apple';
+    const renderer = await screenWith(programOff(), activeStore({ platform: other }));
+
+    expect(statusOf(renderer)).toBe(i18n.t('subscription.status.active'));
+    expect(renderer.root.findAll(node => node.props.testID === 'membership-badge-member')).not.toHaveLength(0);
+    expect(textOf(renderer, 'subscription-other-store')).toBe(i18n.t(`membership.otherStore.${other}`));
+    expect(byId(renderer, 'subscription-manage')).toHaveLength(0);
+    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(0);
+    expect(byId(renderer, 'subscription-restore')).toHaveLength(1);
   });
 
   it('a trial that is over (never subscribed) is "not subscribed" - no free-period note', async () => {
@@ -311,7 +391,7 @@ describe('SubscriptionScreen', () => {
   });
 
   it('grace period: still subscribed, asks to check the payment method, Manage offered, no Subscribe', async () => {
-    const renderer = await screenWith(programOff(), storeOf({ state: 'gracePeriod', platform: 'google', startedAtUtc: '2026-10-11T00:00:00Z', currentPeriodEndsAtUtc: '2026-11-11T00:00:00Z' }));
+    const renderer = await screenWith(programOff(), storeOf({ state: 'gracePeriod', platform: OWN_STORE, startedAtUtc: '2026-10-11T00:00:00Z', currentPeriodEndsAtUtc: '2026-11-11T00:00:00Z' }));
 
     expect(statusOf(renderer)).toBe(i18n.t('subscription.status.gracePeriod'));
     expect(noteOf(renderer)).toBe(i18n.t('subscription.detail.grace'));

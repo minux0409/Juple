@@ -1,6 +1,10 @@
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
+import { MembershipHeader, TrialPeriodCard } from '../billing/MembershipHeader';
+import { describeTrialProgress, membershipBadge } from '../billing/membershipModel';
 import { describeSubscription } from '../billing/subscriptionStatus';
 import { useSubscriptionEntryState } from '../billing/useSubscriptionEntry';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
@@ -8,15 +12,22 @@ import { colors, radii, spacing, themedStyles } from '../theme/tokens';
 import { SubscriptionScreen } from './SubscriptionScreen';
 
 /**
- * 멤버십: the one place a person sees their membership. Where a subscription can really be started or managed (Android with the store
- * catalog, while the paid program is live) it IS the subscription screen - price from the store, 구독하기 / 구독 관리 / 구매 복원. Everywhere
- * else (iOS until its store purchase exists, a store that is not configured) it is a read-only status page: the one status the Backend
+ * 멤버십: the one place a person sees their membership. Where a subscription can really be started or managed (the store catalog -
+ * Google Play on Android, the App Store on iOS - says billing is on, while the paid program is live) it IS the subscription screen - price
+ * from the store, 구독하기 / 구독 관리 / 구매 복원. Everywhere else (a store that is not configured) it is a read-only status page: the one status the Backend
  * reported, that the status follows the Juple account across Android, iOS and the web, and that saved data is not deleted. It states no price,
  * no term and no end date that the Backend did not send, and it never offers a purchase the app cannot complete. The route itself exists only
  * while the Backend says the program is live (navigation/RootStack), so before activation nobody reaches it.
  */
 export function MembershipScreen() {
   const entry = useSubscriptionEntryState();
+  // Opening the screen re-reads the account's status from the server, so the days left and the status are the server's current ones.
+  const { refreshEntitlement } = useAuth();
+  useFocusEffect(
+    useCallback(() => {
+      refreshEntitlement().catch(() => undefined);
+    }, [refreshEntitlement]),
+  );
   if (entry === 'available') {
     return <SubscriptionScreen />;
   }
@@ -34,6 +45,7 @@ function MembershipStatus() {
   const { t, i18n } = useTranslation();
   const { entitlement, storeSubscription } = useAuth();
   const view = describeSubscription(storeSubscription, entitlement);
+  const trial = view.kind === 'trial' ? describeTrialProgress(entitlement) : null;
   const formatDate = (iso: string) => new Intl.DateTimeFormat(i18n.language, { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(iso));
 
   let status: string | null = null;
@@ -60,7 +72,9 @@ function MembershipStatus() {
   return (
     <StackScreenSafeArea style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content}>
-        {status ? (
+        <MembershipHeader badge={membershipBadge(view, entitlement, false)} />
+        {trial ? <TrialPeriodCard trial={trial} /> : null}
+        {status && !trial ? (
           <View style={styles.card} testID="membership-status">
             <Text style={styles.status}>{status}</Text>
           </View>

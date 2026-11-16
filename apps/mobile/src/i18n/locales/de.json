@@ -1066,10 +1066,11 @@
       "yearlyRenew": "Verlängert sich jedes Jahr automatisch",
       "discountBadge": "Ca. {{percent}} % günstiger",
       "saveAmount": "{{amount}} sparen gegenüber 12 Monatszahlungen",
-      "perMonthEquivalent": "Ca. {{price}} pro Monat"
+      "perMonthEquivalent": "Ca. {{price}} pro Monat",
+      "manageAnytime": "Jederzeit verwaltbar"
     },
-    "subscribeMonthly": "Monatsmitgliedschaft starten",
-    "subscribeYearly": "Jahresmitgliedschaft starten",
+    "subscribeMonthly": "Monatsmitgliedschaft wählen",
+    "subscribeYearly": "Jahresmitgliedschaft wählen",
     "billing": {
       "summaryMonthly": "{{price}} werden jeden Monat abgerechnet und verlängern sich automatisch, bis du kündigst.",
       "summaryYearly": "{{price}} werden jedes Jahr abgerechnet und verlängern sich automatisch, bis du kündigst.",
@@ -1466,7 +1467,8 @@
     "rowAccessEnded": "Access ended",
     "rowDeletionScheduled": "Retention ends",
     "rowNextNotice": "Next notice",
-    "exportAction": "Export my data"
+    "exportAction": "Export my data",
+    "keptUntil": "Deine gespeicherten Daten werden bis {{date}} aufbewahrt."
   },
   "dataExport": {
     "title": "Export data",
@@ -1660,6 +1662,48 @@
     "statusNone": "Du hast derzeit keine Mitgliedschaft.",
     "cannotSubscribeHere": "Ein Abo ist auf diesem Gerät noch nicht möglich.",
     "sharedAccount": "Deine Mitgliedschaft gehört zu deinem Juple-Konto, daher ist ihr Status auf Android, iOS und im Web gleich.",
-    "dataKept": "Wir löschen deine gespeicherten Links und Sammlungen nicht."
+    "dataKept": "Wir löschen deine gespeicherten Links und Sammlungen nicht.",
+    "heroTitle": "Juple Membership",
+    "heroSubtitle": "Führe deinen eigenen Ort für Links weiter.",
+    "badge": {
+      "trial": "Gratiszeitraum",
+      "member": "Mitglied",
+      "trialEnded": "Gratiszeitraum beendet",
+      "expired": "Abo abgelaufen",
+      "pending": "Zahlung wird geprüft"
+    },
+    "trialCard": {
+      "title": "Dein erster Monat gratis",
+      "daysLeft": "Noch {{count}} Tage!",
+      "lastDay": "Noch 1 Tag!",
+      "dDay": "T-{{count}}",
+      "endsOn": "Gratiszeitraum endet: {{date}}",
+      "body": "Nutze Juple für den Rest deines Gratiszeitraums ganz frei.",
+      "progressA11y": "{{percent}} % des Gratiszeitraums vergangen"
+    },
+    "noPaymentNeeded": {
+      "title": "Du musst jetzt nichts bezahlen",
+      "body": "Wenn du Juple nach dem Gratiszeitraum weiter nutzen möchtest, wähle eine Mitgliedschaft."
+    },
+    "trialPurchase": {
+      "title": "Wenn du jetzt abonnierst, wird heute abgebucht",
+      "message": "Auch wenn noch Gratistage übrig sind, wird beim Abschluss des Abos heute die erste Zahlung fällig, und die restlichen Gratistage werden nicht zum bezahlten Zeitraum hinzugerechnet.\n\nWenn du nach dem Gratiszeitraum abonnierst, bleiben deine gespeicherten Links und Sammlungen genauso erhalten.",
+      "confirm": "Jetzt abonnieren"
+    },
+    "otherStore": {
+      "google": "Du hast ein Abo über Google Play. Verwalte oder kündige es in Google Play.",
+      "apple": "Du hast ein Abo über den App Store. Verwalte oder kündige es in den Abo-Einstellungen deines Apple Accounts auf dem iPhone oder iPad."
+    }
+  },
+  "welcomeTrial": {
+    "title": "Willkommen bei Juple! 🎉",
+    "body": "Danke für deine Anmeldung.\n\nNutze im ersten Monat alle Funktionen von Juple kostenlos!\n\nWenn du Juple nach dem Gratiszeitraum weiter nutzen möchtest, kannst du unter {{myPage}} eine Mitgliedschaft wählen.\n\nDer Start ist ohne Zahlung, und es wird nichts automatisch abgebucht.",
+    "start": "Mit Juple loslegen"
+  },
+  "trialEnded": {
+    "title": "Wie war dein Monat mit Juple? 💜",
+    "body": "Danke, dass du Juple im letzten Monat genutzt hast!\n\nDein Gratiszeitraum ist beendet.\n\nWenn du deine Links und Sammlungen weiterführen möchtest, schließe bitte eine Mitgliedschaft ab.\n\nAlles, was du bisher gespeichert hast, bleibt unverändert erhalten.",
+    "subscribe": "Zum Abo",
+    "later": "Später"
   }
 }

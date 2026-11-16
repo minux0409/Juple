@@ -1066,10 +1066,11 @@
       "yearlyRenew": "Tự động gia hạn mỗi năm",
       "discountBadge": "Giảm khoảng {{percent}}%",
       "saveAmount": "Tiết kiệm {{amount}} so với trả 12 tháng lẻ",
-      "perMonthEquivalent": "Khoảng {{price}} mỗi tháng"
+      "perMonthEquivalent": "Khoảng {{price}} mỗi tháng",
+      "manageAnytime": "Quản lý bất cứ lúc nào"
     },
-    "subscribeMonthly": "Bắt đầu gói theo tháng",
-    "subscribeYearly": "Bắt đầu gói theo năm",
+    "subscribeMonthly": "Chọn gói tháng",
+    "subscribeYearly": "Chọn gói năm",
     "billing": {
       "summaryMonthly": "{{price}} được tính mỗi tháng và tự động gia hạn cho đến khi bạn hủy.",
       "summaryYearly": "{{price}} được tính mỗi năm và tự động gia hạn cho đến khi bạn hủy.",
@@ -1466,7 +1467,8 @@
     "rowAccessEnded": "Access ended",
     "rowDeletionScheduled": "Retention ends",
     "rowNextNotice": "Next notice",
-    "exportAction": "Export my data"
+    "exportAction": "Export my data",
+    "keptUntil": "Dữ liệu bạn đã lưu được giữ đến {{date}}."
   },
   "dataExport": {
     "title": "Export data",
@@ -1660,6 +1662,48 @@
     "statusNone": "Hiện bạn chưa có gói thành viên nào.",
     "cannotSubscribeHere": "Chưa thể đăng ký từ thiết bị này.",
     "sharedAccount": "Gói thành viên gắn với tài khoản Juple nên trạng thái giống nhau trên Android, iOS và web.",
-    "dataKept": "Chúng tôi không xóa các liên kết hay bộ sưu tập bạn đã lưu."
+    "dataKept": "Chúng tôi không xóa các liên kết hay bộ sưu tập bạn đã lưu.",
+    "heroTitle": "Juple Membership",
+    "heroSubtitle": "Tiếp tục gìn giữ không gian liên kết của riêng bạn.",
+    "badge": {
+      "trial": "Đang dùng miễn phí",
+      "member": "Đang là thành viên",
+      "trialEnded": "Đã hết thời gian miễn phí",
+      "expired": "Gói đăng ký đã hết hạn",
+      "pending": "Đang xác nhận thanh toán"
+    },
+    "trialCard": {
+      "title": "Ưu đãi tháng đầu miễn phí",
+      "daysLeft": "Còn {{count}} ngày!",
+      "lastDay": "Còn 1 ngày!",
+      "dDay": "D-{{count}}",
+      "endsOn": "Ngày kết thúc miễn phí: {{date}}",
+      "body": "Hãy thoải mái dùng mọi tính năng của Juple trong thời gian còn lại.",
+      "progressA11y": "Đã qua {{percent}}% thời gian miễn phí"
+    },
+    "noPaymentNeeded": {
+      "title": "Bây giờ bạn chưa cần thanh toán",
+      "body": "Nếu muốn tiếp tục dùng Juple sau khi hết thời gian miễn phí, hãy chọn một gói thành viên."
+    },
+    "trialPurchase": {
+      "title": "Đăng ký bây giờ sẽ thanh toán ngay hôm nay",
+      "message": "Dù vẫn còn ngày miễn phí, khi bắt đầu đăng ký, khoản thanh toán đầu tiên sẽ được thu ngay hôm nay và số ngày miễn phí còn lại không được cộng vào thời gian trả phí.\n\nNếu bạn đăng ký sau khi hết thời gian miễn phí, các liên kết và bộ sưu tập đã lưu vẫn được giữ nguyên.",
+      "confirm": "Đăng ký ngay"
+    },
+    "otherStore": {
+      "google": "Bạn đang đăng ký qua Google Play. Hãy quản lý hoặc hủy trong Google Play.",
+      "apple": "Bạn đang đăng ký qua App Store. Hãy quản lý hoặc hủy trong phần cài đặt gói đăng ký của Tài khoản Apple trên iPhone hoặc iPad."
+    }
+  },
+  "welcomeTrial": {
+    "title": "Chào mừng bạn đến với Juple! 🎉",
+    "body": "Cảm ơn bạn đã đăng ký.\n\nHãy dùng miễn phí mọi tính năng của Juple trong tháng đầu tiên!\n\nNếu muốn tiếp tục dùng sau thời gian miễn phí, bạn có thể chọn gói thành viên trong {{myPage}}.\n\nBạn bắt đầu mà không cần thanh toán và sẽ không bị tự động tính phí.",
+    "start": "Bắt đầu dùng Juple"
+  },
+  "trialEnded": {
+    "title": "Một tháng cùng Juple của bạn thế nào? 💜",
+    "body": "Cảm ơn bạn đã dùng Juple trong tháng vừa qua!\n\nThời gian miễn phí đã kết thúc.\n\nNếu muốn tiếp tục gìn giữ các liên kết và bộ sưu tập quý giá, hãy đăng ký gói thành viên.\n\nMọi thứ bạn đã lưu đến nay vẫn được giữ nguyên.",
+    "subscribe": "Đến trang đăng ký",
+    "later": "Để sau"
   }
 }

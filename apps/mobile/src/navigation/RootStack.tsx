@@ -20,6 +20,8 @@ import { OnboardingTourLauncher } from '../tour/OnboardingTourLauncher';
 import { TourBackground } from '../tour/TourBackground';
 import { TourHost } from '../tour/TourHost';
 import { SubscriptionRequiredPrompt } from '../billing/SubscriptionRequiredPrompt';
+import { TrialEndedPrompt } from '../billing/TrialEndedPrompt';
+import { WelcomeTrialPrompt } from '../billing/WelcomeTrialPrompt';
 import { MyCollectionSubmissionsScreen } from '../screens/MyCollectionSubmissionsScreen';
 import { headerTitleWithIcon, screenIcons } from './screenIcons';
 import { Platform } from 'react-native';
@@ -355,6 +357,10 @@ export function RootStack() {
       {isReady ? <OnboardingTourLauncher /> : null}
       {isReady ? <TourHost /> : null}
       {isReady ? <SubscriptionRequiredPrompt /> : null}
+      {/* The membership popups exist only while the server says the paid program is live: before that nobody has a free month to be
+          welcomed to or to run out of, and nothing extra is requested. */}
+      {isReady && isSubscriptionProgramLive ? <WelcomeTrialPrompt /> : null}
+      {isReady && isSubscriptionProgramLive ? <TrialEndedPrompt /> : null}
     </>
   );
 }

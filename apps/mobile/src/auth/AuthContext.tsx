@@ -205,7 +205,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         if (isMountedRef.current) {
           setState(previous =>
             previous.isAuthenticated
-              ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement, storeSubscription: bootstrapResult.storeSubscription ?? null, mobileVersionPolicy: bootstrapResult.mobileVersionPolicy, dataRetention: bootstrapResult.dataRetention ?? null, dataExportEnabled: bootstrapResult.dataExportEnabled ?? false }
+              ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement, storeSubscription: bootstrapResult.storeSubscription ?? null, mobileVersionPolicy: bootstrapResult.mobileVersionPolicy, dataRetention: bootstrapResult.dataRetention ?? null, dataExportEnabled: bootstrapResult.dataExportEnabled ?? false, newAccountTrialGranted: bootstrapResult.newAccountTrialGranted === true }
               : previous,
           );
         }
@@ -369,7 +369,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
         setState(previous =>
           previous.isAuthenticated
-            ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement, storeSubscription: bootstrapResult.storeSubscription ?? null, mobileVersionPolicy: bootstrapResult.mobileVersionPolicy, dataRetention: bootstrapResult.dataRetention ?? null, dataExportEnabled: bootstrapResult.dataExportEnabled ?? false }
+            ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement, storeSubscription: bootstrapResult.storeSubscription ?? null, mobileVersionPolicy: bootstrapResult.mobileVersionPolicy, dataRetention: bootstrapResult.dataRetention ?? null, dataExportEnabled: bootstrapResult.dataExportEnabled ?? false, newAccountTrialGranted: bootstrapResult.newAccountTrialGranted === true }
             : previous,
         );
       }

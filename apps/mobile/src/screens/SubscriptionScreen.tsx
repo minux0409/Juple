@@ -4,14 +4,18 @@ import { ActivityIndicator, Linking, Platform, ScrollView, StyleSheet, Text, Vie
 import { Pressable } from '../components/Pressable';
 import { useAuth } from '../auth/AuthContext';
 import { DataRetentionCard } from '../billing/DataRetentionCard';
+import { MembershipHeader, NoPaymentNeededNote, TrialPeriodCard } from '../billing/MembershipHeader';
+import { describeTrialProgress, membershipBadge, otherStoreHolding } from '../billing/membershipModel';
 import { useSubscriptionStore } from '../billing/useSubscriptionStore';
 import type { SubscriptionPlan } from '../billing/subscriptionStore';
 import { computeAnnualSavings, discountBadgePercent, formatMoney, yearlyPerMonthAmount, type PlanKey } from '../billing/subscriptionPricing';
 import { describeSubscription, isSubscribedView } from '../billing/subscriptionStatus';
 import type { OfferUnavailableReason, PurchaseResult, RestoreResult } from '../billing/types';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { GradientPill } from '../components/GradientPill';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
+import { useActionAfterMenu } from '../components/useActionAfterMenu';
 import { useMessageDialog } from '../components/useMessageDialog';
 import { legalLinks } from '../config/legalLinks';
 import { cardShadow, colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
@@ -39,7 +43,13 @@ export function SubscriptionScreen() {
   const [plansState, setPlansState] = useState<PlansState>({ kind: 'loading' });
   const [selected, setSelected] = useState<PlanKey | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  // A purchase this screen started is still being completed in the store (nothing granted yet): "결제 확인 중" until the server says more.
+  const [paymentPending, setPaymentPending] = useState(false);
+  // During the free month a purchase asks first: buying now starts billing today and does not add the remaining free days.
+  const [isConfirmingTrialPurchase, setIsConfirmingTrialPurchase] = useState(false);
   const isMounted = useRef(true);
+  // iOS: the store's purchase sheet waits until the question has finished going away.
+  const { afterMenuCloses, onMenuDismiss } = useActionAfterMenu();
 
   useEffect(() => {
     isMounted.current = true;
@@ -158,7 +168,13 @@ export function SubscriptionScreen() {
     [isBusy, showMessage, t],
   );
 
-  const subscribe = () => runExclusive(async () => purchaseText(await store.purchase(selected ?? 'monthly')));
+  const purchase = () => runExclusive(async () => {
+    const result = await store.purchase(selected ?? 'monthly');
+    if (isMounted.current && result.kind === 'pending') {
+      setPaymentPending(true);
+    }
+    return purchaseText(result);
+  });
   const restore = () => runExclusive(async () => restoreText(await store.restore()));
 
   const manage = () => runExclusive(async () => {
@@ -228,7 +244,19 @@ export function SubscriptionScreen() {
       break;
   }
   const isSubscribed = isSubscribedView(view);
-  const showManage = isSubscribed && store.canManageSubscription;
+  // Subscribed through the OTHER store (bought on Android, now on an iPhone, or the reverse): this device cannot manage it, so it says where.
+  const otherStore = otherStoreHolding(storeSubscription ?? null, Platform.OS);
+  const showManage = isSubscribed && store.canManageSubscription && otherStore === null;
+  const trial = view.kind === 'trial' ? describeTrialProgress(entitlement) : null;
+  const badge = membershipBadge(view, entitlement, paymentPending && !isSubscribed);
+
+  const subscribe = () => {
+    if (view.kind === 'trial') {
+      setIsConfirmingTrialPurchase(true);
+      return;
+    }
+    purchase().catch(() => undefined);
+  };
 
   const planName = (key: PlanKey) => t(key === 'yearly' ? 'subscription.plan.yearlyName' : 'subscription.plan.monthlyName');
   const planPrice = (plan: SubscriptionPlan) => t(plan.key === 'yearly' ? 'subscription.plan.perYear' : 'subscription.plan.perMonth', { price: plan.localizedPrice });
@@ -257,6 +285,7 @@ export function SubscriptionScreen() {
         </View>
         <Text style={styles.planPrice} testID={`subscription-price-${plan.key}`}>{planPrice(plan)}</Text>
         <Text style={styles.planNote}>{renewText(plan.key)}</Text>
+        {isYearly ? null : <Text style={styles.planNote} testID="subscription-manage-anytime">{t('subscription.plan.manageAnytime')}</Text>}
         {isYearly && badgePercent !== null ? (
           <View style={styles.savingRow}>
             <Text style={styles.discountText} testID="subscription-discount-badge">{t('subscription.plan.discountBadge', { percent: badgePercent })}</Text>
@@ -279,7 +308,9 @@ export function SubscriptionScreen() {
   return (
     <StackScreenSafeArea style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text accessibilityRole="header" style={styles.heroTitle}>{t('subscription.planName')}</Text>
+        <MembershipHeader badge={badge} />
+        {trial ? <TrialPeriodCard trial={trial} /> : null}
+        {view.kind === 'trial' ? <NoPaymentNeededNote /> : null}
 
         {plansState.kind === 'unavailable' ? (
           <LoadFailureState
@@ -305,7 +336,7 @@ export function SubscriptionScreen() {
               accessibilityRole="button"
               accessibilityState={{ disabled: !isReady || isBusy, busy: isBusy }}
               disabled={!isReady || isBusy}
-              onPress={() => { subscribe().catch(() => undefined); }}
+              onPress={subscribe}
               style={[styles.primaryButton, (!isReady || isBusy) && styles.disabledButton]}
               testID="subscription-subscribe"
             >
@@ -321,17 +352,23 @@ export function SubscriptionScreen() {
           </>
         )}
 
-        <Text accessibilityRole="header" style={styles.sectionTitle}>{t('subscription.stateHeading')}</Text>
-        <View style={[styles.card, styles.accessCard]} testID="subscription-status-card">
-          <Text style={styles.accessLabel} testID="subscription-status">{t(`subscription.status.${view.kind}`)}</Text>
-          {rows.map(row => (
-            <View key={row.id} style={styles.row} testID={`subscription-row-${row.id}`}>
-              <Text style={styles.rowLabel}>{row.label}</Text>
-              <Text style={styles.rowValue} testID={`subscription-row-${row.id}-value`}>{row.value}</Text>
+        {/* While the free month runs, the card above already is the status (its end date, its days); the summary would repeat it. */}
+        {trial ? null : (
+          <>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>{t('subscription.stateHeading')}</Text>
+            <View style={[styles.card, styles.accessCard]} testID="subscription-status-card">
+              <Text style={styles.accessLabel} testID="subscription-status">{t(`subscription.status.${view.kind}`)}</Text>
+              {rows.map(row => (
+                <View key={row.id} style={styles.row} testID={`subscription-row-${row.id}`}>
+                  <Text style={styles.rowLabel}>{row.label}</Text>
+                  <Text style={styles.rowValue} testID={`subscription-row-${row.id}-value`}>{row.value}</Text>
+                </View>
+              ))}
+              {note ? <Text style={styles.accessDetail} testID="subscription-status-note">{note}</Text> : null}
+              {otherStore ? <Text style={styles.accessDetail} testID="subscription-other-store">{t(`membership.otherStore.${otherStore}`)}</Text> : null}
             </View>
-          ))}
-          {note ? <Text style={styles.accessDetail} testID="subscription-status-note">{note}</Text> : null}
-        </View>
+          </>
+        )}
 
         <DataRetentionCard />
 
@@ -381,6 +418,17 @@ export function SubscriptionScreen() {
           ))}
         </View>
       </ScrollView>
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('membership.trialPurchase.confirm')}
+        destructive={false}
+        message={t('membership.trialPurchase.message')}
+        onCancel={() => setIsConfirmingTrialPurchase(false)}
+        onConfirm={() => afterMenuCloses(() => setIsConfirmingTrialPurchase(false), () => { purchase().catch(() => undefined); })}
+        onDismiss={onMenuDismiss}
+        title={t('membership.trialPurchase.title')}
+        visible={isConfirmingTrialPurchase}
+      />
       {messageDialog}
     </StackScreenSafeArea>
   );
@@ -389,7 +437,6 @@ export function SubscriptionScreen() {
 const styles = themedStyles(() => ({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   content: { alignSelf: 'center', maxWidth: 640, padding: spacing.xl, paddingTop: spacing.lg, width: '100%' },
-  heroTitle: { color: colors.textPrimary, fontSize: 22, fontWeight: '800', marginBottom: spacing.md },
   card: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg, ...cardShadow },
   accessCard: { paddingVertical: spacing.md },
   planGroup: { gap: spacing.md },

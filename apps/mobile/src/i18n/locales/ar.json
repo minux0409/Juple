@@ -1066,10 +1066,11 @@
       "yearlyRenew": "تتجدد تلقائيًا كل سنة",
       "discountBadge": "خصم بنحو {{percent}}%",
       "saveAmount": "وفّر {{amount}} مقارنةً بدفع 12 دفعة شهرية",
-      "perMonthEquivalent": "نحو {{price}} شهريًا"
+      "perMonthEquivalent": "نحو {{price}} شهريًا",
+      "manageAnytime": "يمكنك إدارته في أي وقت"
     },
-    "subscribeMonthly": "ابدأ العضوية الشهرية",
-    "subscribeYearly": "ابدأ العضوية السنوية",
+    "subscribeMonthly": "اختيار العضوية الشهرية",
+    "subscribeYearly": "اختيار العضوية السنوية",
     "billing": {
       "summaryMonthly": "يتم تحصيل {{price}} كل شهر وتتجدد تلقائيًا حتى تلغيها.",
       "summaryYearly": "يتم تحصيل {{price}} كل سنة وتتجدد تلقائيًا حتى تلغيها.",
@@ -1466,7 +1467,8 @@
     "rowAccessEnded": "Access ended",
     "rowDeletionScheduled": "Retention ends",
     "rowNextNotice": "Next notice",
-    "exportAction": "Export my data"
+    "exportAction": "Export my data",
+    "keptUntil": "تُحفظ بياناتك المحفوظة حتى {{date}}."
   },
   "dataExport": {
     "title": "Export data",
@@ -1660,6 +1662,48 @@
     "statusNone": "ليست لديك عضوية حاليًا.",
     "cannotSubscribeHere": "الاشتراك من هذا الجهاز غير متاح بعد.",
     "sharedAccount": "عضويتك مرتبطة بحساب Juple الخاص بك، لذا تكون حالتها نفسها على Android وiOS والويب.",
-    "dataKept": "لا نحذف الروابط أو المجموعات التي حفظتها."
+    "dataKept": "لا نحذف الروابط أو المجموعات التي حفظتها.",
+    "heroTitle": "عضوية Juple",
+    "heroSubtitle": "واصل الاهتمام بمساحة روابطك الخاصة.",
+    "badge": {
+      "trial": "الفترة المجانية",
+      "member": "عضو",
+      "trialEnded": "انتهت الفترة المجانية",
+      "expired": "انتهى الاشتراك",
+      "pending": "جارٍ تأكيد الدفع"
+    },
+    "trialCard": {
+      "title": "الشهر الأول مجانًا",
+      "daysLeft": "الأيام المتبقية: {{count}}!",
+      "lastDay": "بقي يوم واحد!",
+      "dDay": "{{count}} يوم",
+      "endsOn": "تنتهي الفترة المجانية في: {{date}}",
+      "body": "استخدم كل ميزات Juple بحرية طوال ما تبقّى من الفترة المجانية.",
+      "progressA11y": "مضى {{percent}}% من الفترة المجانية"
+    },
+    "noPaymentNeeded": {
+      "title": "لا داعي للدفع الآن",
+      "body": "إذا أردت مواصلة استخدام Juple بعد انتهاء الفترة المجانية، فاختر عضوية."
+    },
+    "trialPurchase": {
+      "title": "الاشتراك الآن يعني الدفع اليوم",
+      "message": "حتى إن بقيت لك أيام مجانية، فإن بدء الاشتراك يعني تحصيل الدفعة الأولى اليوم، ولا تُضاف الأيام المجانية المتبقية إلى الفترة المدفوعة.\n\nإذا اشتركت بعد انتهاء الفترة المجانية، تبقى روابطك ومجموعاتك المحفوظة كما هي.",
+      "confirm": "اشترك الآن"
+    },
+    "otherStore": {
+      "google": "اشتراكك عبر Google Play. يمكنك إدارته أو إلغاؤه من Google Play.",
+      "apple": "اشتراكك عبر App Store. يمكنك إدارته أو إلغاؤه من إعدادات الاشتراكات في حساب Apple على iPhone أو iPad."
+    }
+  },
+  "welcomeTrial": {
+    "title": "مرحبًا بك في Juple! 🎉",
+    "body": "شكرًا لتسجيلك.\n\nاستمتع بكل ميزات Juple مجانًا خلال شهرك الأول!\n\nإذا أردت مواصلة الاستخدام بعد الفترة المجانية، يمكنك اختيار عضوية من {{myPage}}.\n\nتبدأ دون أي دفع، ولن تُفرض عليك أي رسوم تلقائيًا.",
+    "start": "ابدأ استخدام Juple"
+  },
+  "trialEnded": {
+    "title": "كيف كان شهرك مع Juple؟ 💜",
+    "body": "شكرًا لاستخدامك Juple خلال الشهر الماضي!\n\nانتهت فترتك المجانية.\n\nإذا أردت مواصلة الاهتمام بروابطك ومجموعاتك الثمينة، فاشترك في عضوية.\n\nكل ما حفظته حتى الآن يبقى محفوظًا كما هو.",
+    "subscribe": "الانتقال إلى الاشتراك",
+    "later": "لاحقًا"
   }
 }

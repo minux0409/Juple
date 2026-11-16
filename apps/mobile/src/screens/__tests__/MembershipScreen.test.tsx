@@ -22,8 +22,10 @@ jest.mock('react-native-safe-area-context', () => ({
 
 const enabledCatalog = { enabled: true, productId: 'juple_monthly', basePlanId: 'monthly', obfuscatedAccountId: 'opaque' };
 
+const refreshEntitlement = jest.fn().mockResolvedValue(undefined);
+
 function mockAuth(entitlement: unknown, storeSubscription: unknown = null) {
-  jest.mocked(useAuth).mockReturnValue({ entitlement, storeSubscription } as never);
+  jest.mocked(useAuth).mockReturnValue({ entitlement, storeSubscription, refreshEntitlement } as never);
 }
 
 async function render() {
@@ -103,6 +105,40 @@ describe('MembershipScreen', () => {
     const text = allText(await render());
     expect(text).toContain('Your membership has ended.');
     expect(text).toContain("We don't delete your saved links or collections.");
+  });
+
+  it('opening the screen re-reads the status from the server (days left and status are never stale device values)', async () => {
+    jest.replaceProperty(Platform, 'OS', 'ios');
+    jest.mocked(getAppleCatalog).mockResolvedValue({ enabled: false, productIds: [], appAccountToken: null });
+    mockAuth({ programEnabled: true, status: 'trial', trialEndsAtUtc: '2026-12-01T00:00:00Z', canWrite: true });
+    await render();
+    expect(refreshEntitlement).toHaveBeenCalledTimes(1);
+  });
+
+  it('the status page also shows "Juple Membership", the status badge and the free-month card from the server values', async () => {
+    jest.replaceProperty(Platform, 'OS', 'ios');
+    jest.mocked(getAppleCatalog).mockResolvedValue({ enabled: false, productIds: [], appAccountToken: null });
+    mockAuth({
+      programEnabled: true, status: 'trial', trialStartedAtUtc: '2026-11-04T00:00:00Z', trialEndsAtUtc: '2026-12-04T00:00:00Z',
+      verifiedAtUtc: '2026-11-16T00:00:00Z', canWrite: true,
+    });
+    const renderer = await render();
+    const text = allText(renderer);
+    expect(text).toContain(i18n.t('membership.heroTitle'));
+    expect(text).toContain(i18n.t('membership.trialCard.daysLeft', { count: 18 }));
+    expect(text).toContain('D-18');
+    expect(renderer.root.findAllByProps({ testID: 'membership-badge-trial' }).length).toBeGreaterThan(0);
+    // The card is the status; the sentence repeating the end date is not shown twice.
+    expect(renderer.root.findAllByProps({ testID: 'membership-status' })).toHaveLength(0);
+    expect(text).not.toMatch(/\$|₩|€|price|subscribe now/i);
+  });
+
+  it('a free period that ended (never subscribed) is badged "free period ended"', async () => {
+    jest.replaceProperty(Platform, 'OS', 'ios');
+    jest.mocked(getAppleCatalog).mockResolvedValue({ enabled: false, productIds: [], appAccountToken: null });
+    mockAuth({ programEnabled: true, status: 'expired', trialEndsAtUtc: '2026-11-01T00:00:00Z', accessFrozenAtUtc: '2026-11-01T00:00:00Z', canWrite: false }, null);
+    const renderer = await render();
+    expect(renderer.root.findAllByProps({ testID: 'membership-badge-trialEnded' }).length).toBeGreaterThan(0);
   });
 
   it('an active subscription (reported by the server) is shown as active', async () => {

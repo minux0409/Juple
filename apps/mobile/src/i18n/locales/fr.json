@@ -1066,10 +1066,11 @@
       "yearlyRenew": "Renouvellement automatique chaque année",
       "discountBadge": "Environ {{percent}} % de réduction",
       "saveAmount": "Économisez {{amount}} par rapport à 12 paiements mensuels",
-      "perMonthEquivalent": "Environ {{price}} par mois"
+      "perMonthEquivalent": "Environ {{price}} par mois",
+      "manageAnytime": "Gérable à tout moment"
     },
-    "subscribeMonthly": "Commencer l'abonnement mensuel",
-    "subscribeYearly": "Commencer l'abonnement annuel",
+    "subscribeMonthly": "Choisir la formule mensuelle",
+    "subscribeYearly": "Choisir la formule annuelle",
     "billing": {
       "summaryMonthly": "{{price}} sont facturés chaque mois, avec renouvellement automatique jusqu'à la résiliation.",
       "summaryYearly": "{{price}} sont facturés chaque année, avec renouvellement automatique jusqu'à la résiliation.",
@@ -1466,7 +1467,8 @@
     "rowAccessEnded": "Access ended",
     "rowDeletionScheduled": "Retention ends",
     "rowNextNotice": "Next notice",
-    "exportAction": "Export my data"
+    "exportAction": "Export my data",
+    "keptUntil": "Vos données enregistrées sont conservées jusqu’au {{date}}."
   },
   "dataExport": {
     "title": "Export data",
@@ -1660,6 +1662,48 @@
     "statusNone": "Vous n’avez pas d’abonnement pour le moment.",
     "cannotSubscribeHere": "Il n’est pas encore possible de s’abonner depuis cet appareil.",
     "sharedAccount": "Votre abonnement est lié à votre compte Juple : son statut est le même sur Android, iOS et le web.",
-    "dataKept": "Nous ne supprimons pas vos liens ni vos collections enregistrés."
+    "dataKept": "Nous ne supprimons pas vos liens ni vos collections enregistrés.",
+    "heroTitle": "Juple Membership",
+    "heroSubtitle": "Continuez à faire vivre votre espace de liens.",
+    "badge": {
+      "trial": "Période gratuite",
+      "member": "Membre",
+      "trialEnded": "Période gratuite terminée",
+      "expired": "Abonnement expiré",
+      "pending": "Paiement en cours de vérification"
+    },
+    "trialCard": {
+      "title": "Votre premier mois offert",
+      "daysLeft": "Jours restants : {{count}} !",
+      "lastDay": "Plus qu’un jour !",
+      "dDay": "J-{{count}}",
+      "endsOn": "Fin de la période gratuite : {{date}}",
+      "body": "Profitez librement de Juple pendant le reste de votre période gratuite.",
+      "progressA11y": "{{percent}} % de la période gratuite écoulée"
+    },
+    "noPaymentNeeded": {
+      "title": "Aucun paiement nécessaire pour l’instant",
+      "body": "Si vous souhaitez continuer à utiliser Juple après votre période gratuite, choisissez une formule."
+    },
+    "trialPurchase": {
+      "title": "En vous abonnant maintenant, vous payez dès aujourd’hui",
+      "message": "Même s’il vous reste des jours gratuits, l’abonnement prélève le premier paiement aujourd’hui, et les jours gratuits restants ne s’ajoutent pas à la période payante.\n\nSi vous vous abonnez après la fin de la période gratuite, vos liens et collections enregistrés restent tels quels.",
+      "confirm": "M’abonner maintenant"
+    },
+    "otherStore": {
+      "google": "Vous êtes abonné via Google Play. Gérez ou résiliez l’abonnement dans Google Play.",
+      "apple": "Vous êtes abonné via l’App Store. Gérez ou résiliez l’abonnement dans les réglages d’abonnement de votre compte Apple sur iPhone ou iPad."
+    }
+  },
+  "welcomeTrial": {
+    "title": "Bienvenue sur Juple ! 🎉",
+    "body": "Merci de vous être inscrit.\n\nProfitez gratuitement de toutes les fonctionnalités de Juple pendant votre premier mois !\n\nSi vous souhaitez continuer après la période gratuite, vous pourrez choisir une formule dans {{myPage}}.\n\nAucun paiement n’est demandé pour commencer, et rien ne vous sera facturé automatiquement.",
+    "start": "Commencer avec Juple"
+  },
+  "trialEnded": {
+    "title": "Comment s’est passé votre mois avec Juple ? 💜",
+    "body": "Merci d’avoir utilisé Juple ce dernier mois !\n\nVotre période gratuite est terminée.\n\nPour continuer à enrichir vos liens et vos collections, abonnez-vous à une formule.\n\nTout ce que vous avez enregistré jusqu’ici est conservé tel quel.",
+    "subscribe": "Voir les abonnements",
+    "later": "Plus tard"
   }
 }

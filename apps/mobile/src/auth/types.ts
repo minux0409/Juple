@@ -43,8 +43,8 @@ export type StoreSubscriptionState = 'none' | 'active' | 'gracePeriod';
 
 export interface StoreSubscription {
   readonly state: StoreSubscriptionState;
-  /** 'google' while owned; null otherwise (or a store this build does not know). */
-  readonly platform: 'google' | null;
+  /** The store that holds it while owned ('google' = Google Play, 'apple' = the App Store); null otherwise (or a store this build does not know). */
+  readonly platform: 'google' | 'apple' | null;
   readonly productId: string | null;
   /** When the paid period ends (server time); null when not owned. */
   readonly currentPeriodEndsAtUtc: string | null;
@@ -93,6 +93,11 @@ export interface AuthState {
   readonly dataRetention?: DataRetention | null;
   /** Whether the server offers the data export (DataExport:Enabled). False until the bootstrap says otherwise. */
   readonly dataExportEnabled?: boolean;
+  /**
+   * True only from the bootstrap response that CREATED this account and gave it its own fresh free period (the server's rule). The
+   * one-time welcome reads it; every later bootstrap - and every other device - answers false. See billing/welcomeTrialStore.ts.
+   */
+  readonly newAccountTrialGranted?: boolean;
 }
 
 /**

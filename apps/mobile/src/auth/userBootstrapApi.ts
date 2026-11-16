@@ -17,6 +17,8 @@ export interface UserBootstrapResult {
   readonly dataRetention?: DataRetention | null;
   /** False when the response carried none (an older backend). */
   readonly dataExportEnabled?: boolean;
+  /** True only when this very request created the account with its own fresh free period; false otherwise or from an older backend. */
+  readonly newAccountTrialGranted?: boolean;
 }
 
 interface BootstrapCurrentUserResponseBody {
@@ -26,6 +28,7 @@ interface BootstrapCurrentUserResponseBody {
   readonly mobileVersionPolicy?: unknown;
   readonly dataRetention?: unknown;
   readonly dataExport?: unknown;
+  readonly newAccountTrialGranted?: unknown;
 }
 
 const DATA_RETENTION_PHASES: readonly DataRetentionPhase[] = ['billingHold', 'readOnly', 'deletionDue'];
@@ -105,7 +108,7 @@ export function parseStoreSubscription(raw: unknown): StoreSubscription | null {
   }
   return {
     state,
-    platform: value.platform === 'google' ? 'google' : null,
+    platform: value.platform === 'google' || value.platform === 'apple' ? value.platform : null,
     productId: typeof value.productId === 'string' && value.productId.length > 0 ? value.productId : null,
     currentPeriodEndsAtUtc: timestampOrNull(value.currentPeriodEndsAtUtc),
     autoRenewing: typeof value.autoRenewing === 'boolean' ? value.autoRenewing : null,
@@ -135,6 +138,7 @@ export async function bootstrapCurrentUser(
       mobileVersionPolicy: parseMobileVersionPolicy(response.body?.mobileVersionPolicy),
       dataRetention: parseDataRetention(response.body?.dataRetention),
       dataExportEnabled: parseDataExportEnabled(response.body?.dataExport),
+      newAccountTrialGranted: response.body?.newAccountTrialGranted === true,
     };
   } catch (error) {
     // The identity has no Juple account and the sign-in is not recent: the server never creates an account from a stale session.

@@ -1066,10 +1066,11 @@
       "yearlyRenew": "Renova automaticamente todo ano",
       "discountBadge": "Cerca de {{percent}}% de desconto",
       "saveAmount": "Economize {{amount}} em comparação com 12 pagamentos mensais",
-      "perMonthEquivalent": "Cerca de {{price}} por mês"
+      "perMonthEquivalent": "Cerca de {{price}} por mês",
+      "manageAnytime": "Gerencie quando quiser"
     },
-    "subscribeMonthly": "Começar assinatura mensal",
-    "subscribeYearly": "Começar assinatura anual",
+    "subscribeMonthly": "Escolher plano mensal",
+    "subscribeYearly": "Escolher plano anual",
     "billing": {
       "summaryMonthly": "{{price}} são cobrados todo mês e renovam automaticamente até você cancelar.",
       "summaryYearly": "{{price}} são cobrados todo ano e renovam automaticamente até você cancelar.",
@@ -1466,7 +1467,8 @@
     "rowAccessEnded": "Access ended",
     "rowDeletionScheduled": "Retention ends",
     "rowNextNotice": "Next notice",
-    "exportAction": "Export my data"
+    "exportAction": "Export my data",
+    "keptUntil": "Seus dados salvos ficam guardados até {{date}}."
   },
   "dataExport": {
     "title": "Export data",
@@ -1660,6 +1662,48 @@
     "statusNone": "Você não tem uma assinatura no momento.",
     "cannotSubscribeHere": "Ainda não é possível assinar neste dispositivo.",
     "sharedAccount": "Sua assinatura pertence à sua conta Juple, então o status é o mesmo no Android, no iOS e na web.",
-    "dataKept": "Não excluímos seus links nem suas coleções salvos."
+    "dataKept": "Não excluímos seus links nem suas coleções salvos.",
+    "heroTitle": "Juple Membership",
+    "heroSubtitle": "Continue cuidando do seu espaço de links.",
+    "badge": {
+      "trial": "Período gratuito",
+      "member": "Assinante",
+      "trialEnded": "Período gratuito encerrado",
+      "expired": "Assinatura expirada",
+      "pending": "Confirmando pagamento"
+    },
+    "trialCard": {
+      "title": "Seu primeiro mês grátis",
+      "daysLeft": "Faltam {{count}} dias!",
+      "lastDay": "Falta 1 dia!",
+      "dDay": "D-{{count}}",
+      "endsOn": "Fim do período gratuito: {{date}}",
+      "body": "Aproveite tudo o que o Juple oferece pelo resto do período gratuito.",
+      "progressA11y": "{{percent}}% do período gratuito já passou"
+    },
+    "noPaymentNeeded": {
+      "title": "Não precisa pagar agora",
+      "body": "Se quiser continuar usando o Juple depois do período gratuito, escolha uma assinatura."
+    },
+    "trialPurchase": {
+      "title": "Assinando agora, a cobrança é feita hoje",
+      "message": "Mesmo com dias grátis restantes, ao assinar o primeiro pagamento é feito hoje, e os dias grátis restantes não são somados ao período pago.\n\nSe você assinar depois do fim do período gratuito, seus links e coleções salvos continuam do mesmo jeito.",
+      "confirm": "Assinar agora"
+    },
+    "otherStore": {
+      "google": "Sua assinatura é pelo Google Play. Gerencie ou cancele no Google Play.",
+      "apple": "Sua assinatura é pela App Store. Gerencie ou cancele nos ajustes de assinaturas da sua Conta Apple no iPhone ou iPad."
+    }
+  },
+  "welcomeTrial": {
+    "title": "Boas-vindas ao Juple! 🎉",
+    "body": "Obrigado por se cadastrar.\n\nAproveite todos os recursos do Juple de graça no primeiro mês!\n\nSe quiser continuar usando depois do período gratuito, você pode escolher uma assinatura em {{myPage}}.\n\nVocê começa sem pagar nada e não haverá cobrança automática.",
+    "start": "Começar a usar o Juple"
+  },
+  "trialEnded": {
+    "title": "Como foi seu mês com o Juple? 💜",
+    "body": "Obrigado por usar o Juple no último mês!\n\nSeu período gratuito terminou.\n\nSe quiser continuar cuidando dos seus links e coleções, assine um plano.\n\nTudo o que você salvou até agora continua guardado do jeito que está.",
+    "subscribe": "Ir para a assinatura",
+    "later": "Depois"
   }
 }

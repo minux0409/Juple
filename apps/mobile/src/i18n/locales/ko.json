@@ -1066,10 +1066,11 @@
       "yearlyRenew": "매년 자동 갱신",
       "discountBadge": "약 {{percent}}% 할인",
       "saveAmount": "월간 12회 결제 대비 {{amount}} 절약",
-      "perMonthEquivalent": "월 약 {{price}}"
+      "perMonthEquivalent": "월 약 {{price}}",
+      "manageAnytime": "언제든 구독 관리 가능"
     },
-    "subscribeMonthly": "월간 멤버십 시작",
-    "subscribeYearly": "연간 멤버십 시작",
+    "subscribeMonthly": "월간 멤버십 선택",
+    "subscribeYearly": "연간 멤버십 선택",
     "billing": {
       "summaryMonthly": "{{price}}이(가) 매월 결제되며, 해지하기 전까지 자동으로 갱신됩니다.",
       "summaryYearly": "{{price}}이(가) 매년 결제되며, 해지하기 전까지 자동으로 갱신됩니다.",
@@ -1466,7 +1467,8 @@
     "rowAccessEnded": "이용 종료일",
     "rowDeletionScheduled": "보관 종료 예정일",
     "rowNextNotice": "다음 안내 예정일",
-    "exportAction": "내 데이터 내보내기"
+    "exportAction": "내 데이터 내보내기",
+    "keptUntil": "저장한 데이터는 {{date}}까지 보관돼요."
   },
   "dataExport": {
     "title": "데이터 내보내기",
@@ -1660,6 +1662,48 @@
     "statusNone": "현재 이용 중인 멤버십이 없어요.",
     "cannotSubscribeHere": "이 기기에서는 아직 구독을 시작할 수 없어요.",
     "sharedAccount": "멤버십은 Juple 계정에 연결되어 있어서 Android, iOS, 웹에서 같은 상태로 보여요.",
-    "dataKept": "저장한 링크와 컬렉션은 삭제하지 않아요."
+    "dataKept": "저장한 링크와 컬렉션은 삭제하지 않아요.",
+    "heroTitle": "Juple Membership",
+    "heroSubtitle": "나만의 링크 공간을 계속 이어가세요.",
+    "badge": {
+      "trial": "무료 이용 중",
+      "member": "멤버십 이용 중",
+      "trialEnded": "무료 이용 종료",
+      "expired": "구독 만료",
+      "pending": "결제 확인 중"
+    },
+    "trialCard": {
+      "title": "첫 달 무료 이용 혜택",
+      "daysLeft": "{{count}}일 남았어요!",
+      "lastDay": "하루 남았어요!",
+      "dDay": "D-{{count}}",
+      "endsOn": "무료 이용 종료일: {{date}}",
+      "body": "남은 기간 동안 Juple의 기능을 자유롭게 이용하세요.",
+      "progressA11y": "무료 이용 기간 {{percent}}% 지남"
+    },
+    "noPaymentNeeded": {
+      "title": "지금은 결제하지 않아도 괜찮아요",
+      "body": "무료 이용 기간이 끝난 후에도 계속 이용하고 싶다면 멤버십을 선택해 주세요."
+    },
+    "trialPurchase": {
+      "title": "지금 구독하면 오늘 바로 결제돼요",
+      "message": "무료 이용 기간이 남아 있어도 구독을 시작하면 오늘 첫 결제가 이루어지고, 남은 무료 기간은 유료 기간에 더해지지 않아요.\n\n무료 기간이 끝난 뒤에 구독해도 저장한 링크와 컬렉션은 그대로 이어져요.",
+      "confirm": "지금 구독하기"
+    },
+    "otherStore": {
+      "google": "Google Play에서 구독 중이에요. 구독 관리와 해지는 Google Play에서 할 수 있어요.",
+      "apple": "App Store에서 구독 중이에요. 구독 관리와 해지는 iPhone 또는 iPad의 Apple 계정 구독 설정에서 할 수 있어요."
+    }
+  },
+  "welcomeTrial": {
+    "title": "Juple에 오신 걸 환영해요! 🎉",
+    "body": "가입해 주셔서 감사합니다.\n\n첫 한 달 동안 Juple의 모든 기능을 무료로 이용해 보세요!\n\n무료 이용 기간이 끝난 후에도 계속 사용하고 싶다면 {{myPage}}에서 멤버십을 선택할 수 있어요.\n\n별도 결제 없이 시작되며, 자동으로 요금이 청구되지 않습니다.",
+    "start": "Juple 시작하기"
+  },
+  "trialEnded": {
+    "title": "Juple과 함께한 한 달, 어떠셨나요? 💜",
+    "body": "지난 한 달 동안 Juple을 이용해 주셔서 감사합니다!\n\n무료 이용 기간이 종료되었어요.\n\n앞으로도 소중한 링크와 컬렉션을 계속 이어가고 싶다면 멤버십을 구독해 주세요.\n\n지금까지 저장한 링크와 컬렉션은 그대로 보관됩니다.",
+    "subscribe": "구독하러 가기",
+    "later": "나중에"
   }
 }

@@ -1066,10 +1066,11 @@
       "yearlyRenew": "Renews automatically every year",
       "discountBadge": "About {{percent}}% off",
       "saveAmount": "Save {{amount}} compared with 12 monthly payments",
-      "perMonthEquivalent": "About {{price}} per month"
+      "perMonthEquivalent": "About {{price}} per month",
+      "manageAnytime": "Manage anytime"
     },
-    "subscribeMonthly": "Start monthly membership",
-    "subscribeYearly": "Start yearly membership",
+    "subscribeMonthly": "Choose monthly membership",
+    "subscribeYearly": "Choose yearly membership",
     "billing": {
       "summaryMonthly": "{{price}} is charged every month and renews automatically until you cancel.",
       "summaryYearly": "{{price}} is charged every year and renews automatically until you cancel.",
@@ -1466,7 +1467,8 @@
     "rowAccessEnded": "Access ended",
     "rowDeletionScheduled": "Retention ends",
     "rowNextNotice": "Next notice",
-    "exportAction": "Export my data"
+    "exportAction": "Export my data",
+    "keptUntil": "Your saved data is kept until {{date}}."
   },
   "dataExport": {
     "title": "Export data",
@@ -1660,6 +1662,48 @@
     "statusNone": "You have no membership right now.",
     "cannotSubscribeHere": "Subscribing from this device isn't available yet.",
     "sharedAccount": "Your membership belongs to your Juple account, so its status is the same on Android, iOS and the web.",
-    "dataKept": "We don't delete your saved links or collections."
+    "dataKept": "We don't delete your saved links or collections.",
+    "heroTitle": "Juple Membership",
+    "heroSubtitle": "Keep your own space for links going.",
+    "badge": {
+      "trial": "Free period",
+      "member": "Member",
+      "trialEnded": "Free period ended",
+      "expired": "Subscription expired",
+      "pending": "Confirming payment"
+    },
+    "trialCard": {
+      "title": "Your first month, free",
+      "daysLeft": "{{count}} days left!",
+      "lastDay": "1 day left!",
+      "dDay": "D-{{count}}",
+      "endsOn": "Free period ends: {{date}}",
+      "body": "Enjoy everything Juple offers for the rest of your free period.",
+      "progressA11y": "{{percent}}% of the free period used"
+    },
+    "noPaymentNeeded": {
+      "title": "No need to pay now",
+      "body": "If you would like to keep using Juple after your free period ends, choose a membership."
+    },
+    "trialPurchase": {
+      "title": "Subscribing now charges you today",
+      "message": "Even with free days left, starting a subscription takes the first payment today, and the remaining free days are not added to the paid period.\n\nIf you subscribe after the free period ends, your saved links and collections carry on just the same.",
+      "confirm": "Subscribe now"
+    },
+    "otherStore": {
+      "google": "You are subscribed through Google Play. Manage or cancel it in Google Play.",
+      "apple": "You are subscribed through the App Store. Manage or cancel it in your Apple Account subscription settings on iPhone or iPad."
+    }
+  },
+  "welcomeTrial": {
+    "title": "Welcome to Juple! 🎉",
+    "body": "Thank you for signing up.\n\nEnjoy every Juple feature free for your first month!\n\nIf you would like to keep using Juple after the free period, you can choose a membership in {{myPage}}.\n\nIt starts without any payment, and you will not be charged automatically.",
+    "start": "Start using Juple"
+  },
+  "trialEnded": {
+    "title": "How was your month with Juple? 💜",
+    "body": "Thank you for using Juple over the past month!\n\nYour free period has ended.\n\nTo keep growing your links and collections, please subscribe to a membership.\n\nEverything you have saved so far is kept just as it is.",
+    "subscribe": "Go to subscription",
+    "later": "Later"
   }
 }

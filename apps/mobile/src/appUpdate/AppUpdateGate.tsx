@@ -5,6 +5,7 @@ import { AppState, Platform } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 import { useAuth } from '../auth/AuthContext';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { reportDialogOpen } from '../components/dialogPresence';
 import { fetchAppUpdatePolicy } from './appUpdatePolicyApi';
 import { openStore } from './openStore';
 import { evaluateAppUpdate, parseInstalledBuild, platformPolicy, type PlatformVersionPolicy } from './versionPolicy';
@@ -118,6 +119,13 @@ export function AppUpdateGate() {
     answeredOptionalBuilds.add(policy.latestBuild);
     setAnswered(count => count + 1);
   }, [policy]);
+
+  // Told to the popups that open by themselves (membership), so they wait instead of stacking under this one on iOS.
+  const isDialogOpen = policy !== null && status !== 'current' && (storeFailed || status === 'required' || !answeredOptionalBuilds.has(policy.latestBuild));
+  useEffect(() => {
+    reportDialogOpen('appUpdate', isDialogOpen);
+    return () => reportDialogOpen('appUpdate', false);
+  }, [isDialogOpen]);
 
   if (status === 'current' || policy === null) {
     return null;

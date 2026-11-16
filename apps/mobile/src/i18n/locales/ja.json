@@ -1066,10 +1066,11 @@
       "yearlyRenew": "毎年自動更新",
       "discountBadge": "約{{percent}}%オフ",
       "saveAmount": "月額12回分より{{amount}}お得",
-      "perMonthEquivalent": "月あたり約{{price}}"
+      "perMonthEquivalent": "月あたり約{{price}}",
+      "manageAnytime": "いつでも管理できます"
     },
-    "subscribeMonthly": "月額メンバーシップを始める",
-    "subscribeYearly": "年額メンバーシップを始める",
+    "subscribeMonthly": "月額メンバーシップを選ぶ",
+    "subscribeYearly": "年額メンバーシップを選ぶ",
     "billing": {
       "summaryMonthly": "{{price}}が毎月請求され、解約するまで自動更新されます。",
       "summaryYearly": "{{price}}が毎年請求され、解約するまで自動更新されます。",
@@ -1466,7 +1467,8 @@
     "rowAccessEnded": "Access ended",
     "rowDeletionScheduled": "Retention ends",
     "rowNextNotice": "Next notice",
-    "exportAction": "Export my data"
+    "exportAction": "Export my data",
+    "keptUntil": "保存したデータは{{date}}まで保管されます。"
   },
   "dataExport": {
     "title": "Export data",
@@ -1660,6 +1662,48 @@
     "statusNone": "現在ご利用中のメンバーシップはありません。",
     "cannotSubscribeHere": "このデバイスからの購読はまだご利用いただけません。",
     "sharedAccount": "メンバーシップはJupleアカウントに紐づくため、Android・iOS・Webで同じ状態になります。",
-    "dataKept": "保存したリンクやコレクションを削除することはありません。"
+    "dataKept": "保存したリンクやコレクションを削除することはありません。",
+    "heroTitle": "Juple メンバーシップ",
+    "heroSubtitle": "あなただけのリンクの場所を、これからも。",
+    "badge": {
+      "trial": "無料期間中",
+      "member": "メンバーシップ利用中",
+      "trialEnded": "無料期間終了",
+      "expired": "サブスクリプション期限切れ",
+      "pending": "決済確認中"
+    },
+    "trialCard": {
+      "title": "最初の1か月 無料特典",
+      "daysLeft": "残り{{count}}日です！",
+      "lastDay": "残り1日です！",
+      "dDay": "あと{{count}}日",
+      "endsOn": "無料期間の終了日：{{date}}",
+      "body": "残りの期間、Juple の機能を自由にお使いください。",
+      "progressA11y": "無料期間の{{percent}}%が経過"
+    },
+    "noPaymentNeeded": {
+      "title": "今はお支払いの必要はありません",
+      "body": "無料期間が終わった後も使い続けたい場合は、メンバーシップを選んでください。"
+    },
+    "trialPurchase": {
+      "title": "今登録すると本日お支払いが発生します",
+      "message": "無料期間が残っていても、登録すると本日最初のお支払いが行われ、残りの無料期間は有料期間に加算されません。\n\n無料期間の終了後に登録しても、保存したリンクとコレクションはそのまま引き継がれます。",
+      "confirm": "今すぐ登録"
+    },
+    "otherStore": {
+      "google": "Google Play で登録中です。管理や解約は Google Play で行えます。",
+      "apple": "App Store で登録中です。管理や解約は iPhone または iPad の Apple アカウントのサブスクリプション設定で行えます。"
+    }
+  },
+  "welcomeTrial": {
+    "title": "Juple へようこそ！🎉",
+    "body": "ご登録ありがとうございます。\n\n最初の1か月は Juple のすべての機能を無料でお試しください！\n\n無料期間の終了後も使い続けたい場合は、{{myPage}}でメンバーシップを選べます。\n\nお支払いなしで始まり、自動で料金が請求されることはありません。",
+    "start": "Juple を始める"
+  },
+  "trialEnded": {
+    "title": "Juple との1か月、いかがでしたか？💜",
+    "body": "この1か月、Juple をご利用いただきありがとうございました！\n\n無料期間が終了しました。\n\nこれからも大切なリンクとコレクションを続けたい場合は、メンバーシップにご登録ください。\n\nこれまでに保存したリンクとコレクションはそのまま保管されます。",
+    "subscribe": "登録画面へ",
+    "later": "あとで"
   }
 }

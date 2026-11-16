@@ -1066,10 +1066,11 @@
       "yearlyRenew": "Diperpanjang otomatis setiap tahun",
       "discountBadge": "Diskon sekitar {{percent}}%",
       "saveAmount": "Hemat {{amount}} dibanding 12 kali bayar bulanan",
-      "perMonthEquivalent": "Sekitar {{price}} per bulan"
+      "perMonthEquivalent": "Sekitar {{price}} per bulan",
+      "manageAnytime": "Bisa dikelola kapan saja"
     },
-    "subscribeMonthly": "Mulai keanggotaan bulanan",
-    "subscribeYearly": "Mulai keanggotaan tahunan",
+    "subscribeMonthly": "Pilih keanggotaan bulanan",
+    "subscribeYearly": "Pilih keanggotaan tahunan",
     "billing": {
       "summaryMonthly": "{{price}} ditagih setiap bulan dan diperpanjang otomatis sampai Anda membatalkan.",
       "summaryYearly": "{{price}} ditagih setiap tahun dan diperpanjang otomatis sampai Anda membatalkan.",
@@ -1466,7 +1467,8 @@
     "rowAccessEnded": "Access ended",
     "rowDeletionScheduled": "Retention ends",
     "rowNextNotice": "Next notice",
-    "exportAction": "Export my data"
+    "exportAction": "Export my data",
+    "keptUntil": "Data yang kamu simpan disimpan hingga {{date}}."
   },
   "dataExport": {
     "title": "Export data",
@@ -1660,6 +1662,48 @@
     "statusNone": "Saat ini Anda tidak memiliki keanggotaan.",
     "cannotSubscribeHere": "Berlangganan dari perangkat ini belum tersedia.",
     "sharedAccount": "Keanggotaan terhubung ke akun Juple Anda, sehingga statusnya sama di Android, iOS, dan web.",
-    "dataKept": "Kami tidak menghapus tautan atau koleksi yang Anda simpan."
+    "dataKept": "Kami tidak menghapus tautan atau koleksi yang Anda simpan.",
+    "heroTitle": "Juple Membership",
+    "heroSubtitle": "Terus rawat ruang tautan milikmu sendiri.",
+    "badge": {
+      "trial": "Masa gratis",
+      "member": "Anggota",
+      "trialEnded": "Masa gratis berakhir",
+      "expired": "Langganan kedaluwarsa",
+      "pending": "Mengonfirmasi pembayaran"
+    },
+    "trialCard": {
+      "title": "Bulan pertama gratis",
+      "daysLeft": "Tinggal {{count}} hari lagi!",
+      "lastDay": "Tinggal 1 hari lagi!",
+      "dDay": "D-{{count}}",
+      "endsOn": "Masa gratis berakhir: {{date}}",
+      "body": "Gunakan semua fitur Juple dengan bebas selama sisa masa gratis.",
+      "progressA11y": "{{percent}}% masa gratis telah berlalu"
+    },
+    "noPaymentNeeded": {
+      "title": "Belum perlu membayar sekarang",
+      "body": "Jika ingin terus memakai Juple setelah masa gratis berakhir, pilih keanggotaan."
+    },
+    "trialPurchase": {
+      "title": "Berlangganan sekarang berarti ditagih hari ini",
+      "message": "Meski masa gratis masih tersisa, saat mulai berlangganan pembayaran pertama ditagih hari ini, dan sisa hari gratis tidak ditambahkan ke masa berbayar.\n\nJika kamu berlangganan setelah masa gratis berakhir, tautan dan koleksi yang tersimpan tetap sama.",
+      "confirm": "Berlangganan sekarang"
+    },
+    "otherStore": {
+      "google": "Kamu berlangganan melalui Google Play. Kelola atau batalkan di Google Play.",
+      "apple": "Kamu berlangganan melalui App Store. Kelola atau batalkan di pengaturan langganan Akun Apple di iPhone atau iPad."
+    }
+  },
+  "welcomeTrial": {
+    "title": "Selamat datang di Juple! 🎉",
+    "body": "Terima kasih sudah mendaftar.\n\nNikmati semua fitur Juple secara gratis selama bulan pertama!\n\nJika ingin terus memakainya setelah masa gratis, kamu bisa memilih keanggotaan di {{myPage}}.\n\nDimulai tanpa pembayaran apa pun, dan tidak ada tagihan otomatis.",
+    "start": "Mulai pakai Juple"
+  },
+  "trialEnded": {
+    "title": "Bagaimana sebulanmu bersama Juple? 💜",
+    "body": "Terima kasih sudah memakai Juple selama sebulan terakhir!\n\nMasa gratismu telah berakhir.\n\nJika ingin terus merawat tautan dan koleksi berhargamu, silakan berlangganan.\n\nSemua yang sudah kamu simpan tetap disimpan apa adanya.",
+    "subscribe": "Ke halaman langganan",
+    "later": "Nanti saja"
   }
 }

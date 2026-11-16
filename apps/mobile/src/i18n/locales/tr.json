@@ -1066,10 +1066,11 @@
       "yearlyRenew": "Her yıl otomatik yenilenir",
       "discountBadge": "Yaklaşık %{{percent}} indirim",
       "saveAmount": "12 aylık ödemeye göre {{amount}} tasarruf",
-      "perMonthEquivalent": "Aylık yaklaşık {{price}}"
+      "perMonthEquivalent": "Aylık yaklaşık {{price}}",
+      "manageAnytime": "İstediğin zaman yönet"
     },
-    "subscribeMonthly": "Aylık üyeliği başlat",
-    "subscribeYearly": "Yıllık üyeliği başlat",
+    "subscribeMonthly": "Aylık üyeliği seç",
+    "subscribeYearly": "Yıllık üyeliği seç",
     "billing": {
       "summaryMonthly": "{{price}} her ay tahsil edilir ve siz iptal edene kadar otomatik yenilenir.",
       "summaryYearly": "{{price}} her yıl tahsil edilir ve siz iptal edene kadar otomatik yenilenir.",
@@ -1466,7 +1467,8 @@
     "rowAccessEnded": "Access ended",
     "rowDeletionScheduled": "Retention ends",
     "rowNextNotice": "Next notice",
-    "exportAction": "Export my data"
+    "exportAction": "Export my data",
+    "keptUntil": "Kaydettiğin veriler {{date}} tarihine kadar saklanır."
   },
   "dataExport": {
     "title": "Export data",
@@ -1660,6 +1662,48 @@
     "statusNone": "Şu anda bir üyeliğiniz yok.",
     "cannotSubscribeHere": "Bu cihazdan abone olmak henüz mümkün değil.",
     "sharedAccount": "Üyeliğiniz Juple hesabınıza bağlıdır; durumu Android, iOS ve webde aynıdır.",
-    "dataKept": "Kaydettiğiniz bağlantıları veya koleksiyonları silmiyoruz."
+    "dataKept": "Kaydettiğiniz bağlantıları veya koleksiyonları silmiyoruz.",
+    "heroTitle": "Juple Membership",
+    "heroSubtitle": "Kendi bağlantı alanını sürdürmeye devam et.",
+    "badge": {
+      "trial": "Ücretsiz dönem",
+      "member": "Üye",
+      "trialEnded": "Ücretsiz dönem bitti",
+      "expired": "Abonelik sona erdi",
+      "pending": "Ödeme onaylanıyor"
+    },
+    "trialCard": {
+      "title": "İlk ay ücretsiz",
+      "daysLeft": "{{count}} gün kaldı!",
+      "lastDay": "1 gün kaldı!",
+      "dDay": "D-{{count}}",
+      "endsOn": "Ücretsiz dönemin bitişi: {{date}}",
+      "body": "Kalan süre boyunca Juple’ın tüm özelliklerini özgürce kullan.",
+      "progressA11y": "Ücretsiz dönemin %{{percent}} kadarı geçti"
+    },
+    "noPaymentNeeded": {
+      "title": "Şimdi ödeme yapman gerekmiyor",
+      "body": "Ücretsiz dönem bittikten sonra da Juple’ı kullanmak istersen bir üyelik seç."
+    },
+    "trialPurchase": {
+      "title": "Şimdi abone olursan ücret bugün alınır",
+      "message": "Ücretsiz günlerin kalmış olsa bile abonelik başladığında ilk ödeme bugün alınır ve kalan ücretsiz günler ücretli döneme eklenmez.\n\nÜcretsiz dönem bittikten sonra abone olursan da kaydettiğin bağlantılar ve koleksiyonlar aynen devam eder.",
+      "confirm": "Şimdi abone ol"
+    },
+    "otherStore": {
+      "google": "Google Play üzerinden abonesin. Aboneliği Google Play’de yönetebilir veya iptal edebilirsin.",
+      "apple": "App Store üzerinden abonesin. Aboneliği iPhone veya iPad’deki Apple Hesabı abonelik ayarlarından yönetebilir ya da iptal edebilirsin."
+    }
+  },
+  "welcomeTrial": {
+    "title": "Juple’a hoş geldin! 🎉",
+    "body": "Kaydolduğun için teşekkürler.\n\nİlk ay boyunca Juple’ın tüm özelliklerini ücretsiz kullan!\n\nÜcretsiz dönemden sonra da kullanmak istersen {{myPage}} bölümünden bir üyelik seçebilirsin.\n\nBaşlamak için ödeme gerekmez ve otomatik olarak ücret alınmaz.",
+    "start": "Juple’ı kullanmaya başla"
+  },
+  "trialEnded": {
+    "title": "Juple ile geçen bir ay nasıldı? 💜",
+    "body": "Geçen ay Juple’ı kullandığın için teşekkürler!\n\nÜcretsiz dönemin sona erdi.\n\nDeğerli bağlantılarını ve koleksiyonlarını sürdürmek istersen bir üyeliğe abone ol.\n\nŞimdiye kadar kaydettiğin her şey olduğu gibi saklanır.",
+    "subscribe": "Aboneliğe git",
+    "later": "Sonra"
   }
 }

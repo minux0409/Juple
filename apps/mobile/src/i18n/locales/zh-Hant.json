@@ -1066,10 +1066,11 @@
       "yearlyRenew": "每年自動續訂",
       "discountBadge": "約 {{percent}}% 折扣",
       "saveAmount": "比 12 個月月費付款節省 {{amount}}",
-      "perMonthEquivalent": "約合每月 {{price}}"
+      "perMonthEquivalent": "約合每月 {{price}}",
+      "manageAnytime": "可隨時管理訂閱"
     },
-    "subscribeMonthly": "開始月費會員",
-    "subscribeYearly": "開始年費會員",
+    "subscribeMonthly": "選擇月度會員",
+    "subscribeYearly": "選擇年度會員",
     "billing": {
       "summaryMonthly": "每月收取 {{price}}，在您取消前將自動續訂。",
       "summaryYearly": "每年收取 {{price}}，在您取消前將自動續訂。",
@@ -1466,7 +1467,8 @@
     "rowAccessEnded": "Access ended",
     "rowDeletionScheduled": "Retention ends",
     "rowNextNotice": "Next notice",
-    "exportAction": "Export my data"
+    "exportAction": "Export my data",
+    "keptUntil": "已儲存的資料將保留至 {{date}}。"
   },
   "dataExport": {
     "title": "Export data",
@@ -1660,6 +1662,48 @@
     "statusNone": "您目前沒有會員。",
     "cannotSubscribeHere": "暫時無法在此裝置上訂閱。",
     "sharedAccount": "會員綁定在您的 Juple 帳號上，因此在 Android、iOS 和網頁上的狀態相同。",
-    "dataKept": "我們不會刪除您儲存的連結或合集。"
+    "dataKept": "我們不會刪除您儲存的連結或合集。",
+    "heroTitle": "Juple 會員",
+    "heroSubtitle": "繼續經營屬於你自己的連結空間。",
+    "badge": {
+      "trial": "免費使用中",
+      "member": "會員使用中",
+      "trialEnded": "免費期已結束",
+      "expired": "訂閱已過期",
+      "pending": "正在確認付款"
+    },
+    "trialCard": {
+      "title": "首月免費優惠",
+      "daysLeft": "還剩 {{count}} 天！",
+      "lastDay": "還剩 1 天！",
+      "dDay": "D-{{count}}",
+      "endsOn": "免費期結束日期：{{date}}",
+      "body": "在剩餘期間內盡情使用 Juple 的所有功能吧。",
+      "progressA11y": "免費期已過 {{percent}}%"
+    },
+    "noPaymentNeeded": {
+      "title": "現在不需要付款",
+      "body": "如果免費期結束後還想繼續使用，請選擇會員方案。"
+    },
+    "trialPurchase": {
+      "title": "現在訂閱將於今天扣款",
+      "message": "即使免費期尚未結束，開始訂閱後也會在今天進行首次扣款，剩餘的免費天數不會加到付費期中。\n\n在免費期結束後再訂閱，已儲存的連結和收藏集也會照常保留。",
+      "confirm": "立即訂閱"
+    },
+    "otherStore": {
+      "google": "你正在透過 Google Play 訂閱。請在 Google Play 中管理或取消。",
+      "apple": "你正在透過 App Store 訂閱。請在 iPhone 或 iPad 的 Apple 帳號訂閱設定中管理或取消。"
+    }
+  },
+  "welcomeTrial": {
+    "title": "歡迎來到 Juple！🎉",
+    "body": "感謝你的註冊。\n\n第一個月可免費使用 Juple 的所有功能！\n\n免費期結束後如想繼續使用，可以在{{myPage}}中選擇會員方案。\n\n開始使用不需付款，也不會自動扣款。",
+    "start": "開始使用 Juple"
+  },
+  "trialEnded": {
+    "title": "和 Juple 一起的這一個月，覺得如何？💜",
+    "body": "感謝你在過去一個月使用 Juple！\n\n免費期已結束。\n\n如果想繼續保存珍貴的連結和收藏集，請訂閱會員。\n\n你目前儲存的連結和收藏集都會原樣保留。",
+    "subscribe": "前往訂閱",
+    "later": "以後再說"
   }
 }
