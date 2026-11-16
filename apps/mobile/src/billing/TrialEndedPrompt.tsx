@@ -1,12 +1,11 @@
-import { CommonActions } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOptionalAuth } from '../auth/AuthContext';
 import { reportDialogOpen } from '../components/dialogPresence';
-import { navigationRef } from '../navigation/navigationRef';
 import { describeDataRetention, formatRetentionDate } from './dataRetentionView';
 import { isFreePeriodEnded } from './membershipModel';
 import { MembershipPromptDialog } from './MembershipPromptDialog';
+import { openMembershipFromMyPage } from './openMembership';
 import { useQuietHome } from './useQuietHome';
 
 const DIALOG_ID = 'trialEnded';
@@ -58,11 +57,7 @@ export function TrialEndedPrompt() {
 
   const openMembership = () => {
     close();
-    if (navigationRef.isReady()) {
-      // 내 페이지 first, then the Membership screen on top: Back from it lands on 내 페이지.
-      navigationRef.dispatch(CommonActions.navigate({ name: 'MainTabs', params: { screen: 'MyPage' } }));
-      navigationRef.navigate('Subscription');
-    }
+    openMembershipFromMyPage();
   };
 
   const body = keptUntilUtc

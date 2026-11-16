@@ -1026,9 +1026,11 @@
     },
     "stateHeading": "Status langganan",
     "required": {
-      "title": "Perlu berlangganan",
-      "message": "Menyimpan dan mengedit memerlukan langganan. Tautan dan koleksi yang sudah disimpan tetap bisa dibaca.",
-      "later": "Nanti saja"
+      "title": "Fitur ini perlu keanggotaan",
+      "message": "Masa gratismu telah berakhir.\n\nKamu tetap bisa melihat tautan dan koleksimu, tetapi untuk menyimpan tautan baru atau mengubah isi, kamu perlu berlangganan.",
+      "later": "Nanti saja",
+      "messageEnded": "Keanggotaanmu telah berakhir.\n\nKamu tetap bisa melihat tautan dan koleksimu, tetapi untuk menyimpan tautan baru atau mengubah isi, kamu perlu berlangganan.",
+      "view": "Lihat keanggotaan"
     },
     "ownerRequired": {
       "title": "Belum bisa diubah sekarang",
@@ -1702,7 +1704,7 @@
   },
   "trialEnded": {
     "title": "Bagaimana sebulanmu bersama Juple? 💜",
-    "body": "Terima kasih sudah memakai Juple selama sebulan terakhir!\n\nMasa gratismu telah berakhir.\n\nJika ingin terus merawat tautan dan koleksi berhargamu, silakan berlangganan.\n\nSemua yang sudah kamu simpan tetap disimpan apa adanya.",
+    "body": "Terima kasih sudah memakai Juple selama sebulan terakhir!\n\nMasa gratismu telah berakhir.\n\nSemua yang sudah kamu simpan tetap tersimpan apa adanya dan bisa kamu lihat kapan saja.\n\nJika ingin terus menyimpan tautan baru dan mengelola koleksimu, silakan berlangganan.",
     "subscribe": "Ke halaman langganan",
     "later": "Nanti saja"
   }

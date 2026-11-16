@@ -173,6 +173,22 @@ describe('connection lifecycle and offer', () => {
     expect(result.kind === 'ready' && result.offer.offerToken).toBe('token-plain');
   });
 
+  it('a base plan that only has a store trial/intro offer is not offered at all - never a second free period', async () => {
+    const trialOnly = offer({
+      id: 'trial',
+      offerTokenAndroid: 'token-trial',
+      pricingPhasesAndroid: {
+        pricingPhaseList: [
+          { formattedPrice: 'Free', priceCurrencyCode: 'USD', billingPeriod: 'P7D', billingCycleCount: 1, priceAmountMicros: '0', recurrenceMode: 2 },
+          { formattedPrice: '$0.99', priceCurrencyCode: 'USD', billingPeriod: 'P1M', billingCycleCount: 0, priceAmountMicros: '990000', recurrenceMode: 1 },
+        ],
+      },
+    });
+    jest.mocked(fetchProducts).mockResolvedValue([product([trialOnly])] as never);
+
+    expect(await makeBilling(makeApi()).billing.loadOffer()).toEqual({ kind: 'unavailable', reason: 'offerNotFound' });
+  });
+
   it('reports a missing product, a missing base-plan offer and a store failure without throwing', async () => {
     jest.mocked(fetchProducts).mockResolvedValueOnce([] as never);
     expect(await makeBilling(makeApi()).billing.loadOffer()).toEqual({ kind: 'unavailable', reason: 'productNotFound' });

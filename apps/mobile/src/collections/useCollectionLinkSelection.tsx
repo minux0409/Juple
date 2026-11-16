@@ -22,7 +22,7 @@ import { shareLinks } from '../items/shareItem';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
 import { ReportModal, type BulkReportOutcome } from '../safety/ReportModal';
 import { blockedInteractionKey, type ReportTarget } from '../safety/safetyApi';
-import { formatBulkResult } from '../selection/bulkResultMessage';
+import { formatBulkResult, handledRefusals } from '../selection/bulkResultMessage';
 import {
   deleteTargets,
   getLinkSelectionActions,
@@ -211,7 +211,7 @@ export function useCollectionLinkSelection(options: UseCollectionLinkSelectionOp
       exit();
     } else {
       replace(outcome.failed.map(entry => entry.id));
-      setNotice(formatBulkResult(t, { succeeded: outcome.succeeded.length, failed: outcome.failed.length }, { allKey: 'selection.removedLinks', partialKey: 'selection.removedLinksPartial' }));
+      setNotice(formatBulkResult(t, { succeeded: outcome.succeeded.length, failed: outcome.failed.length, handledRefusals: handledRefusals(outcome.failed) }, { allKey: 'selection.removedLinks', partialKey: 'selection.removedLinksPartial' }));
     }
     if (removedIds.length === 0) {
       if (outcome.failed.length > 0) {
@@ -310,7 +310,7 @@ export function useCollectionLinkSelection(options: UseCollectionLinkSelectionOp
       }
     } else {
       replace(outcome.failed.map(entry => entry.id));
-      setNotice(formatBulkResult(t, { succeeded: movedIds.length, failed: outcome.failed.length }, { allKey: 'selection.movedLinks', partialKey: 'selection.movedLinksPartial' }));
+      setNotice(formatBulkResult(t, { succeeded: movedIds.length, failed: outcome.failed.length, handledRefusals: handledRefusals(outcome.failed) }, { allKey: 'selection.movedLinks', partialKey: 'selection.movedLinksPartial' }));
     }
   };
 

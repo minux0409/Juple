@@ -1026,9 +1026,11 @@
     },
     "stateHeading": "État de l'abonnement",
     "required": {
-      "title": "Un abonnement est nécessaire",
-      "message": "Enregistrer et modifier nécessitent un abonnement. Vos liens et collections enregistrés restent consultables.",
-      "later": "Plus tard"
+      "title": "Cette fonction nécessite une formule",
+      "message": "Votre période gratuite est terminée.\n\nVous pouvez toujours consulter vos liens et collections, mais enregistrer de nouveaux liens ou modifier le contenu nécessite une formule.",
+      "later": "Plus tard",
+      "messageEnded": "Votre formule est terminée.\n\nVous pouvez toujours consulter vos liens et collections, mais enregistrer de nouveaux liens ou modifier le contenu nécessite une formule.",
+      "view": "Voir les formules"
     },
     "ownerRequired": {
       "title": "Modification impossible pour le moment",
@@ -1702,7 +1704,7 @@
   },
   "trialEnded": {
     "title": "Comment s’est passé votre mois avec Juple ? 💜",
-    "body": "Merci d’avoir utilisé Juple ce dernier mois !\n\nVotre période gratuite est terminée.\n\nPour continuer à enrichir vos liens et vos collections, abonnez-vous à une formule.\n\nTout ce que vous avez enregistré jusqu’ici est conservé tel quel.",
+    "body": "Merci d’avoir utilisé Juple ce dernier mois !\n\nVotre période gratuite est terminée.\n\nTout ce que vous avez enregistré est conservé tel quel et reste consultable à tout moment.\n\nPour continuer à enregistrer de nouveaux liens et à gérer vos collections, abonnez-vous à une formule.",
     "subscribe": "Voir les abonnements",
     "later": "Plus tard"
   }

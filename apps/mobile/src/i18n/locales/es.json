@@ -1026,9 +1026,11 @@
     },
     "stateHeading": "Estado de la suscripción",
     "required": {
-      "title": "Se necesita una suscripción",
-      "message": "Guardar y editar requieren una suscripción. Tus enlaces y colecciones guardados siguen disponibles para leer.",
-      "later": "Ahora no"
+      "title": "Esto requiere una membresía",
+      "message": "Tu periodo gratuito ha terminado.\n\nPuedes seguir viendo tus enlaces y colecciones, pero para guardar enlaces nuevos o hacer cambios necesitas una membresía.",
+      "later": "Ahora no",
+      "messageEnded": "Tu membresía ha terminado.\n\nPuedes seguir viendo tus enlaces y colecciones, pero para guardar enlaces nuevos o hacer cambios necesitas una membresía.",
+      "view": "Ver membresía"
     },
     "ownerRequired": {
       "title": "No se puede cambiar ahora",
@@ -1702,7 +1704,7 @@
   },
   "trialEnded": {
     "title": "¿Qué tal tu mes con Juple? 💜",
-    "body": "¡Gracias por usar Juple durante este último mes!\n\nTu periodo gratuito ha terminado.\n\nSi quieres seguir cuidando tus enlaces y colecciones, suscríbete a una membresía.\n\nTodo lo que has guardado hasta ahora se conserva tal como está.",
+    "body": "¡Gracias por usar Juple durante este último mes!\n\nTu periodo gratuito ha terminado.\n\nTodo lo que has guardado se conserva tal como está y puedes verlo cuando quieras.\n\nSi quieres seguir guardando enlaces nuevos y gestionando tus colecciones, suscríbete a una membresía.",
     "subscribe": "Ir a la suscripción",
     "later": "Más tarde"
   }

@@ -19,7 +19,7 @@ import { ShareIcon } from '../icons/ShareIcon';
 import { StarIcon } from '../icons/StarIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { UnlockIcon } from '../icons/UnlockIcon';
-import { formatBulkResult } from '../selection/bulkResultMessage';
+import { formatBulkResult, handledRefusals } from '../selection/bulkResultMessage';
 import { collectionSelectionLabelKeys } from '../selection/collectionSelectionLabels';
 import { favoriteStateOf, getCollectionSelectionActions, lockableCollections, partitionDeleteLeave } from '../selection/collectionSelectionPolicy';
 import { runBatch } from '../selection/runBatch';
@@ -159,7 +159,7 @@ export function useCollectionSelection({ collections, onCollectionUpdated, onCha
     } else {
       // Failed Collections stay selected so the same action can be retried.
       selection.replace(outcome.failed.map(entry => entry.id));
-      setMessage(formatBulkResult(t, { succeeded: outcome.succeeded.length, failed: outcome.failed.length }, { allKey: 'selection.favoritesAdded', partialKey: 'selection.favoritesPartial' }));
+      setMessage(formatBulkResult(t, { succeeded: outcome.succeeded.length, failed: outcome.failed.length, handledRefusals: handledRefusals(outcome.failed) }, { allKey: 'selection.favoritesAdded', partialKey: 'selection.favoritesPartial' }));
     }
   });
   const onFavoritePress = () => {
@@ -196,7 +196,7 @@ export function useCollectionSelection({ collections, onCollectionUpdated, onCha
       selection.replace(outcome.failed.map(entry => entry.id));
       setMessage(notConfigured
         ? t('collections.lockPasswordNotConfigured')
-        : formatBulkResult(t, { succeeded: outcome.succeeded.length, failed: outcome.failed.length }, { allKey: 'selection.locked', partialKey: 'selection.lockedPartial' }));
+        : formatBulkResult(t, { succeeded: outcome.succeeded.length, failed: outcome.failed.length, handledRefusals: handledRefusals(outcome.failed) }, { allKey: 'selection.locked', partialKey: 'selection.lockedPartial' }));
     }
   });
   const onLockPress = () => {
@@ -283,7 +283,7 @@ export function useCollectionSelection({ collections, onCollectionUpdated, onCha
     }
     if (outcome.failed.length > 0 || lockedSkipped > 0) {
       const base = outcome.failed.length > 0
-        ? formatBulkResult(t, { succeeded: outcome.succeeded.length, failed: outcome.failed.length, skipped: 0 }, { allKey: 'selection.collectionsDeleted', partialKey: 'selection.collectionsDeletedPartial' })
+        ? formatBulkResult(t, { succeeded: outcome.succeeded.length, failed: outcome.failed.length, handledRefusals: handledRefusals(outcome.failed), skipped: 0 }, { allKey: 'selection.collectionsDeleted', partialKey: 'selection.collectionsDeletedPartial' })
         : '';
       setMessage([base, lockedSkipped > 0 ? t('selection.deleteSkippedLocked', { count: lockedSkipped }) : ''].filter(Boolean).join(' '));
     }
@@ -300,7 +300,7 @@ export function useCollectionSelection({ collections, onCollectionUpdated, onCha
       showNotificationToast(t('selection.collectionsLeft', { count: outcome.succeeded.length }));
     } else {
       selection.replace(outcome.failed.map(entry => entry.id));
-      setMessage(formatBulkResult(t, { succeeded: outcome.succeeded.length, failed: outcome.failed.length }, { allKey: 'selection.collectionsLeft', partialKey: 'selection.collectionsLeftPartial' }));
+      setMessage(formatBulkResult(t, { succeeded: outcome.succeeded.length, failed: outcome.failed.length, handledRefusals: handledRefusals(outcome.failed) }, { allKey: 'selection.collectionsLeft', partialKey: 'selection.collectionsLeftPartial' }));
     }
   });
 

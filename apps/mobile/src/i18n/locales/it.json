@@ -1027,8 +1027,10 @@
     "stateHeading": "Stato dell'abbonamento",
     "required": {
       "title": "Serve un abbonamento",
-      "message": "Per salvare e modificare serve un abbonamento. I link e le raccolte salvati restano disponibili in lettura.",
-      "later": "Non ora"
+      "message": "Il periodo gratuito è terminato.\n\nPuoi continuare a vedere i tuoi link e le tue raccolte, ma per salvare nuovi link o modificare i contenuti serve un abbonamento.",
+      "later": "Non ora",
+      "messageEnded": "Il tuo abbonamento è terminato.\n\nPuoi continuare a vedere i tuoi link e le tue raccolte, ma per salvare nuovi link o modificare i contenuti serve un abbonamento.",
+      "view": "Vedi abbonamento"
     },
     "ownerRequired": {
       "title": "Al momento non modificabile",
@@ -1702,7 +1704,7 @@
   },
   "trialEnded": {
     "title": "Com’è andato il tuo mese con Juple? 💜",
-    "body": "Grazie per aver usato Juple nell’ultimo mese!\n\nIl periodo gratuito è terminato.\n\nSe vuoi continuare a far crescere i tuoi link e le tue raccolte, abbonati.\n\nTutto ciò che hai salvato finora resta conservato così com’è.",
+    "body": "Grazie per aver usato Juple nell’ultimo mese!\n\nIl periodo gratuito è terminato.\n\nTutto ciò che hai salvato resta conservato così com’è e puoi rivederlo quando vuoi.\n\nSe vuoi continuare a salvare nuovi link e gestire le tue raccolte, abbonati.",
     "subscribe": "Vai all’abbonamento",
     "later": "Più tardi"
   }

@@ -5,6 +5,8 @@
  * browser, and no date is ever computed - a date appears only when the server sent it.
  */
 
+import { ApiHttpError } from './appApi.ts';
+
 export type EntitlementStatus = 'trial' | 'active' | 'gracePeriod' | 'expired';
 export type EntitlementReason = 'none' | 'cancelled' | 'billingIssue' | 'refunded' | 'paused';
 
@@ -166,4 +168,33 @@ export const APP_STORE_SUBSCRIPTIONS_URL = 'https://apps.apple.com/account/subsc
  */
 export function isSubscriptionEntryShown(entitlement: Entitlement | null): boolean {
   return entitlement?.programEnabled === true;
+}
+
+/** The server's two answers to a content change it refuses for lack of access (403 + ProblemDetails code), as on mobile. */
+export const SUBSCRIPTION_REQUIRED_CODE = 'subscriptionRequired';
+export const OWNER_SUBSCRIPTION_REQUIRED_CODE = 'collectionOwnerSubscriptionRequired';
+
+/** 'actor': this account's access ended; 'owner': the Collection's owner's did. Null for every other failure. */
+export function subscriptionRefusalOf(error: unknown): 'actor' | 'owner' | null {
+  if (!(error instanceof ApiHttpError) || error.status !== 403) {
+    return null;
+  }
+  if (error.code === SUBSCRIPTION_REQUIRED_CODE) {
+    return 'actor';
+  }
+  return error.code === OWNER_SUBSCRIPTION_REQUIRED_CODE ? 'owner' : null;
+}
+
+/**
+ * Whether what ended is the FREE period (access ended at the trial end, and no store subscription is live or ever ended) - the mobile
+ * isFreePeriodEnded. A lapsed paid membership is told its membership ended instead.
+ */
+export function isFreePeriodEnded(entitlement: Entitlement | null, storeSubscription: StoreSubscription | null): boolean {
+  if (!entitlement?.programEnabled || entitlement.status !== 'expired' || !entitlement.trialEndsAtUtc || !entitlement.accessFrozenAtUtc) {
+    return false;
+  }
+  if (storeSubscription && (storeSubscription.state !== 'none' || storeSubscription.endedState !== null)) {
+    return false;
+  }
+  return Date.parse(entitlement.trialEndsAtUtc) === Date.parse(entitlement.accessFrozenAtUtc);
 }

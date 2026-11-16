@@ -25,7 +25,8 @@ export function ConfirmDialog({
   readonly message?: string;
   readonly error?: string | null;
   readonly confirmLabel: string;
-  readonly cancelLabel: string;
+  /** Omitted: a notice with its one button (Escape and the backdrop still call onCancel). */
+  readonly cancelLabel?: string;
   readonly destructive?: boolean;
   readonly busy?: boolean;
   readonly onConfirm: () => void;
@@ -72,9 +73,11 @@ export function ConfirmDialog({
         </div>
       ) : null}
       <div className={`${styles.formActions} ${styles.dialogFoot}`}>
-        <button className={styles.settingsAction} disabled={busy} onClick={onCancel} type="button">
-          {cancelLabel}
-        </button>
+        {cancelLabel ? (
+          <button className={styles.settingsAction} disabled={busy} onClick={onCancel} type="button">
+            {cancelLabel}
+          </button>
+        ) : null}
         <button className={destructive ? styles.dangerAction : styles.primaryAction} disabled={busy} onClick={onConfirm} type="button">
           {confirmLabel}
         </button>

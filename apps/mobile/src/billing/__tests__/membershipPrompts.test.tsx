@@ -222,8 +222,12 @@ describe('TrialEndedPrompt - "how was your month with Juple?"', () => {
     expect(isShown(renderer, 'trial-ended')).toBe(true);
     const texts = visibleTexts(renderer);
     expect(texts).toContain('Juple과 함께한 한 달, 어떠셨나요? 💜');
-    expect(texts.join('\n')).toContain('무료 이용 기간이 종료되었어요.');
-    expect(texts.join('\n')).toContain('지금까지 저장한 링크와 컬렉션은 그대로 보관됩니다.');
+    expect(texts.join('\n')).toBe([
+      'Juple과 함께한 한 달, 어떠셨나요? 💜',
+      '지난 한 달 동안 Juple을 이용해 주셔서 감사합니다!\n\n무료 이용 기간이 종료되었어요.\n\n지금까지 저장한 링크와 컬렉션은 그대로 보관되며, 언제든 다시 확인할 수 있습니다.\n\n앞으로도 새로운 링크를 저장하고 컬렉션을 관리하고 싶다면 멤버십을 구독해 주세요.',
+      '나중에',
+      '구독하러 가기',
+    ].join('\n'));
     expect(texts).toEqual(expect.arrayContaining(['구독하러 가기', '나중에']));
   });
 
@@ -269,8 +273,7 @@ describe('TrialEndedPrompt - "how was your month with Juple?"', () => {
     await pressIn(renderer, 'trial-ended-primary');
 
     expect(isShown(renderer, 'trial-ended')).toBe(false);
-    expect(nav.dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'NAVIGATE', payload: expect.objectContaining({ name: 'MainTabs', params: { screen: 'MyPage' } }) }));
-    expect(nav.navigate).toHaveBeenCalledWith('Subscription');
+    expect(nav.navigate.mock.calls).toEqual([['MainTabs', { screen: 'MyPage' }], ['Subscription']]);
   });
 
   it('a subscription verified while it is open closes it', async () => {

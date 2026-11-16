@@ -182,9 +182,10 @@ export function createGoogleBilling(deps: GoogleBillingDeps): GoogleBilling {
       const planIds = catalog.basePlanIds && catalog.basePlanIds.length > 0 ? catalog.basePlanIds : [catalog.basePlanId];
       const offers: GoogleOffer[] = [];
       for (const basePlanId of planIds) {
-        // Among a base plan's offers the plain one (a single, recurring pricing phase - no store trial/intro).
+        // Among a base plan's offers ONLY the plain one (a single, recurring pricing phase). A store trial or intro offer is never used, not
+        // even as a fallback: Juple's own free month is the only free period, so a store trial would give a second one.
         const forBasePlan = (product.subscriptionOffers ?? []).filter(candidate => candidate.basePlanIdAndroid === basePlanId && candidate.offerTokenAndroid);
-        const offer = forBasePlan.find(candidate => (candidate.pricingPhasesAndroid?.pricingPhaseList.length ?? 1) === 1) ?? forBasePlan[0];
+        const offer = forBasePlan.find(candidate => (candidate.pricingPhasesAndroid?.pricingPhaseList.length ?? 1) === 1);
         if (!offer?.offerTokenAndroid) {
           continue;
         }

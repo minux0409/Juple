@@ -18,7 +18,7 @@ import { ShareIcon } from '../icons/ShareIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import type { RowSelection } from '../components/SwipeableItemRow';
-import { formatBulkResult } from '../selection/bulkResultMessage';
+import { formatBulkResult, handledRefusals } from '../selection/bulkResultMessage';
 import { runBatch } from '../selection/runBatch';
 import type { SelectionBarModel } from '../selection/SelectionBarContext';
 import { SelectionTopBar } from '../selection/SelectionTopBar';
@@ -122,7 +122,7 @@ export function useSavedLinkSelection({ items, onEdit, onOpenOriginal, onDeleted
       showNotificationToast(t('selection.addedToCollections', { links: ids.length, collections: collectionIds.length }));
     } else {
       replace(outcome.failed.map(entry => entry.id));
-      setNotice(formatBulkResult(t, { succeeded: outcome.succeeded.length, failed: outcome.failed.length }, { allKey: 'selection.addedToCollectionsAll', partialKey: 'selection.addedToCollectionsPartial' }));
+      setNotice(formatBulkResult(t, { succeeded: outcome.succeeded.length, failed: outcome.failed.length, handledRefusals: handledRefusals(outcome.failed) }, { allKey: 'selection.addedToCollectionsAll', partialKey: 'selection.addedToCollectionsPartial' }));
     }
   };
   const destinationPicker = useCollectionDestinationPicker(request, t, {
@@ -178,7 +178,7 @@ export function useSavedLinkSelection({ items, onEdit, onOpenOriginal, onDeleted
         setNotice(
           outcome.succeeded.length === 0
             ? failureText(outcome.failed[0].error, t) || t('inbox.errorDeleteFallback')
-            : formatBulkResult(t, { succeeded: outcome.succeeded.length, failed: outcome.failed.length }, { allKey: 'selection.deletedLinks', partialKey: 'selection.deletedPartial' }),
+            : formatBulkResult(t, { succeeded: outcome.succeeded.length, failed: outcome.failed.length, handledRefusals: handledRefusals(outcome.failed) }, { allKey: 'selection.deletedLinks', partialKey: 'selection.deletedPartial' }),
         );
       }
     } finally {

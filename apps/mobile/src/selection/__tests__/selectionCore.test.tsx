@@ -2,7 +2,7 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Text } from 'react-native';
 import { ApiError } from '../../api/ApiError';
 import { runBatch, BULK_CONCURRENCY } from '../runBatch';
-import { formatBulkResult } from '../bulkResultMessage';
+import { formatBulkResult, handledRefusals } from '../bulkResultMessage';
 import { useMultiSelect, type MultiSelect } from '../useMultiSelect';
 import { splitBarActions, SELECTION_BAR_SLOT_MIN_WIDTH } from '../SelectionActionBar';
 import { selectionBarSignature, type SelectionBarAction } from '../SelectionBarContext';
@@ -198,6 +198,21 @@ describe('formatBulkResult - a partial success is never worded as a full one', (
 
   it('mentions items left alone on purpose', () => {
     expect(formatBulkResult(t, { succeeded: 2, failed: 0, skipped: 1 }, keys)).toContain('selection.resultSkipped:{"count":1}');
+  });
+
+  it('every item refused for a membership: no second message - the membership prompt already said it', () => {
+    const refusal = new ApiError('forbidden', 403, 'subscriptionRequired');
+    const failed = [{ error: refusal }, { error: new ApiError('forbidden', 403, 'collectionOwnerSubscriptionRequired') }];
+    expect(handledRefusals(failed)).toBe(2);
+    expect(formatBulkResult(t, { succeeded: 0, failed: 2, handledRefusals: handledRefusals(failed) }, keys)).toBe('');
+  });
+
+  it('a refusal mixed with another failure, or a partial result, is still reported', () => {
+    const mixed = [{ error: new ApiError('forbidden', 403, 'subscriptionRequired') }, { error: new ApiError('unavailable') }];
+    expect(handledRefusals(mixed)).toBe(1);
+    expect(formatBulkResult(t, { succeeded: 0, failed: 2, handledRefusals: 1 }, keys)).toContain('selection.resultNoneSucceeded');
+    expect(formatBulkResult(t, { succeeded: 1, failed: 1, handledRefusals: 1 }, keys)).toContain('partial:');
+    expect(handledRefusals([{ error: new ApiError('forbidden', 403, 'collectionLocked') }])).toBe(0);
   });
 });
 

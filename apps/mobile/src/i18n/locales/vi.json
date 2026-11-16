@@ -1026,9 +1026,11 @@
     },
     "stateHeading": "Trạng thái gói đăng ký",
     "required": {
-      "title": "Cần có gói đăng ký",
-      "message": "Lưu và chỉnh sửa cần có gói đăng ký. Bạn vẫn xem được các liên kết và bộ sưu tập đã lưu.",
-      "later": "Để sau"
+      "title": "Tính năng này cần gói thành viên",
+      "message": "Thời gian miễn phí đã kết thúc.\n\nBạn vẫn có thể xem các liên kết và bộ sưu tập hiện có, nhưng để lưu liên kết mới hoặc chỉnh sửa nội dung, bạn cần đăng ký gói thành viên.",
+      "later": "Để sau",
+      "messageEnded": "Gói thành viên của bạn đã kết thúc.\n\nBạn vẫn có thể xem các liên kết và bộ sưu tập hiện có, nhưng để lưu liên kết mới hoặc chỉnh sửa nội dung, bạn cần đăng ký gói thành viên.",
+      "view": "Xem gói thành viên"
     },
     "ownerRequired": {
       "title": "Hiện chưa thể thay đổi",
@@ -1702,7 +1704,7 @@
   },
   "trialEnded": {
     "title": "Một tháng cùng Juple của bạn thế nào? 💜",
-    "body": "Cảm ơn bạn đã dùng Juple trong tháng vừa qua!\n\nThời gian miễn phí đã kết thúc.\n\nNếu muốn tiếp tục gìn giữ các liên kết và bộ sưu tập quý giá, hãy đăng ký gói thành viên.\n\nMọi thứ bạn đã lưu đến nay vẫn được giữ nguyên.",
+    "body": "Cảm ơn bạn đã dùng Juple trong tháng vừa qua!\n\nThời gian miễn phí đã kết thúc.\n\nMọi thứ bạn đã lưu vẫn được giữ nguyên và bạn có thể xem lại bất cứ lúc nào.\n\nNếu muốn tiếp tục lưu liên kết mới và quản lý bộ sưu tập, hãy đăng ký gói thành viên.",
     "subscribe": "Đến trang đăng ký",
     "later": "Để sau"
   }

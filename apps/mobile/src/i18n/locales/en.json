@@ -1026,9 +1026,11 @@
     },
     "stateHeading": "Subscription status",
     "required": {
-      "title": "A subscription is needed",
-      "message": "Saving and editing need a subscription. Your saved links and Collections stay available to read.",
-      "later": "Not now"
+      "title": "This needs a membership",
+      "message": "Your free period has ended.\n\nYou can still view your links and collections, but saving new links or making changes needs a membership.",
+      "later": "Not now",
+      "messageEnded": "Your membership has ended.\n\nYou can still view your links and collections, but saving new links or making changes needs a membership.",
+      "view": "View membership"
     },
     "ownerRequired": {
       "title": "Can't be changed right now",
@@ -1702,7 +1704,7 @@
   },
   "trialEnded": {
     "title": "How was your month with Juple? 💜",
-    "body": "Thank you for using Juple over the past month!\n\nYour free period has ended.\n\nTo keep growing your links and collections, please subscribe to a membership.\n\nEverything you have saved so far is kept just as it is.",
+    "body": "Thank you for using Juple over the past month!\n\nYour free period has ended.\n\nEverything you have saved is kept just as it is, and you can view it anytime.\n\nTo keep saving new links and managing your collections, please subscribe to a membership.",
     "subscribe": "Go to subscription",
     "later": "Later"
   }

@@ -403,6 +403,13 @@ export const MOBILE_STRING_KEYS = {
   trashRestore: 'trash.restoreConfirmAction',
   // 내 페이지 - subscription
   subscriptionTitle: 'subscription.title',
+  // A content change refused because the account's access ended (or the Collection owner's): the same words as the apps.
+  subscriptionRequiredTitle: 'subscription.required.title',
+  subscriptionRequiredMessage: 'subscription.required.message',
+  subscriptionRequiredMessageEnded: 'subscription.required.messageEnded',
+  subscriptionRequiredView: 'subscription.required.view',
+  subscriptionOwnerRequiredTitle: 'subscription.ownerRequired.title',
+  subscriptionOwnerRequiredMessage: 'subscription.ownerRequired.message',
   subscriptionStateHeading: 'subscription.stateHeading',
   subscriptionStatusActive: 'subscription.status.active',
   subscriptionStatusCanceled: 'subscription.status.canceled',

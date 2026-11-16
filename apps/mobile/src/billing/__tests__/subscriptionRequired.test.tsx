@@ -9,14 +9,15 @@ import { notifySubscriptionRequired, subscribeSubscriptionRequired } from '../su
 
 const mockNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: mockNavigate }) }));
-jest.mock('../../navigation/navigationRef', () => ({ navigationRef: { isReady: jest.fn(), navigate: jest.fn() } }));
-let mockEntitlement: { programEnabled: boolean; status: string | null } | null = null;
+jest.mock('../../navigation/navigationRef', () => ({ navigationRef: { isReady: jest.fn(), navigate: jest.fn(), dispatch: jest.fn() } }));
+let mockEntitlement: Record<string, unknown> | null = null;
+let mockStoreSubscription: Record<string, unknown> | null = null;
 let mockHasProvider = true;
 jest.mock('../../auth/AuthContext', () => ({
-  useOptionalAuth: () => (mockHasProvider ? { entitlement: mockEntitlement } : undefined),
+  useOptionalAuth: () => (mockHasProvider ? { entitlement: mockEntitlement, storeSubscription: mockStoreSubscription } : undefined),
 }));
 
-const nav = navigationRef as unknown as { isReady: jest.Mock; navigate: jest.Mock };
+const nav = navigationRef as unknown as { isReady: jest.Mock; navigate: jest.Mock; dispatch: jest.Mock };
 
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
@@ -24,6 +25,7 @@ beforeAll(async () => {
 beforeEach(() => {
   jest.clearAllMocks();
   mockEntitlement = null;
+  mockStoreSubscription = null;
   mockHasProvider = true;
   nav.isReady.mockReturnValue(true);
 });
@@ -50,20 +52,35 @@ describe('subscriptionRequired signal', () => {
 
 describe('SubscriptionRequiredPrompt', () => {
   it('stays hidden until a write is refused, then explains calmly and keeps reading available', () => {
+    // The free month ended and nothing was bought.
+    mockEntitlement = { programEnabled: true, status: 'expired', trialEndsAtUtc: '2026-10-31T00:00:00Z', accessFrozenAtUtc: '2026-10-31T00:00:00Z' };
+    mockStoreSubscription = { state: 'none', endedState: null };
     const renderer = render(<SubscriptionRequiredPrompt />);
     expect(dialog(renderer).props.visible).toBe(false);
 
     act(() => notifySubscriptionRequired());
 
     expect(dialog(renderer).props.visible).toBe(true);
-    expect(dialog(renderer).props.title).toBe('구독이 필요해요');
-    expect(dialog(renderer).props.message).toBe('저장하거나 수정하려면 구독이 필요해요. 저장한 링크와 컬렉션은 그대로 볼 수 있어요.');
-    expect(dialog(renderer).props.confirmLabel).toBe('구독하기');
-    expect(dialog(renderer).props.cancelLabel).toBe('나중에');
+    expect(dialog(renderer).props.title).toBe('멤버십이 필요한 기능이에요');
+    expect(dialog(renderer).props.message).toBe(
+      '무료 이용 기간이 종료되었어요.\n\n기존 링크와 컬렉션은 계속 확인할 수 있지만, 새로운 링크를 저장하거나 내용을 수정하려면 멤버십 구독이 필요해요.',
+    );
+    expect(dialog(renderer).props.confirmLabel).toBe('멤버십 보기');
+    expect(dialog(renderer).props.cancelLabel).toBe('닫기');
     expect(dialog(renderer).props.destructive).toBe(false);
   });
 
-  it('나중에 just closes; repeated refusals while open change nothing', () => {
+  it('a lapsed PAID membership is told its membership ended - never "your free period ended"', () => {
+    mockEntitlement = { programEnabled: true, status: 'expired', trialEndsAtUtc: '2026-10-31T00:00:00Z', accessFrozenAtUtc: '2026-12-31T00:00:00Z' };
+    mockStoreSubscription = { state: 'none', endedState: 'expired' };
+    const renderer = render(<SubscriptionRequiredPrompt />);
+    act(() => notifySubscriptionRequired());
+
+    expect(dialog(renderer).props.message).toContain('멤버십 이용 기간이 종료되었어요.');
+    expect(dialog(renderer).props.message).not.toContain('무료 이용 기간');
+  });
+
+  it('닫기 just closes; repeated refusals while open change nothing', () => {
     const renderer = render(<SubscriptionRequiredPrompt />);
     act(() => {
       notifySubscriptionRequired();
@@ -77,12 +94,13 @@ describe('SubscriptionRequiredPrompt', () => {
     expect(nav.navigate).not.toHaveBeenCalled();
   });
 
-  it('구독하기 opens the subscription screen', () => {
+  it('멤버십 보기 opens 내 페이지 and the Membership screen on top of it', () => {
     const renderer = render(<SubscriptionRequiredPrompt />);
     act(() => notifySubscriptionRequired());
 
     act(() => dialog(renderer).props.onConfirm());
 
+    expect(nav.navigate.mock.calls).toEqual([['MainTabs', { screen: 'MyPage' }], ['Subscription']]);
     expect(nav.navigate).toHaveBeenCalledWith('Subscription');
     expect(dialog(renderer).props.visible).toBe(false);
   });

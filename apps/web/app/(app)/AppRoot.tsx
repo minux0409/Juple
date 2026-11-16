@@ -27,7 +27,7 @@ import {
 import { getPerfRecorder } from '../../lib/perfDiagnostics';
 import { ACTIVE_CHECK_INTERVAL_MS, createSessionValidator, FOCUS_CHECK_INTERVAL_MS, type SessionValidator } from '../../lib/sessionValidation';
 import { settleReauthenticationFailure } from '../../lib/reauthFailure';
-import { parseDataExportEnabled, parseDataRetention, parseEntitlement, parseStoreSubscription, type DataRetention, type Entitlement, type StoreSubscription } from '../../lib/subscription';
+import { isFreePeriodEnded, parseDataExportEnabled, parseDataRetention, parseEntitlement, parseStoreSubscription, subscriptionRefusalOf, type DataRetention, type Entitlement, type StoreSubscription } from '../../lib/subscription';
 import type { WebAppConfig } from '../../lib/webAppConfig';
 import { AppShell } from './AppShell';
 import { TourProvider } from './TourProvider';
@@ -38,6 +38,7 @@ import { ToastProvider } from './Toaster';
 import { CenteredMessage, Landing, type BusinessFact } from './Landing';
 import { MobileAppLanding, useContinueOnWeb } from './MobileAppLanding';
 import type { AppDownload, MobileOs } from '../../lib/appDownload';
+import { ConfirmDialog } from './ConfirmDialog';
 import { ReauthDialog } from './ReauthDialog';
 import { clearStableImageUris } from '../../lib/stableImageUri';
 
@@ -158,6 +159,8 @@ export function AppRoot({
   const [terms, setTerms] = useState<TermsStatus | null>(null);
   // Entra no longer accepts this sign-in (e.g. the password was reset elsewhere): one non-dismissable "sign in again" dialog.
   const [reauthRequired, setReauthRequired] = useState(false);
+  // A content change the server refused because access ended: ONE explanation, whichever page asked (repeats while open change nothing).
+  const [subscriptionRefusal, setSubscriptionRefusal] = useState<'actor' | 'owner' | null>(null);
   const [reauthBusy, setReauthBusy] = useState(false);
   const requireReauthentication = useCallback(() => setReauthRequired(true), []);
   const validatorRef = useRef<SessionValidator | null>(null);
@@ -185,6 +188,10 @@ export function AppRoot({
             } catch (error) {
               if (isTermsRequired(error)) {
                 setTerms(previous => ({ currentVersion: previous?.currentVersion ?? '', acceptedVersion: previous?.acceptedVersion ?? null, isAccepted: false }));
+              }
+              const refusal = subscriptionRefusalOf(error);
+              if (refusal) {
+                setSubscriptionRefusal(previous => previous ?? refusal);
               }
               throw error;
             }
@@ -508,6 +515,31 @@ export function AppRoot({
     <div dir={isRtlLanguage(language) ? 'rtl' : 'ltr'} lang={language}>
       {content}
       <ReauthDialog busy={reauthBusy} dictionary={dictionary} onConfirm={() => void confirmReauthentication()} open={reauthRequired} />
+      {subscriptionRefusal === 'owner' ? (
+        <ConfirmDialog
+          confirmLabel={dictionary.confirm}
+          message={dictionary.subscriptionOwnerRequiredMessage}
+          onCancel={() => setSubscriptionRefusal(null)}
+          onConfirm={() => setSubscriptionRefusal(null)}
+          open
+          title={dictionary.subscriptionOwnerRequiredTitle}
+        />
+      ) : null}
+      {subscriptionRefusal === 'actor' ? (
+        <ConfirmDialog
+          cancelLabel={dictionary.close}
+          confirmLabel={dictionary.subscriptionRequiredView}
+          message={isFreePeriodEnded(entitlement, storeSubscription) ? dictionary.subscriptionRequiredMessage : dictionary.subscriptionRequiredMessageEnded}
+          onCancel={() => setSubscriptionRefusal(null)}
+          onConfirm={() => {
+            setSubscriptionRefusal(null);
+            // The Web sells nothing: its membership page shows the status and points to the mobile app.
+            router.push('/me/subscription');
+          }}
+          open
+          title={dictionary.subscriptionRequiredTitle}
+        />
+      ) : null}
     </div>
   );
 }

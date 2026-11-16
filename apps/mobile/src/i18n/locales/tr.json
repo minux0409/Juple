@@ -1026,9 +1026,11 @@
     },
     "stateHeading": "Abonelik durumu",
     "required": {
-      "title": "Abonelik gerekli",
-      "message": "Kaydetmek ve düzenlemek için abonelik gerekir. Kayıtlı bağlantılarınız ve koleksiyonlarınız okunmaya devam eder.",
-      "later": "Şimdi değil"
+      "title": "Bu özellik için üyelik gerekiyor",
+      "message": "Ücretsiz dönemin sona erdi.\n\nMevcut bağlantılarını ve koleksiyonlarını görmeye devam edebilirsin, ancak yeni bağlantı kaydetmek veya içerik düzenlemek için üyelik gerekir.",
+      "later": "Şimdi değil",
+      "messageEnded": "Üyeliğin sona erdi.\n\nMevcut bağlantılarını ve koleksiyonlarını görmeye devam edebilirsin, ancak yeni bağlantı kaydetmek veya içerik düzenlemek için üyelik gerekir.",
+      "view": "Üyeliği gör"
     },
     "ownerRequired": {
       "title": "Şu anda değiştirilemez",
@@ -1702,7 +1704,7 @@
   },
   "trialEnded": {
     "title": "Juple ile geçen bir ay nasıldı? 💜",
-    "body": "Geçen ay Juple’ı kullandığın için teşekkürler!\n\nÜcretsiz dönemin sona erdi.\n\nDeğerli bağlantılarını ve koleksiyonlarını sürdürmek istersen bir üyeliğe abone ol.\n\nŞimdiye kadar kaydettiğin her şey olduğu gibi saklanır.",
+    "body": "Geçen ay Juple’ı kullandığın için teşekkürler!\n\nÜcretsiz dönemin sona erdi.\n\nKaydettiğin her şey olduğu gibi saklanır ve istediğin zaman görebilirsin.\n\nYeni bağlantılar kaydetmeye ve koleksiyonlarını yönetmeye devam etmek istersen bir üyeliğe abone ol.",
     "subscribe": "Aboneliğe git",
     "later": "Sonra"
   }

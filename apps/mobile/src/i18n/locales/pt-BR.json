@@ -1026,9 +1026,11 @@
     },
     "stateHeading": "Status da assinatura",
     "required": {
-      "title": "É necessária uma assinatura",
-      "message": "Salvar e editar exigem uma assinatura. Seus links e coleções salvos continuam disponíveis para leitura.",
-      "later": "Agora não"
+      "title": "Este recurso precisa de uma assinatura",
+      "message": "Seu período gratuito terminou.\n\nVocê ainda pode ver seus links e coleções, mas para salvar novos links ou fazer alterações é preciso ter uma assinatura.",
+      "later": "Agora não",
+      "messageEnded": "Sua assinatura terminou.\n\nVocê ainda pode ver seus links e coleções, mas para salvar novos links ou fazer alterações é preciso ter uma assinatura.",
+      "view": "Ver assinatura"
     },
     "ownerRequired": {
       "title": "Não pode ser alterada agora",
@@ -1702,7 +1704,7 @@
   },
   "trialEnded": {
     "title": "Como foi seu mês com o Juple? 💜",
-    "body": "Obrigado por usar o Juple no último mês!\n\nSeu período gratuito terminou.\n\nSe quiser continuar cuidando dos seus links e coleções, assine um plano.\n\nTudo o que você salvou até agora continua guardado do jeito que está.",
+    "body": "Obrigado por usar o Juple no último mês!\n\nSeu período gratuito terminou.\n\nTudo o que você salvou continua guardado do jeito que está, e você pode ver quando quiser.\n\nSe quiser continuar salvando novos links e organizando suas coleções, assine um plano.",
     "subscribe": "Ir para a assinatura",
     "later": "Depois"
   }

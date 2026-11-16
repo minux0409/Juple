@@ -1026,9 +1026,11 @@
     },
     "stateHeading": "Abo-Status",
     "required": {
-      "title": "Ein Abo ist nötig",
-      "message": "Zum Speichern und Bearbeiten ist ein Abo nötig. Deine gespeicherten Links und Sammlungen kannst du weiterhin ansehen.",
-      "later": "Nicht jetzt"
+      "title": "Dafür brauchst du eine Mitgliedschaft",
+      "message": "Dein Gratiszeitraum ist beendet.\n\nDu kannst deine Links und Sammlungen weiterhin ansehen, aber zum Speichern neuer Links oder für Änderungen brauchst du eine Mitgliedschaft.",
+      "later": "Nicht jetzt",
+      "messageEnded": "Deine Mitgliedschaft ist beendet.\n\nDu kannst deine Links und Sammlungen weiterhin ansehen, aber zum Speichern neuer Links oder für Änderungen brauchst du eine Mitgliedschaft.",
+      "view": "Mitgliedschaft ansehen"
     },
     "ownerRequired": {
       "title": "Gerade nicht änderbar",
@@ -1702,7 +1704,7 @@
   },
   "trialEnded": {
     "title": "Wie war dein Monat mit Juple? 💜",
-    "body": "Danke, dass du Juple im letzten Monat genutzt hast!\n\nDein Gratiszeitraum ist beendet.\n\nWenn du deine Links und Sammlungen weiterführen möchtest, schließe bitte eine Mitgliedschaft ab.\n\nAlles, was du bisher gespeichert hast, bleibt unverändert erhalten.",
+    "body": "Danke, dass du Juple im letzten Monat genutzt hast!\n\nDein Gratiszeitraum ist beendet.\n\nAlles, was du gespeichert hast, bleibt unverändert erhalten und du kannst es jederzeit ansehen.\n\nWenn du weiterhin neue Links speichern und deine Sammlungen verwalten möchtest, schließe bitte eine Mitgliedschaft ab.",
     "subscribe": "Zum Abo",
     "later": "Später"
   }

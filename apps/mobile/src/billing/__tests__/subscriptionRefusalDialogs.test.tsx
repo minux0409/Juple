@@ -11,7 +11,7 @@ import { SubscriptionRequiredPrompt } from '../SubscriptionRequiredPrompt';
 import { isHandledSubscriptionRefusal, unlessRefusalHandled } from '../subscriptionRequired';
 
 jest.mock('../../api/apiConfig', () => ({ apiConfig: { baseUrl: 'https://api.test' } }));
-jest.mock('../../navigation/navigationRef', () => ({ navigationRef: { isReady: jest.fn(() => true), navigate: jest.fn() } }));
+jest.mock('../../navigation/navigationRef', () => ({ navigationRef: { isReady: jest.fn(() => true), navigate: jest.fn(), dispatch: jest.fn() } }));
 const { navigationRef } = jest.requireMock('../../navigation/navigationRef') as { navigationRef: { navigate: jest.Mock } };
 
 /**
@@ -90,7 +90,7 @@ describe('a refused write shows exactly one dialog', () => {
 
     const dialogs = openDialogs(renderer);
     expect(dialogs).toHaveLength(1);
-    expect(dialogs[0]).toContain('구독이 필요해요');
+    expect(dialogs[0]).toContain('멤버십이 필요한 기능이에요');
   });
 
   it('403 collectionOwnerSubscriptionRequired: only the owner notice (no subscribe button, nothing to buy)', async () => {
@@ -102,7 +102,7 @@ describe('a refused write shows exactly one dialog', () => {
     const dialogs = openDialogs(renderer);
     expect(dialogs).toHaveLength(1);
     expect(dialogs[0]).toContain('지금은 변경할 수 없어요');
-    expect(dialogs[0]).not.toContain('구독하기');
+    expect(dialogs[0]).not.toContain('멤버십 보기');
   });
 
   it('the owner notice only closes - it never opens the subscription screen', async () => {
@@ -118,14 +118,14 @@ describe('a refused write shows exactly one dialog', () => {
     expect(openDialogs(renderer)).toHaveLength(0);
   });
 
-  it('구독하기 on the actor prompt opens the subscription screen', async () => {
+  it('멤버십 보기 on the actor prompt opens the Membership screen', async () => {
     respondWith(403, { code: 'subscriptionRequired' });
     const renderer = mount();
     await press(renderer);
 
-    act(() => renderer.root.findAllByType(ConfirmDialog).find(dialog => dialog.props.title === '구독이 필요해요')!.props.onConfirm());
+    act(() => renderer.root.findAllByType(ConfirmDialog).find(dialog => dialog.props.title === '멤버십이 필요한 기능이에요')!.props.onConfirm());
 
-    expect(navigationRef.navigate).toHaveBeenCalledWith('Subscription');
+    expect(navigationRef.navigate.mock.calls).toEqual([['MainTabs', { screen: 'MyPage' }], ['Subscription']]);
   });
 
   it.each([
@@ -141,7 +141,7 @@ describe('a refused write shows exactly one dialog', () => {
 
     const dialogs = openDialogs(renderer);
     expect(dialogs).toHaveLength(1);
-    expect(dialogs[0]).not.toContain('구독이 필요해요');
+    expect(dialogs[0]).not.toContain('멤버십이 필요한 기능이에요');
     expect(dialogs[0].length).toBeGreaterThan(0);
   });
 
@@ -152,14 +152,14 @@ describe('a refused write shows exactly one dialog', () => {
     await press(renderer);
 
     expect(openDialogs(renderer)).toHaveLength(1);
-    expect(openDialogs(renderer)[0]).not.toContain('구독이 필요해요');
+    expect(openDialogs(renderer)[0]).not.toContain('멤버십이 필요한 기능이에요');
   });
 
   it('an unrelated normal notice right after the subscription dialog opens normally - nothing is swallowed by time', async () => {
     respondWith(403, { code: 'subscriptionRequired' });
     const renderer = mount();
     await press(renderer);
-    act(() => renderer.root.findAllByType(ConfirmDialog).find(dialog => dialog.props.title === '구독이 필요해요')!.props.onCancel());
+    act(() => renderer.root.findAllByType(ConfirmDialog).find(dialog => dialog.props.title === '멤버십이 필요한 기능이에요')!.props.onCancel());
 
     await press(renderer, 'unrelated');
 
