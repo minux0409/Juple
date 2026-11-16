@@ -8,7 +8,9 @@ import { MembershipHeader, NoPaymentNeededNote, TrialPeriodCard } from '../billi
 import { describeTrialProgress, membershipBadge, otherStoreHolding } from '../billing/membershipModel';
 import { useSubscriptionStore } from '../billing/useSubscriptionStore';
 import type { SubscriptionPlan } from '../billing/subscriptionStore';
-import { computeAnnualSavings, discountBadgePercent, formatMoney, yearlyPerMonthAmount, type PlanKey } from '../billing/subscriptionPricing';
+import { describePaymentSummary } from '../billing/paymentSummary';
+import { SelectedPlanFrame } from '../billing/SelectedPlanFrame';
+import { computeAnnualSavings, discountBadgePercent, formatMoney, formatPercent, yearlyPerMonthAmount, type PlanKey } from '../billing/subscriptionPricing';
 import { describeSubscription, isSubscribedView } from '../billing/subscriptionStatus';
 import type { OfferUnavailableReason, PurchaseResult, RestoreResult } from '../billing/types';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -206,8 +208,17 @@ export function SubscriptionScreen() {
   const badgePercent = discountBadgePercent(savings);
   const perMonthAmount = yearly ? yearlyPerMonthAmount({ key: 'yearly', priceAmount: yearly.priceAmount, currencyCode: yearly.currencyCode }) : null;
 
-  // The amount of the next charge is shown only alongside a date it is charged on, and is the store's current price for the chosen plan.
-  const offerPrice = chosen?.localizedPrice ?? monthly?.localizedPrice ?? null;
+  // A subscriber's own plan, when the store can tell it from the reported product (the App Store can; Google Play's two plans share one
+  // product, so there it stays unknown). Never the card someone happens to have selected.
+  const isSubscribed = isSubscribedView(view);
+  // What subscribing NOW would mean, for the chosen plan: first payment today, the next renewal one period later. Re-derived on every
+  // selection; never shown to a subscriber (whose dates are the store's and the server's).
+  const summary = !isSubscribed && chosen ? describePaymentSummary(chosen.key, new Date()) : null;
+  const formatLongDate = (value: string | Date) => new Intl.DateTimeFormat(i18n.language, { year: 'numeric', month: 'long', day: 'numeric' }).format(typeof value === 'string' ? new Date(value) : value);
+  const subscribedPlan = isSubscribed ? store.planOfSubscription(storeSubscription?.productId) : null;
+  // The amount of the next charge is shown only alongside a date it is charged on, and only as the store's current price of the plan the
+  // subscription is ON - an unknown plan shows no amount rather than a guessed one.
+  const offerPrice = subscribedPlan ? plans.find(plan => plan.key === subscribedPlan)?.localizedPrice ?? null : null;
 
   // Rows are only the facts the Backend actually has; a missing value is a missing row, never an estimate.
   const rows: { readonly id: string; readonly label: string; readonly value: string }[] = [];
@@ -243,7 +254,6 @@ export function SubscriptionScreen() {
     default:
       break;
   }
-  const isSubscribed = isSubscribedView(view);
   // Subscribed through the OTHER store (bought on Android, now on an iPhone, or the reverse): this device cannot manage it, so it says where.
   const otherStore = otherStoreHolding(storeSubscription ?? null, Platform.OS);
   const showManage = isSubscribed && store.canManageSubscription && otherStore === null;
@@ -264,20 +274,24 @@ export function SubscriptionScreen() {
   const cancelHow = Platform.OS === 'ios' ? t('subscription.billing.cancelHowIos') : t('subscription.billing.cancelHowAndroid');
 
   const renderPlan = (plan: SubscriptionPlan) => {
-    const isSelected = selected === plan.key;
+    // A subscriber's cards only show their plan: choosing a card changes nothing about an existing subscription (switching plans is the
+    // store's own upgrade / downgrade, from Manage).
+    const isSelected = (isSubscribed ? subscribedPlan : selected) === plan.key;
+    const isDisabled = isBusy || isSubscribed;
     const isYearly = plan.key === 'yearly';
     const locale = i18n.language;
     return (
       <Pressable
         accessibilityLabel={`${planName(plan.key)}, ${planPrice(plan)}, ${renewText(plan.key)}`}
         accessibilityRole="radio"
-        accessibilityState={{ checked: isSelected, disabled: isBusy }}
-        disabled={isBusy}
+        accessibilityState={{ checked: isSelected, disabled: isDisabled }}
+        disabled={isDisabled}
         key={plan.key}
         onPress={() => setSelected(plan.key)}
         style={[styles.planCard, isSelected && styles.planCardSelected]}
         testID={`subscription-plan-${plan.key}`}
       >
+        <SelectedPlanFrame radius={radii.lg} selected={isSelected} />
         <View style={styles.planHeader}>
           <View style={[styles.radio, isSelected && styles.radioSelected]}>{isSelected ? <View style={styles.radioDot} /> : null}</View>
           <Text lineBreakStrategyIOS="hangul-word" numberOfLines={2} style={styles.planTitle}>{planName(plan.key)}</Text>
@@ -288,7 +302,7 @@ export function SubscriptionScreen() {
         {isYearly ? null : <Text lineBreakStrategyIOS="hangul-word" style={styles.planNote} testID="subscription-manage-anytime">{t('subscription.plan.manageAnytime')}</Text>}
         {isYearly && badgePercent !== null ? (
           <View style={styles.savingRow}>
-            <Text lineBreakStrategyIOS="hangul-word" style={styles.discountText} testID="subscription-discount-badge">{t('subscription.plan.discountBadge', { percent: badgePercent })}</Text>
+            <Text lineBreakStrategyIOS="hangul-word" style={styles.discountText} testID="subscription-discount-badge">{t('subscription.plan.discountBadge', { percent: formatPercent(badgePercent, locale) })}</Text>
             {savings ? <Text lineBreakStrategyIOS="hangul-word" style={styles.planNote} testID="subscription-savings">{t('subscription.plan.saveAmount', { amount: formatMoney(savings.amount, savings.currencyCode, locale) })}</Text> : null}
           </View>
         ) : null}
@@ -332,6 +346,30 @@ export function SubscriptionScreen() {
 
         {isSubscribed ? null : (
           <>
+            {summary && chosen ? (
+              <View style={[styles.card, styles.summaryCard]} testID="subscription-payment-summary">
+                <Text accessibilityRole="header" lineBreakStrategyIOS="hangul-word" style={styles.summaryTitle}>{t('subscription.summary.title')}</Text>
+                {[
+                  { id: 'plan', label: t('subscription.summary.plan'), value: planName(chosen.key) },
+                  { id: 'price', label: t('subscription.summary.price'), value: planPrice(chosen) },
+                  ...(trial ? [{ id: 'freeEnds', label: t('subscription.summary.freePeriodEnds'), value: formatLongDate(trial.endsAtUtc) }] : []),
+                  { id: 'firstPayment', label: t('subscription.summary.firstPayment'), value: formatLongDate(summary.firstPaymentDate) },
+                  { id: 'nextRenewal', label: t('subscription.summary.nextRenewal'), value: formatLongDate(summary.nextRenewalDate) },
+                ].map(row => (
+                  <View key={row.id} style={styles.row} testID={`subscription-summary-${row.id}`}>
+                    <Text lineBreakStrategyIOS="hangul-word" style={styles.rowLabel}>{row.label}</Text>
+                    <Text lineBreakStrategyIOS="hangul-word" style={styles.rowValue} testID={`subscription-summary-${row.id}-value`}>{row.value}</Text>
+                  </View>
+                ))}
+                {trial ? (
+                  <>
+                    <Text lineBreakStrategyIOS="hangul-word" style={styles.summaryNote} testID="subscription-summary-no-auto-convert">{t('membership.trialPurchase.noAutoConvert')}</Text>
+                    <Text lineBreakStrategyIOS="hangul-word" style={styles.summaryNote} testID="subscription-summary-charge-now">{t('membership.trialPurchase.chargeNow')}</Text>
+                  </>
+                ) : null}
+                <Text lineBreakStrategyIOS="hangul-word" style={styles.summaryEstimate}>{t('subscription.summary.estimate')}</Text>
+              </View>
+            ) : null}
             <Pressable
               accessibilityRole="button"
               accessibilityState={{ disabled: !isReady || isBusy, busy: isBusy }}
@@ -440,8 +478,13 @@ const styles = themedStyles(() => ({
   card: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg, ...cardShadow },
   accessCard: { paddingVertical: spacing.md },
   planGroup: { gap: spacing.md },
+  summaryCard: { marginTop: spacing.lg },
+  summaryTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
+  summaryNote: { color: colors.textPrimary, fontSize: 13, lineHeight: 19, marginTop: spacing.md },
+  summaryEstimate: { color: colors.textSecondary, fontSize: 12, lineHeight: 17, marginTop: spacing.sm },
   planCard: { backgroundColor: colors.surface, borderColor: colors.inputBorder, borderRadius: radii.lg, borderWidth: 1.5, padding: spacing.lg },
-  planCardSelected: { backgroundColor: colors.brandSoft, borderColor: colors.brand, borderWidth: 2 },
+  // The selected edge is SelectedPlanFrame's gradient, drawn over a transparent border of the same width (no layout shift).
+  planCardSelected: { backgroundColor: colors.brandSoft, borderColor: 'transparent' },
   planHeader: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   planTitle: { color: colors.textPrimary, flexShrink: 1, fontSize: 17, fontWeight: '700' },
   radio: { alignItems: 'center', borderColor: colors.inputBorder, borderRadius: 11, borderWidth: 2, height: 22, justifyContent: 'center', width: 22 },

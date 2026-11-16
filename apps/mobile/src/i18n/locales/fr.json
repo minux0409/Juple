@@ -1079,6 +1079,15 @@
       "freeNotice": "Les 30 jours gratuits de Juple débutent à votre inscription et ne sont pas un essai gratuit de la boutique. Si vous vous abonnez maintenant, vous êtes facturé immédiatement, même s'il reste des jours gratuits.",
       "cancelHowAndroid": "Résiliez à tout moment dans Google Play > Paiements et abonnements > Abonnements. Vous conservez l'accès jusqu'à la fin de la période payée.",
       "cancelHowIos": "Résiliez à tout moment dans les réglages de l'identifiant Apple > Abonnements. Vous conservez l'accès jusqu'à la fin de la période payée."
+    },
+    "summary": {
+      "title": "Récapitulatif du paiement",
+      "plan": "Formule choisie",
+      "price": "Prix de l’abonnement",
+      "freePeriodEnds": "Fin de la période gratuite",
+      "firstPayment": "Premier paiement (si vous vous abonnez aujourd’hui)",
+      "nextRenewal": "Prochain renouvellement",
+      "estimate": "Les dates sont estimées. L’App Store ou Google Play affiche les conditions exactes avant le paiement."
     }
   },
   "appUpdate": {
@@ -1690,7 +1699,9 @@
     "trialPurchase": {
       "title": "En vous abonnant maintenant, vous payez dès aujourd’hui",
       "message": "Même s’il vous reste des jours gratuits, l’abonnement prélève le premier paiement aujourd’hui, et les jours gratuits restants ne s’ajoutent pas à la période payante.\n\nSi vous vous abonnez après la fin de la période gratuite, vos liens et collections enregistrés restent tels quels.",
-      "confirm": "M’abonner maintenant"
+      "confirm": "M’abonner maintenant",
+      "noAutoConvert": "Votre période gratuite Juple ne se transforme pas automatiquement en abonnement payant.",
+      "chargeNow": "En vous abonnant maintenant, vous pouvez être débité immédiatement."
     },
     "otherStore": {
       "google": "Vous êtes abonné via Google Play. Gérez ou résiliez l’abonnement dans Google Play.",

@@ -1079,6 +1079,15 @@
       "freeNotice": "Juple 的 30 天免費使用期自註冊日起計算，並非商店的免費試用。現在訂閱將立即扣款，即使免費期尚未結束。",
       "cancelHowAndroid": "您可隨時在 Google Play「付款與訂閱」>「訂閱」中取消。取消後，已付費的期間結束前仍可繼續使用。",
       "cancelHowIos": "您可隨時在 Apple ID 設定 >「訂閱」中取消。取消後，已付費的期間結束前仍可繼續使用。"
+    },
+    "summary": {
+      "title": "付款摘要",
+      "plan": "所選方案",
+      "price": "訂閱價格",
+      "freePeriodEnds": "免費期結束日期",
+      "firstPayment": "首次付款日期（今天訂閱）",
+      "nextRenewal": "下次續訂日期",
+      "estimate": "日期僅供參考。付款前，App Store 或 Google Play 會顯示確切條款。"
     }
   },
   "appUpdate": {
@@ -1690,7 +1699,9 @@
     "trialPurchase": {
       "title": "現在訂閱將於今天扣款",
       "message": "即使免費期尚未結束，開始訂閱後也會在今天進行首次扣款，剩餘的免費天數不會加到付費期中。\n\n在免費期結束後再訂閱，已儲存的連結和收藏集也會照常保留。",
-      "confirm": "立即訂閱"
+      "confirm": "立即訂閱",
+      "noAutoConvert": "Juple 免費期不會自動轉為付費訂閱。",
+      "chargeNow": "現在訂閱可能會立即扣款。"
     },
     "otherStore": {
       "google": "你正在透過 Google Play 訂閱。請在 Google Play 中管理或取消。",

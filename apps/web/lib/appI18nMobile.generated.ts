@@ -1884,7 +1884,7 @@ export const MOBILE_STRINGS: Readonly<Record<AppLanguage, Readonly<Record<Mobile
     membershipDataKept: "We don't delete your saved links or collections.",
     membershipPlanMonthlyName: "Monthly membership",
     membershipPlanYearlyName: "Yearly membership",
-    membershipPlanRecommended: "Best value",
+    membershipPlanRecommended: "Recommended",
     membershipPlanMonthlyRenew: "Renews automatically every month",
     membershipPlanYearlyRenew: "Renews automatically every year",
     membershipCancelHowAndroid: "Cancel anytime in Google Play > Payments & subscriptions > Subscriptions. You keep access until the end of the period you paid for.",

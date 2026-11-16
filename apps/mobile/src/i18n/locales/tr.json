@@ -1079,6 +1079,15 @@
       "freeNotice": "Juple'ın 30 günlük ücretsiz kullanımı kayıt tarihinizden itibaren başlar ve mağazanın ücretsiz denemesi değildir. Şimdi abone olursanız, ücretsiz günleriniz kalmış olsa bile hemen ücretlendirilirsiniz.",
       "cancelHowAndroid": "Google Play > Ödemeler ve abonelikler > Abonelikler bölümünden istediğiniz zaman iptal edebilirsiniz. Ödediğiniz dönemin sonuna kadar erişiminiz sürer.",
       "cancelHowIos": "Apple Kimliği ayarları > Abonelikler bölümünden istediğiniz zaman iptal edebilirsiniz. Ödediğiniz dönemin sonuna kadar erişiminiz sürer."
+    },
+    "summary": {
+      "title": "Ödeme özeti",
+      "plan": "Seçilen plan",
+      "price": "Abonelik fiyatı",
+      "freePeriodEnds": "Ücretsiz dönemin bitişi",
+      "firstPayment": "İlk ödeme (bugün abone olursan)",
+      "nextRenewal": "Sonraki yenileme",
+      "estimate": "Tarihler tahminidir. Kesin koşulları ödemeden önce App Store veya Google Play gösterir."
     }
   },
   "appUpdate": {
@@ -1690,7 +1699,9 @@
     "trialPurchase": {
       "title": "Şimdi abone olursan ücret bugün alınır",
       "message": "Ücretsiz günlerin kalmış olsa bile abonelik başladığında ilk ödeme bugün alınır ve kalan ücretsiz günler ücretli döneme eklenmez.\n\nÜcretsiz dönem bittikten sonra abone olursan da kaydettiğin bağlantılar ve koleksiyonlar aynen devam eder.",
-      "confirm": "Şimdi abone ol"
+      "confirm": "Şimdi abone ol",
+      "noAutoConvert": "Juple ücretsiz dönemin otomatik olarak ücretli aboneliğe dönüşmez.",
+      "chargeNow": "Şimdi abone olursan ücret hemen alınabilir."
     },
     "otherStore": {
       "google": "Google Play üzerinden abonesin. Aboneliği Google Play’de yönetebilir veya iptal edebilirsin.",

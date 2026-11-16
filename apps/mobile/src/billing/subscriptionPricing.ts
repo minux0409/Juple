@@ -52,16 +52,25 @@ export function computeAnnualSavings(monthly: PricedPlan | null, yearly: PricedP
 }
 
 /**
- * The whole-number percent for the "about N% off" badge - the real local discount rounded, or null when there is nothing to claim
- * (no saving, or a saving under one percent). It is never a fixed number: the US pair gives 17 because 16.67 rounds to 17, while a
- * country whose yearly price is not 10/12 of twelve months gets its own figure (or no badge).
+ * The percent for the "about N% off" badge - the real local discount to one decimal (the US pair: 16.67 -> 16.7), or null when there is
+ * nothing to claim (no saving, or a saving under one percent). It is never a fixed number: a country whose yearly price is not 10/12 of
+ * twelve months gets its own figure (or no badge). Shown with formatPercent, in the person's own number format.
  */
 export function discountBadgePercent(savings: AnnualSavings | null): number | null {
   if (!savings || savings.percent < MIN_BADGE_PERCENT) {
     return null;
   }
-  const rounded = Math.round(savings.percent);
-  return rounded >= 1 && rounded <= 99 ? rounded : null;
+  const rounded = Math.round(savings.percent * 10) / 10;
+  return rounded >= 1 && rounded < 100 ? rounded : null;
+}
+
+/** A badge percent in the locale's own digits and decimal mark, without a trailing ".0" (16.7 / 16,7 / 20). */
+export function formatPercent(value: number, locale?: string): string {
+  try {
+    return new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value);
+  } catch {
+    return String(value);
+  }
 }
 
 /** Money in the person's own locale and the store's currency; falls back to a plain "amount CODE" where Intl is unavailable. */

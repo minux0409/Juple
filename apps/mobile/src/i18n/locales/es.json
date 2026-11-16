@@ -1079,6 +1079,15 @@
       "freeNotice": "Los 30 días gratis de Juple se cuentan desde tu registro y no son una prueba gratuita de la tienda. Si te suscribes ahora, se te cobra de inmediato aunque te queden días gratis.",
       "cancelHowAndroid": "Puedes cancelar cuando quieras en Google Play > Pagos y suscripciones > Suscripciones. Seguirás teniendo acceso hasta el final del periodo pagado.",
       "cancelHowIos": "Puedes cancelar cuando quieras en Ajustes del ID de Apple > Suscripciones. Seguirás teniendo acceso hasta el final del periodo pagado."
+    },
+    "summary": {
+      "title": "Resumen del pago",
+      "plan": "Plan elegido",
+      "price": "Precio de la suscripción",
+      "freePeriodEnds": "Fin del periodo gratuito",
+      "firstPayment": "Primer pago (si te suscribes hoy)",
+      "nextRenewal": "Próxima renovación",
+      "estimate": "Las fechas son estimadas. El App Store o Google Play muestran las condiciones exactas antes de pagar."
     }
   },
   "appUpdate": {
@@ -1690,7 +1699,9 @@
     "trialPurchase": {
       "title": "Si te suscribes ahora, se cobra hoy",
       "message": "Aunque te queden días gratis, al empezar la suscripción se cobra el primer pago hoy y los días gratis restantes no se suman al periodo de pago.\n\nSi te suscribes cuando termine el periodo gratuito, tus enlaces y colecciones guardados siguen igual.",
-      "confirm": "Suscribirme ahora"
+      "confirm": "Suscribirme ahora",
+      "noAutoConvert": "Tu periodo gratuito de Juple no se convierte automáticamente en una suscripción de pago.",
+      "chargeNow": "Si te suscribes ahora, es posible que se te cobre de inmediato."
     },
     "otherStore": {
       "google": "Tienes una suscripción a través de Google Play. Gestiónala o cancélala en Google Play.",

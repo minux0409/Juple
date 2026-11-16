@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Linking, Platform } from 'react-native';
 import type { AppleBilling } from './appleBilling';
 import type { GoogleBilling } from './googleBilling';
+import type { PlanKey } from './subscriptionPricing';
 import type { SubscriptionPlan, SubscriptionStore } from './subscriptionStore';
 import { useAppleBilling } from './useAppleBilling';
 import { useGoogleBilling } from './useGoogleBilling';
@@ -39,16 +40,21 @@ export function createGoogleSubscriptionStore(billing: GoogleBilling): Subscript
     restore: () => billing.restore(),
     canManageSubscription: Platform.OS === 'android',
     openSubscriptionManagement: () => Linking.openURL(PLAY_SUBSCRIPTIONS_URL),
+    // Monthly and yearly are two base plans of one Play product: the product id alone never tells them apart.
+    planOfSubscription: () => null,
   };
 }
 
 /** The App Store behind the same contract: the product ids and the App Account Token stay inside the StoreKit layer. */
 export function createAppleSubscriptionStore(billing: AppleBilling): SubscriptionStore {
+  // The App Store's own product ids of the loaded plans: each plan is its own product, so a reported subscription names its plan.
+  const planByProduct = new Map<string, PlanKey>();
   const loadPlans: SubscriptionStore['loadPlans'] = async () => {
     const result = await billing.loadPlans();
     if (result.kind !== 'ready') {
       return result;
     }
+    result.plans.forEach(plan => planByProduct.set(plan.productId, plan.plan));
     return {
       kind: 'ready',
       plans: result.plans.map(plan => ({ key: plan.plan, localizedPrice: plan.localizedPrice, currencyCode: plan.currencyCode, billingPeriod: plan.billingPeriod, priceAmount: plan.priceAmount })),
@@ -68,6 +74,7 @@ export function createAppleSubscriptionStore(billing: AppleBilling): Subscriptio
     restore: () => billing.restore(),
     canManageSubscription: Platform.OS === 'ios',
     openSubscriptionManagement: () => Linking.openURL(APP_STORE_SUBSCRIPTIONS_URL),
+    planOfSubscription: productId => (productId ? planByProduct.get(productId) ?? null : null),
   };
 }
 

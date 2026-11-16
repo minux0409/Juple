@@ -1,8 +1,9 @@
 jest.mock('../useGoogleBilling', () => ({ useGoogleBilling: jest.fn() }));
 jest.mock('../useAppleBilling', () => ({ useAppleBilling: jest.fn() }));
 
+import type { AppleBilling } from '../appleBilling';
 import type { GoogleBilling } from '../googleBilling';
-import { createGoogleSubscriptionStore } from '../useSubscriptionStore';
+import { createAppleSubscriptionStore, createGoogleSubscriptionStore } from '../useSubscriptionStore';
 
 function fakeBilling(overrides: Partial<GoogleBilling> = {}): GoogleBilling {
   return {
@@ -67,5 +68,31 @@ describe('createGoogleSubscriptionStore', () => {
       Platform.OS = original;
       openURL.mockRestore();
     }
+  });
+});
+
+describe('which plan a reported subscription is on', () => {
+  it('the App Store names it from its own product ids once the plans are loaded; an unknown product is null', async () => {
+    const apple = {
+      loadPlans: jest.fn().mockResolvedValue({
+        kind: 'ready',
+        plans: [
+          { plan: 'yearly', productId: 'com.juple.app.membership.yearly', localizedPrice: '$19.90', priceAmount: 19.9, currencyCode: 'USD', billingPeriod: 'P1Y' },
+          { plan: 'monthly', productId: 'com.juple.app.membership.monthly', localizedPrice: '$1.99', priceAmount: 1.99, currencyCode: 'USD', billingPeriod: 'P1M' },
+        ],
+      }),
+    } as unknown as AppleBilling;
+    const store = createAppleSubscriptionStore(apple);
+
+    expect(store.planOfSubscription('com.juple.app.membership.monthly')).toBeNull();
+    await store.loadPlans();
+    expect(store.planOfSubscription('com.juple.app.membership.monthly')).toBe('monthly');
+    expect(store.planOfSubscription('com.juple.app.membership.yearly')).toBe('yearly');
+    expect(store.planOfSubscription('something.else')).toBeNull();
+    expect(store.planOfSubscription(null)).toBeNull();
+  });
+
+  it('Google Play never guesses: monthly and yearly are two base plans of one product', () => {
+    expect(createGoogleSubscriptionStore(fakeBilling()).planOfSubscription('juple_monthly')).toBeNull();
   });
 });

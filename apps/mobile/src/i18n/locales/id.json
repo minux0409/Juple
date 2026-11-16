@@ -1079,6 +1079,15 @@
       "freeNotice": "30 hari gratis Juple dihitung sejak Anda mendaftar dan bukan uji coba gratis dari toko aplikasi. Jika Anda berlangganan sekarang, Anda langsung ditagih meski masih ada hari gratis.",
       "cancelHowAndroid": "Batalkan kapan saja di Google Play > Pembayaran & langganan > Langganan. Anda tetap bisa mengakses sampai akhir periode yang sudah dibayar.",
       "cancelHowIos": "Batalkan kapan saja di pengaturan ID Apple > Langganan. Anda tetap bisa mengakses sampai akhir periode yang sudah dibayar."
+    },
+    "summary": {
+      "title": "Ringkasan pembayaran",
+      "plan": "Paket yang dipilih",
+      "price": "Harga langganan",
+      "freePeriodEnds": "Masa gratis berakhir",
+      "firstPayment": "Pembayaran pertama (jika berlangganan hari ini)",
+      "nextRenewal": "Perpanjangan berikutnya",
+      "estimate": "Tanggal hanya perkiraan. App Store atau Google Play menampilkan ketentuan pastinya sebelum kamu membayar."
     }
   },
   "appUpdate": {
@@ -1690,7 +1699,9 @@
     "trialPurchase": {
       "title": "Berlangganan sekarang berarti ditagih hari ini",
       "message": "Meski masa gratis masih tersisa, saat mulai berlangganan pembayaran pertama ditagih hari ini, dan sisa hari gratis tidak ditambahkan ke masa berbayar.\n\nJika kamu berlangganan setelah masa gratis berakhir, tautan dan koleksi yang tersimpan tetap sama.",
-      "confirm": "Berlangganan sekarang"
+      "confirm": "Berlangganan sekarang",
+      "noAutoConvert": "Masa gratis Juple tidak otomatis berubah menjadi langganan berbayar.",
+      "chargeNow": "Berlangganan sekarang bisa langsung ditagih."
     },
     "otherStore": {
       "google": "Kamu berlangganan melalui Google Play. Kelola atau batalkan di Google Play.",

@@ -40,6 +40,7 @@ beforeEach(() => {
     restore: jest.fn(),
     canManageSubscription: true,
     openSubscriptionManagement: jest.fn().mockResolvedValue(undefined),
+    planOfSubscription: jest.fn(() => null),
   } as unknown as jest.Mocked<SubscriptionStore>;
   jest.mocked(useSubscriptionStore).mockReturnValue(store);
   jest.mocked(useOptionalAuth).mockReturnValue(undefined);
@@ -81,7 +82,7 @@ describe('membership plans', () => {
   it('computes the discount from THIS storefront: the US pair says about 17% and the saved amount', async () => {
     const renderer = await renderScreen();
 
-    expect(all(renderer, 'subscription-discount-badge')[0].props.children).toBe('About 17% off');
+    expect(all(renderer, 'subscription-discount-badge')[0].props.children).toBe('Save about 16.7%');
     expect(text(renderer)).toContain('Save $3.98 compared with 12 monthly payments');
     expect(text(renderer)).toContain('About $1.66 per month');
   });
@@ -90,7 +91,7 @@ describe('membership plans', () => {
     store.loadPlans.mockResolvedValue({ kind: 'ready', plans: [plan('monthly', '₩3,000', 3000, 'KRW'), plan('yearly', '₩24,000', 24000, 'KRW')] });
     const renderer = await renderScreen();
 
-    expect(all(renderer, 'subscription-discount-badge')[0].props.children).toBe('About 33% off');
+    expect(all(renderer, 'subscription-discount-badge')[0].props.children).toBe('Save about 33.3%');
     expect(text(renderer)).not.toContain('17%');
   });
 
@@ -173,7 +174,95 @@ describe('membership plans', () => {
 
     expect(text(renderer)).toContain('₩29,000 / 년');
     expect(text(renderer)).toContain('₩2,900 / 월');
-    expect(all(renderer, 'subscription-discount-badge')[0].props.children).toBe('약 17% 할인');
+    expect(all(renderer, 'subscription-discount-badge')[0].props.children).toBe('약 16.7% 할인');
     await i18n.changeLanguage('en');
+  });
+
+  const value = (renderer: ReactTestRenderer.ReactTestRenderer, id: string) => {
+    const node = all(renderer, `subscription-summary-${id}-value`).find(candidate => candidate.type === Text);
+    return node ? String(node.props.children) : null;
+  };
+  const longDate = (date: Date) => new Intl.DateTimeFormat('en', { year: 'numeric', month: 'long', day: 'numeric' }).format(date);
+
+  describe('payment summary - what subscribing now means, for the chosen plan', () => {
+    beforeEach(() => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+      jest.setSystemTime(new Date(2026, 0, 31, 10, 0, 0));
+    });
+    afterEach(() => jest.useRealTimers());
+
+    it('yearly by default; switching to monthly and back changes the plan, the price and the next renewal at once', async () => {
+      const renderer = await renderScreen();
+      expect(value(renderer, 'plan')).toBe('Yearly membership');
+      expect(value(renderer, 'price')).toBe('$19.90 / year');
+      expect(value(renderer, 'firstPayment')).toBe(longDate(new Date(2026, 0, 31)));
+      expect(value(renderer, 'nextRenewal')).toBe(longDate(new Date(2027, 0, 31)));
+
+      await press(renderer, 'subscription-plan-monthly');
+      expect(isSelected(renderer, 'monthly')).toBe(true);
+      expect(value(renderer, 'plan')).toBe('Monthly membership');
+      expect(value(renderer, 'price')).toBe('$1.99 / month');
+      // 31 January + 1 month = the last day of February.
+      expect(value(renderer, 'nextRenewal')).toBe(longDate(new Date(2026, 1, 28)));
+
+      await press(renderer, 'subscription-plan-yearly');
+      await press(renderer, 'subscription-plan-monthly');
+      await press(renderer, 'subscription-plan-yearly');
+      expect(value(renderer, 'plan')).toBe('Yearly membership');
+      expect(value(renderer, 'nextRenewal')).toBe(longDate(new Date(2027, 0, 31)));
+    });
+
+    it('only the selected card carries the gradient frame', async () => {
+      const renderer = await renderScreen();
+      const frameIn = (key: string) => all(renderer, `subscription-plan-${key}`)[0].findAll(node => node.props.testID === 'selected-plan-frame').length > 0;
+      expect([frameIn('yearly'), frameIn('monthly')]).toEqual([true, false]);
+      await press(renderer, 'subscription-plan-monthly');
+      expect([frameIn('yearly'), frameIn('monthly')]).toEqual([false, true]);
+    });
+
+    it('during the free month: its end date is its own row, never the first payment, with the two plain sentences', async () => {
+      jest.mocked(useAuth).mockReturnValue({
+        entitlement: { programEnabled: true, status: 'trial', trialStartedAtUtc: '2026-01-20T00:00:00Z', trialEndsAtUtc: '2026-02-19T00:00:00Z', verifiedAtUtc: '2026-01-31T00:00:00Z', canWrite: true },
+        storeSubscription: null,
+      } as unknown as ReturnType<typeof useAuth>);
+      const renderer = await renderScreen();
+
+      expect(value(renderer, 'freeEnds')).toBe(longDate(new Date('2026-02-19T00:00:00Z')));
+      expect(value(renderer, 'firstPayment')).toBe(longDate(new Date(2026, 0, 31)));
+      expect(value(renderer, 'firstPayment')).not.toBe(value(renderer, 'freeEnds'));
+      expect(text(renderer)).toContain('Your Juple free access period does not automatically convert into a paid subscription.');
+      expect(text(renderer)).toContain('Subscribing now may result in an immediate charge.');
+    });
+  });
+
+  describe('a subscriber', () => {
+    const subscribedTo = (productId: string) => jest.mocked(useAuth).mockReturnValue({
+      entitlement: { programEnabled: true, status: 'active', canWrite: true },
+      storeSubscription: { state: 'active', platform: 'apple', productId, currentPeriodEndsAtUtc: '2026-12-16T00:00:00Z', autoRenewing: true, startedAtUtc: '2026-11-16T00:00:00Z', endedState: null, endedAtUtc: null },
+    } as unknown as ReturnType<typeof useAuth>);
+    const rowValue = (renderer: ReactTestRenderer.ReactTestRenderer, id: string) => {
+      const node = all(renderer, `subscription-row-${id}-value`).find(candidate => candidate.type === Text);
+      return node ? String(node.props.children) : null;
+    };
+
+    it('sees the price of THEIR plan as the next payment - never the card that happens to be selected - and no payment summary', async () => {
+      subscribedTo('com.juple.app.membership.monthly');
+      store.planOfSubscription.mockImplementation(productId => (productId === 'com.juple.app.membership.monthly' ? 'monthly' : null));
+      const renderer = await renderScreen();
+
+      expect(rowValue(renderer, 'nextPaymentAmount')).toBe('$1.99');
+      expect(all(renderer, 'subscription-payment-summary')).toHaveLength(0);
+      // Their own plan is the highlighted one, and the cards cannot be switched.
+      expect(isSelected(renderer, 'monthly')).toBe(true);
+      expect(all(renderer, 'subscription-plan-yearly').find(node => node.props.accessibilityState)!.props.accessibilityState.disabled).toBe(true);
+    });
+
+    it('when the store cannot tell the plan (Google Play: one product, two base plans) no amount is shown rather than a guessed one', async () => {
+      subscribedTo('juple_membership');
+      const renderer = await renderScreen();
+
+      expect(rowValue(renderer, 'nextPaymentAmount')).toBeNull();
+      expect(rowValue(renderer, 'nextPaymentOn')).not.toBeNull();
+    });
   });
 });

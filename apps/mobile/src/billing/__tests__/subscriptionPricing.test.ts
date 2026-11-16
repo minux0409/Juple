@@ -10,7 +10,7 @@ describe('computeAnnualSavings', () => {
     expect(savings!.amount).toBe(3.98);
     expect(savings!.percent).toBeCloseTo(16.6667, 3);
     expect(savings!.currencyCode).toBe('USD');
-    expect(discountBadgePercent(savings)).toBe(17);
+    expect(discountBadgePercent(savings)).toBe(16.7);
   });
 
   it('is computed from THIS storefront: another country with a different yearly ratio gets its own number', () => {
@@ -20,7 +20,7 @@ describe('computeAnnualSavings', () => {
     const deep = computeAnnualSavings(plan('monthly', 3000, 'KRW'), plan('yearly', 24000, 'KRW'));
 
     expect(discountBadgePercent(shallow)).toBe(5);
-    expect(discountBadgePercent(deep)).toBe(33);
+    expect(discountBadgePercent(deep)).toBe(33.3);
   });
 
   it('claims nothing when yearly is not cheaper than twelve months', () => {

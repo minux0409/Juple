@@ -1079,6 +1079,15 @@
       "freeNotice": "I 30 giorni gratuiti di Juple partono dalla registrazione e non sono una prova gratuita dello store. Se ti abboni ora, l'addebito è immediato anche se restano giorni gratuiti.",
       "cancelHowAndroid": "Puoi disdire in qualsiasi momento da Google Play > Pagamenti e abbonamenti > Abbonamenti. Mantieni l'accesso fino alla fine del periodo pagato.",
       "cancelHowIos": "Puoi disdire in qualsiasi momento da Impostazioni ID Apple > Abbonamenti. Mantieni l'accesso fino alla fine del periodo pagato."
+    },
+    "summary": {
+      "title": "Riepilogo del pagamento",
+      "plan": "Piano scelto",
+      "price": "Prezzo dell’abbonamento",
+      "freePeriodEnds": "Fine del periodo gratuito",
+      "firstPayment": "Primo pagamento (se ti abboni oggi)",
+      "nextRenewal": "Prossimo rinnovo",
+      "estimate": "Le date sono stime. L’App Store o Google Play mostra le condizioni esatte prima del pagamento."
     }
   },
   "appUpdate": {
@@ -1690,7 +1699,9 @@
     "trialPurchase": {
       "title": "Abbonandoti ora paghi già oggi",
       "message": "Anche se ti restano giorni gratuiti, attivando l’abbonamento il primo pagamento avviene oggi e i giorni gratuiti rimasti non si sommano al periodo a pagamento.\n\nSe ti abboni dopo la fine del periodo gratuito, i link e le raccolte salvati restano esattamente come sono.",
-      "confirm": "Abbonati ora"
+      "confirm": "Abbonati ora",
+      "noAutoConvert": "Il periodo gratuito di Juple non si trasforma automaticamente in un abbonamento a pagamento.",
+      "chargeNow": "Abbonandoti ora potresti ricevere subito l’addebito."
     },
     "otherStore": {
       "google": "Sei abbonato tramite Google Play. Gestisci o annulla l’abbonamento in Google Play.",

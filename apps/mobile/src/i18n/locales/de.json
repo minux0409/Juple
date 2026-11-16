@@ -1079,6 +1079,15 @@
       "freeNotice": "Die 30 kostenlosen Tage von Juple beginnen mit deiner Registrierung und sind keine kostenlose Testphase des Stores. Wenn du jetzt abonnierst, wird sofort abgebucht, auch wenn noch kostenlose Tage übrig sind.",
       "cancelHowAndroid": "Jederzeit kündbar unter Google Play > Zahlungen & Abos > Abos. Du behältst den Zugang bis zum Ende des bezahlten Zeitraums.",
       "cancelHowIos": "Jederzeit kündbar in den Apple-ID-Einstellungen > Abonnements. Du behältst den Zugang bis zum Ende des bezahlten Zeitraums."
+    },
+    "summary": {
+      "title": "Zahlungsübersicht",
+      "plan": "Gewählter Tarif",
+      "price": "Abo-Preis",
+      "freePeriodEnds": "Gratiszeitraum endet",
+      "firstPayment": "Erste Zahlung (bei Abschluss heute)",
+      "nextRenewal": "Nächste Verlängerung",
+      "estimate": "Die Daten sind Schätzungen. Der App Store oder Google Play zeigt die genauen Bedingungen vor der Zahlung."
     }
   },
   "appUpdate": {
@@ -1690,7 +1699,9 @@
     "trialPurchase": {
       "title": "Wenn du jetzt abonnierst, wird heute abgebucht",
       "message": "Auch wenn noch Gratistage übrig sind, wird beim Abschluss des Abos heute die erste Zahlung fällig, und die restlichen Gratistage werden nicht zum bezahlten Zeitraum hinzugerechnet.\n\nWenn du nach dem Gratiszeitraum abonnierst, bleiben deine gespeicherten Links und Sammlungen genauso erhalten.",
-      "confirm": "Jetzt abonnieren"
+      "confirm": "Jetzt abonnieren",
+      "noAutoConvert": "Dein Juple-Gratiszeitraum wird nicht automatisch zu einem kostenpflichtigen Abo.",
+      "chargeNow": "Wenn du jetzt abonnierst, kann sofort eine Zahlung fällig werden."
     },
     "otherStore": {
       "google": "Du hast ein Abo über Google Play. Verwalte oder kündige es in Google Play.",

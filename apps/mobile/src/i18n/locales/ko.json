@@ -1079,6 +1079,15 @@
       "freeNotice": "Juple의 30일 무료 이용은 가입일부터 적용되며 스토어의 무료 체험이 아닙니다. 지금 구독하면 무료 기간이 남아 있어도 바로 결제됩니다.",
       "cancelHowAndroid": "구독은 Google Play > 결제 및 정기 결제 > 정기 결제에서 언제든 해지할 수 있습니다. 해지해도 결제한 기간이 끝날 때까지 이용할 수 있습니다.",
       "cancelHowIos": "구독은 Apple ID 설정 > 구독에서 언제든 해지할 수 있습니다. 해지해도 결제한 기간이 끝날 때까지 이용할 수 있습니다."
+    },
+    "summary": {
+      "title": "결제 요약",
+      "plan": "선택한 멤버십",
+      "price": "구독 가격",
+      "freePeriodEnds": "무료 이용 종료일",
+      "firstPayment": "첫 결제일 (오늘 구독 시)",
+      "nextRenewal": "다음 갱신일",
+      "estimate": "예상 날짜예요. 정확한 결제 조건은 결제 전에 App Store 또는 Google Play 화면에서 확인할 수 있어요."
     }
   },
   "appUpdate": {
@@ -1690,7 +1699,9 @@
     "trialPurchase": {
       "title": "지금 구독하면 오늘 바로 결제돼요",
       "message": "무료 이용 기간이 남아 있어도 구독을 시작하면 오늘 첫 결제가 이루어지고, 남은 무료 기간은 유료 기간에 더해지지 않아요.\n\n무료 기간이 끝난 뒤에 구독해도 저장한 링크와 컬렉션은 그대로 이어져요.",
-      "confirm": "지금 구독하기"
+      "confirm": "지금 구독하기",
+      "noAutoConvert": "Juple 무료 이용 기간은 유료 구독으로 자동 전환되지 않아요.",
+      "chargeNow": "지금 구독하면 바로 결제될 수 있어요."
     },
     "otherStore": {
       "google": "Google Play에서 구독 중이에요. 구독 관리와 해지는 Google Play에서 할 수 있어요.",

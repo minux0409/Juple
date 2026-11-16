@@ -4,6 +4,7 @@ import i18n from '../../i18n';
 import { SubscriptionScreen } from '../SubscriptionScreen';
 import { useAuth, useOptionalAuth } from '../../auth/AuthContext';
 import type { SubscriptionStore } from '../../billing/subscriptionStore';
+import type { PlanKey } from '../../billing/subscriptionPricing';
 import { useSubscriptionStore } from '../../billing/useSubscriptionStore';
 
 // The shared screen must not reach Google-only code: if it (or anything it imports) loaded either module, these factories throw.
@@ -40,7 +41,8 @@ beforeEach(() => {
     // Most tests below describe the monthly plan only: the plans call answers with whatever loadOffer says, as one monthly plan.
     const result = await store.loadOffer();
     return result.kind === 'ready' ? { kind: 'ready' as const, plans: [{ key: 'monthly' as const, ...result.offer, priceAmount: null }] } : result;
-  }), purchase: jest.fn(), restore: jest.fn(), canManageSubscription: true, openSubscriptionManagement: jest.fn().mockResolvedValue(undefined) };
+  }), purchase: jest.fn(), restore: jest.fn(), canManageSubscription: true, openSubscriptionManagement: jest.fn().mockResolvedValue(undefined),
+  planOfSubscription: jest.fn((_productId: string | null | undefined): PlanKey | null => null) };
   jest.mocked(useSubscriptionStore).mockReturnValue(store);
   jest.mocked(useOptionalAuth).mockReturnValue(undefined);
   mockAuth();
@@ -318,6 +320,8 @@ describe('SubscriptionScreen', () => {
   });
 
   it('active + auto-renew: start date, NEXT payment date and the catalog price; no Subscribe, Manage offered', async () => {
+    // The store names the subscription's plan (the App Store's monthly product): its price is the next payment amount.
+    store.planOfSubscription.mockReturnValue('monthly');
     const renderer = await screenWith(programOff(), activeStore());
 
     expect(statusOf(renderer)).toBe(i18n.t('subscription.status.active'));
@@ -334,6 +338,7 @@ describe('SubscriptionScreen', () => {
 
   it('the next payment amount is the store catalog price as returned - never a built-in one', async () => {
     store.loadOffer.mockResolvedValue({ kind: 'ready', offer: { localizedPrice: '₩1,300', currencyCode: 'KRW', billingPeriod: 'P1M' } });
+    store.planOfSubscription.mockReturnValue('monthly');
     const renderer = await screenWith(programOff(), activeStore());
 
     expect(rowValue(renderer, 'nextPaymentAmount')).toBe('₩1,300');

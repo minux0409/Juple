@@ -1061,12 +1061,12 @@
     "plan": {
       "monthlyName": "Monthly membership",
       "yearlyName": "Yearly membership",
-      "recommended": "Best value",
+      "recommended": "Recommended",
       "perMonth": "{{price}} / month",
       "perYear": "{{price}} / year",
       "monthlyRenew": "Renews automatically every month",
       "yearlyRenew": "Renews automatically every year",
-      "discountBadge": "About {{percent}}% off",
+      "discountBadge": "Save about {{percent}}%",
       "saveAmount": "Save {{amount}} compared with 12 monthly payments",
       "perMonthEquivalent": "About {{price}} per month",
       "manageAnytime": "Manage anytime"
@@ -1079,6 +1079,15 @@
       "freeNotice": "Juple's 30-day free period starts when you sign up and is not a store free trial. If you subscribe now, you are charged right away, even if free days remain.",
       "cancelHowAndroid": "Cancel anytime in Google Play > Payments & subscriptions > Subscriptions. You keep access until the end of the period you paid for.",
       "cancelHowIos": "Cancel anytime in your Apple ID settings > Subscriptions. You keep access until the end of the period you paid for."
+    },
+    "summary": {
+      "title": "Payment summary",
+      "plan": "Selected plan",
+      "price": "Subscription price",
+      "freePeriodEnds": "Free period ends",
+      "firstPayment": "First payment (if you subscribe today)",
+      "nextRenewal": "Next renewal",
+      "estimate": "Dates are estimates. The App Store or Google Play shows the exact terms before you pay."
     }
   },
   "appUpdate": {
@@ -1690,7 +1699,9 @@
     "trialPurchase": {
       "title": "Subscribing now charges you today",
       "message": "Even with free days left, starting a subscription takes the first payment today, and the remaining free days are not added to the paid period.\n\nIf you subscribe after the free period ends, your saved links and collections carry on just the same.",
-      "confirm": "Subscribe now"
+      "confirm": "Subscribe now",
+      "noAutoConvert": "Your Juple free access period does not automatically convert into a paid subscription.",
+      "chargeNow": "Subscribing now may result in an immediate charge."
     },
     "otherStore": {
       "google": "You are subscribed through Google Play. Manage or cancel it in Google Play.",
