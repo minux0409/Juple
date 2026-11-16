@@ -44,7 +44,9 @@ public sealed class AppleBillingService(
 
     public async Task<AppleCatalog> GetCatalogAsync(long userId, CancellationToken cancellationToken = default)
     {
-        if (!options.Apple.Enabled)
+        // Offered only where the purchase is (MembershipOffer): before the launch, the preview accounts alone. Verify and restore stay open -
+        // a purchase Apple already charged is never refused.
+        if (!options.Apple.Enabled || !MembershipOffer.IsOffered(options, userId))
         {
             return new AppleCatalog(false, [], null);
         }

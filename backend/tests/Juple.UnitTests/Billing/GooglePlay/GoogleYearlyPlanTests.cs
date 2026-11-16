@@ -33,6 +33,18 @@ public sealed class GoogleYearlyPlanTests
     }
 
     [Fact]
+    public async Task Catalog_BeforeTheLaunch_IsEnabledOnlyForAPreviewAccount()
+    {
+        var harness = new Harness(options => options.Google.BasePlanIds = ["monthly", "yearly"]);
+
+        Assert.True((await harness.Service.GetCatalogAsync(UserA)).Enabled);
+        var notOffered = await harness.Service.GetCatalogAsync(303);
+        Assert.False(notOffered.Enabled);
+        Assert.Null(notOffered.ProductId);
+        Assert.Null(notOffered.ObfuscatedAccountId);
+    }
+
+    [Fact]
     public async Task Catalog_ListsBothBasePlans_AndKeepsTheFirstInTheLegacyField()
     {
         var harness = new Harness(options => options.Google.BasePlanIds = ["monthly", "yearly"]);

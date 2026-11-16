@@ -64,7 +64,8 @@ public sealed class GoogleBillingService(
     public async Task<GoogleCatalog> GetCatalogAsync(long userId, CancellationToken cancellationToken = default)
     {
         var settings = options.Google;
-        if (!settings.Enabled)
+        // Offered only where the purchase is (MembershipOffer); verify and restore stay open.
+        if (!settings.Enabled || !MembershipOffer.IsOffered(options, userId))
         {
             return new GoogleCatalog(false, null, null, null);
         }

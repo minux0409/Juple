@@ -13,6 +13,7 @@ import { ThemedSwitch } from '../components/ThemedSwitch';
 import { TabScreenSafeArea } from '../components/TabScreenSafeArea';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
+import { isMembershipOffered } from '../billing/membershipOffer';
 import { getMyProfile, type UserProfile } from '../api/profileApi';
 import { formatJupleId } from '../collections/api/collaborationApi';
 import { formatBadgeCount } from '../components/badgeCount';
@@ -50,9 +51,9 @@ export function MyPageScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { signOut } = useAuth();
   const authenticatedRequest = useAuthenticatedApi();
-  // 멤버십 is listed once the Backend says the paid program is live - on every platform (it is the status page where a purchase is not
-  // possible yet). While the program is off nothing about membership is shown.
-  const isMembershipEntryShown = useAuth().entitlement?.programEnabled === true;
+  // 멤버십 is listed where the Backend offers the membership: the launched program, or a preview account before the launch (App Review,
+  // internal testers). Everyone else sees nothing about membership while the program is off.
+  const isMembershipEntryShown = isMembershipOffered(useAuth());
 
   const [isSignOutDialogVisible, setIsSignOutDialogVisible] = useState(false);
   // OFF until the stored choice has been read - never a fake ON that then flips; the switch waits (disabled) for it.

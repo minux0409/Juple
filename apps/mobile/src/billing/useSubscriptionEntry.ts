@@ -5,6 +5,7 @@ import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { getAppleCatalog, getGoogleCatalog } from './billingApi';
+import { isMembershipOffered } from './membershipOffer';
 
 /** The only fact the entry needs from either store's catalog: is billing enabled for this environment. */
 type StoreCatalogState = { readonly enabled: boolean };
@@ -15,8 +16,8 @@ const isStorePlatform = (platform: string): boolean => platform === 'android' ||
 const readStoreCatalog = (request: AuthenticatedApiRequest): Promise<StoreCatalogState> => (Platform.OS === 'ios' ? getAppleCatalog(request) : getGoogleCatalog(request));
 
 /**
- * Whether My Page offers the Subscription entry: the subscription PROGRAM is live (the server's bootstrap entitlement.programEnabled -
- * authoritative, never a build-time flag) AND a platform with a store (Android: Google Play, iOS: the App Store) AND the Backend's
+ * Whether My Page offers the Subscription entry: the server offers the membership to this account (`programEnabled` here means
+ * isMembershipOffered - the launched program, or a preview account before it; authoritative, never a build-time flag) AND a platform with a store (Android: Google Play, iOS: the App Store) AND the Backend's
  * catalog for THAT store says billing is enabled for this environment. While the program is off nobody is asked to pay: the Google catalog / Play product
  * can be configured and tested, but no price or purchase button reaches a person (the Subscription route itself is not registered
  * then either - see navigation/RootStack.tsx).
@@ -38,7 +39,7 @@ export type SubscriptionEntryState = 'loading' | 'available' | 'unavailable';
  */
 export function useSubscriptionEntryState(): SubscriptionEntryState {
   const request = useAuthenticatedApi();
-  const programEnabled = useAuth().entitlement?.programEnabled === true;
+  const programEnabled = isMembershipOffered(useAuth());
   const [state, setState] = useState<SubscriptionEntryState>(isStorePlatform(Platform.OS) && programEnabled ? 'loading' : 'unavailable');
 
   useFocusEffect(
@@ -70,7 +71,7 @@ export function useSubscriptionEntryState(): SubscriptionEntryState {
 
 export function useSubscriptionEntryAvailable(): boolean {
   const request = useAuthenticatedApi();
-  const programEnabled = useAuth().entitlement?.programEnabled === true;
+  const programEnabled = isMembershipOffered(useAuth());
   const [available, setAvailable] = useState(false);
 
   useFocusEffect(

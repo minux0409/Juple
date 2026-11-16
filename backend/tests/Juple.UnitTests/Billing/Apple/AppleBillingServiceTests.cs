@@ -53,6 +53,22 @@ public sealed class AppleBillingServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Catalog_BeforeTheLaunch_IsEnabledOnlyForAPreviewAccount_AndForEveryoneOnceLaunched()
+    {
+        const long member = 303;
+        var harness = new Harness(_pki);
+
+        Assert.True((await harness.Service.GetCatalogAsync(UserA)).Enabled);
+        var notOffered = await harness.Service.GetCatalogAsync(member);
+        Assert.False(notOffered.Enabled);
+        Assert.Empty(notOffered.ProductIds);
+        Assert.Null(notOffered.AppAccountToken);
+
+        harness.Options.ProgramEnabled = true;
+        Assert.True((await harness.Service.GetCatalogAsync(member)).Enabled);
+    }
+
+    [Fact]
     public async Task Catalog_Disabled_RevealsNothing()
     {
         var harness = new Harness(_pki, AppleTestData.Options(enabled: false));

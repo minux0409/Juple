@@ -13,13 +13,14 @@ the App Store").
 One membership, two auto-renewing plans, **one subscription group** (so a person can hold only one at a time and Apple handles
 upgrade/downgrade/crossgrade):
 
-| Plan | Product ID (proposed - nothing exists yet) | Duration | US price | Notes |
+| Plan | Product ID (fixed - the server and app use these exact strings) | Duration | US price | Notes |
 |---|---|---|---|---|
 | Monthly | `com.juple.app.membership.monthly` | 1 month | US$1.99 | the same Juple access as yearly |
 | Yearly | `com.juple.app.membership.yearly` | 1 year | US$19.90 | "about 17% off" - **computed per storefront in the app, never fixed** |
 
-- The IDs above are a proposal because no Apple product is recorded anywhere in the repository. Whatever is created in App Store Connect must
-  be entered **identically** in `Billing:Apple:ProductIds` (API, billing worker, reconcile Job). The server refuses any other product.
+- These IDs are what the code and tests use (`AppleTestKit`, `appleBilling.test.ts`). The product in App Store Connect must have **exactly** these IDs
+  (the yearly one is `...yearly`, not `...annual`), and the same strings go into `Billing:Apple:ProductIds` (API, billing worker, reconcile Job). The
+  server refuses any other product. The app tells the two plans apart by StoreKit's subscription period, so the durations must be exactly 1 month and 1 year.
 - Subscription group name (internal): `Juple Membership`. Both products are in it, yearly above monthly (level 1 = yearly, level 2 = monthly)
   so that monthly -> yearly is an **upgrade** (immediate, prorated by Apple) and yearly -> monthly is a **downgrade** (takes effect at the
   next renewal, Apple's rule). The app never computes either date: the server reads what Apple reports.
@@ -96,6 +97,81 @@ detached (not deleted) exactly like Google's.
 ### Required UI (already in the app)
 Price, period and total before purchase; automatic renewal wording; how to cancel; **Restore purchases**; **Manage subscription**
 (`https://apps.apple.com/account/subscriptions`); links to terms and privacy.
+
+## 3a. Prepared App Store Connect inputs (to be entered by hand - not verified in App Store Connect)
+
+- Group reference name: `Juple Membership` (reuse the group that already holds the monthly product; never create a second group).
+- Levels: yearly = level 1, monthly = level 2 (monthly -> yearly is an upgrade, immediate; yearly -> monthly a downgrade, at the next renewal).
+- Reference names: `Juple Monthly Membership` (`com.juple.app.membership.monthly`, 1 month) and `Juple Annual Membership`
+  (`com.juple.app.membership.yearly`, 1 year).
+- Prices: United States US$1.99 and US$19.90. If US$19.90 is not offered as a price point, **stop and report the available neighbours** - do not
+  pick one silently. Review the other storefronts Apple proposes; the app computes the yearly discount per storefront.
+- Introductory offers, promotional offers, offer codes and win-back offers: **none** on either product (Juple's own free month is the only one).
+- Family Sharing: leave as it is until a business decision exists (turning it on cannot be undone for a product).
+- Localizations (App Store Connect limits: group display name 75, subscription display name 35, description 55 characters; every entry below fits):
+
+| Locale | Group display name | Monthly name | Monthly description | Yearly name | Yearly description |
+|---|---|---|---|---|---|
+| Locale | Group display name | Monthly name | Monthly description | Yearly name | Yearly description |
+|---|---|---|---|---|---|
+| ko | Juple 멤버십 | Juple 월간 멤버십 | Juple 멤버십의 모든 기능을 매월 이용하세요. | Juple 연간 멤버십 | Juple 멤버십의 모든 기능을 1년 동안 이용하세요. |
+| en-US | Juple Membership | Juple Monthly Membership | Access all Juple membership features every month. | Juple Annual Membership | Access all Juple membership features for a full year. |
+| ja | Juple メンバーシップ | Juple 月額メンバーシップ | Juple メンバーシップのすべての機能を毎月ご利用いただけます。 | Juple 年額メンバーシップ | Juple メンバーシップのすべての機能を1年間ご利用いただけます。 |
+| zh-Hans | Juple 会员 | Juple 月度会员 | 按月使用 Juple 会员的全部功能。 | Juple 年度会员 | 一年内使用 Juple 会员的全部功能。 |
+| zh-Hant | Juple 會員 | Juple 月費會員 | 按月使用 Juple 會員的所有功能。 | Juple 年費會員 | 一年內使用 Juple 會員的所有功能。 |
+| es-ES | Juple Membership | Juple Membresía mensual | Todas las funciones de Juple, cada mes. | Juple Membresía anual | Todas las funciones de Juple durante un año. |
+| es-MX | Juple Membership | Juple Membresía mensual | Todas las funciones de Juple, cada mes. | Juple Membresía anual | Todas las funciones de Juple durante un año. |
+| fr-FR | Juple Membership | Juple Abonnement mensuel | Toutes les fonctions Juple avec un abonnement mensuel. | Juple Abonnement annuel | Toutes les fonctions Juple avec un abonnement annuel. |
+| de-DE | Juple Membership | Juple Monatsmitgliedschaft | Alle Juple-Funktionen mit einem Monatsabo. | Juple Jahresmitgliedschaft | Alle Juple-Funktionen mit einem Jahresabo. |
+| it | Juple Membership | Juple Abbonamento mensile | Tutte le funzioni di Juple con un abbonamento mensile. | Juple Abbonamento annuale | Tutte le funzioni di Juple con un abbonamento annuale. |
+| pt-BR | Juple Membership | Juple Assinatura mensal | Todos os recursos do Juple com uma assinatura mensal. | Juple Assinatura anual | Todos os recursos do Juple com uma assinatura anual. |
+| vi | Juple Membership | Juple Gói thành viên tháng | Dùng mọi tính năng của Juple theo tháng. | Juple Gói thành viên năm | Dùng mọi tính năng của Juple trong một năm. |
+| th | Juple Membership | Juple สมาชิกรายเดือน | ใช้ฟีเจอร์ทั้งหมดของ Juple ด้วยการสมัครรายเดือน | Juple สมาชิกรายปี | ใช้ฟีเจอร์ทั้งหมดของ Juple ด้วยการสมัครรายปี |
+| id | Juple Membership | Juple Keanggotaan bulanan | Semua fitur Juple dengan langganan bulanan. | Juple Keanggotaan tahunan | Semua fitur Juple dengan langganan tahunan. |
+| ru | Juple Membership | Juple — месячная подписка | Все функции Juple с ежемесячной подпиской. | Juple — годовая подписка | Все функции Juple с годовой подпиской. |
+| tr | Juple Membership | Juple Aylık Üyelik | Aylık abonelikle Juple’ın tüm özelliklerini kullanın. | Juple Yıllık Üyelik | Yıllık abonelikle Juple’ın tüm özelliklerini kullanın. |
+| ar-SA | عضوية Juple | عضوية Juple الشهرية | استخدم كل ميزات Juple باشتراك شهري. | عضوية Juple السنوية | استخدم كل ميزات Juple باشتراك سنوي. |
+| hi | Juple Membership | Juple मासिक सदस्यता | हर महीने Juple की सभी सुविधाएँ इस्तेमाल करें। | Juple वार्षिक सदस्यता | पूरे साल Juple की सभी सुविधाएँ इस्तेमाल करें। |
+
+## 3b. App Review access before the launch (purchase preview)
+
+`Billing:ProgramEnabled` used to decide three different things at once. They are now separate:
+
+| Policy | Decided by | Effect of an App Review preview |
+|---|---|---|
+| Offering the purchase (My Page 멤버십 row, Membership screen, store catalogs) | `MembershipOffer`: `ProgramEnabled` **or** the account is in `Billing:PurchasePreviewUserIds` | the preview account is offered it |
+| Existing members' free 30 days | `ProgramEnabled` + `ProgramStartAtUtc` | none - nobody's clock starts |
+| Read-only after access ended (write gate) | `ProgramEnabled` | none - nobody is restricted |
+
+- `Billing:PurchasePreviewUserIds:0..n` (Bicep `billingPurchasePreviewUserIds`, default empty) holds **internal Juple user ids** - the App Review demo
+  account and internal testers. For them the bootstrap answers `membershipOffered: true` and `GET .../billing/{apple,google}/catalog` answers enabled
+  (the store's own `Enabled` switch must be on too). Everyone else gets a disabled catalog and an app that shows nothing about membership, exactly as
+  before. Verify and restore are never gated by it (a purchase Apple already charged is always recognised).
+- Nothing is faked or bypassed: the demo account signs in normally, the products come from StoreKit, the receipt is Apple-signed and re-read from
+  the App Store Server API. App Review buys in the Sandbox, so `Billing:Apple:AcceptSandbox=true` is required for the review.
+- While the program is off a preview purchase records the subscription (the Membership screen shows 구독 중 / Manage) but grants nothing extra -
+  everything is still free for everyone. Review note: say so plainly, and that the membership becomes required when the program launches.
+- Older apps ignore `membershipOffered` and keep showing membership only once the program is launched.
+- It is not a temporary bypass: after the launch it is simply redundant (everyone is offered), and it stays useful for internal testers of a future
+  store change. Remove the review account from the list after approval if it should not keep the preview.
+- Risk to state in the review notes: Apple may ask why the subscription unlocks nothing yet for other users (Guideline 3.1.2 "ongoing value",
+  2.3.1 hidden features). The alternative is to launch the program on approval day; that is a product decision.
+
+### PROD deployment this needs (not done - approval required)
+
+PROD API revision `ca-juple-api-prod--0000035` runs image `collection-images-c852995-prod-20261102` (2026-11-02). It does **not** contain App
+Store billing (`8919db8c`, 2026-11-07), the read-only policy, the new-account welcome flag or the purchase preview. In order:
+
+1. Record the current revision and image digest (rollback target) and confirm the Azure SQL point-in-time backup window.
+2. Apply migration `20261107083718_AddAppleAccountLinks` (additive: one new table, two unique indexes; nothing existing changes). It is the only
+   migration since the deployed commit; `has-pending-model-changes` reports none.
+3. Deploy the API, notification worker, billing worker and reconcile Job from the same commit, **keeping `billingProgramEnabled=false`**. Older apps
+   keep working: every new response field is additive.
+4. Apple settings (API + billing worker + reconcile Job): `appleBillingEnabled=true`, `appleProductIds` = the two ids, Issuer ID / Key ID, Key Vault
+   secrets `apple-iap-private-key`, `apple-account-token-key`, `apple-handle-key` (two fresh, distinct 32-byte keys), `AcceptSandbox=true`.
+5. `billingPurchasePreviewUserIds` = the demo account's internal user id (and internal testers).
+6. App Store Connect: Server Notifications V2 URL (section 3 step 5) - the test notification then answers 200.
+7. Rollback: previous revision (traffic switch). The new table can stay (unused by the old image).
 
 ## 4. Testing - what must be done and has NOT been done
 

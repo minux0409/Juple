@@ -267,6 +267,8 @@ public static class GoogleTestData
     public static BillingOptions Options(bool enabled = true) => new()
     {
         TrialIdentityHashKey = Key32C,
+        // The test accounts are offered the purchase (MembershipOffer) - these suites test the store mechanics behind it.
+        PurchasePreviewUserIds = [101, 202],
         Google = new GoogleBillingOptions
         {
             Enabled = enabled,

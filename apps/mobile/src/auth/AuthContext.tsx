@@ -205,7 +205,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         if (isMountedRef.current) {
           setState(previous =>
             previous.isAuthenticated
-              ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement, storeSubscription: bootstrapResult.storeSubscription ?? null, mobileVersionPolicy: bootstrapResult.mobileVersionPolicy, dataRetention: bootstrapResult.dataRetention ?? null, dataExportEnabled: bootstrapResult.dataExportEnabled ?? false, newAccountTrialGranted: bootstrapResult.newAccountTrialGranted === true }
+              ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement, storeSubscription: bootstrapResult.storeSubscription ?? null, mobileVersionPolicy: bootstrapResult.mobileVersionPolicy, dataRetention: bootstrapResult.dataRetention ?? null, dataExportEnabled: bootstrapResult.dataExportEnabled ?? false, newAccountTrialGranted: bootstrapResult.newAccountTrialGranted === true, membershipOffered: bootstrapResult.membershipOffered === true }
               : previous,
           );
         }
@@ -283,7 +283,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const result = await bootstrapCurrentUser(accessToken, getDeviceRegionalSettings());
       if (result.status === 'ready') {
         setState(previous =>
-          previous.isAuthenticated ? { ...previous, plan: result.plan, entitlement: result.entitlement, storeSubscription: result.storeSubscription ?? previous.storeSubscription, mobileVersionPolicy: result.mobileVersionPolicy ?? previous.mobileVersionPolicy, dataRetention: result.dataRetention ?? null, dataExportEnabled: result.dataExportEnabled ?? previous.dataExportEnabled } : previous,
+          previous.isAuthenticated ? { ...previous, plan: result.plan, entitlement: result.entitlement, storeSubscription: result.storeSubscription ?? previous.storeSubscription, mobileVersionPolicy: result.mobileVersionPolicy ?? previous.mobileVersionPolicy, dataRetention: result.dataRetention ?? null, dataExportEnabled: result.dataExportEnabled ?? previous.dataExportEnabled, membershipOffered: result.membershipOffered === true } : previous,
         );
       }
     } catch {
@@ -369,7 +369,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
         setState(previous =>
           previous.isAuthenticated
-            ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement, storeSubscription: bootstrapResult.storeSubscription ?? null, mobileVersionPolicy: bootstrapResult.mobileVersionPolicy, dataRetention: bootstrapResult.dataRetention ?? null, dataExportEnabled: bootstrapResult.dataExportEnabled ?? false, newAccountTrialGranted: bootstrapResult.newAccountTrialGranted === true }
+            ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement, storeSubscription: bootstrapResult.storeSubscription ?? null, mobileVersionPolicy: bootstrapResult.mobileVersionPolicy, dataRetention: bootstrapResult.dataRetention ?? null, dataExportEnabled: bootstrapResult.dataExportEnabled ?? false, newAccountTrialGranted: bootstrapResult.newAccountTrialGranted === true, membershipOffered: bootstrapResult.membershipOffered === true }
             : previous,
         );
       }

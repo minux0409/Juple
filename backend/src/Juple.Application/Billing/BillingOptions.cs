@@ -29,6 +29,16 @@ public sealed class BillingOptions
 
     public string? TrialIdentityHashKey { get; set; }
 
+    /// <summary>
+    /// Billing:PurchasePreviewUserIds - internal Juple user ids (never an external identity id) to whom the membership purchase is OFFERED
+    /// before the program is launched: the App Review demo account, internal testers. For them only, the apps show the Membership screen
+    /// and the store catalogs answer "enabled"; the purchase itself is the normal one (StoreKit / Play Billing, Apple's or Google's signed
+    /// proof, the server-side store lookup). It changes nothing else: no trial is started (existing members' 30 days still begin at
+    /// <see cref="ProgramStartAtUtc"/>), nobody is restricted, and every other account sees exactly what it sees today. Empty by default.
+    /// See <see cref="MembershipOffer"/>.
+    /// </summary>
+    public List<long> PurchasePreviewUserIds { get; set; } = [];
+
     /// <summary>Google Play billing (R39-B1). Disabled by default: the API starts with none of its secrets.</summary>
     public GoogleBillingOptions Google { get; set; } = new();
 
@@ -208,6 +218,11 @@ public static class BillingOptionsValidator
         {
             throw new InvalidOperationException(
                 $"Billing:TrialDurationDays must be {TrialPolicy.DurationDays} (the trial length is a fixed product decision), but is {options.TrialDurationDays}.");
+        }
+
+        if (options.PurchasePreviewUserIds.Any(id => id <= 0))
+        {
+            throw new InvalidOperationException("Billing:PurchasePreviewUserIds must hold internal Juple user ids (positive numbers) only.");
         }
 
         if (!options.ProgramEnabled)

@@ -116,6 +116,8 @@ public static class AppleTestData
     public static BillingOptions Options(bool enabled = true, bool acceptSandbox = true) => new()
     {
         TrialIdentityHashKey = GoogleTestData.Key32C,
+        // The test accounts are offered the purchase (MembershipOffer) - these suites test the store mechanics behind it.
+        PurchasePreviewUserIds = [101, 202],
         Apple = new AppleBillingOptions
         {
             Enabled = enabled,

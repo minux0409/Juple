@@ -19,6 +19,8 @@ export interface UserBootstrapResult {
   readonly dataExportEnabled?: boolean;
   /** True only when this very request created the account with its own fresh free period; false otherwise or from an older backend. */
   readonly newAccountTrialGranted?: boolean;
+  /** True only when the server says the membership purchase is offered to this account; false otherwise or from an older backend. */
+  readonly membershipOffered?: boolean;
 }
 
 interface BootstrapCurrentUserResponseBody {
@@ -29,6 +31,7 @@ interface BootstrapCurrentUserResponseBody {
   readonly dataRetention?: unknown;
   readonly dataExport?: unknown;
   readonly newAccountTrialGranted?: unknown;
+  readonly membershipOffered?: unknown;
 }
 
 const DATA_RETENTION_PHASES: readonly DataRetentionPhase[] = ['billingHold', 'readOnly', 'deletionDue'];
@@ -139,6 +142,7 @@ export async function bootstrapCurrentUser(
       dataRetention: parseDataRetention(response.body?.dataRetention),
       dataExportEnabled: parseDataExportEnabled(response.body?.dataExport),
       newAccountTrialGranted: response.body?.newAccountTrialGranted === true,
+      membershipOffered: response.body?.membershipOffered === true,
     };
   } catch (error) {
     // The identity has no Juple account and the sign-in is not recent: the server never creates an account from a stale session.

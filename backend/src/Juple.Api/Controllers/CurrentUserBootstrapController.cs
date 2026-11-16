@@ -31,6 +31,7 @@ public sealed class CurrentUserBootstrapController : ControllerBase
         [FromServices] Juple.Application.Billing.IDataRetentionService dataRetentionService,
         [FromServices] Juple.Application.DataExport.DataExportOptions dataExportOptions,
         [FromServices] TimeProvider timeProvider,
+        [FromServices] Juple.Application.Billing.BillingOptions billingOptions,
         CancellationToken cancellationToken)
     {
         try
@@ -54,7 +55,8 @@ public sealed class CurrentUserBootstrapController : ControllerBase
                 StoreSubscriptionResponse.From(result.StoreSubscription),
                 TermsStatusResponse.From(terms),
                 DataRetentionResponse.From(retention, timeProvider.GetUtcNow()),
-                new DataExportAvailabilityResponse(dataExportOptions.Enabled), result.IsNewAccount, result.NewAccountTrialGranted));
+                new DataExportAvailabilityResponse(dataExportOptions.Enabled), result.IsNewAccount, result.NewAccountTrialGranted,
+                Juple.Application.Billing.MembershipOffer.IsOffered(billingOptions, currentUser.UserId)));
         }
         catch (AccountDeletionPendingException)
         {
@@ -83,6 +85,9 @@ public sealed class CurrentUserBootstrapController : ControllerBase
     /// <param name="NewAccountTrialGranted">Additive: true only on the response of the request that created the account AND gave it its own fresh
     /// free period (program live, trial running from the creation instant - never an inherited or pre-launch window). The apps show their
     /// one-time welcome from it; every later bootstrap, on any device, answers false.</param>
+    /// <param name="MembershipOffered">Additive: whether this account is offered the membership purchase (MembershipOffer) - true for everyone once
+    /// the program is launched, and before that only for Billing:PurchasePreviewUserIds. It never starts a trial or restricts anything; an older
+    /// app ignores it and keeps showing the membership only while the program is launched.</param>
     public sealed record BootstrapCurrentUserResponse(
         string Plan,
         string TimeZoneId,
@@ -93,7 +98,8 @@ public sealed class CurrentUserBootstrapController : ControllerBase
         DataRetentionResponse? DataRetention = null,
         DataExportAvailabilityResponse? DataExport = null,
         bool IsNewAccount = false,
-        bool NewAccountTrialGranted = false);
+        bool NewAccountTrialGranted = false,
+        bool MembershipOffered = false);
 
     /// <summary>
     /// The account's place in the post-subscription data retention policy (additive; an older client ignores it). Derived from the same

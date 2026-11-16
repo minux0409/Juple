@@ -28,9 +28,9 @@ jest.mock('react-native-safe-area-context', () => ({
 const enabledCatalog = { enabled: true, productId: 'juple_monthly', basePlanId: 'monthly', obfuscatedAccountId: 'opaque' };
 const disabledCatalog = { enabled: false, productId: null, basePlanId: null, obfuscatedAccountId: null };
 
-function mockAuth(entitlement: unknown) {
+function mockAuth(entitlement: unknown, membershipOffered = false) {
   jest.mocked(useAuth).mockReturnValue({
-    signOut: jest.fn(), userEmail: null, plan: 'Free', entitlement,
+    signOut: jest.fn(), userEmail: null, plan: 'Free', entitlement, membershipOffered,
     storeSubscription: null, refreshEntitlement: jest.fn(),
     isInitializing: false, isSigningIn: false, isAuthenticated: true, error: null, backendAuthStatus: 'valid',
     userBootstrapStatus: 'ready', sessionRestoreStep: 'sessionRestore', signIn: jest.fn(), getValidAccessToken: jest.fn(), retryBootstrap: jest.fn(),
@@ -70,6 +70,18 @@ describe('My Page 멤버십 entry', () => {
       expect(entry(await renderScreen())).toHaveLength(0);
     }
     expect(getGoogleCatalog).not.toHaveBeenCalled();
+  });
+
+  it('before the launch, a preview account (App Review, internal testers) gets the entry and the Membership screen - everyone else does not', async () => {
+    jest.replaceProperty(Platform, 'OS', 'ios');
+    mockAuth(programOff, true);
+    const preview = await renderScreen();
+    expect(entry(preview)).toHaveLength(1);
+    await act(async () => entry(preview)[0].props.onPress());
+    expect(mockNavigate).toHaveBeenCalledWith('Subscription');
+
+    mockAuth(programOff, false);
+    expect(entry(await renderScreen())).toHaveLength(0);
   });
 
   it('is hidden when the bootstrap reported no entitlement at all (an older backend / not known yet)', async () => {

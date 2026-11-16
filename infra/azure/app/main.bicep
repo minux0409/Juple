@@ -256,6 +256,9 @@ param billingEventsServiceBusNamespace string = ''
 param billingProgramEnabled bool = false
 param billingProgramStartAtUtc string = ''
 
+@description('Internal Juple user ids (numbers) offered the membership purchase BEFORE the program is launched - the App Review demo account, internal testers. Independent of billingProgramEnabled: it starts no trial and restricts nobody. Empty = nobody.')
+param billingPurchasePreviewUserIds array = []
+
 // Terms of Service consent (UGC safety). Deliberately WITHOUT defaults: the API's own default enforces acceptance, which would make an
 // older installed app that has no Terms screen fail its content writes with 403 the moment a new backend is deployed. Every environment
 // states both values in its parameter file and they are always written as Container App env vars - never left to the code default.
@@ -399,6 +402,12 @@ var billingSecrets = concat(
     : []
 )
 
+// One env var per purchase-preview account (Billing:PurchasePreviewUserIds).
+var purchasePreviewEnv = [for (userId, index) in billingPurchasePreviewUserIds: {
+  name: 'Billing__PurchasePreviewUserIds__${index}'
+  value: string(userId)
+}]
+
 // One env var per allowlisted product id (a for-expression must be a variable's own value).
 var appleProductIdEnv = [for (productId, index) in appleProductIds: {
   name: 'Billing__Apple__ProductIds__${index}'
@@ -504,7 +513,8 @@ var billingEnv = concat(
           secretRef: 'trial-identity-hash-key'
         }
       ]
-    : []
+    : [],
+  purchasePreviewEnv
 )
 
 var mobileVersionPolicyEnv = concat(

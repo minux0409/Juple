@@ -22,7 +22,7 @@ describe('bootstrapCurrentUser', () => {
       accessToken: 'a-token',
       body: { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' },
     });
-    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null, storeSubscription: null, mobileVersionPolicy: null, dataRetention: null, dataExportEnabled: false, newAccountTrialGranted: false });
+    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null, storeSubscription: null, mobileVersionPolicy: null, dataRetention: null, dataExportEnabled: false, newAccountTrialGranted: false, membershipOffered: false });
   });
 
   it('reports signInRequired (never ready / unavailable) when the server refuses to create an account from a stale sign-in', async () => {
@@ -51,12 +51,21 @@ describe('bootstrapCurrentUser', () => {
     }
   });
 
+  it('carries "the membership is offered to this account" only when it is exactly true', async () => {
+    jest.mocked(requestApi).mockResolvedValue({ status: 200, body: { plan: 'Free', membershipOffered: true } });
+    expect((await bootstrapCurrentUser('a-token', { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' })).membershipOffered).toBe(true);
+    for (const value of [false, 'true', 1, null, undefined]) {
+      jest.mocked(requestApi).mockResolvedValue({ status: 200, body: { plan: 'Free', membershipOffered: value } });
+      expect((await bootstrapCurrentUser('a-token', { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' })).membershipOffered).toBe(false);
+    }
+  });
+
   it('returns the Plus plan when the backend reports it', async () => {
     jest.mocked(requestApi).mockResolvedValue({ status: 200, body: { plan: 'Plus' } });
 
     const result = await bootstrapCurrentUser('a-token', { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' });
 
-    expect(result).toEqual({ status: 'ready', plan: 'Plus', entitlement: null, storeSubscription: null, mobileVersionPolicy: null, dataRetention: null, dataExportEnabled: false, newAccountTrialGranted: false });
+    expect(result).toEqual({ status: 'ready', plan: 'Plus', entitlement: null, storeSubscription: null, mobileVersionPolicy: null, dataRetention: null, dataExportEnabled: false, newAccountTrialGranted: false, membershipOffered: false });
   });
 
   it('carries the app-version policy of the server from the same bootstrap response - no separate request - and reads it defensively', async () => {
@@ -213,7 +222,7 @@ describe('bootstrapCurrentUser - entitlement', () => {
 
     const result = await bootstrapCurrentUser('a-token', settings);
 
-    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null, storeSubscription: null, mobileVersionPolicy: null, dataRetention: null, dataExportEnabled: false, newAccountTrialGranted: false });
+    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null, storeSubscription: null, mobileVersionPolicy: null, dataRetention: null, dataExportEnabled: false, newAccountTrialGranted: false, membershipOffered: false });
   });
 });
 

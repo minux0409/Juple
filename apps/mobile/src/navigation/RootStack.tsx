@@ -21,6 +21,7 @@ import { TourBackground } from '../tour/TourBackground';
 import { TourHost } from '../tour/TourHost';
 import { SubscriptionRequiredPrompt } from '../billing/SubscriptionRequiredPrompt';
 import { TrialEndedPrompt } from '../billing/TrialEndedPrompt';
+import { isMembershipOffered } from '../billing/membershipOffer';
 import { WelcomeTrialPrompt } from '../billing/WelcomeTrialPrompt';
 import { MyCollectionSubmissionsScreen } from '../screens/MyCollectionSubmissionsScreen';
 import { headerTitleWithIcon, screenIcons } from './screenIcons';
@@ -171,10 +172,14 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  */
 export function RootStack() {
   const { t } = useTranslation();
-  const { isAuthenticated, isInitializing, backendAuthStatus, userBootstrapStatus, signOut, entitlement } = useAuth();
-  // The subscription screen (price, 구독하기, restore) exists only while the server says the paid program is live: with it off the
-  // route is not registered at all, so no menu, notice, deep route or stray navigate() can reach a purchase.
+  const auth = useAuth();
+  const { isAuthenticated, isInitializing, backendAuthStatus, userBootstrapStatus, signOut, entitlement } = auth;
+  // The free-month popups follow the paid program alone (they speak about a free month that exists only once it is launched).
   const isSubscriptionProgramLive = entitlement?.programEnabled === true;
+  // The subscription screen (price, 구독하기, restore) exists only where the server offers the purchase - the launched program, or a
+  // preview account before the launch (App Review, internal testers). Otherwise the route is not registered at all, so no menu, notice,
+  // deep route or stray navigate() can reach a purchase.
+  const isMembershipRouteOffered = isMembershipOffered(auth);
   const isBootstrapComplete =
     isAuthenticated && backendAuthStatus === 'valid' && userBootstrapStatus === 'ready';
 
@@ -286,7 +291,7 @@ export function RootStack() {
             <Stack.Screen component={themedScreen(HelpGuideSectionScreen)} name="HelpGuideSection" options={({ route }) => ({ title: t(`guide.sections.${route.params.sectionId}.title`), ...headerTitleWithIcon(screenIcons.help, t(`guide.sections.${route.params.sectionId}.title`)) })} />
             <Stack.Screen component={themedScreen(CustomerCenterScreen)} name="CustomerCenter" options={{ title: t('customerCenter.title'), ...headerTitleWithIcon(screenIcons.customerCenter, t('customerCenter.title')) }} />
             {/* Always registered: an account whose free period ended is sent here to subscribe or restore. Only the My Page ENTRY is limited to internal-test builds. */}
-            {isSubscriptionProgramLive ? (
+            {isMembershipRouteOffered ? (
               <Stack.Screen component={themedScreen(MembershipScreen)} name="Subscription" options={{ title: t('membership.title'), ...headerTitleWithIcon(screenIcons.subscription, t('membership.title')) }} />
             ) : null}
             <Stack.Screen component={themedScreen(NoticesScreen)} name="Notices" options={{ title: t('notices.title'), ...headerTitleWithIcon(screenIcons.notices, t('notices.title')) }} />

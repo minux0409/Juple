@@ -44,10 +44,13 @@ describe('navigation identity: one icon per navigation item', () => {
     }
   });
 
-  it('the Subscription route (the Membership screen) exists only while the server says the paid program is live (no purchase can be reached before)', () => {
+  it('the Subscription route (the Membership screen) exists only where the server offers the membership (no purchase can be reached otherwise)', () => {
     const stack: string = require('fs').readFileSync(require('path').resolve(__dirname, '../RootStack.tsx'), 'utf8');
+    expect(stack).toMatch(/const isMembershipRouteOffered = isMembershipOffered\(auth\);/);
+    expect(stack).toMatch(/\{isMembershipRouteOffered \? \(\s*<Stack\.Screen component=\{themedScreen\(MembershipScreen\)\} name="Subscription"/);
+    // The free-month popups still follow the launched program alone.
     expect(stack).toMatch(/const isSubscriptionProgramLive = entitlement\?\.programEnabled === true;/);
-    expect(stack).toMatch(/\{isSubscriptionProgramLive \? \(\s*<Stack\.Screen component=\{themedScreen\(MembershipScreen\)\} name="Subscription"/);
+    expect(stack).toMatch(/isReady && isSubscriptionProgramLive \? <WelcomeTrialPrompt \/>/);
   });
 
   it('every title uses the same icon size, in the brand color, with the title text beside it', () => {

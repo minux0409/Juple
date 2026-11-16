@@ -98,6 +98,12 @@ export interface AuthState {
    * one-time welcome reads it; every later bootstrap - and every other device - answers false. See billing/welcomeTrialStore.ts.
    */
   readonly newAccountTrialGranted?: boolean;
+  /**
+   * Whether this account is offered the membership purchase (the server's MembershipOffer): everyone once the program is launched, and
+   * before that only the server's preview accounts (App Review, internal testers). It starts no trial and restricts nothing - those stay
+   * `entitlement.programEnabled`. False from an older server.
+   */
+  readonly membershipOffered?: boolean;
 }
 
 /**
