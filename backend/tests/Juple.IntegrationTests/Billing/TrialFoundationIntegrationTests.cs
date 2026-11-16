@@ -121,8 +121,11 @@ public sealed class TrialFoundationIntegrationTests : IAsyncLifetime
         var first = await service.BootstrapAsync(identity, command);
         var again = await service.BootstrapAsync(identity, command);
 
+        // A new account, but no free month exists while the program is off: nobody is welcomed to one.
+        Assert.True(first.IsNewAccount);
         foreach (var result in new[] { first, again })
         {
+            Assert.False(result.NewAccountTrialGranted);
             Assert.Equal(UserPlan.Free, result.Plan);
             Assert.False(result.Entitlement.ProgramEnabled);
             Assert.True(result.Entitlement.CanWrite);
@@ -144,6 +147,7 @@ public sealed class TrialFoundationIntegrationTests : IAsyncLifetime
 
         Assert.Equal(UserPlan.Free, result.Plan);
         Assert.Equal(EntitlementStatus.Trial, result.Entitlement.Status);
+        Assert.False(result.NewAccountTrialGranted); // an existing member is never welcomed as new
         Assert.True(result.Entitlement.CanWrite);
         Assert.Equal(ProgramStart, result.Entitlement.TrialStartedAtUtc);
         Assert.Equal(new DateTimeOffset(2026, 12, 31, 0, 0, 0, TimeSpan.Zero), result.Entitlement.TrialEndsAtUtc);
@@ -163,6 +167,24 @@ public sealed class TrialFoundationIntegrationTests : IAsyncLifetime
         Assert.Equal(EntitlementStatus.Trial, result.Entitlement.Status);
         Assert.Equal(created, result.Entitlement.TrialStartedAtUtc);
         Assert.Equal(new DateTimeOffset(2027, 1, 9, 0, 0, 0, TimeSpan.Zero), result.Entitlement.TrialEndsAtUtc);
+        // Read back through SQL Server, the fresh window still matches the creation instant: the apps may welcome this account, once.
+        Assert.True(result.IsNewAccount);
+        Assert.True(result.NewAccountTrialGranted);
+
+        var later = await BootstrapService(NewContext(), enabled: true, created.AddMinutes(5)).BootstrapAsync(identity, FreshSignIn(created.AddMinutes(5)));
+        Assert.False(later.IsNewAccount);
+        Assert.False(later.NewAccountTrialGranted);
+    }
+
+    [Fact]
+    public async Task ProgramEnabled_ANewUserWithAFractionalCreationInstant_IsStillToldOnce()
+    {
+        var identity = NewIdentity();
+        var created = new DateTimeOffset(2026, 12, 10, 3, 4, 5, TimeSpan.Zero).AddTicks(1234567);
+
+        var result = await BootstrapService(_db, enabled: true, created).BootstrapAsync(identity, FreshSignIn(created));
+
+        Assert.True(result.NewAccountTrialGranted);
     }
 
     [Fact]
@@ -269,6 +291,8 @@ public sealed class TrialFoundationIntegrationTests : IAsyncLifetime
 
         var newUserId = (await new EntitlementStore(NewContext()).GetUserStateAsync(identity))!.UserId;
         Assert.NotEqual(oldUserId, newUserId);
+        Assert.True(recreated.IsNewAccount);
+        Assert.False(recreated.NewAccountTrialGranted); // given back its original window, so no "first month free" welcome
         Assert.Equal(original.Entitlement.TrialStartedAtUtc, recreated.Entitlement.TrialStartedAtUtc);
         Assert.Equal(original.Entitlement.TrialEndsAtUtc, recreated.Entitlement.TrialEndsAtUtc);
         Assert.Equal(EntitlementStatus.Expired, recreated.Entitlement.Status);

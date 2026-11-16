@@ -3,6 +3,7 @@ using Juple.Application.Billing;
 using Juple.Application.Users.DeleteAccount;
 using Juple.Application.Collections.Locking;
 using Juple.Application.Identity;
+using Juple.Domain.Billing;
 using Juple.Domain.Users;
 
 namespace Juple.Application.Users.BootstrapCurrentUser;
@@ -80,12 +81,16 @@ public sealed class CurrentUserBootstrapService(
                 utcNow),
             cancellationToken);
         await InheritTrialWindowAsync(externalIdentity, cancellationToken);
+        var entitlement = await entitlementService.GetForIdentityAsync(externalIdentity, cancellationToken);
+        var createdAccount = provisioningStore.CreatedAccount;
         return new CurrentUserBootstrapResult(
             createdPlan,
             timeZoneId,
-            await entitlementService.GetForIdentityAsync(externalIdentity, cancellationToken),
+            entitlement,
             await entitlementService.GetStoreSubscriptionForIdentityAsync(externalIdentity, cancellationToken),
-            provisioningStore.CreatedAccount);
+            createdAccount,
+            // The account was created with utcNow as its creation instant (CurrentUserBootstrapData above).
+            TrialPolicy.GrantedFreshTrial(createdAccount, entitlement, utcNow));
     }
 
     /// <summary>

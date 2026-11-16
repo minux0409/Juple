@@ -201,8 +201,9 @@ public sealed class CurrentUserBootstrapServiceTests
         Juple.Application.Users.DeleteAccount.EntraAccountDeletionOptions? options = null,
         EntraTestDoubles.FakeDeletionService? deletion = null,
         EntraTestDoubles.FakeDirectory? directory = null,
-        EntraTestDoubles.FakeTrialEmailLedger? ledger = null) =>
-        new(store, new ProgramNotLaunchedEntitlements(), new FixedTimeProvider(),
+        EntraTestDoubles.FakeTrialEmailLedger? ledger = null,
+        Juple.Application.Billing.IEntitlementService? entitlements = null) =>
+        new(store, entitlements ?? new ProgramNotLaunchedEntitlements(), new FixedTimeProvider(),
             options ?? new Juple.Application.Users.DeleteAccount.EntraAccountDeletionOptions(),
             deletion ?? new EntraTestDoubles.FakeDeletionService(),
             directory ?? new EntraTestDoubles.FakeDirectory(),
@@ -271,6 +272,77 @@ public sealed class CurrentUserBootstrapServiceTests
 
         Assert.Single(store.CreatedUsers);
         Assert.Empty(ledger.Inherited);
+    }
+
+    [Fact]
+    public async Task ANewAccountWithItsOwnFreshTrial_IsToldOnce_SoTheAppsCanWelcomeIt()
+    {
+        var store = new FakeProvisioningStore();
+        var trial = new LiveProgramEntitlements(trialStartedAtUtc: Now);
+
+        var result = await CreateService(store, entitlements: trial).BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul", Now.AddMinutes(-1)));
+
+        Assert.True(result.IsNewAccount);
+        Assert.True(result.NewAccountTrialGranted);
+        Assert.Equal(Juple.Domain.Billing.EntitlementStatus.Trial, result.Entitlement.Status);
+    }
+
+    [Fact]
+    public async Task AnExistingAccount_IsNeverTold_EvenInItsTrial()
+    {
+        var store = new FakeProvisioningStore { ExistingPlan = UserPlan.Free };
+        var trial = new LiveProgramEntitlements(trialStartedAtUtc: Now);
+
+        var result = await CreateService(store, entitlements: trial).BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul"));
+
+        Assert.False(result.NewAccountTrialGranted);
+    }
+
+    [Fact]
+    public async Task ANewAccountGivenBackAnEarlierWindow_IsNotTold()
+    {
+        var store = new FakeProvisioningStore();
+        var inherited = new LiveProgramEntitlements(trialStartedAtUtc: Now.AddDays(-10));
+
+        var result = await CreateService(store, entitlements: inherited).BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul", Now.AddMinutes(-1)));
+
+        Assert.True(result.IsNewAccount);
+        Assert.False(result.NewAccountTrialGranted);
+    }
+
+    [Fact]
+    public async Task ANewAccountWhileTheProgramIsOff_IsNotTold()
+    {
+        var result = await CreateService(new FakeProvisioningStore()).BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul", Now.AddMinutes(-1)));
+
+        Assert.True(result.IsNewAccount);
+        Assert.False(result.NewAccountTrialGranted);
+    }
+
+    [Fact]
+    public async Task TheConcurrentCreationLoser_IsNotTold()
+    {
+        var store = new FakeProvisioningStore { CreationWasWonElsewhere = true };
+        var trial = new LiveProgramEntitlements(trialStartedAtUtc: Now);
+
+        var result = await CreateService(store, entitlements: trial).BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul", Now.AddMinutes(-1)));
+
+        Assert.False(result.NewAccountTrialGranted);
+    }
+
+    // The program is live and the account is in a trial that started at the given instant (its own creation, or an inherited window).
+    private sealed class LiveProgramEntitlements(DateTimeOffset trialStartedAtUtc) : Juple.Application.Billing.IEntitlementService
+    {
+        private Juple.Domain.Billing.Entitlement Trial() => Juple.Domain.Billing.Entitlement.ForTrial(
+            new Juple.Domain.Billing.TrialWindow(trialStartedAtUtc, trialStartedAtUtc + Juple.Domain.Billing.TrialPolicy.Duration), Now);
+
+        public Task<Juple.Domain.Billing.Entitlement> GetForUserAsync(long userId, CancellationToken cancellationToken = default) => Task.FromResult(Trial());
+
+        public Task<Juple.Domain.Billing.Entitlement> GetForIdentityAsync(ExternalIdentityPrincipal externalIdentity, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Trial());
+
+        public Task<Juple.Domain.Billing.StoreSubscriptionOwnership> GetStoreSubscriptionForIdentityAsync(ExternalIdentityPrincipal externalIdentity, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Juple.Domain.Billing.StoreSubscriptionOwnership.None);
     }
 
     // The subscription program is not launched in these tests: access is unrestricted and no status is claimed.

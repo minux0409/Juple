@@ -22,4 +22,20 @@ public static class TrialPolicy
         var start = createdAt < programStart ? programStart : createdAt;
         return new TrialWindow(start, start + Duration);
     }
+
+    /// <summary>How far a fresh window's start may differ from the account's creation instant (a database round trip of the same value).</summary>
+    private static readonly TimeSpan FreshWindowTolerance = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    /// Whether the request that created an account also gave it its OWN, fresh free period - the one fact the apps' first-run welcome
+    /// ("your first month is free") may rely on. False for an account created before the program starts (its window begins at the
+    /// program start), for a re-created account that was given back its earlier window through the trial ledger, while the program is
+    /// off (no trial exists), and for anything not in a running trial.
+    /// </summary>
+    public static bool GrantedFreshTrial(bool accountCreated, Entitlement entitlement, DateTimeOffset accountCreatedAtUtc) =>
+        accountCreated
+        && entitlement.ProgramEnabled
+        && entitlement.Status == EntitlementStatus.Trial
+        && entitlement.TrialStartedAtUtc is { } started
+        && (started - accountCreatedAtUtc).Duration() <= FreshWindowTolerance;
 }

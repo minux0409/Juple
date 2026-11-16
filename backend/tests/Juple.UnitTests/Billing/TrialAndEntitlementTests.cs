@@ -54,6 +54,94 @@ public sealed class TrialPolicyTests
         Assert.Equal(TimeSpan.Zero, window.StartedAtUtc.Offset);
         Assert.Equal(TimeSpan.Zero, window.EndsAtUtc.Offset);
     }
+
+    [Theory]
+    // "The first month" is 30 x 24 h, never a calendar month: the end of a month (31 Jan, a leap February) does not shorten or stretch it.
+    [InlineData("2027-01-31T15:00:00Z", "2027-03-02T15:00:00Z")]
+    [InlineData("2028-01-31T00:00:00Z", "2028-03-01T00:00:00Z")]
+    [InlineData("2027-02-28T23:59:59Z", "2027-03-30T23:59:59Z")]
+    [InlineData("2026-12-31T23:30:00Z", "2027-01-30T23:30:00Z")]
+    public void AMonthEndSignUp_StillGetsExactly30Days(string created, string ends)
+    {
+        var window = TrialPolicy.WindowFor(DateTimeOffset.Parse(created), ProgramStart);
+
+        Assert.Equal(DateTimeOffset.Parse(ends), window.EndsAtUtc);
+        Assert.Equal(TrialPolicy.Duration, window.EndsAtUtc - window.StartedAtUtc);
+    }
+
+    [Fact]
+    public void TheEndIsOneInstant_TheSameInEveryTimeZone()
+    {
+        // Signing up at 00:30 in Seoul (15:30 UTC the day before) ends at 00:30 Seoul 30 days later: the zone never moves the end.
+        var created = new DateTimeOffset(2026, 12, 20, 0, 30, 0, TimeSpan.FromHours(9));
+
+        var window = TrialPolicy.WindowFor(created, ProgramStart);
+
+        Assert.Equal(new DateTimeOffset(2027, 1, 19, 0, 30, 0, TimeSpan.FromHours(9)), window.EndsAtUtc);
+    }
+
+    private static readonly DateTimeOffset CreatedNow = new(2026, 12, 10, 3, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public void ANewAccountInItsOwnFreshTrial_IsTold()
+    {
+        var entitlement = Entitlement.ForTrial(TrialPolicy.WindowFor(CreatedNow, ProgramStart), CreatedNow);
+
+        Assert.True(TrialPolicy.GrantedFreshTrial(true, entitlement, CreatedNow));
+    }
+
+    [Fact]
+    public void AFreshWindowReadBackWithinTheTolerance_StillCounts()
+    {
+        var entitlement = Entitlement.ForTrial(TrialPolicy.WindowFor(CreatedNow.AddMilliseconds(400), ProgramStart), CreatedNow.AddSeconds(1));
+
+        Assert.True(TrialPolicy.GrantedFreshTrial(true, entitlement, CreatedNow));
+    }
+
+    [Fact]
+    public void AnAccountThatWasNotCreatedByThisRequest_IsNeverTold()
+    {
+        var entitlement = Entitlement.ForTrial(TrialPolicy.WindowFor(CreatedNow, ProgramStart), CreatedNow);
+
+        Assert.False(TrialPolicy.GrantedFreshTrial(false, entitlement, CreatedNow));
+    }
+
+    [Fact]
+    public void WhileTheProgramIsOff_NobodyIsToldAboutAFreeMonth()
+    {
+        Assert.False(TrialPolicy.GrantedFreshTrial(true, Entitlement.NotLaunched(CreatedNow), CreatedNow));
+    }
+
+    [Fact]
+    public void AReCreatedAccountGivenBackItsEarlierWindow_IsNotTold()
+    {
+        // Deleted and signed up again: the trial ledger returns the ORIGINAL window, which started long before this creation.
+        var original = TrialPolicy.WindowFor(CreatedNow.AddDays(-12), ProgramStart);
+        var entitlement = Entitlement.ForTrial(original, CreatedNow);
+
+        Assert.Equal(EntitlementStatus.Trial, entitlement.Status);
+        Assert.False(TrialPolicy.GrantedFreshTrial(true, entitlement, CreatedNow));
+    }
+
+    [Fact]
+    public void AReCreatedAccountWhoseEarlierWindowAlreadyEnded_IsNotTold()
+    {
+        var original = new TrialWindow(CreatedNow.AddDays(-40), CreatedNow.AddDays(-40) + TrialPolicy.Duration);
+        var entitlement = Entitlement.ForTrial(original, CreatedNow);
+
+        Assert.Equal(EntitlementStatus.Expired, entitlement.Status);
+        Assert.False(TrialPolicy.GrantedFreshTrial(true, entitlement, CreatedNow));
+    }
+
+    [Fact]
+    public void AnAccountCreatedBeforeTheProgramStarts_IsNotANewTrialAccount()
+    {
+        // Its window begins at the program start, not at its creation.
+        var created = ProgramStart.AddDays(-3);
+        var entitlement = Entitlement.ForTrial(TrialPolicy.WindowFor(created, ProgramStart), ProgramStart.AddHours(1));
+
+        Assert.False(TrialPolicy.GrantedFreshTrial(true, entitlement, created));
+    }
 }
 
 public sealed class EntitlementTests
