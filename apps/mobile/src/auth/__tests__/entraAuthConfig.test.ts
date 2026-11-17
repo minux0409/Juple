@@ -1,9 +1,11 @@
 import {
   buildProductionEntraAuthConfig,
-  entraDevAuthConfig,
+  getDevEntraAuthConfig,
   entraRedirectUrlForPlatform,
   resolveEntraAuthConfig,
 } from '../entraAuthConfig';
+
+const entraDevAuthConfig = getDevEntraAuthConfig();
 
 const fakeProductionEntraEnv = {
   instance: 'https://juple.ciamlogin.com/',

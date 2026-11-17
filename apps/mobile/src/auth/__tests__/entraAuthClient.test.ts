@@ -7,7 +7,9 @@ import {
   refreshEntraSession,
   SIGN_IN_PARAMETERS,
 } from '../entraAuthClient';
-import { entraDevAuthConfig } from '../entraAuthConfig';
+import { getDevEntraAuthConfig } from '../entraAuthConfig';
+
+const entraDevAuthConfig = getDevEntraAuthConfig();
 
 jest.mock('react-native-app-auth', () => ({
   authorize: jest.fn(),

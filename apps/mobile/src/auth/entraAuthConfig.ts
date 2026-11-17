@@ -43,25 +43,30 @@ const ENTRA_REDIRECT_URL = entraRedirectUrlForPlatform(Platform.OS);
 
 const ENTRA_API_SCOPE_NAME = 'access_as_user';
 
-const JUPLE_API_SCOPE =
-  'api://14bcc3b7-7b37-4051-9e40-63cc2a5ffc8b/access_as_user';
-
 /**
- * Confirmed via GET https://jupledev.ciamlogin.com/{tenantId}/v2.0/.well-known/openid-configuration
+ * Metro inlines the environment so Production can omit these endpoints and identifiers.
  */
-export const entraDevAuthConfig: EntraAuthConfig = {
-  issuer:
-    'https://d2e79a05-cf5f-43ab-86d2-717e025a74b1.ciamlogin.com/d2e79a05-cf5f-43ab-86d2-717e025a74b1/v2.0',
-  authorizationEndpoint:
-    'https://jupledev.ciamlogin.com/d2e79a05-cf5f-43ab-86d2-717e025a74b1/oauth2/v2.0/authorize',
-  tokenEndpoint:
-    'https://jupledev.ciamlogin.com/d2e79a05-cf5f-43ab-86d2-717e025a74b1/oauth2/v2.0/token',
-  endSessionEndpoint:
-    'https://jupledev.ciamlogin.com/d2e79a05-cf5f-43ab-86d2-717e025a74b1/oauth2/v2.0/logout',
-  clientId: 'c516017f-437c-43f5-966c-c2f0014cd185',
-  redirectUrl: ENTRA_REDIRECT_URL,
-  scopes: ['openid', 'profile', 'offline_access', JUPLE_API_SCOPE],
-};
+const entraDevAuthConfig: EntraAuthConfig | undefined =
+  process.env.JUPLE_API_ENV === 'production' ? undefined : {
+    issuer:
+      'https://d2e79a05-cf5f-43ab-86d2-717e025a74b1.ciamlogin.com/d2e79a05-cf5f-43ab-86d2-717e025a74b1/v2.0',
+    authorizationEndpoint:
+      'https://jupledev.ciamlogin.com/d2e79a05-cf5f-43ab-86d2-717e025a74b1/oauth2/v2.0/authorize',
+    tokenEndpoint:
+      'https://jupledev.ciamlogin.com/d2e79a05-cf5f-43ab-86d2-717e025a74b1/oauth2/v2.0/token',
+    endSessionEndpoint:
+      'https://jupledev.ciamlogin.com/d2e79a05-cf5f-43ab-86d2-717e025a74b1/oauth2/v2.0/logout',
+    clientId: 'c516017f-437c-43f5-966c-c2f0014cd185',
+    redirectUrl: ENTRA_REDIRECT_URL,
+    scopes: ['openid', 'profile', 'offline_access', 'api://14bcc3b7-7b37-4051-9e40-63cc2a5ffc8b/access_as_user'],
+  };
+
+export function getDevEntraAuthConfig(): EntraAuthConfig {
+  if (!entraDevAuthConfig) {
+    throw new Error('This build does not include Development Entra configuration.');
+  }
+  return entraDevAuthConfig;
+}
 
 /** Raw Production Entra values as read from the environment - none exist yet (see README.md). */
 export interface ProductionEntraEnv {
@@ -137,15 +142,8 @@ export interface EntraEnvironmentSelection {
 export function resolveEntraAuthConfig(
   selection: EntraEnvironmentSelection,
 ): EntraAuthConfig {
-  if (selection.isDev) {
-    return entraDevAuthConfig;
-  }
-
-  // Dogfood is a real, standalone-installed test build (see android/app/build.gradle's dogfood
-  // buildType) that talks to the Azure Development Backend - it must sign in against the same
-  // Development Entra tenant, not Production.
-  if (selection.apiEnv === 'dogfood') {
-    return entraDevAuthConfig;
+  if (selection.isDev || selection.apiEnv === 'dogfood') {
+    return getDevEntraAuthConfig();
   }
 
   if (selection.apiEnv === 'production') {
