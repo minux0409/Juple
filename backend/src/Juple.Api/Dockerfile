@@ -60,6 +60,12 @@ EXPOSE 8080
 # structure (see appsettings.json, DependencyInjection.cs, BlobServiceClientFactory.cs).
 COPY --from=build /app/publish .
 
+# A source archive can contain owner-only settings files. Give the runtime user
+# read access even when publish preserves that mode, without exposing the files
+# to other users in the container.
+RUN chown app:app /app/appsettings*.json \
+    && chmod 0400 /app/appsettings*.json
+
 # The official aspnet image already defines a non-root "app" user (APP_UID) - switching to it
 # here is the standard way to avoid running as root, with no extra user-creation step needed.
 USER $APP_UID
