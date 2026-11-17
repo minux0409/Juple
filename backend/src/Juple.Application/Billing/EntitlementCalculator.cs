@@ -13,7 +13,7 @@ namespace Juple.Application.Billing;
 /// </summary>
 public static class EntitlementCalculator
 {
-    public static Entitlement Effective(TrialWindow? trial, IReadOnlyCollection<PurchaseAccess> purchases, DateTimeOffset nowUtc)
+    public static Entitlement Effective(TrialWindow? trial, IReadOnlyCollection<PurchaseAccess> purchases, DateTimeOffset nowUtc, ComplimentaryAccess complimentary = default)
     {
         var live = purchases.Where(purchase => purchase.IsLiveAt(nowUtc)).ToList();
         if (live.Count > 0)
@@ -24,7 +24,13 @@ public static class EntitlementCalculator
                 .ThenByDescending(purchase => purchase.AccessEndsAtUtc)
                 .First();
             var status = best.State == StorePurchaseState.GracePeriod ? EntitlementStatus.GracePeriod : EntitlementStatus.Active;
-            return Entitlement.Paid(status, best.AccessEndsAtUtc!.Value, best.Reason, trial, nowUtc);
+            var paid = Entitlement.Paid(status, best.AccessEndsAtUtc!.Value, best.Reason, trial, nowUtc);
+            return complimentary.ActiveUntilUtc is { } grantEnd ? paid.WithComplimentaryAccess(grantEnd) : paid;
+        }
+
+        if (complimentary.ActiveUntilUtc is { } activeEnd)
+        {
+            return Entitlement.ForComplimentary(trial, activeEnd, nowUtc);
         }
 
         if (trial is { } window && nowUtc < window.EndsAtUtc)
@@ -45,6 +51,11 @@ public static class EntitlementCalculator
         if (trial is { } expiredTrial)
         {
             ended.Add((expiredTrial.EndsAtUtc, EntitlementReason.None));
+        }
+
+        if (complimentary.LastEndedAtUtc is { } complimentaryEnd)
+        {
+            ended.Add((complimentaryEnd, EntitlementReason.None));
         }
 
         if (ended.Count == 0)

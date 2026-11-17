@@ -74,7 +74,8 @@ public sealed record DataRetentionInput(
     DateTimeOffset? PolicyEffectiveAtUtc,
     DateTimeOffset AccountCreatedAtUtc,
     DateTimeOffset? TrialEndsAtUtc,
-    IReadOnlyCollection<PurchaseAccess> Purchases);
+    IReadOnlyCollection<PurchaseAccess> Purchases,
+    ComplimentaryAccess Complimentary = default);
 
 public sealed record DataRetentionState(
     DataRetentionPhase Phase,
@@ -129,7 +130,8 @@ public static class DataRetentionPolicy
         var effectiveAt = input.PolicyEffectiveAtUtc.Value.ToUniversalTime();
         var trialEnd = input.TrialEndsAtUtc?.ToUniversalTime();
         var purchases = input.Purchases;
-        if ((trialEnd is not null && now < trialEnd.Value) || purchases.Any(purchase => purchase.IsLiveAt(now)))
+        if (input.Complimentary.ActiveUntilUtc is not null || (trialEnd is not null && now < trialEnd.Value)
+            || purchases.Any(purchase => purchase.IsLiveAt(now)))
         {
             return Simple(DataRetentionPhase.Active);
         }
@@ -147,7 +149,12 @@ public static class DataRetentionPolicy
         if (paidEnds.Count > 0)
         {
             var paidEnd = paidEnds.Max();
-            return Scheduled(DataRetentionBasis.PaidAccessEnded, paidEnd > effectiveAt ? paidEnd : effectiveAt, now);
+            var clockStart = paidEnd > effectiveAt ? paidEnd : effectiveAt;
+            if (input.Complimentary.LastEndedAtUtc is { } grantEnd && grantEnd > clockStart)
+            {
+                clockStart = grantEnd;
+            }
+            return Scheduled(DataRetentionBasis.PaidAccessEnded, clockStart, now);
         }
 
         if (trialEnd is null)
@@ -156,7 +163,8 @@ public static class DataRetentionPolicy
         }
 
         return input.AccountCreatedAtUtc.ToUniversalTime() >= effectiveAt
-            ? Scheduled(DataRetentionBasis.TrialEnded, trialEnd.Value, now)
+            ? Scheduled(DataRetentionBasis.TrialEnded,
+                input.Complimentary.LastEndedAtUtc is { } end && end > trialEnd.Value ? end : trialEnd.Value, now)
             : NotApplicable(DataRetentionNotApplicableReason.TrialBeforePolicy);
     }
 

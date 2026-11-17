@@ -971,6 +971,7 @@
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   },
   "subscription": {
+    "complimentary": "Keanggotaan gratis",
     "title": "Langganan",
     "planName": "Langganan Juple",
     "trialNotice": {

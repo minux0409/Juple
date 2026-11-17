@@ -971,6 +971,7 @@
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   },
   "subscription": {
+    "complimentary": "สมาชิกฟรี",
     "title": "การสมัครสมาชิก",
     "planName": "การสมัครสมาชิก Juple",
     "trialNotice": {

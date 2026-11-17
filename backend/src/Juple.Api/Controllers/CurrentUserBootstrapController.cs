@@ -33,6 +33,7 @@ public sealed class CurrentUserBootstrapController : ControllerBase
         [FromServices] Juple.Application.DataExport.DataExportOptions dataExportOptions,
         [FromServices] TimeProvider timeProvider,
         [FromServices] Juple.Application.Billing.BillingOptions billingOptions,
+        [FromServices] Juple.Application.Billing.IMembershipGrantReader membershipGrants,
         CancellationToken cancellationToken)
     {
         try
@@ -57,7 +58,7 @@ public sealed class CurrentUserBootstrapController : ControllerBase
                 TermsStatusResponse.From(terms),
                 DataRetentionResponse.From(retention, timeProvider.GetUtcNow()),
                 new DataExportAvailabilityResponse(dataExportOptions.Enabled), result.IsNewAccount, result.NewAccountTrialGranted,
-                Juple.Application.Billing.MembershipOffer.IsOffered(billingOptions, currentUser.UserId)));
+                await Juple.Application.Billing.MembershipOffer.IsOfferedAsync(billingOptions, membershipGrants, currentUser.UserId, cancellationToken)));
         }
         catch (AccountDeletionPendingException)
         {
@@ -87,7 +88,7 @@ public sealed class CurrentUserBootstrapController : ControllerBase
     /// free period (program live, trial running from the creation instant - never an inherited or pre-launch window). The apps show their
     /// one-time welcome from it; every later bootstrap, on any device, answers false.</param>
     /// <param name="MembershipOffered">Additive: whether this account is offered the membership purchase (MembershipOffer) - true for everyone once
-    /// the program is launched, and before that only for Billing:PurchasePreviewUserIds. It never starts a trial or restricts anything; an older
+    /// the program is launched, and before that for configured preview users and active admin previews. It never starts a trial; an older
     /// app ignores it and keeps showing the membership only while the program is launched.</param>
     public sealed record BootstrapCurrentUserResponse(
         string Plan,
@@ -231,7 +232,8 @@ public sealed class CurrentUserBootstrapController : ControllerBase
         DateTimeOffset? CurrentPeriodEndsAtUtc,
         DateTimeOffset? AccessFrozenAtUtc,
         bool CanWrite,
-        DateTimeOffset VerifiedAtUtc)
+        DateTimeOffset VerifiedAtUtc,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTimeOffset? ComplimentaryAccessEndsAtUtc = null)
     {
         public static EntitlementResponse From(Entitlement entitlement) => new(
             entitlement.ProgramEnabled,
@@ -257,6 +259,7 @@ public sealed class CurrentUserBootstrapController : ControllerBase
             entitlement.CurrentPeriodEndsAtUtc,
             entitlement.AccessFrozenAtUtc,
             entitlement.CanWrite,
-            entitlement.VerifiedAtUtc);
+            entitlement.VerifiedAtUtc,
+            entitlement.ComplimentaryAccessEndsAtUtc);
     }
 }

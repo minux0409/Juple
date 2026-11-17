@@ -18,4 +18,9 @@ describe('isMembershipOffered - the purchase is offered separately from the free
     expect(isMembershipOffered({ entitlement: null, membershipOffered: undefined })).toBe(false);
     expect(isMembershipOffered(undefined)).toBe(false);
   });
+
+  it('makes the menu available to a complimentary member before launch', () => {
+    const entitlement = { programEnabled: false, complimentaryAccessEndsAtUtc: '2026-12-01T00:00:00Z' } as never;
+    expect(isMembershipOffered({ entitlement, membershipOffered: false })).toBe(true);
+  });
 });

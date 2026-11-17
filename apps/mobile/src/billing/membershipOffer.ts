@@ -7,5 +7,6 @@ import type { AuthState } from '../auth/types';
  * `entitlement.programEnabled` alone.
  */
 export function isMembershipOffered(auth: Pick<AuthState, 'entitlement' | 'membershipOffered'> | null | undefined): boolean {
-  return auth?.entitlement?.programEnabled === true || auth?.membershipOffered === true;
+  return auth?.entitlement?.programEnabled === true || auth?.membershipOffered === true
+    || Boolean(auth?.entitlement?.complimentaryAccessEndsAtUtc);
 }

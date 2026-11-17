@@ -57,6 +57,20 @@ public sealed class DataRetentionPolicyTests
     }
 
     [Fact]
+    public void AComplimentaryPeriodDefersRetentionWithoutCreatingPaidHistory()
+    {
+        var grantEnd = PaidEnd.AddDays(10);
+        var withPaidHistory = new DataRetentionInput(true, PolicyEffective, ExistingAccount, null,
+            [Purchase(StorePurchaseState.Expired, PaidEnd)], new ComplimentaryAccess(grantEnd, null));
+        Assert.Equal(DataRetentionPhase.Active, DataRetentionPolicy.Evaluate(withPaidHistory, grantEnd.AddTicks(-1)).Phase);
+
+        var ended = withPaidHistory with { Complimentary = new ComplimentaryAccess(null, grantEnd) };
+        Assert.Equal(grantEnd, DataRetentionPolicy.Evaluate(ended, grantEnd).RetentionStartedAtUtc);
+        Assert.Equal(DataRetentionNotApplicableReason.NoAccessHistory,
+            DataRetentionPolicy.Evaluate(ended with { Purchases = [] }, grantEnd).NotApplicableReason);
+    }
+
+    [Fact]
     public void ATrialOnlyAccountCreatedUnderThePolicy_IsScheduledFromItsTrialEnd()
     {
         var created = PolicyEffective;   // exactly at the effective instant counts as "under the policy"

@@ -67,6 +67,9 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUserProvisioningStore, CurrentUserProvisioningStore>();
         services.AddScoped<ICurrentJupleUserAccessor, CurrentJupleUserAccessor>();
         services.AddScoped<Juple.Application.Billing.IEntitlementStore, Juple.Infrastructure.Billing.EntitlementStore>();
+        services.AddScoped<Juple.Infrastructure.Billing.MembershipGrantStore>();
+        services.AddScoped<Juple.Application.Billing.IMembershipGrantReader>(sp => sp.GetRequiredService<Juple.Infrastructure.Billing.MembershipGrantStore>());
+        services.AddScoped<Juple.Application.Admin.IAdminMembershipStore>(sp => sp.GetRequiredService<Juple.Infrastructure.Billing.MembershipGrantStore>());
         services.AddScoped<Juple.Application.Billing.ICollectionOwnerLookup, Juple.Infrastructure.Billing.CollectionOwnerLookup>();
         services.AddScoped<Juple.Application.Retention.IRetentionStore, Juple.Infrastructure.Retention.RetentionStore>();
         services.AddSingleton(configuration.GetSection(Juple.Application.Retention.RetentionOptions.SectionName).Get<Juple.Application.Retention.RetentionOptions>()

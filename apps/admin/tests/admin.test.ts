@@ -14,6 +14,7 @@ import {
   inquiryStatusLabel,
   localTodayStartUtc,
   manualStatusTargets,
+  normalizeMembershipLookup,
   parseBuildInput,
   parseInquiryFilter,
   planAppVersionChange,
@@ -48,6 +49,20 @@ import {
 import { authCallbackSecurityHeaders, contentSecurityPolicy, securityHeaders } from '../lib/securityHeaders.ts';
 import { strings } from '../lib/strings.ts';
 import { classifyTokenFailure } from '../lib/tokenFailure.ts';
+
+it('validates exact and partial membership lookup before any API request', () => {
+  assert.equal(normalizeMembershipLookup('jupleId', ' qzam '), 'QZAM');
+  assert.equal(normalizeMembershipLookup('jupleId', 'qzam-qbqk'), 'QZAMQBQK');
+  for (const input of ['', 'qza', '0-I-L-O', 'qza%', 'QZAMQBQKA']) {
+    assert.equal(normalizeMembershipLookup('jupleId', input), null);
+  }
+  assert.equal(normalizeMembershipLookup('userId', '0038'), '38');
+  assert.equal(normalizeMembershipLookup('userId', '9223372036854775807'), '9223372036854775807');
+  for (const input of ['', '0', '-13', '13.5', '9223372036854775808']) {
+    assert.equal(normalizeMembershipLookup('userId', input), null);
+  }
+  assert.equal(failureMessage(new ApiHttpError(400, null)), strings.invalidRequest);
+});
 
 const ENV = {
   JUPLE_ADMIN_API_BASE_URL: 'https://api.example.test/',
@@ -407,11 +422,11 @@ describe('admin pages and model', () => {
     assert.equal(localTodayStartUtc(now), new Date(2026, 9, 19).toISOString());
   });
 
-  it('the sidebar is the six V2 screens plus account/system; every entry and every older tool is a real page', () => {
-    assert.deepEqual(NAVIGATION.map(entry => entry.label), ['대시보드', '사용자', '공지사항', '문의 관리', '비용 및 수익', '앱 버전 관리']);
+  it('every sidebar entry and every older tool is a real page', () => {
+    assert.deepEqual(NAVIGATION.map(entry => entry.label), ['대시보드', '사용자', '멤버십 관리', '공지사항', '문의 관리', '비용 및 수익', '앱 버전 관리']);
     assert.deepEqual(FOOTER_NAVIGATION.map(entry => entry.label), ['관리자 계정', '시스템 상태']);
     const enabled = [...NAVIGATION, ...FOOTER_NAVIGATION].map(entry => entry.href);
-    assert.deepEqual(enabled, ['/', '/users', '/notices', '/inquiries', '/costs', '/app-version', '/settings', '/operations/system']);
+    assert.deepEqual(enabled, ['/', '/users', '/membership', '/notices', '/inquiries', '/costs', '/app-version', '/settings', '/operations/system']);
     // The older screens are no longer in the sidebar but keep working (bookmarks), each highlighting the section it belongs to.
     const legacy = LEGACY_TOOLS.map(tool => tool.href);
     assert.deepEqual(legacy, ['/workspace', '/workspace/users', '/links', '/analytics', '/operations', '/expenses', '/revenue']);
@@ -431,11 +446,12 @@ describe('admin pages and model', () => {
     assert.equal(isActive('/', '/users'), false);
   });
 
-  it('existing user and analytics pages stay read-only; inquiries and app versions have their own controlled writes', () => {
+  it('existing user and analytics pages stay read-only; changes use dedicated screens', () => {
     const puts = sourceFiles().filter(file => /method: 'PUT'/.test(readFileSync(file, 'utf8')));
     assert.deepEqual(puts.map(file => file.replace(/\\/g, '/').replace(/^.*\/app\//, 'app/')).sort(), [
       'app/(admin)/inquiries/[inquiryId]/page.tsx',
       'app/(admin)/inquiries/reports/[reportId]/page.tsx',
+      'app/(admin)/membership/page.tsx',
       'app/(admin)/operations/app-version/page.tsx',
     ]);
   });

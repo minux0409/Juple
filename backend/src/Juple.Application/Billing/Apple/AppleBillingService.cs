@@ -37,7 +37,8 @@ public sealed class AppleBillingService(
     IAppleAccountTokenProvider accountTokens,
     IApplePurchaseHandleProtector handles,
     IBillingTelemetry telemetry,
-    TimeProvider timeProvider) : IAppleBillingService
+    TimeProvider timeProvider,
+    IMembershipGrantReader? membershipGrants = null) : IAppleBillingService
 {
     private const int MaxRestoreTransactions = 10;
     private const string SubscriptionType = "Auto-Renewable Subscription";
@@ -46,7 +47,7 @@ public sealed class AppleBillingService(
     {
         // Offered only where the purchase is (MembershipOffer): before the launch, the preview accounts alone. Verify and restore stay open -
         // a purchase Apple already charged is never refused.
-        if (!options.Apple.Enabled || !MembershipOffer.IsOffered(options, userId))
+        if (!options.Apple.Enabled || !await MembershipOffer.CanBuyAsync(options, membershipGrants, userId, timeProvider.GetUtcNow(), cancellationToken))
         {
             return new AppleCatalog(false, [], null);
         }

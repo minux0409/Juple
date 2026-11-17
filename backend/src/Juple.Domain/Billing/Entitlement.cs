@@ -64,6 +64,24 @@ public sealed record Entitlement
 
     public DateTimeOffset? AccessFrozenAtUtc { get; private init; }
 
+    public DateTimeOffset? ComplimentaryAccessEndsAtUtc { get; private init; }
+
+    public Entitlement WithComplimentaryAccess(DateTimeOffset end) => this with
+    {
+        ComplimentaryAccessEndsAtUtc = end,
+    };
+
+    public static Entitlement ForComplimentary(TrialWindow? trial, DateTimeOffset endsAtUtc, DateTimeOffset nowUtc) => new()
+    {
+        ProgramEnabled = true,
+        Status = EntitlementStatus.Active,
+        TrialStartedAtUtc = trial?.StartedAtUtc,
+        TrialEndsAtUtc = trial?.EndsAtUtc,
+        ComplimentaryAccessEndsAtUtc = endsAtUtc,
+        VerifiedAtUtc = nowUtc,
+        CanWrite = true,
+    };
+
     /// <summary>The program is not launched: today's behavior, nothing restricted, no status claimed.</summary>
     public static Entitlement NotLaunched(DateTimeOffset verifiedAtUtc) =>
         new() { ProgramEnabled = false, CanWrite = true, VerifiedAtUtc = verifiedAtUtc };

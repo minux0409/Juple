@@ -41,6 +41,7 @@ export function SubscriptionScreen() {
   const { t, i18n } = useTranslation();
   const store = useSubscriptionStore();
   const { entitlement, storeSubscription } = useAuth();
+  const complimentaryEnd = entitlement?.complimentaryAccessEndsAtUtc;
   const { showMessage, messageDialog } = useMessageDialog();
   const [plansState, setPlansState] = useState<PlansState>({ kind: 'loading' });
   const [selected, setSelected] = useState<PlanKey | null>(null);
@@ -77,8 +78,10 @@ export function SubscriptionScreen() {
   }, [store]);
 
   useEffect(() => {
-    loadPlans().catch(() => undefined);
-  }, [loadPlans]);
+    if (!complimentaryEnd) {
+      loadPlans().catch(() => undefined);
+    }
+  }, [complimentaryEnd, loadPlans]);
 
   const unavailableText = useCallback(
     (reason: OfferUnavailableReason) => {
@@ -170,7 +173,7 @@ export function SubscriptionScreen() {
   );
 
   const purchase = () => runExclusive(async () => {
-    if (!chosen) {
+    if (!chosen || complimentaryEnd) {
       return null;
     }
     const result = Platform.OS === 'android' ? await store.purchase(chosen.key, chosen) : await store.purchase(chosen.key);
@@ -272,8 +275,8 @@ export function SubscriptionScreen() {
   }
   // Subscribed through the OTHER store (bought on Android, now on an iPhone, or the reverse): this device cannot manage it, so it says where.
   const showManage = isSubscribed && store.canManageSubscription && otherStore === null;
-  const trial = view.kind === 'trial' ? describeTrialProgress(entitlement) : null;
-  const badge = membershipBadge(view, entitlement, paymentPending && !isSubscribed);
+  const trial = view.kind === 'trial' && !complimentaryEnd ? describeTrialProgress(entitlement) : null;
+  const badge = complimentaryEnd ? 'member' : membershipBadge(view, entitlement, paymentPending && !isSubscribed);
 
   const subscribe = () => {
     if (view.kind === 'trial') {
@@ -339,9 +342,18 @@ export function SubscriptionScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <MembershipHeader badge={badge} />
         {trial ? <TrialPeriodCard trial={trial} /> : null}
-        {view.kind === 'trial' ? <NoPaymentNeededNote /> : null}
+        {view.kind === 'trial' && !complimentaryEnd ? <NoPaymentNeededNote /> : null}
+        {complimentaryEnd ? (
+          <View style={[styles.card, styles.accessCard]} testID="subscription-complimentary">
+            <Text style={styles.accessLabel}>{t('subscription.complimentary')}</Text>
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>{t('subscription.row.accessEndsOn')}</Text>
+              <Text style={styles.rowValue}>{formatDate(complimentaryEnd)}</Text>
+            </View>
+          </View>
+        ) : null}
 
-        {plansState.kind === 'unavailable' ? (
+        {complimentaryEnd ? null : plansState.kind === 'unavailable' ? (
           <LoadFailureState
             error={plansState.reason === 'storeUnavailable' ? new Error('store') : undefined}
             notice={plansState.reason === 'storeUnavailable' ? null : unavailableText(plansState.reason)}
@@ -359,7 +371,7 @@ export function SubscriptionScreen() {
           </View>
         )}
 
-        {isSubscribed ? null : (
+        {isSubscribed || complimentaryEnd ? null : (
           <>
             {summary && chosen ? (
               <View style={[styles.card, styles.summaryCard]} testID="subscription-payment-summary">
@@ -406,7 +418,7 @@ export function SubscriptionScreen() {
         )}
 
         {/* While the free month runs, the card above already is the status (its end date, its days); the summary would repeat it. */}
-        {trial ? null : (
+        {trial || (complimentaryEnd && !isSubscribed) ? null : (
           <>
             <Text lineBreakStrategyIOS="hangul-word" accessibilityRole="header" style={styles.sectionTitle}>{t('subscription.stateHeading')}</Text>
             <View style={[styles.card, styles.accessCard]} testID="subscription-status-card">
@@ -480,7 +492,7 @@ export function SubscriptionScreen() {
         onConfirm={() => afterMenuCloses(() => setIsConfirmingTrialPurchase(false), () => { purchase().catch(() => undefined); })}
         onDismiss={onMenuDismiss}
         title={t('membership.trialPurchase.title')}
-        visible={isConfirmingTrialPurchase}
+        visible={isConfirmingTrialPurchase && !complimentaryEnd}
       />
       {messageDialog}
     </StackScreenSafeArea>

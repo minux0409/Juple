@@ -60,14 +60,15 @@ public sealed class EntitlementService(
     BillingOptions options,
     IEntitlementStore store,
     ITrialIdentityHasher hasher,
-    TimeProvider timeProvider) : IEntitlementService
+    TimeProvider timeProvider,
+    IMembershipGrantReader? membershipGrants = null) : IEntitlementService
 {
     public async Task<Entitlement> GetForUserAsync(long userId, CancellationToken cancellationToken = default)
     {
         var nowUtc = timeProvider.GetUtcNow();
         if (!options.ProgramEnabled)
         {
-            return Entitlement.NotLaunched(nowUtc);
+            return await BeforeLaunchAsync(userId, nowUtc, cancellationToken);
         }
 
         var state = await store.GetUserStateAsync(userId, cancellationToken) ?? throw new CurrentJupleUserNotFoundException();
@@ -80,7 +81,9 @@ public sealed class EntitlementService(
         if (!options.ProgramEnabled)
         {
             // Program not launched: no trial is started or consumed just because someone signed in.
-            return Entitlement.NotLaunched(nowUtc);
+            var stateBeforeLaunch = membershipGrants is null ? null : await store.GetUserStateAsync(externalIdentity, cancellationToken);
+            return stateBeforeLaunch is null ? Entitlement.NotLaunched(nowUtc)
+                : await BeforeLaunchAsync(stateBeforeLaunch.UserId, nowUtc, cancellationToken);
         }
 
         var state = await store.GetUserStateAsync(externalIdentity, cancellationToken) ?? throw new CurrentJupleUserNotFoundException();
@@ -102,7 +105,15 @@ public sealed class EntitlementService(
     {
         var window = await SettleTrialAsync(state, nowUtc, cancellationToken);
         var purchases = await store.GetPurchaseAccessAsync(state.UserId, cancellationToken);
-        return EntitlementCalculator.Effective(window, purchases, nowUtc);
+        var complimentary = membershipGrants is null ? default : await membershipGrants.GetComplimentaryAsync(state.UserId, nowUtc, cancellationToken);
+        return EntitlementCalculator.Effective(window, purchases, nowUtc, complimentary);
+    }
+
+    private async Task<Entitlement> BeforeLaunchAsync(long userId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var result = Entitlement.NotLaunched(now);
+        var complimentary = membershipGrants is null ? default : await membershipGrants.GetComplimentaryAsync(userId, now, cancellationToken);
+        return complimentary.ActiveUntilUtc is { } end ? result.WithComplimentaryAccess(end) : result;
     }
 
     private async Task<TrialWindow> SettleTrialAsync(EntitlementUserState state, DateTimeOffset nowUtc, CancellationToken cancellationToken)

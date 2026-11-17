@@ -13,7 +13,8 @@ public interface IDataRetentionService
     Task<DataRetentionState> GetForUserAsync(long userId, CancellationToken cancellationToken = default);
 }
 
-public sealed class DataRetentionService(BillingOptions options, IEntitlementStore store, TimeProvider timeProvider) : IDataRetentionService
+public sealed class DataRetentionService(BillingOptions options, IEntitlementStore store, TimeProvider timeProvider,
+    IMembershipGrantReader? membershipGrants = null) : IDataRetentionService
 {
     public async Task<DataRetentionState> GetForUserAsync(long userId, CancellationToken cancellationToken = default)
     {
@@ -27,6 +28,7 @@ public sealed class DataRetentionService(BillingOptions options, IEntitlementSto
 
         var state = await store.GetUserStateAsync(userId, cancellationToken) ?? throw new CurrentJupleUserNotFoundException();
         var purchases = await store.GetPurchaseAccessAsync(userId, cancellationToken);
-        return DataRetentionPolicy.Evaluate(new DataRetentionInput(true, effectiveAt, state.CreatedAtUtc, state.TrialEndsAtUtc, purchases), nowUtc);
+        var complimentary = membershipGrants is null ? default : await membershipGrants.GetComplimentaryAsync(userId, nowUtc, cancellationToken);
+        return DataRetentionPolicy.Evaluate(new DataRetentionInput(true, effectiveAt, state.CreatedAtUtc, state.TrialEndsAtUtc, purchases, complimentary), nowUtc);
     }
 }

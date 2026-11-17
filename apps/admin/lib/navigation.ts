@@ -1,8 +1,10 @@
 /**
- * The Admin V2 sidebar: six operating screens, and at the bottom only the account and system entries. Older screens (workspace
+ * The Admin V2 sidebar: operating screens, with account and system entries at the bottom. Older screens (workspace
  * statistics, UTC analytics, the expense ledger, revenue details, operations) keep their URLs and are reachable from the screen
  * they belong to and from 관리자 계정 > 기존 운영 도구 - none of them was removed.
  */
+import { strings } from './strings.ts';
+
 export type NavIcon = 'dashboard' | 'users' | 'notices' | 'inquiries' | 'costs' | 'appVersion' | 'account' | 'system';
 
 export interface NavEntry {
@@ -16,6 +18,7 @@ export interface NavEntry {
 export const NAVIGATION: readonly NavEntry[] = [
   { label: '대시보드', href: '/', icon: 'dashboard', includes: ['/workspace', '/links', '/analytics', '/operations'] },
   { label: '사용자', href: '/users', icon: 'users', includes: ['/workspace/users'] },
+  { label: strings.membership.title, href: '/membership', icon: 'account' },
   { label: '공지사항', href: '/notices', icon: 'notices' },
   { label: '문의 관리', href: '/inquiries', icon: 'inquiries' },
   { label: '비용 및 수익', href: '/costs', icon: 'costs', includes: ['/expenses', '/revenue'] },

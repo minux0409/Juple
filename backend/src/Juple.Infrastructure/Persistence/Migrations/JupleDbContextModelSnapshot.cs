@@ -282,6 +282,58 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.ToTable("GoogleAccountLinks", "billing");
                 });
 
+            modelBuilder.Entity("Juple.Domain.Billing.MembershipGrant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("EndsAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("GrantedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("GrantedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<string>("RevokeReason")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<DateTimeOffset?>("RevokedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long?>("RevokedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("StartsAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Kind", "StartsAtUtc");
+
+                    b.ToTable("MembershipGrants", "billing", t =>
+                        {
+                            t.HasCheckConstraint("CK_MembershipGrants_Revocation", "([RevokedAtUtc] IS NULL AND [RevokedByUserId] IS NULL AND [RevokeReason] IS NULL) OR ([RevokedAtUtc] IS NOT NULL AND [RevokedByUserId] IS NOT NULL AND [RevokeReason] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_MembershipGrants_Window", "([Kind] = 'Preview' AND [EndsAtUtc] IS NULL) OR ([Kind] = 'Complimentary' AND [EndsAtUtc] > [StartsAtUtc] AND [EndsAtUtc] IS NOT NULL)");
+                        });
+                });
+
             modelBuilder.Entity("Juple.Domain.Billing.StoreEvent", b =>
                 {
                     b.Property<long>("Id")
@@ -3191,6 +3243,15 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Billing.MembershipGrant", b =>
+                {
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

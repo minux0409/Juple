@@ -392,6 +392,18 @@ export function formatCount(value: number, locale?: string): string {
 }
 
 /** One message per failure kind - never the raw error, which could carry request details. */
+export function normalizeMembershipLookup(field: 'jupleId' | 'userId', input: string): string | null {
+  const value = input.trim();
+  if (value.length > 32) return null;
+  if (field === 'userId') {
+    if (!/^\d{1,19}$/.test(value)) return null;
+    const id = BigInt(value);
+    return id > BigInt(0) && id <= BigInt('9223372036854775807') ? id.toString() : null;
+  }
+  const code = value.replace(/[- ]/g, '').toUpperCase();
+  return /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{4,8}$/.test(code) ? code : null;
+}
+
 export function failureMessage(error: unknown): string {
   if (error instanceof AdminForbiddenError) {
     return strings.forbidden;
@@ -406,8 +418,8 @@ export function failureMessage(error: unknown): string {
     if (error.status === 404) {
       return strings.notFound;
     }
-    if (error.status === 400 && error.validationMessage) {
-      return `${strings.invalidRequest} (${error.validationMessage})`;
+    if (error.status === 400) {
+      return error.validationMessage ? `${strings.invalidRequest} (${error.validationMessage})` : strings.invalidRequest;
     }
     return `${strings.serverError} (${error.status})`;
   }

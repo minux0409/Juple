@@ -971,6 +971,7 @@
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   },
   "subscription": {
+    "complimentary": "Membresía gratuita",
     "title": "Suscripción",
     "planName": "Suscripción a Juple",
     "trialNotice": {

@@ -56,7 +56,8 @@ public sealed class GoogleBillingService(
     IGoogleAccountIdProvider accountIds,
     IPurchaseTokenProtector tokens,
     IBillingTelemetry telemetry,
-    TimeProvider timeProvider) : IGoogleBillingService
+    TimeProvider timeProvider,
+    IMembershipGrantReader? membershipGrants = null) : IGoogleBillingService
 {
     private const int MaxTokenLength = 4096;
     private const int MaxRestoreTokens = 10;
@@ -65,7 +66,7 @@ public sealed class GoogleBillingService(
     {
         var settings = options.Google;
         // Offered only where the purchase is (MembershipOffer); verify and restore stay open.
-        if (!settings.Enabled || !MembershipOffer.IsOffered(options, userId))
+        if (!settings.Enabled || !await MembershipOffer.CanBuyAsync(options, membershipGrants, userId, timeProvider.GetUtcNow(), cancellationToken))
         {
             return new GoogleCatalog(false, null, null, null);
         }

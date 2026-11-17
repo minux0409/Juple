@@ -18,6 +18,7 @@ public static class RateLimitPolicies
     public const string DataExport = "data-export";
     public const string DataExportDownload = "data-export-download";
     public const string ExpenseFiles = "admin-expense-files";
+    public const string AdminMembership = "admin-membership";
 
     /// <summary>Google Play billing catalog / verify / restore: per signed-in identity (the public RTDN webhook has none, on purpose).</summary>
     public const string BillingGoogle = "billing-google";
@@ -63,6 +64,11 @@ public static class RateLimitPolicies
     /// <summary>Existing endpoint limits, acquired in addition to the global limiter.</summary>
     public static void ConfigureEndpointPolicies(RateLimiterOptions options)
     {
+        options.AddPolicy(AdminMembership, context => RateLimitPartition.GetFixedWindowLimiter(
+            IdentityPartitionKey(context), _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0,
+            }));
         // Applies before multipart model binding and remains held until FileStreamResult finishes/aborts.
         options.AddPolicy(RateLimitPolicies.ExpenseFiles, _ =>
             RateLimitPartition.GetConcurrencyLimiter("admin-expense-files",

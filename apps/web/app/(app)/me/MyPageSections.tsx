@@ -29,6 +29,7 @@ export function SubscriptionSection({ showTitle = true }: { readonly showTitle?:
   );
   const stores = membershipStoreLinks(platform, appDownload);
   const view = describeSubscription(storeSubscription, entitlement);
+  const complimentaryEnd = entitlement?.complimentaryAccessEndsAtUtc ?? null;
   const date = (utc: string | null) => (utc ? new Intl.DateTimeFormat(locale, { dateStyle: 'long' }).format(new Date(utc)) : null);
 
   const statusLabel = {
@@ -66,13 +67,20 @@ export function SubscriptionSection({ showTitle = true }: { readonly showTitle?:
       break;
   }
   const subscribedNow = view.kind === 'active' || view.kind === 'gracePeriod' || view.kind === 'canceled';
+  if (complimentaryEnd && !subscribedNow) {
+    rows.length = 0;
+    rows.push({ label: dictionary.subscriptionAccessEndsOn, value: date(complimentaryEnd) });
+    note = null;
+  }
   const subscribedOnPlay = storeSubscription?.platform === 'google' && subscribedNow;
   const subscribedOnAppStore = storeSubscription?.platform === 'apple' && subscribedNow;
   // A live subscription whose store the server did not name (an API revision before "apple" existed): never guessed.
   const subscribedUnknownStore = subscribedNow && storeSubscription?.platform !== 'google' && storeSubscription?.platform !== 'apple';
   // The one sentence of mobile MembershipStatus - the state the Backend reported, nothing computed here.
   const membershipLine =
-    view.kind === 'trial'
+    complimentaryEnd
+      ? dictionary.membershipStatusActive
+      : view.kind === 'trial'
       ? view.endsAtUtc
         ? formatMessage(dictionary.membershipStatusTrial, { date: date(view.endsAtUtc) ?? '' })
         : null
@@ -99,7 +107,7 @@ export function SubscriptionSection({ showTitle = true }: { readonly showTitle?:
       <div className={styles.settingsCard}>
         <div className={styles.settingsRow}>
           <span className={styles.settingsLabel}>{dictionary.subscriptionStateHeading}</span>
-          <span className={styles.settingsValue}>{statusLabel}</span>
+          <span className={styles.settingsValue}>{complimentaryEnd && !subscribedNow ? dictionary.subscriptionStatusActive : statusLabel}</span>
         </div>
         {rows
           .filter(row => row.value)
@@ -138,7 +146,7 @@ export function SubscriptionSection({ showTitle = true }: { readonly showTitle?:
           </>
         ) : null}
         {/* The Web never sells: no price or purchase here - starting a subscription and paying are the app's. */}
-        {subscribedNow ? (
+        {complimentaryEnd ? null : subscribedNow ? (
           <p className={styles.settingsNote} data-subscription-app-only>
             {dictionary.subscriptionWebAppOnly}
           </p>
@@ -165,7 +173,7 @@ export function SubscriptionSection({ showTitle = true }: { readonly showTitle?:
       </div>
       {/* The two plans the apps sell (mobile SubscriptionScreen), described without a price: prices come only from each store, inside
           the app, and the Web has no store - nothing here can be bought or looks like a checkout. */}
-      <div className={`${styles.settingsCard} ${styles.membershipPlansCard}`} data-membership-plans>
+      {complimentaryEnd ? null : <div className={`${styles.settingsCard} ${styles.membershipPlansCard}`} data-membership-plans>
         <p className={styles.membershipPlansTitle}>{dictionary.membershipPlansHeading}</p>
         <div className={styles.membershipPlans}>
           <div className={styles.membershipPlan} data-plan="monthly">
@@ -187,7 +195,7 @@ export function SubscriptionSection({ showTitle = true }: { readonly showTitle?:
           <li>{dictionary.membershipSharedAccount}</li>
           <li>{dictionary.membershipDataKept}</li>
         </ul>
-      </div>
+      </div>}
       {dataRetention ? (
         <div className={styles.settingsCard} data-retention-state>
           <p className={styles.settingsBlockTitle}>

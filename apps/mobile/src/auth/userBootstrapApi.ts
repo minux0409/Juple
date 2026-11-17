@@ -81,6 +81,7 @@ export function parseEntitlement(raw: unknown): Entitlement | null {
   if (typeof value.programEnabled !== 'boolean' || typeof value.canWrite !== 'boolean') {
     return null;
   }
+  const complimentaryAccessEndsAtUtc = timestampOrNull(value.complimentaryAccessEndsAtUtc);
   return {
     programEnabled: value.programEnabled,
     status: ENTITLEMENT_STATUSES.find(status => status === value.status) ?? null,
@@ -90,6 +91,7 @@ export function parseEntitlement(raw: unknown): Entitlement | null {
     currentPeriodEndsAtUtc: timestampOrNull(value.currentPeriodEndsAtUtc),
     accessFrozenAtUtc: timestampOrNull(value.accessFrozenAtUtc),
     canWrite: value.canWrite,
+    ...(complimentaryAccessEndsAtUtc ? { complimentaryAccessEndsAtUtc } : {}),
     verifiedAtUtc: timestampOrNull(value.verifiedAtUtc),
   };
 }

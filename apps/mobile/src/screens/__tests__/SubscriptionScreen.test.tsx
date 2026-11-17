@@ -168,6 +168,16 @@ describe('SubscriptionScreen', () => {
     currentPeriodEndsAtUtc: null, accessFrozenAtUtc: null, canWrite: true, verifiedAtUtc: NOW, ...overrides,
   });
   const programOff = () => entitlementOf({ programEnabled: false, status: null, trialStartedAtUtc: null, trialEndsAtUtc: null });
+
+  it('shows a complimentary grant before launch without querying or offering a purchase', async () => {
+    mockAuth({ ...programOff(), complimentaryAccessEndsAtUtc: '2026-12-01T00:00:00Z' });
+    const renderer = await renderScreen();
+
+    expect(texts(renderer)).toContain(i18n.t('subscription.complimentary'));
+    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(0);
+    expect(byId(renderer, 'subscription-restore').length).toBeGreaterThan(0);
+    expect(store.loadPlans).not.toHaveBeenCalled();
+  });
   const storeOf = (overrides: Record<string, unknown>) => ({
     state: 'none', platform: null, productId: null, currentPeriodEndsAtUtc: null, autoRenewing: null,
     startedAtUtc: null, endedState: null, endedAtUtc: null, ...overrides,

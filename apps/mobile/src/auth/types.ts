@@ -70,6 +70,7 @@ export interface Entitlement {
   /** Set only while expired: the instant live access ended. */
   readonly accessFrozenAtUtc: string | null;
   readonly canWrite: boolean;
+  readonly complimentaryAccessEndsAtUtc?: string;
   /** When the server computed this - the base of any later offline-cache window (never device time). */
   readonly verifiedAtUtc: string | null;
 }

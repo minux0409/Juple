@@ -971,6 +971,7 @@
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   },
   "subscription": {
+    "complimentary": "Abonnement offert",
     "title": "Abonnement",
     "planName": "Abonnement Juple",
     "trialNotice": {

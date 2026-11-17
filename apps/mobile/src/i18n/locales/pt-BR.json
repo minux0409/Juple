@@ -971,6 +971,7 @@
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   },
   "subscription": {
+    "complimentary": "Assinatura gratuita",
     "title": "Assinatura",
     "planName": "Assinatura do Juple",
     "trialNotice": {

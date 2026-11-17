@@ -16,4 +16,11 @@ public static class MembershipOffer
 {
     public static bool IsOffered(BillingOptions options, long userId) =>
         options.ProgramEnabled || options.PurchasePreviewUserIds.Contains(userId);
+
+    public static async Task<bool> IsOfferedAsync(BillingOptions options, IMembershipGrantReader? grants, long userId, CancellationToken cancellationToken) =>
+        IsOffered(options, userId) || (grants is not null && await grants.HasPreviewAsync(userId, cancellationToken));
+
+    public static async Task<bool> CanBuyAsync(BillingOptions options, IMembershipGrantReader? grants, long userId, DateTimeOffset now, CancellationToken cancellationToken) =>
+        await IsOfferedAsync(options, grants, userId, cancellationToken)
+        && (grants is null || (await grants.GetComplimentaryAsync(userId, now, cancellationToken)).ActiveUntilUtc is null);
 }

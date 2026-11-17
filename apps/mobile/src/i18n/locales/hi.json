@@ -971,6 +971,7 @@
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   },
   "subscription": {
+    "complimentary": "निःशुल्क सदस्यता",
     "title": "सदस्यता",
     "planName": "Juple सदस्यता",
     "trialNotice": {

@@ -971,6 +971,7 @@
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   },
   "subscription": {
+    "complimentary": "무료 멤버십",
     "title": "구독",
     "planName": "Juple 구독",
     "trialNotice": {

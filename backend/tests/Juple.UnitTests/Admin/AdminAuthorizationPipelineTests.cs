@@ -7,9 +7,11 @@ using Juple.Api.Configuration;
 using Juple.Api.Controllers;
 using Juple.Api.Controllers.Admin;
 using Juple.Application.Admin;
+using Juple.Application.Billing;
 using Juple.Application.Identity;
 using Juple.Application.Users.CurrentUser;
 using Juple.Domain.Admin;
+using Juple.Domain.Billing;
 using Juple.Domain.Users;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
@@ -39,6 +41,7 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
     private static readonly Guid NoAccountOid = Guid.NewGuid();
 
     private readonly RecordingAdminService _service = new();
+    private readonly MembershipDirectory _memberships = new();
     private readonly CannedAnalyticsStore _analyticsStore = new();
     private readonly Juple.UnitTests.Users.FakeMobileVersionPolicyStore _versionStore = new();
     private WebApplication _app = null!;
@@ -51,6 +54,7 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         builder.Logging.ClearProviders();
         builder.Services.AddAuthentication(TestScheme.Name).AddScheme<AuthenticationSchemeOptions, TestScheme>(TestScheme.Name, _ => { });
         builder.Services.AddAuthorizationBuilder().AddJuplePolicies(Scope);
+        builder.Services.AddRateLimiter(RateLimitPolicies.ConfigureEndpointPolicies);
         // The scope check's handler, which the real API gets from AddMicrosoftIdentityWebApi.
         Microsoft.Identity.Web.RequiredScopeExtensions.AddRequiredScopeAuthorization(builder.Services);
         builder.Services.AddHttpContextAccessor();
@@ -75,10 +79,12 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         builder.Services.AddScoped<AdminInquiryWorkflowService>();
         builder.Services.AddScoped<Juple.Application.Notices.NoticeTranslationService>();
         builder.Services.AddSingleton<IAdminService>(_service);
+        builder.Services.AddSingleton<IAdminMembershipStore>(_memberships);
+        builder.Services.AddSingleton<IEntitlementStore>(_memberships);
         // The real range validation in front of a canned store (the SQL side is covered by AdminAnalyticsIntegrationTests).
         builder.Services.AddSingleton<IAdminAnalyticsStore>(_analyticsStore);
         builder.Services.AddSingleton<IAdminAnalyticsService, AdminAnalyticsService>();
-        builder.Services.AddSingleton(new Juple.Application.Billing.BillingOptions()); // the program off, as in Production
+        builder.Services.AddSingleton(new BillingOptions { PurchasePreviewUserIds = [38] }); // the program off, as in Production
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton(new AdminWorkspaceOptions());
         builder.Services.AddSingleton<IAdminWorkspaceStore>(new DisabledWorkspaceStore());
@@ -105,6 +111,7 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         _app = builder.Build();
         _app.UseAuthentication();
         _app.UseAuthorization();
+        _app.UseRateLimiter();
         _app.MapControllers();
         await _app.StartAsync();
         _client = new HttpClient { BaseAddress = new Uri(_app.Urls.First()) };
@@ -121,6 +128,9 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         { "GET", "/api/v1/admin/me" },
         { "GET", "/api/v1/admin/dashboard/summary" },
         { "GET", "/api/v1/admin/users" },
+        { "GET", "/api/v1/admin/membership/user?jupleId=QZAMBQ8K" },
+        { "PUT", "/api/v1/admin/membership/users/38/grants" },
+        { "PUT", "/api/v1/admin/membership/users/38/grants/00000000-0000-0000-0000-000000000001/revocation" },
         { "GET", "/api/v1/admin/operations/app-version" },
         { "PUT", "/api/v1/admin/operations/app-version/android" },
         { "GET", "/api/v1/admin/analytics/overview?range=30d" },
@@ -152,6 +162,99 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
         public Task<WorkspaceOverview> OverviewAsync(AdminDateRange p,DateTimeOffset now,CancellationToken ct) => throw new InvalidOperationException("Disabled feature must not query new schema");
         public Task<WorkspaceOperations> OperationsAsync(AdminDateRange p,CancellationToken ct) => throw new InvalidOperationException("Disabled feature must not query new schema");
         public Task<WorkspaceRevenue> RevenueAsync(bool billing,CancellationToken ct) => throw new InvalidOperationException("Disabled feature must not query new schema");
+    }
+
+    [Theory]
+    [InlineData("/grants")]
+    [InlineData("/grants/00000000-0000-0000-0000-000000000001/revocation")]
+    public async Task Membership_writes_require_an_owner(string suffix)
+    {
+        Assert.Equal(HttpStatusCode.Forbidden, (await SendAsync("PUT", "/api/v1/admin/membership/users/38" + suffix, NonOwnerAdminOid)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await SendAsync("PUT", "/api/v1/admin/membership/users/38" + suffix, MemberOid)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Membership_lookup_normalizes_the_Juple_ID_and_preserves_the_configured_preview()
+    {
+        var response = await SendAsync("GET", "/api/v1/admin/membership/user?jupleId=qzam-bq8k", AdminOid);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadAsStringAsync();
+        Assert.Contains("\"configuredPreview\":true", json);
+        Assert.Contains("\"managedPreview\":false", json);
+        Assert.Contains("\"programEnabled\":false", json);
+        Assert.Contains("\"userId\":38", json);
+        Assert.Equal("QZAMBQ8K", _memberships.LastJupleId);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await SendAsync("GET", "/api/v1/admin/membership/user?userId=38&jupleId=QZAMBQ8K", AdminOid)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Owner_can_manage_own_preview_while_only_other_users_can_receive_complimentary_access()
+    {
+        const string grants = "/api/v1/admin/membership/users/1/grants";
+        var preview = await SendAsync("PUT", grants, AdminOid);
+        Assert.Equal(HttpStatusCode.OK, preview.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await SendAsync("PUT", grants + "/00000000-0000-0000-0000-000000000002/revocation", AdminOid)).StatusCode);
+
+        var body = new { requestId = Guid.NewGuid(), kind = "complimentary", startsAtUtc = DateTimeOffset.UtcNow, endsAtUtc = DateTimeOffset.UtcNow.AddDays(2), reason = "Support" };
+        Assert.Equal(HttpStatusCode.Forbidden, (await SendAsync("PUT", grants, AdminOid, body: body)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await SendAsync("PUT", grants + "/00000000-0000-0000-0000-000000000001/revocation", AdminOid)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await SendAsync("PUT", "/api/v1/admin/membership/users/38/grants", AdminOid, body: body)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await SendAsync("PUT", "/api/v1/admin/membership/users/38/grants/00000000-0000-0000-0000-000000000001/revocation", AdminOid)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Membership_search_is_admin_only_and_caps_public_code_results()
+    {
+        const string search = "/api/v1/admin/membership/users?jupleId=";
+        Assert.Equal(HttpStatusCode.Unauthorized, (await SendAsync("GET", search + "qzam", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await SendAsync("GET", search + "qzam", MemberOid)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await SendAsync("GET", search + "qza", AdminOid)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await SendAsync("GET", search + "qza%25", AdminOid)).StatusCode);
+        var noMatches = await SendAsync("GET", search + "zxyz", AdminOid);
+        Assert.Equal(HttpStatusCode.OK, noMatches.StatusCode);
+        Assert.Contains("\"users\":[]", await noMatches.Content.ReadAsStringAsync());
+        var response = await SendAsync("GET", search + "qz-am", NonOwnerAdminOid);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("QZAM", _memberships.LastJupleId);
+        using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(20, json.RootElement.GetProperty("users").GetArrayLength());
+        Assert.True(json.RootElement.GetProperty("hasMore").GetBoolean());
+    }
+
+    private sealed class MembershipDirectory : IAdminMembershipStore, IEntitlementStore
+    {
+        public string? LastJupleId { get; private set; }
+
+        public Task<MembershipUser?> FindUserAsync(long? userId, string? jupleId, CancellationToken cancellationToken)
+        {
+            LastJupleId = jupleId;
+            return Task.FromResult<MembershipUser?>(jupleId == "QZAMBQ8K" || userId == 38 ? new(38, "QZAMBQ8K", null, null) : null);
+        }
+
+        public Task<IReadOnlyList<MembershipGrant>> HistoryAsync(long userId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<MembershipGrant>>([]);
+
+        public Task<IReadOnlyList<MembershipSearchResult>> SearchUsersAsync(string jupleIdFragment, int limit, CancellationToken cancellationToken)
+        {
+            LastJupleId = jupleIdFragment;
+            return Task.FromResult<IReadOnlyList<MembershipSearchResult>>(jupleIdFragment == "QZAM"
+                ? UserPublicCode.Alphabet.Take(limit).Select(character => new MembershipSearchResult($"QZAM{character}B8K")).ToArray()
+                : []);
+        }
+
+        public Task<IReadOnlyList<OwnedStorePurchase>> GetOwnedPurchasesAsync(long userId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<OwnedStorePurchase>>([]);
+
+        public Task<MembershipWriteResult> GrantAsync(MembershipGrant grant, CancellationToken cancellationToken) =>
+            Task.FromResult(MembershipWriteResult.Saved);
+        public Task<MembershipWriteResult> RevokeAsync(long actorId, long userId, Guid grantId, DateTimeOffset now, string reason, CancellationToken cancellationToken) =>
+            Task.FromResult(actorId == userId && grantId == Guid.Parse("00000000-0000-0000-0000-000000000001")
+                ? MembershipWriteResult.Forbidden : MembershipWriteResult.Saved);
+        public Task<EntitlementUserState?> GetUserStateAsync(long userId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<EntitlementUserState?> GetUserStateAsync(ExternalIdentityPrincipal identity, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<IReadOnlyList<PurchaseAccess>> GetPurchaseAccessAsync(long userId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<TrialWindow> EnsureTrialAsync(long userId, byte[] identityHash, TrialWindow window, DateTimeOffset now, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     [Fact] public async Task Workspace_feature_off_keeps_configuration_available_but_blocks_schema_queries()
@@ -472,10 +575,10 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
             }
         }
 
-        Assert.Equal(["AdminAzureCostsController", "AdminController", "AdminCostsController", "AdminExpensesController", "AdminInsightsController", "AdminNoticesController", "AdminReportsController", "AdminSupportInquiriesController", "AdminWorkspaceController"], controllers.Where(type => type.Namespace == typeof(AdminController).Namespace).Select(type => type.Name).Order().ToArray());
+        Assert.Equal(["AdminAzureCostsController", "AdminController", "AdminCostsController", "AdminExpensesController", "AdminInsightsController", "AdminMembershipController", "AdminNoticesController", "AdminReportsController", "AdminSupportInquiriesController", "AdminWorkspaceController"], controllers.Where(type => type.Namespace == typeof(AdminController).Namespace).Select(type => type.Name).Order().ToArray());
     }
 
-    private Task<HttpResponseMessage> SendAsync(string method, string path, Guid? identity, string scope = Scope)
+    private Task<HttpResponseMessage> SendAsync(string method, string path, Guid? identity, string scope = Scope, object? body = null)
     {
         var request = new HttpRequestMessage(new HttpMethod(method), path);
         if (method == "POST" && path.EndsWith("/answer-translation", StringComparison.Ordinal))
@@ -486,10 +589,12 @@ public sealed class AdminAuthorizationPipelineTests : IAsyncLifetime
             request.Content = JsonContent.Create(new { scope = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/test", month = "2026-10-01" });
         if (method == "PUT")
         {
-            request.Content = JsonContent.Create(
+            request.Content = JsonContent.Create(body ?? (
                 path.Contains("/operations/app-version/", StringComparison.Ordinal) ? new { latestBuild = 31, minimumSupportedBuild = 24, version = (string?)null }
                 : path.EndsWith("/answer-draft", StringComparison.Ordinal) ? new { sourceKo = "초안", translated = (string?)null, language = "ko" }
-                : path.EndsWith("/status", StringComparison.Ordinal) ? new { status = "InProgress" } : (object)new { answer = "Thanks" });
+                : path.EndsWith("/status", StringComparison.Ordinal) ? new { status = "InProgress" }
+                : path.StartsWith("/api/v1/admin/membership/", StringComparison.Ordinal) ? new { requestId = Guid.NewGuid(), kind = "preview", reason = "Admin test" }
+                : (object)new { answer = "Thanks" }));
         }
 
         if (identity is { } oid)

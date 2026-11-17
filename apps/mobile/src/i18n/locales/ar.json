@@ -971,6 +971,7 @@
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   },
   "subscription": {
+    "complimentary": "عضوية مجانية",
     "title": "الاشتراك",
     "planName": "اشتراك Juple",
     "trialNotice": {

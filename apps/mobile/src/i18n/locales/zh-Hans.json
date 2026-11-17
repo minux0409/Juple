@@ -971,6 +971,7 @@
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   },
   "subscription": {
+    "complimentary": "免费会员资格",
     "title": "订阅",
     "planName": "Juple 订阅",
     "trialNotice": {

@@ -971,6 +971,7 @@
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   },
   "subscription": {
+    "complimentary": "Complimentary membership",
     "title": "Subscription",
     "planName": "Juple subscription",
     "trialNotice": {

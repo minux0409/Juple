@@ -971,6 +971,7 @@
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   },
   "subscription": {
+    "complimentary": "無料メンバーシップ",
     "title": "サブスクリプション",
     "planName": "Juple サブスクリプション",
     "trialNotice": {

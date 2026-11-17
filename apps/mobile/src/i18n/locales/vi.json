@@ -971,6 +971,7 @@
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   },
   "subscription": {
+    "complimentary": "Gói thành viên miễn phí",
     "title": "Gói đăng ký",
     "planName": "Gói đăng ký Juple",
     "trialNotice": {
