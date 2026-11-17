@@ -12,9 +12,8 @@ import { useSubscriptionEntryAvailable } from './useSubscriptionEntry';
 
 /**
  * A quiet card at the top of Home about the free period: once when it starts (what it is and when it ends), and again, at most daily,
- * in its last 7 days. Closed with 닫기; never a modal, never on every launch. The end date is the server's. "구독 보기" appears only
- * where a subscription can actually be started or managed (this platform's store catalog says billing is on - Google Play or the App
- * Store); elsewhere it is information only.
+ * in its last 7 days. The server supplies the end date. The welcome card explains the free period. The ending-soon card offers
+ * "구독 보기" when billing is enabled for this platform's catalog (Google Play or the App Store).
  */
 export function TrialNotice() {
   const entitlement = useOptionalAuth()?.entitlement;
@@ -53,7 +52,7 @@ function TrialNoticeCard({ notice }: { readonly notice: TrialNoticeModel }) {
       <Text accessibilityRole="header" style={styles.title}>{t(`${prefix}Title`)}</Text>
       <Text style={styles.body}>{t(`${prefix}Body`, { date })}</Text>
       <View style={styles.actions}>
-        {canOpenSubscription ? (
+        {kind === 'endingSoon' && canOpenSubscription ? (
           <Pressable accessibilityRole="button" onPress={() => navigation.navigate('Subscription')} style={styles.primary} testID="trial-notice-view">
             <Text numberOfLines={2} style={styles.primaryLabel}>{t('subscription.trialNotice.view')}</Text>
           </Pressable>
