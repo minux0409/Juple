@@ -14,6 +14,7 @@ param imageDigest = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_DIGEST')
 param googleBillingEnabled = bool(readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_BILLING_ENABLED'))
 param googleProductId = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_PRODUCT_ID')
 param googleBasePlanId = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_BASE_PLAN_ID')
+param googleBasePlanIds = json(readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_BASE_PLAN_IDS', '[]'))
 param googlePubSubAudience = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_PUBSUB_AUDIENCE')
 param googlePushServiceAccountEmail = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_PUSH_SERVICE_ACCOUNT_EMAIL')
 

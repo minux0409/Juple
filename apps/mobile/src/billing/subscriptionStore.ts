@@ -43,9 +43,8 @@ export interface SubscriptionStore {
   /** Opens that store page. Never changes any access: only the Backend's entitlement does. */
   openSubscriptionManagement: () => Promise<void>;
   /**
-   * Which plan a subscription the server reported (its `storeSubscription.productId`) is on, when this store can tell from the product
-   * alone: the App Store's two plans are two products; Google Play's are two base plans of ONE product, so it answers null. Product ids
-   * stay inside the store layer - the screen only gets the plan.
+   * Match a verified subscription to a loaded plan. Google Play needs the product and base plan IDs;
+   * the App Store identifies each plan by product ID.
    */
-  planOfSubscription: (productId: string | null | undefined) => PlanKey | null;
+  planOfSubscription: (productId: string | null | undefined, basePlanId?: string) => PlanKey | null;
 }

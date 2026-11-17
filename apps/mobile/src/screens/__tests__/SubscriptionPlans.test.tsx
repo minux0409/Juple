@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Text } from 'react-native';
+import { Platform, Text } from 'react-native';
 import i18n from '../../i18n';
 import { SubscriptionScreen } from '../SubscriptionScreen';
 import { useAuth, useOptionalAuth } from '../../auth/AuthContext';
@@ -257,12 +257,36 @@ describe('membership plans', () => {
       expect(all(renderer, 'subscription-plan-yearly').find(node => node.props.accessibilityState)!.props.accessibilityState.disabled).toBe(true);
     });
 
-    it('when the store cannot tell the plan (Google Play: one product, two base plans) no amount is shown rather than a guessed one', async () => {
+    it('when the store cannot identify the plan no amount is shown', async () => {
       subscribedTo('juple_membership');
       const renderer = await renderScreen();
 
       expect(rowValue(renderer, 'nextPaymentAmount')).toBeNull();
       expect(rowValue(renderer, 'nextPaymentOn')).not.toBeNull();
+    });
+
+    it.each(['monthly', 'yearly'] as const)('highlights the verified Play %s plan without claiming the catalog price as the next charge', async (basePlanId) => {
+      const platform = jest.replaceProperty(Platform, 'OS', 'android');
+      try {
+        jest.mocked(useAuth).mockReturnValue({
+          entitlement: { programEnabled: false, status: null, canWrite: true },
+          storeSubscription: {
+            state: 'active', platform: 'google', productId: 'juple_monthly', basePlanId,
+            currentPeriodEndsAtUtc: '2026-12-16T00:00:00Z', autoRenewing: true,
+          },
+        } as unknown as ReturnType<typeof useAuth>);
+        store.planOfSubscription.mockReturnValue(basePlanId);
+
+        const renderer = await renderScreen();
+
+        expect(store.planOfSubscription).toHaveBeenCalledWith('juple_monthly', basePlanId);
+        expect(isSelected(renderer, basePlanId)).toBe(true);
+        expect(isSelected(renderer, basePlanId === 'yearly' ? 'monthly' : 'yearly')).toBe(false);
+        expect(rowValue(renderer, 'nextPaymentOn')).not.toBeNull();
+        expect(rowValue(renderer, 'nextPaymentAmount')).toBeNull();
+      } finally {
+        platform.restore();
+      }
     });
   });
 });

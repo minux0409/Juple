@@ -113,6 +113,9 @@ export function parseStoreSubscription(raw: unknown): StoreSubscription | null {
     state,
     platform: value.platform === 'google' || value.platform === 'apple' ? value.platform : null,
     productId: typeof value.productId === 'string' && value.productId.length > 0 ? value.productId : null,
+    ...(state !== 'none' && value.platform === 'google' && typeof value.basePlanId === 'string' && value.basePlanId.length > 0
+      ? { basePlanId: value.basePlanId }
+      : {}),
     currentPeriodEndsAtUtc: timestampOrNull(value.currentPeriodEndsAtUtc),
     autoRenewing: typeof value.autoRenewing === 'boolean' ? value.autoRenewing : null,
     startedAtUtc: timestampOrNull(value.startedAtUtc),

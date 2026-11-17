@@ -294,6 +294,13 @@ describe('parseEntitlement', () => {
 });
 
 describe('parseStoreSubscription', () => {
+  it('preserves an optional base plan only for an owned Google Play subscription', () => {
+    expect(parseStoreSubscription({ state: 'active', platform: 'google', basePlanId: 'yearly' })?.basePlanId).toBe('yearly');
+    expect(parseStoreSubscription({ state: 'active', platform: 'google' })?.basePlanId).toBeUndefined();
+    expect(parseStoreSubscription({ state: 'active', platform: 'apple', basePlanId: 'yearly' })?.basePlanId).toBeUndefined();
+    expect(parseStoreSubscription({ state: 'none', platform: 'google', basePlanId: 'yearly' })?.basePlanId).toBeUndefined();
+  });
+
   it('reads an owned subscription and nothing else', () => {
     expect(parseStoreSubscription({ state: 'active', platform: 'google', productId: 'juple_monthly', currentPeriodEndsAtUtc: '2026-10-02T00:00:00Z', autoRenewing: false, orderId: 'x' })).toEqual({
       state: 'active', platform: 'google', productId: 'juple_monthly', currentPeriodEndsAtUtc: '2026-10-02T00:00:00Z', autoRenewing: false,

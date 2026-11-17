@@ -208,17 +208,20 @@ export function SubscriptionScreen() {
   const badgePercent = discountBadgePercent(savings);
   const perMonthAmount = yearly ? yearlyPerMonthAmount({ key: 'yearly', priceAmount: yearly.priceAmount, currencyCode: yearly.currencyCode }) : null;
 
-  // A subscriber's own plan, when the store can tell it from the reported product (the App Store can; Google Play's two plans share one
-  // product, so there it stays unknown). Never the card someone happens to have selected.
+  // The subscriber's current plan comes from the verified store subscription.
   const isSubscribed = isSubscribedView(view);
+  const otherStore = otherStoreHolding(storeSubscription ?? null, Platform.OS);
   // What subscribing NOW would mean, for the chosen plan: first payment today, the next renewal one period later. Re-derived on every
   // selection; never shown to a subscriber (whose dates are the store's and the server's).
   const summary = !isSubscribed && chosen ? describePaymentSummary(chosen.key, new Date()) : null;
   const formatLongDate = (value: string | Date) => new Intl.DateTimeFormat(i18n.language, { year: 'numeric', month: 'long', day: 'numeric' }).format(typeof value === 'string' ? new Date(value) : value);
-  const subscribedPlan = isSubscribed ? store.planOfSubscription(storeSubscription?.productId) : null;
-  // The amount of the next charge is shown only alongside a date it is charged on, and only as the store's current price of the plan the
-  // subscription is ON - an unknown plan shows no amount rather than a guessed one.
-  const offerPrice = subscribedPlan ? plans.find(plan => plan.key === subscribedPlan)?.localizedPrice ?? null : null;
+  const subscribedPlan = isSubscribed && otherStore === null
+    ? store.planOfSubscription(storeSubscription?.productId, storeSubscription?.basePlanId)
+    : null;
+  // The Play catalog reflects new purchases and does not give us this subscriber's next charge.
+  const offerPrice = subscribedPlan && storeSubscription?.platform === 'apple'
+    ? plans.find(plan => plan.key === subscribedPlan)?.localizedPrice ?? null
+    : null;
 
   // Rows are only the facts the Backend actually has; a missing value is a missing row, never an estimate.
   const rows: { readonly id: string; readonly label: string; readonly value: string }[] = [];
@@ -255,7 +258,6 @@ export function SubscriptionScreen() {
       break;
   }
   // Subscribed through the OTHER store (bought on Android, now on an iPhone, or the reverse): this device cannot manage it, so it says where.
-  const otherStore = otherStoreHolding(storeSubscription ?? null, Platform.OS);
   const showManage = isSubscribed && store.canManageSubscription && otherStore === null;
   const trial = view.kind === 'trial' ? describeTrialProgress(entitlement) : null;
   const badge = membershipBadge(view, entitlement, paymentPending && !isSubscribed);

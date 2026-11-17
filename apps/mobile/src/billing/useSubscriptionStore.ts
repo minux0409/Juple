@@ -4,6 +4,7 @@ import type { AppleBilling } from './appleBilling';
 import type { GoogleBilling } from './googleBilling';
 import type { PlanKey } from './subscriptionPricing';
 import type { SubscriptionPlan, SubscriptionStore } from './subscriptionStore';
+import type { GoogleOffer } from './types';
 import { useAppleBilling } from './useAppleBilling';
 import { useGoogleBilling } from './useGoogleBilling';
 
@@ -14,6 +15,7 @@ const APP_STORE_SUBSCRIPTIONS_URL = 'https://apps.apple.com/account/subscription
 
 /** Google Play behind the store-neutral contract: only the localized price facts leave; the offer token and account id stay inside. */
 export function createGoogleSubscriptionStore(billing: GoogleBilling): SubscriptionStore {
+  let loadedOffers: readonly GoogleOffer[] = [];
   return {
     loadOffer: async () => {
       const result = await billing.loadOffer();
@@ -25,6 +27,7 @@ export function createGoogleSubscriptionStore(billing: GoogleBilling): Subscript
     },
     loadPlans: async () => {
       const result = await billing.loadPlans();
+      loadedOffers = result.kind === 'ready' ? result.offers : [];
       if (result.kind !== 'ready') {
         return result;
       }
@@ -40,8 +43,9 @@ export function createGoogleSubscriptionStore(billing: GoogleBilling): Subscript
     restore: () => billing.restore(),
     canManageSubscription: Platform.OS === 'android',
     openSubscriptionManagement: () => Linking.openURL(PLAY_SUBSCRIPTIONS_URL),
-    // Monthly and yearly are two base plans of one Play product: the product id alone never tells them apart.
-    planOfSubscription: () => null,
+    planOfSubscription: (productId, basePlanId) => basePlanId
+      ? loadedOffers.find(offer => offer.productId === productId && offer.basePlanId === basePlanId)?.plan ?? null
+      : null,
   };
 }
 

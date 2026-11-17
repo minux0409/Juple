@@ -92,7 +92,23 @@ describe('which plan a reported subscription is on', () => {
     expect(store.planOfSubscription(null)).toBeNull();
   });
 
-  it('Google Play never guesses: monthly and yearly are two base plans of one product', () => {
-    expect(createGoogleSubscriptionStore(fakeBilling()).planOfSubscription('juple_monthly')).toBeNull();
+  it('matches a Google subscription only by both the verified product and base plan IDs', async () => {
+    const billing = fakeBilling({
+      loadPlans: jest.fn().mockResolvedValue({
+        kind: 'ready',
+        offers: [
+          { productId: 'juple_monthly', basePlanId: 'monthly', plan: 'monthly' },
+          { productId: 'juple_monthly', basePlanId: 'yearly', plan: 'yearly' },
+        ],
+      }),
+    });
+    const store = createGoogleSubscriptionStore(billing);
+    await store.loadPlans();
+
+    expect(store.planOfSubscription('juple_monthly', 'monthly')).toBe('monthly');
+    expect(store.planOfSubscription('juple_monthly', 'yearly')).toBe('yearly');
+    expect(store.planOfSubscription('another-product', 'yearly')).toBeNull();
+    expect(store.planOfSubscription('juple_monthly', 'unknown')).toBeNull();
+    expect(store.planOfSubscription('juple_monthly')).toBeNull();
   });
 });

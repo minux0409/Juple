@@ -78,6 +78,8 @@ param sqlConnectionStringSecretName string = 'sql-runtime-connection-string'
 @description('The allowlisted product / base plan (the same values as the API\'s).')
 param googleProductId string = ''
 param googleBasePlanId string = ''
+@description('Additional Google Play base plan IDs, used alongside the existing primary base plan ID.')
+param googleBasePlanIds array = []
 param googlePubSubAudience string = ''
 param googlePushServiceAccountEmail string = ''
 
@@ -164,6 +166,11 @@ var appleEnv = appleBillingEnabled
         appleProductIdEnv
       )
     : []
+
+var googleBasePlanIdsEnv = [for (basePlanId, index) in googleBasePlanIds: {
+  name: 'Billing__Google__BasePlanIds__${index}'
+  value: basePlanId
+}]
 
 var googleEnv = googleBillingEnabled
   ? [
@@ -342,6 +349,7 @@ resource billingReconcileJob 'Microsoft.App/jobs@2024-03-01' = {
               }
             ],
             googleEnv,
+            googleBillingEnabled ? googleBasePlanIdsEnv : [],
             appleEnv
           )
         }

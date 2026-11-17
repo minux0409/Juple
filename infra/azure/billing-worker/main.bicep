@@ -86,6 +86,8 @@ param sqlConnectionStringSecretName string = 'sql-runtime-connection-string'
 @description('The allowlisted product / base plan (the same values as the API\'s). Needed only when googleBillingEnabled.')
 param googleProductId string = ''
 param googleBasePlanId string = ''
+@description('Additional Google Play base plan IDs, used alongside the existing primary base plan ID.')
+param googleBasePlanIds array = []
 
 @description('Pub/Sub push settings (validated at startup like the API\'s; the worker does not serve the webhook but shares the validated configuration). Needed only when googleBillingEnabled.')
 param googlePubSubAudience string = ''
@@ -150,6 +152,11 @@ var serviceBusNamespaceFqdn = '${serviceBusNamespaceName}.servicebus.windows.net
 // The worker is enabled when EITHER store is: it consumes the one billing-events queue for both.
 var billingEnabled = googleBillingEnabled || appleBillingEnabled
 var billingEventsQueueName = 'billing-events'
+
+var googleBasePlanIdsEnv = [for (basePlanId, index) in googleBasePlanIds: {
+  name: 'Billing__Google__BasePlanIds__${index}'
+  value: basePlanId
+}]
 
 var googleEnv = googleBillingEnabled
   ? [
@@ -413,6 +420,7 @@ resource billingWorker 'Microsoft.App/containerApps@2025-01-01' = {
               }
             ],
             googleEnv,
+            googleBillingEnabled ? googleBasePlanIdsEnv : [],
             appleEnv,
             observabilityEnv
           )

@@ -214,6 +214,8 @@ param collectionSharePasswordKeySecretName string = 'collection-share-password-k
 @description('The ONE allowlisted subscription product / base plan (proposed: juple_monthly / monthly - confirmed in R39-B2, never guessed).')
 param googleProductId string = ''
 param googleBasePlanId string = ''
+@description('Additional Google Play base plan IDs, used alongside the existing primary base plan ID.')
+param googleBasePlanIds array = []
 
 @description('Pub/Sub push audience (the RTDN webhook URL the subscription is configured with) and the push service account that signs the OIDC token.')
 param googlePubSubAudience string = ''
@@ -414,7 +416,13 @@ var appleProductIdEnv = [for (productId, index) in appleProductIds: {
   value: productId
 }]
 
+var googleBasePlanIdsEnv = [for (basePlanId, index) in googleBasePlanIds: {
+  name: 'Billing__Google__BasePlanIds__${index}'
+  value: basePlanId
+}]
+
 var billingEnv = concat(
+  googleBillingEnabled ? googleBasePlanIdsEnv : [],
   googleBillingEnabled
     ? [
         {

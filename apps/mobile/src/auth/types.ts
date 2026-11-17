@@ -46,6 +46,8 @@ export interface StoreSubscription {
   /** The store that holds it while owned ('google' = Google Play, 'apple' = the App Store); null otherwise (or a store this build does not know). */
   readonly platform: 'google' | 'apple' | null;
   readonly productId: string | null;
+  /** The base plan from the verified Google Play purchase, when available. */
+  readonly basePlanId?: string;
   /** When the paid period ends (server time); null when not owned. */
   readonly currentPeriodEndsAtUtc: string | null;
   /** false: cancelled, will not renew. null: not said. */

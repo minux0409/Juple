@@ -112,6 +112,7 @@ param googleBillingEnabled = bool(readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE
 // refuses to start. They are not placeholders - an empty value means "no Play product configured yet".
 param googleProductId = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_PRODUCT_ID', '')
 param googleBasePlanId = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_BASE_PLAN_ID', '')
+param googleBasePlanIds = json(readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_BASE_PLAN_IDS', '[]'))
 // The exact RTDN webhook URL the Production Pub/Sub push subscription is configured with
 // (https://api.juple.co.kr/api/v1/billing/google/rtdn once that domain is bound) and the push
 // subscription's service account e-mail.

@@ -29,7 +29,7 @@ public enum StoreSubscriptionEnd
 /// One store purchase as ownership needs it: where, which product, what the store last said, until when. <paramref name="StartedAtUtc"/>
 /// is the store's own subscription start time as last verified (never derived); null when the store did not report one.
 /// </summary>
-public sealed record OwnedStorePurchase(StoreSource Source, string ProductId, StorePurchaseState State, DateTimeOffset? AccessEndsAtUtc, bool? AutoRenews, DateTimeOffset? StartedAtUtc = null)
+public sealed record OwnedStorePurchase(StoreSource Source, string ProductId, StorePurchaseState State, DateTimeOffset? AccessEndsAtUtc, bool? AutoRenews, DateTimeOffset? StartedAtUtc = null, string? BasePlanId = null)
 {
     public bool IsLiveAt(DateTimeOffset nowUtc) =>
         State is StorePurchaseState.Active or StorePurchaseState.GracePeriod or StorePurchaseState.Canceled
@@ -51,7 +51,8 @@ public sealed record StoreSubscriptionOwnership(
     bool? AutoRenewing,
     DateTimeOffset? StartedAtUtc = null,
     StoreSubscriptionEnd EndState = StoreSubscriptionEnd.None,
-    DateTimeOffset? EndedAtUtc = null)
+    DateTimeOffset? EndedAtUtc = null,
+    string? BasePlanId = null)
 {
     public static StoreSubscriptionOwnership None { get; } = new(StoreSubscriptionState.None, null, null, null, null);
 
@@ -75,7 +76,8 @@ public sealed record StoreSubscriptionOwnership(
             best.AccessEndsAtUtc,
             // A cancelled-but-current subscription is still owned; it just will not renew.
             best.State == StorePurchaseState.Canceled ? false : best.AutoRenews,
-            best.StartedAtUtc);
+            best.StartedAtUtc,
+            BasePlanId: best.Source == StoreSource.GooglePlay ? best.BasePlanId : null);
     }
 
     /// <summary>

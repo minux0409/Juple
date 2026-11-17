@@ -1,5 +1,6 @@
 ﻿using Juple.Api.Authentication;
 using Juple.Api.Billing;
+using System.Text.Json.Serialization;
 using Juple.Api.Collections;
 using Juple.Api.Configuration;
 using Juple.Application.Collections.Locking;
@@ -162,7 +163,8 @@ public sealed class CurrentUserBootstrapController : ControllerBase
         bool? AutoRenewing,
         DateTimeOffset? StartedAtUtc = null,
         string? EndedState = null,
-        DateTimeOffset? EndedAtUtc = null)
+        DateTimeOffset? EndedAtUtc = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? BasePlanId = null)
     {
         public static StoreSubscriptionResponse From(StoreSubscriptionOwnership? ownership)
         {
@@ -191,7 +193,8 @@ public sealed class CurrentUserBootstrapController : ControllerBase
                 ownership.ProductId,
                 ownership.CurrentPeriodEndsAtUtc,
                 ownership.AutoRenewing,
-                ownership.StartedAtUtc);
+                ownership.StartedAtUtc,
+                BasePlanId: ownership.Source == StoreSource.GooglePlay ? ownership.BasePlanId : null);
         }
     }
 

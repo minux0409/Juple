@@ -194,6 +194,20 @@ public sealed class StoreSubscriptionOwnershipTests
         Assert.Equal(expected, response.Platform);
     }
 
+    [Theory]
+    [InlineData(StoreSource.GooglePlay, StorePurchaseState.Active, "yearly")]
+    [InlineData(StoreSource.GooglePlay, StorePurchaseState.Canceled, "yearly")]
+    [InlineData(StoreSource.GooglePlay, StorePurchaseState.GracePeriod, "yearly")]
+    [InlineData(StoreSource.GooglePlay, StorePurchaseState.Expired, null)]
+    [InlineData(StoreSource.AppStore, StorePurchaseState.Active, null)]
+    public void BasePlanId_DescribesOnlyTheOwnedGooglePlan(StoreSource source, StorePurchaseState state, string? expected)
+    {
+        var purchase = new OwnedStorePurchase(source, "juple_monthly", state, Now + TimeSpan.FromDays(3), true, BasePlanId: "yearly");
+        var response = CurrentUserBootstrapController.StoreSubscriptionResponse.From(StoreSubscriptionOwnership.From([purchase], Now));
+
+        Assert.Equal(expected, response.BasePlanId);
+    }
+
     [Fact]
     public void AnEndedSubscription_NamesNoPlatform()
     {
