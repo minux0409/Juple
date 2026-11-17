@@ -995,6 +995,8 @@
       "platform": "Las suscripciones aún no son compatibles con este dispositivo."
     },
     "result": {
+      "priceChangedTitle": "El precio de la suscripción ha cambiado",
+      "priceChangedMessage": "Google Play ha confirmado el precio actual de la suscripción. Revisa el nuevo precio y los detalles del pago y vuelve a pulsar Suscribirse.",
       "verified": "¡Gracias! Tu suscripción está confirmada.",
       "pending": "Tu pago aún se está procesando. Tu acceso se actualizará cuando termine.",
       "notEntitled": "Esta compra no concede acceso.",

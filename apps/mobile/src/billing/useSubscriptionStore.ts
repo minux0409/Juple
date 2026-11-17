@@ -16,6 +16,21 @@ const APP_STORE_SUBSCRIPTIONS_URL = 'https://apps.apple.com/account/subscription
 /** Google Play behind the store-neutral contract: only the localized price facts leave; the offer token and account id stay inside. */
 export function createGoogleSubscriptionStore(billing: GoogleBilling): SubscriptionStore {
   let loadedOffers: readonly GoogleOffer[] = [];
+  // Bind each rendered price to its original quote, even if another request reloads the catalog.
+  const quotes = new WeakMap<SubscriptionPlan, GoogleOffer>();
+  const publishPlans = (offers: readonly GoogleOffer[]): readonly SubscriptionPlan[] => {
+    loadedOffers = offers;
+    const plans: SubscriptionPlan[] = [];
+    for (const offer of offers) {
+      if (offer.plan) {
+        const { localizedPrice, currencyCode, billingPeriod, priceAmount } = offer;
+        const plan = { key: offer.plan, localizedPrice, currencyCode, billingPeriod, priceAmount };
+        quotes.set(plan, offer);
+        plans.push(plan);
+      }
+    }
+    return plans;
+  };
   return {
     loadOffer: async () => {
       const result = await billing.loadOffer();
@@ -27,19 +42,16 @@ export function createGoogleSubscriptionStore(billing: GoogleBilling): Subscript
     },
     loadPlans: async () => {
       const result = await billing.loadPlans();
-      loadedOffers = result.kind === 'ready' ? result.offers : [];
       if (result.kind !== 'ready') {
         return result;
       }
-      const plans: SubscriptionPlan[] = [];
-      for (const offer of result.offers) {
-        if (offer.plan) {
-          plans.push({ key: offer.plan, localizedPrice: offer.localizedPrice, currencyCode: offer.currencyCode, billingPeriod: offer.billingPeriod, priceAmount: offer.priceAmount });
-        }
-      }
+      const plans = publishPlans(result.offers);
       return plans.length > 0 ? { kind: 'ready', plans } : { kind: 'unavailable', reason: 'offerNotFound' };
     },
-    purchase: plan => billing.purchase(plan),
+    purchase: async (plan, displayedPlan) => {
+      const result = await billing.purchase(plan, displayedPlan ? quotes.get(displayedPlan) : undefined);
+      return result.kind === 'priceChanged' ? { kind: 'priceChanged', plans: publishPlans(result.offers) } : result;
+    },
     restore: () => billing.restore(),
     canManageSubscription: Platform.OS === 'android',
     openSubscriptionManagement: () => Linking.openURL(PLAY_SUBSCRIPTIONS_URL),

@@ -51,6 +51,33 @@ describe('createGoogleSubscriptionStore', () => {
     expect(billing.restore).toHaveBeenCalledTimes(1);
   });
 
+  it('uses the exact displayed quote across reloads and publishes a new quote without exposing store identifiers', async () => {
+    const original = {
+      productId: 'juple_monthly', basePlanId: 'monthly', plan: 'monthly', localizedPrice: '₩1,300', priceAmount: 1300,
+      priceAmountMicros: 1300000000, currencyCode: 'KRW', billingPeriod: 'P1M', offerToken: 'old', obfuscatedAccountId: 'opaque',
+    };
+    const fresh = { ...original, localizedPrice: '₩2,700', priceAmount: 2700, priceAmountMicros: 2700000000, offerToken: 'new' };
+    const billing = fakeBilling({
+      loadPlans: jest.fn().mockResolvedValueOnce({ kind: 'ready', offers: [original] }).mockResolvedValueOnce({ kind: 'ready', offers: [fresh] }),
+      purchase: jest.fn().mockResolvedValueOnce({ kind: 'priceChanged', offers: [fresh] }).mockResolvedValueOnce({ kind: 'cancelled' }),
+    });
+    const store = createGoogleSubscriptionStore(billing);
+    const shown = await store.loadPlans();
+    await store.loadPlans();
+    if (shown.kind !== 'ready') {
+      throw new Error('Expected initial quote');
+    }
+
+    const updated = await store.purchase('monthly', shown.plans[0]);
+    expect(billing.purchase).toHaveBeenLastCalledWith('monthly', original);
+    expect(updated).toEqual({ kind: 'priceChanged', plans: [{ key: 'monthly', localizedPrice: '₩2,700', priceAmount: 2700, currencyCode: 'KRW', billingPeriod: 'P1M' }] });
+    if (updated.kind !== 'priceChanged') {
+      throw new Error('Expected updated quote');
+    }
+    await store.purchase('monthly', updated.plans[0]);
+    expect(billing.purchase).toHaveBeenLastCalledWith('monthly', fresh);
+  });
+
   it('offers Google Play subscription management on Android only, opening the Play page without any product or account id', async () => {
     const { Linking, Platform } = require('react-native');
     const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);

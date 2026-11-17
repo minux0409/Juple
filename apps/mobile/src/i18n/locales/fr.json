@@ -995,6 +995,8 @@
       "platform": "Les abonnements ne sont pas encore pris en charge sur cet appareil."
     },
     "result": {
+      "priceChangedTitle": "Le prix de l’abonnement a changé",
+      "priceChangedMessage": "Google Play a confirmé le prix actuel de l’abonnement. Vérifiez le nouveau prix et les détails du paiement, puis appuyez de nouveau sur S’abonner.",
       "verified": "Merci ! Votre abonnement est confirmé.",
       "pending": "Votre paiement est en cours de traitement. Votre accès sera mis à jour une fois terminé.",
       "notEntitled": "Cet achat ne donne pas accès.",

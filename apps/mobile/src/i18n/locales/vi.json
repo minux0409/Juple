@@ -995,6 +995,8 @@
       "platform": "Thiết bị này chưa hỗ trợ gói đăng ký."
     },
     "result": {
+      "priceChangedTitle": "Giá gói đăng ký đã thay đổi",
+      "priceChangedMessage": "Google Play đã xác nhận giá đăng ký mới nhất. Hãy xem lại giá mới và thông tin thanh toán, sau đó nhấn Đăng ký một lần nữa.",
       "verified": "Cảm ơn bạn! Gói đăng ký đã được xác nhận.",
       "pending": "Thanh toán của bạn vẫn đang được xử lý. Quyền truy cập sẽ cập nhật khi hoàn tất.",
       "notEntitled": "Giao dịch mua này không cấp quyền truy cập.",

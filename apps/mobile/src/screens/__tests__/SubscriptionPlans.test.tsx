@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Platform, Text } from 'react-native';
+import { Modal, Platform, Text } from 'react-native';
 import i18n from '../../i18n';
 import { SubscriptionScreen } from '../SubscriptionScreen';
 import { useAuth, useOptionalAuth } from '../../auth/AuthContext';
@@ -183,6 +183,60 @@ describe('membership plans', () => {
     return node ? String(node.props.children) : null;
   };
   const longDate = (date: Date) => new Intl.DateTimeFormat('en', { year: 'numeric', month: 'long', day: 'numeric' }).format(date);
+
+  describe('Android checkout price refresh', () => {
+    const originalPlatform = Platform.OS;
+    beforeEach(() => { Platform.OS = 'android'; });
+    afterEach(() => { Platform.OS = originalPlatform; });
+
+    it('updates the card and summary together, retains monthly, and waits for another tap', async () => {
+      const oldMonthly = plan('monthly', '₩1,300', 1300, 'KRW');
+      const newMonthly = plan('monthly', '₩2,700', 2700, 'KRW');
+      const yearly = plan('yearly', '₩27,000', 27000, 'KRW');
+      store.loadPlans.mockResolvedValue({ kind: 'ready', plans: [oldMonthly, yearly] });
+      store.purchase.mockResolvedValueOnce({ kind: 'priceChanged', plans: [newMonthly, yearly] });
+      const renderer = await renderScreen();
+      await press(renderer, 'subscription-plan-monthly');
+      expect(value(renderer, 'price')).toBe('₩1,300 / month');
+
+      const subscribe = all(renderer, 'subscription-subscribe').find(node => typeof node.props.onPress === 'function')!.props.onPress;
+      await act(async () => {
+        subscribe();
+        subscribe();
+      });
+
+      expect(store.purchase).toHaveBeenCalledTimes(1);
+      expect(store.purchase).toHaveBeenLastCalledWith('monthly', oldMonthly);
+      expect(isSelected(renderer, 'monthly')).toBe(true);
+      expect(all(renderer, 'subscription-price-monthly')[0].props.children).toBe('₩2,700 / month');
+      expect(value(renderer, 'price')).toBe('₩2,700 / month');
+      const dialog = renderer.root.findAllByType(Modal).find(node => node.props.visible)!;
+      const dialogText = dialog.findAllByType(Text).map(node => String(node.props.children));
+      expect(dialogText).toEqual(expect.arrayContaining([
+        i18n.t('subscription.result.priceChangedTitle'),
+        i18n.t('subscription.result.priceChangedMessage'),
+      ]));
+      await act(async () => dialog.props.onRequestClose());
+
+      await press(renderer, 'subscription-subscribe');
+      expect(store.purchase).toHaveBeenCalledTimes(2);
+      expect(store.purchase).toHaveBeenLastCalledWith('monthly', newMonthly);
+    });
+
+    it('removes the stale price on a failed preflight and reloads the selected plan on retry', async () => {
+      store.purchase.mockResolvedValueOnce({ kind: 'unavailable', reason: 'storeUnavailable' });
+      const renderer = await renderScreen();
+      await press(renderer, 'subscription-plan-monthly');
+      await press(renderer, 'subscription-subscribe');
+      expect(value(renderer, 'price')).toBeNull();
+      expect(all(renderer, 'subscription-subscribe').find(node => 'disabled' in node.props)!.props.disabled).toBe(true);
+
+      const retry = all(renderer, 'subscription-unavailable').find(node => typeof node.props.onRetry === 'function')!;
+      await act(async () => retry.props.onRetry());
+      expect(isSelected(renderer, 'monthly')).toBe(true);
+      expect(value(renderer, 'price')).toBe('$1.99 / month');
+    });
+  });
 
   describe('payment summary - what subscribing now means, for the chosen plan', () => {
     beforeEach(() => {

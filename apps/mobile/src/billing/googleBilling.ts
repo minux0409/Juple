@@ -49,7 +49,7 @@ export interface GoogleBilling {
   /** The store's localized offers for every allowlisted base plan (monthly and yearly): prices come from Google Play, never from here. */
   loadPlans: () => Promise<PlansResult>;
   /** Starts the Google Play purchase flow for a plan (monthly by default). Resolves only after the SERVER has answered - never from the store callback alone. */
-  purchase: (plan?: PlanKey) => Promise<PurchaseResult>;
+  purchase: (plan?: PlanKey, reviewedOffer?: GoogleOffer) => Promise<GooglePurchaseResult>;
   /** Server-verified restore: nothing the device reports is trusted until the Backend has checked it. */
   restore: () => Promise<RestoreResult>;
   /** Releases the store connection and listeners. */
@@ -60,6 +60,9 @@ export interface GoogleBilling {
 const USER_CANCELLED = 'user-cancelled';
 const PENDING_CODES = new Set(['pending', 'deferred-payment']);
 const ALREADY_OWNED = 'already-owned';
+const INFINITE_RECURRING = 1;
+
+export type GooglePurchaseResult = PurchaseResult | { readonly kind: 'priceChanged'; readonly offers: readonly GoogleOffer[] };
 
 type OffersState = { readonly productId: string; readonly offers: readonly GoogleOffer[] } | null;
 
@@ -80,6 +83,7 @@ export function createGoogleBilling(deps: GoogleBillingDeps): GoogleBilling {
   let updateSubscription: EventSubscription | null = null;
   let errorSubscription: EventSubscription | null = null;
   let waiter: ((result: PurchaseResult) => void) | null = null;
+  let purchaseInProgress = false;
   let activeOffers: OffersState = null;
   const inFlight = new Map<string, Promise<PurchaseResult>>();
 
@@ -181,28 +185,39 @@ export function createGoogleBilling(deps: GoogleBillingDeps): GoogleBilling {
 
       const planIds = catalog.basePlanIds && catalog.basePlanIds.length > 0 ? catalog.basePlanIds : [catalog.basePlanId];
       const offers: GoogleOffer[] = [];
-      for (const basePlanId of planIds) {
-        // Among a base plan's offers ONLY the plain one (a single, recurring pricing phase). A store trial or intro offer is never used, not
-        // even as a fallback: Juple's own free month is the only free period, so a store trial would give a second one.
-        const forBasePlan = (product.subscriptionOffers ?? []).filter(candidate => candidate.basePlanIdAndroid === basePlanId && candidate.offerTokenAndroid);
-        const offer = forBasePlan.find(candidate => (candidate.pricingPhasesAndroid?.pricingPhaseList.length ?? 1) === 1);
+      for (const basePlanId of new Set(planIds)) {
+        if (basePlanId !== 'monthly' && basePlanId !== 'yearly') {
+          continue;
+        }
+        // OpenIAP maps Play's null offerId to basePlanId and marks identified offers as promotional.
+        const baseOffers = (product.subscriptionOffers ?? []).filter(candidate =>
+          candidate.basePlanIdAndroid === basePlanId && candidate.id === basePlanId && candidate.type === 'introductory',
+        );
+        const offer = baseOffers.length === 1 ? baseOffers[0] : undefined;
         if (!offer?.offerTokenAndroid) {
           continue;
         }
         const phases = offer.pricingPhasesAndroid?.pricingPhaseList ?? [];
-        const recurring = phases[phases.length - 1];
-        const micros = recurring?.priceAmountMicros === undefined ? Number.NaN : Number(recurring.priceAmountMicros);
+        const [recurring] = phases;
+        if (offer.installmentPlanDetailsAndroid || phases.length !== 1 || recurring.recurrenceMode !== INFINITE_RECURRING
+          || recurring.billingCycleCount !== 0 || planKeyForPeriod(recurring.billingPeriod) !== basePlanId) {
+          continue;
+        }
+        const micros = Number(recurring.priceAmountMicros);
+        if (!/^\d+$/.test(recurring.priceAmountMicros) || !Number.isSafeInteger(micros) || micros <= 0
+          || !/^[A-Z]{3}$/.test(recurring.priceCurrencyCode) || !recurring.formattedPrice?.trim()) {
+          continue;
+        }
         offers.push({
           productId: catalog.productId,
           basePlanId,
-          // The plan is read from the store's own billing period, not guessed from a base plan name; a store that reports no period for
-          // a catalog with ONE plan keeps it monthly, as before.
-          plan: planKeyForPeriod(recurring?.billingPeriod) ?? (planIds.length === 1 ? 'monthly' : null),
+          plan: basePlanId,
           offerToken: offer.offerTokenAndroid,
-          localizedPrice: recurring?.formattedPrice ?? offer.displayPrice,
-          currencyCode: recurring?.priceCurrencyCode ?? offer.currency ?? null,
-          billingPeriod: recurring?.billingPeriod ?? null,
-          priceAmount: Number.isFinite(micros) && micros > 0 ? micros / 1_000_000 : null,
+          localizedPrice: recurring.formattedPrice,
+          currencyCode: recurring.priceCurrencyCode,
+          billingPeriod: recurring.billingPeriod,
+          priceAmount: micros / 1_000_000,
+          priceAmountMicros: micros,
           obfuscatedAccountId: catalog.obfuscatedAccountId,
         });
       }
@@ -227,7 +242,7 @@ export function createGoogleBilling(deps: GoogleBillingDeps): GoogleBilling {
 
   const loadPlans = async (): Promise<PlansResult> => loadOffers();
 
-  const purchase = async (plan: PlanKey = 'monthly'): Promise<PurchaseResult> => {
+  const purchaseReviewedOffer = async (plan: PlanKey, reviewedOffer?: GoogleOffer): Promise<GooglePurchaseResult> => {
     const loaded = await loadOffers();
     if (loaded.kind !== 'ready') {
       return { kind: 'unavailable', reason: loaded.reason };
@@ -235,6 +250,12 @@ export function createGoogleBilling(deps: GoogleBillingDeps): GoogleBilling {
     const offer = loaded.offers.find(candidate => candidate.plan === plan);
     if (!offer) {
       return { kind: 'unavailable', reason: 'offerNotFound' };
+    }
+    if (!reviewedOffer || reviewedOffer.plan !== offer.plan || reviewedOffer.productId !== offer.productId
+      || reviewedOffer.basePlanId !== offer.basePlanId || reviewedOffer.priceAmountMicros !== offer.priceAmountMicros
+      || reviewedOffer.currencyCode !== offer.currencyCode || reviewedOffer.billingPeriod !== offer.billingPeriod
+      || reviewedOffer.localizedPrice !== offer.localizedPrice) {
+      return { kind: 'priceChanged', offers: loaded.offers };
     }
 
     const outcome = new Promise<PurchaseResult>(resolve => {
@@ -256,6 +277,18 @@ export function createGoogleBilling(deps: GoogleBillingDeps): GoogleBilling {
       settle(mapStoreError(error as PurchaseError));
     }
     return outcome;
+  };
+
+  const purchase: GoogleBilling['purchase'] = async (plan = 'monthly', reviewedOffer) => {
+    if (purchaseInProgress) {
+      return { kind: 'cancelled' };
+    }
+    purchaseInProgress = true;
+    try {
+      return await purchaseReviewedOffer(plan, reviewedOffer);
+    } finally {
+      purchaseInProgress = false;
+    }
   };
 
   const restore = async (): Promise<RestoreResult> => {

@@ -995,6 +995,8 @@
       "platform": "Langganan belum didukung di perangkat ini."
     },
     "result": {
+      "priceChangedTitle": "Harga langganan telah berubah",
+      "priceChangedMessage": "Google Play telah mengonfirmasi harga langganan terbaru. Tinjau harga terbaru dan detail pembayaran, lalu ketuk Berlangganan lagi.",
       "verified": "Terima kasih! Langganan Anda telah dikonfirmasi.",
       "pending": "Pembayaran Anda masih diproses. Akses Anda akan diperbarui setelah selesai.",
       "notEntitled": "Pembelian ini tidak memberikan akses.",

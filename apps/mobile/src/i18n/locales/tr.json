@@ -995,6 +995,8 @@
       "platform": "Abonelikler bu cihazda henüz desteklenmiyor."
     },
     "result": {
+      "priceChangedTitle": "Abonelik fiyatı değişti",
+      "priceChangedMessage": "Google Play güncel abonelik fiyatını doğruladı. Yeni fiyatı ve ödeme ayrıntılarını inceleyip Abone Ol düğmesine tekrar dokunun.",
       "verified": "Teşekkürler! Aboneliğiniz onaylandı.",
       "pending": "Ödemeniz hâlâ işleniyor. Tamamlandığında erişiminiz güncellenecek.",
       "notEntitled": "Bu satın alım erişim sağlamıyor.",

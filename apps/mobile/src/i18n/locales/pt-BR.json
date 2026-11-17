@@ -995,6 +995,8 @@
       "platform": "As assinaturas ainda não são compatíveis com este dispositivo."
     },
     "result": {
+      "priceChangedTitle": "O preço da assinatura mudou",
+      "priceChangedMessage": "O Google Play confirmou o preço atual da assinatura. Confira o novo preço e os detalhes do pagamento e toque em Assinar novamente.",
       "verified": "Obrigado! Sua assinatura foi confirmada.",
       "pending": "Seu pagamento ainda está sendo processado. Seu acesso será atualizado quando concluir.",
       "notEntitled": "Esta compra não concede acesso.",

@@ -995,6 +995,8 @@
       "platform": "Abonnements werden auf diesem Gerät noch nicht unterstützt."
     },
     "result": {
+      "priceChangedTitle": "Der Abonnementpreis hat sich geändert",
+      "priceChangedMessage": "Google Play hat den aktuellen Abonnementpreis bestätigt. Prüfe den neuen Preis und die Zahlungsdetails und tippe dann erneut auf „Abonnieren“.",
       "verified": "Danke! Dein Abonnement ist bestätigt.",
       "pending": "Deine Zahlung wird noch verarbeitet. Dein Zugang wird nach Abschluss aktualisiert.",
       "notEntitled": "Dieser Kauf gewährt keinen Zugang.",

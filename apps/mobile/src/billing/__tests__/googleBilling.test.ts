@@ -10,6 +10,7 @@ import {
 } from 'react-native-iap';
 import { ApiError } from '../../api/ApiError';
 import { createGoogleBilling, type GoogleBillingApi } from '../googleBilling';
+import type { PlanKey } from '../subscriptionPricing';
 import type { GoogleCatalog, VerifyResponse } from '../types';
 
 jest.mock('react-native-iap', () => ({
@@ -34,7 +35,8 @@ let removeError: jest.Mock;
 let calls: string[];
 
 const offer = (overrides: Record<string, unknown> = {}) => ({
-  id: 'monthly-offer',
+  id: 'monthly',
+  type: 'introductory',
   basePlanIdAndroid: 'monthly',
   offerTokenAndroid: 'token-monthly',
   displayPrice: 'fallback price',
@@ -65,6 +67,20 @@ function makeBilling(api: GoogleBillingApi, platform = 'android') {
   });
   return { billing: createGoogleBilling({ api, refreshEntitlement, platform }), refreshEntitlement };
 }
+
+async function reviewPlan(billing: ReturnType<typeof createGoogleBilling>, plan: PlanKey = 'monthly') {
+  const result = await billing.loadPlans();
+  const reviewed = result.kind === 'ready' && result.offers.find(candidate => candidate.plan === plan);
+  if (!reviewed) {
+    throw new Error(`Missing reviewed plan: ${plan}`);
+  }
+  return reviewed;
+}
+
+const pricedOffer = (formattedPrice: string, priceAmountMicros: string, priceCurrencyCode = 'KRW', billingPeriod = 'P1M') =>
+  offer({ pricingPhasesAndroid: { pricingPhaseList: [
+    { formattedPrice, priceCurrencyCode, billingPeriod, priceAmountMicros, billingCycleCount: 0, recurrenceMode: 1 },
+  ] } });
 
 const purchasedUpdate = (token = 'purchase-token-1', state = 'purchased') => ({ productId: 'juple_monthly', purchaseToken: token, purchaseState: state, id: 'order-1' });
 const flush = () => new Promise<void>(resolve => setImmediate(() => resolve()));
@@ -143,6 +159,7 @@ describe('connection lifecycle and offer', () => {
         basePlanId: 'monthly',
         plan: 'monthly',
         priceAmount: 1500,
+        priceAmountMicros: 1500000000,
         offerToken: 'token-monthly',
         localizedPrice: '₩1,500',
         currencyCode: 'KRW',
@@ -156,6 +173,7 @@ describe('connection lifecycle and offer', () => {
     const yearly = offer({ id: 'yearly', basePlanIdAndroid: 'yearly', offerTokenAndroid: 'token-yearly' });
     const monthlyWithTrial = offer({
       id: 'trial',
+      type: 'promotional',
       offerTokenAndroid: 'token-trial',
       pricingPhasesAndroid: {
         pricingPhaseList: [
@@ -164,13 +182,30 @@ describe('connection lifecycle and offer', () => {
         ],
       },
     });
-    const plain = offer({ id: 'plain', offerTokenAndroid: 'token-plain' });
-    jest.mocked(fetchProducts).mockResolvedValue([product([yearly, monthlyWithTrial, plain])] as never);
+    const singlePhasePromo = offer({ ...pricedOffer('₩1,300', '1300000000'), id: 'monthly', type: 'promotional', offerTokenAndroid: 'promo' });
+    const plain = offer({ offerTokenAndroid: 'token-plain' });
+    jest.mocked(fetchProducts).mockResolvedValue([product([yearly, monthlyWithTrial, singlePhasePromo, plain])] as never);
     const { billing } = makeBilling(makeApi());
 
     const result = await billing.loadOffer();
 
     expect(result.kind === 'ready' && result.offer.offerToken).toBe('token-plain');
+  });
+
+  it('rejects duplicate base-plan offers, missing prices, and fixed or non-recurring phases', async () => {
+    const phase = offer().pricingPhasesAndroid.pricingPhaseList[0];
+    const invalidOffers = [
+      [offer(), offer({ offerTokenAndroid: 'ambiguous' })],
+      [offer({ pricingPhasesAndroid: null })],
+      [offer({ pricingPhasesAndroid: { pricingPhaseList: [{ ...phase, priceAmountMicros: 'invalid' }] } })],
+      [offer({ pricingPhasesAndroid: { pricingPhaseList: [{ ...phase, recurrenceMode: 2 }] } })],
+      [offer({ pricingPhasesAndroid: { pricingPhaseList: [{ ...phase, recurrenceMode: 3 }] } })],
+    ];
+    const { billing } = makeBilling(makeApi());
+    for (const offers of invalidOffers) {
+      jest.mocked(fetchProducts).mockResolvedValueOnce([product(offers)] as never);
+      expect(await billing.loadPlans()).toEqual({ kind: 'unavailable', reason: 'offerNotFound' });
+    }
   });
 
   it('a base plan that only has a store trial/intro offer is not offered at all - never a second free period', async () => {
@@ -213,7 +248,8 @@ describe('connection lifecycle and offer', () => {
 describe('purchase', () => {
   async function startPurchase(api: GoogleBillingApi = makeApi()) {
     const harness = makeBilling(api);
-    const result = harness.billing.purchase();
+    const reviewed = await reviewPlan(harness.billing);
+    const result = harness.billing.purchase('monthly', reviewed);
     await flush();
     return { ...harness, result };
   }
@@ -337,7 +373,7 @@ describe('purchase', () => {
     jest.mocked(requestPurchase).mockRejectedValueOnce({ code: 'billing-unavailable', message: 'no billing' });
     const { billing } = makeBilling(makeApi());
 
-    expect(await billing.purchase()).toEqual({ kind: 'error', code: 'billing-unavailable' });
+    expect(await billing.purchase('monthly', await reviewPlan(billing))).toEqual({ kind: 'error', code: 'billing-unavailable' });
   });
 
   it('a duplicate purchase callback for the same token converges on ONE verification and one finish', async () => {
@@ -443,7 +479,7 @@ describe('monthly and yearly base plans', () => {
   const TWO_PLANS: GoogleCatalog = { ...CATALOG, basePlanIds: ['monthly', 'yearly'] };
   const yearlyOffer = () =>
     offer({
-      id: 'yearly-offer',
+      id: 'yearly',
       basePlanIdAndroid: 'yearly',
       offerTokenAndroid: 'token-yearly',
       pricingPhasesAndroid: {
@@ -465,20 +501,20 @@ describe('monthly and yearly base plans', () => {
     ]);
   });
 
-  it('reads the plan from the store billing period, not from the base plan name', async () => {
+  it('does not treat an unknown base plan as monthly merely because it has a monthly billing period', async () => {
     (fetchProducts as jest.Mock).mockResolvedValue([product([offer({ basePlanIdAndroid: 'plan-a' }), yearlyOffer()])]);
     const { billing } = makeBilling(makeApi({ getCatalog: jest.fn(async () => ({ ...CATALOG, basePlanId: 'plan-a', basePlanIds: ['plan-a', 'yearly'] })) }));
 
     const result = await billing.loadPlans();
 
-    expect(result.kind === 'ready' && result.offers.map(candidate => candidate.plan)).toEqual(['monthly', 'yearly']);
+    expect(result.kind === 'ready' && result.offers.map(candidate => candidate.plan)).toEqual(['yearly']);
   });
 
   it('buys the yearly plan with the yearly offer token, and the monthly one by default', async () => {
     (fetchProducts as jest.Mock).mockResolvedValue([product([offer(), yearlyOffer()])]);
     const { billing } = makeBilling(makeApi({ getCatalog: jest.fn(async () => TWO_PLANS) }));
 
-    const yearly = billing.purchase('yearly');
+    const yearly = billing.purchase('yearly', await reviewPlan(billing, 'yearly'));
     await flush();
     emitPurchase(purchasedUpdate());
     await yearly;
@@ -487,7 +523,7 @@ describe('monthly and yearly base plans', () => {
       request: { google: { skus: ['juple_monthly'], subscriptionOffers: [{ sku: 'juple_monthly', offerToken: 'token-yearly' }], obfuscatedAccountId: 'opaque-account-key' } },
     });
 
-    const monthly = billing.purchase();
+    const monthly = billing.purchase(undefined, await reviewPlan(billing));
     await flush();
     emitPurchase(purchasedUpdate('purchase-token-2'));
     await monthly;
@@ -503,6 +539,82 @@ describe('monthly and yearly base plans', () => {
 
     expect(await billing.purchase('yearly')).toEqual({ kind: 'unavailable', reason: 'offerNotFound' });
     expect(requestPurchase).not.toHaveBeenCalled();
+  });
+
+  it('blocks a stale monthly price, returns both refreshed prices, and buys only after a second request with the fresh quote', async () => {
+    const yearly = { ...pricedOffer('₩27,000', '27000000000', 'KRW', 'P1Y'), id: 'yearly', basePlanIdAndroid: 'yearly', offerTokenAndroid: 'yearly-token' };
+    const fresh = { ...pricedOffer('₩2,700', '2700000000'), offerTokenAndroid: 'fresh-token' };
+    jest.mocked(fetchProducts)
+      .mockResolvedValueOnce([product([pricedOffer('₩1,300', '1300000000'), yearly])] as never)
+      .mockResolvedValue([product([fresh, yearly])] as never);
+    const { billing } = makeBilling(makeApi({ getCatalog: jest.fn(async () => TWO_PLANS) }));
+
+    const reviewed = await reviewPlan(billing);
+    const changed = await billing.purchase('monthly', reviewed);
+
+    expect(requestPurchase).not.toHaveBeenCalled();
+    if (changed.kind !== 'priceChanged') {
+      throw new Error('Expected a fresh quote');
+    }
+    expect(changed.offers.map(candidate => [candidate.basePlanId, candidate.localizedPrice])).toEqual([
+      ['monthly', '₩2,700'], ['yearly', '₩27,000'],
+    ]);
+    jest.mocked(fetchProducts).mockResolvedValueOnce([product([{ ...fresh, offerTokenAndroid: 'latest-token' }, yearly])] as never);
+    const purchase = billing.purchase('monthly', changed.offers[0]);
+    await flush();
+    expect(requestPurchase).toHaveBeenCalledTimes(1);
+    expect(requestPurchase).toHaveBeenCalledWith(expect.objectContaining({
+      request: { google: { skus: ['juple_monthly'], subscriptionOffers: [{ sku: 'juple_monthly', offerToken: 'latest-token' }], obfuscatedAccountId: 'opaque-account-key' } },
+    }));
+    emitError({ code: 'user-cancelled' });
+    expect(await purchase).toEqual({ kind: 'cancelled' });
+  });
+
+  it('compares amounts and currency even if the formatted price is the same', async () => {
+    const { billing } = makeBilling(makeApi());
+    const original = pricedOffer('1,300', '1300000000');
+    jest.mocked(fetchProducts).mockResolvedValueOnce([product([original])] as never);
+    const reviewed = await reviewPlan(billing);
+    jest.mocked(fetchProducts)
+      .mockResolvedValueOnce([product([pricedOffer('1,300', '2700000000')])] as never)
+      .mockResolvedValueOnce([product([pricedOffer('1,300', '1300000000', 'JPY')])] as never);
+
+    expect((await billing.purchase('monthly', reviewed)).kind).toBe('priceChanged');
+    expect((await billing.purchase('monthly', reviewed)).kind).toBe('priceChanged');
+    expect(requestPurchase).not.toHaveBeenCalled();
+  });
+
+  it('blocks an incompatible period and requires reconfirmation for a changed compatible period', async () => {
+    const original = { ...yearlyOffer(), ...pricedOffer('₩27,000', '27000000000', 'KRW', 'P1Y'), id: 'yearly', basePlanIdAndroid: 'yearly' };
+    const withPeriod = (period: string) => ({ ...original, pricingPhasesAndroid: {
+      pricingPhaseList: [{ ...original.pricingPhasesAndroid.pricingPhaseList[0], billingPeriod: period }],
+    } });
+    jest.mocked(fetchProducts)
+      .mockResolvedValueOnce([product([original])] as never)
+      .mockResolvedValueOnce([product([withPeriod('P1M')])] as never)
+      .mockResolvedValueOnce([product([withPeriod('P12M')])] as never);
+    const { billing } = makeBilling(makeApi({ getCatalog: jest.fn(async () => TWO_PLANS) }));
+    const reviewed = await reviewPlan(billing, 'yearly');
+
+    expect(await billing.purchase('yearly', reviewed)).toEqual({ kind: 'unavailable', reason: 'offerNotFound' });
+    expect((await billing.purchase('yearly', reviewed)).kind).toBe('priceChanged');
+    expect(requestPurchase).not.toHaveBeenCalled();
+  });
+
+  it('blocks a failed requery, retries safely, and ignores a duplicate tap during the requery', async () => {
+    const { billing } = makeBilling(makeApi());
+    const reviewed = await reviewPlan(billing);
+    jest.mocked(fetchProducts).mockRejectedValueOnce(new Error('Play offline'));
+
+    expect(await billing.purchase('monthly', reviewed)).toEqual({ kind: 'unavailable', reason: 'storeUnavailable' });
+    expect(requestPurchase).not.toHaveBeenCalled();
+    const pending = billing.purchase('monthly', reviewed);
+    expect(await billing.purchase('monthly', reviewed)).toEqual({ kind: 'cancelled' });
+    await flush();
+    expect(requestPurchase).toHaveBeenCalledTimes(1);
+    expect(fetchProducts).toHaveBeenCalledTimes(3);
+    emitError({ code: 'user-cancelled' });
+    await pending;
   });
 
   it('loadOffer (the older single-plan call) still answers with the monthly offer', async () => {

@@ -45,6 +45,7 @@ export function SubscriptionScreen() {
   const [plansState, setPlansState] = useState<PlansState>({ kind: 'loading' });
   const [selected, setSelected] = useState<PlanKey | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const busy = useRef(false);
   // A purchase this screen started is still being completed in the store (nothing granted yet): "결제 확인 중" until the server says more.
   const [paymentPending, setPaymentPending] = useState(false);
   // During the free month a purchase asks first: buying now starts billing today and does not add the remaining free days.
@@ -62,7 +63,7 @@ export function SubscriptionScreen() {
 
   const loadPlans = useCallback(async () => {
     setPlansState({ kind: 'loading' });
-    const result = await store.loadPlans();
+    const result = await store.loadPlans().catch(() => ({ kind: 'unavailable', reason: 'storeUnavailable' } as const));
     if (!isMounted.current) {
       return;
     }
@@ -76,11 +77,7 @@ export function SubscriptionScreen() {
   }, [store]);
 
   useEffect(() => {
-    loadPlans().catch(() => {
-      if (isMounted.current) {
-        setPlansState({ kind: 'unavailable', reason: 'storeUnavailable' });
-      }
-    });
+    loadPlans().catch(() => undefined);
   }, [loadPlans]);
 
   const unavailableText = useCallback(
@@ -148,9 +145,10 @@ export function SubscriptionScreen() {
 
   const runExclusive = useCallback(
     async (work: () => Promise<string | null>) => {
-      if (isBusy) {
+      if (busy.current) {
         return;
       }
+      busy.current = true;
       setIsBusy(true);
       try {
         const message = await work();
@@ -162,17 +160,32 @@ export function SubscriptionScreen() {
           showMessage(t('subscription.result.failed'));
         }
       } finally {
+        busy.current = false;
         if (isMounted.current) {
           setIsBusy(false);
         }
       }
     },
-    [isBusy, showMessage, t],
+    [showMessage, t],
   );
 
   const purchase = () => runExclusive(async () => {
-    const result = await store.purchase(selected ?? 'monthly');
-    if (isMounted.current && result.kind === 'pending') {
+    if (!chosen) {
+      return null;
+    }
+    const result = Platform.OS === 'android' ? await store.purchase(chosen.key, chosen) : await store.purchase(chosen.key);
+    if (!isMounted.current) {
+      return null;
+    }
+    if (result.kind === 'priceChanged') {
+      setPlansState({ kind: 'ready', plans: result.plans });
+      showMessage(t('subscription.result.priceChangedMessage'), { title: t('subscription.result.priceChangedTitle') });
+      return null;
+    }
+    if (result.kind === 'unavailable' && Platform.OS === 'android') {
+      setPlansState({ kind: 'unavailable', reason: result.reason });
+    }
+    if (result.kind === 'pending') {
       setPaymentPending(true);
     }
     return purchaseText(result);

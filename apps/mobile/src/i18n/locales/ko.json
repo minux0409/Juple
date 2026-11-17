@@ -995,6 +995,8 @@
       "platform": "이 기기에서는 아직 구독을 지원하지 않아요."
     },
     "result": {
+      "priceChangedTitle": "구독 가격이 변경되었습니다.",
+      "priceChangedMessage": "Google Play에서 최신 구독 가격이 확인되었습니다. 변경된 가격과 결제 내용을 확인한 후 다시 구독해 주세요.",
       "verified": "감사합니다! 구독이 확인되었어요.",
       "pending": "결제를 처리하고 있어요. 완료되면 이용 상태가 업데이트됩니다.",
       "notEntitled": "이 구매로는 이용 권한이 생기지 않아요.",

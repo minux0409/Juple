@@ -30,13 +30,15 @@ export type SubscriptionPlansResult =
   | { readonly kind: 'ready'; readonly plans: readonly SubscriptionPlan[] }
   | { readonly kind: 'unavailable'; readonly reason: OfferUnavailableReason };
 
+export type SubscriptionPurchaseResult = PurchaseResult | { readonly kind: 'priceChanged'; readonly plans: readonly SubscriptionPlan[] };
+
 export interface SubscriptionStore {
   /** The monthly plan only (kept for callers that predate the yearly plan). */
   loadOffer: () => Promise<SubscriptionOfferResult>;
   /** Every plan the store prices for this storefront (monthly and/or yearly). */
   loadPlans: () => Promise<SubscriptionPlansResult>;
   /** Buys a plan (monthly by default). Resolves only after the Backend verified it. */
-  purchase: (plan?: PlanKey) => Promise<PurchaseResult>;
+  purchase: (plan?: PlanKey, displayedPlan?: SubscriptionPlan) => Promise<SubscriptionPurchaseResult>;
   restore: () => Promise<RestoreResult>;
   /** True when this platform's store has a subscription-management page the app can open (Google Play and the App Store both do). */
   canManageSubscription: boolean;

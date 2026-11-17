@@ -41,7 +41,7 @@ export type RestoreOutcome = 'restored' | 'nothingFound' | 'belongsToAnotherJupl
 export interface GoogleOffer {
   readonly productId: string;
   readonly basePlanId: string;
-  /** Which membership plan this base plan is (read from the store's billing period); null for a period the app does not offer. */
+  /** The membership plan identified by the Play base-plan ID and checked against its recurring period. */
   readonly plan: PlanKey | null;
   readonly offerToken: string;
   /** The store's own localized price string (e.g. what "{price} / month" is built from) - never a number this app formats. */
@@ -51,6 +51,7 @@ export interface GoogleOffer {
   readonly billingPeriod: string | null;
   /** The recurring price in currency units (priceAmountMicros / 1e6), for the per-storefront discount arithmetic; null if unreadable. */
   readonly priceAmount: number | null;
+  readonly priceAmountMicros: number;
   readonly obfuscatedAccountId: string;
 }
 

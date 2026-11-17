@@ -995,6 +995,8 @@
       "platform": "Subscriptions are not supported on this device yet."
     },
     "result": {
+      "priceChangedTitle": "The subscription price has changed",
+      "priceChangedMessage": "Google Play confirmed the latest subscription price. Review the updated price and payment details, then tap Subscribe again.",
       "verified": "Thank you! Your subscription is confirmed.",
       "pending": "Your payment is still being processed. Your access will update once it completes.",
       "notEntitled": "This purchase does not grant access.",

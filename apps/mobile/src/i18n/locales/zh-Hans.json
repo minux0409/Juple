@@ -995,6 +995,8 @@
       "platform": "此设备暂不支持订阅。"
     },
     "result": {
+      "priceChangedTitle": "订阅价格已变更",
+      "priceChangedMessage": "Google Play 已确认最新订阅价格。请查看更新后的价格和付款详情，然后再次点击订阅。",
       "verified": "谢谢!您的订阅已确认。",
       "pending": "您的付款仍在处理中。完成后您的使用状态会更新。",
       "notEntitled": "此次购买不会授予使用权限。",
