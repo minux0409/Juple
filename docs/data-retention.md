@@ -7,7 +7,7 @@ pending legal/accounting review; all periods live in one place, `RetentionOption
 
 | Data | Period | Enforced by |
 |---|---|---|
-| Trial ledger (keyed hash + trial window) | **24 months after the trial window ended**; a running trial is never deleted | retention Job (`trialLedger`) |
+| Historical and official membership trial ledgers (keyed hash + trial window) | **24 months after the trial window ended**; a running trial is never deleted | retention Job (`trialLedger`) |
 | Store purchase - sealed Google token | removed **180 days after a terminal state** (Expired / Revoked) ended access; never while access is live, on hold, paused, pending or being re-checked | retention Job (`purchaseSealedTokens`) |
 | Store purchase - row (token hash + minimal state/dates) | deleted **5 years after a terminal state** ended access **[REVIEW REQUIRED: legal/accounting]** | retention Job (`purchaseRecords`) |
 | Processed store notifications (RTDN rows) | **90 days** after processing; unprocessed rows are never touched | retention Job (`processedBillingEvents`) |
@@ -80,3 +80,7 @@ Removed immediately: profile, all links/Collections/memos/comments/friends/notif
 3. The two trial-identity gaps (section 5). The Entra deletion policy is decided (deleted with the account) and the privacy / account-deletion wording is prepared; its legal sufficiency is item 2. Microsoft-side lifecycle after a deletion (e.g. any restore period in the tenant) is deliberately not stated as a number in the user-facing text until confirmed from Microsoft documentation **[REVIEW REQUIRED]**.
 4. Telemetry/crash reporting does not exist; if added, its retention must be added here.
 5. **Production deployment state:** `caj-juple-retention-prod` and `caj-juple-blob-cleanup-prod` are deployed with `triggerType = Manual` (no schedule): the image is pinned by digest, both use the SQL runtime principal through a Key Vault reference and `id-juple-prod` for Blob access. Each has had one observed manual run (retention: every category `Purged=0`, `Failures=0`; blob cleanup: `Pending=0`). Switching either to the documented cadence (`Schedule`: retention `17 3 * * *`, blob cleanup `*/5 * * * *`) is a deliberate one-line change in its `prod.bicepparam`. Both Jobs share the API identity, which holds Blob Data Contributor on the whole storage account; a dedicated identity scoped to the `item-images` container is a later hardening. Blob soft delete is not enabled on the Production storage account, so a Blob deletion is permanent.
+
+## Official membership trial separation (source prepared, not applied)
+
+The official `billing.MembershipTrialLedger` is independent of historical `billing.TrialLedger`. Both use the existing 24-month-after-trial-end cutoff; cleanup shares one bounded batch budget. No existing record is backfilled/deleted by the additive migration, and this change does not enable a cleanup job. Account deletion retains official email-hash memory separately. After lawful purging, lifetime re-registration recognition is not guaranteed; legal review must reconcile this retention limit with a lifetime-once promise. See `membership-launch-readiness.md`.
