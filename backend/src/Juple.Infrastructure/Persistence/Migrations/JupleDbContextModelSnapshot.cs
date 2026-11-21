@@ -334,6 +334,36 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Juple.Domain.Billing.MembershipTrialLedgerEntry", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("IdentityHash")
+                        .IsRequired()
+                        .HasColumnType("binary(32)");
+
+                    b.Property<DateTimeOffset>("TrialEndsAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("TrialStartedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdentityHash")
+                        .IsUnique()
+                        .HasDatabaseName("UX_MembershipTrialLedger_IdentityHash");
+
+                    b.ToTable("MembershipTrialLedger", "billing");
+                });
+
             modelBuilder.Entity("Juple.Domain.Billing.StoreEvent", b =>
                 {
                     b.Property<long>("Id")
@@ -3152,6 +3182,12 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.Property<string>("DisplayName")
                         .HasMaxLength(512)
                         .HasColumnType("nvarchar(512)");
+
+                    b.Property<DateTimeOffset?>("MembershipTrialEndsAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("MembershipTrialStartedAtUtc")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<string>("Plan")
                         .IsRequired()

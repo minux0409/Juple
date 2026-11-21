@@ -54,6 +54,11 @@ public sealed class User
 
     public DateTimeOffset? TrialEndsAtUtc { get; private set; }
 
+    // Official launch trial. Historical test trial fields above are preserved.
+    public DateTimeOffset? MembershipTrialStartedAtUtc { get; private set; }
+
+    public DateTimeOffset? MembershipTrialEndsAtUtc { get; private set; }
+
     /// <summary>The Terms of Service version this person agreed to (null = never). Compared with the CURRENT version by the server before any user-generated content is created.</summary>
     public string? AcceptedTermsVersion { get; private set; }
 

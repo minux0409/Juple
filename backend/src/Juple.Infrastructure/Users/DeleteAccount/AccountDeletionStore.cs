@@ -5,6 +5,7 @@ using Juple.Domain.Identity;
 using Juple.Domain.Images;
 using Juple.Domain.Users;
 using Juple.Infrastructure.Persistence;
+using Juple.Infrastructure.Users.BootstrapCurrentUser;
 using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Users.DeleteAccount;
@@ -38,6 +39,14 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext, TimeProvider?
 
         try
         {
+            if (plan.TrialEmailHash is { } coordinationHash)
+                await MembershipTrialSqlLock.AcquireAsync(dbContext, coordinationHash, cancellationToken);
+            // Read the final trial projection only after excluding concurrent settlement. If
+            // settlement wins, deletion remembers its committed window; if deletion wins,
+            // settlement fails for a missing account instead of leaving an orphan fresh grant.
+            _ = await dbContext.Database.SqlQuery<long>(
+                $"SELECT [Id] AS [Value] FROM [users].[Users] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {userId}")
+                .ToListAsync(cancellationToken);
             // Registered FIRST, in the same transaction as the data deletion below - if that
             // deletion fails and rolls back, this task row rolls back with it too, so a failed
             // account deletion never leaves an orphan Blob cleanup task. Carries no UserId - see
@@ -87,6 +96,22 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext, TimeProvider?
             // CollectionShares) - they are never touched explicitly here.
 
             await dbContext.NoticeReads.Where(read => read.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+
+            // Preserve the official trial under the existing email-HMAC policy, independently of legacy test records.
+            if (plan.TrialEmailHash is { } officialEmailHash)
+            {
+                var official = await dbContext.Users.AsNoTracking()
+                    .Where(user => user.Id == userId && user.MembershipTrialStartedAtUtc != null && user.MembershipTrialEndsAtUtc != null)
+                    .Select(user => new { Start = user.MembershipTrialStartedAtUtc!.Value, End = user.MembershipTrialEndsAtUtc!.Value })
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (official is not null && !await dbContext.Set<MembershipTrialLedgerEntry>()
+                    .AnyAsync(entry => entry.IdentityHash == officialEmailHash, cancellationToken))
+                {
+                    dbContext.Set<MembershipTrialLedgerEntry>().Add(new MembershipTrialLedgerEntry(
+                        officialEmailHash, official.Start, official.End, createdAtUtc));
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                }
+            }
 
             // Notifications -> cascades NotificationDeliveries. Also the ones this user caused for
             // other people (friend requests, invitations) - nothing about them stays behind.

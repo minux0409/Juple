@@ -15,7 +15,7 @@ public sealed class MembershipGrantStore(JupleDbContext dbContext) : IAdminMembe
 
     public Task<MembershipUser?> FindUserAsync(long? userId, string? jupleId, CancellationToken cancellationToken) =>
         dbContext.Users.AsNoTracking().Where(user => userId != null ? user.Id == userId : user.PublicCode == jupleId)
-            .Select(user => new MembershipUser(user.Id, user.PublicCode, user.DisplayName, user.TrialEndsAtUtc))
+            .Select(user => new MembershipUser(user.Id, user.PublicCode, user.DisplayName, user.MembershipTrialEndsAtUtc))
             .SingleOrDefaultAsync(cancellationToken);
 
     public async Task<IReadOnlyList<MembershipSearchResult>> SearchUsersAsync(string jupleIdFragment, int limit, CancellationToken cancellationToken) =>

@@ -201,14 +201,12 @@ public sealed class CurrentUserBootstrapServiceTests
         Juple.Application.Users.DeleteAccount.EntraAccountDeletionOptions? options = null,
         EntraTestDoubles.FakeDeletionService? deletion = null,
         EntraTestDoubles.FakeDirectory? directory = null,
-        EntraTestDoubles.FakeTrialEmailLedger? ledger = null,
         Juple.Application.Billing.IEntitlementService? entitlements = null) =>
         new(store, entitlements ?? new ProgramNotLaunchedEntitlements(), new FixedTimeProvider(),
             options ?? new Juple.Application.Users.DeleteAccount.EntraAccountDeletionOptions(),
             deletion ?? new EntraTestDoubles.FakeDeletionService(),
             directory ?? new EntraTestDoubles.FakeDirectory(),
-            EntraTestDoubles.Hasher(),
-            ledger ?? new EntraTestDoubles.FakeTrialEmailLedger());
+            EntraTestDoubles.Hasher(), new Juple.Application.Billing.BillingOptions());
 
     [Fact]
     public async Task BootstrapAsync_NewIdentityWhoseEntraDeletionIsStillPending_IsRefused_NothingCreated()
@@ -238,40 +236,38 @@ public sealed class CurrentUserBootstrapServiceTests
     public async Task BootstrapAsync_NewAccountOfAReturningEmail_InheritsTheRememberedTrialByEmailHash()
     {
         var store = new FakeProvisioningStore();
-        var ledger = new EntraTestDoubles.FakeTrialEmailLedger();
-        var service = CreateService(store, EntraTestDoubles.EnabledOptions(), null, new EntraTestDoubles.FakeDirectory { Email = "Returning@Example.com" }, ledger);
+        var service = CreateService(store, EntraTestDoubles.EnabledOptions(), null, new EntraTestDoubles.FakeDirectory { Email = "Returning@Example.com" });
 
         await service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul", Now.AddMinutes(-1)));
 
-        var inherited = Assert.Single(ledger.Inherited);
-        Assert.Equal(ExternalIdentity, inherited.Identity);
-        Assert.Equal(EntraTestDoubles.Hasher().HashEmail("returning@example.com"), inherited.Hash);
+        var created = Assert.Single(store.CreatedUsers);
+        Assert.Equal(ExternalIdentity, created.ExternalIdentity);
+        Assert.Equal(EntraTestDoubles.Hasher().HashEmail("returning@example.com"), created.TrialEmailHash);
     }
 
     [Fact]
-    public async Task BootstrapAsync_WhenTheDirectoryCannotAnswerTheEmail_StillCreatesTheAccount()
+    public async Task BootstrapAsync_BeforeLaunch_MissingEmailDoesNotStartATrial()
     {
         var store = new FakeProvisioningStore();
-        var ledger = new EntraTestDoubles.FakeTrialEmailLedger();
-        var service = CreateService(store, EntraTestDoubles.EnabledOptions(), null, new EntraTestDoubles.FakeDirectory { Email = null }, ledger);
+        var service = CreateService(store, EntraTestDoubles.EnabledOptions(), null, new EntraTestDoubles.FakeDirectory { Email = null });
 
         await service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul", Now.AddMinutes(-1)));
 
-        Assert.Single(store.CreatedUsers);
-        Assert.Empty(ledger.Inherited);
+        var created = Assert.Single(store.CreatedUsers);
+        Assert.Null(created.TrialEmailHash);
+        Assert.Null(created.OfficialTrialWindow);
+        Assert.Null(created.TrialIdentityHash);
     }
 
     [Fact]
     public async Task BootstrapAsync_WhenEntraDeletionIsDisabled_NeverTouchesTheDirectoryOrLedger()
     {
         var store = new FakeProvisioningStore();
-        var ledger = new EntraTestDoubles.FakeTrialEmailLedger();
-        var service = CreateService(store, null, new EntraTestDoubles.FakeDeletionService { Pending = true }, new EntraTestDoubles.FakeDirectory { Email = "a@b.com" }, ledger);
+        var service = CreateService(store, null, new EntraTestDoubles.FakeDeletionService { Pending = true }, new EntraTestDoubles.FakeDirectory { Email = "a@b.com" });
 
         await service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul", Now.AddMinutes(-1)));
 
-        Assert.Single(store.CreatedUsers);
-        Assert.Empty(ledger.Inherited);
+        Assert.Null(Assert.Single(store.CreatedUsers).TrialEmailHash);
     }
 
     [Fact]

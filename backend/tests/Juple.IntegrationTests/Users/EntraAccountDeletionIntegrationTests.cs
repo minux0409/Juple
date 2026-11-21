@@ -294,7 +294,6 @@ public sealed class EntraAccountDeletionIntegrationTests : IAsyncLifetime
             new EntraAccountDeletionOptions { Enabled = true, TenantId = CustomerTenant, ClientId = "c", ManagedIdentityClientId = "m" },
             deletion,
             directory,
-            Hasher(),
-            new TrialEmailLedger(db));
+            Hasher(), Billing());
     }
 }

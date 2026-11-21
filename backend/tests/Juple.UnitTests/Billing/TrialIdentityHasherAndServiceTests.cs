@@ -78,6 +78,89 @@ public sealed class TrialIdentityHasherTests
 
 public sealed class EntitlementServiceTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UnresolvedIdentityWithoutKnownAccess_RequiresReview_NotANewTrial(bool multiple)
+    {
+        var store = new FakeStore { State = new EntitlementUserState(42, ProgramStart.AddDays(-90),
+            ProgramStart.AddDays(-80), ProgramStart.AddDays(-50), null, HasMultipleExternalIdentities: multiple) };
+        var error = await Assert.ThrowsAsync<MembershipTrialIdentityException>(() => Service(Enabled(), store,
+            new StubTime(ProgramStart)).GetForUserAsync(42));
+        Assert.Equal(multiple, error.Multiple);
+        Assert.Equal(0, store.EnsureCalls);
+        Assert.Null(store.State.MembershipTrialStartedAtUtc);
+    }
+
+    [Theory]
+    [InlineData(false, StorePurchaseState.Active)]
+    [InlineData(true, StorePurchaseState.Canceled)]
+    [InlineData(false, StorePurchaseState.GracePeriod)]
+    public async Task UnresolvedIdentity_DoesNotInterruptVerifiedPaidAccess(bool multiple, StorePurchaseState state)
+    {
+        var store = new FakeStore
+        {
+            State = new EntitlementUserState(42, ProgramStart.AddDays(-90), null, null, null,
+                HasMultipleExternalIdentities: multiple),
+            Purchases = [new PurchaseAccess(state, EntitlementReason.None, ProgramStart.AddDays(10))],
+        };
+        var result = await Service(Enabled(), store, new StubTime(ProgramStart)).GetForUserAsync(42);
+        Assert.True(result.CanWrite);
+        Assert.Equal(ProgramStart.AddDays(10), result.CurrentPeriodEndsAtUtc);
+        Assert.Null(result.TrialStartedAtUtc);
+        Assert.Equal(0, store.EnsureCalls);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UnresolvedIdentity_ReusesKnownOfficialWindow_WithoutChoosingAnIdentity(bool multiple)
+    {
+        var store = new FakeStore { State = new EntitlementUserState(42, ProgramStart.AddDays(-90), null, null,
+            null, ProgramStart, ProgramStart.AddHours(720), multiple) };
+        var time = new StubTime(ProgramStart);
+        var service = Service(Enabled(), store, time);
+        Assert.True((await service.GetForUserAsync(42)).CanWrite);
+        time.Now = ProgramStart.AddHours(720);
+        Assert.False((await service.GetForUserAsync(42)).CanWrite);
+        Assert.Equal(0, store.EnsureCalls);
+    }
+
+    private sealed class Grants(ComplimentaryAccess access) : IMembershipGrantReader
+    {
+        public Task<bool> HasPreviewAsync(long userId, CancellationToken cancellationToken) => Task.FromResult(false);
+        public Task<ComplimentaryAccess> GetComplimentaryAsync(long userId, DateTimeOffset now, CancellationToken cancellationToken) => Task.FromResult(access);
+    }
+
+    [Theory]
+    [InlineData(StorePurchaseState.Active, true)]
+    [InlineData(StorePurchaseState.Canceled, true)]
+    [InlineData(StorePurchaseState.Expired, true)]
+    [InlineData(StorePurchaseState.Expired, false)]
+    public async Task OfficialTrial_CoexistsWithPaidAndComplimentaryAccess(StorePurchaseState state, bool grantActive)
+    {
+        var legacy = ProgramStart.AddDays(-100);
+        var store = new FakeStore
+        {
+            State = new EntitlementUserState(42, legacy, legacy, legacy.AddDays(30), Identity),
+            Purchases = [new PurchaseAccess(state, EntitlementReason.None,
+                state == StorePurchaseState.Expired ? legacy.AddDays(30) : ProgramStart.AddDays(60))],
+        };
+        var grants = new Grants(grantActive ? new ComplimentaryAccess(ProgramStart.AddDays(45), null) : default);
+        var service = new EntitlementService(Enabled(), store, new TrialIdentityHasher(Enabled()), new StubTime(ProgramStart), grants);
+        var result = await service.GetForUserAsync(42);
+        Assert.Equal(ProgramStart, result.TrialStartedAtUtc);
+        Assert.Equal(ProgramStart.AddHours(720), result.TrialEndsAtUtc);
+        Assert.Equal(legacy, store.State!.TrialStartedAtUtc);
+        Assert.True(result.CanWrite);
+        Assert.Equal(state is StorePurchaseState.Active or StorePurchaseState.Canceled || grantActive
+            ? EntitlementStatus.Active : EntitlementStatus.Trial, result.Status);
+        if (state is StorePurchaseState.Active or StorePurchaseState.Canceled)
+        {
+            Assert.Equal(ProgramStart.AddDays(60), result.CurrentPeriodEndsAtUtc);
+        }
+    }
+
     private static readonly DateTimeOffset ProgramStart = new(2026, 12, 1, 0, 0, 0, TimeSpan.Zero);
     private static readonly ExternalIdentityPrincipal Identity = new(Guid.NewGuid(), Guid.NewGuid());
 
@@ -92,7 +175,7 @@ public sealed class EntitlementServiceTests
     {
         public EntitlementUserState? State { get; set; }
 
-        public TrialWindow? LedgerWindow { get; set; }
+        public TrialWindow? OfficialLedgerWindow { get; set; }
 
         public int EnsureCalls { get; private set; }
 
@@ -126,9 +209,9 @@ public sealed class EntitlementServiceTests
         {
             EnsureCalls++;
             LastHash = identityHash;
-            var window = LedgerWindow ?? newWindow;
-            LedgerWindow = window;
-            State = State! with { TrialStartedAtUtc = window.StartedAtUtc, TrialEndsAtUtc = window.EndsAtUtc };
+            var window = OfficialLedgerWindow ?? newWindow;
+            OfficialLedgerWindow = window;
+            State = State! with { MembershipTrialStartedAtUtc = window.StartedAtUtc, MembershipTrialEndsAtUtc = window.EndsAtUtc };
             return Task.FromResult(window);
         }
     }
@@ -144,6 +227,24 @@ public sealed class EntitlementServiceTests
         new(options, store, new TrialIdentityHasher(options), time);
 
     private static EntitlementUserState UserCreated(DateTimeOffset createdAt) => new(42, createdAt, null, null, Identity);
+
+    [Fact]
+    public async Task MovingTheConfiguredStart_DoesNotReissueAnOfficialTrial()
+    {
+        var store = new FakeStore { State = UserCreated(ProgramStart.AddDays(-1)) };
+        var time = new StubTime(ProgramStart);
+        var initial = await Service(Enabled(), store, time).GetForUserAsync(42);
+        var moved = Enabled();
+        moved.ProgramStartAtUtc = ProgramStart.AddDays(100);
+        time.Now = ProgramStart.AddDays(101);
+
+        var after = await Service(moved, store, time).GetForUserAsync(42);
+
+        Assert.Equal(initial.TrialStartedAtUtc, after.TrialStartedAtUtc);
+        Assert.Equal(initial.TrialEndsAtUtc, after.TrialEndsAtUtc);
+        Assert.Equal(EntitlementStatus.Expired, after.Status);
+        Assert.Equal(1, store.EnsureCalls);
+    }
 
     [Fact]
     public async Task ADisabledProgram_NeverBlocks_AndNeverTouchesTheStore_SoNoTrialIsConsumed()
@@ -164,6 +265,29 @@ public sealed class EntitlementServiceTests
         Assert.Equal(0, store.EnsureCalls);
         Assert.Equal(0, store.StateReads);
         Assert.Null(store.State!.TrialStartedAtUtc);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task HistoricalTestWindow_DoesNotConsumeTheOfficialExistingMemberTrial(bool expiredPurchase)
+    {
+        var legacyStart = ProgramStart.AddDays(-100);
+        var legacyEnd = legacyStart.AddDays(30);
+        var store = new FakeStore
+        {
+            State = new EntitlementUserState(42, ProgramStart.AddDays(-200), legacyStart, legacyEnd, Identity),
+            Purchases = expiredPurchase ? [new PurchaseAccess(StorePurchaseState.Expired, EntitlementReason.None, legacyEnd)] : [],
+        };
+        var service = Service(Enabled(), store, new StubTime(ProgramStart));
+        var result = await service.GetForUserAsync(42);
+        Assert.Equal(ProgramStart, result.TrialStartedAtUtc);
+        Assert.Equal(ProgramStart.AddHours(720), result.TrialEndsAtUtc);
+        Assert.True(result.CanWrite);
+        Assert.Equal(legacyStart, store.State!.TrialStartedAtUtc);
+        Assert.Equal(legacyEnd, store.State.TrialEndsAtUtc);
+        await service.GetForUserAsync(42);
+        Assert.Equal(1, store.EnsureCalls);
     }
 
     [Fact]
@@ -200,7 +324,7 @@ public sealed class EntitlementServiceTests
         var original = new TrialWindow(new DateTimeOffset(2026, 12, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2026, 12, 31, 0, 0, 0, TimeSpan.Zero));
         var store = new FakeStore
         {
-            LedgerWindow = original,
+            OfficialLedgerWindow = original,
             // The re-created account has a new Id and a much later creation time.
             State = new EntitlementUserState(99, new DateTimeOffset(2027, 6, 1, 0, 0, 0, TimeSpan.Zero), null, null, Identity),
         };
@@ -219,7 +343,7 @@ public sealed class EntitlementServiceTests
     {
         var store = new FakeStore
         {
-            State = new EntitlementUserState(42, ProgramStart, ProgramStart, ProgramStart.AddDays(30), Identity),
+            State = new EntitlementUserState(42, ProgramStart, ProgramStart, ProgramStart.AddDays(30), Identity, ProgramStart, ProgramStart.AddDays(30)),
         };
         var service = Service(Enabled(), store, new StubTime(ProgramStart.AddDays(3)));
 
@@ -232,7 +356,7 @@ public sealed class EntitlementServiceTests
     [Fact]
     public async Task TheClockIsTheServerTimeProvider_AndTheEndBoundaryIsExact()
     {
-        var store = new FakeStore { State = new EntitlementUserState(42, ProgramStart, ProgramStart, ProgramStart.AddDays(30), Identity) };
+        var store = new FakeStore { State = new EntitlementUserState(42, ProgramStart, ProgramStart, ProgramStart.AddDays(30), Identity, ProgramStart, ProgramStart.AddDays(30)) };
         var time = new StubTime(ProgramStart.AddDays(30).AddTicks(-1));
         var service = Service(Enabled(), store, time);
 

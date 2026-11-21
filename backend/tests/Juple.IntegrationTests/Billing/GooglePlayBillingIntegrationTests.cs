@@ -2,11 +2,14 @@ using System.Security.Cryptography;
 using System.Text;
 using Juple.Application.Billing;
 using Juple.Application.Billing.GooglePlay;
+using Juple.Application.Identity;
+using Juple.Application.Users.BootstrapCurrentUser;
 using Juple.Domain.Billing;
 using Juple.Domain.Users;
 using Juple.Infrastructure.Billing;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Users.DeleteAccount;
+using Juple.Infrastructure.Users.BootstrapCurrentUser;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -32,6 +35,8 @@ public sealed class GooglePlayBillingIntegrationTests : IAsyncLifetime
     private readonly List<string> _tokens = [];
     private readonly BillingOptions _options = Options();
     private readonly FakeGoogle _google = new();
+    private readonly ExternalIdentityPrincipal _identityA = new(Guid.NewGuid(), Guid.NewGuid());
+    private readonly ExternalIdentityPrincipal _identityB = new(Guid.NewGuid(), Guid.NewGuid());
 
     private static BillingOptions Options() => new()
     {
@@ -129,13 +134,17 @@ public sealed class GooglePlayBillingIntegrationTests : IAsyncLifetime
         _connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__JupleDatabase")
             ?? throw new InvalidOperationException("ConnectionStrings__JupleDatabase must be set.");
         _db = NewContext();
-        var a = new User("ko-KR", "Asia/Seoul", null, Now.AddDays(-90), Now.AddDays(-90));
-        var b = new User("ko-KR", "Asia/Seoul", null, Now.AddDays(-90), Now.AddDays(-90));
-        a.SetTrial(EndedTrial);
-        b.SetTrial(EndedTrial);
-        _db.Users.AddRange(a, b);
-        await _db.SaveChangesAsync();
-        (_userA, _userB) = (a.Id, b.Id);
+        // Match real signup: User + ExternalIdentity atomically, with an already-ended official trial.
+        // The program starts at UnixEpoch in this fixture, so official trial start is account creation.
+        var provisioning = new CurrentUserProvisioningStore(_db);
+        await provisioning.CreateAsync(new(_identityA, "ko-KR", "Asia/Seoul", null, EndedTrial.StartedAtUtc));
+        await provisioning.CreateAsync(new(_identityB, "ko-KR", "Asia/Seoul", null, EndedTrial.StartedAtUtc));
+        _userA = (await new EntitlementStore(_db).GetUserStateAsync(_identityA))!.UserId;
+        _userB = (await new EntitlementStore(_db).GetUserStateAsync(_identityB))!.UserId;
+        // Retain historical fields too: they must not be used as the official entitlement source.
+        await _db.Users.Where(user => user.Id == _userA || user.Id == _userB).ExecuteUpdateAsync(setters => setters
+            .SetProperty(user => user.TrialStartedAtUtc, EndedTrial.StartedAtUtc)
+            .SetProperty(user => user.TrialEndsAtUtc, EndedTrial.EndsAtUtc));
     }
 
     public async Task DisposeAsync()
@@ -152,6 +161,13 @@ public sealed class GooglePlayBillingIntegrationTests : IAsyncLifetime
         foreach (var userId in new[] { _userA, _userB })
         {
             await new AccountDeletionStore(_db).DeleteAllDataAsync(userId, $"test/{userId}/", DateTimeOffset.UtcNow);
+        }
+
+        var trialHasher = new TrialIdentityHasher(_options);
+        foreach (var identity in new[] { _identityA, _identityB })
+        {
+            var hash = trialHasher.Hash(identity);
+            await _db.Set<MembershipTrialLedgerEntry>().Where(row => row.IdentityHash == hash).ExecuteDeleteAsync();
         }
 
         await _db.Database.ExecuteSqlRawAsync("DELETE FROM images.AccountDeletionBlobCleanups WHERE BlobPrefix LIKE 'test/%'");

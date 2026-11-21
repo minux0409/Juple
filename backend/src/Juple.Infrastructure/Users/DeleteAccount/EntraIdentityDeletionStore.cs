@@ -79,6 +79,13 @@ public sealed class TrialEmailLedger(JupleDbContext dbContext) : ITrialEmailLedg
 {
     public async Task InheritAsync(ExternalIdentityPrincipal identity, byte[] emailHash, CancellationToken cancellationToken = default)
     {
+        // Preserve legacy inheritance for compatibility, but only official fields grant the launch trial.
+        await InheritLegacyAsync(identity, emailHash, cancellationToken);
+        await InheritOfficialAsync(identity, emailHash, cancellationToken);
+    }
+
+    private async Task InheritLegacyAsync(ExternalIdentityPrincipal identity, byte[] emailHash, CancellationToken cancellationToken = default)
+    {
         var ledger = await dbContext.Set<TrialLedgerEntry>().AsNoTracking()
             .Where(entry => entry.IdentityHash == emailHash)
             .Select(entry => new { entry.TrialStartedAtUtc, entry.TrialEndsAtUtc })
@@ -96,6 +103,28 @@ public sealed class TrialEmailLedger(JupleDbContext dbContext) : ITrialEmailLedg
                 setters => setters
                     .SetProperty(user => user.TrialStartedAtUtc, ledger.TrialStartedAtUtc)
                     .SetProperty(user => user.TrialEndsAtUtc, ledger.TrialEndsAtUtc),
+                cancellationToken);
+    }
+
+    private async Task InheritOfficialAsync(ExternalIdentityPrincipal identity, byte[] emailHash, CancellationToken cancellationToken = default)
+    {
+        var ledger = await dbContext.Set<MembershipTrialLedgerEntry>().AsNoTracking()
+            .Where(entry => entry.IdentityHash == emailHash)
+            .Select(entry => new { entry.TrialStartedAtUtc, entry.TrialEndsAtUtc })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (ledger is null)
+        {
+            return;
+        }
+
+        await dbContext.Users
+            .Where(user => user.MembershipTrialStartedAtUtc == null
+                && dbContext.Set<Juple.Domain.Identity.ExternalIdentity>().Any(external =>
+                    external.UserId == user.Id && external.TenantId == identity.TenantId && external.ObjectId == identity.ObjectId))
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(user => user.MembershipTrialStartedAtUtc, ledger.TrialStartedAtUtc)
+                    .SetProperty(user => user.MembershipTrialEndsAtUtc, ledger.TrialEndsAtUtc),
                 cancellationToken);
     }
 }

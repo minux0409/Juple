@@ -1,5 +1,6 @@
 using Juple.Application.Billing;
 using Juple.Application.Identity;
+using Juple.Application.Users.CurrentUser;
 using Juple.Domain.Billing;
 using Juple.Domain.Identity;
 using Juple.Infrastructure.Persistence;
@@ -31,8 +32,12 @@ public sealed class EntitlementStore(JupleDbContext dbContext) : IEntitlementSto
                 user.CreatedAtUtc,
                 user.TrialStartedAtUtc,
                 user.TrialEndsAtUtc,
+                user.MembershipTrialStartedAtUtc,
+                user.MembershipTrialEndsAtUtc,
+                IdentityCount = dbContext.Set<ExternalIdentity>().Count(identity => identity.UserId == user.Id),
                 Identity = dbContext.Set<ExternalIdentity>()
                     .Where(identity => identity.UserId == user.Id)
+                    .OrderBy(identity => identity.Id)
                     .Select(identity => new { identity.TenantId, identity.ObjectId })
                     .FirstOrDefault(),
             })
@@ -45,7 +50,8 @@ public sealed class EntitlementStore(JupleDbContext dbContext) : IEntitlementSto
                 row.CreatedAtUtc,
                 row.TrialStartedAtUtc,
                 row.TrialEndsAtUtc,
-                row.Identity is null ? null : new ExternalIdentityPrincipal(row.Identity.TenantId, row.Identity.ObjectId));
+                row.IdentityCount != 1 || row.Identity is null ? null : new ExternalIdentityPrincipal(row.Identity.TenantId, row.Identity.ObjectId),
+                row.MembershipTrialStartedAtUtc, row.MembershipTrialEndsAtUtc, row.IdentityCount > 1);
     }
 
     public async Task<IReadOnlyList<PurchaseAccess>> GetPurchaseAccessAsync(long userId, CancellationToken cancellationToken = default) =>
@@ -67,11 +73,24 @@ public sealed class EntitlementStore(JupleDbContext dbContext) : IEntitlementSto
         DateTimeOffset nowUtc,
         CancellationToken cancellationToken = default)
     {
+        // The user row is the common serialization point for projection/inheritance and
+        // entitlement requests. Re-read after locking: the caller's state can be stale.
+        // Keep ledger creation and projection in one transaction, including rollback on error.
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        var user = await dbContext.Users
+            .FromSqlInterpolated($"SELECT * FROM [users].[Users] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {userId}")
+            .AsNoTracking().SingleOrDefaultAsync(cancellationToken)
+            ?? throw new CurrentJupleUserNotFoundException();
+        if (user.MembershipTrialStartedAtUtc is { } started && user.MembershipTrialEndsAtUtc is { } ends)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return new TrialWindow(started, ends);
+        }
         var ledger = await FindLedgerAsync(identityHash, cancellationToken);
         var window = newWindow;
         if (ledger is null)
         {
-            dbContext.Set<TrialLedgerEntry>().Add(new TrialLedgerEntry(identityHash, newWindow.StartedAtUtc, newWindow.EndsAtUtc, nowUtc));
+            dbContext.Set<MembershipTrialLedgerEntry>().Add(new MembershipTrialLedgerEntry(identityHash, newWindow.StartedAtUtc, newWindow.EndsAtUtc, nowUtc));
             try
             {
                 await dbContext.SaveChangesAsync(cancellationToken);
@@ -98,17 +117,18 @@ public sealed class EntitlementStore(JupleDbContext dbContext) : IEntitlementSto
         // Project the settled window onto the account - only while it has none, in one statement, so racing callers
         // (or a retry after a crash between the two writes) can never write two different windows.
         await dbContext.Users
-            .Where(user => user.Id == userId && user.TrialStartedAtUtc == null)
+            .Where(user => user.Id == userId && user.MembershipTrialStartedAtUtc == null)
             .ExecuteUpdateAsync(
                 setters => setters
-                    .SetProperty(user => user.TrialStartedAtUtc, window.StartedAtUtc)
-                    .SetProperty(user => user.TrialEndsAtUtc, window.EndsAtUtc),
+                    .SetProperty(user => user.MembershipTrialStartedAtUtc, window.StartedAtUtc)
+                    .SetProperty(user => user.MembershipTrialEndsAtUtc, window.EndsAtUtc),
                 cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return window;
     }
 
-    private Task<TrialLedgerEntry?> FindLedgerAsync(byte[] identityHash, CancellationToken cancellationToken) =>
-        dbContext.Set<TrialLedgerEntry>().AsNoTracking()
+    private Task<MembershipTrialLedgerEntry?> FindLedgerAsync(byte[] identityHash, CancellationToken cancellationToken) =>
+        dbContext.Set<MembershipTrialLedgerEntry>().AsNoTracking()
             .Where(entry => entry.IdentityHash == identityHash)
             .SingleOrDefaultAsync(cancellationToken);
 }

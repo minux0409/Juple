@@ -2,8 +2,10 @@ using Juple.Application.Identity;
 using Juple.Application.Users.BootstrapCurrentUser;
 using Juple.Domain.Identity;
 using Juple.Domain.Users;
+using Juple.Domain.Billing;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
+using Juple.Infrastructure.Users.DeleteAccount;
 using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Users.BootstrapCurrentUser;
@@ -49,6 +51,8 @@ public sealed class CurrentUserProvisioningStore(JupleDbContext dbContext)
 
         try
         {
+            if (data.TrialEmailHash is { } hash)
+                await MembershipTrialSqlLock.AcquireAsync(dbContext, hash, cancellationToken);
             var user = new User(
                 data.PreferredLocale,
                 data.TimeZoneId,
@@ -78,6 +82,17 @@ public sealed class CurrentUserProvisioningStore(JupleDbContext dbContext)
                 data.ExternalIdentity.ObjectId,
                 data.CreatedAtUtc));
             await dbContext.SaveChangesAsync(cancellationToken);
+            // Publish User + ExternalIdentity + remembered trial projections in ONE commit.
+            // A competing bootstrap either sees no account (and loses the identity unique-key
+            // race), or sees the fully inherited account. It never sees an unsettled returnee.
+            if (data.TrialEmailHash is { } emailHash)
+            {
+                await new TrialEmailLedger(dbContext).InheritAsync(data.ExternalIdentity, emailHash, cancellationToken);
+            }
+            if (data.OfficialTrialWindow is { } candidate && data.TrialIdentityHash is { } identityHash)
+            {
+                await SettleOfficialTrialAsync(user.Id, identityHash, data.TrialEmailHash, candidate, data.CreatedAtUtc, cancellationToken);
+            }
             await transaction.CommitAsync(cancellationToken);
 
             CreatedAccount = true;
@@ -103,6 +118,28 @@ public sealed class CurrentUserProvisioningStore(JupleDbContext dbContext)
             // just defensive, never actually exercised.
             return recoveredPlan ?? UserPlan.Free;
         }
+    }
+
+    private async Task SettleOfficialTrialAsync(long userId, byte[] identityHash, byte[]? emailHash,
+        TrialWindow candidate, DateTimeOffset now, CancellationToken ct)
+    {
+        var ledger = dbContext.Set<MembershipTrialLedgerEntry>();
+        var identity = await ledger.AsNoTracking().SingleOrDefaultAsync(row => row.IdentityHash == identityHash, ct);
+        var email = emailHash is null ? null : await ledger.AsNoTracking().SingleOrDefaultAsync(row => row.IdentityHash == emailHash, ct);
+        if (identity is not null && email is not null &&
+            (identity.TrialStartedAtUtc != email.TrialStartedAtUtc || identity.TrialEndsAtUtc != email.TrialEndsAtUtc))
+            throw new InvalidOperationException("Conflicting official trial records require review.");
+        var remembered = email ?? identity;
+        var window = remembered is null ? candidate : new TrialWindow(remembered.TrialStartedAtUtc, remembered.TrialEndsAtUtc);
+        if (identity is null)
+            ledger.Add(new(identityHash, window.StartedAtUtc, window.EndsAtUtc, now));
+        if (emailHash is not null && email is null)
+            ledger.Add(new(emailHash, window.StartedAtUtc, window.EndsAtUtc, now));
+        await dbContext.SaveChangesAsync(ct);
+        await dbContext.Users.Where(row => row.Id == userId && row.MembershipTrialStartedAtUtc == null)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(row => row.MembershipTrialStartedAtUtc, window.StartedAtUtc)
+                .SetProperty(row => row.MembershipTrialEndsAtUtc, window.EndsAtUtc), ct);
     }
 
     /// <summary>

@@ -5,6 +5,22 @@ namespace Juple.UnitTests.Billing;
 
 public sealed class TrialPolicyTests
 {
+    [Fact]
+    public void LaunchExampleInKst_GivesExistingMembersExactly720Hours()
+    {
+        var offset = TimeSpan.FromHours(9);
+        var launch = new DateTimeOffset(2026, 12, 1, 0, 0, 0, offset);
+        var created = new DateTimeOffset(2026, 10, 15, 0, 0, 0, offset);
+        var window = TrialPolicy.WindowFor(created, launch);
+
+        Assert.Equal(launch, window.StartedAtUtc);
+        Assert.Equal(new DateTimeOffset(2026, 12, 31, 0, 0, 0, offset), window.EndsAtUtc);
+        Assert.Equal(TimeSpan.FromHours(720), window.EndsAtUtc - window.StartedAtUtc);
+        Assert.True(Entitlement.ForTrial(window, window.EndsAtUtc.AddTicks(-1)).CanWrite);
+        Assert.False(Entitlement.ForTrial(window, window.EndsAtUtc).CanWrite);
+        Assert.False(Entitlement.ForTrial(window, window.EndsAtUtc.AddTicks(1)).CanWrite);
+    }
+
     private static readonly DateTimeOffset ProgramStart = new(2026, 12, 1, 0, 0, 0, TimeSpan.Zero);
 
     [Fact]

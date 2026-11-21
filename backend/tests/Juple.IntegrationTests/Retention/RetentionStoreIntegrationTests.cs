@@ -58,6 +58,7 @@ public sealed class RetentionStoreIntegrationTests : IAsyncLifetime
         foreach (var hash in _ledgerHashes)
         {
             await _db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM billing.TrialLedger WHERE IdentityHash = {hash}");
+            await _db.Set<MembershipTrialLedgerEntry>().Where(entry => entry.IdentityHash == hash).ExecuteDeleteAsync();
         }
 
         foreach (var id in _eventIds)
@@ -96,6 +97,24 @@ public sealed class RetentionStoreIntegrationTests : IAsyncLifetime
         Assert.Equal(0, await _store.DeleteTrialLedgerEntriesEndedBeforeAsync(Cutoff, 500));
         Assert.False(await _db.TrialLedger.AnyAsync(e => e.IdentityHash == oldHash));
         Assert.True(await _db.TrialLedger.AnyAsync(e => e.IdentityHash == runningHash));
+    }
+
+    [Fact]
+    public async Task OfficialTrialLedger_UsesTheSameRetentionCutoffAndCombinedBatchLimit()
+    {
+        var oldHash = System.Security.Cryptography.RandomNumberGenerator.GetBytes(32);
+        var liveHash = System.Security.Cryptography.RandomNumberGenerator.GetBytes(32);
+        _ledgerHashes.Add(oldHash);
+        _ledgerHashes.Add(liveHash);
+        _db.TrialLedger.Add(new TrialLedgerEntry(oldHash, Old, Old.AddDays(30), Old));
+        _db.Set<MembershipTrialLedgerEntry>().Add(new MembershipTrialLedgerEntry(oldHash, Old, Old.AddDays(30), Old));
+        _db.Set<MembershipTrialLedgerEntry>().Add(new MembershipTrialLedgerEntry(liveHash, Now, Now.AddDays(30), Now));
+        await _db.SaveChangesAsync();
+        Assert.Equal(1, await _store.DeleteTrialLedgerEntriesEndedBeforeAsync(Cutoff, 1));
+        Assert.True(await _db.Set<MembershipTrialLedgerEntry>().AnyAsync(entry => entry.IdentityHash == oldHash));
+        Assert.Equal(1, await _store.DeleteTrialLedgerEntriesEndedBeforeAsync(Cutoff, 1));
+        Assert.Equal(0, await _store.DeleteTrialLedgerEntriesEndedBeforeAsync(Cutoff, 1));
+        Assert.True(await _db.Set<MembershipTrialLedgerEntry>().AnyAsync(entry => entry.IdentityHash == liveHash));
     }
 
     [Fact]

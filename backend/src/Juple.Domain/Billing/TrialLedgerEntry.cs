@@ -1,7 +1,8 @@
 namespace Juple.Domain.Billing;
 
 /// <summary>
-/// Remembers that an external identity has already been given its free trial, so deleting a Juple account and signing in
+/// Historical trial memory, preserved for audit/compatibility. Official launch trials use MembershipTrialLedgerEntry.
+/// Remembers that an external identity has already been given its historical free trial, so deleting a Juple account and signing in
 /// again (which creates a NEW internal UserId for the same Entra identity) cannot restart the 30 days.
 ///
 /// It stores ONLY a keyed hash of the stable external identity (see ITrialIdentityHasher) and the trial window - never an

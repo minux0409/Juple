@@ -22,8 +22,10 @@ public interface ICurrentUserProvisioningStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Provisions a brand-new User (Plan = Free - see User's own remarks), its default Category
-    /// seed, and links externalIdentity - all in one transaction. Callers must already know
+    /// Provisions a brand-new User (Plan = Free), links externalIdentity, inherits remembered
+    /// trial periods and settles the supplied official trial candidate - all in one transaction.
+    /// The email HMAC must come from the trusted directory before creation, never client input.
+    /// No partial account is published. Callers must already know
     /// externalIdentity is not yet bootstrapped (see TrySyncTimeZoneAndGetPlanAsync) - this always
     /// attempts an insert. If a concurrent call already won the race for the same externalIdentity,
     /// returns that other call's resulting Plan instead of throwing (see ExternalIdentityRaceRecovery).

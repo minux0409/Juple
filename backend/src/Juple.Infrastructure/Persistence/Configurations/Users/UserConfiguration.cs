@@ -37,6 +37,9 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
 
         // Nullable with no default and no backfill: a trial exists only once the subscription program is enabled and the
         // account has been evaluated (see EntitlementService) - never from the time a migration happened to run.
+        builder.Property(user => user.MembershipTrialStartedAtUtc).HasColumnType("datetimeoffset");
+        builder.Property(user => user.MembershipTrialEndsAtUtc).HasColumnType("datetimeoffset");
+
         builder.Property(user => user.TrialStartedAtUtc)
             .HasColumnType("datetimeoffset");
 

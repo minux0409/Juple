@@ -10,7 +10,18 @@ public sealed record EntitlementUserState(
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset? TrialStartedAtUtc,
     DateTimeOffset? TrialEndsAtUtc,
-    ExternalIdentityPrincipal? ExternalIdentity);
+    ExternalIdentityPrincipal? ExternalIdentity,
+    DateTimeOffset? MembershipTrialStartedAtUtc = null,
+    DateTimeOffset? MembershipTrialEndsAtUtc = null,
+    bool HasMultipleExternalIdentities = false);
+
+/// <summary>Unsettled trial identity requires verified account-link review; never infer an identity or issue another trial.</summary>
+public sealed class MembershipTrialIdentityException(bool multiple) : InvalidOperationException(
+    multiple ? "Official membership trial identity is ambiguous; verified account-link review is required."
+        : "Official membership trial identity is missing; verified account-link review is required.")
+{
+    public bool Multiple { get; } = multiple;
+}
 
 public interface IEntitlementStore
 {
@@ -25,7 +36,7 @@ public interface IEntitlementStore
     Task<IReadOnlyList<OwnedStorePurchase>> GetOwnedPurchasesAsync(long userId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Atomically and idempotently settles the account's trial. <paramref name="identityHash"/> is the ledger key. If the
+    /// Atomically and idempotently settles the account's official membership trial in MembershipTrialLedger. Historical TrialLedger is untouched. <paramref name="identityHash"/> is the ledger key. If the
     /// ledger already holds that identity, ITS window is used and projected onto the user (never a fresh 30 days);
     /// otherwise <paramref name="newWindow"/> is recorded in the ledger. Two concurrent first calls converge on one ledger
     /// row and one window. Returns the window now in force.
@@ -103,9 +114,21 @@ public sealed class EntitlementService(
 
     private async Task<Entitlement> EvaluateAsync(EntitlementUserState state, DateTimeOffset nowUtc, CancellationToken cancellationToken)
     {
-        var window = await SettleTrialAsync(state, nowUtc, cancellationToken);
         var purchases = await store.GetPurchaseAccessAsync(state.UserId, cancellationToken);
         var complimentary = membershipGrants is null ? default : await membershipGrants.GetComplimentaryAsync(state.UserId, nowUtc, cancellationToken);
+        var settled = state.MembershipTrialStartedAtUtc is not null && state.MembershipTrialEndsAtUtc is not null;
+        if (!settled && (state.ExternalIdentity is null || state.HasMultipleExternalIdentities))
+        {
+            // Existing verified, account-owned access is independent of trial eligibility. Do not interrupt it,
+            // invent a trial identity, reuse historical test windows or change any persisted record.
+            if (purchases.Any(purchase => purchase.IsLiveAt(nowUtc))
+                || (complimentary.ActiveUntilUtc is { } grantEnd && nowUtc < grantEnd))
+            {
+                return EntitlementCalculator.Effective(null, purchases, nowUtc, complimentary);
+            }
+            throw new MembershipTrialIdentityException(state.HasMultipleExternalIdentities);
+        }
+        var window = await SettleTrialAsync(state, nowUtc, cancellationToken);
         return EntitlementCalculator.Effective(window, purchases, nowUtc, complimentary);
     }
 
@@ -118,12 +141,13 @@ public sealed class EntitlementService(
 
     private async Task<TrialWindow> SettleTrialAsync(EntitlementUserState state, DateTimeOffset nowUtc, CancellationToken cancellationToken)
     {
-        if (state.TrialStartedAtUtc is { } started && state.TrialEndsAtUtc is { } ends)
+        if (state.MembershipTrialStartedAtUtc is { } started && state.MembershipTrialEndsAtUtc is { } ends)
         {
             return new TrialWindow(started, ends);
         }
 
-        // Not evaluated yet since the program was enabled (or a freshly re-created account): settle through the ledger.
+        // Historical test fields/ledger never consume the official launch trial.
+        // Re-created accounts inherit the OFFICIAL ledger window, never another 720 hours.
         var identity = state.ExternalIdentity
             ?? throw new InvalidOperationException("An account always has an external identity; none was found for the trial ledger.");
         var programStart = options.ProgramStartAtUtc

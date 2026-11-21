@@ -16,7 +16,7 @@ public sealed class CurrentUserBootstrapService(
     IEntraIdentityDeletionService entraDeletionService,
     IEntraIdentityDirectory entraDirectory,
     ITrialIdentityHasher trialIdentityHasher,
-    ITrialEmailLedger trialEmailLedger) : ICurrentUserBootstrapService
+    BillingOptions billingOptions) : ICurrentUserBootstrapService
 {
     private const int PreferredLocaleMaxLength = 35;
     private const int TimeZoneIdMaxLength = 100;
@@ -72,15 +72,29 @@ public sealed class CurrentUserBootstrapService(
             throw new AccountDeletionPendingException();
         }
 
+        // Resolve the trusted email BEFORE publishing the account. A directory failure must not
+        // leave an account visible to another request which could grant a fresh trial instead.
+        // No database transaction or lock is held while waiting for the directory.
+        var emailHash = entraOptions.Enabled
+            ? trialIdentityHasher.HashEmail(await entraDirectory.GetSignInEmailAsync(externalIdentity, cancellationToken))
+            : null;
+        var officialTrial = billingOptions.ProgramEnabled;
+        if (officialTrial && entraOptions.Enabled && emailHash is null)
+        {
+            throw new InvalidOperationException("A verified sign-in email is required before creating a membership account.");
+        }
         var createdPlan = await provisioningStore.CreateAsync(
             new CurrentUserBootstrapData(
                 externalIdentity,
                 preferredLocale,
                 timeZoneId,
                 DefaultCurrencyCode: null,
-                utcNow),
+                utcNow,
+                emailHash,
+                officialTrial ? trialIdentityHasher.Hash(externalIdentity) : null,
+                officialTrial ? TrialPolicy.WindowFor(utcNow, billingOptions.ProgramStartAtUtc
+                    ?? throw new InvalidOperationException("Billing:ProgramStartAtUtc is required while the program is enabled.")) : null),
             cancellationToken);
-        await InheritTrialWindowAsync(externalIdentity, cancellationToken);
         var entitlement = await entitlementService.GetForIdentityAsync(externalIdentity, cancellationToken);
         var createdAccount = provisioningStore.CreatedAccount;
         return new CurrentUserBootstrapResult(
@@ -91,31 +105,6 @@ public sealed class CurrentUserBootstrapService(
             createdAccount,
             // The account was created with utcNow as its creation instant (CurrentUserBootstrapData above).
             TrialPolicy.GrantedFreshTrial(createdAccount, entitlement, utcNow));
-    }
-
-    /// <summary>
-    /// A person who deleted their account and signs up again has a NEW Entra object id but the same email: the trial window kept under
-    /// the keyed email hash is given back, never a fresh 30 days. Best effort - a directory outage must not block a sign-up.
-    /// </summary>
-    private async Task InheritTrialWindowAsync(ExternalIdentityPrincipal externalIdentity, CancellationToken cancellationToken)
-    {
-        if (!entraOptions.Enabled)
-        {
-            return;
-        }
-
-        try
-        {
-            var emailHash = trialIdentityHasher.HashEmail(await entraDirectory.GetSignInEmailAsync(externalIdentity, cancellationToken));
-            if (emailHash is not null)
-            {
-                await trialEmailLedger.InheritAsync(externalIdentity, emailHash, cancellationToken);
-            }
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            // Left without inheritance; the account still gets a window by the normal rules.
-        }
     }
 
     private static string NormalizePreferredLocale(string? preferredLocale)

@@ -165,7 +165,7 @@ public sealed class EntitlementServiceWithPurchasesTests
     private sealed class Store(params PurchaseAccess[] purchases) : IEntitlementStore
     {
         public Task<EntitlementUserState?> GetUserStateAsync(long userId, CancellationToken cancellationToken = default) =>
-            Task.FromResult<EntitlementUserState?>(new EntitlementUserState(userId, Now.AddDays(-90), Ended.StartedAtUtc, Ended.EndsAtUtc, null));
+            Task.FromResult<EntitlementUserState?>(new EntitlementUserState(userId, Now.AddDays(-90), Ended.StartedAtUtc, Ended.EndsAtUtc, null, Ended.StartedAtUtc, Ended.EndsAtUtc));
 
         public Task<EntitlementUserState?> GetUserStateAsync(ExternalIdentityPrincipal externalIdentity, CancellationToken cancellationToken = default) =>
             GetUserStateAsync(1, cancellationToken);

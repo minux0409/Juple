@@ -15,7 +15,7 @@ namespace Juple.IntegrationTests.Billing;
 
 /// <summary>
 /// R39-A against the real schema: the subscription program is OFF by default (nobody's trial is consumed), and once ON the
-/// 30-day trial is settled atomically through billing.TrialLedger - one ledger row and one window per external identity,
+/// 30-day trial is settled atomically through billing.MembershipTrialLedger - one ledger row and one window per external identity,
 /// converging under concurrency, and surviving account deletion so a re-created account cannot restart it.
 /// </summary>
 public sealed class TrialFoundationIntegrationTests : IAsyncLifetime
@@ -26,6 +26,7 @@ public sealed class TrialFoundationIntegrationTests : IAsyncLifetime
     private string _connectionString = null!;
     private JupleDbContext _db = null!;
     private readonly List<ExternalIdentityPrincipal> _identities = [];
+    private readonly List<byte[]> _emailHashes = [];
 
     private sealed class StubTime(DateTimeOffset now) : TimeProvider
     {
@@ -52,9 +53,14 @@ public sealed class TrialFoundationIntegrationTests : IAsyncLifetime
             }
 
             var hash = hasher.Hash(identity);
+            await _db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM billing.MembershipTrialLedger WHERE IdentityHash = {hash}");
             await _db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM billing.TrialLedger WHERE IdentityHash = {hash}");
         }
 
+        foreach (var hash in _emailHashes)
+        {
+            await _db.Set<MembershipTrialLedgerEntry>().Where(entry => entry.IdentityHash == hash).ExecuteDeleteAsync();
+        }
         await _db.Database.ExecuteSqlRawAsync("DELETE FROM images.AccountDeletionBlobCleanups WHERE BlobPrefix LIKE 'test/%'");
         await _db.DisposeAsync();
     }
@@ -89,8 +95,7 @@ public sealed class TrialFoundationIntegrationTests : IAsyncLifetime
             new Juple.Application.Users.DeleteAccount.EntraAccountDeletionOptions(), // Entra account deletion is off here: these tests are about the object-id ledger
             new Juple.IntegrationTests.Users.NeverPending(),
             new Juple.IntegrationTests.Users.SilentEntraDirectory(),
-            new TrialIdentityHasher(Options(enabled)),
-            new Juple.IntegrationTests.Users.NoInheritance());
+            new TrialIdentityHasher(Options(enabled)), Options(enabled));
     }
 
     /// <summary>An already-provisioned account, as existing users are: created at <paramref name="createdAt"/>, no trial yet.</summary>
@@ -101,13 +106,61 @@ public sealed class TrialFoundationIntegrationTests : IAsyncLifetime
     private Task<int> LedgerCountAsync(ExternalIdentityPrincipal identity)
     {
         var hash = new TrialIdentityHasher(Options(enabled: true)).Hash(identity);
-        return _db.TrialLedger.AsNoTracking().CountAsync(entry => entry.IdentityHash == hash);
+        return _db.Set<MembershipTrialLedgerEntry>().AsNoTracking().CountAsync(entry => entry.IdentityHash == hash);
     }
 
     private async Task<(DateTimeOffset? Start, DateTimeOffset? End)> StoredTrialAsync(ExternalIdentityPrincipal identity)
     {
         var state = await new EntitlementStore(NewContext()).GetUserStateAsync(identity);
-        return (state!.TrialStartedAtUtc, state.TrialEndsAtUtc);
+        return (state!.MembershipTrialStartedAtUtc, state.MembershipTrialEndsAtUtc);
+    }
+
+    [Fact]
+    public async Task HistoricalLedgerAndUserWindow_ArePreservedWhileOfficialTrialIsGranted()
+    {
+        var identity = NewIdentity();
+        var legacyStart = ProgramStart.AddDays(-100);
+        await SeedExistingAsync(identity, legacyStart.AddDays(-30));
+        var hash = new TrialIdentityHasher(Options(true)).Hash(identity);
+        var state = (await new EntitlementStore(_db).GetUserStateAsync(identity))!;
+        _db.Set<TrialLedgerEntry>().Add(new TrialLedgerEntry(hash, legacyStart, legacyStart.AddDays(30), legacyStart));
+        await _db.SaveChangesAsync();
+        await _db.Users.Where(user => user.Id == state.UserId).ExecuteUpdateAsync(setters => setters
+            .SetProperty(user => user.TrialStartedAtUtc, legacyStart)
+            .SetProperty(user => user.TrialEndsAtUtc, legacyStart.AddDays(30)));
+
+        var result = await BootstrapService(NewContext(), true, ProgramStart).BootstrapAsync(identity, FreshSignIn(ProgramStart));
+        Assert.Equal(ProgramStart, result.Entitlement.TrialStartedAtUtc);
+        Assert.Equal(ProgramStart.AddHours(720), result.Entitlement.TrialEndsAtUtc);
+        var after = (await new EntitlementStore(NewContext()).GetUserStateAsync(identity))!;
+        Assert.Equal(legacyStart, after.TrialStartedAtUtc);
+        Assert.Equal(legacyStart.AddDays(30), after.TrialEndsAtUtc);
+        Assert.Equal(1, await _db.TrialLedger.CountAsync(entry => entry.IdentityHash == hash));
+        Assert.Equal(1, await LedgerCountAsync(identity));
+    }
+
+    [Fact]
+    public async Task OfficialTrialSurvivesDeletionAndNewIdentityViaExistingEmailPolicy()
+    {
+        var firstIdentity = NewIdentity();
+        await SeedExistingAsync(firstIdentity, ProgramStart.AddDays(-10));
+        var first = await BootstrapService(NewContext(), true, ProgramStart).BootstrapAsync(firstIdentity, FreshSignIn(ProgramStart));
+        var userId = (await new EntitlementStore(NewContext()).GetUserStateAsync(firstIdentity))!.UserId;
+        var emailHash = RandomNumberGenerator.GetBytes(32); // test hash, never an actual email
+        _emailHashes.Add(emailHash);
+        await new AccountDeletionStore(NewContext()).DeleteAllDataAsync(userId,
+            new Juple.Application.Users.DeleteAccount.AccountDeletionPlan($"test/{userId}/", ProgramStart.AddDays(1), false, emailHash));
+
+        var secondIdentity = NewIdentity();
+        await SeedExistingAsync(secondIdentity, ProgramStart.AddDays(50));
+        await new TrialEmailLedger(NewContext()).InheritAsync(secondIdentity, emailHash);
+        var recreated = await BootstrapService(NewContext(), true, ProgramStart.AddDays(50))
+            .BootstrapAsync(secondIdentity, FreshSignIn(ProgramStart.AddDays(50)));
+        Assert.Equal(first.Entitlement.TrialStartedAtUtc, recreated.Entitlement.TrialStartedAtUtc);
+        Assert.Equal(first.Entitlement.TrialEndsAtUtc, recreated.Entitlement.TrialEndsAtUtc);
+        Assert.Equal(EntitlementStatus.Expired, recreated.Entitlement.Status);
+        Assert.False(recreated.Entitlement.CanWrite);
+        Assert.Equal(1, await _db.Set<MembershipTrialLedgerEntry>().CountAsync(entry => entry.IdentityHash == emailHash));
     }
 
     [Fact]
@@ -252,7 +305,7 @@ public sealed class TrialFoundationIntegrationTests : IAsyncLifetime
         await BootstrapService(NewContext(), enabled: true, ProgramStart.AddDays(1))
             .BootstrapAsync(identity, new BootstrapCurrentUserCommand("ko-KR", "Asia/Seoul"));
 
-        var stored = await _db.TrialLedger.AsNoTracking()
+        var stored = await _db.Set<MembershipTrialLedgerEntry>().AsNoTracking()
             .Where(entry => entry.IdentityHash == new TrialIdentityHasher(Options(enabled: true)).Hash(identity))
             .SingleAsync();
 
@@ -260,7 +313,7 @@ public sealed class TrialFoundationIntegrationTests : IAsyncLifetime
         Assert.False(stored.IdentityHash.AsSpan().IndexOf(identity.TenantId.ToByteArray()) >= 0);
         Assert.False(stored.IdentityHash.AsSpan().IndexOf(identity.ObjectId.ToByteArray()) >= 0);
         var columns = await _db.Database
-            .SqlQueryRaw<string>("SELECT c.name AS [Value] FROM sys.columns c WHERE c.object_id = OBJECT_ID('billing.TrialLedger') ORDER BY c.column_id")
+            .SqlQueryRaw<string>("SELECT c.name AS [Value] FROM sys.columns c WHERE c.object_id = OBJECT_ID('billing.MembershipTrialLedger') ORDER BY c.column_id")
             .ToListAsync();
         Assert.Equal(["Id", "IdentityHash", "TrialStartedAtUtc", "TrialEndsAtUtc", "CreatedAtUtc"], columns);
     }

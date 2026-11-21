@@ -20,9 +20,23 @@ public sealed class RetentionStore(JupleDbContext dbContext) : IRetentionStore
             .Where(entry => entry.TrialEndsAtUtc < trialEndedBeforeUtc)
             .OrderBy(entry => entry.TrialEndsAtUtc).ThenBy(entry => entry.Id)
             .Select(entry => entry.Id).Take(batchSize).ToListAsync(cancellationToken);
-        return ids.Count == 0
+        var removed = ids.Count == 0
             ? 0
             : await dbContext.TrialLedger.Where(entry => ids.Contains(entry.Id) && entry.TrialEndsAtUtc < trialEndedBeforeUtc).ExecuteDeleteAsync(cancellationToken);
+        // The separate official ledger follows the existing configured retention window, not indefinite retention.
+        // Share the batch budget; this does not enable the cleanup job or change its cutoff/settings.
+        var remaining = batchSize - ids.Count;
+        if (remaining <= 0)
+        {
+            return removed;
+        }
+        var officialIds = await dbContext.Set<MembershipTrialLedgerEntry>().AsNoTracking()
+            .Where(entry => entry.TrialEndsAtUtc < trialEndedBeforeUtc)
+            .OrderBy(entry => entry.TrialEndsAtUtc).ThenBy(entry => entry.Id)
+            .Select(entry => entry.Id).Take(remaining).ToListAsync(cancellationToken);
+        return removed + (officialIds.Count == 0 ? 0 : await dbContext.Set<MembershipTrialLedgerEntry>()
+            .Where(entry => officialIds.Contains(entry.Id) && entry.TrialEndsAtUtc < trialEndedBeforeUtc)
+            .ExecuteDeleteAsync(cancellationToken));
     }
 
     // "Ended" = the store says the purchase is over (Expired, or Revoked/refunded). OnHold, Paused, Pending and every live state are
