@@ -1,0 +1,97 @@
+{
+  "status": "review-pending",
+  "effectiveDate": null,
+  "consentVersionChange": null,
+  "languages": [
+    {
+      "language": "ja",
+      "file": "ja.md",
+      "languageApproved": false,
+      "legalApproved": false
+    },
+    {
+      "language": "zh-Hans",
+      "file": "zh-Hans.md",
+      "languageApproved": false,
+      "legalApproved": false
+    },
+    {
+      "language": "zh-Hant",
+      "file": "zh-Hant.md",
+      "languageApproved": false,
+      "legalApproved": false
+    },
+    {
+      "language": "es",
+      "file": "es.md",
+      "languageApproved": false,
+      "legalApproved": false
+    },
+    {
+      "language": "fr",
+      "file": "fr.md",
+      "languageApproved": false,
+      "legalApproved": false
+    },
+    {
+      "language": "de",
+      "file": "de.md",
+      "languageApproved": false,
+      "legalApproved": false
+    },
+    {
+      "language": "it",
+      "file": "it.md",
+      "languageApproved": false,
+      "legalApproved": false
+    },
+    {
+      "language": "pt-BR",
+      "file": "pt-BR.md",
+      "languageApproved": false,
+      "legalApproved": false
+    },
+    {
+      "language": "vi",
+      "file": "vi.md",
+      "languageApproved": false,
+      "legalApproved": false
+    },
+    {
+      "language": "th",
+      "file": "th.md",
+      "languageApproved": false,
+      "legalApproved": false
+    },
+    {
+      "language": "id",
+      "file": "id.md",
+      "languageApproved": false,
+      "legalApproved": false
+    },
+    {
+      "language": "ru",
+      "file": "ru.md",
+      "languageApproved": false,
+      "legalApproved": false
+    },
+    {
+      "language": "tr",
+      "file": "tr.md",
+      "languageApproved": false,
+      "legalApproved": false
+    },
+    {
+      "language": "ar",
+      "file": "ar.md",
+      "languageApproved": false,
+      "legalApproved": false
+    },
+    {
+      "language": "hi",
+      "file": "hi.md",
+      "languageApproved": false,
+      "legalApproved": false
+    }
+  ]
+}

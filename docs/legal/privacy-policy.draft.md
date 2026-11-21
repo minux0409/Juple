@@ -66,3 +66,16 @@
 
 ## 9. 문의
 [REVIEW REQUIRED: 개인정보 보호책임자/연락처]
+# Membership amendment review / 멤버십 관련 추가 검토
+
+이 절은 시행 승인 대기 초안이며 기존 시행일을 변경하지 않습니다. 실제 게시 전 한국어·영어 내용, 국외 이전 고지 및 해시 보유 기간을 함께 법률 검토해야 합니다.
+
+- Google Play 및 Apple App Store 결제는 해당 스토어가 처리하며 Juple은 카드 정보를 저장하지 않습니다. Juple은 구매 검증·갱신·복원을 위해 암호화된 구매 토큰 또는 서명된 거래 정보, 상품·기본 요금제, 상태, 시작·만료 시각을 처리합니다.
+- 사용자별 정식 체험 1회 적용을 위해 기존 식별 정책의 로그인 식별 값·정규화된 로그인 이메일에 대한 키 기반 해시와 체험 기간을 기록합니다. 과거 테스트 체험은 보존하며 정식 체험 기록을 분리합니다. 계정 삭제 후에도 중복 체험 방지 기록이 남습니다. 해시는 익명 정보라고 단정하지 않습니다.
+- 앱·계정 삭제는 스토어 구독 취소가 아닙니다. 구매한 스토어에서 취소해야 합니다. 관리자 무료 멤버십은 스토어 구매와 별도로 처리됩니다.
+
+English draft — pending legal and effective-date approval:
+
+- Google Play and Apple App Store process payments; Juple does not store card details. Juple processes encrypted purchase tokens or signed transaction information, product/base plan, status, start and expiry times for verification, renewal and restoration.
+- To provide one official trial per person under the existing identity policy, Juple retains keyed hashes of sign-in identifiers and normalized sign-in email with trial windows. Historical test trials are preserved separately from official trials. Anti-repeat trial memory survives account deletion; these hashes are not asserted to be anonymous data.
+- Removing the app or deleting the account does not cancel a store subscription. Cancel through the purchasing store. Administrator-granted membership is handled separately from store purchases.
