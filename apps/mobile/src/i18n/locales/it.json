@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "L'eliminazione dell'account non può essere annullata",
-    "warningIntro": "Verrà eliminato definitivamente quanto segue:",
+    "warningIntro": "Verrà eliminato definitivamente quanto segue:\n\nDisinstallare l’app o eliminare l’account Juple non annulla gli abbonamenti Google Play o Apple App Store. Annullali prima nelle impostazioni degli abbonamenti dello store di acquisto.",
     "dataLinks": "Link salvati e note",
     "dataPhotos": "Foto caricate (foto dei link, foto delle raccolte e foto del profilo)",
     "dataCollections": "Le tue raccolte e i relativi link pubblici",
@@ -975,10 +975,10 @@
     "title": "Abbonamento",
     "planName": "Abbonamento Juple",
     "trialNotice": {
-      "welcomeTitle": "Usa Juple gratis per un mese",
-      "welcomeBody": "È gratis fino al {{date}}. Dopo il periodo gratuito serve un abbonamento a pagamento.",
+      "welcomeTitle": "La tua prova gratuita di Juple",
+      "welcomeBody": "Fine della prova gratuita: {{date}}. Ogni persona ha diritto a una sola prova di esattamente 30 giorni (720 ore). Per i membri già iscritti parte dall’avvio del servizio di abbonamento; per chi si iscrive dopo, dall’istante della registrazione. In seguito restano disponibili la consultazione di link e raccolte esistenti, la gestione di account e abbonamenti, il ripristino degli acquisti e l’eliminazione dell’account. Senza un abbonamento valido o un accesso gratuito concesso dall’amministratore, le principali azioni di scrittura, come salvare, creare e modificare, sono limitate.",
       "endingTitle": "Il periodo gratuito sta per finire",
-      "endingBody": "Uso gratuito fino al {{date}}. Poi serve un abbonamento a pagamento.",
+      "endingBody": "Fine della prova gratuita: {{date}}. In seguito restano disponibili la consultazione di link e raccolte esistenti, la gestione di account e abbonamenti, il ripristino degli acquisti e l’eliminazione dell’account. Senza un abbonamento valido o un accesso gratuito concesso dall’amministratore, le principali azioni di scrittura, come salvare, creare e modificare, sono limitate.",
       "view": "Vedi abbonamento"
     },
     "pricePerMonth": "{{price}} / mese",
@@ -1079,7 +1079,7 @@
     "billing": {
       "summaryMonthly": "{{price}} vengono addebitati ogni mese e si rinnovano automaticamente fino alla disdetta.",
       "summaryYearly": "{{price}} vengono addebitati ogni anno e si rinnovano automaticamente fino alla disdetta.",
-      "freeNotice": "I 30 giorni gratuiti di Juple partono dalla registrazione e non sono una prova gratuita dello store. Se ti abboni ora, l'addebito è immediato anche se restano giorni gratuiti.",
+      "freeNotice": "Ogni persona ha diritto a una sola prova di esattamente 30 giorni (720 ore). Per i membri già iscritti parte dall’avvio del servizio di abbonamento; per chi si iscrive dopo, dall’istante della registrazione. Non è una prova dello store e non diventa automaticamente a pagamento. Un abbonamento acquistato durante la prova viene addebitato subito, anche se resta tempo gratuito.",
       "cancelHowAndroid": "Puoi disdire in qualsiasi momento da Google Play > Pagamenti e abbonamenti > Abbonamenti. Mantieni l'accesso fino alla fine del periodo pagato.",
       "cancelHowIos": "Puoi disdire in qualsiasi momento da Impostazioni ID Apple > Abbonamenti. Mantieni l'accesso fino alla fine del periodo pagato."
     },
@@ -1235,7 +1235,7 @@
       },
       "settings": {
         "title": "Account e impostazioni",
-        "body": "Il mio profilo contiene il tuo profilo e ID Juple, lingua, Salvataggio rapido, Amici, Blocco raccolte, Eliminati di recente e gestione dell’account. Contatta l’assistenza dal Centro assistenza.\n\nIn Gestisci account puoi vedere come accedi ed eliminare il tuo account, il che elimina definitivamente account e dati."
+        "body": "Il mio profilo contiene il tuo profilo e ID Juple, lingua, Salvataggio rapido, Amici, Blocco raccolte, Eliminati di recente e gestione dell’account. Contatta l’assistenza dal Centro assistenza.\n\nIn Gestisci account puoi vedere come accedi ed eliminare il tuo account, il che elimina definitivamente account e dati.\n\nOgni persona ha diritto a una sola prova di esattamente 30 giorni (720 ore). Per i membri già iscritti parte dall’avvio del servizio di abbonamento; per chi si iscrive dopo, dall’istante della registrazione. In seguito restano disponibili la consultazione di link e raccolte esistenti, la gestione di account e abbonamenti, il ripristino degli acquisti e l’eliminazione dell’account. Senza un abbonamento valido o un accesso gratuito concesso dall’amministratore, le principali azioni di scrittura, come salvare, creare e modificare, sono limitate.\n\nPuoi disdire in qualsiasi momento da Google Play > Pagamenti e abbonamenti > Abbonamenti. Mantieni l'accesso fino alla fine del periodo pagato. Puoi disdire in qualsiasi momento da Impostazioni ID Apple > Abbonamenti. Mantieni l'accesso fino alla fine del periodo pagato."
       },
       "homeShortcut": {
         "title": "Scorciatoia nella schermata Home (1×1)",
@@ -1310,12 +1310,12 @@
       "reportBody": "Puoi segnalare utenti, raccolte, link e commenti nell'app e bloccare altri utenti. Le segnalazioni sono esaminate da persone.",
       "restrictionTitle": "Restrizioni",
       "restrictionBody": "In caso di violazione dei termini, i contenuti possono essere limitati o rimossi, la condivisione interrotta, alcune funzioni limitate o l'account soggetto a restrizioni.",
-      "subscriptionTitle": "Servizio gratuito",
-      "subscriptionBody": "Juple è gratuito al lancio. Non sono richiesti metodi di pagamento o abbonamenti e non si applica alcun limite di utilizzo di 30 giorni."
+      "subscriptionTitle": "Accesso gratuito e abbonamento",
+      "subscriptionBody": "Prima dell’avvio del servizio, Juple è gratuito senza metodo di pagamento né abbonamento. La data di avvio e l’entrata in vigore dei termini aggiornati non sono definite e verranno annunciate prima dell’applicazione. Nessun addebito senza consenso esplicito all’acquisto."
     },
     "privacy": {
       "itemsTitle": "Dati raccolti",
-      "itemsBody": "• Un identificativo di accesso (assegnato da Microsoft Entra External ID; indirizzo e-mail e password sono gestiti da Microsoft e non vengono memorizzati sui server di Juple)\n• ID Juple, soprannome e foto del profilo (facoltativi), lingua e fuso orario\n• Link, note, foto, raccolte, amici, inviti, commenti, reazioni e richieste di assistenza che inserisci\n• Registro dell'accettazione dei termini, segnalazioni e blocchi\n• Se attivi le notifiche push: ID di installazione dell'app e token push\n• Registri di funzionamento del servizio",
+      "itemsBody": "• Un identificativo di accesso (assegnato da Microsoft Entra External ID; indirizzo e-mail e password sono gestiti da Microsoft e non vengono memorizzati sui server di Juple)\n• ID Juple, soprannome e foto del profilo (facoltativi), lingua e fuso orario\n• Link, note, foto, raccolte, amici, inviti, commenti, reazioni e richieste di assistenza che inserisci\n• Registro dell'accettazione dei termini, segnalazioni e blocchi\n• Se attivi le notifiche push: ID di installazione dell'app e token push\n• Registri di funzionamento del servizio\n• Per verificare, rinnovare e ripristinare gli abbonamenti trattiamo token o transazioni firmate cifrati, prodotto, stato e date. Per evitare prove ripetute conserviamo hash con chiave dell’identificativo e dell’e-mail di accesso normalizzata, con periodi di prova storici e ufficiali separati.",
       "purposeTitle": "Finalità dell'utilizzo",
       "purposeBody": "Fornire il servizio (salvataggio, organizzazione, condivisione, collaborazione, notifiche), verificare gli account e proteggerli, gestire le segnalazioni e mantenere sicuro il servizio, rispondere alle richieste e garantire la stabilità del servizio.",
       "retentionTitle": "Conservazione",
@@ -1687,7 +1687,7 @@
       "pending": "Verifica del pagamento"
     },
     "trialCard": {
-      "title": "Il tuo primo mese gratis",
+      "title": "La tua prova gratuita di Juple",
       "daysLeft": "Giorni rimasti: {{count}}!",
       "lastDay": "Manca 1 giorno!",
       "dDay": "G-{{count}}",
@@ -1697,7 +1697,7 @@
     },
     "noPaymentNeeded": {
       "title": "Per ora non devi pagare",
-      "body": "Se vuoi continuare a usare Juple dopo il periodo gratuito, scegli un abbonamento."
+      "body": "In seguito restano disponibili la consultazione di link e raccolte esistenti, la gestione di account e abbonamenti, il ripristino degli acquisti e l’eliminazione dell’account. Senza un abbonamento valido o un accesso gratuito concesso dall’amministratore, le principali azioni di scrittura, come salvare, creare e modificare, sono limitate."
     },
     "trialPurchase": {
       "title": "Abbonandoti ora paghi già oggi",
@@ -1713,7 +1713,7 @@
   },
   "welcomeTrial": {
     "title": "Benvenuto in Juple! 🎉",
-    "body": "Grazie per esserti registrato.\n\nUsa gratis tutte le funzioni di Juple per il primo mese!\n\nSe vuoi continuare a usarlo dopo il periodo gratuito, puoi scegliere un abbonamento in {{myPage}}.\n\nSi inizia senza alcun pagamento e non ti verrà addebitato nulla automaticamente.",
+    "body": "Grazie per esserti registrato.\n\nOgni persona ha diritto a una sola prova di esattamente 30 giorni (720 ore). Per i membri già iscritti parte dall’avvio del servizio di abbonamento; per chi si iscrive dopo, dall’istante della registrazione. Non è una prova dello store e non diventa automaticamente a pagamento. Un abbonamento acquistato durante la prova viene addebitato subito, anche se resta tempo gratuito.\n\nIn seguito restano disponibili la consultazione di link e raccolte esistenti, la gestione di account e abbonamenti, il ripristino degli acquisti e l’eliminazione dell’account. Senza un abbonamento valido o un accesso gratuito concesso dall’amministratore, le principali azioni di scrittura, come salvare, creare e modificare, sono limitate.\n\nGestisci la tua iscrizione in {{myPage}}.",
     "start": "Inizia con Juple"
   },
   "trialEnded": {

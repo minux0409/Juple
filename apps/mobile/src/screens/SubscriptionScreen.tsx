@@ -412,7 +412,9 @@ export function SubscriptionScreen() {
                 {t(chosen.key === 'yearly' ? 'subscription.billing.summaryYearly' : 'subscription.billing.summaryMonthly', { price: chosen.localizedPrice })}
               </Text>
             ) : null}
-            <Text lineBreakStrategyIOS="hangul-word" style={styles.billingText} testID="subscription-free-notice">{t('subscription.billing.freeNotice')}</Text>
+            {entitlement?.programEnabled ? (
+              <Text lineBreakStrategyIOS="hangul-word" style={styles.billingText} testID="subscription-free-notice">{t('subscription.billing.freeNotice')}</Text>
+            ) : null}
             <Text lineBreakStrategyIOS="hangul-word" style={styles.billingText} testID="subscription-cancel-how">{cancelHow}</Text>
           </>
         )}

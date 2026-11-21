@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "Deleting your account can't be undone",
-    "warningIntro": "All of the following will be permanently deleted:",
+    "warningIntro": "All of the following will be permanently deleted:\n\nUninstalling the app or deleting your Juple account does not cancel Google Play or Apple App Store subscriptions. Cancel in the purchasing store subscription settings first.",
     "dataLinks": "Saved links and memos",
     "dataPhotos": "Uploaded photos (link photos, collection photos and your profile photo)",
     "dataCollections": "Your collections and their public links",
@@ -975,10 +975,10 @@
     "title": "Subscription",
     "planName": "Juple subscription",
     "trialNotice": {
-      "welcomeTitle": "Enjoy Juple free for one month",
-      "welcomeBody": "It's free until {{date}}. After the free period, a paid subscription is required.",
+      "welcomeTitle": "Your Juple free trial",
+      "welcomeBody": "Free trial ends: {{date}}. The trial lasts 30 days (720 hours), starting at program launch for existing members or sign-up for new members. You can still view existing links and collections afterward. Without a valid subscription or administrator-granted membership, saving, creating, editing and other main write actions are restricted.",
       "endingTitle": "Your free period ends soon",
-      "endingBody": "You can use Juple free until {{date}}. A paid subscription is required after that.",
+      "endingBody": "Free trial ends: {{date}}. You can still view existing links and collections, manage your account and subscription, restore purchases, and delete your account afterward. Without a valid subscription or administrator-granted membership, saving, creating, editing and other main write actions are restricted.",
       "view": "View subscription"
     },
     "pricePerMonth": "{{price}} / month",
@@ -1079,7 +1079,7 @@
     "billing": {
       "summaryMonthly": "{{price}} is charged every month and renews automatically until you cancel.",
       "summaryYearly": "{{price}} is charged every year and renews automatically until you cancel.",
-      "freeNotice": "Juple's 30-day free period starts when you sign up and is not a store free trial. If you subscribe now, you are charged right away, even if free days remain.",
+      "freeNotice": "Juple provides one free trial per user lasting exactly 30 days (720 hours). For existing members it starts when the membership program begins; for members joining afterward it starts at sign-up. It is not a store free trial and does not automatically become a paid subscription. Subscribing now charges you immediately, even if free time remains.",
       "cancelHowAndroid": "Cancel anytime in Google Play > Payments & subscriptions > Subscriptions. You keep access until the end of the period you paid for.",
       "cancelHowIos": "Cancel anytime in your Apple ID settings > Subscriptions. You keep access until the end of the period you paid for."
     },
@@ -1144,7 +1144,7 @@
       },
       "account": {
         "title": "Account and settings",
-        "summary": "Profile, language and more"
+        "summary": "Profile, language, membership and subscription management"
       }
     },
     "topics": {
@@ -1235,7 +1235,7 @@
       },
       "settings": {
         "title": "Account and settings",
-        "body": "My Page has your profile and Juple ID, language, Quick Save, Friends, Collection lock, Recently Deleted and account management. Contact support from Customer Center.\n\nIn Manage account you can see how you sign in and delete your account, which permanently deletes your account and data."
+        "body": "My Page has your profile and Juple ID, language, Quick Save, Friends, Collection lock, Recently Deleted and account management. Contact support from Customer Center.\n\nIn Manage account you can see how you sign in and delete your account, which permanently deletes your account and data.\n\nWhen membership begins, existing members receive one 30-day (720-hour) trial from program launch; members joining afterward receive it from sign-up. After the trial, viewing existing links and collections, account and subscription management, purchase restoration and account deletion remain available. Without a valid subscription or administrator-granted membership, main write actions are restricted.\n\nMonthly and yearly subscriptions renew automatically through the purchasing store. Manage or cancel in Google Play or your Apple Account subscription settings. Access normally continues for the paid remaining period after cancellation; refunds or revocations may change access according to the store result. A valid membership verified by the server is shared on Android and iOS when you use the same Juple account."
       },
       "homeShortcut": {
         "title": "Home screen shortcut (1×1)",
@@ -1310,14 +1310,14 @@
       "reportBody": "You can report users, collections, links, and comments in the app, and you can block other users. Reports are reviewed by people.",
       "restrictionTitle": "Restrictions",
       "restrictionBody": "If the terms are violated, content may be restricted or removed, sharing stopped, some features limited, or the account restricted.",
-      "subscriptionTitle": "Free service",
-      "subscriptionBody": "Juple is free to use at launch. No payment method or subscription is required, and no 30-day usage limit applies."
+      "subscriptionTitle": "Free access and membership information",
+      "subscriptionBody": "Before the membership program begins, Juple is free to use without a payment method or subscription. The membership start date and revised terms effective date have not been set and will be announced before they apply. You will not be charged without your explicit purchase consent."
     },
     "privacy": {
       "itemsTitle": "Items we collect",
-      "itemsBody": "• A sign-in identifier (issued by Microsoft Entra External ID; your email address and password are handled by Microsoft and are not stored on Juple's servers)\n• Juple ID, nickname and profile photo (optional), language and time zone\n• Links, notes, photos, collections, friends, invitations, comments, reactions, and support inquiries you enter\n• Terms acceptance record, reports and blocks\n• If you turn on push notifications: app installation ID and push token\n• Service operation logs",
+      "itemsBody": "• A sign-in identifier (issued by Microsoft Entra External ID; your email address and password are handled by Microsoft and are not stored on Juple's servers)\n• Juple ID, nickname and profile photo (optional), language and time zone\n• Links, notes, photos, collections, friends, invitations, comments, reactions, and support inquiries you enter\n• Terms acceptance record, reports and blocks\n• If you turn on push notifications: app installation ID and push token\n• Service operation logs\n• When using subscriptions: purchase tokens or signed transaction data (stored encrypted), product, status, start and expiry times\n• Keyed hashes of sign-in identifiers and normalized sign-in email, and trial windows to prevent repeated trials (historical and official trials are separate)",
       "purposeTitle": "Purpose of use",
-      "purposeBody": "To provide the service (saving, organizing, sharing, working together, notifications), verify accounts and keep them secure, handle reports and keep the service safe, answer inquiries, and keep the service stable.",
+      "purposeBody": "To provide the service (saving, organizing, sharing, working together, notifications), verify accounts and keep them secure, handle reports and keep the service safe, answer inquiries, and keep the service stable. Also used for subscription verification, renewal and restoration, administrator-granted membership, and preventing repeated free trials after account deletion and re-registration.",
       "retentionTitle": "Retention",
       "retentionBody": "Kept while you keep your account; deleting your account deletes your profile, links, collections, and more. Some records (operation logs up to 30 days, notification history 90 days, and so on) are kept only for the periods stated in the Privacy Policy and then deleted.",
       "refusalTitle": "Right to refuse",
@@ -1687,7 +1687,7 @@
       "pending": "Confirming payment"
     },
     "trialCard": {
-      "title": "Your first month, free",
+      "title": "Your Juple free trial",
       "daysLeft": "{{count}} days left!",
       "lastDay": "1 day left!",
       "dDay": "D-{{count}}",
@@ -1697,7 +1697,7 @@
     },
     "noPaymentNeeded": {
       "title": "No need to pay now",
-      "body": "If you would like to keep using Juple after your free period ends, choose a membership."
+      "body": "After the trial, you can still view existing links and collections, manage your account and subscription, restore purchases and delete your account. Without a valid paid subscription or administrator-granted membership, saving, creating, editing and other main write actions are restricted."
     },
     "trialPurchase": {
       "title": "Subscribing now charges you today",
@@ -1713,7 +1713,7 @@
   },
   "welcomeTrial": {
     "title": "Welcome to Juple! 🎉",
-    "body": "Thank you for signing up.\n\nEnjoy every Juple feature free for your first month!\n\nIf you would like to keep using Juple after the free period, you can choose a membership in {{myPage}}.\n\nIt starts without any payment, and you will not be charged automatically.",
+    "body": "Thank you for signing up.\n\nJuple provides one free trial per user lasting exactly 30 days (720 hours). For existing members it starts when the membership program begins; for members joining afterward it starts at sign-up. It is not a store free trial and does not automatically become a paid subscription. Subscribing now charges you immediately, even if free time remains.\n\nAfter the trial, you can still view existing links and collections, manage your account and subscription, restore purchases and delete your account. Without a valid paid subscription or administrator-granted membership, saving, creating, editing and other main write actions are restricted.\n\nManage membership in {{myPage}}.",
     "start": "Start using Juple"
   },
   "trialEnded": {

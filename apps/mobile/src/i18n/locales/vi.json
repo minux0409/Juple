@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "Không thể hoàn tác việc xóa tài khoản",
-    "warningIntro": "Tất cả dữ liệu sau sẽ bị xóa vĩnh viễn:",
+    "warningIntro": "Tất cả dữ liệu sau sẽ bị xóa vĩnh viễn:\n\nGỡ ứng dụng hoặc xóa tài khoản Juple không hủy gói Google Play hay Apple App Store. Hãy hủy trước trong phần quản lý gói đăng ký của cửa hàng đã mua.",
     "dataLinks": "Liên kết đã lưu và ghi chú",
     "dataPhotos": "Ảnh đã tải lên (ảnh liên kết, ảnh bộ sưu tập và ảnh hồ sơ)",
     "dataCollections": "Bộ sưu tập của bạn và liên kết chia sẻ công khai",
@@ -975,10 +975,10 @@
     "title": "Gói đăng ký",
     "planName": "Gói đăng ký Juple",
     "trialNotice": {
-      "welcomeTitle": "Dùng thử Juple miễn phí trong một tháng",
-      "welcomeBody": "Miễn phí đến {{date}}. Sau thời gian miễn phí, bạn cần đăng ký trả phí.",
+      "welcomeTitle": "Dùng thử Juple miễn phí",
+      "welcomeBody": "Kết thúc dùng thử: {{date}}. Mỗi người được dùng thử một lần, đúng 30 ngày (720 giờ). Thành viên đã đăng ký trước bắt đầu từ thời điểm dịch vụ thành viên chính thức mở; người đăng ký sau bắt đầu từ thời điểm đăng ký. Sau đó vẫn có thể xem liên kết và bộ sưu tập hiện có, quản lý tài khoản và gói đăng ký, khôi phục giao dịch và xóa tài khoản. Nếu không có gói trả phí hợp lệ hoặc quyền miễn phí do quản trị viên cấp, các thao tác ghi chính như lưu, tạo và chỉnh sửa sẽ bị hạn chế.",
       "endingTitle": "Thời gian miễn phí sắp kết thúc",
-      "endingBody": "Bạn dùng miễn phí đến {{date}}. Sau đó cần đăng ký trả phí.",
+      "endingBody": "Kết thúc dùng thử: {{date}}. Sau đó vẫn có thể xem liên kết và bộ sưu tập hiện có, quản lý tài khoản và gói đăng ký, khôi phục giao dịch và xóa tài khoản. Nếu không có gói trả phí hợp lệ hoặc quyền miễn phí do quản trị viên cấp, các thao tác ghi chính như lưu, tạo và chỉnh sửa sẽ bị hạn chế.",
       "view": "Xem gói đăng ký"
     },
     "pricePerMonth": "{{price}} / tháng",
@@ -1079,7 +1079,7 @@
     "billing": {
       "summaryMonthly": "{{price}} được tính mỗi tháng và tự động gia hạn cho đến khi bạn hủy.",
       "summaryYearly": "{{price}} được tính mỗi năm và tự động gia hạn cho đến khi bạn hủy.",
-      "freeNotice": "30 ngày dùng miễn phí của Juple tính từ ngày bạn đăng ký và không phải bản dùng thử miễn phí của cửa hàng. Nếu đăng ký ngay bây giờ, bạn sẽ bị tính phí ngay dù vẫn còn ngày miễn phí.",
+      "freeNotice": "Mỗi người được dùng thử một lần, đúng 30 ngày (720 giờ). Thành viên đã đăng ký trước bắt đầu từ thời điểm dịch vụ thành viên chính thức mở; người đăng ký sau bắt đầu từ thời điểm đăng ký. Đây không phải dùng thử của cửa hàng và không tự chuyển sang trả phí. Mua gói trong thời gian dùng thử sẽ bị tính phí ngay dù vẫn còn thời gian miễn phí.",
       "cancelHowAndroid": "Bạn có thể hủy bất cứ lúc nào tại Google Play > Thanh toán và gói đăng ký > Gói đăng ký. Bạn vẫn dùng được đến hết kỳ đã thanh toán.",
       "cancelHowIos": "Bạn có thể hủy bất cứ lúc nào tại cài đặt ID Apple > Đăng ký. Bạn vẫn dùng được đến hết kỳ đã thanh toán."
     },
@@ -1235,7 +1235,7 @@
       },
       "settings": {
         "title": "Tài khoản và cài đặt",
-        "body": "Trang của tôi có hồ sơ và Juple ID, ngôn ngữ, Lưu nhanh, Bạn bè, Khóa bộ sưu tập, Đã xóa gần đây và quản lý tài khoản. Liên hệ hỗ trợ từ Trung tâm hỗ trợ.\n\nTrong Quản lý tài khoản, bạn xem cách đăng nhập và xóa tài khoản; xóa tài khoản sẽ xóa vĩnh viễn tài khoản và dữ liệu của bạn."
+        "body": "Trang của tôi có hồ sơ và Juple ID, ngôn ngữ, Lưu nhanh, Bạn bè, Khóa bộ sưu tập, Đã xóa gần đây và quản lý tài khoản. Liên hệ hỗ trợ từ Trung tâm hỗ trợ.\n\nTrong Quản lý tài khoản, bạn xem cách đăng nhập và xóa tài khoản; xóa tài khoản sẽ xóa vĩnh viễn tài khoản và dữ liệu của bạn.\n\nMỗi người được dùng thử một lần, đúng 30 ngày (720 giờ). Thành viên đã đăng ký trước bắt đầu từ thời điểm dịch vụ thành viên chính thức mở; người đăng ký sau bắt đầu từ thời điểm đăng ký. Sau đó vẫn có thể xem liên kết và bộ sưu tập hiện có, quản lý tài khoản và gói đăng ký, khôi phục giao dịch và xóa tài khoản. Nếu không có gói trả phí hợp lệ hoặc quyền miễn phí do quản trị viên cấp, các thao tác ghi chính như lưu, tạo và chỉnh sửa sẽ bị hạn chế.\n\nBạn có thể hủy bất cứ lúc nào tại Google Play > Thanh toán và gói đăng ký > Gói đăng ký. Bạn vẫn dùng được đến hết kỳ đã thanh toán. Bạn có thể hủy bất cứ lúc nào tại cài đặt ID Apple > Đăng ký. Bạn vẫn dùng được đến hết kỳ đã thanh toán."
       },
       "homeShortcut": {
         "title": "Lối tắt màn hình chính (1×1)",
@@ -1310,12 +1310,12 @@
       "reportBody": "Bạn có thể báo cáo người dùng, bộ sưu tập, liên kết và bình luận trong ứng dụng, và chặn người dùng khác. Báo cáo được con người xem xét.",
       "restrictionTitle": "Hạn chế",
       "restrictionBody": "Nếu vi phạm điều khoản, nội dung có thể bị hạn chế hoặc xóa, ngừng chia sẻ, giới hạn một số tính năng hoặc hạn chế tài khoản.",
-      "subscriptionTitle": "Dịch vụ miễn phí",
-      "subscriptionBody": "Juple miễn phí khi ra mắt. Không yêu cầu phương thức thanh toán hoặc đăng ký trả phí và không giới hạn sử dụng trong 30 ngày."
+      "subscriptionTitle": "Sử dụng miễn phí và dịch vụ thành viên",
+      "subscriptionBody": "Trước khi dịch vụ thành viên mở, có thể dùng Juple miễn phí mà không thêm phương thức thanh toán hay đăng ký trả phí. Ngày bắt đầu và ngày hiệu lực của điều khoản sửa đổi chưa được ấn định và sẽ được thông báo trước. Không thu tiền khi chưa có đồng ý mua rõ ràng."
     },
     "privacy": {
       "itemsTitle": "Thông tin thu thập",
-      "itemsBody": "• Mã định danh đăng nhập (do Microsoft Entra External ID cấp; email và mật khẩu do Microsoft xử lý và không được lưu trên máy chủ của Juple)\n• ID Juple, biệt danh và ảnh đại diện (tùy chọn), ngôn ngữ và múi giờ\n• Liên kết, ghi chú, ảnh, bộ sưu tập, bạn bè, lời mời, bình luận, phản ứng và yêu cầu hỗ trợ bạn nhập\n• Bản ghi đồng ý điều khoản, báo cáo và chặn\n• Nếu bật thông báo đẩy: ID cài đặt ứng dụng và mã thông báo đẩy\n• Nhật ký vận hành dịch vụ",
+      "itemsBody": "• Mã định danh đăng nhập (do Microsoft Entra External ID cấp; email và mật khẩu do Microsoft xử lý và không được lưu trên máy chủ của Juple)\n• ID Juple, biệt danh và ảnh đại diện (tùy chọn), ngôn ngữ và múi giờ\n• Liên kết, ghi chú, ảnh, bộ sưu tập, bạn bè, lời mời, bình luận, phản ứng và yêu cầu hỗ trợ bạn nhập\n• Bản ghi đồng ý điều khoản, báo cáo và chặn\n• Nếu bật thông báo đẩy: ID cài đặt ứng dụng và mã thông báo đẩy\n• Nhật ký vận hành dịch vụ\n• Để xác minh, gia hạn và khôi phục gói, chúng tôi xử lý mã mua hàng hoặc giao dịch đã ký được mã hóa, sản phẩm, trạng thái và thời gian. Để ngăn dùng thử lặp lại, lưu hàm băm có khóa của định danh và email đăng nhập đã chuẩn hóa, tách thời gian thử cũ và chính thức.",
       "purposeTitle": "Mục đích sử dụng",
       "purposeBody": "Cung cấp dịch vụ (lưu, sắp xếp, chia sẻ, cộng tác, thông báo), xác minh và bảo mật tài khoản, xử lý báo cáo và giữ an toàn cho dịch vụ, phản hồi yêu cầu và đảm bảo dịch vụ ổn định.",
       "retentionTitle": "Thời gian lưu giữ",
@@ -1687,7 +1687,7 @@
       "pending": "Đang xác nhận thanh toán"
     },
     "trialCard": {
-      "title": "Ưu đãi tháng đầu miễn phí",
+      "title": "Dùng thử Juple miễn phí",
       "daysLeft": "Còn {{count}} ngày!",
       "lastDay": "Còn 1 ngày!",
       "dDay": "D-{{count}}",
@@ -1697,7 +1697,7 @@
     },
     "noPaymentNeeded": {
       "title": "Bây giờ bạn chưa cần thanh toán",
-      "body": "Nếu muốn tiếp tục dùng Juple sau khi hết thời gian miễn phí, hãy chọn một gói thành viên."
+      "body": "Sau đó vẫn có thể xem liên kết và bộ sưu tập hiện có, quản lý tài khoản và gói đăng ký, khôi phục giao dịch và xóa tài khoản. Nếu không có gói trả phí hợp lệ hoặc quyền miễn phí do quản trị viên cấp, các thao tác ghi chính như lưu, tạo và chỉnh sửa sẽ bị hạn chế."
     },
     "trialPurchase": {
       "title": "Đăng ký bây giờ sẽ thanh toán ngay hôm nay",
@@ -1713,7 +1713,7 @@
   },
   "welcomeTrial": {
     "title": "Chào mừng bạn đến với Juple! 🎉",
-    "body": "Cảm ơn bạn đã đăng ký.\n\nHãy dùng miễn phí mọi tính năng của Juple trong tháng đầu tiên!\n\nNếu muốn tiếp tục dùng sau thời gian miễn phí, bạn có thể chọn gói thành viên trong {{myPage}}.\n\nBạn bắt đầu mà không cần thanh toán và sẽ không bị tự động tính phí.",
+    "body": "Cảm ơn bạn đã đăng ký.\n\nMỗi người được dùng thử một lần, đúng 30 ngày (720 giờ). Thành viên đã đăng ký trước bắt đầu từ thời điểm dịch vụ thành viên chính thức mở; người đăng ký sau bắt đầu từ thời điểm đăng ký. Đây không phải dùng thử của cửa hàng và không tự chuyển sang trả phí. Mua gói trong thời gian dùng thử sẽ bị tính phí ngay dù vẫn còn thời gian miễn phí.\n\nSau đó vẫn có thể xem liên kết và bộ sưu tập hiện có, quản lý tài khoản và gói đăng ký, khôi phục giao dịch và xóa tài khoản. Nếu không có gói trả phí hợp lệ hoặc quyền miễn phí do quản trị viên cấp, các thao tác ghi chính như lưu, tạo và chỉnh sửa sẽ bị hạn chế.\n\nQuản lý dịch vụ thành viên tại {{myPage}}.",
     "start": "Bắt đầu dùng Juple"
   },
   "trialEnded": {

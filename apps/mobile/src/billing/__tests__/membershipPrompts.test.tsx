@@ -93,7 +93,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-describe('WelcomeTrialPrompt - once, for a new account the server gave its own free month', () => {
+describe('WelcomeTrialPrompt - once, for a new account the server gave its own 720-hour trial', () => {
   it('after the first-run tour was finished or skipped, on Home: the welcome with the requested words and one button', async () => {
     mockStore.set(TOUR_DONE, 'true');
     auth({ entitlement: runningTrial, newAccountTrialGranted: true });
@@ -103,9 +103,14 @@ describe('WelcomeTrialPrompt - once, for a new account the server gave its own f
     expect(isShown(renderer, 'welcome-trial')).toBe(true);
     const texts = visibleTexts(renderer);
     expect(texts).toContain('Juple에 오신 걸 환영해요! 🎉');
-    expect(texts.join('\n')).toContain('첫 한 달 동안 Juple의 모든 기능을 무료로 이용해 보세요!');
-    expect(texts.join('\n')).toContain('내 페이지에서 멤버십을 선택할 수 있어요.');
-    expect(texts.join('\n')).toContain('별도 결제 없이 시작되며, 자동으로 요금이 청구되지 않습니다.');
+    expect(texts.join('\n')).toContain('정확히 30일(720시간)');
+    expect(texts.join('\n')).toContain('기존 회원은 멤버십 서비스 시작 시각부터');
+    expect(texts.join('\n')).toContain('이후 가입한 회원은 가입 시각부터');
+    expect(texts.join('\n')).toContain('내 페이지에서 멤버십을 관리할 수 있습니다.');
+    expect(texts.join('\n')).toContain('자동으로 유료 전환되지 않습니다.');
+    expect(texts.join('\n')).toContain('지금 구독하면 무료 기간이 남아 있어도 바로 결제됩니다.');
+    expect(texts.join('\n')).toContain('기존 링크·컬렉션 조회');
+    expect(texts.join('\n')).toContain('관리자 무료 멤버십');
     expect(texts).toContain('Juple 시작하기');
   });
 

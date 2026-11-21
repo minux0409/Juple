@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "La suppression de votre compte est irréversible",
-    "warningIntro": "Tous les éléments suivants seront définitivement supprimés :",
+    "warningIntro": "Tous les éléments suivants seront définitivement supprimés :\n\nDésinstaller l’application ou supprimer le compte Juple ne résilie pas les abonnements Google Play ou Apple App Store. Résiliez-les d’abord dans les réglages d’abonnement de la boutique d’achat.",
     "dataLinks": "Liens enregistrés et notes",
     "dataPhotos": "Photos importées (photos de liens, photos de collections et photo de profil)",
     "dataCollections": "Vos collections et leurs liens publics",
@@ -975,10 +975,10 @@
     "title": "Abonnement",
     "planName": "Abonnement Juple",
     "trialNotice": {
-      "welcomeTitle": "Profitez de Juple gratuitement pendant un mois",
-      "welcomeBody": "C'est gratuit jusqu'au {{date}}. Après la période gratuite, un abonnement payant est nécessaire.",
+      "welcomeTitle": "Votre essai gratuit Juple",
+      "welcomeBody": "Fin de l’essai gratuit : {{date}}. Chaque personne bénéficie d’un essai unique de 30 jours exactement (720 heures). Pour les membres déjà inscrits, il commence au lancement du service d’adhésion ; pour les inscriptions ultérieures, à l’instant de l’inscription. Ensuite, vous pouvez toujours consulter les liens et collections existants, gérer votre compte et vos abonnements, restaurer des achats et supprimer le compte. Sans abonnement valide ni accès gratuit accordé par un administrateur, les principales actions d’écriture, dont enregistrer, créer et modifier, sont limitées.",
       "endingTitle": "Votre période gratuite se termine bientôt",
-      "endingBody": "Utilisation gratuite jusqu'au {{date}}. Ensuite, un abonnement payant est nécessaire.",
+      "endingBody": "Fin de l’essai gratuit : {{date}}. Ensuite, vous pouvez toujours consulter les liens et collections existants, gérer votre compte et vos abonnements, restaurer des achats et supprimer le compte. Sans abonnement valide ni accès gratuit accordé par un administrateur, les principales actions d’écriture, dont enregistrer, créer et modifier, sont limitées.",
       "view": "Voir l'abonnement"
     },
     "pricePerMonth": "{{price}} / mois",
@@ -1079,7 +1079,7 @@
     "billing": {
       "summaryMonthly": "{{price}} sont facturés chaque mois, avec renouvellement automatique jusqu'à la résiliation.",
       "summaryYearly": "{{price}} sont facturés chaque année, avec renouvellement automatique jusqu'à la résiliation.",
-      "freeNotice": "Les 30 jours gratuits de Juple débutent à votre inscription et ne sont pas un essai gratuit de la boutique. Si vous vous abonnez maintenant, vous êtes facturé immédiatement, même s'il reste des jours gratuits.",
+      "freeNotice": "Chaque personne bénéficie d’un essai unique de 30 jours exactement (720 heures). Pour les membres déjà inscrits, il commence au lancement du service d’adhésion ; pour les inscriptions ultérieures, à l’instant de l’inscription. Il ne s’agit pas d’un essai de la boutique et il ne devient pas automatiquement payant. Un abonnement acheté pendant l’essai est facturé immédiatement, même s’il reste du temps gratuit.",
       "cancelHowAndroid": "Résiliez à tout moment dans Google Play > Paiements et abonnements > Abonnements. Vous conservez l'accès jusqu'à la fin de la période payée.",
       "cancelHowIos": "Résiliez à tout moment dans les réglages de l'identifiant Apple > Abonnements. Vous conservez l'accès jusqu'à la fin de la période payée."
     },
@@ -1235,7 +1235,7 @@
       },
       "settings": {
         "title": "Compte et réglages",
-        "body": "Mon compte regroupe votre profil et ID Juple, la langue, l’Enregistrement rapide, les Amis, le Verrouillage des collections, Supprimés récemment et la gestion du compte. Contactez l’assistance depuis le Centre d'aide.\n\nDans Gérer le compte, vous pouvez voir comment vous vous connectez et supprimer votre compte, ce qui supprime définitivement votre compte et vos données."
+        "body": "Mon compte regroupe votre profil et ID Juple, la langue, l’Enregistrement rapide, les Amis, le Verrouillage des collections, Supprimés récemment et la gestion du compte. Contactez l’assistance depuis le Centre d'aide.\n\nDans Gérer le compte, vous pouvez voir comment vous vous connectez et supprimer votre compte, ce qui supprime définitivement votre compte et vos données.\n\nChaque personne bénéficie d’un essai unique de 30 jours exactement (720 heures). Pour les membres déjà inscrits, il commence au lancement du service d’adhésion ; pour les inscriptions ultérieures, à l’instant de l’inscription. Ensuite, vous pouvez toujours consulter les liens et collections existants, gérer votre compte et vos abonnements, restaurer des achats et supprimer le compte. Sans abonnement valide ni accès gratuit accordé par un administrateur, les principales actions d’écriture, dont enregistrer, créer et modifier, sont limitées.\n\nRésiliez à tout moment dans Google Play > Paiements et abonnements > Abonnements. Vous conservez l'accès jusqu'à la fin de la période payée. Résiliez à tout moment dans les réglages de l'identifiant Apple > Abonnements. Vous conservez l'accès jusqu'à la fin de la période payée."
       },
       "homeShortcut": {
         "title": "Raccourci sur l’écran d’accueil (1×1)",
@@ -1310,12 +1310,12 @@
       "reportBody": "Vous pouvez signaler des utilisateurs, collections, liens et commentaires dans l'application, et bloquer d'autres utilisateurs. Les signalements sont examinés par des personnes.",
       "restrictionTitle": "Restrictions",
       "restrictionBody": "En cas de non-respect des conditions, le contenu peut être restreint ou supprimé, le partage arrêté, certaines fonctions limitées ou le compte restreint.",
-      "subscriptionTitle": "Service gratuit",
-      "subscriptionBody": "Juple est gratuit à son lancement. Aucun moyen de paiement ni abonnement n’est requis, et aucune limite d’utilisation de 30 jours ne s’applique."
+      "subscriptionTitle": "Accès gratuit et adhésion",
+      "subscriptionBody": "Avant le lancement de l’adhésion, Juple est gratuit sans moyen de paiement ni abonnement. La date de lancement et la date d’effet des conditions révisées ne sont pas fixées ; elles seront annoncées avant application. Aucun paiement n’est effectué sans consentement explicite à l’achat."
     },
     "privacy": {
       "itemsTitle": "Données collectées",
-      "itemsBody": "• Un identifiant de connexion (attribué par Microsoft Entra External ID ; votre adresse e-mail et votre mot de passe sont gérés par Microsoft et ne sont pas stockés sur les serveurs de Juple)\n• ID Juple, pseudo et photo de profil (facultatifs), langue et fuseau horaire\n• Liens, notes, photos, collections, amis, invitations, commentaires, réactions et demandes d'assistance que vous saisissez\n• Trace de l'acceptation des conditions, signalements et blocages\n• Si vous activez les notifications push : ID d'installation de l'application et jeton push\n• Journaux de fonctionnement du service",
+      "itemsBody": "• Un identifiant de connexion (attribué par Microsoft Entra External ID ; votre adresse e-mail et votre mot de passe sont gérés par Microsoft et ne sont pas stockés sur les serveurs de Juple)\n• ID Juple, pseudo et photo de profil (facultatifs), langue et fuseau horaire\n• Liens, notes, photos, collections, amis, invitations, commentaires, réactions et demandes d'assistance que vous saisissez\n• Trace de l'acceptation des conditions, signalements et blocages\n• Si vous activez les notifications push : ID d'installation de l'application et jeton push\n• Journaux de fonctionnement du service\n• Pour vérifier, renouveler et restaurer les abonnements, nous traitons les jetons d’achat ou transactions signées chiffrés, le produit, l’état et les dates. Pour empêcher les essais répétés, nous conservons des hachages avec clé des identifiants et e-mails de connexion normalisés, avec des périodes historiques et officielles distinctes.",
       "purposeTitle": "Finalité de l'utilisation",
       "purposeBody": "Fournir le service (enregistrement, organisation, partage, collaboration, notifications), vérifier les comptes et les sécuriser, traiter les signalements et préserver la sécurité du service, répondre aux demandes et assurer la stabilité du service.",
       "retentionTitle": "Durée de conservation",
@@ -1687,7 +1687,7 @@
       "pending": "Paiement en cours de vérification"
     },
     "trialCard": {
-      "title": "Votre premier mois offert",
+      "title": "Votre essai gratuit Juple",
       "daysLeft": "Jours restants : {{count}} !",
       "lastDay": "Plus qu’un jour !",
       "dDay": "J-{{count}}",
@@ -1697,7 +1697,7 @@
     },
     "noPaymentNeeded": {
       "title": "Aucun paiement nécessaire pour l’instant",
-      "body": "Si vous souhaitez continuer à utiliser Juple après votre période gratuite, choisissez une formule."
+      "body": "Ensuite, vous pouvez toujours consulter les liens et collections existants, gérer votre compte et vos abonnements, restaurer des achats et supprimer le compte. Sans abonnement valide ni accès gratuit accordé par un administrateur, les principales actions d’écriture, dont enregistrer, créer et modifier, sont limitées."
     },
     "trialPurchase": {
       "title": "En vous abonnant maintenant, vous payez dès aujourd’hui",
@@ -1713,7 +1713,7 @@
   },
   "welcomeTrial": {
     "title": "Bienvenue sur Juple ! 🎉",
-    "body": "Merci de vous être inscrit.\n\nProfitez gratuitement de toutes les fonctionnalités de Juple pendant votre premier mois !\n\nSi vous souhaitez continuer après la période gratuite, vous pourrez choisir une formule dans {{myPage}}.\n\nAucun paiement n’est demandé pour commencer, et rien ne vous sera facturé automatiquement.",
+    "body": "Merci de vous être inscrit.\n\nChaque personne bénéficie d’un essai unique de 30 jours exactement (720 heures). Pour les membres déjà inscrits, il commence au lancement du service d’adhésion ; pour les inscriptions ultérieures, à l’instant de l’inscription. Il ne s’agit pas d’un essai de la boutique et il ne devient pas automatiquement payant. Un abonnement acheté pendant l’essai est facturé immédiatement, même s’il reste du temps gratuit.\n\nEnsuite, vous pouvez toujours consulter les liens et collections existants, gérer votre compte et vos abonnements, restaurer des achats et supprimer le compte. Sans abonnement valide ni accès gratuit accordé par un administrateur, les principales actions d’écriture, dont enregistrer, créer et modifier, sont limitées.\n\nGérez votre adhésion dans {{myPage}}.",
     "start": "Commencer avec Juple"
   },
   "trialEnded": {

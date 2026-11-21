@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "Penghapusan akun tidak dapat dibatalkan",
-    "warningIntro": "Semua data berikut akan dihapus secara permanen:",
+    "warningIntro": "Semua data berikut akan dihapus secara permanen:\n\nMenghapus aplikasi atau akun Juple tidak membatalkan langganan Google Play atau Apple App Store. Batalkan dahulu di pengaturan langganan toko tempat membeli.",
     "dataLinks": "Tautan yang disimpan dan catatan",
     "dataPhotos": "Foto yang diunggah (foto tautan, foto koleksi, dan foto profil)",
     "dataCollections": "Koleksi Anda dan tautan publiknya",
@@ -975,10 +975,10 @@
     "title": "Langganan",
     "planName": "Langganan Juple",
     "trialNotice": {
-      "welcomeTitle": "Gunakan Juple gratis selama sebulan",
-      "welcomeBody": "Gratis hingga {{date}}. Setelah masa gratis berakhir, diperlukan langganan berbayar.",
+      "welcomeTitle": "Uji coba gratis Juple Anda",
+      "welcomeBody": "Uji coba berakhir: {{date}}. Setiap orang mendapat satu uji coba tepat 30 hari (720 jam). Bagi anggota lama, dimulai saat layanan keanggotaan resmi diluncurkan; bagi yang mendaftar sesudahnya, sejak waktu pendaftaran. Setelahnya Anda tetap dapat melihat tautan dan koleksi lama, mengelola akun dan langganan, memulihkan pembelian, serta menghapus akun. Tanpa langganan sah atau keanggotaan gratis dari administrator, tindakan tulis utama seperti menyimpan, membuat dan mengedit dibatasi.",
       "endingTitle": "Masa gratis Anda segera berakhir",
-      "endingBody": "Gratis hingga {{date}}. Setelah itu diperlukan langganan berbayar.",
+      "endingBody": "Uji coba berakhir: {{date}}. Setelahnya Anda tetap dapat melihat tautan dan koleksi lama, mengelola akun dan langganan, memulihkan pembelian, serta menghapus akun. Tanpa langganan sah atau keanggotaan gratis dari administrator, tindakan tulis utama seperti menyimpan, membuat dan mengedit dibatasi.",
       "view": "Lihat langganan"
     },
     "pricePerMonth": "{{price}} / bulan",
@@ -1079,7 +1079,7 @@
     "billing": {
       "summaryMonthly": "{{price}} ditagih setiap bulan dan diperpanjang otomatis sampai Anda membatalkan.",
       "summaryYearly": "{{price}} ditagih setiap tahun dan diperpanjang otomatis sampai Anda membatalkan.",
-      "freeNotice": "30 hari gratis Juple dihitung sejak Anda mendaftar dan bukan uji coba gratis dari toko aplikasi. Jika Anda berlangganan sekarang, Anda langsung ditagih meski masih ada hari gratis.",
+      "freeNotice": "Setiap orang mendapat satu uji coba tepat 30 hari (720 jam). Bagi anggota lama, dimulai saat layanan keanggotaan resmi diluncurkan; bagi yang mendaftar sesudahnya, sejak waktu pendaftaran. Ini bukan uji coba toko dan tidak otomatis menjadi langganan berbayar. Membeli langganan saat uji coba langsung dikenakan biaya meskipun waktu gratis masih tersisa.",
       "cancelHowAndroid": "Batalkan kapan saja di Google Play > Pembayaran & langganan > Langganan. Anda tetap bisa mengakses sampai akhir periode yang sudah dibayar.",
       "cancelHowIos": "Batalkan kapan saja di pengaturan ID Apple > Langganan. Anda tetap bisa mengakses sampai akhir periode yang sudah dibayar."
     },
@@ -1235,7 +1235,7 @@
       },
       "settings": {
         "title": "Akun dan pengaturan",
-        "body": "Halaman Saya berisi profil dan Juple ID, bahasa, Simpan cepat, Teman, Kunci koleksi, Baru Dihapus, dan pengelolaan akun. Hubungi dukungan dari Pusat Bantuan.\n\nDi Kelola akun, Anda bisa melihat cara masuk dan menghapus akun; menghapus akun menghapus permanen akun dan data Anda."
+        "body": "Halaman Saya berisi profil dan Juple ID, bahasa, Simpan cepat, Teman, Kunci koleksi, Baru Dihapus, dan pengelolaan akun. Hubungi dukungan dari Pusat Bantuan.\n\nDi Kelola akun, Anda bisa melihat cara masuk dan menghapus akun; menghapus akun menghapus permanen akun dan data Anda.\n\nSetiap orang mendapat satu uji coba tepat 30 hari (720 jam). Bagi anggota lama, dimulai saat layanan keanggotaan resmi diluncurkan; bagi yang mendaftar sesudahnya, sejak waktu pendaftaran. Setelahnya Anda tetap dapat melihat tautan dan koleksi lama, mengelola akun dan langganan, memulihkan pembelian, serta menghapus akun. Tanpa langganan sah atau keanggotaan gratis dari administrator, tindakan tulis utama seperti menyimpan, membuat dan mengedit dibatasi.\n\nBatalkan kapan saja di Google Play > Pembayaran & langganan > Langganan. Anda tetap bisa mengakses sampai akhir periode yang sudah dibayar. Batalkan kapan saja di pengaturan ID Apple > Langganan. Anda tetap bisa mengakses sampai akhir periode yang sudah dibayar."
       },
       "homeShortcut": {
         "title": "Pintasan layar utama (1×1)",
@@ -1310,12 +1310,12 @@
       "reportBody": "Anda dapat melaporkan pengguna, koleksi, tautan, dan komentar di aplikasi, serta memblokir pengguna lain. Laporan ditinjau oleh manusia.",
       "restrictionTitle": "Pembatasan",
       "restrictionBody": "Jika ketentuan dilanggar, konten dapat dibatasi atau dihapus, berbagi dihentikan, beberapa fitur dibatasi, atau akun dibatasi.",
-      "subscriptionTitle": "Layanan gratis",
-      "subscriptionBody": "Juple gratis saat peluncuran. Tidak memerlukan metode pembayaran atau langganan, dan tidak ada batas penggunaan 30 hari."
+      "subscriptionTitle": "Akses gratis dan keanggotaan",
+      "subscriptionBody": "Sebelum layanan keanggotaan dimulai, Juple gratis tanpa metode pembayaran atau langganan. Tanggal peluncuran dan berlakunya ketentuan revisi belum ditetapkan dan akan diumumkan sebelumnya. Tidak ada tagihan tanpa persetujuan pembelian yang tegas."
     },
     "privacy": {
       "itemsTitle": "Data yang dikumpulkan",
-      "itemsBody": "• Pengenal login (diberikan oleh Microsoft Entra External ID; alamat email dan kata sandi diproses oleh Microsoft dan tidak disimpan di server Juple)\n• ID Juple, nama panggilan dan foto profil (opsional), bahasa dan zona waktu\n• Tautan, catatan, foto, koleksi, teman, undangan, komentar, reaksi, dan pertanyaan dukungan yang Anda masukkan\n• Catatan persetujuan ketentuan, laporan dan pemblokiran\n• Jika notifikasi push diaktifkan: ID instalasi aplikasi dan token push\n• Log operasional layanan",
+      "itemsBody": "• Pengenal login (diberikan oleh Microsoft Entra External ID; alamat email dan kata sandi diproses oleh Microsoft dan tidak disimpan di server Juple)\n• ID Juple, nama panggilan dan foto profil (opsional), bahasa dan zona waktu\n• Tautan, catatan, foto, koleksi, teman, undangan, komentar, reaksi, dan pertanyaan dukungan yang Anda masukkan\n• Catatan persetujuan ketentuan, laporan dan pemblokiran\n• Jika notifikasi push diaktifkan: ID instalasi aplikasi dan token push\n• Log operasional layanan\n• Untuk verifikasi, perpanjangan dan pemulihan, kami memproses token pembelian atau transaksi bertanda tangan yang dienkripsi, produk, status dan waktu. Untuk mencegah uji coba berulang, kami menyimpan hash berkunci dari identitas dan email login yang dinormalisasi, dengan periode historis dan resmi terpisah.",
       "purposeTitle": "Tujuan penggunaan",
       "purposeBody": "Menyediakan layanan (menyimpan, mengatur, membagikan, berkolaborasi, notifikasi), memverifikasi dan mengamankan akun, menangani laporan dan menjaga keamanan layanan, menjawab pertanyaan, dan menjaga stabilitas layanan.",
       "retentionTitle": "Masa penyimpanan",
@@ -1687,7 +1687,7 @@
       "pending": "Mengonfirmasi pembayaran"
     },
     "trialCard": {
-      "title": "Bulan pertama gratis",
+      "title": "Uji coba gratis Juple Anda",
       "daysLeft": "Tinggal {{count}} hari lagi!",
       "lastDay": "Tinggal 1 hari lagi!",
       "dDay": "D-{{count}}",
@@ -1697,7 +1697,7 @@
     },
     "noPaymentNeeded": {
       "title": "Belum perlu membayar sekarang",
-      "body": "Jika ingin terus memakai Juple setelah masa gratis berakhir, pilih keanggotaan."
+      "body": "Setelahnya Anda tetap dapat melihat tautan dan koleksi lama, mengelola akun dan langganan, memulihkan pembelian, serta menghapus akun. Tanpa langganan sah atau keanggotaan gratis dari administrator, tindakan tulis utama seperti menyimpan, membuat dan mengedit dibatasi."
     },
     "trialPurchase": {
       "title": "Berlangganan sekarang berarti ditagih hari ini",
@@ -1713,7 +1713,7 @@
   },
   "welcomeTrial": {
     "title": "Selamat datang di Juple! 🎉",
-    "body": "Terima kasih sudah mendaftar.\n\nNikmati semua fitur Juple secara gratis selama bulan pertama!\n\nJika ingin terus memakainya setelah masa gratis, kamu bisa memilih keanggotaan di {{myPage}}.\n\nDimulai tanpa pembayaran apa pun, dan tidak ada tagihan otomatis.",
+    "body": "Terima kasih sudah mendaftar.\n\nSetiap orang mendapat satu uji coba tepat 30 hari (720 jam). Bagi anggota lama, dimulai saat layanan keanggotaan resmi diluncurkan; bagi yang mendaftar sesudahnya, sejak waktu pendaftaran. Ini bukan uji coba toko dan tidak otomatis menjadi langganan berbayar. Membeli langganan saat uji coba langsung dikenakan biaya meskipun waktu gratis masih tersisa.\n\nSetelahnya Anda tetap dapat melihat tautan dan koleksi lama, mengelola akun dan langganan, memulihkan pembelian, serta menghapus akun. Tanpa langganan sah atau keanggotaan gratis dari administrator, tindakan tulis utama seperti menyimpan, membuat dan mengedit dibatasi.\n\nKelola keanggotaan di {{myPage}}.",
     "start": "Mulai pakai Juple"
   },
   "trialEnded": {

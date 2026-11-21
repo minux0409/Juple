@@ -132,8 +132,7 @@ describe('membership plans', () => {
     const renderer = await renderScreen();
 
     expect(all(renderer, 'subscription-billing-summary')[0].props.children).toBe('$19.90 is charged every year and renews automatically until you cancel.');
-    expect(all(renderer, 'subscription-free-notice')[0].props.children).toBe(i18n.t('subscription.billing.freeNotice'));
-    expect(text(renderer)).toContain(i18n.t('subscription.billing.freeNotice'));
+    expect(all(renderer, 'subscription-free-notice')).toHaveLength(0);
     expect(all(renderer, 'subscription-cancel-how').length).toBeGreaterThan(0);
 
     await press(renderer, 'subscription-plan-monthly');

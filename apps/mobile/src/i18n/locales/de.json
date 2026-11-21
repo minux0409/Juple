@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "Das Löschen deines Kontos kann nicht rückgängig gemacht werden",
-    "warningIntro": "Folgendes wird dauerhaft gelöscht:",
+    "warningIntro": "Folgendes wird dauerhaft gelöscht:\n\nDas Deinstallieren der App oder Löschen des Juple-Kontos kündigt kein Google Play- oder Apple App Store-Abo. Kündige zuerst in den Aboeinstellungen des Kaufstores.",
     "dataLinks": "Gespeicherte Links und Notizen",
     "dataPhotos": "Hochgeladene Fotos (Linkfotos, Sammlungsfotos und dein Profilfoto)",
     "dataCollections": "Deine Sammlungen und ihre öffentlichen Links",
@@ -975,10 +975,10 @@
     "title": "Abonnement",
     "planName": "Juple-Abonnement",
     "trialNotice": {
-      "welcomeTitle": "Nutze Juple einen Monat kostenlos",
-      "welcomeBody": "Kostenlos bis {{date}}. Nach der kostenlosen Zeit ist ein kostenpflichtiges Abo erforderlich.",
+      "welcomeTitle": "Deine kostenlose Juple-Testphase",
+      "welcomeBody": "Ende der Testphase: {{date}}. Jede Person erhält einmalig genau 30 Tage (720 Stunden) kostenlos. Für bestehende Mitglieder beginnt die Testphase mit dem Start des Mitgliedschaftsdienstes, für spätere Anmeldungen zum Zeitpunkt der Registrierung. Danach bleiben vorhandene Links und Sammlungen lesbar. Kontoverwaltung, Aboverwaltung, Kaufwiederherstellung und Kontolöschung bleiben möglich. Ohne gültiges Abo oder vom Administrator gewährte kostenlose Mitgliedschaft werden wesentliche Schreibaktionen wie Speichern, Erstellen und Bearbeiten eingeschränkt.",
       "endingTitle": "Deine kostenlose Zeit endet bald",
-      "endingBody": "Kostenlose Nutzung bis {{date}}. Danach ist ein kostenpflichtiges Abo erforderlich.",
+      "endingBody": "Ende der Testphase: {{date}}. Danach bleiben vorhandene Links und Sammlungen lesbar. Kontoverwaltung, Aboverwaltung, Kaufwiederherstellung und Kontolöschung bleiben möglich. Ohne gültiges Abo oder vom Administrator gewährte kostenlose Mitgliedschaft werden wesentliche Schreibaktionen wie Speichern, Erstellen und Bearbeiten eingeschränkt.",
       "view": "Abo ansehen"
     },
     "pricePerMonth": "{{price}} / Monat",
@@ -1079,7 +1079,7 @@
     "billing": {
       "summaryMonthly": "{{price}} werden jeden Monat abgerechnet und verlängern sich automatisch, bis du kündigst.",
       "summaryYearly": "{{price}} werden jedes Jahr abgerechnet und verlängern sich automatisch, bis du kündigst.",
-      "freeNotice": "Die 30 kostenlosen Tage von Juple beginnen mit deiner Registrierung und sind keine kostenlose Testphase des Stores. Wenn du jetzt abonnierst, wird sofort abgebucht, auch wenn noch kostenlose Tage übrig sind.",
+      "freeNotice": "Jede Person erhält einmalig genau 30 Tage (720 Stunden) kostenlos. Für bestehende Mitglieder beginnt die Testphase mit dem Start des Mitgliedschaftsdienstes, für spätere Anmeldungen zum Zeitpunkt der Registrierung. Dies ist keine Store-Testphase und wird nicht automatisch kostenpflichtig. Ein währenddessen gekauftes Abo wird sofort berechnet, auch wenn kostenlose Zeit übrig ist.",
       "cancelHowAndroid": "Jederzeit kündbar unter Google Play > Zahlungen & Abos > Abos. Du behältst den Zugang bis zum Ende des bezahlten Zeitraums.",
       "cancelHowIos": "Jederzeit kündbar in den Apple-ID-Einstellungen > Abonnements. Du behältst den Zugang bis zum Ende des bezahlten Zeitraums."
     },
@@ -1235,7 +1235,7 @@
       },
       "settings": {
         "title": "Konto und Einstellungen",
-        "body": "Mein Bereich enthält dein Profil und deine Juple-ID, Sprache, Schnellspeichern, Freunde, Sammlungssperre, Kürzlich gelöscht und die Kontoverwaltung. Den Support erreichst du über das Kundencenter.\n\nUnter Konto verwalten siehst du, wie du dich anmeldest, und kannst dein Konto löschen. Das löscht dein Konto und deine Daten endgültig."
+        "body": "Mein Bereich enthält dein Profil und deine Juple-ID, Sprache, Schnellspeichern, Freunde, Sammlungssperre, Kürzlich gelöscht und die Kontoverwaltung. Den Support erreichst du über das Kundencenter.\n\nUnter Konto verwalten siehst du, wie du dich anmeldest, und kannst dein Konto löschen. Das löscht dein Konto und deine Daten endgültig.\n\nJede Person erhält einmalig genau 30 Tage (720 Stunden) kostenlos. Für bestehende Mitglieder beginnt die Testphase mit dem Start des Mitgliedschaftsdienstes, für spätere Anmeldungen zum Zeitpunkt der Registrierung. Danach bleiben vorhandene Links und Sammlungen lesbar. Kontoverwaltung, Aboverwaltung, Kaufwiederherstellung und Kontolöschung bleiben möglich. Ohne gültiges Abo oder vom Administrator gewährte kostenlose Mitgliedschaft werden wesentliche Schreibaktionen wie Speichern, Erstellen und Bearbeiten eingeschränkt.\n\nJederzeit kündbar unter Google Play > Zahlungen & Abos > Abos. Du behältst den Zugang bis zum Ende des bezahlten Zeitraums. Jederzeit kündbar in den Apple-ID-Einstellungen > Abonnements. Du behältst den Zugang bis zum Ende des bezahlten Zeitraums."
       },
       "homeShortcut": {
         "title": "Startbildschirm-Verknüpfung (1×1)",
@@ -1310,12 +1310,12 @@
       "reportBody": "Du kannst Nutzer, Sammlungen, Links und Kommentare in der App melden und andere Nutzer blockieren. Meldungen werden von Menschen geprüft.",
       "restrictionTitle": "Einschränkungen",
       "restrictionBody": "Bei Verstößen gegen die Bedingungen können Inhalte eingeschränkt oder entfernt, das Teilen gestoppt, einzelne Funktionen begrenzt oder das Konto eingeschränkt werden.",
-      "subscriptionTitle": "Kostenloser Dienst",
-      "subscriptionBody": "Juple ist zum Start kostenlos. Es sind weder Zahlungsmittel noch Abonnement erforderlich. Es gibt keine Nutzungsbegrenzung auf 30 Tage."
+      "subscriptionTitle": "Kostenlose Nutzung und Mitgliedschaft",
+      "subscriptionBody": "Vor dem Start der Mitgliedschaft ist Juple ohne Zahlungsmittel und Abo kostenlos nutzbar. Starttermin und Geltungsbeginn der überarbeiteten Bedingungen stehen noch nicht fest und werden vorab angekündigt. Ohne ausdrückliche Kaufzustimmung erfolgt keine Belastung."
     },
     "privacy": {
       "itemsTitle": "Erhobene Daten",
-      "itemsBody": "• Eine Anmelde-Kennung (von Microsoft Entra External ID vergeben; E-Mail-Adresse und Passwort verarbeitet Microsoft und werden nicht auf Juple-Servern gespeichert)\n• Juple-ID, Spitzname und Profilfoto (optional), Sprache und Zeitzone\n• Links, Notizen, Fotos, Sammlungen, Freunde, Einladungen, Kommentare, Reaktionen und Support-Anfragen, die du eingibst\n• Nachweis der Zustimmung zu den Bedingungen, Meldungen und Blockierungen\n• Bei aktivierten Push-Benachrichtigungen: App-Installations-ID und Push-Token\n• Betriebsprotokolle des Dienstes",
+      "itemsBody": "• Eine Anmelde-Kennung (von Microsoft Entra External ID vergeben; E-Mail-Adresse und Passwort verarbeitet Microsoft und werden nicht auf Juple-Servern gespeichert)\n• Juple-ID, Spitzname und Profilfoto (optional), Sprache und Zeitzone\n• Links, Notizen, Fotos, Sammlungen, Freunde, Einladungen, Kommentare, Reaktionen und Support-Anfragen, die du eingibst\n• Nachweis der Zustimmung zu den Bedingungen, Meldungen und Blockierungen\n• Bei aktivierten Push-Benachrichtigungen: App-Installations-ID und Push-Token\n• Betriebsprotokolle des Dienstes\n• Für Prüfung, Verlängerung und Wiederherstellung verarbeiten wir verschlüsselte Kauftokens oder signierte Transaktionsdaten sowie Produkt, Status und Zeitangaben. Schlüsselbasierte Hashes der Anmeldekennung und normalisierten Anmelde-E-Mail mit getrennten historischen und offiziellen Testzeiträumen verhindern wiederholte Tests.",
       "purposeTitle": "Verwendungszweck",
       "purposeBody": "Bereitstellung des Dienstes (Speichern, Ordnen, Teilen, Zusammenarbeit, Benachrichtigungen), Kontoprüfung und Sicherheit, Bearbeitung von Meldungen und Sicherheit des Dienstes, Beantwortung von Anfragen und Stabilität des Dienstes.",
       "retentionTitle": "Speicherdauer",
@@ -1687,7 +1687,7 @@
       "pending": "Zahlung wird geprüft"
     },
     "trialCard": {
-      "title": "Dein erster Monat gratis",
+      "title": "Deine kostenlose Juple-Testphase",
       "daysLeft": "Noch {{count}} Tage!",
       "lastDay": "Noch 1 Tag!",
       "dDay": "T-{{count}}",
@@ -1697,7 +1697,7 @@
     },
     "noPaymentNeeded": {
       "title": "Du musst jetzt nichts bezahlen",
-      "body": "Wenn du Juple nach dem Gratiszeitraum weiter nutzen möchtest, wähle eine Mitgliedschaft."
+      "body": "Danach bleiben vorhandene Links und Sammlungen lesbar. Kontoverwaltung, Aboverwaltung, Kaufwiederherstellung und Kontolöschung bleiben möglich. Ohne gültiges Abo oder vom Administrator gewährte kostenlose Mitgliedschaft werden wesentliche Schreibaktionen wie Speichern, Erstellen und Bearbeiten eingeschränkt."
     },
     "trialPurchase": {
       "title": "Wenn du jetzt abonnierst, wird heute abgebucht",
@@ -1713,7 +1713,7 @@
   },
   "welcomeTrial": {
     "title": "Willkommen bei Juple! 🎉",
-    "body": "Danke für deine Anmeldung.\n\nNutze im ersten Monat alle Funktionen von Juple kostenlos!\n\nWenn du Juple nach dem Gratiszeitraum weiter nutzen möchtest, kannst du unter {{myPage}} eine Mitgliedschaft wählen.\n\nDer Start ist ohne Zahlung, und es wird nichts automatisch abgebucht.",
+    "body": "Danke für deine Anmeldung.\n\nJede Person erhält einmalig genau 30 Tage (720 Stunden) kostenlos. Für bestehende Mitglieder beginnt die Testphase mit dem Start des Mitgliedschaftsdienstes, für spätere Anmeldungen zum Zeitpunkt der Registrierung. Dies ist keine Store-Testphase und wird nicht automatisch kostenpflichtig. Ein währenddessen gekauftes Abo wird sofort berechnet, auch wenn kostenlose Zeit übrig ist.\n\nDanach bleiben vorhandene Links und Sammlungen lesbar. Kontoverwaltung, Aboverwaltung, Kaufwiederherstellung und Kontolöschung bleiben möglich. Ohne gültiges Abo oder vom Administrator gewährte kostenlose Mitgliedschaft werden wesentliche Schreibaktionen wie Speichern, Erstellen und Bearbeiten eingeschränkt.\n\nVerwalte deine Mitgliedschaft unter {{myPage}}.",
     "start": "Mit Juple loslegen"
   },
   "trialEnded": {

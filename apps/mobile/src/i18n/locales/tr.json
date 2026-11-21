@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "Hesabı silme işlemi geri alınamaz",
-    "warningIntro": "Aşağıdakilerin tümü kalıcı olarak silinecek:",
+    "warningIntro": "Aşağıdakilerin tümü kalıcı olarak silinecek:\n\nUygulamayı veya Juple hesabını silmek Google Play ya da Apple App Store aboneliğini iptal etmez. Önce satın aldığınız mağazanın abonelik ayarlarından iptal edin.",
     "dataLinks": "Kaydedilen bağlantılar ve notlar",
     "dataPhotos": "Yüklenen fotoğraflar (bağlantı fotoğrafları, koleksiyon fotoğrafları ve profil fotoğrafı)",
     "dataCollections": "Koleksiyonlarınız ve herkese açık bağlantıları",
@@ -975,10 +975,10 @@
     "title": "Abonelik",
     "planName": "Juple aboneliği",
     "trialNotice": {
-      "welcomeTitle": "Juple'ı bir ay ücretsiz kullan",
-      "welcomeBody": "{{date}} tarihine kadar ücretsiz. Ücretsiz dönem bittikten sonra ücretli abonelik gerekir.",
+      "welcomeTitle": "Juple ücretsiz denemeniz",
+      "welcomeBody": "Ücretsiz deneme bitişi: {{date}}. Her kişi tam 30 gün (720 saat) süren tek bir deneme alır. Mevcut üyeler için üyelik hizmetinin resmi başlangıç anından, sonradan kaydolanlar için kayıt anından hesaplanır. Sonrasında mevcut bağlantı ve koleksiyonları görüntüleme, hesap ve abonelik yönetimi, satın alımları geri yükleme ve hesap silme kullanılabilir. Geçerli ücretli abonelik veya yönetici tarafından verilen ücretsiz üyelik yoksa kaydetme, oluşturma ve düzenleme gibi temel yazma işlemleri kısıtlanır.",
       "endingTitle": "Ücretsiz dönemin yakında bitiyor",
-      "endingBody": "{{date}} tarihine kadar ücretsiz kullanabilirsin. Sonrasında ücretli abonelik gerekir.",
+      "endingBody": "Ücretsiz deneme bitişi: {{date}}. Sonrasında mevcut bağlantı ve koleksiyonları görüntüleme, hesap ve abonelik yönetimi, satın alımları geri yükleme ve hesap silme kullanılabilir. Geçerli ücretli abonelik veya yönetici tarafından verilen ücretsiz üyelik yoksa kaydetme, oluşturma ve düzenleme gibi temel yazma işlemleri kısıtlanır.",
       "view": "Aboneliği gör"
     },
     "pricePerMonth": "{{price}} / ay",
@@ -1079,7 +1079,7 @@
     "billing": {
       "summaryMonthly": "{{price}} her ay tahsil edilir ve siz iptal edene kadar otomatik yenilenir.",
       "summaryYearly": "{{price}} her yıl tahsil edilir ve siz iptal edene kadar otomatik yenilenir.",
-      "freeNotice": "Juple'ın 30 günlük ücretsiz kullanımı kayıt tarihinizden itibaren başlar ve mağazanın ücretsiz denemesi değildir. Şimdi abone olursanız, ücretsiz günleriniz kalmış olsa bile hemen ücretlendirilirsiniz.",
+      "freeNotice": "Her kişi tam 30 gün (720 saat) süren tek bir deneme alır. Mevcut üyeler için üyelik hizmetinin resmi başlangıç anından, sonradan kaydolanlar için kayıt anından hesaplanır. Bu bir mağaza denemesi değildir ve otomatik olarak ücretliye dönüşmez. Deneme sırasında abone olursanız ücretsiz süre kalsa bile ücret hemen alınır.",
       "cancelHowAndroid": "Google Play > Ödemeler ve abonelikler > Abonelikler bölümünden istediğiniz zaman iptal edebilirsiniz. Ödediğiniz dönemin sonuna kadar erişiminiz sürer.",
       "cancelHowIos": "Apple Kimliği ayarları > Abonelikler bölümünden istediğiniz zaman iptal edebilirsiniz. Ödediğiniz dönemin sonuna kadar erişiminiz sürer."
     },
@@ -1235,7 +1235,7 @@
       },
       "settings": {
         "title": "Hesap ve ayarlar",
-        "body": "Sayfam'da profiliniz ve Juple ID, dil, Hızlı kaydet, Arkadaşlar, Koleksiyon kilidi, Son Silinenler ve hesap yönetimi yer alır. Destek için Müşteri Merkezi'ni kullanın.\n\nHesabı yönet bölümünde nasıl giriş yaptığınızı görebilir ve hesabınızı silebilirsiniz; hesap silmek hesabınızı ve verilerinizi kalıcı olarak siler."
+        "body": "Sayfam'da profiliniz ve Juple ID, dil, Hızlı kaydet, Arkadaşlar, Koleksiyon kilidi, Son Silinenler ve hesap yönetimi yer alır. Destek için Müşteri Merkezi'ni kullanın.\n\nHesabı yönet bölümünde nasıl giriş yaptığınızı görebilir ve hesabınızı silebilirsiniz; hesap silmek hesabınızı ve verilerinizi kalıcı olarak siler.\n\nHer kişi tam 30 gün (720 saat) süren tek bir deneme alır. Mevcut üyeler için üyelik hizmetinin resmi başlangıç anından, sonradan kaydolanlar için kayıt anından hesaplanır. Sonrasında mevcut bağlantı ve koleksiyonları görüntüleme, hesap ve abonelik yönetimi, satın alımları geri yükleme ve hesap silme kullanılabilir. Geçerli ücretli abonelik veya yönetici tarafından verilen ücretsiz üyelik yoksa kaydetme, oluşturma ve düzenleme gibi temel yazma işlemleri kısıtlanır.\n\nGoogle Play > Ödemeler ve abonelikler > Abonelikler bölümünden istediğiniz zaman iptal edebilirsiniz. Ödediğiniz dönemin sonuna kadar erişiminiz sürer. Apple Kimliği ayarları > Abonelikler bölümünden istediğiniz zaman iptal edebilirsiniz. Ödediğiniz dönemin sonuna kadar erişiminiz sürer."
       },
       "homeShortcut": {
         "title": "Ana ekran kısayolu (1×1)",
@@ -1310,12 +1310,12 @@
       "reportBody": "Uygulamada kullanıcıları, koleksiyonları, bağlantıları ve yorumları bildirebilir, diğer kullanıcıları engelleyebilirsiniz. Bildirimleri insanlar inceler.",
       "restrictionTitle": "Kısıtlamalar",
       "restrictionBody": "Şartlar ihlal edilirse içerik kısıtlanabilir veya kaldırılabilir, paylaşım durdurulabilir, bazı özellikler sınırlandırılabilir veya hesap kısıtlanabilir.",
-      "subscriptionTitle": "Ücretsiz hizmet",
-      "subscriptionBody": "Juple ilk yayınlandığında ücretsizdir. Ödeme yöntemi veya abonelik gerekmez ve 30 günlük kullanım sınırı yoktur."
+      "subscriptionTitle": "Ücretsiz kullanım ve üyelik",
+      "subscriptionBody": "Üyelik başlamadan önce Juple, ödeme yöntemi veya abonelik olmadan ücretsiz kullanılabilir. Başlangıç ve güncellenen koşulların yürürlük tarihleri henüz belirlenmemiştir; uygulanmadan önce duyurulur. Açık satın alma onayı olmadan ücret alınmaz."
     },
     "privacy": {
       "itemsTitle": "Toplanan bilgiler",
-      "itemsBody": "• Bir oturum açma tanımlayıcısı (Microsoft Entra External ID tarafından verilir; e-posta adresiniz ve parolanız Microsoft tarafından işlenir ve Juple sunucularında saklanmaz)\n• Juple ID, takma ad ve profil fotoğrafı (isteğe bağlı), dil ve saat dilimi\n• Girdiğiniz bağlantılar, notlar, fotoğraflar, koleksiyonlar, arkadaşlar, davetler, yorumlar, tepkiler ve destek talepleri\n• Şartları kabul kaydı, bildirimler ve engellemeler\n• Anlık bildirimleri açarsanız: uygulama kurulum kimliği ve anlık bildirim belirteci\n• Hizmet işletim günlükleri",
+      "itemsBody": "• Bir oturum açma tanımlayıcısı (Microsoft Entra External ID tarafından verilir; e-posta adresiniz ve parolanız Microsoft tarafından işlenir ve Juple sunucularında saklanmaz)\n• Juple ID, takma ad ve profil fotoğrafı (isteğe bağlı), dil ve saat dilimi\n• Girdiğiniz bağlantılar, notlar, fotoğraflar, koleksiyonlar, arkadaşlar, davetler, yorumlar, tepkiler ve destek talepleri\n• Şartları kabul kaydı, bildirimler ve engellemeler\n• Anlık bildirimleri açarsanız: uygulama kurulum kimliği ve anlık bildirim belirteci\n• Hizmet işletim günlükleri\n• Doğrulama, yenileme ve geri yükleme için şifrelenmiş satın alma jetonu veya imzalı işlem bilgisi, ürün, durum ve tarihler işlenir. Tekrarlı denemeleri önlemek için kimlik ve normalleştirilmiş giriş e-postasının anahtarlı özetleriyle geçmiş ve resmi deneme süreleri ayrı tutulur.",
       "purposeTitle": "Kullanım amacı",
       "purposeBody": "Hizmeti sunmak (kaydetme, düzenleme, paylaşma, birlikte çalışma, bildirimler), hesapları doğrulamak ve güvende tutmak, bildirimleri işleyip hizmeti güvenli tutmak, talepleri yanıtlamak ve hizmetin kararlılığını sağlamak.",
       "retentionTitle": "Saklama süresi",
@@ -1687,7 +1687,7 @@
       "pending": "Ödeme onaylanıyor"
     },
     "trialCard": {
-      "title": "İlk ay ücretsiz",
+      "title": "Juple ücretsiz denemeniz",
       "daysLeft": "{{count}} gün kaldı!",
       "lastDay": "1 gün kaldı!",
       "dDay": "D-{{count}}",
@@ -1697,7 +1697,7 @@
     },
     "noPaymentNeeded": {
       "title": "Şimdi ödeme yapman gerekmiyor",
-      "body": "Ücretsiz dönem bittikten sonra da Juple’ı kullanmak istersen bir üyelik seç."
+      "body": "Sonrasında mevcut bağlantı ve koleksiyonları görüntüleme, hesap ve abonelik yönetimi, satın alımları geri yükleme ve hesap silme kullanılabilir. Geçerli ücretli abonelik veya yönetici tarafından verilen ücretsiz üyelik yoksa kaydetme, oluşturma ve düzenleme gibi temel yazma işlemleri kısıtlanır."
     },
     "trialPurchase": {
       "title": "Şimdi abone olursan ücret bugün alınır",
@@ -1713,7 +1713,7 @@
   },
   "welcomeTrial": {
     "title": "Juple’a hoş geldin! 🎉",
-    "body": "Kaydolduğun için teşekkürler.\n\nİlk ay boyunca Juple’ın tüm özelliklerini ücretsiz kullan!\n\nÜcretsiz dönemden sonra da kullanmak istersen {{myPage}} bölümünden bir üyelik seçebilirsin.\n\nBaşlamak için ödeme gerekmez ve otomatik olarak ücret alınmaz.",
+    "body": "Kaydolduğun için teşekkürler.\n\nHer kişi tam 30 gün (720 saat) süren tek bir deneme alır. Mevcut üyeler için üyelik hizmetinin resmi başlangıç anından, sonradan kaydolanlar için kayıt anından hesaplanır. Bu bir mağaza denemesi değildir ve otomatik olarak ücretliye dönüşmez. Deneme sırasında abone olursanız ücretsiz süre kalsa bile ücret hemen alınır.\n\nSonrasında mevcut bağlantı ve koleksiyonları görüntüleme, hesap ve abonelik yönetimi, satın alımları geri yükleme ve hesap silme kullanılabilir. Geçerli ücretli abonelik veya yönetici tarafından verilen ücretsiz üyelik yoksa kaydetme, oluşturma ve düzenleme gibi temel yazma işlemleri kısıtlanır.\n\nÜyeliğinizi {{myPage}} bölümünden yönetin.",
     "start": "Juple’ı kullanmaya başla"
   },
   "trialEnded": {

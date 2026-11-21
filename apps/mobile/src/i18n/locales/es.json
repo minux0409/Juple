@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "Eliminar tu cuenta no se puede deshacer",
-    "warningIntro": "Se eliminará para siempre todo lo siguiente:",
+    "warningIntro": "Se eliminará para siempre todo lo siguiente:\n\nDesinstalar la aplicación o eliminar la cuenta de Juple no cancela suscripciones de Google Play ni Apple App Store. Cancélalas primero en los ajustes de suscripciones de la tienda de compra.",
     "dataLinks": "Enlaces guardados y notas",
     "dataPhotos": "Fotos subidas (fotos de enlaces, fotos de colecciones y tu foto de perfil)",
     "dataCollections": "Tus colecciones y sus enlaces públicos",
@@ -975,10 +975,10 @@
     "title": "Suscripción",
     "planName": "Suscripción a Juple",
     "trialNotice": {
-      "welcomeTitle": "Disfruta de Juple gratis durante un mes",
-      "welcomeBody": "Es gratis hasta el {{date}}. Después del periodo gratuito, se necesita una suscripción de pago.",
+      "welcomeTitle": "Tu prueba gratuita de Juple",
+      "welcomeBody": "Fin de la prueba gratuita: {{date}}. Cada persona dispone de una prueba de exactamente 30 días (720 horas). Para quienes ya eran miembros comienza al iniciarse el servicio de membresía; para quienes se registren después, en el momento del registro. Después podrás consultar enlaces y colecciones existentes, gestionar la cuenta y las suscripciones, restaurar compras y eliminar la cuenta. Sin una suscripción válida o una membresía gratuita otorgada por un administrador, se restringen acciones principales como guardar, crear y editar.",
       "endingTitle": "Tu periodo gratuito termina pronto",
-      "endingBody": "Puedes usar Juple gratis hasta el {{date}}. Después se necesita una suscripción de pago.",
+      "endingBody": "Fin de la prueba gratuita: {{date}}. Después podrás consultar enlaces y colecciones existentes, gestionar la cuenta y las suscripciones, restaurar compras y eliminar la cuenta. Sin una suscripción válida o una membresía gratuita otorgada por un administrador, se restringen acciones principales como guardar, crear y editar.",
       "view": "Ver suscripción"
     },
     "pricePerMonth": "{{price}} / mes",
@@ -1079,7 +1079,7 @@
     "billing": {
       "summaryMonthly": "Se cobran {{price}} cada mes y se renueva automáticamente hasta que canceles.",
       "summaryYearly": "Se cobran {{price}} cada año y se renueva automáticamente hasta que canceles.",
-      "freeNotice": "Los 30 días gratis de Juple se cuentan desde tu registro y no son una prueba gratuita de la tienda. Si te suscribes ahora, se te cobra de inmediato aunque te queden días gratis.",
+      "freeNotice": "Cada persona dispone de una prueba de exactamente 30 días (720 horas). Para quienes ya eran miembros comienza al iniciarse el servicio de membresía; para quienes se registren después, en el momento del registro. No es una prueba de la tienda y no se convierte automáticamente en una suscripción de pago. Si te suscribes durante la prueba, se cobra de inmediato aunque quede tiempo gratuito.",
       "cancelHowAndroid": "Puedes cancelar cuando quieras en Google Play > Pagos y suscripciones > Suscripciones. Seguirás teniendo acceso hasta el final del periodo pagado.",
       "cancelHowIos": "Puedes cancelar cuando quieras en Ajustes del ID de Apple > Suscripciones. Seguirás teniendo acceso hasta el final del periodo pagado."
     },
@@ -1235,7 +1235,7 @@
       },
       "settings": {
         "title": "Cuenta y ajustes",
-        "body": "Mi página tiene tu perfil e ID de Juple, idioma, Guardado rápido, Amigos, Bloqueo de colecciones, Eliminados recientemente y la gestión de la cuenta. Contacta con soporte desde el Centro de ayuda.\n\nEn Gestionar cuenta puedes ver cómo inicias sesión y eliminar tu cuenta, lo que elimina definitivamente tu cuenta y tus datos."
+        "body": "Mi página tiene tu perfil e ID de Juple, idioma, Guardado rápido, Amigos, Bloqueo de colecciones, Eliminados recientemente y la gestión de la cuenta. Contacta con soporte desde el Centro de ayuda.\n\nEn Gestionar cuenta puedes ver cómo inicias sesión y eliminar tu cuenta, lo que elimina definitivamente tu cuenta y tus datos.\n\nCada persona dispone de una prueba de exactamente 30 días (720 horas). Para quienes ya eran miembros comienza al iniciarse el servicio de membresía; para quienes se registren después, en el momento del registro. Después podrás consultar enlaces y colecciones existentes, gestionar la cuenta y las suscripciones, restaurar compras y eliminar la cuenta. Sin una suscripción válida o una membresía gratuita otorgada por un administrador, se restringen acciones principales como guardar, crear y editar.\n\nPuedes cancelar cuando quieras en Google Play > Pagos y suscripciones > Suscripciones. Seguirás teniendo acceso hasta el final del periodo pagado. Puedes cancelar cuando quieras en Ajustes del ID de Apple > Suscripciones. Seguirás teniendo acceso hasta el final del periodo pagado."
       },
       "homeShortcut": {
         "title": "Acceso directo en la pantalla de inicio (1×1)",
@@ -1310,12 +1310,12 @@
       "reportBody": "Puedes denunciar usuarios, colecciones, enlaces y comentarios en la app, y bloquear a otros usuarios. Las denuncias las revisan personas.",
       "restrictionTitle": "Restricciones",
       "restrictionBody": "Si se incumplen los términos, el contenido puede restringirse o eliminarse, detenerse el uso compartido, limitarse algunas funciones o restringirse la cuenta.",
-      "subscriptionTitle": "Servicio gratuito",
-      "subscriptionBody": "Juple es gratuito en su lanzamiento. No requiere método de pago ni suscripción, y no hay límite de uso de 30 días."
+      "subscriptionTitle": "Acceso gratuito e información de membresía",
+      "subscriptionBody": "Antes del inicio de la membresía puedes usar Juple gratis sin registrar un medio de pago ni suscribirte. La fecha de inicio y la entrada en vigor de los términos revisados no están fijadas y se anunciarán antes de aplicarse. No habrá cargos sin consentimiento expreso de compra."
     },
     "privacy": {
       "itemsTitle": "Datos que recopilamos",
-      "itemsBody": "• Un identificador de inicio de sesión (emitido por Microsoft Entra External ID; tu correo electrónico y contraseña los gestiona Microsoft y no se almacenan en los servidores de Juple)\n• ID de Juple, apodo y foto de perfil (opcionales), idioma y zona horaria\n• Enlaces, notas, fotos, colecciones, amigos, invitaciones, comentarios, reacciones y consultas de soporte que introduces\n• Registro de aceptación de los términos, denuncias y bloqueos\n• Si activas las notificaciones push: ID de instalación de la app y token push\n• Registros de funcionamiento del servicio",
+      "itemsBody": "• Un identificador de inicio de sesión (emitido por Microsoft Entra External ID; tu correo electrónico y contraseña los gestiona Microsoft y no se almacenan en los servidores de Juple)\n• ID de Juple, apodo y foto de perfil (opcionales), idioma y zona horaria\n• Enlaces, notas, fotos, colecciones, amigos, invitaciones, comentarios, reacciones y consultas de soporte que introduces\n• Registro de aceptación de los términos, denuncias y bloqueos\n• Si activas las notificaciones push: ID de instalación de la app y token push\n• Registros de funcionamiento del servicio\n• Para verificar, renovar y restaurar suscripciones tratamos tokens de compra o transacciones firmadas cifrados, producto, estado y fechas de inicio y fin. Para evitar pruebas repetidas guardamos hashes con clave del identificador de acceso y del correo normalizado, separando los periodos históricos y oficiales.",
       "purposeTitle": "Finalidad del uso",
       "purposeBody": "Prestar el servicio (guardar, organizar, compartir, colaborar, notificaciones), verificar cuentas y mantenerlas seguras, tramitar denuncias y mantener el servicio seguro, atender consultas y mantener el servicio estable.",
       "retentionTitle": "Conservación",
@@ -1687,7 +1687,7 @@
       "pending": "Confirmando el pago"
     },
     "trialCard": {
-      "title": "Tu primer mes, gratis",
+      "title": "Tu prueba gratuita de Juple",
       "daysLeft": "¡Quedan {{count}} días!",
       "lastDay": "¡Queda 1 día!",
       "dDay": "D-{{count}}",
@@ -1697,7 +1697,7 @@
     },
     "noPaymentNeeded": {
       "title": "No necesitas pagar ahora",
-      "body": "Si quieres seguir usando Juple cuando termine tu periodo gratuito, elige una membresía."
+      "body": "Después podrás consultar enlaces y colecciones existentes, gestionar la cuenta y las suscripciones, restaurar compras y eliminar la cuenta. Sin una suscripción válida o una membresía gratuita otorgada por un administrador, se restringen acciones principales como guardar, crear y editar."
     },
     "trialPurchase": {
       "title": "Si te suscribes ahora, se cobra hoy",
@@ -1713,7 +1713,7 @@
   },
   "welcomeTrial": {
     "title": "¡Te damos la bienvenida a Juple! 🎉",
-    "body": "Gracias por registrarte.\n\n¡Disfruta gratis de todas las funciones de Juple durante tu primer mes!\n\nSi quieres seguir usándolo después del periodo gratuito, puedes elegir una membresía en {{myPage}}.\n\nEmpieza sin ningún pago y no se te cobrará automáticamente.",
+    "body": "Gracias por registrarte.\n\nCada persona dispone de una prueba de exactamente 30 días (720 horas). Para quienes ya eran miembros comienza al iniciarse el servicio de membresía; para quienes se registren después, en el momento del registro. No es una prueba de la tienda y no se convierte automáticamente en una suscripción de pago. Si te suscribes durante la prueba, se cobra de inmediato aunque quede tiempo gratuito.\n\nDespués podrás consultar enlaces y colecciones existentes, gestionar la cuenta y las suscripciones, restaurar compras y eliminar la cuenta. Sin una suscripción válida o una membresía gratuita otorgada por un administrador, se restringen acciones principales como guardar, crear y editar.\n\nGestiona tu membresía en {{myPage}}.",
     "start": "Empezar con Juple"
   },
   "trialEnded": {

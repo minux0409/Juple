@@ -214,3 +214,13 @@ it('names both platform push services in the collection notice', () => {
   assert.match(policy, /Android 푸시 전송에는 Google Firebase Cloud Messaging/);
   assert.match(policy, /iOS 푸시 전송에는 Apple Push Notification service/);
 });
+
+it('discloses both billing stores and makes account deletion distinct from subscription cancellation', () => {
+  const privacy = text(privacyDocument(noOperator));
+  const deletion = text(accountDeletionDocument(noOperator));
+  assert.match(privacy, /Apple\(App Store\)/);
+  assert.match(privacy, /서명된 거래 정보/);
+  assert.match(deletion, /Apple 계정 설정 > 구독/);
+  assert.match(deletion, /앱 삭제나 계정 삭제만으로 구독이 취소되지는 않습니다/);
+  assert.equal(termsDocument(noOperator).updated, '2026-10-25');
+});

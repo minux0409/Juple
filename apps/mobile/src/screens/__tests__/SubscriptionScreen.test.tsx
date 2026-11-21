@@ -218,6 +218,12 @@ describe('SubscriptionScreen', () => {
     expect(byId(renderer, 'subscription-manage')).toHaveLength(0);
   });
 
+  it('shows cohort-aware trial billing guidance only after the server enables membership', async () => {
+    const renderer = await screenWith(entitlementOf({}), storeOf({}));
+    expect(texts(renderer)).toContain(i18n.t('subscription.billing.freeNotice'));
+    expect(textNodes(renderer, 'subscription-free-notice')).toHaveLength(1);
+  });
+
   it('there is exactly one status heading and one status card - the old "access" section is gone', async () => {
     const renderer = await screenWith(programOff(), storeOf({}));
 

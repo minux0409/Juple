@@ -1,5 +1,6 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Platform } from 'react-native';
+import { Platform, Text } from 'react-native';
+import i18n from '../../i18n';
 import { useOptionalAuth } from '../../auth/AuthContext';
 import { TrialNotice } from '../TrialNotice';
 import { useSubscriptionEntryAvailable } from '../useSubscriptionEntry';
@@ -50,4 +51,19 @@ describe.each(['ios', 'android'] as const)('trial notice on %s', platform => {
       await act(async () => renderer.unmount());
     },
   );
+
+  it.each(['ar', 'de', 'ja'])('renders %s policy text without truncating the body', async language => {
+    const previous = i18n.language;
+    try {
+      await i18n.changeLanguage(language);
+      const renderer = await mountNotice(10, true);
+      const body = renderer.root.findAllByType(Text).find(node => String(node.props.children).includes('720'));
+      expect(body).toBeDefined();
+      expect(body!.props.numberOfLines).toBeUndefined();
+      expect(String(body!.props.children)).not.toMatch(/\{\{date\}\}/);
+      await act(async () => renderer.unmount());
+    } finally {
+      await i18n.changeLanguage(previous);
+    }
+  });
 });

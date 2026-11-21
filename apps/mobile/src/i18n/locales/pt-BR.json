@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "A exclusão da conta não pode ser desfeita",
-    "warningIntro": "Tudo o que está abaixo será excluído permanentemente:",
+    "warningIntro": "Tudo o que está abaixo será excluído permanentemente:\n\nDesinstalar o app ou excluir a conta do Juple não cancela assinaturas do Google Play ou Apple App Store. Cancele primeiro nas configurações de assinaturas da loja onde comprou.",
     "dataLinks": "Links salvos e notas",
     "dataPhotos": "Fotos enviadas (fotos de links, fotos de coleções e sua foto de perfil)",
     "dataCollections": "Suas coleções e os links públicos delas",
@@ -975,10 +975,10 @@
     "title": "Assinatura",
     "planName": "Assinatura do Juple",
     "trialNotice": {
-      "welcomeTitle": "Use o Juple de graça por um mês",
-      "welcomeBody": "É grátis até {{date}}. Depois do período gratuito, é necessária uma assinatura paga.",
+      "welcomeTitle": "Seu teste gratuito do Juple",
+      "welcomeBody": "Fim do teste gratuito: {{date}}. Cada pessoa tem um teste de exatamente 30 dias (720 horas), uma única vez. Para membros existentes, começa no início do serviço de assinatura; para quem se cadastrar depois, no instante do cadastro. Depois, você ainda pode consultar links e coleções existentes, gerenciar conta e assinaturas, restaurar compras e excluir a conta. Sem assinatura válida ou acesso gratuito concedido por administrador, ações principais de gravação, como salvar, criar e editar, ficam restritas.",
       "endingTitle": "Seu período gratuito termina em breve",
-      "endingBody": "Uso gratuito até {{date}}. Depois, é necessária uma assinatura paga.",
+      "endingBody": "Fim do teste gratuito: {{date}}. Depois, você ainda pode consultar links e coleções existentes, gerenciar conta e assinaturas, restaurar compras e excluir a conta. Sem assinatura válida ou acesso gratuito concedido por administrador, ações principais de gravação, como salvar, criar e editar, ficam restritas.",
       "view": "Ver assinatura"
     },
     "pricePerMonth": "{{price}} / mês",
@@ -1079,7 +1079,7 @@
     "billing": {
       "summaryMonthly": "{{price}} são cobrados todo mês e renovam automaticamente até você cancelar.",
       "summaryYearly": "{{price}} são cobrados todo ano e renovam automaticamente até você cancelar.",
-      "freeNotice": "Os 30 dias grátis do Juple contam a partir do seu cadastro e não são um teste grátis da loja. Se você assinar agora, a cobrança é imediata, mesmo que ainda restem dias grátis.",
+      "freeNotice": "Cada pessoa tem um teste de exatamente 30 dias (720 horas), uma única vez. Para membros existentes, começa no início do serviço de assinatura; para quem se cadastrar depois, no instante do cadastro. Não é um teste da loja e não vira uma assinatura paga automaticamente. Ao assinar durante o teste, a cobrança é imediata, mesmo que ainda reste tempo gratuito.",
       "cancelHowAndroid": "Cancele quando quiser em Google Play > Pagamentos e assinaturas > Assinaturas. Você mantém o acesso até o fim do período pago.",
       "cancelHowIos": "Cancele quando quiser em Ajustes do ID Apple > Assinaturas. Você mantém o acesso até o fim do período pago."
     },
@@ -1235,7 +1235,7 @@
       },
       "settings": {
         "title": "Conta e configurações",
-        "body": "Minha página tem seu perfil e ID Juple, idioma, Salvamento rápido, Amigos, Bloqueio de coleções, Excluídos recentemente e o gerenciamento da conta. Fale com o suporte pela Central de ajuda.\n\nEm Gerenciar conta você vê como faz login e pode excluir sua conta, o que exclui de vez sua conta e seus dados."
+        "body": "Minha página tem seu perfil e ID Juple, idioma, Salvamento rápido, Amigos, Bloqueio de coleções, Excluídos recentemente e o gerenciamento da conta. Fale com o suporte pela Central de ajuda.\n\nEm Gerenciar conta você vê como faz login e pode excluir sua conta, o que exclui de vez sua conta e seus dados.\n\nCada pessoa tem um teste de exatamente 30 dias (720 horas), uma única vez. Para membros existentes, começa no início do serviço de assinatura; para quem se cadastrar depois, no instante do cadastro. Depois, você ainda pode consultar links e coleções existentes, gerenciar conta e assinaturas, restaurar compras e excluir a conta. Sem assinatura válida ou acesso gratuito concedido por administrador, ações principais de gravação, como salvar, criar e editar, ficam restritas.\n\nCancele quando quiser em Google Play > Pagamentos e assinaturas > Assinaturas. Você mantém o acesso até o fim do período pago. Cancele quando quiser em Ajustes do ID Apple > Assinaturas. Você mantém o acesso até o fim do período pago."
       },
       "homeShortcut": {
         "title": "Atalho na tela inicial (1×1)",
@@ -1310,12 +1310,12 @@
       "reportBody": "Você pode denunciar usuários, coleções, links e comentários no app e bloquear outros usuários. As denúncias são analisadas por pessoas.",
       "restrictionTitle": "Restrições",
       "restrictionBody": "Se os termos forem violados, o conteúdo pode ser restringido ou removido, o compartilhamento interrompido, alguns recursos limitados ou a conta restringida.",
-      "subscriptionTitle": "Serviço gratuito",
-      "subscriptionBody": "O Juple é gratuito no lançamento. Não exige forma de pagamento nem assinatura e não tem limite de uso de 30 dias."
+      "subscriptionTitle": "Acesso gratuito e assinatura",
+      "subscriptionBody": "Antes do início da assinatura, o Juple é gratuito sem cadastrar forma de pagamento nem assinar. A data de início e a vigência dos termos revisados ainda não foram definidas e serão anunciadas antes da aplicação. Não há cobrança sem consentimento explícito de compra."
     },
     "privacy": {
       "itemsTitle": "Dados coletados",
-      "itemsBody": "• Um identificador de login (emitido pelo Microsoft Entra External ID; seu e-mail e senha são tratados pela Microsoft e não ficam armazenados nos servidores do Juple)\n• ID do Juple, apelido e foto de perfil (opcionais), idioma e fuso horário\n• Links, notas, fotos, coleções, amigos, convites, comentários, reações e solicitações de suporte que você inserir\n• Registro de aceite dos termos, denúncias e bloqueios\n• Se você ativar as notificações push: ID de instalação do app e token push\n• Registros de operação do serviço",
+      "itemsBody": "• Um identificador de login (emitido pelo Microsoft Entra External ID; seu e-mail e senha são tratados pela Microsoft e não ficam armazenados nos servidores do Juple)\n• ID do Juple, apelido e foto de perfil (opcionais), idioma e fuso horário\n• Links, notas, fotos, coleções, amigos, convites, comentários, reações e solicitações de suporte que você inserir\n• Registro de aceite dos termos, denúncias e bloqueios\n• Se você ativar as notificações push: ID de instalação do app e token push\n• Registros de operação do serviço\n• Para verificar, renovar e restaurar assinaturas, tratamos tokens de compra ou transações assinadas criptografados, produto, estado e datas. Para impedir testes repetidos, guardamos hashes com chave do identificador e do e-mail de login normalizado, separando períodos históricos e oficiais.",
       "purposeTitle": "Finalidade de uso",
       "purposeBody": "Prestar o serviço (salvar, organizar, compartilhar, colaborar, notificações), verificar contas e mantê-las seguras, tratar denúncias e manter o serviço seguro, responder a solicitações e manter o serviço estável.",
       "retentionTitle": "Retenção",
@@ -1687,7 +1687,7 @@
       "pending": "Confirmando pagamento"
     },
     "trialCard": {
-      "title": "Seu primeiro mês grátis",
+      "title": "Seu teste gratuito do Juple",
       "daysLeft": "Faltam {{count}} dias!",
       "lastDay": "Falta 1 dia!",
       "dDay": "D-{{count}}",
@@ -1697,7 +1697,7 @@
     },
     "noPaymentNeeded": {
       "title": "Não precisa pagar agora",
-      "body": "Se quiser continuar usando o Juple depois do período gratuito, escolha uma assinatura."
+      "body": "Depois, você ainda pode consultar links e coleções existentes, gerenciar conta e assinaturas, restaurar compras e excluir a conta. Sem assinatura válida ou acesso gratuito concedido por administrador, ações principais de gravação, como salvar, criar e editar, ficam restritas."
     },
     "trialPurchase": {
       "title": "Assinando agora, a cobrança é feita hoje",
@@ -1713,7 +1713,7 @@
   },
   "welcomeTrial": {
     "title": "Boas-vindas ao Juple! 🎉",
-    "body": "Obrigado por se cadastrar.\n\nAproveite todos os recursos do Juple de graça no primeiro mês!\n\nSe quiser continuar usando depois do período gratuito, você pode escolher uma assinatura em {{myPage}}.\n\nVocê começa sem pagar nada e não haverá cobrança automática.",
+    "body": "Obrigado por se cadastrar.\n\nCada pessoa tem um teste de exatamente 30 dias (720 horas), uma única vez. Para membros existentes, começa no início do serviço de assinatura; para quem se cadastrar depois, no instante do cadastro. Não é um teste da loja e não vira uma assinatura paga automaticamente. Ao assinar durante o teste, a cobrança é imediata, mesmo que ainda reste tempo gratuito.\n\nDepois, você ainda pode consultar links e coleções existentes, gerenciar conta e assinaturas, restaurar compras e excluir a conta. Sem assinatura válida ou acesso gratuito concedido por administrador, ações principais de gravação, como salvar, criar e editar, ficam restritas.\n\nGerencie sua assinatura em {{myPage}}.",
     "start": "Começar a usar o Juple"
   },
   "trialEnded": {

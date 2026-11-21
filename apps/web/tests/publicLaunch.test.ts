@@ -227,10 +227,11 @@ describe('legal pages: the operator, the privacy officer and the reviewed texts'
     assert.equal(privacyDocument(config).sections.some(section => section.id === 'overseas-transfer'), false);
   });
 
-  it('the first launch is free without a payment method, subscription or 30-day limit', () => {
+  it('access before membership launch is free, without promising unlimited free access after launch', () => {
     const terms = text(termsDocument(config));
-    assert.match(terms, /첫 출시 시 무료/);
-    assert.match(terms, /30일 이용 제한은 적용되지 않습니다/);
+    assert.match(terms, /멤버십 프로그램 시작 전/);
+    assert.match(terms, /시행일은 아직 확정되지 않았으며/);
+    assert.doesNotMatch(terms, /30일 이용 제한은 적용되지 않습니다/);
     assert.doesNotMatch(terms, /월 단위 자동 갱신 구독/);
   });
 
@@ -242,24 +243,23 @@ describe('legal pages: the operator, the privacy officer and the reviewed texts'
     }
   });
 
-  it('states the email-only sign-in: no Google or Apple sign-in anywhere, while Google Play and Firebase stay disclosed', () => {
+  it('states the email-only sign-in: no Google or Apple sign-in claims, while platform billing and push stay disclosed', () => {
     for (const operator of [config, readLegalOperatorConfig({})]) {
       const privacy = text(privacyDocument(operator));
       const terms = text(termsDocument(operator));
       const deletion = text(accountDeletionDocument(operator));
       for (const [slug, body] of [['privacy', privacy], ['terms', terms], ['account-deletion', deletion]] as const) {
-        assert.doesNotMatch(body, /Google 로그인|Apple 로그인|Google 계정|Apple 계정|Google, Apple|Google 또는 Apple|선택한 로그인 방식/, slug);
-        assert.doesNotMatch(body.replace(/Apple\(Apple Push Notification service, APNs\)|Google\((Firebase Cloud Messaging|Google Play)\)|Google Firebase Cloud Messaging|Apple Push Notification service\(APNs\)|Google Play|Firebase Cloud Messaging/g, ''), /Google|Apple/, `${slug}: Google/Apple only as Play and Firebase`);
+        assert.doesNotMatch(body, /Google 로그인|Apple 로그인|Google 계정|Apple 계정으로 로그인|Google, Apple|Google 또는 Apple|선택한 로그인 방식/, slug);
       }
       assert.match(privacy, /회원 가입과 로그인은 이메일 주소와 비밀번호로 하며, Microsoft Entra External ID를 통해 이루어집니다/);
       assert.match(privacy, /Microsoft\(Microsoft Entra External ID\): 회원 가입·로그인과 본인 확인\. 로그인에 쓰는 이메일 주소와 비밀번호, 로그인 식별자를 처리합니다/);
       assert.match(privacy, /Google\(Firebase Cloud Messaging\): Android 푸시 알림 전송/);
       assert.match(privacy, /Google\(Google Play\): 구독 결제, 갱신, 해지, 환불/);
       assert.match(terms, /계정은 이메일 주소와 비밀번호로 만들며/);
-      assert.match(terms, /첫 출시 시 무료/);
+      assert.match(terms, /멤버십 프로그램 시작 전/);
       assert.match(deletion, /가입과 로그인에 사용한 이메일 주소/);
       assert.match(deletion, /본인 확인을 위해 \*\*다시 로그인\*\*합니다/);
-      assert.match(deletion, /계정을 삭제해도 Google Play 구독은 자동으로 해지되지 않습니다/);
+      assert.match(deletion, /계정을 삭제해도 Google Play 또는 Apple App Store 구독은 자동으로 해지되지 않습니다/);
     }
   });
 
