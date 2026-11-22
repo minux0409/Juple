@@ -37,10 +37,13 @@ public sealed class SafetyController(
     [Juple.Api.Safety.AllowWithoutTermsAcceptance]
     [HttpPost("users/me/terms-acceptance")]
     public Task<IActionResult> AcceptTermsAsync([FromBody] AcceptTermsRequest request, CancellationToken cancellationToken) =>
-        request.Version?.Trim() == TermsOptions.AgeRestrictedVersion && request.IsAtLeast14 != true
+        request.IsAtLeast14 != true
             ? Task.FromResult<IActionResult>(Juple.Api.Safety.SafetyProblems.Create(
                 StatusCodes.Status400BadRequest, "Juple requires confirmation that you are at least 14 years old.", "minimumAgeConfirmationRequired"))
-            : ExecuteAsync(userId => termsService.AcceptAsync(userId, request.Version, cancellationToken), status => Ok(TermsResponse.From(status)), cancellationToken);
+            : !PublishedTerms.Matches(request.Version, request.ContentHash, request.Language)
+                ? Task.FromResult<IActionResult>(Juple.Api.Safety.SafetyProblems.Create(
+                    StatusCodes.Status400BadRequest, "The displayed published terms must match this consent.", "termsDocumentMismatch"))
+                : ExecuteAsync(userId => termsService.AcceptAsync(userId, request.Version, cancellationToken), status => Ok(TermsResponse.From(status)), cancellationToken);
 
     /// <summary>201 for a new report, 200 when this person already has an open report of the same thing (nothing is created twice).</summary>
     [HttpPost("reports")]
@@ -115,7 +118,7 @@ public sealed class SafetyController(
         }
     }
 
-    public sealed record AcceptTermsRequest(string? Version, bool? IsAtLeast14 = null);
+    public sealed record AcceptTermsRequest(string? Version, bool? IsAtLeast14 = null, string? ContentHash = null, string? Language = null);
 
     public sealed record TermsResponse(string CurrentVersion, string? AcceptedVersion, DateTimeOffset? AcceptedAtUtc, bool IsAccepted)
     {

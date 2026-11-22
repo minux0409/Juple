@@ -26,7 +26,7 @@ public sealed class TermsAndSafetyApiTests
         // Rejection happens before any account/store access; old clients cannot accept the new policy silently.
         var controller = new Juple.Api.Controllers.SafetyController(null!, null!, null!, null!, null!);
         var result = await controller.AcceptTermsAsync(
-            new(padded ? $" {TermsOptions.AgeRestrictedVersion} " : TermsOptions.AgeRestrictedVersion, confirmation), CancellationToken.None);
+            new(padded ? $" {TermsOptions.DefaultVersion} " : TermsOptions.DefaultVersion, confirmation), CancellationToken.None);
         var response = Assert.IsType<ObjectResult>(result);
         Assert.Equal(400, response.StatusCode);
         var problem = Assert.IsType<ProblemDetails>(response.Value);
@@ -34,15 +34,70 @@ public sealed class TermsAndSafetyApiTests
     }
 
     [Theory]
-    [InlineData("2026-10-14", null)] // Android v33 / iOS 1.0(1) request shape.
-    [InlineData("2026-10-14", true)] // New client against the staged, legacy policy.
-    [InlineData("2026-10-25", true)] // New client after explicit policy activation.
+    [InlineData("2026-10-25", true)]
     public async Task CompatibleClients_CanAcceptTheirCurrentPolicy(string currentVersion, bool? confirmation)
     {
         var controller = new Juple.Api.Controllers.SafetyController(new Identity(), new Users(), new AcceptingTerms(currentVersion), null!, null!);
-        var result = await controller.AcceptTermsAsync(new(currentVersion, confirmation), CancellationToken.None);
+        var result = await controller.AcceptTermsAsync(new(currentVersion, confirmation, PublishedTerms.ContentHash, "ko"), CancellationToken.None);
         var response = Assert.IsType<OkObjectResult>(result);
         Assert.True(Assert.IsType<Juple.Api.Controllers.SafetyController.TermsResponse>(response.Value).IsAccepted);
+    }
+
+    [Theory]
+    [InlineData("2099-01-01", null)]
+    [InlineData("2099-01-01", false)]
+    [InlineData("2026-10-14", null)]
+    public async Task EveryVersionRequiresAgeBeforeAnyStoreAccess(string version, bool? age)
+    {
+        var controller = new Juple.Api.Controllers.SafetyController(null!, null!, null!, null!, null!);
+        var result = Assert.IsType<ObjectResult>(await controller.AcceptTermsAsync(new(version, age), CancellationToken.None));
+        Assert.Equal("minimumAgeConfirmationRequired", Assert.IsType<ProblemDetails>(result.Value).Extensions["code"]);
+    }
+
+    [Theory]
+    [InlineData("2026-10-25", null)]
+    [InlineData("2026-10-25", "wrong")]
+    [InlineData("2099-01-01", "wrong")]
+    public async Task UnknownOrUndisplayedDocumentCannotBeAccepted(string version, string? hash)
+    {
+        var controller = new Juple.Api.Controllers.SafetyController(null!, null!, null!, null!, null!);
+        var result = Assert.IsType<ObjectResult>(await controller.AcceptTermsAsync(new(version, true, hash), CancellationToken.None));
+        Assert.Equal("termsDocumentMismatch", Assert.IsType<ProblemDetails>(result.Value).Extensions["code"]);
+    }
+
+    [Fact]
+    public void PublishedDocumentHasExplicitMappingForAll17LanguagesButNoFutureDraft()
+    {
+        string[] languages = ["ko", "en", "ja", "zh-Hans", "zh-Hant", "es", "fr", "de", "it", "pt-BR", "vi", "th", "id", "ru", "tr", "ar", "hi"];
+        foreach (var language in languages)
+        {
+            var document = System.Text.Json.JsonSerializer.SerializeToElement(PublishedTerms.GetDocument(PublishedTerms.Version, language));
+            Assert.Equal(language, document.GetProperty("requestedLanguage").GetString());
+            Assert.Equal("ko", document.GetProperty("language").GetString());
+            Assert.Equal(language == "ko", document.GetProperty("canAccept").GetBoolean());
+            Assert.Equal(PublishedTerms.ContentHash, document.GetProperty("contentHash").GetString());
+        }
+        Assert.Null(PublishedTerms.GetDocument("2099-01-01", "ko"));
+        Assert.Null(PublishedTerms.GetDocument(PublishedTerms.Version, "invalid"));
+        Assert.False(PublishedTerms.Matches("2026-10-14", PublishedTerms.ContentHash, "ko"));
+        Assert.False(PublishedTerms.Matches(PublishedTerms.Version, PublishedTerms.ContentHash, "en"));
+        Assert.False(PublishedTerms.Matches(PublishedTerms.Version, PublishedTerms.ContentHash, null));
+    }
+
+    [Fact]
+    public async Task ATranslatedDraftCannotBeAcceptedByReplayingThePublicKoreanHash()
+    {
+        var controller = new Juple.Api.Controllers.SafetyController(null!, null!, null!, null!, null!);
+        var result = Assert.IsType<ObjectResult>(await controller.AcceptTermsAsync(new(PublishedTerms.Version, true, PublishedTerms.ContentHash, "en"), default));
+        Assert.Equal("termsDocumentMismatch", Assert.IsType<ProblemDetails>(result.Value).Extensions["code"]);
+    }
+
+    [Fact]
+    public async Task PurchaseRequiresConsentEvenWhenGeneralLegacyGateIsOff()
+    {
+        var result = await RunAsync(new FakeTerms(accepted: false), Context(true, new RequireCurrentTermsAcceptanceAttribute()), enforce: false);
+        Assert.False(result.NextCalled);
+        Assert.Equal(403, Assert.IsType<ObjectResult>(result.Result).StatusCode);
     }
 
     private sealed class AcceptingTerms(string version) : ITermsConsentService
@@ -70,7 +125,8 @@ public sealed class TermsAndSafetyApiTests
     {
         public int Checks { get; private set; }
 
-        public Task<TermsStatusDto> GetStatusAsync(long userId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<TermsStatusDto> GetStatusAsync(long userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new TermsStatusDto(TermsOptions.DefaultVersion, accepted ? TermsOptions.DefaultVersion : null, null, accepted));
 
         public Task<TermsStatusDto> AcceptAsync(long userId, string? version, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
@@ -190,6 +246,8 @@ public sealed class TermsAndSafetyApiTests
                 "PushDevicesController.UnregisterAsync",
                 "SafetyController.AcceptTermsAsync",
                 "SafetyController.GetTermsAsync",
+                "SubscriptionManagementController.Get",
+                "SubscriptionManagementController.Restore",
             ],
             allowed);
     }

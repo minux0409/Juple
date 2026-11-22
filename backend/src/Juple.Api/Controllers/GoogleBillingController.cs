@@ -39,6 +39,7 @@ public sealed class GoogleBillingController(
     /// the opaque id this account must pass to Google so the purchase can be tied back to it.
     /// </summary>
     [HttpGet("catalog")]
+    [Juple.Api.Safety.RequireCurrentTermsAcceptance]
     public Task<IActionResult> GetCatalogAsync(CancellationToken cancellationToken) =>
         ExecuteAsync(
             userId => billing.GetCatalogAsync(userId, cancellationToken),
@@ -46,6 +47,7 @@ public sealed class GoogleBillingController(
             cancellationToken);
 
     [HttpPost("verify")]
+    [Juple.Api.Safety.RequireCurrentTermsAcceptance]
     public Task<IActionResult> VerifyAsync([FromBody] VerifyPurchaseRequest request, CancellationToken cancellationToken) =>
         ExecuteAsync(
             userId => billing.VerifyAsync(userId, request.PurchaseToken, cancellationToken),
@@ -54,6 +56,7 @@ public sealed class GoogleBillingController(
 
     /// <summary>Restore: the tokens Google Play reports the device holds are each verified server-side (never trusted); with none, the account's own known purchases are refreshed from Google.</summary>
     [HttpPost("restore")]
+    [Juple.Api.Safety.RequireCurrentTermsAcceptance]
     public Task<IActionResult> RestoreAsync([FromBody] RestorePurchasesRequest? request, CancellationToken cancellationToken) =>
         ExecuteAsync(
             userId => billing.RestoreAsync(userId, request?.PurchaseTokens ?? [], cancellationToken),

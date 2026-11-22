@@ -36,6 +36,7 @@ public sealed class AppleBillingController(
 
     /// <summary>Disabled: enabled=false and no identifiers. Never a price (the app asks the App Store for the localized one), a user id, a credential or a token.</summary>
     [HttpGet("catalog")]
+    [Juple.Api.Safety.RequireCurrentTermsAcceptance]
     public Task<IActionResult> GetCatalogAsync(CancellationToken cancellationToken) =>
         ExecuteAsync(
             userId => billing.GetCatalogAsync(userId, cancellationToken),
@@ -43,6 +44,7 @@ public sealed class AppleBillingController(
             cancellationToken);
 
     [HttpPost("verify")]
+    [Juple.Api.Safety.RequireCurrentTermsAcceptance]
     public Task<IActionResult> VerifyAsync([FromBody] VerifyTransactionRequest request, CancellationToken cancellationToken) =>
         ExecuteAsync(
             userId => billing.VerifyAsync(userId, request.SignedTransaction, cancellationToken),
@@ -50,6 +52,7 @@ public sealed class AppleBillingController(
             cancellationToken);
 
     [HttpPost("restore")]
+    [Juple.Api.Safety.RequireCurrentTermsAcceptance]
     public Task<IActionResult> RestoreAsync([FromBody] RestoreTransactionsRequest? request, CancellationToken cancellationToken) =>
         ExecuteAsync(
             userId => billing.RestoreAsync(userId, request?.SignedTransactions ?? [], cancellationToken),

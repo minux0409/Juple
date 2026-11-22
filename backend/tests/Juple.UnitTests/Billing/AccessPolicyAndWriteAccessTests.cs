@@ -414,7 +414,7 @@ public sealed class ExpiredWriteAllowlistTests
             [
                 "AccountController", "AdminAzureCostsController", "AdminController", "AdminCostsController", "AdminExpensesController", "AdminInsightsController", "AdminMembershipController", "AdminNoticesController", "AdminReportsController", "AdminSupportInquiriesController", "AdminWorkspaceController", "AppleBillingController", "AuthSessionController", "CollectionLockSettingsController", "CollectionNotificationPreferencesController",
                 "CurrentUserBootstrapController", "DataExportController", "GoogleBillingController", "ModerationNoticesController", "NoticesController", "NotificationsController", "PushDevicesController",
-                "RecentlyOpenedLinksController", "SafetyController", "SupportInquiriesController", "UrlMetadataController", "UserProfileController",
+                "RecentlyOpenedLinksController", "SafetyController", "SubscriptionManagementController", "SupportInquiriesController", "UrlMetadataController", "UserProfileController",
             ],
             allowed);
     }

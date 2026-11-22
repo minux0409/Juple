@@ -10,8 +10,7 @@ namespace Juple.Application.Safety;
 /// </summary>
 public sealed class TermsOptions
 {
-    public const string AgeRestrictedVersion = "2026-10-25";
-    public const string DefaultVersion = AgeRestrictedVersion;
+    public const string DefaultVersion = "2026-10-25";
 
     public string CurrentVersion { get; set; } = DefaultVersion;
 

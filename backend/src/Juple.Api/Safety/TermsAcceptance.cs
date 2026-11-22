@@ -36,6 +36,10 @@ public static class SafetyProblems
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
 public sealed class AllowWithoutTermsAcceptanceAttribute : Attribute;
 
+/// <summary>New purchase entry points require current consent even during the legacy general-service rollout window.</summary>
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
+public sealed class RequireCurrentTermsAcceptanceAttribute : Attribute;
+
 /// <summary>
 /// Remembers (per API process) that a person accepted a version, so the gate below costs one lookup per person and version instead of one
 /// per request. Positive answers only: an acceptance is never withdrawn, and a different current version is a different key.
@@ -75,7 +79,7 @@ public sealed class RequireTermsAcceptanceFilter(
 {
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
-        if (!options.EnforceAcceptance
+        if ((!options.EnforceAcceptance && !context.ActionDescriptor.EndpointMetadata.OfType<RequireCurrentTermsAcceptanceAttribute>().Any())
             || context.HttpContext.User.Identity?.IsAuthenticated != true
             || context.ActionDescriptor.EndpointMetadata.OfType<AllowWithoutTermsAcceptanceAttribute>().Any()
             || context.ActionDescriptor.EndpointMetadata.OfType<Microsoft.AspNetCore.Authorization.IAllowAnonymous>().Any())
@@ -89,7 +93,13 @@ public sealed class RequireTermsAcceptanceFilter(
             var user = await currentUserAccessor.GetRequiredAsync(externalIdentityAccessor.GetRequired(), context.HttpContext.RequestAborted);
             if (!cache.IsAccepted(user.UserId, options.CurrentVersion))
             {
-                await termsService.RequireAcceptedAsync(user.UserId, context.HttpContext.RequestAborted);
+                if (!options.EnforceAcceptance)
+                {
+                    // The service's legacy rollout switch must not disable an explicitly mandatory purchase gate.
+                    if (!(await termsService.GetStatusAsync(user.UserId, context.HttpContext.RequestAborted)).IsAccepted)
+                        throw new TermsAcceptanceRequiredException();
+                }
+                else await termsService.RequireAcceptedAsync(user.UserId, context.HttpContext.RequestAborted);
                 cache.MarkAccepted(user.UserId, options.CurrentVersion);
             }
         }
