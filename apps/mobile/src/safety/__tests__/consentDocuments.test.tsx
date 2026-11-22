@@ -3,6 +3,7 @@ import { SubscriptionRights } from '../SubscriptionRights';
 import { parsePublishedTerms } from '../termsDocument';
 import i18n from '../../i18n';
 import historical from '../../../../../backend/src/Juple.Application/Safety/LegacyPublishedTerms.json';
+import { parseTermsStatus } from '../safetyApi';
 
 const mockRequest = jest.fn();
 jest.mock('../../api/useAuthenticatedApi', () => ({ useAuthenticatedApi: () => mockRequest }));
@@ -21,6 +22,11 @@ it('does not query, restore, create purchases or accept terms merely by renderin
   const r = await mount();
   expect(mockRequest).not.toHaveBeenCalled();
   await act(async () => r.unmount());
+});
+
+it('preserves the real acceptance fact when an old client ignores additive enforcement metadata', () => {
+  const status = parseTermsStatus({ currentVersion: '2026-10-14', acceptedVersion: null, isAccepted: false, enforceAcceptance: false });
+  expect(status).toEqual({ currentVersion: '2026-10-14', acceptedVersion: null, isAccepted: false });
 });
 
 it.each(['google', 'apple'])('restores only server-known %s purchases without forwarding tokens or accepting terms', async platform => {

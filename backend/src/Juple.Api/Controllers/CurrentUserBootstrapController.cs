@@ -142,10 +142,10 @@ public sealed class CurrentUserBootstrapController : ControllerBase
     public sealed record DataExportAvailabilityResponse(bool Enabled);
 
     /// <summary>Which Terms of Service version is current and whether this person accepted it (additive; an older client ignores it).</summary>
-    public sealed record TermsStatusResponse(string CurrentVersion, string? AcceptedVersion, DateTimeOffset? AcceptedAtUtc, bool IsAccepted)
+    public sealed record TermsStatusResponse(string CurrentVersion, string? AcceptedVersion, DateTimeOffset? AcceptedAtUtc, bool IsAccepted, bool EnforceAcceptance)
     {
         public static TermsStatusResponse From(Juple.Application.Safety.TermsStatusDto status) =>
-            new(status.CurrentVersion, status.AcceptedVersion, status.AcceptedAtUtc, status.IsAccepted);
+            new(status.CurrentVersion, status.AcceptedVersion, status.AcceptedAtUtc, status.IsAccepted, status.EnforceAcceptance);
     }
 
     /// <summary>

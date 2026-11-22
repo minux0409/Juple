@@ -7,6 +7,11 @@ using Juple.Application.Safety;
 using Juple.Application.Users.CurrentUser;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.Abstractions;
+using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Routing;
+using Juple.Api.Safety;
 using Juple.Domain.Users;
 
 namespace Juple.UnitTests.Safety;
@@ -42,13 +47,13 @@ public sealed class TermsBackwardCompatibilityTests
         public string? Version;
         public DateTimeOffset? At;
         public int Writes;
-        public TermsConsentService Service(string current) => new(
+        public TermsConsentService Service(string current, bool enforce = false) => new(
             Mock<ISafetyStore>((method, args) => method.Name switch
             {
                 nameof(ISafetyStore.GetTermsAsync) => Task.FromResult((Version, At)),
                 nameof(ISafetyStore.SetTermsAsync) => Save((string)args![1]!, (DateTimeOffset)args[2]!),
                 _ => throw new InvalidOperationException("Unexpected access outside terms")
-            }), new TermsOptions { CurrentVersion = current, EnforceAcceptance = false }, TimeProvider.System);
+            }), new TermsOptions { CurrentVersion = current, EnforceAcceptance = enforce }, TimeProvider.System);
         private Task<(string, DateTimeOffset)> Save(string version, DateTimeOffset at)
         {
             Writes++;
@@ -63,6 +68,22 @@ public sealed class TermsBackwardCompatibilityTests
     private static SafetyController.AcceptTermsRequest Request(string json) =>
         JsonSerializer.Deserialize<SafetyController.AcceptTermsRequest>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BothStatusContractsExposeEnforcementWithoutChangingAcceptance(bool enforce)
+    {
+        var state = new State();
+        var status = await state.Service("2026-10-14", enforce).GetStatusAsync(7);
+        Assert.Equal(enforce, status.EnforceAcceptance);
+        Assert.False(status.IsAccepted); Assert.Null(status.AcceptedVersion); Assert.Equal(0, state.Writes);
+        Assert.Equal(enforce, SafetyController.TermsResponse.From(status).EnforceAcceptance);
+        Assert.Equal(enforce, CurrentUserBootstrapController.TermsStatusResponse.From(status).EnforceAcceptance);
+        var wire = JsonSerializer.SerializeToElement(SafetyController.TermsResponse.From(status), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.Equal(enforce, wire.GetProperty("enforceAcceptance").GetBoolean());
+        Assert.False(wire.GetProperty("isAccepted").GetBoolean());
+    }
+
     [Fact]
     public async Task Android42AndIos11RequestShapeAcceptsOnlyTheHistoricalCurrentVersion()
     {
@@ -72,8 +93,26 @@ public sealed class TermsBackwardCompatibilityTests
         Assert.Null(request.LanguageText); // A language-less request is not relabelled Korean.
         var result = Assert.IsType<OkObjectResult>(await Controller(state, "2026-10-14").AcceptTermsAsync(request, default));
         Assert.Equal("2026-10-14", Assert.IsType<SafetyController.TermsResponse>(result.Value).AcceptedVersion);
+        Assert.False(Assert.IsType<SafetyController.TermsResponse>(result.Value).EnforceAcceptance);
         Assert.Equal("2026-10-14", state.Version);
         Assert.Equal(1, state.Writes);
+    }
+
+    [Theory]
+    [InlineData("GET")]
+    [InlineData("POST")]
+    public async Task AgeRejectionDoesNotEnableTheGlobalGateDuringTheOffRollout(string method)
+    {
+        var state = new State();
+        var rejected = Assert.IsType<ObjectResult>(await Controller(state, "2026-10-14").AcceptTermsAsync(Request("""{"version":"2026-10-14"}"""), default));
+        Assert.Equal(400, rejected.StatusCode); Assert.Equal(0, state.Writes);
+        var http = new DefaultHttpContext(); http.Request.Method = method;
+        http.User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity("test"));
+        var context = new ActionExecutingContext(new ActionContext(http, new RouteData(), new ActionDescriptor { EndpointMetadata = [] }), [], new Dictionary<string, object?>(), new object());
+        var filter = new RequireTermsAcceptanceFilter(null!, null!, state.Service("2026-10-14"), new TermsOptions { EnforceAcceptance = false }, new TermsAcceptanceCache());
+        var next = false;
+        await filter.OnActionExecutionAsync(context, () => { next = true; return Task.FromResult(new ActionExecutedContext(context, [], context.Controller)); });
+        Assert.True(next); Assert.Null(context.Result); Assert.Null(state.Version); Assert.Equal(0, state.Writes);
     }
 
     [Theory]

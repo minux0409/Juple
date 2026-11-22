@@ -22,7 +22,7 @@ public sealed class TermsOptions
 }
 
 /// <summary>What a client needs to know: which version is current, which one the person accepted (null = none) and whether that is enough.</summary>
-public sealed record TermsStatusDto(string CurrentVersion, string? AcceptedVersion, DateTimeOffset? AcceptedAtUtc, bool IsAccepted);
+public sealed record TermsStatusDto(string CurrentVersion, string? AcceptedVersion, DateTimeOffset? AcceptedAtUtc, bool IsAccepted, bool EnforceAcceptance = true);
 
 /// <summary>403 <c>termsAcceptanceRequired</c> - a user-generated-content write before the current Terms were accepted.</summary>
 public sealed class TermsAcceptanceRequiredException : Exception;

@@ -26,7 +26,7 @@ import styles from '../../app.module.css';
  * answer once there is one). The two legal documents stay below, as before.
  */
 export function CustomerCenter() {
-  const { dictionary } = useSignedInApp();
+  const { dictionary, openTermsAgreement } = useSignedInApp();
   return (
     <SettingsPage title={dictionary.customerCenterTitle}>
       <section className={styles.settingsSection}>
@@ -47,6 +47,10 @@ export function CustomerCenter() {
 
       <section className={styles.settingsSection}>
         <div className={styles.settingsCard} data-customer-center>
+          <button className={`${styles.settingsRow} ${styles.settingsRowAction}`} data-manual-terms onClick={openTermsAgreement} type="button">
+            <span className={styles.settingsLabel}>{dictionary.agreementTitle}</span>
+            <Glyph className={styles.settingsChevron} name="Chevron" size={16} />
+          </button>
           <Link className={`${styles.settingsRow} ${styles.settingsRowAction}`} href="/terms">
             <span className={styles.settingsLabel}>{dictionary.customerCenterTerms}</span>
             <Glyph className={styles.settingsChevron} name="Chevron" size={16} />

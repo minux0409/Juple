@@ -15,8 +15,8 @@ type Document = 'terms' | 'privacy';
 /**
  * 약관 동의: the first thing a signed-in person sees until the CURRENT Terms are accepted - before the app shell (and so before the
  * tutorial and everything else). Two required agreements (the Terms of Service, the collection and use of personal information), each
- * with its detail and a link to the full page; "all" checks both. There is no skip and no close button: 다음 stays disabled until both
- * are checked. The server records one acceptance per account and Terms version, so another device or a later
+ * with its detail and a link to the full page; "all" checks both. Required mode has no close action; voluntary mode may return without
+ * changing consent. 다음 stays disabled until the approved document and required checks are ready. The server records one acceptance per account and Terms version, so another device or a later
  * sign-in never asks again. Same flow and same texts as the mobile app (apps/mobile/src/safety/TermsAgreementScreen).
  */
 export function TermsAgreement({
@@ -26,6 +26,7 @@ export function TermsAgreement({
   language,
   onAccepted,
   onSessionLost,
+  onClose,
 }: {
   readonly api: AppApi;
   readonly dictionary: AppDictionary;
@@ -33,6 +34,7 @@ export function TermsAgreement({
   readonly language: string;
   readonly onAccepted: (status: TermsStatus) => void;
   readonly onSessionLost: () => void;
+  readonly onClose?: () => void;
 }) {
   const titleId = useId();
   const lifetime = useRef({ active: false });
@@ -187,6 +189,7 @@ export function TermsAgreement({
           {busy ? dictionary.saving : dictionary.agreementNext}
         </button>
         <SubscriptionRights api={api} dictionary={dictionary} onSessionLost={onSessionLost} />
+        {onClose ? <button type="button" data-agreement-return onClick={onClose}>{dictionary.close}</button> : null}
       </form>
     </main>
   );

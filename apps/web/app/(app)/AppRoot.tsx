@@ -31,7 +31,8 @@ import { isFreePeriodEnded, parseDataExportEnabled, parseDataRetention, parseEnt
 import type { WebAppConfig } from '../../lib/webAppConfig';
 import { AppShell } from './AppShell';
 import { TourProvider } from './TourProvider';
-import { isTermsRequired, parseTermsStatus, type TermsStatus } from '../../lib/safety';
+import { parseTermsStatus, requiresTermsAcceptance, type TermsStatus } from '../../lib/safety';
+import { createTermsAwareApi } from '../../lib/termsApi';
 import { SafetyProvider } from './SafetyProvider';
 import { TermsAgreement } from './TermsAgreement';
 import { ToastProvider } from './Toaster';
@@ -43,6 +44,7 @@ import { ReauthDialog } from './ReauthDialog';
 import { clearStableImageUris } from '../../lib/stableImageUri';
 
 interface SignedInApp {
+  readonly openTermsAgreement: () => void;
   readonly api: AppApi;
   readonly dictionary: AppDictionary;
   /** The language the page is shown in (Intl formatting uses it too). */
@@ -154,9 +156,10 @@ export function AppRoot({
   const [dataExportEnabled, setDataExportEnabled] = useState(false);
   const [isNewAccount, setIsNewAccount] = useState(false);
   const [reauthentication, setReauthentication] = useState<ReauthenticationResult | null>(null);
-  // The Terms the server asks for and whether they were accepted (from the bootstrap). Until they are accepted the Agreement is the only
-  // thing shown (before the shell, and so before the tutorial); a refusal for a NEWER Terms version brings it back the same way.
+  // Acceptance is an account fact. Only the server's enforcement flag makes it a compulsory navigation gate.
   const [terms, setTerms] = useState<TermsStatus | null>(null);
+  const [manualTerms, setManualTerms] = useState(false);
+  const openTermsAgreement = useCallback(() => setManualTerms(true), []);
   // Entra no longer accepts this sign-in (e.g. the password was reset elsewhere): one non-dismissable "sign in again" dialog.
   const [reauthRequired, setReauthRequired] = useState(false);
   // A content change the server refused because access ended: ONE explanation, whichever page asked (repeats while open change nothing).
@@ -179,28 +182,22 @@ export function AppRoot({
     });
   }, [config]);
   // Every call goes through here: a refusal for the missing Terms agreement brings the Agreement back (the call still fails as before).
-  const api = useMemo<AppApi | null>(
-    () =>
-      rawApi
-        ? (async request => {
-            try {
-              return await rawApi(request);
-            } catch (error) {
-              if (isTermsRequired(error)) {
-                setTerms(previous => ({ currentVersion: previous?.currentVersion ?? '', acceptedVersion: previous?.acceptedVersion ?? null, isAccepted: false }));
-              }
-              const refusal = subscriptionRefusalOf(error);
-              if (refusal) {
-                setSubscriptionRefusal(previous => previous ?? refusal);
-              }
-              throw error;
-            }
-          }) as AppApi
-        : null,
-    [rawApi],
-  );
+  const termsApi = useMemo(() => rawApi ? createTermsAwareApi(rawApi, {
+    onRequired: () => {
+      setTerms(previous => ({ currentVersion: previous?.currentVersion ?? '', acceptedVersion: previous?.acceptedVersion ?? null, isAccepted: false, enforceAcceptance: previous?.enforceAcceptance ?? true }));
+      setManualTerms(true);
+    },
+    onStatus: setTerms,
+    onOtherError: error => {
+      const refusal = subscriptionRefusalOf(error);
+      if (refusal) setSubscriptionRefusal(previous => previous ?? refusal);
+    },
+  }) : null, [rawApi]);
+  const api = termsApi?.request ?? null;
+  useEffect(() => () => termsApi?.invalidateSession(), [termsApi]);
 
   const clearLocalSession = useCallback(async (message: string | null) => {
+    termsApi?.invalidateSession();
     const msal = currentMsal();
     if (msal) {
       // Local only (no Entra round trip): the tokens this tab held are dropped; the landing page then offers sign-in again.
@@ -218,9 +215,10 @@ export function AppRoot({
     setDataExportEnabled(false);
     setIsNewAccount(false);
     setTerms(null);
+    setManualTerms(false);
     setNotice(message);
     setStatus('signedOut');
-  }, []);
+  }, [termsApi]);
 
   const bootstrap = useCallback(async () => {
     if (!api) {
@@ -436,6 +434,7 @@ export function AppRoot({
       api && account
         ? {
             api,
+            openTermsAgreement,
             dictionary,
             locale: language,
             languagePreference,
@@ -458,7 +457,7 @@ export function AppRoot({
             appDownload,
           }
         : null,
-    [account, api, isNewAccount, appDownload, clearReauthentication, config, dataExportEnabled, dataRetention, dictionary, entitlement, language, languagePreference, onSessionLost, profile, reauthenticate, reauthentication, setLanguagePreference, signOut, storeSubscription],
+    [account, api, isNewAccount, appDownload, clearReauthentication, config, dataExportEnabled, dataRetention, dictionary, entitlement, language, languagePreference, onSessionLost, profile, reauthenticate, reauthentication, setLanguagePreference, signOut, storeSubscription, openTermsAgreement],
   );
 
   const content = (() => {
@@ -485,14 +484,15 @@ export function AppRoot({
       return <CenteredMessage busy message={status === 'redirecting' ? dictionary.signingIn : dictionary.checkingLogin} />;
     }
     // Before the app shell: the current Terms come first. A missing Terms status (an older API) is never a reason to block.
-    if (api && terms && !terms.isAccepted) {
+    if (api && terms && (manualTerms || requiresTermsAcceptance(terms))) {
       return (
         <TermsAgreement
           key={`${terms.currentVersion}:${language}`}
           api={api}
           dictionary={dictionary}
           language={language}
-          onAccepted={accepted => setTerms(accepted)}
+          onAccepted={accepted => { setTerms(accepted); if (accepted.isAccepted) setManualTerms(false); }}
+          onClose={!requiresTermsAcceptance(terms) ? () => setManualTerms(false) : undefined}
           onSessionLost={onSessionLost}
           version={terms.currentVersion}
         />

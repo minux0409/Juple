@@ -22,17 +22,23 @@ export interface TermsStatus {
   readonly currentVersion: string;
   readonly acceptedVersion: string | null;
   readonly isAccepted: boolean;
+  readonly enforceAcceptance: boolean;
 }
 
 export function parseTermsStatus(raw: unknown): TermsStatus | null {
   if (!raw || typeof raw !== 'object') {
     return null;
   }
-  const value = raw as { currentVersion?: unknown; acceptedVersion?: unknown; isAccepted?: unknown };
+  const value = raw as { currentVersion?: unknown; acceptedVersion?: unknown; isAccepted?: unknown; enforceAcceptance?: unknown };
   if (typeof value.currentVersion !== 'string' || value.currentVersion.length === 0 || typeof value.isAccepted !== 'boolean') {
     return null;
   }
-  return { currentVersion: value.currentVersion, acceptedVersion: typeof value.acceptedVersion === 'string' ? value.acceptedVersion : null, isAccepted: value.isAccepted };
+  return { currentVersion: value.currentVersion, acceptedVersion: typeof value.acceptedVersion === 'string' ? value.acceptedVersion : null, isAccepted: value.isAccepted, enforceAcceptance: value.enforceAcceptance !== false };
+}
+
+/** Enforcement controls navigation, never the stored fact of consent. Missing legacy metadata remains conservative. */
+export function requiresTermsAcceptance(status: TermsStatus): boolean {
+  return status.enforceAcceptance && !status.isAccepted;
 }
 
 /** Whether an API failure is the server saying "accept the current Terms first". */

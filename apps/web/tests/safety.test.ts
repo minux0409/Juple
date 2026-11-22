@@ -14,6 +14,7 @@ import {
   ACCOUNT_RESTRICTED_CODE,
   parseReportReceipt,
   parseTermsStatus,
+  requiresTermsAcceptance,
   REPORT_REASONS,
   reportBody,
   reportPath,
@@ -25,7 +26,7 @@ const dictionary = getAppDictionary('ko');
 
 describe('Terms of Service acceptance', () => {
   it('reads the status the server sends, and nothing it does not understand', () => {
-    assert.deepEqual(parseTermsStatus({ currentVersion: '2026-10-14', acceptedVersion: null, isAccepted: false }), { currentVersion: '2026-10-14', acceptedVersion: null, isAccepted: false });
+    assert.deepEqual(parseTermsStatus({ currentVersion: '2026-10-14', acceptedVersion: null, isAccepted: false }), { currentVersion: '2026-10-14', acceptedVersion: null, isAccepted: false, enforceAcceptance: true });
     assert.equal(parseTermsStatus({ currentVersion: '', isAccepted: true }), null);
     assert.equal(parseTermsStatus(undefined), null);
     assert.equal(parseTermsStatus({ currentVersion: 'v', isAccepted: 'yes' }), null);
@@ -38,7 +39,7 @@ describe('Terms of Service acceptance', () => {
     assert.equal(isTermsRequired(new Error('x')), false);
   });
 
-  it('the Agreement: two required items with their details, all-agree, no skip, X leaves, 다음 only when both are checked', () => {
+  it('requires approved content and all confirmations; only an explicit optional-mode callback can close it', () => {
     const agreement = source('app/(app)/TermsAgreement.tsx');
     assert.match(agreement, /href=\{`\/terms\?version=/);
     assert.match(agreement, /href="\/privacy"/);
@@ -48,17 +49,39 @@ describe('Terms of Service acceptance', () => {
     assert.equal((agreement.match(/type="checkbox"/g) ?? []).length, 3);
     assert.equal((agreement.match(/<AgreementItem/g) ?? []).length, 2);
     assert.doesNotMatch(agreement, /onLater|safetyTermsLater/);
-    assert.doesNotMatch(agreement, /agreement-close|onClose|agreementClose/);
+    assert.match(agreement, /onClose \? <button type="button" data-agreement-return/);
     assert.doesNotMatch(agreement, /localStorage|sessionStorage/);
   });
 
-  it('the app shows the Agreement INSTEAD of the shell until accepted, and again when the server asks for a newer version', () => {
+  it('shows the Agreement instead of the shell only when required or explicitly opened', () => {
     const root = source('app/(app)/AppRoot.tsx');
     assert.match(root, /parseTermsStatus\(result\?\.terms\)/);
-    assert.match(root, /isTermsRequired\(error\)/);
-    assert.match(root, /api && terms && !terms\.isAccepted/);
+    assert.match(root, /createTermsAwareApi\(rawApi/);
+    assert.match(root, /api && terms && \(manualTerms \|\| requiresTermsAcceptance\(terms\)\)/);
+    assert.match(root, /onClose=\{!requiresTermsAcceptance\(terms\) \?/);
     assert.ok(root.indexOf('<TermsAgreement') < root.indexOf('<AppShell>'), 'the Agreement comes before the shell');
     assert.doesNotMatch(root, /termsAsked|TermsGate/);
+  });
+
+  it('uses enforcement for navigation without manufacturing acceptance, in all 17 UI languages', () => {
+    for (const language of APP_LANGUAGES) {
+      for (const enforceAcceptance of [false, true]) {
+        const status = parseTermsStatus({ currentVersion: '2026-10-14', acceptedVersion: null, isAccepted: false, enforceAcceptance });
+        assert.ok(status, language);
+        assert.equal(status.isAccepted, false, language);
+        assert.equal(status.acceptedVersion, null, language);
+        assert.equal(requiresTermsAcceptance(status), enforceAcceptance, language);
+      }
+    }
+    assert.equal(requiresTermsAcceptance(parseTermsStatus({ currentVersion: 'v', isAccepted: false, enforceAcceptance: 'false' })!), true);
+    assert.equal(requiresTermsAcceptance(parseTermsStatus({ currentVersion: 'v', acceptedVersion: 'v', isAccepted: true, enforceAcceptance: true })!), false);
+  });
+
+  it('keeps voluntary agreement and existing read-only legal links reachable from the support screen', () => {
+    const page = source('app/(app)/me/support/CustomerCenter.tsx');
+    assert.match(page, /data-manual-terms onClick=\{openTermsAgreement\}/);
+    assert.match(page, /href="\/terms"/);
+    assert.match(source('app/(app)/TermsAgreement.tsx'), /document\?\.canAccept/);
   });
 });
 

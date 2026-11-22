@@ -9,7 +9,7 @@ public sealed class TermsConsentService(ISafetyStore store, TermsOptions options
     public async Task<TermsStatusDto> GetStatusAsync(long userId, CancellationToken cancellationToken = default)
     {
         var (version, acceptedAt) = await store.GetTermsAsync(userId, cancellationToken);
-        return new TermsStatusDto(options.CurrentVersion, version, acceptedAt, IsCurrent(version));
+        return new TermsStatusDto(options.CurrentVersion, version, acceptedAt, IsCurrent(version), options.EnforceAcceptance);
     }
 
     public async Task<TermsStatusDto> AcceptAsync(long userId, string? version, CancellationToken cancellationToken = default)
@@ -21,7 +21,7 @@ public sealed class TermsConsentService(ISafetyStore store, TermsOptions options
         }
 
         var (stored, at) = await store.SetTermsAsync(userId, options.CurrentVersion, timeProvider.GetUtcNow(), cancellationToken);
-        return new TermsStatusDto(options.CurrentVersion, stored, at, true);
+        return new TermsStatusDto(options.CurrentVersion, stored, at, true, options.EnforceAcceptance);
     }
 
     public async Task RequireAcceptedAsync(long userId, CancellationToken cancellationToken = default)

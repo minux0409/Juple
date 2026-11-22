@@ -146,9 +146,9 @@ public sealed class SafetyController(
             : this(version, age, JsonSerializer.SerializeToElement(hash), JsonSerializer.SerializeToElement(language)) { }
     }
 
-    public sealed record TermsResponse(string CurrentVersion, string? AcceptedVersion, DateTimeOffset? AcceptedAtUtc, bool IsAccepted)
+    public sealed record TermsResponse(string CurrentVersion, string? AcceptedVersion, DateTimeOffset? AcceptedAtUtc, bool IsAccepted, bool EnforceAcceptance)
     {
-        public static TermsResponse From(TermsStatusDto status) => new(status.CurrentVersion, status.AcceptedVersion, status.AcceptedAtUtc, status.IsAccepted);
+        public static TermsResponse From(TermsStatusDto status) => new(status.CurrentVersion, status.AcceptedVersion, status.AcceptedAtUtc, status.IsAccepted, status.EnforceAcceptance);
     }
 
     /// <summary>TargetType: User | Collection | Item | Comment. TargetId: the Juple ID of a user, otherwise the numeric id. CollectionId is required for an Item (the Collection it is seen through).</summary>
