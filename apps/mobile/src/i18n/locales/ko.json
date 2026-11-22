@@ -1299,6 +1299,7 @@
     "next": "다음",
     "viewDetail": "자세히 보기",
     "loadFailed": "약관 정보를 확인하지 못했어요. 잠시 후 다시 시도해 주세요.",
+    "documentUnavailable": "이 언어의 동의 문서는 아직 준비되지 않았어요. 기존 구독 조회·복원·관리는 계속 이용할 수 있어요.",
     "terms": {
       "serviceTitle": "서비스",
       "serviceBody": "Juple은 링크를 저장하고 컬렉션으로 정리하며 다른 사람과 공유·협업하는 서비스입니다.",

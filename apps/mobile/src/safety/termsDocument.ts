@@ -1,0 +1,38 @@
+/** Versioned plain-text document contract shared by Android, iOS and Web. No HTML or draft markdown is executed. */
+export interface PublishedTermsDocument {
+  readonly version: string;
+  readonly contentHash: string;
+  readonly language: string;
+  readonly requestedLanguage: string;
+  readonly canAccept: boolean;
+  readonly document: {
+    readonly updated: string;
+    readonly title: string;
+    readonly intro: string;
+    readonly sections: readonly {
+      readonly id: string;
+      readonly title: string;
+      readonly blocks: readonly ({ readonly kind: 'p'; readonly text: string } | { readonly kind: 'ul' | 'ol'; readonly items: readonly string[] })[];
+    }[];
+  };
+}
+
+export function parsePublishedTerms(raw: unknown, version: string): PublishedTermsDocument | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const value = raw as PublishedTermsDocument;
+  const doc = value.document;
+  if (value.version !== version || !/^[a-f0-9]{64}$/.test(value.contentHash ?? '')
+      || typeof value.language !== 'string' || !value.language
+      || typeof value.requestedLanguage !== 'string' || !value.requestedLanguage
+      || typeof value.canAccept !== 'boolean'
+      || !doc || doc.updated !== version || typeof doc.title !== 'string' || typeof doc.intro !== 'string'
+      || !Array.isArray(doc.sections) || doc.sections.length === 0) return null;
+  for (const section of doc.sections) {
+    if (!section || typeof section.id !== 'string' || typeof section.title !== 'string' || !Array.isArray(section.blocks)) return null;
+    for (const block of section.blocks) {
+      if (!block || (block.kind === 'p' ? typeof block.text !== 'string'
+        : !['ul', 'ol'].includes(block.kind) || !Array.isArray(block.items) || block.items.some((item: unknown) => typeof item !== 'string'))) return null;
+    }
+  }
+  return value;
+}

@@ -488,9 +488,10 @@ export function AppRoot({
     if (api && terms && !terms.isAccepted) {
       return (
         <TermsAgreement
-          key={terms.currentVersion}
+          key={`${terms.currentVersion}:${language}`}
           api={api}
           dictionary={dictionary}
+          language={language}
           onAccepted={accepted => setTerms(accepted)}
           onSessionLost={onSessionLost}
           version={terms.currentVersion}

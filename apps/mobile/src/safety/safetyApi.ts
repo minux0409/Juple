@@ -1,5 +1,13 @@
 import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/authenticatedApiClient';
+import { parsePublishedTerms, type PublishedTermsDocument } from './termsDocument';
+
+export async function getPublishedTerms(request: AuthenticatedApiRequest, version: string, language: string): Promise<PublishedTermsDocument> {
+  const response = await request<unknown>({ method: 'GET', path: `/api/v1/terms/document?version=${encodeURIComponent(version)}&language=${encodeURIComponent(language)}` });
+  const document = parsePublishedTerms(response.body, version);
+  if (!document || document.requestedLanguage !== language) throw new ApiError('unavailable');
+  return document;
+}
 
 /**
  * Safety (Google Play UGC policy): the Terms of Service agreement, reporting and blocking. The server decides everything - who may
@@ -38,8 +46,8 @@ export async function getTermsStatus(request: AuthenticatedApiRequest): Promise<
   return parseTermsStatus(response.body);
 }
 
-export async function acceptTerms(request: AuthenticatedApiRequest, version: string): Promise<TermsStatus> {
-  const response = await request<unknown>({ method: 'POST', path: '/api/v1/users/me/terms-acceptance', body: { version, isAtLeast14: true } });
+export async function acceptTerms(request: AuthenticatedApiRequest, version: string, contentHash: string, language: string): Promise<TermsStatus> {
+  const response = await request<unknown>({ method: 'POST', path: '/api/v1/users/me/terms-acceptance', body: { version, contentHash, language, isAtLeast14: true } });
   const status = parseTermsStatus(response.body);
   if (!status || (status.isAccepted && status.acceptedVersion !== status.currentVersion)) {
     throw new ApiError('unavailable');

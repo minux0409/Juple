@@ -1299,6 +1299,7 @@
     "next": "Siguiente",
     "viewDetail": "Ver detalles",
     "loadFailed": "No pudimos comprobar los términos. Inténtalo de nuevo en un momento.",
+    "documentUnavailable": "El documento de consentimiento aún no está disponible en este idioma. Puedes consultar, restaurar y gestionar tus suscripciones existentes.",
     "terms": {
       "serviceTitle": "Servicio",
       "serviceBody": "Juple te permite guardar enlaces, organizarlos en colecciones y compartirlos y colaborar con otras personas.",

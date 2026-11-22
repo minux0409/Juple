@@ -11,6 +11,7 @@ import {
   acceptTerms,
   blockedInteractionKey,
   getTermsStatus,
+  getPublishedTerms,
   isTermsRequiredError,
   parseBlockedUsers,
   parseTermsStatus,
@@ -29,6 +30,7 @@ jest.mock('../../config/legalLinks', () => ({ legalLinks: { termsUrl: 'https://e
 jest.mock('../safetyApi', () => ({
   ...jest.requireActual('../safetyApi'),
   getTermsStatus: jest.fn(),
+  getPublishedTerms: jest.fn(),
   acceptTerms: jest.fn(),
   submitReport: jest.fn(),
   listBlockedUsers: jest.fn(),
@@ -157,6 +159,12 @@ describe('ReportModal', () => {
 });
 
 describe('Terms onboarding (the Agreement screen)', () => {
+  beforeEach(() => {
+    jest.mocked(getPublishedTerms).mockImplementation(async (_request, version, language) => ({
+      version, contentHash: 'a'.repeat(64), language: 'ko', requestedLanguage: language, canAccept: true,
+      document: { updated: version, title: 'Published terms', intro: 'Versioned body', sections: [{ id: 'terms', title: 'Terms', blocks: [{ kind: 'p', text: 'Approved published body' }] }] },
+    }));
+  });
   const status = (accepted: boolean) => ({ currentVersion: '2026-10-14', acceptedVersion: accepted ? '2026-10-14' : null, isAccepted: accepted });
 
   /** The wiring RootStack does: the hook decides, the screen only shows while a decision is "required". */
@@ -168,6 +176,7 @@ describe('Terms onboarding (the Agreement screen)', () => {
         {onboarding.status === 'error' ? <Text testID="unavailable">error</Text> : null}
         {onboarding.status === 'required' ? (
           <TermsAgreementScreen
+            document={onboarding.document}
             isSaving={onboarding.isSaving}
             onAccept={() => { onboarding.accept().catch(() => undefined); }}
             saveFailed={onboarding.saveFailed}
@@ -232,7 +241,7 @@ describe('Terms onboarding (the Agreement screen)', () => {
     expect(byId(renderer, 'agreement-next').props.disabled).toBe(false);
 
     await press(renderer, 'agreement-next');
-    expect(acceptTerms).toHaveBeenCalledWith(expect.any(Function), '2026-10-14');
+    expect(acceptTerms).toHaveBeenCalledWith(expect.any(Function), '2026-10-14', 'a'.repeat(64), 'ko');
     expect(acceptTerms).toHaveBeenCalledTimes(1);
     expect(exists(renderer, 'home')).toBe(true);
     expect(exists(renderer, 'terms-agreement-screen')).toBe(false);
@@ -257,7 +266,7 @@ describe('Terms onboarding (the Agreement screen)', () => {
     const pressables = renderer.root
       .findAll(node => typeof node.props.testID === 'string' && typeof node.props.onPress === 'function')
       .map(node => node.props.testID as string);
-    expect(new Set(pressables)).toEqual(new Set(['agreement-all', 'agreement-terms', 'agreement-privacy', 'agreement-age', 'agreement-age-detail', 'agreement-terms-detail', 'agreement-privacy-detail', 'agreement-next']));
+    expect(new Set(pressables)).toEqual(new Set(['agreement-all', 'agreement-terms', 'agreement-privacy', 'agreement-age', 'agreement-age-detail', 'agreement-terms-detail', 'agreement-privacy-detail', 'agreement-next', 'terms-subscription-status', 'terms-restore-google', 'terms-restore-apple']));
     expect(acceptTerms).not.toHaveBeenCalled();
     expect(exists(renderer, 'home')).toBe(false);
   });
@@ -287,7 +296,7 @@ describe('Terms onboarding (the Agreement screen)', () => {
     expect(byId(first, 'agreement-next').props.disabled).toBe(true);
     await press(first, 'agreement-age');
     await press(first, 'agreement-next');
-    expect(acceptTerms).toHaveBeenCalledWith(expect.any(Function), '2026-10-25');
+    expect(acceptTerms).toHaveBeenCalledWith(expect.any(Function), '2026-10-25', 'a'.repeat(64), 'ko');
     expect(exists(first, 'home')).toBe(true);
     await act(async () => first.unmount());
     const restarted = await mount();
@@ -299,8 +308,8 @@ describe('Terms onboarding (the Agreement screen)', () => {
   it('does not treat a malformed acceptance response as a successful age confirmation', async () => {
     const actual = jest.requireActual('../safetyApi') as typeof import('../safetyApi');
     const request = jest.fn().mockResolvedValue({ body: {} });
-    await expect(actual.acceptTerms(request, '2026-10-25')).rejects.toThrow();
-    expect(request).toHaveBeenCalledWith(expect.objectContaining({ body: { version: '2026-10-25', isAtLeast14: true } }));
+    await expect(actual.acceptTerms(request, '2026-10-25', 'a'.repeat(64), 'ko')).rejects.toThrow();
+    expect(request).toHaveBeenCalledWith(expect.objectContaining({ body: { version: '2026-10-25', contentHash: 'a'.repeat(64), language: 'ko', isAtLeast14: true } }));
   });
 
   it('asks nothing while not signed in / bootstrapped', async () => {
@@ -315,6 +324,40 @@ describe('Terms onboarding (the Agreement screen)', () => {
     const renderer = await mount();
     expect(exists(renderer, 'unavailable')).toBe(true);
     expect(exists(renderer, 'home')).toBe(false);
+  });
+
+  it('does not show a bundled old body or allow consent when the published document is unavailable', async () => {
+    jest.mocked(getTermsStatus).mockResolvedValue(status(false));
+    jest.mocked(getPublishedTerms).mockRejectedValue(new ApiError('unavailable'));
+    const renderer = await mount();
+    expect(exists(renderer, 'unavailable')).toBe(true);
+    expect(exists(renderer, 'terms-agreement-screen')).toBe(false);
+    expect(acceptTerms).not.toHaveBeenCalled();
+    expect(exists(renderer, 'home')).toBe(false);
+  });
+
+  it('allows reading but refuses consent for a language without consent approval', async () => {
+    jest.mocked(getTermsStatus).mockResolvedValue(status(false));
+    jest.mocked(getPublishedTerms).mockResolvedValue({ version: '2026-10-14', contentHash: 'a'.repeat(64), language: 'ko', requestedLanguage: 'ko', canAccept: false,
+      document: { updated: '2026-10-14', title: 'Published body', intro: '', sections: [{ id: 'terms', title: 'Terms', blocks: [{ kind: 'p', text: 'Existing published body' }] }] } });
+    const renderer = await mount();
+    await press(renderer, 'agreement-all');
+    expect(byId(renderer, 'agreement-next').props.disabled).toBe(true);
+    expect(exists(renderer, 'terms-subscription-rights')).toBe(true);
+    expect(acceptTerms).not.toHaveBeenCalled();
+  });
+
+  it('ignores a previous session acceptance that completes after sign-out', async () => {
+    jest.mocked(getTermsStatus).mockResolvedValue(status(false));
+    let finish!: (value: ReturnType<typeof status>) => void;
+    jest.mocked(acceptTerms).mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    const renderer = await mount();
+    await press(renderer, 'agreement-all');
+    await press(renderer, 'agreement-next');
+    await act(async () => renderer.update(<Harness enabled={false} />));
+    await act(async () => finish(status(true)));
+    expect(exists(renderer, 'home')).toBe(false);
+    expect(exists(renderer, 'terms-agreement-screen')).toBe(false);
   });
 
   it('offers a fresh status retry instead of repeatedly submitting an obsolete policy version', async () => {

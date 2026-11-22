@@ -1299,6 +1299,7 @@
     "next": "İleri",
     "viewDetail": "Ayrıntıları gör",
     "loadFailed": "Şartlar kontrol edilemedi. Lütfen birazdan tekrar deneyin.",
+    "documentUnavailable": "Onay belgesi henüz bu dilde mevcut değil. Mevcut aboneliklerinizi kontrol etmeye, geri yüklemeye ve yönetmeye devam edebilirsiniz.",
     "terms": {
       "serviceTitle": "Hizmet",
       "serviceBody": "Juple, bağlantıları kaydetmenizi, koleksiyonlarda düzenlemenizi ve başkalarıyla paylaşıp birlikte çalışmanızı sağlar.",

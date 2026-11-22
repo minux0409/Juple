@@ -1299,6 +1299,7 @@
     "next": "下一步",
     "viewDetail": "查看詳情",
     "loadFailed": "無法確認條款內容,請稍後再試。",
+    "documentUnavailable": "此語言的同意文件尚未準備好。您仍可查詢、回復及管理現有訂閱。",
     "terms": {
       "serviceTitle": "服務",
       "serviceBody": "Juple 是一項可以儲存連結、用收藏集整理並與他人分享、協作的服務。",

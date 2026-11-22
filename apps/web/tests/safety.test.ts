@@ -40,10 +40,10 @@ describe('Terms of Service acceptance', () => {
 
   it('the Agreement: two required items with their details, all-agree, no skip, X leaves, 다음 only when both are checked', () => {
     const agreement = source('app/(app)/TermsAgreement.tsx');
-    assert.match(agreement, /href="\/terms"/);
+    assert.match(agreement, /href=\{`\/terms\?version=/);
     assert.match(agreement, /href="\/privacy"/);
     assert.match(agreement, /disabled=\{busy \|\| !allChecked\}/);
-    assert.match(agreement, /path: TERMS_ACCEPTANCE_PATH, body: \{ version, isAtLeast14: ageChecked \}/);
+    assert.match(agreement, /path: TERMS_ACCEPTANCE_PATH, body: \{ version, contentHash: document!\.contentHash, language, isAtLeast14: ageChecked \}/);
     // 전체동의 and the item component (used for the Terms and for the personal-information item); there is no "later" / skip
     assert.equal((agreement.match(/type="checkbox"/g) ?? []).length, 3);
     assert.equal((agreement.match(/<AgreementItem/g) ?? []).length, 2);

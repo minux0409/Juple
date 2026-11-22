@@ -308,7 +308,7 @@ export function RootStack() {
         ) : isTermsRequired ? (
           <Stack.Screen name="TermsAgreement" options={{ headerShown: false, gestureEnabled: false }}>
             {() => (
-              <TermsAgreementScreen
+              <TermsAgreementScreen key={termsOnboarding.document ? termsOnboarding.document.version + termsOnboarding.document.contentHash + termsOnboarding.document.requestedLanguage : "unavailable"} document={termsOnboarding.document}
                 isSaving={termsOnboarding.isSaving}
                 onAccept={() => { termsOnboarding.accept().catch(() => undefined); }}
                 saveFailed={termsOnboarding.saveFailed}
@@ -338,7 +338,7 @@ export function RootStack() {
               {...props}
               ready={isReady || (!isInitializing && !isAuthenticated)}
               fallback={isTermsRequired ? (
-                <TermsAgreementScreen
+                <TermsAgreementScreen key={termsOnboarding.document ? termsOnboarding.document.version + termsOnboarding.document.contentHash + termsOnboarding.document.requestedLanguage : "unavailable"} document={termsOnboarding.document}
                   isSaving={termsOnboarding.isSaving}
                   onAccept={() => { termsOnboarding.accept().catch(() => undefined); }}
                   saveFailed={termsOnboarding.saveFailed}

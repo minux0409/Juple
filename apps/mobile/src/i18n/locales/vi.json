@@ -1299,6 +1299,7 @@
     "next": "Tiếp theo",
     "viewDetail": "Xem chi tiết",
     "loadFailed": "Không thể kiểm tra điều khoản. Vui lòng thử lại sau giây lát.",
+    "documentUnavailable": "Tài liệu đồng ý chưa sẵn sàng bằng ngôn ngữ này. Bạn vẫn có thể kiểm tra, khôi phục và quản lý các gói đăng ký hiện có.",
     "terms": {
       "serviceTitle": "Dịch vụ",
       "serviceBody": "Juple cho phép bạn lưu liên kết, sắp xếp thành bộ sưu tập, chia sẻ và cộng tác với người khác.",

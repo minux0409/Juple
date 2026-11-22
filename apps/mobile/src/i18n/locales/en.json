@@ -1299,6 +1299,7 @@
     "next": "Next",
     "viewDetail": "View details",
     "loadFailed": "We couldn't check the terms. Please try again in a moment.",
+    "documentUnavailable": "The consent document is not ready in this language. You can still check, restore and manage existing subscriptions.",
     "terms": {
       "serviceTitle": "Service",
       "serviceBody": "Juple lets you save links, organize them into collections, and share and work together with other people.",

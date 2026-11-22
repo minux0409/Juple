@@ -22,10 +22,18 @@ function sources(dir: string, found: string[] = []): string[] {
 }
 
 describe('Web membership policy: subscriptions are bought only in the mobile apps', () => {
-  it('no Web code starts a purchase, checkout, restore or store billing call', () => {
+  it('no Web code starts a purchase or claims a token; only known-purchase management is allowed', () => {
     const forbidden = /stripe|paypal|checkout|\/api\/v1\/billing|react-native-iap|storekit|play-billing|requestPurchase|requestSubscription|finishTransaction|restorePurchases|purchaseToken/i;
-    const offenders = sources(root).filter(file => forbidden.test(readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')));
+    const management = join(root, 'app', '(app)', 'SubscriptionRights.tsx');
+    const offenders = sources(root).filter(file => {
+      let text = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+      if (file === management) text = text.replaceAll('/api/v1/billing/subscription-management', '/approved-existing-subscription-management');
+      return forbidden.test(text);
+    });
     assert.deepEqual(offenders.map(file => file.slice(root.length + 1)), []);
+    const managementText = readFileSync(management, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    assert.match(managementText, /\/restore\/\$\{platform\}/);
+    assert.doesNotMatch(managementText, /purchaseToken|signedTransaction|body:|\/verify|\/catalog/);
   });
 
   it('no payment package is a Web dependency', () => {

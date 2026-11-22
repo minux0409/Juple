@@ -9,10 +9,13 @@ import { ChevronIcon } from '../icons/ChevronIcon';
 import { CheckIcon } from '../icons/CheckIcon';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { JupleBrandMark } from '../components/JupleBrandMark';
+import type { PublishedTermsDocument } from './termsDocument';
+import { SubscriptionRights } from './SubscriptionRights';
 
 type Document = 'terms' | 'privacy';
 
 interface TermsAgreementScreenProps {
+  readonly document?: PublishedTermsDocument | null;
   readonly isSaving: boolean;
   readonly saveFailed: boolean;
   /** Both required agreements were given: the screen's 다음. */
@@ -25,13 +28,13 @@ interface TermsAgreementScreenProps {
  * There is no skip and no way around it (no X, no back to the app): 다음 stays disabled until both are checked. One acceptance (the Terms version) is recorded
  * by the server for the account, so another device or a later sign-in never asks again.
  */
-export function TermsAgreementScreen({ isSaving, saveFailed, onAccept }: TermsAgreementScreenProps) {
+export function TermsAgreementScreen({ isSaving, saveFailed, onAccept, document }: TermsAgreementScreenProps) {
   const { t } = useTranslation();
   const [termsChecked, setTermsChecked] = useState(false);
   const [privacyChecked, setPrivacyChecked] = useState(false);
   const [detail, setDetail] = useState<Document | null>(null);
   const [ageChecked, setAgeChecked] = useState(false);
-  const allChecked = termsChecked && privacyChecked && ageChecked;
+  const allChecked = termsChecked && privacyChecked && ageChecked && !!document?.canAccept;
 
   const toggleAll = () => {
     const next = !allChecked;
@@ -52,6 +55,7 @@ export function TermsAgreementScreen({ isSaving, saveFailed, onAccept }: TermsAg
         <JupleBrandMark size="medium" style={styles.brand} />
         <Text accessibilityRole="header" style={styles.title}>{t('agreement.title')}</Text>
         <Text style={styles.subtitle}>{t('agreement.subtitle')}</Text>
+        {document && !document.canAccept ? <Text accessibilityRole="alert" style={styles.subtitle}>{t('agreement.documentUnavailable')}</Text> : null}
 
         <Pressable
           accessibilityRole="checkbox"
@@ -100,6 +104,7 @@ export function TermsAgreementScreen({ isSaving, saveFailed, onAccept }: TermsAg
         {saveFailed ? (
           <Text accessibilityLiveRegion="polite" style={styles.error} testID="agreement-error">{t('safety.termsSaveFailed')}</Text>
         ) : null}
+        <SubscriptionRights />
       </ScrollView>
 
       <View style={styles.footer}>
@@ -124,7 +129,7 @@ export function TermsAgreementScreen({ isSaving, saveFailed, onAccept }: TermsAg
         footer={
           <Pressable
             accessibilityRole="link"
-            onPress={() => openFull(detail === 'privacy' ? legalLinks.privacyUrl : legalLinks.termsUrl)}
+            onPress={() => openFull(detail === 'privacy' ? legalLinks.privacyUrl : document && legalLinks.termsUrl ? `${legalLinks.termsUrl}?version=${encodeURIComponent(document.version)}&language=${encodeURIComponent(document.requestedLanguage)}` : null)}
             style={styles.fullLink}
             testID="agreement-detail-full"
           >
@@ -133,7 +138,7 @@ export function TermsAgreementScreen({ isSaving, saveFailed, onAccept }: TermsAg
         }
       >
         <ScrollView style={styles.detailScroll}>
-          {detail === 'privacy' ? <PrivacyDetail /> : <TermsDetail />}
+          {detail === 'privacy' ? <PrivacyDetail /> : <TermsDetail document={document} />}
         </ScrollView>
       </AppModal>
     </SafeAreaView>
@@ -194,17 +199,17 @@ function Section({ title, children }: { readonly title: string; readonly childre
   );
 }
 
-function TermsDetail() {
-  const { t } = useTranslation();
+function TermsDetail({ document }: { readonly document?: PublishedTermsDocument | null }) {
+  if (!document) return null;
   return (
     <View>
-      <Section title={t('agreement.ageConfirmation')}>{t('agreement.ageNotice')}</Section>
-      <Section title={t('agreement.terms.serviceTitle')}>{t('agreement.terms.serviceBody')}</Section>
-      <Section title={t('agreement.terms.contentTitle')}>{t('agreement.terms.contentBody')}</Section>
-      <Section title={t('agreement.terms.conductTitle')}>{t('agreement.terms.conductBody')}</Section>
-      <Section title={t('agreement.terms.reportTitle')}>{t('agreement.terms.reportBody')}</Section>
-      <Section title={t('agreement.terms.restrictionTitle')}>{t('agreement.terms.restrictionBody')}</Section>
-      <Section title={t('agreement.terms.subscriptionTitle')}>{t('agreement.terms.subscriptionBody')}</Section>
+      <Text>{document.version} · {document.language}</Text>
+      <Section title={document.document.title}>{document.document.intro}</Section>
+      {document.document.sections.map(section => (
+        <Section key={section.id} title={section.title}>
+          {section.blocks.map(block => block.kind === 'p' ? block.text : block.items.join('\n')).join('\n\n')}
+        </Section>
+      ))}
     </View>
   );
 }

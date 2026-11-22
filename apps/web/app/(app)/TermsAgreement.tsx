@@ -1,12 +1,14 @@
 'use client';
 
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { AppApi } from '../../lib/appApi';
 import type { AppDictionary } from '../../lib/appI18n';
 import { isSessionLost } from '../../lib/authSession';
 import { parseTermsStatus, TERMS_ACCEPTANCE_PATH, type TermsStatus } from '../../lib/safety';
 import { BrandIcon } from './BrandIcon';
 import styles from './app.module.css';
+import { parsePublishedTerms, type PublishedTermsDocument } from '../../lib/termsDocument.generated';
+import { SubscriptionRights } from './SubscriptionRights';
 
 type Document = 'terms' | 'privacy';
 
@@ -21,16 +23,22 @@ export function TermsAgreement({
   api,
   dictionary,
   version,
+  language,
   onAccepted,
   onSessionLost,
 }: {
   readonly api: AppApi;
   readonly dictionary: AppDictionary;
   readonly version: string;
+  readonly language: string;
   readonly onAccepted: (status: TermsStatus) => void;
   readonly onSessionLost: () => void;
 }) {
   const titleId = useId();
+  const lifetime = useRef({ active: false });
+  const [loaded, setLoaded] = useState<{ api: AppApi; value: PublishedTermsDocument } | null>(null);
+  const document = loaded?.api === api && loaded.value.version === version && loaded.value.requestedLanguage === language ? loaded.value : null;
+  const [attempt, setAttempt] = useState(0);
   const [termsChecked, setTermsChecked] = useState(false);
   const [privacyChecked, setPrivacyChecked] = useState(false);
   const [open, setOpen] = useState<Document | null>(null);
@@ -38,7 +46,22 @@ export function TermsAgreement({
   const [failed, setFailed] = useState(false);
   const sending = useRef(false);
   const [ageChecked, setAgeChecked] = useState(false);
-  const allChecked = termsChecked && privacyChecked && ageChecked;
+  useEffect(() => {
+    const run = { active: true };
+    lifetime.current = run;
+    let active = true;
+    api<unknown>({ method: 'GET', path: `/api/v1/terms/document?version=${encodeURIComponent(version)}&language=${encodeURIComponent(language)}` })
+      .then(raw => {
+        if (!active) return;
+        const next = parsePublishedTerms(raw, version);
+        setLoaded(next ? { api, value: next } : null);
+        setTermsChecked(false); setPrivacyChecked(false); setAgeChecked(false);
+        sending.current = false; setBusy(false);
+      })
+      .catch(error => { if (active && isSessionLost(error)) onSessionLost(); });
+    return () => { active = false; run.active = false; };
+  }, [api, version, language, attempt, onSessionLost]);
+  const allChecked = termsChecked && privacyChecked && ageChecked && document?.canAccept && document?.version === version && document?.requestedLanguage === language;
 
   const toggleAll = (checked: boolean) => {
     setTermsChecked(checked);
@@ -52,12 +75,14 @@ export function TermsAgreement({
       return;
     }
     sending.current = true;
+    const run = lifetime.current;
     setBusy(true);
     setFailed(false);
-    api<unknown>({ method: 'POST', path: TERMS_ACCEPTANCE_PATH, body: { version, isAtLeast14: ageChecked } }).then(
+    api<unknown>({ method: 'POST', path: TERMS_ACCEPTANCE_PATH, body: { version, contentHash: document!.contentHash, language, isAtLeast14: ageChecked } }).then(
       raw => {
+        if (!run.active || lifetime.current !== run) return;
         const status = parseTermsStatus(raw);
-        if (!status || (status.isAccepted && status.acceptedVersion !== status.currentVersion)) {
+        if (!status || status.currentVersion !== version || (status.isAccepted && status.acceptedVersion !== status.currentVersion)) {
           sending.current = false;
           setBusy(false);
           setFailed(true);
@@ -66,6 +91,7 @@ export function TermsAgreement({
         onAccepted(status);
       },
       async caught => {
+        if (!run.active || lifetime.current !== run) return;
         sending.current = false;
         setBusy(false);
         if (isSessionLost(caught)) {
@@ -75,6 +101,7 @@ export function TermsAgreement({
         setFailed(true);
         try {
           const status = parseTermsStatus(await api<unknown>({ method: 'GET', path: '/api/v1/users/me/terms' }));
+          if (!run.active || lifetime.current !== run) return;
           if (status && (status.currentVersion !== version || status.isAccepted)) {
             onAccepted(status);
           }
@@ -98,6 +125,8 @@ export function TermsAgreement({
           {dictionary.agreementTitle}
         </h1>
         <p className={styles.agreementSubtitle}>{dictionary.agreementSubtitle}</p>
+        {document && !document.canAccept ? <p role="alert">{dictionary.agreementDocumentUnavailable}</p> : null}
+        {!document ? <div role="alert"><p>{dictionary.agreementLoadFailed}</p><button type="button" onClick={() => { setLoaded(null); setAttempt(value => value + 1); }}>{dictionary.retry}</button></div> : null}
 
         <label className={`${styles.agreementRow} ${styles.agreementAll}`}>
           <input checked={allChecked} data-agreement-all disabled={busy} onChange={event => toggleAll(event.target.checked)} type="checkbox" />
@@ -114,14 +143,12 @@ export function TermsAgreement({
           open={open === 'terms'}
           setOpen={isOpen => setOpen(isOpen ? 'terms' : null)}
         >
-          <Section body={dictionary.agreementAgeNotice} title={dictionary.agreementAgeConfirmation} />
-          <Section body={dictionary.agreementTermsServiceBody} title={dictionary.agreementTermsServiceTitle} />
-          <Section body={dictionary.agreementTermsContentBody} title={dictionary.agreementTermsContentTitle} />
-          <Section body={dictionary.agreementTermsConductBody} title={dictionary.agreementTermsConductTitle} />
-          <Section body={dictionary.agreementTermsReportBody} title={dictionary.agreementTermsReportTitle} />
-          <Section body={dictionary.agreementTermsRestrictionBody} title={dictionary.agreementTermsRestrictionTitle} />
-          <Section body={dictionary.agreementTermsSubscriptionBody} title={dictionary.agreementTermsSubscriptionTitle} />
-          <a className={styles.agreementFullLink} href="/terms" rel="noopener noreferrer" target="_blank">
+          {document ? <div lang={document.language} dir={document.language === 'ar' ? 'rtl' : 'ltr'}>
+            <p>{document.version} · {document.language}</p>
+            <Section title={document.document.title} body={document.document.intro} />
+            {document.document.sections.map(section => <Section key={section.id} title={section.title} body={section.blocks.map(block => block.kind === 'p' ? block.text : block.items.join('\n')).join('\n\n')} />)}
+          </div> : null}
+          <a className={styles.agreementFullLink} href={`/terms?version=${encodeURIComponent(version)}&language=${encodeURIComponent(language)}`} rel="noopener noreferrer" target="_blank">
             {dictionary.safetyTermsViewTerms}
           </a>
         </AgreementItem>
@@ -159,6 +186,7 @@ export function TermsAgreement({
         <button className={`${styles.primaryAction} ${styles.agreementNext}`} data-agreement-next disabled={busy || !allChecked} type="submit">
           {busy ? dictionary.saving : dictionary.agreementNext}
         </button>
+        <SubscriptionRights api={api} dictionary={dictionary} onSessionLost={onSessionLost} />
       </form>
     </main>
   );
