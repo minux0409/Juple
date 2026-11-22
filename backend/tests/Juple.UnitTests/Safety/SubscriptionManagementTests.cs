@@ -16,7 +16,8 @@ namespace Juple.UnitTests.Safety;
 public sealed class SubscriptionManagementTests
 {
     [Theory]
-    [InlineData("2026-10-14", "2026-10-14", 503)]
+    [InlineData("2026-10-14", "2026-10-14", 200)]
+    [InlineData("2099-01-01", "2099-01-01", 503)]
     [InlineData("2026-10-25", "2099-01-01", 409)]
     public void UnknownOrStaleDocumentPolicyDoesNotFallBackToAnotherVersion(string current, string requested, int expected)
     {

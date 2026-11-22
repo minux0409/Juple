@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { LegalDocumentView } from '../_legal/LegalDocumentView';
 import { readLegalOperatorConfig } from '../../lib/legalConfig';
-import { termsDocument } from '../../lib/legalContent';
+import { publishedTermsForVersion, termsDocument } from '../../lib/legalContent';
 import { buildLegalMetadata } from '../../lib/legalMetadata';
 import { normalizeHost } from '../../lib/shareLinks';
 import { notFound } from 'next/navigation';
@@ -16,14 +16,17 @@ async function requestHost(): Promise<string | null> {
   return normalizeHost(requestHeaders.get('x-forwarded-host') ?? requestHeaders.get('host'));
 }
 
-export async function generateMetadata(): Promise<Metadata> {
-  return buildLegalMetadata(termsDocument(readLegalOperatorConfig()), await requestHost());
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ version?: string; language?: string }> }): Promise<Metadata> {
+  const query = await searchParams;
+  if (query.version && !publishedTermsForVersion(query.version)) notFound();
+  return buildLegalMetadata(termsDocument(readLegalOperatorConfig(), query.version), await requestHost());
 }
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ version?: string; language?: string }> }) {
   const query = await searchParams;
-  if ((query.version && query.version !== publishedTerms.version)
+  if ((query.version && !publishedTermsForVersion(query.version))
       || (query.language && !publishedTerms.supportedLanguages.includes(query.language))) notFound();
   const config = readLegalOperatorConfig();
-  return <LegalDocumentView doc={termsDocument(config)} config={config} />;
+  const displayConfig = query.version && query.version !== publishedTerms.version ? { ...config, effectiveDate: undefined } : config;
+  return <LegalDocumentView doc={termsDocument(config, query.version)} config={displayConfig} />;
 }

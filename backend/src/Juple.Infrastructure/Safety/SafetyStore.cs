@@ -28,7 +28,11 @@ public sealed class SafetyStore(JupleDbContext dbContext, IUserProfileImageStora
         var user = await dbContext.Users.FirstAsync(candidate => candidate.Id == userId, cancellationToken);
         if (user.AcceptedTermsVersion != version || user.TermsAcceptedAtUtc is null)
         {
-            user.AcceptTerms(version, nowUtc);
+            if (PublishedTerms.AllowsLegacyRequest(version))
+            {
+                if (!user.TryAcceptTermsPreservingVersion(version, nowUtc)) throw new InvalidTermsVersionException();
+            }
+            else user.AcceptTerms(version, nowUtc);
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 

@@ -7,29 +7,36 @@ namespace Juple.Application.Safety;
 /// <summary>Only an existing published document belongs here. Legal drafts are never loaded at runtime.</summary>
 public static class PublishedTerms
 {
-    private static readonly JsonElement Source = Load();
+    private static readonly JsonElement Source = Load("PublishedTerms.json");
+    private static readonly JsonElement LegacySource = Load("LegacyPublishedTerms.json");
     public static string Version => Source.GetProperty("version").GetString()!;
     public static string ContentHash => Source.GetProperty("contentHash").GetString()!;
 
+    private static JsonElement? Find(string? version) =>
+        version == Version ? Source : version == LegacySource.GetProperty("version").GetString() ? LegacySource : null;
+
+    // This exception is tied to the recovered historical document, never to an operator-selected future version.
+    public static bool AllowsLegacyRequest(string? version) => version == LegacySource.GetProperty("version").GetString();
+
     public static bool Matches(string? version, string? contentHash, string? requestedLanguage) =>
-        string.Equals(version, Version, StringComparison.Ordinal)
-        && string.Equals(contentHash, ContentHash, StringComparison.Ordinal)
-        && Source.GetProperty("consentLanguages").EnumerateArray().Any(item => item.GetString() == requestedLanguage);
+        Find(version) is { } source
+        && string.Equals(contentHash, source.GetProperty("contentHash").GetString(), StringComparison.Ordinal)
+        && source.GetProperty("consentLanguages").EnumerateArray().Any(item => item.GetString() == requestedLanguage);
 
     public static object? GetDocument(string version, string? language)
     {
-        if (version != Version) return null;
+        if (Find(version) is not { } source) return null;
         var requested = language ?? "ko";
-        if (!Source.GetProperty("supportedLanguages").EnumerateArray().Any(item => item.GetString() == requested)) return null;
+        if (!source.GetProperty("supportedLanguages").EnumerateArray().Any(item => item.GetString() == requested)) return null;
         // The existing public full agreement is Korean. This is an explicit fallback, NOT approval of translations.
-        var canAccept = Source.GetProperty("consentLanguages").EnumerateArray().Any(item => item.GetString() == requested);
-        return new { version = Version, language = "ko", requestedLanguage = requested, canAccept,
-            contentHash = ContentHash, document = Source.GetProperty("document") };
+        var canAccept = source.GetProperty("consentLanguages").EnumerateArray().Any(item => item.GetString() == requested);
+        return new { version, language = source.GetProperty("language").GetString(), requestedLanguage = requested, canAccept,
+            contentHash = source.GetProperty("contentHash").GetString(), document = source.GetProperty("document") };
     }
 
-    private static JsonElement Load()
+    private static JsonElement Load(string name)
     {
-        using var stream = typeof(PublishedTerms).Assembly.GetManifestResourceStream("Juple.Application.Safety.PublishedTerms.json")!;
+        using var stream = typeof(PublishedTerms).Assembly.GetManifestResourceStream($"Juple.Application.Safety.{name}")!;
         using var json = JsonDocument.Parse(stream);
         var source = json.RootElement.Clone();
         var document = source.GetProperty("document");

@@ -1,4 +1,5 @@
 import publishedTerms from './publishedTerms.generated.json' with { type: 'json' };
+import legacyTerms from './legacyPublishedTerms.generated.json' with { type: 'json' };
 import { LEGAL_CONTENT_UPDATED, PRIVACY_POLICY_UPDATED, type LegalOperatorConfig } from './legalConfig.ts';
 
 /**
@@ -305,9 +306,15 @@ export function privacyDocument(config: LegalOperatorConfig): LegalDocument {
   };
 }
 
-export function termsDocument(config: LegalOperatorConfig): LegalDocument {
+export function publishedTermsForVersion(version: string) {
+  return version === publishedTerms.version ? publishedTerms : version === legacyTerms.version ? legacyTerms : null;
+}
+
+export function termsDocument(config: LegalOperatorConfig, version = publishedTerms.version): LegalDocument {
   void config;
-  return publishedTerms.document as LegalDocument;
+  const published = publishedTermsForVersion(version);
+  if (!published) throw new Error('Unpublished terms version');
+  return published.document as LegalDocument;
 }
 
 export function accountDeletionDocument(config: LegalOperatorConfig): LegalDocument {

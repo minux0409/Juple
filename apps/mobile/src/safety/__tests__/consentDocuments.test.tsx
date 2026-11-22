@@ -2,6 +2,7 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { SubscriptionRights } from '../SubscriptionRights';
 import { parsePublishedTerms } from '../termsDocument';
 import i18n from '../../i18n';
+import historical from '../../../../../backend/src/Juple.Application/Safety/LegacyPublishedTerms.json';
 
 const mockRequest = jest.fn();
 jest.mock('../../api/useAuthenticatedApi', () => ({ useAuthenticatedApi: () => mockRequest }));
@@ -48,4 +49,14 @@ it('deduplicates restores, reports store failure and never routes to the service
 it('refuses malformed or stale canonical documents instead of using bundled agreement translations', () => {
   expect(parsePublishedTerms(null, 'new')).toBeNull();
   expect(parsePublishedTerms({ version: 'old' }, 'new')).toBeNull();
+});
+
+it('reads the actual historical version from the server without promoting it to the newer public version', () => {
+  const payload = { ...historical, requestedLanguage: 'ko', canAccept: true };
+  expect(parsePublishedTerms(payload, '2026-10-14')?.document.updated).toBe('2026-10-14');
+  expect(parsePublishedTerms(payload, '2026-10-25')).toBeNull();
+  const untranslated = parsePublishedTerms({ ...payload, requestedLanguage: 'en', canAccept: false }, '2026-10-14');
+  expect(untranslated?.canAccept).toBe(false);
+  expect(untranslated?.language).toBe('ko');
+  expect(untranslated?.requestedLanguage).toBe('en');
 });

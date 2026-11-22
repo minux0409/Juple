@@ -4,12 +4,29 @@ import { describe, it } from 'node:test';
 import published from '../../../backend/src/Juple.Application/Safety/PublishedTerms.json' with { type: 'json' };
 import { parsePublishedTerms } from '../lib/termsDocument.generated.ts';
 import generated from '../lib/publishedTerms.generated.json' with { type: 'json' };
+import legacy from '../../../backend/src/Juple.Application/Safety/LegacyPublishedTerms.json' with { type: 'json' };
+import generatedLegacy from '../lib/legacyPublishedTerms.generated.json' with { type: 'json' };
 import { readFileSync } from 'node:fs';
 import { APP_LANGUAGES } from '../lib/appI18n.ts';
-import { termsDocument } from '../lib/legalContent.ts';
+import { publishedTermsForVersion, termsDocument } from '../lib/legalContent.ts';
 import { readLegalOperatorConfig } from '../lib/legalConfig.ts';
 
 describe('published terms contract shared with native consent', () => {
+  it('keeps the recovered historical source separate from the default public document', () => {
+    assert.deepEqual(generatedLegacy, legacy);
+    assert.equal(legacy.version, '2026-10-14');
+    assert.equal(legacy.provenance.sourceCommit, 'e3445efb891551e7afbc8a6804520f7487546e15');
+    assert.equal(legacy.provenance.contentBlob, 'ee72f5da57a16002297ef6b6fe55c75131e46c8b');
+    assert.equal(legacy.provenance.configBlob, '6eaad649f703622a1253fdf4e248fa4e46fde85a');
+    const doc = termsDocument(readLegalOperatorConfig({}), legacy.version);
+    const text = [doc.title, doc.intro, ...doc.sections.flatMap(section => [section.title, ...section.blocks.flatMap(block => block.kind === 'p' ? [block.text] : block.items)])].join('\n');
+    assert.equal(createHash('sha256').update(text).digest('hex'), legacy.contentHash);
+    assert.equal(legacy.contentHash, '4559616eb6d94d7b9158e1e74f96cb33793394cc3d8b5889468a53c468b824c2');
+    assert.equal(doc.updated, '2026-10-14');
+    assert.equal(termsDocument(readLegalOperatorConfig({})).updated, '2026-10-25');
+    assert.equal(publishedTermsForVersion('2099-01-01'), null);
+    assert.deepEqual(legacy.consentLanguages, ['ko']);
+  });
   it('binds every supported locale to the exact existing public document without approving translated drafts', () => {
     assert.deepEqual(published.supportedLanguages, [...APP_LANGUAGES]);
     assert.deepEqual(generated, published);

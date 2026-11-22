@@ -8,6 +8,8 @@ using Juple.Application.Users.CurrentUser;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Juple.Api.Controllers;
 
@@ -40,10 +42,23 @@ public sealed class SafetyController(
         request.IsAtLeast14 != true
             ? Task.FromResult<IActionResult>(Juple.Api.Safety.SafetyProblems.Create(
                 StatusCodes.Status400BadRequest, "Juple requires confirmation that you are at least 14 years old.", "minimumAgeConfirmationRequired"))
-            : !PublishedTerms.Matches(request.Version, request.ContentHash, request.Language)
+            : !(request.IsLegacyFormat
+                ? PublishedTerms.AllowsLegacyRequest(request.Version)
+                : PublishedTerms.Matches(request.Version, request.HashText, request.LanguageText))
                 ? Task.FromResult<IActionResult>(Juple.Api.Safety.SafetyProblems.Create(
                     StatusCodes.Status400BadRequest, "The displayed published terms must match this consent.", "termsDocumentMismatch"))
-                : ExecuteAsync(userId => termsService.AcceptAsync(userId, request.Version, cancellationToken), status => Ok(TermsResponse.From(status)), cancellationToken);
+                : ExecuteAsync(userId => PublishedTerms.AllowsLegacyRequest(request.Version)
+                    ? AcceptHistoricalAsync(userId, request.Version!, cancellationToken)
+                    : termsService.AcceptAsync(userId, request.Version, cancellationToken), status => Ok(TermsResponse.From(status)), cancellationToken);
+
+    private async Task<TermsStatusDto> AcceptHistoricalAsync(long userId, string version, CancellationToken cancellationToken)
+    {
+        var status = await termsService.GetStatusAsync(userId, cancellationToken);
+        if (status.CurrentVersion != version || (status.AcceptedVersion is not null && status.AcceptedVersion != version))
+            throw new InvalidTermsVersionException();
+        // Do not rewrite a previous timestamp or downgrade an existing different-version acceptance.
+        return status.IsAccepted ? status : await termsService.AcceptAsync(userId, version, cancellationToken);
+    }
 
     /// <summary>201 for a new report, 200 when this person already has an open report of the same thing (nothing is created twice).</summary>
     [HttpPost("reports")]
@@ -118,7 +133,18 @@ public sealed class SafetyController(
         }
     }
 
-    public sealed record AcceptTermsRequest(string? Version, bool? IsAtLeast14 = null, string? ContentHash = null, string? Language = null);
+    [method: JsonConstructor]
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record AcceptTermsRequest(string? Version, bool? IsAtLeast14 = null, JsonElement ContentHash = default, JsonElement Language = default)
+    {
+        // Undefined is absent. Explicit null, a partial modern request or a wrong JSON type must not downgrade to legacy.
+        [JsonIgnore] public bool IsLegacyFormat => ContentHash.ValueKind == JsonValueKind.Undefined && Language.ValueKind == JsonValueKind.Undefined;
+        [JsonIgnore] public string? HashText => ContentHash.ValueKind == JsonValueKind.String ? ContentHash.GetString() : null;
+        [JsonIgnore] public string? LanguageText => Language.ValueKind == JsonValueKind.String ? Language.GetString() : null;
+
+        public AcceptTermsRequest(string? version, bool? age, string? hash, string? language = null)
+            : this(version, age, JsonSerializer.SerializeToElement(hash), JsonSerializer.SerializeToElement(language)) { }
+    }
 
     public sealed record TermsResponse(string CurrentVersion, string? AcceptedVersion, DateTimeOffset? AcceptedAtUtc, bool IsAccepted)
     {

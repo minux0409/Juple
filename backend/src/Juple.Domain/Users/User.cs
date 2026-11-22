@@ -83,6 +83,14 @@ public sealed class User
         TermsAcceptedAtUtc = acceptedAtUtc;
     }
 
+    /// <summary>A historical protocol may fill a missing consent, never replace a different consent or its timestamp.</summary>
+    public bool TryAcceptTermsPreservingVersion(string version, DateTimeOffset acceptedAtUtc)
+    {
+        if (AcceptedTermsVersion is not null && AcceptedTermsVersion != version) return false;
+        if (AcceptedTermsVersion != version || TermsAcceptedAtUtc is null) AcceptTerms(version, acceptedAtUtc);
+        return true;
+    }
+
     /// <summary>Records the trial window (only ever the ledger's original one - see EntitlementService).</summary>
     public void SetTrial(Juple.Domain.Billing.TrialWindow window)
     {
