@@ -26,6 +26,7 @@ export function parsePublishedTerms(raw: unknown, version: string): PublishedTer
       || typeof value.language !== 'string' || !value.language
       || typeof value.requestedLanguage !== 'string' || !value.requestedLanguage
       || typeof value.canAccept !== 'boolean'
+      || (value.canAccept && value.language !== value.requestedLanguage)
       || !doc || doc.updated !== version || typeof doc.title !== 'string' || typeof doc.intro !== 'string'
       || !Array.isArray(doc.sections) || doc.sections.length === 0) return null;
   for (const section of doc.sections) {

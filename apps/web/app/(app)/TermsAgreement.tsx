@@ -9,6 +9,7 @@ import { BrandIcon } from './BrandIcon';
 import styles from './app.module.css';
 import { parsePublishedTerms, type PublishedTermsDocument } from '../../lib/termsDocument.generated';
 import { SubscriptionRights } from './SubscriptionRights';
+import { legalFallbackNotices, legalLanguage } from '../../lib/legalDocumentPolicy.generated';
 
 type Document = 'terms' | 'privacy';
 
@@ -80,7 +81,7 @@ export function TermsAgreement({
     const run = lifetime.current;
     setBusy(true);
     setFailed(false);
-    api<unknown>({ method: 'POST', path: TERMS_ACCEPTANCE_PATH, body: { version, contentHash: document!.contentHash, language, isAtLeast14: ageChecked } }).then(
+    api<unknown>({ method: 'POST', path: TERMS_ACCEPTANCE_PATH, body: { version, contentHash: document!.contentHash, language: document!.language, isAtLeast14: ageChecked } }).then(
       raw => {
         if (!run.active || lifetime.current !== run) return;
         const status = parseTermsStatus(raw);
@@ -117,7 +118,7 @@ export function TermsAgreement({
   const required = (name: string) => dictionary.agreementRequired.replace('{name}', name);
 
   return (
-    <main aria-labelledby={titleId} className={styles.agreementPage} data-terms-agreement>
+    <main aria-labelledby={titleId} className={styles.agreementPage} data-terms-agreement lang={language} dir={language === 'ar' ? 'rtl' : 'ltr'}>
       <form className={styles.agreementCard} noValidate onSubmit={accept}>
         <div className={styles.agreementLockup}>
           <BrandIcon size={38} />
@@ -128,6 +129,7 @@ export function TermsAgreement({
         </h1>
         <p className={styles.agreementSubtitle}>{dictionary.agreementSubtitle}</p>
         {document && !document.canAccept ? <p role="alert">{dictionary.agreementDocumentUnavailable}</p> : null}
+        {document && document.language !== language ? <p lang={language} dir={language === 'ar' ? 'rtl' : 'ltr'}>{legalFallbackNotices[legalLanguage(language)]}</p> : null}
         {!document ? <div role="alert"><p>{dictionary.agreementLoadFailed}</p><button type="button" onClick={() => { setLoaded(null); setAttempt(value => value + 1); }}>{dictionary.retry}</button></div> : null}
 
         <label className={`${styles.agreementRow} ${styles.agreementAll}`}>
@@ -169,7 +171,7 @@ export function TermsAgreement({
           <Section body={dictionary.agreementPrivacyPurposeBody} title={dictionary.agreementPrivacyPurposeTitle} />
           <Section body={dictionary.agreementPrivacyRetentionBody} title={dictionary.agreementPrivacyRetentionTitle} />
           <Section body={dictionary.agreementPrivacyRefusalBody} title={dictionary.agreementPrivacyRefusalTitle} />
-          <a className={styles.agreementFullLink} href="/privacy" rel="noopener noreferrer" target="_blank">
+          <a className={styles.agreementFullLink} href={`/privacy?language=${encodeURIComponent(language)}`} rel="noopener noreferrer" target="_blank">
             {dictionary.safetyTermsViewPrivacy}
           </a>
         </AgreementItem>

@@ -8,6 +8,7 @@ import { Pressable } from '../components/Pressable';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { useMessageDialog } from '../components/useMessageDialog';
 import { legalLinks } from '../config/legalLinks';
+import { legalDocumentLink, legalAccountDeletionLabels, legalLanguage } from '../i18n/legalDocumentPolicy';
 import { ChevronIcon } from '../icons/ChevronIcon';
 import { JupleBrandMark } from '../components/JupleBrandMark';
 import type { RootStackParamList } from '../navigation/RootStack';
@@ -21,7 +22,7 @@ import { cardShadow, colors, minTouchTarget, radii, spacing, themedStyles } from
  * the shared message dialog.
  */
 export function CustomerCenterScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { showMessage, messageDialog } = useMessageDialog();
   const appInfo = getAppInfo();
@@ -30,7 +31,7 @@ export function CustomerCenterScreen() {
   // openURL would find. A real failure surfaces through the catch.
   const openLegal = async (url: string) => {
     try {
-      await Linking.openURL(url);
+      await Linking.openURL(legalDocumentLink(url, i18n.resolvedLanguage ?? i18n.language)!);
     } catch {
       showMessage(t('customerCenter.openLinkFailed'));
     }
@@ -39,6 +40,7 @@ export function CustomerCenterScreen() {
   const legalRows = [
     { id: 'terms', label: t('customerCenter.terms'), url: legalLinks.termsUrl },
     { id: 'privacy', label: t('customerCenter.privacy'), url: legalLinks.privacyUrl },
+    { id: 'account-deletion', label: legalAccountDeletionLabels[legalLanguage(i18n.resolvedLanguage ?? i18n.language)], url: legalLinks.accountDeletionUrl ?? null },
   ].filter((row): row is { id: string; label: string; url: string } => row.url !== null);
 
   return (

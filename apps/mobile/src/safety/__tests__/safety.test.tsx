@@ -7,6 +7,7 @@ import { AppModal } from '../../components/AppModal';
 import { colors } from '../../theme/tokens';
 import { TermsAgreementScreen } from '../TermsAgreementScreen';
 import { useTermsOnboarding } from '../useTermsOnboarding';
+import { legalFallbackNotices } from '../../i18n/legalDocumentPolicy';
 import {
   acceptTerms,
   blockedInteractionKey,
@@ -161,7 +162,7 @@ describe('ReportModal', () => {
 describe('Terms onboarding (the Agreement screen)', () => {
   beforeEach(() => {
     jest.mocked(getPublishedTerms).mockImplementation(async (_request, version, language) => ({
-      version, contentHash: 'a'.repeat(64), language: 'ko', requestedLanguage: language, canAccept: true,
+      version, contentHash: 'a'.repeat(64), language: 'ko', requestedLanguage: language, canAccept: language === 'ko',
       document: { updated: version, title: 'Published terms', intro: 'Versioned body', sections: [{ id: 'terms', title: 'Terms', blocks: [{ kind: 'p', text: 'Approved published body' }] }] },
     }));
   });
@@ -193,6 +194,24 @@ describe('Terms onboarding (the Agreement screen)', () => {
     });
     return renderer;
   }
+
+  it.each(['ko', 'en', 'ar'] as const)('%s renders the correct original/fallback and cannot consent to an unapproved translation', async language => {
+    await i18n.changeLanguage(language);
+    try {
+      jest.mocked(getTermsStatus).mockResolvedValue(status(false));
+      const renderer = await mount();
+      const notice = renderer.root.findAllByType(Text).find(node => node.props.children === legalFallbackNotices[language]);
+      if (language === 'ko') expect(notice).toBeUndefined();
+      else {
+        expect(notice).toBeDefined();
+        expect(StyleSheet.flatten(notice!.props.style).writingDirection).toBe(language === 'ar' ? 'rtl' : 'ltr');
+      }
+      await press(renderer, 'agreement-all');
+      expect(byId(renderer, 'agreement-next').props.disabled).toBe(language !== 'ko');
+      expect(acceptTerms).not.toHaveBeenCalled();
+      await act(async () => renderer.unmount());
+    } finally { await i18n.changeLanguage('ko'); }
+  });
 
   it('lines up every check box: 전체동의 and each single agreement start their box at the same inset (one vertical line)', async () => {
     jest.mocked(getTermsStatus).mockResolvedValue(status(false));

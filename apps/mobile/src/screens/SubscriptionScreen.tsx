@@ -20,6 +20,7 @@ import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { useActionAfterMenu } from '../components/useActionAfterMenu';
 import { useMessageDialog } from '../components/useMessageDialog';
 import { legalLinks } from '../config/legalLinks';
+import { legalDocumentLink } from '../i18n/legalDocumentPolicy';
 import { cardShadow, colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 
 type PlansState =
@@ -333,7 +334,7 @@ export function SubscriptionScreen() {
 
   const openLegal = (url: string | null) => {
     if (url) {
-      Linking.openURL(url).catch(() => undefined);
+        Linking.openURL(legalDocumentLink(url, i18n.resolvedLanguage ?? i18n.language)!).catch(() => undefined);
     }
   };
 

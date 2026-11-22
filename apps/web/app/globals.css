@@ -457,8 +457,13 @@ main.legalMain {
 
 .legalSection ul,
 .legalSection ol {
-  padding-left: 22px;
+  padding-inline-start: 22px;
 }
+
+.legalLanguageForm { display: flex; flex-wrap: wrap; gap: 12px; margin-block-end: 16px; }
+.legalLanguageForm label { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.legalLanguageForm select, .legalLanguageForm button { max-width: 100%; min-height: 44px; }
+.legalTitle, .legalSection h2, [data-legal-fallback] { overflow-wrap: anywhere; }
 
 .legalSection li {
   margin-bottom: 8px;

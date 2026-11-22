@@ -11,6 +11,7 @@ import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/t
 import { JupleBrandMark } from '../components/JupleBrandMark';
 import type { PublishedTermsDocument } from './termsDocument';
 import { SubscriptionRights } from './SubscriptionRights';
+import { legalDocumentLink, legalFallbackNotices, legalLanguage } from '../i18n/legalDocumentPolicy';
 
 type Document = 'terms' | 'privacy';
 
@@ -29,7 +30,7 @@ interface TermsAgreementScreenProps {
  * by the server for the account, so another device or a later sign-in never asks again.
  */
 export function TermsAgreementScreen({ isSaving, saveFailed, onAccept, document }: TermsAgreementScreenProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [termsChecked, setTermsChecked] = useState(false);
   const [privacyChecked, setPrivacyChecked] = useState(false);
   const [detail, setDetail] = useState<Document | null>(null);
@@ -56,6 +57,7 @@ export function TermsAgreementScreen({ isSaving, saveFailed, onAccept, document 
         <Text accessibilityRole="header" style={styles.title}>{t('agreement.title')}</Text>
         <Text style={styles.subtitle}>{t('agreement.subtitle')}</Text>
         {document && !document.canAccept ? <Text accessibilityRole="alert" style={styles.subtitle}>{t('agreement.documentUnavailable')}</Text> : null}
+        {document && document.language !== document.requestedLanguage ? <Text style={[styles.subtitle, document.requestedLanguage === 'ar' ? styles.rtlText : styles.ltrText]}>{legalFallbackNotices[legalLanguage(document.requestedLanguage)]}</Text> : null}
 
         <Pressable
           accessibilityRole="checkbox"
@@ -129,7 +131,7 @@ export function TermsAgreementScreen({ isSaving, saveFailed, onAccept, document 
         footer={
           <Pressable
             accessibilityRole="link"
-            onPress={() => openFull(detail === 'privacy' ? legalLinks.privacyUrl : document && legalLinks.termsUrl ? `${legalLinks.termsUrl}?version=${encodeURIComponent(document.version)}&language=${encodeURIComponent(document.requestedLanguage)}` : null)}
+            onPress={() => openFull(legalDocumentLink(detail === 'privacy' ? legalLinks.privacyUrl : legalLinks.termsUrl, document?.requestedLanguage ?? i18n.resolvedLanguage ?? i18n.language, detail === 'terms' ? document?.version : undefined))}
             style={styles.fullLink}
             testID="agreement-detail-full"
           >
@@ -190,11 +192,12 @@ function AgreementRow({
   );
 }
 
-function Section({ title, children }: { readonly title: string; readonly children: string }) {
+function Section({ title, children, direction }: { readonly title: string; readonly children: string; readonly direction?: 'rtl' | 'ltr' }) {
+  const textDirection = direction === 'rtl' ? styles.rtlText : direction === 'ltr' ? styles.ltrText : undefined;
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <Text style={styles.sectionBody}>{children}</Text>
+      <Text style={[styles.sectionTitle, textDirection]}>{title}</Text>
+      <Text style={[styles.sectionBody, textDirection]}>{children}</Text>
     </View>
   );
 }
@@ -204,9 +207,9 @@ function TermsDetail({ document }: { readonly document?: PublishedTermsDocument 
   return (
     <View>
       <Text>{document.version} · {document.language}</Text>
-      <Section title={document.document.title}>{document.document.intro}</Section>
+      <Section direction={document.language === 'ar' ? 'rtl' : 'ltr'} title={document.document.title}>{document.document.intro}</Section>
       {document.document.sections.map(section => (
-        <Section key={section.id} title={section.title}>
+        <Section direction={document.language === 'ar' ? 'rtl' : 'ltr'} key={section.id} title={section.title}>
           {section.blocks.map(block => block.kind === 'p' ? block.text : block.items.join('\n')).join('\n\n')}
         </Section>
       ))}
@@ -231,6 +234,8 @@ function PrivacyDetail() {
 const CHECK_ROW_INSET = spacing.md;
 
 const styles = themedStyles(() => ({
+  rtlText: { writingDirection: 'rtl', textAlign: 'right' },
+  ltrText: { writingDirection: 'ltr', textAlign: 'left' },
   screen: { backgroundColor: colors.surface, flex: 1 },
   scroll: { flex: 1 },
   content: { alignSelf: 'center', maxWidth: 560, paddingHorizontal: spacing.xl, paddingBottom: spacing.lg, width: '100%' },

@@ -13,9 +13,9 @@ jest.mock('react-native-device-info', () => ({
   __esModule: true,
   default: { getVersion: () => '9.8.7', getBuildNumber: () => '654', getSystemVersion: () => '14' },
 }));
-jest.mock('../../config/legalLinks', () => ({ legalLinks: { termsUrl: null, privacyUrl: null } }));
+jest.mock('../../config/legalLinks', () => ({ legalLinks: { termsUrl: null, privacyUrl: null, accountDeletionUrl: null } }));
 
-const legal = jest.requireMock('../../config/legalLinks').legalLinks as { termsUrl: string | null; privacyUrl: string | null };
+const legal = jest.requireMock('../../config/legalLinks').legalLinks as { termsUrl: string | null; privacyUrl: string | null; accountDeletionUrl: string | null };
 
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
@@ -25,6 +25,19 @@ afterEach(() => {
   jest.clearAllMocks();
   legal.termsUrl = null;
   legal.privacyUrl = null;
+  legal.accountDeletionUrl = null;
+});
+
+it.each(['ko', 'en', 'ar'])('%s opens the deletion guide as a localized reading link, without deleting an account', async language => {
+  await i18n.changeLanguage(language);
+  try {
+    legal.accountDeletionUrl = 'https://juple.co.kr/account-deletion';
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined as never);
+    const renderer = await renderScreen();
+    await act(async () => { byId(renderer, 'customer-center-account-deletion').props.onPress(); });
+    expect(openURL).toHaveBeenCalledWith(`https://juple.co.kr/account-deletion?language=${language}`);
+    await act(async () => renderer.unmount());
+  } finally { await i18n.changeLanguage('ko'); }
 });
 
 async function renderScreen() {
@@ -97,7 +110,7 @@ describe('CustomerCenterScreen', () => {
       await act(async () => {
         byId(renderer, 'customer-center-privacy').props.onPress();
       });
-      expect(openURL.mock.calls.map(call => call[0])).toEqual(['https://example.test/terms', 'https://example.test/privacy']);
+      expect(openURL.mock.calls.map(call => call[0])).toEqual(['https://example.test/terms?language=ko', 'https://example.test/privacy?language=ko']);
     });
 
     it('a link that will not open is said in the common dialog', async () => {

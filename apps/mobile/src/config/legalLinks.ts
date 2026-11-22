@@ -9,6 +9,7 @@ import { publicWebConfig } from './publicWebConfig';
 export interface LegalLinks {
   readonly termsUrl: string | null;
   readonly privacyUrl: string | null;
+  readonly accountDeletionUrl: string | null;
 }
 
 // A bare host (optionally with a port) - anything with a scheme, path or whitespace is refused rather than guessed at.
@@ -17,9 +18,9 @@ const BARE_HOST = /^[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:\d{1,5})?$/i;
 export function buildLegalLinks(host: string | undefined): LegalLinks {
   const trimmed = host?.trim();
   if (!trimmed || !BARE_HOST.test(trimmed)) {
-    return { termsUrl: null, privacyUrl: null };
+    return { termsUrl: null, privacyUrl: null, accountDeletionUrl: null };
   }
-  return { termsUrl: `https://${trimmed}/terms`, privacyUrl: `https://${trimmed}/privacy` };
+  return { termsUrl: `https://${trimmed}/terms`, privacyUrl: `https://${trimmed}/privacy`, accountDeletionUrl: `https://${trimmed}/account-deletion` };
 }
 
 export const legalLinks: LegalLinks = buildLegalLinks(publicWebConfig.host);

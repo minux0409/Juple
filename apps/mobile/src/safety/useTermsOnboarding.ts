@@ -86,7 +86,7 @@ export function useTermsOnboarding(enabled: boolean): TermsOnboarding {
 
   const accept = useCallback(async () => {
     const current = version.current;
-    if (saving.current || !current || !enabled || !document?.canAccept || document.version !== current || document.requestedLanguage !== language) {
+    if (saving.current || !current || !enabled || !document?.canAccept || document.version !== current || document.requestedLanguage !== language || document.language !== language) {
       return;
     }
     saving.current = true;
@@ -94,7 +94,7 @@ export function useTermsOnboarding(enabled: boolean): TermsOnboarding {
     setIsSaving(true);
     setSaveFailed(false);
     try {
-      const result = await acceptTerms(request, current, document.contentHash, document.requestedLanguage);
+      const result = await acceptTerms(request, current, document.contentHash, document.language);
       if (!run.active || lifetime.current !== run || version.current !== current) return;
       if (result.currentVersion !== current) {
         // The policy changed while this screen was open. Retry fetches the new text/version instead of resending stale consent.
