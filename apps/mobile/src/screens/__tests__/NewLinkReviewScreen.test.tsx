@@ -404,3 +404,109 @@ describe('링크 저장 - the existing 컬렉션 선택 chooser, many Collection
     expect(navigation.replace).toHaveBeenCalledWith('NewLinkReview', expect.objectContaining({ url: 'https://example.com/next' }));
   });
 });
+
+describe('링크 저장 waits for the title / preview lookup (external shares and in-app saves alike)', () => {
+  type Metadata = Awaited<ReturnType<typeof resolveUrlMetadata>>;
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason: unknown) => void;
+    const promise = new Promise<T>((onResolve, onReject) => { resolve = onResolve; reject = onReject; });
+    return { promise, resolve, reject };
+  }
+  const titleText = (tree: ReactTestRenderer.ReactTestRenderer) => tree.root.findAll(candidate => candidate.props.testID === 'save-link-title')[0].props.children;
+
+  it('Save is grey and refuses to save while the lookup is in flight, then turns on when it completes', async () => {
+    const pending = deferred<Metadata>();
+    jest.mocked(resolveUrlMetadata).mockReturnValueOnce(pending.promise);
+    const { tree } = await render();
+    expect(saveButton(tree).props.disabled).toBe(true);
+    expect(exists(tree, 'save-link-resolving')).toBe(true);
+    // Even a press that reaches the handler saves nothing.
+    await save(tree);
+    expect(saveInboxEntryToCollections).not.toHaveBeenCalled();
+
+    await act(async () => { pending.resolve({ title: 'Video title', source: null, previewImageUrl: 'https://example.com/thumb.jpg' }); });
+    expect(saveButton(tree).props.disabled).toBe(false);
+    expect(titleText(tree)).toBe('Video title');
+    await save(tree);
+    expect(saveInboxEntryToCollections).toHaveBeenCalledTimes(1);
+    expect(updateItemDetails).toHaveBeenCalledWith(expect.any(Function), 55, { title: 'Video title', memo: '' });
+    expect(setItemPreviewImage).toHaveBeenCalledWith(expect.any(Function), 55, 'https://example.com/thumb.jpg');
+  });
+
+  it('a link that HAS no thumbnail is complete once the lookup answers: Save turns on and saves the title only', async () => {
+    jest.mocked(resolveUrlMetadata).mockResolvedValueOnce({ title: 'Text only page', source: null, previewImageUrl: null });
+    const { tree } = await render();
+    expect(saveButton(tree).props.disabled).toBe(false);
+    expect(exists(tree, 'save-link-thumbnail')).toBe(false);
+    await save(tree);
+    expect(updateItemDetails).toHaveBeenCalledWith(expect.any(Function), 55, { title: 'Text only page', memo: '' });
+    expect(setItemPreviewImage).not.toHaveBeenCalled();
+  });
+
+  it('a failed lookup says so and offers 다시 시도; Save stays possible; a retry that succeeds fills the preview', async () => {
+    jest.mocked(resolveUrlMetadata).mockRejectedValueOnce(new ApiError('timeout'));
+    const { tree } = await render();
+    expect(saveButton(tree).props.disabled).toBe(false);
+    expect(exists(tree, 'save-link-metadata-retry')).toBe(true);
+
+    const pending = deferred<Metadata>();
+    jest.mocked(resolveUrlMetadata).mockReturnValueOnce(pending.promise);
+    await tap(tree, 'save-link-metadata-retry');
+    expect(resolveUrlMetadata).toHaveBeenCalledTimes(2);
+    expect(saveButton(tree).props.disabled).toBe(true);
+    expect(exists(tree, 'save-link-metadata-retry')).toBe(false);
+
+    await act(async () => { pending.resolve({ title: 'Recovered title', source: null, previewImageUrl: null }); });
+    expect(titleText(tree)).toBe('Recovered title');
+    expect(saveButton(tree).props.disabled).toBe(false);
+  });
+
+  it('a late answer for an earlier link never lands on the next one (a new share replaces the screen)', async () => {
+    const first = deferred<Metadata>();
+    jest.mocked(resolveUrlMetadata).mockReturnValueOnce(first.promise).mockResolvedValueOnce({ title: 'Second link', source: null, previewImageUrl: null });
+    const navigation = { goBack: jest.fn(), replace: jest.fn() };
+    let tree!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      tree = ReactTestRenderer.create(<NewLinkReviewScreen key="first" route={{ params: { ...routeParams, url: 'https://example.com/first' } } as never} navigation={navigation as never} />);
+    });
+    await act(async () => {
+      tree.update(<NewLinkReviewScreen key="second" route={{ params: { ...routeParams, url: 'https://example.com/second' } } as never} navigation={navigation as never} />);
+    });
+    await act(async () => { first.resolve({ title: 'First link', source: null, previewImageUrl: 'https://example.com/first.jpg' }); });
+    expect(titleText(tree)).toBe('Second link');
+    expect(exists(tree, 'save-link-thumbnail')).toBe(false);
+  });
+
+  it('repeated taps save once', async () => {
+    const pendingSave = deferred<Awaited<ReturnType<typeof saveInboxEntryToCollections>>>();
+    jest.mocked(saveInboxEntryToCollections).mockReturnValueOnce(pendingSave.promise);
+    const { tree, navigation } = await render();
+    await act(async () => {
+      const press = saveButton(tree).props.onPress;
+      press();
+      press();
+      press();
+    });
+    expect(saveButton(tree).props.disabled).toBe(true);
+    expect(saveInboxEntryToCollections).toHaveBeenCalledTimes(1);
+    await act(async () => { pendingSave.resolve({ id: 55, url: routeParams.url, savedAtUtc: '2026-01-01T00:00:00Z', addedCount: 0, submittedCount: 0, alreadyInCollectionCount: 0, alreadyPendingCount: 0 }); });
+    expect(navigation.goBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('an Instagram link waits for its device preview too, not only for the Backend answer', async () => {
+    const device = deferred<Awaited<ReturnType<typeof fetchInstagramOpenGraphCandidate>>>();
+    jest.mocked(fetchInstagramOpenGraphCandidate).mockReturnValueOnce(device.promise);
+    const { tree } = await render({ url: 'https://www.instagram.com/p/AbCdEf123/', initialTitle: null });
+    expect(fetchInstagramOpenGraphCandidate).toHaveBeenCalledTimes(1);
+    expect(saveButton(tree).props.disabled).toBe(true);
+    await act(async () => { device.resolve({ outcome: 'noMetadata', candidate: null }); });
+    expect(saveButton(tree).props.disabled).toBe(false);
+  });
+
+  it('a non-URL review text has nothing to look up and can be saved at once', async () => {
+    const { tree } = await render({ url: 'just some words', initialTitle: null });
+    expect(resolveUrlMetadata).not.toHaveBeenCalled();
+    expect(exists(tree, 'save-link-resolving')).toBe(false);
+  });
+});

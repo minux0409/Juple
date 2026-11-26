@@ -116,17 +116,26 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   const [memo, setMemo] = useState('');
 
   const [isSaving, setIsSaving] = useState(false);
+  // Synchronous twin of isSaving: two taps in the same frame both see isSaving=false (state updates on the next render), so the
+  // second save is refused here instead.
+  const isSavingRef = useRef(false);
   // What a save (or a photo pick, or opening the link) did when it was not a plain success - and the
   // result of a save that proposed the link to 승인 후 추가 Collections - in the shared message dialog,
   // never a red line under the Save button that the keyboard can hide. Whatever should follow a
   // finished save (leaving the screen) waits for its 확인; a failed save keeps every draft as typed.
   const { showMessage, messageDialog } = useMessageDialog();
 
-  const [isResolvingMetadataTitle, setIsResolvingMetadataTitle] = useState(false);
-  // Set only when the metadata fetch itself throws (network/timeout/server error) - never for a
-  // clean resolution that simply found no title/image, which is not a failure worth surfacing.
-  // Shown as a small, non-blocking hint once resolution finishes; never re-blocks Save.
-  const [metadataResolutionFailed, setMetadataResolutionFailed] = useState(false);
+  // Where the title / preview lookup stands - Save waits for it so a link is never saved before its metadata arrived:
+  //   loading  the Backend resolve (and, when it starts one, the Instagram device preview) is still in flight - Save is off.
+  //   done     finished; a missing image/title now means the link HAS none, not that it is still coming - Save is on.
+  //   failed   the Backend resolve itself threw (network/timeout/server error; every request has its own timeout, so this
+  //            always ends) - a hint and a retry are shown, and Save is on (the person may save without it).
+  //   none     nothing to look up (not an http(s) URL).
+  // Starts as loading for a URL, so Save is off from the very first frame - never a timer.
+  const [metadataStatus, setMetadataStatus] = useState<'loading' | 'done' | 'failed' | 'none'>(() => (isHttpUrl(route.params.url) ? 'loading' : 'none'));
+  const isResolvingMetadataTitle = metadataStatus === 'loading';
+  const metadataResolutionFailed = metadataStatus === 'failed';
+  const [metadataAttempt, setMetadataAttempt] = useState(0);
   // Set only by the user actually typing in the title field (see handleTitleChange) - never by
   // the metadata auto-fill below - so a later-arriving metadata result can tell "the user started
   // typing" apart from "the field is still exactly what it started as".
@@ -194,6 +203,8 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   // preview endpoint normalized it (same rules as the Item-scoped candidate endpoint), and Save hands
   // the same fetch to that Item-scoped endpoint for the saved Item - never a second fetch.
   const instagramDeviceFetchRef = useRef<Promise<InstagramOpenGraphFetchResult> | null>(null);
+  // Settles once the device preview above has been applied or dropped (it never rejects) - the metadata is complete only then.
+  const instagramDevicePreviewRef = useRef<Promise<void> | null>(null);
   // True while previewImageUrl came from the device fallback rather than the Backend's own resolve -
   // Save then leaves that image to the Item-scoped candidate endpoint (which re-validates it) instead
   // of writing it through setItemPreviewImage.
@@ -215,7 +226,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
     // Backend title would). Ignored if the screen unmounted or the URL was edited since the fetch
     // started (the fetch was for route.params.url, not whatever the field holds now). Every failure
     // is silent: previewInstagramDeviceFallback never throws and returns null for nothing usable.
-    previewInstagramDeviceFallback(authenticatedRequest, route.params.url, pendingFetch).then(preview => {
+    instagramDevicePreviewRef.current = previewInstagramDeviceFallback(authenticatedRequest, route.params.url, pendingFetch).then(preview => {
       if (!preview || !isActive() || urlRef.current.trim() !== route.params.url.trim()) {
         return;
       }
@@ -238,9 +249,10 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
       return;
     }
 
+    // One flag per attempt: a retry (or leaving the screen) makes every late answer of the previous attempt a no-op.
     let isMounted = true;
-    setIsResolvingMetadataTitle(true);
-    setMetadataResolutionFailed(false);
+    let failed = false;
+    setMetadataStatus('loading');
     resolveUrlMetadata(authenticatedRequest, route.params.url)
       .then(metadata => {
         if (!isMounted) {
@@ -275,7 +287,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
       })
       .catch(() => {
         if (isMounted) {
-          setMetadataResolutionFailed(true);
+          failed = true;
           startInstagramDeviceFetchIfNeeded(
             { hasTitle: Boolean(route.params.initialTitle), hasImage: false },
             { hasTitle: false, hasImage: false },
@@ -283,17 +295,20 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           );
         }
       })
+      // Complete only when the device preview (if one was started) has settled too - both answers are in before Save turns on.
+      .then(() => instagramDevicePreviewRef.current ?? undefined)
       .finally(() => {
         if (isMounted) {
-          setIsResolvingMetadataTitle(false);
+          setMetadataStatus(failed ? 'failed' : 'done');
         }
       });
 
     return () => {
       isMounted = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately mount-only, see remarks above.
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once on mount, again only for an explicit retry; see remarks above.
+  }, [metadataAttempt]);
+  const retryMetadata = () => setMetadataAttempt(attempt => attempt + 1);
 
   // The new link goes to the Collections chosen here - any number of them (Item ↔ Collection is many-to-many), or none.
   // A new link ALWAYS starts on 선택 안 함 (never a remembered / first / favorite Collection); only a deliberate tap - or a share
@@ -363,7 +378,8 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   // URL) so it reuses this exact same save. The `isSaving` guard makes a second concurrent call a no-op.
   const save = async (onSuccess: () => void = () => navigation.goBack()) => {
     const trimmedUrl = url.trim();
-    if (!trimmedUrl || isSaving || !hasDestinationDecision) {
+    // Also refused in logic (not only by the disabled button): while the metadata is still loading, and while a save runs.
+    if (!trimmedUrl || isSavingRef.current || isSaving || !hasDestinationDecision || metadataStatus === 'loading') {
       return;
     }
 
@@ -381,6 +397,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
       clientRequestUrlRef.current = trimmedUrl;
     }
 
+    isSavingRef.current = true;
     setIsSaving(true);
     try {
       // ONE request for the link and every chosen Collection: the server checks all of them before writing anything and
@@ -447,6 +464,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
       }
       showMessage(getSaveErrorMessage(caughtError, t));
     } finally {
+      isSavingRef.current = false;
       setIsSaving(false);
     }
   };
@@ -498,7 +516,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   };
 
   const site = resolveSiteInfo(url);
-  const isSaveDisabled = !hasDestinationDecision || !url.trim() || isSaving;
+  const isSaveDisabled = !hasDestinationDecision || !url.trim() || isSaving || isResolvingMetadataTitle;
 
   return (
     <KeyboardSafeView style={styles.screen} testID="new-link-review">
@@ -515,8 +533,13 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           <Text numberOfLines={2} style={styles.previewTitle} testID="save-link-title">{title.trim() || site.label || url}</Text>
           <SourceRow url={url} />
           {isResolvingMetadataTitle ? <ActivityIndicator size="small" style={styles.previewLoading} testID="save-link-resolving" /> : null}
-          {!isResolvingMetadataTitle && metadataResolutionFailed ? (
-            <Text style={styles.metadataResolutionFailedHint}>{t('item.metadataResolutionFailedHint')}</Text>
+          {metadataResolutionFailed ? (
+            <View style={styles.metadataFailedRow}>
+              <Text style={styles.metadataResolutionFailedHint}>{t('item.metadataResolutionFailedHint')}</Text>
+              <Pressable accessibilityRole="button" disabled={isSaving} hitSlop={8} onPress={retryMetadata} style={styles.metadataRetry} testID="save-link-metadata-retry">
+                <Text style={styles.metadataRetryLabel}>{t('importantState.retry')}</Text>
+              </Pressable>
+            </View>
           ) : null}
         </View>
       </View>
@@ -565,7 +588,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           style={[styles.saveButton, isSaveDisabled && styles.disabledButton]}
           testID="new-link-review-save"
         >
-          {isSaving ? <ActivityIndicator color={colors.onBrand} size="small" /> : <Text style={styles.saveButtonLabel}>{t('common.save')}</Text>}
+          {isSaving ? <ActivityIndicator color={colors.textMuted} size="small" /> : <Text style={[styles.saveButtonLabel, isSaveDisabled && styles.disabledButtonLabel]}>{t('common.save')}</Text>}
         </Pressable>
       </View>
 
@@ -605,6 +628,9 @@ const styles = themedStyles(() => ({
   previewTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '700', lineHeight: 20, marginBottom: 2 },
   previewLoading: { alignSelf: 'flex-start', marginTop: spacing.xs },
   metadataResolutionFailedHint: { color: colors.textSecondary, fontSize: 12, marginTop: spacing.xs },
+  metadataFailedRow: { alignItems: 'flex-start' },
+  metadataRetry: { justifyContent: 'center', minHeight: minTouchTarget },
+  metadataRetryLabel: { color: colors.brandText, fontSize: 13, fontWeight: '600' },
   // Takes the room between the preview and the composer; the chooser's own list scrolls inside it.
   destinations: { flex: 1, minHeight: 0, paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   destinationList: { flex: 1 },
@@ -639,5 +665,7 @@ const styles = themedStyles(() => ({
     paddingVertical: spacing.sm,
   },
   saveButtonLabel: { color: colors.onBrand, fontSize: 16, fontWeight: '600' },
-  disabledButton: { opacity: 0.5 },
+  // Grey while Save is not available (same size and place as the live button).
+  disabledButton: { backgroundColor: colors.inputBorder },
+  disabledButtonLabel: { color: colors.textMuted },
 }));
