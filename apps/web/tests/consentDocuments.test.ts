@@ -50,3 +50,29 @@ describe('published terms contract shared with native consent', () => {
     assert.equal(parsePublishedTerms({ ...valid, document: { title: 'x', intro: '', sections: [{ id: 'x', title: 'x', blocks: [{ kind: 'html', items: [] }] }] } }, published.version), null);
   });
 });
+
+describe('earlier terms stay readable when a new version takes effect', () => {
+  it('lists the historical consent original (and any archived version) as earlier terms, newest first, never the version in force', async () => {
+    const { currentTermsVersion, previousTermsVersions } = await import('../lib/legalContent.ts');
+    const archived = (await import('../lib/archivedPublishedTerms.generated.json', { with: { type: 'json' } })).default as readonly { version: string }[];
+    assert.equal(currentTermsVersion, published.version);
+    const previous = previousTermsVersions();
+    assert.ok(previous.includes('2026-10-14'));
+    assert.ok(!previous.includes(currentTermsVersion));
+    assert.deepEqual([...previous], [...previous].sort().reverse());
+    for (const item of archived) {
+      assert.ok(previous.includes(item.version));
+      assert.notEqual(publishedTermsForVersion(item.version), null);
+    }
+  });
+
+  it('the Terms page passes every readable version, the one in force first, and a superseded version says so', async () => {
+    const { readFileSync } = await import('node:fs');
+    const page = readFileSync(new URL('../app/terms/page.tsx', import.meta.url), 'utf8');
+    assert.match(page, /termsVersions=\{\[currentTermsVersion, \.\.\.previousTermsVersions\(\)\]\}/);
+    const view = readFileSync(new URL('../app/_legal/LegalDocumentView.tsx', import.meta.url), 'utf8');
+    assert.match(view, /data-terms-superseded/);
+    assert.match(view, /data-terms-versions/);
+    assert.match(view, /original\.updated !== inForce/);
+  });
+});

@@ -1,0 +1,117 @@
+# Terms of Service (effective 2026-12-28 candidate, translation NOT approved)
+
+> Generated from `terms.candidate.en.json`. Approval status: pending.
+> sourceContentHash (Korean): `a4e26837d5f024d3b032ba9b621d5ce403b3bea1c673cd4fbfbeff735639007d`
+> contentHash: `ca847213d81f5e6a150a4f0fba0bc2fedc98b56aca8ed25d429494cc458bc4c3`
+
+These Terms describe the conditions for using the Juple app and website. By using the service, you agree to these Terms.
+
+## 1. Service
+
+Juple is a service for quickly saving links, reviewing them in today's saves and your full history, organizing them into Collections, and sharing and collaborating with others. Purchase records and repeat-purchase tracking are optional features for those who need them.
+
+Juple is provided through a free trial and a paid membership, as described in Sections 6 to 6-2.
+
+## 2. Accounts
+
+- You create an account with an email address and password (sign-in is handled by Microsoft Entra External ID). You are responsible for keeping your email account and password secure.
+- Juple may only be joined and used by people aged 14 or older. You must confirm that you are at least 14 when you sign up and agree to these Terms; people under 14 may not use Juple.
+- Your account is for your own use only.
+- You can delete your account in the app at any time. What is deleted is described in the Privacy Policy and the account deletion guide. Deleting your account does not automatically cancel a subscription purchased from a store (Section 6-1).
+
+## 3. Your content
+
+- The links, notes, photos and Collections you save belong to you. Juple stores, displays and transmits them only as needed to provide the service.
+- You are responsible for, and must hold the rights to, the content you save and share. Juple does not vouch for external content that a link points to.
+
+## 4. Sharing and collaboration
+
+- A Collection's owner decides on invitations, join approvals, public links, passwords and participant permissions (read-only / add after approval / add links). Anyone who knows a public link can see what is made public.
+- The owner can remove participants or stop sharing. If the owner deletes their account, the Collection is deleted and participants can no longer access it.
+- Content you add to someone else's Collection can be managed by that Collection's owner.
+
+## 5. Prohibited conduct
+
+You must not:
+
+- save or share illegal content;
+- infringe the rights of others (including intellectual property such as copyright, personal information and likeness);
+- harass, threaten, or express hatred toward or abuse other users;
+- save or share sexual exploitation, illegal sexual content, or content inappropriate for children and minors;
+- spam, defraud, or impersonate other people or organizations;
+- share malicious links or malware;
+- otherwise violate applicable laws or policies;
+- access the service or accounts without authorization, circumvent security measures, send excessive requests, or use the service in automated bulk.
+
+## 5-1. Reporting and blocking
+
+- If you find a problem with another user, a Collection, a link or a comment, you can report it with the report feature in the app or on the web. You can choose a reason and add an explanation.
+- You can block other users. Blocking limits some interactions in both directions, such as friend requests, collaboration invitations, comments and reactions, and can be undone at any time under "Blocked users" in Settings. Blocking does not delete the other person's content or remove them from Collections you already share.
+- Reports are reviewed by Juple staff. The reporter's information is not disclosed to the reported person. We may not inform you individually of the outcome of a report.
+
+## 6. Paid membership and free trial
+
+Juple operates a paid membership from 10:00 on 28 December 2026 (Korea Standard Time). The membership is a monthly or yearly auto-renewing subscription, purchased through Google Play in the Android app and through the Apple App Store in the iPhone and iPad app. The membership is not sold on the web.
+
+- Each user gets one free trial of exactly 720 hours (30 days). For members who joined before 10:00 on 28 December 2026 (Korea Standard Time), it starts at that time; for members who join after it, it starts at the time they sign up.
+- During the free trial you can use every feature without registering a payment method. When the free trial ends, it does not turn into a paid subscription and you are not charged automatically.
+- If you delete your account and sign up again, the free trial does not start again; you can only use the time remaining from your original trial. For this purpose, Juple keeps a value derived from your sign-in account identifier and email address, which cannot be converted back to the original, together with the trial period, for 24 months after the trial ends (see the Privacy Policy).
+- The subscription price, currency and renewal period are shown before purchase on the app's membership screen and the store's payment screen, and may differ by country and store.
+- You can buy a subscription during the free trial. If you do, you are charged that day, and the remaining free trial time is not added to the subscription period.
+- Unless you cancel before the next billing date, the subscription renews automatically for the same period and is charged to the payment method of the store account you purchased with. If the subscription price changes, you will be notified in advance, and asked for consent where required, in accordance with the store's procedures and applicable law.
+- Access belongs to your Juple account, so a subscription bought in one store can be used with the same account on Android, iPhone and iPad, and the web. If you subscribe in both stores at the same time, the periods do not add up and each store charges you separately, so you should cancel one of them in its store.
+- Juple may grant a free membership to some users where operationally necessary; it gives access for the period stated when it is granted. A paid subscription or a free membership does not pause or extend the free trial.
+
+## 6-1. Managing, cancelling and refunding a subscription
+
+- You check, change and cancel a subscription in the store you bought it from (the subscriptions menu of Google Play or of your Apple account). You can go to that store screen from the membership screen in the Juple app.
+- Cancelling stops only the next renewal; you can keep using the membership until the end of the period you have already paid for.
+- Refunds and withdrawals follow the refund procedure of the store you bought from and applicable law. If a payment is cancelled, for example through a refund, access from that subscription ends as well. If you contact Juple's Customer Center, we will help confirm your purchase and explain the store's refund procedure, but the store decides on refunds, so we cannot guarantee every refund. This section does not limit any right, such as the right of withdrawal, that applicable law guarantees to you.
+- If a payment fails, for example because a card has expired, you can keep using the membership during the grace period set by the store; if the payment problem is not resolved during that time, access ends.
+- Deleting your account does not automatically cancel a store subscription. Please cancel the subscription in the store you bought it from before deleting your account.
+
+## 6-2. Without access
+
+When the free trial has ended and you have no valid paid subscription or free membership, Juple becomes read-only. Your saved data is not deleted.
+
+- Features you can keep using: viewing your saved links and Collections and Collections shared with you, opening original links, exporting your data, deleting your own data such as your links, Collections and comments, leaving Collections and stopping sharing, managing your account and settings, buying and restoring a subscription, the Customer Center, reporting and blocking, and deleting your account.
+- Features that are restricted: saving new links, editing links, restoring from the trash, creating and editing Collections, adding, moving and copying links into Collections, favorites, sharing settings and invitations, approving join requests and changing participant permissions, writing comments and reactions, and friend requests.
+- Writing to a shared Collection, such as adding a link, requires that both you and the Collection's owner have access. If the owner has no access, participants cannot write to that Collection either, but they can still view it.
+- If you subscribe again, the restricted features become available immediately.
+- This restriction is not a restriction for violating these Terms (Section 8).
+
+## 7. Changes to and interruption of the service
+
+Juple may add, change or discontinue features, and will give advance notice of important changes. The service may be temporarily interrupted by outages or maintenance.
+
+## 8. Restrictions and termination
+
+If you violate these Terms or a report is confirmed as a violation, Juple may take the following actions:
+
+- receiving the report and reviewing the content;
+- restricting access to or deleting the content, or stopping sharing;
+- restricting some of your features;
+- restricting or suspending use of the account;
+- further action for repeated or serious violations.
+
+Juple's staff review cases based on reports and on what users confirm. You can delete your account at any time.
+
+## 9. Liability
+
+We provide the service with reasonable care, but we do not guarantee the content of external links or the accuracy or lawfulness of content that users post. These Terms do not limit any right that applicable law guarantees to you.
+
+## 10. Changes to these Terms
+
+- When we change these Terms, we post the changes and their effective date on this page and in the app's notices from 7 days before they take effect. Changes that are unfavorable to users or otherwise important are posted from 30 days before they take effect and are also announced separately in the app.
+- If you do not agree to the changed Terms, you can end your use at any time by deleting your account. After the effective date, Juple will ask for your agreement to the changed Terms in the app and on the web, and if you do not agree, your use of the service may be restricted. You must agree to the changed Terms before you can buy a paid subscription.
+- The date of the latest revision is shown at the top of this page, and earlier versions of these Terms remain available to read.
+
+## 11. Contact
+
+You can leave an inquiry at **My Page > Customer Center** in the app and read the answer on the same screen.
+
+You can also contact us by email: jupleinfo@gmail.com
+
+## Addendum
+
+These Terms take effect at 10:00 on 28 December 2026 (Korea Standard Time). The Terms that applied before (revised on 25 October 2026) remain available to read on this page.

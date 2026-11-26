@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { LegalDocumentView } from '../_legal/LegalDocumentView';
 import { readLegalOperatorConfig } from '../../lib/legalConfig';
-import { publishedTermsForVersion, termsDocument } from '../../lib/legalContent';
+import { currentTermsVersion, previousTermsVersions, publishedTermsForVersion, termsDocument } from '../../lib/legalContent';
 import { buildLegalMetadata } from '../../lib/legalMetadata';
 import { normalizeHost } from '../../lib/shareLinks';
 import { notFound } from 'next/navigation';
@@ -29,5 +29,5 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
       || (query.language && !publishedTerms.supportedLanguages.includes(query.language))) notFound();
   const config = readLegalOperatorConfig();
   const displayConfig = query.version && query.version !== publishedTerms.version ? { ...config, effectiveDate: undefined } : config;
-  return <LegalDocumentView doc={termsDocument(config, query.version)} config={displayConfig} requestedLanguage={await requestLegalLanguage(query.language)} />;
+  return <LegalDocumentView doc={termsDocument(config, query.version)} config={displayConfig} requestedLanguage={await requestLegalLanguage(query.language)} termsVersions={[currentTermsVersion, ...previousTermsVersions()]} />;
 }

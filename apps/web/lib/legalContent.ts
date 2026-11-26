@@ -1,5 +1,6 @@
 import publishedTerms from './publishedTerms.generated.json' with { type: 'json' };
 import legacyTerms from './legacyPublishedTerms.generated.json' with { type: 'json' };
+import archivedTerms from './archivedPublishedTerms.generated.json' with { type: 'json' };
 import { LEGAL_CONTENT_UPDATED, PRIVACY_POLICY_UPDATED, type LegalOperatorConfig } from './legalConfig.ts';
 
 /**
@@ -306,9 +307,19 @@ export function privacyDocument(config: LegalOperatorConfig): LegalDocument {
   };
 }
 
+// Archived = public versions that were in force before the current one (the backend validates them; they are readable, never agreed to).
+const archived = archivedTerms as readonly (typeof publishedTerms)[];
+
 export function publishedTermsForVersion(version: string) {
-  return version === publishedTerms.version ? publishedTerms : version === legacyTerms.version ? legacyTerms : null;
+  return version === publishedTerms.version ? publishedTerms : version === legacyTerms.version ? legacyTerms : archived.find(item => item.version === version) ?? null;
 }
+
+/** Every earlier version still readable on /terms, newest first (the historical consent original and the archived public versions). */
+export function previousTermsVersions(): readonly string[] {
+  return [legacyTerms.version, ...archived.map(item => item.version)].filter(version => version !== publishedTerms.version).sort().reverse();
+}
+
+export const currentTermsVersion = publishedTerms.version;
 
 export function termsDocument(config: LegalOperatorConfig, version = publishedTerms.version): LegalDocument {
   void config;

@@ -396,6 +396,33 @@ main.legalMain {
   margin: 0 0 24px;
 }
 
+/* A superseded Terms version says so before its text; the other versions are listed after the article. */
+.legalSuperseded {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 14px;
+}
+
+.legalVersions {
+  margin: 32px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.legalVersions h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.legalVersions ul {
+  margin: 0;
+  padding-inline-start: 20px;
+}
+
 .legalFacts {
   background: var(--surface);
   border: 1px solid var(--border);

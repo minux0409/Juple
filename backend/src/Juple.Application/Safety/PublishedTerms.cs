@@ -9,18 +9,25 @@ public static class PublishedTerms
 {
     private static readonly JsonElement Source = Load("PublishedTerms.json");
     private static readonly JsonElement LegacySource = Load("LegacyPublishedTerms.json");
+    // Public versions that were in force before the current one: kept readable (the page and GET .../terms/document), never accepted.
+    // Replacing the current document moves it here, so no published text disappears when a new version takes effect.
+    private static readonly IReadOnlyList<JsonElement> Archived = LoadArchive("ArchivedPublishedTerms.json", Source, LegacySource);
     public static string Version => Source.GetProperty("version").GetString()!;
     public static string ContentHash => Source.GetProperty("contentHash").GetString()!;
 
-    private static JsonElement? Find(string? version) =>
+    // Only these two can ever be agreed to; an archived version is a record of what applied before, not something to consent to now.
+    private static JsonElement? FindAcceptable(string? version) =>
         version == Version ? Source : version == LegacySource.GetProperty("version").GetString() ? LegacySource : null;
+
+    internal static JsonElement? FindReadable(string? version, IReadOnlyList<JsonElement> archived) =>
+        FindAcceptable(version) ?? archived.Cast<JsonElement?>().FirstOrDefault(item => item!.Value.GetProperty("version").GetString() == version);
 
     // This exception is tied to the recovered historical document, never to an operator-selected future version.
     public static bool AllowsLegacyRequest(string? version) => version == LegacySource.GetProperty("version").GetString();
 
     public static bool Matches(string? version, string? contentHash, string? requestedLanguage)
     {
-        if (Find(version) is not { } source || requestedLanguage is null
+        if (FindAcceptable(version) is not { } source || requestedLanguage is null
             || !source.GetProperty("supportedLanguages").EnumerateArray().Any(x => x.GetString() == requestedLanguage)) return false;
         var selected = SelectSource(source, requestedLanguage);
         return selected.GetProperty("language").GetString() == requestedLanguage
@@ -47,9 +54,11 @@ public static class PublishedTerms
         return translated;
     }
 
-    public static object? GetDocument(string version, string? language)
+    public static object? GetDocument(string version, string? language) => GetDocument(version, language, Archived);
+
+    internal static object? GetDocument(string version, string? language, IReadOnlyList<JsonElement> archived)
     {
-        if (Find(version) is not { } source) return null;
+        if (FindReadable(version, archived) is not { } source) return null;
         var requested = language ?? "ko";
         if (!source.GetProperty("supportedLanguages").EnumerateArray().Any(item => item.GetString() == requested)) return null;
         // The existing public full agreement is Korean. This is an explicit fallback, NOT approval of translations.
@@ -63,7 +72,32 @@ public static class PublishedTerms
     {
         using var stream = typeof(PublishedTerms).Assembly.GetManifestResourceStream($"Juple.Application.Safety.{name}")!;
         using var json = JsonDocument.Parse(stream);
-        var source = json.RootElement.Clone();
+        return ValidateWithTranslations(json.RootElement.Clone());
+    }
+
+    private static IReadOnlyList<JsonElement> LoadArchive(string name, params JsonElement[] inForce)
+    {
+        using var stream = typeof(PublishedTerms).Assembly.GetManifestResourceStream($"Juple.Application.Safety.{name}")!;
+        using var json = JsonDocument.Parse(stream);
+        return ValidateArchive(json.RootElement.Clone(), inForce);
+    }
+
+    /// <summary>Each archived version is checked like the current one (revision, hash, translations); a version may appear only once.</summary>
+    internal static IReadOnlyList<JsonElement> ValidateArchive(JsonElement archive, params JsonElement[] inForce)
+    {
+        var seen = new HashSet<string>(inForce.Select(item => item.GetProperty("version").GetString()!), StringComparer.Ordinal);
+        var result = new List<JsonElement>();
+        foreach (var item in archive.EnumerateArray())
+        {
+            if (!seen.Add(ValidateWithTranslations(item).GetProperty("version").GetString()!))
+                throw new InvalidOperationException("A terms version may be published only once.");
+            result.Add(item);
+        }
+        return result;
+    }
+
+    private static JsonElement ValidateWithTranslations(JsonElement source)
+    {
         Validate(source);
         if (source.TryGetProperty("approvedTranslations", out var translations))
             foreach (var translation in translations.EnumerateArray())

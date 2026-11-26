@@ -15,12 +15,19 @@ function Inline({ text }: { text: string }) {
   );
 }
 
-export function LegalDocumentView({ doc: original, config, requestedLanguage = 'ko' }: { doc: LegalDocument; config: LegalOperatorConfig; requestedLanguage?: string }) {
+/**
+ * `termsVersions` (the Terms page only): every readable version, the one in force first. A superseded version says so and links to the
+ * one in force; every page lists the other versions, so no published text becomes unreachable when a new version takes effect.
+ */
+export function LegalDocumentView({ doc: original, config, requestedLanguage = 'ko', termsVersions }: { doc: LegalDocument; config: LegalOperatorConfig; requestedLanguage?: string; termsVersions?: readonly string[] }) {
   const selected = selectLegalDocument(original, requestedLanguage);
   const { doc, language } = selected;
   const dictionary = getAppDictionary(selected.requestedLanguage);
   const link = (path: string) => legalDocumentLink(path, selected.requestedLanguage, path === '/terms' && original.slug === 'terms' ? original.updated : undefined)!;
   const facts = documentOperatorFacts(config);
+  const versionLink = (version: string) => legalDocumentLink('/terms', selected.requestedLanguage, version)!;
+  const inForce = termsVersions?.[0];
+  const otherVersions = termsVersions?.filter(version => version !== original.updated) ?? [];
 
   return (
     <main className="legalMain" lang={selected.requestedLanguage} dir={selected.requestedLanguage === 'ar' ? 'rtl' : 'ltr'}>
@@ -50,6 +57,11 @@ export function LegalDocumentView({ doc: original, config, requestedLanguage = '
         <p className="legalDates">
           {config.effectiveDate ? `시행일 ${formatLegalDate(config.effectiveDate)} · ` : ''}최종 수정일 {formatLegalDate(doc.updated)}
         </p>
+        {inForce && original.updated !== inForce ? (
+          <p className="legalSuperseded" role="note" data-terms-superseded>
+            이 문서는 {formatLegalDate(inForce)}부터 시행 중인 약관 이전의 약관입니다. <Link href={versionLink(inForce)}>현재 약관 보기</Link>
+          </p>
+        ) : null}
         <p className="legalIntro">{doc.intro}</p>
 
         {facts.length > 1 ? (
@@ -100,6 +112,20 @@ export function LegalDocumentView({ doc: original, config, requestedLanguage = '
           </section>
         ))}
       </article>
+      {otherVersions.length > 0 ? (
+        <nav aria-label="다른 버전의 약관" className="legalVersions" data-terms-versions>
+          <h2>{inForce && original.updated !== inForce ? '다른 버전의 약관' : '이전 약관'}</h2>
+          <ul>
+            {otherVersions.map(version => (
+              <li key={version}>
+                <Link href={versionLink(version)}>
+                  {formatLegalDate(version)} 개정{version === inForce ? ' (현재 약관)' : ''}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ) : null}
     </main>
   );
 }
