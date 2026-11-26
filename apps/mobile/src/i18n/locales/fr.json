@@ -1300,6 +1300,8 @@
     "viewDetail": "Voir le détail",
     "loadFailed": "Impossible de vérifier les conditions. Veuillez réessayer dans un instant.",
     "documentUnavailable": "Le document de consentement n’est pas encore disponible dans cette langue. Vous pouvez toujours consulter, restaurer et gérer vos abonnements existants.",
+    "readKoreanOriginal": "Lire et accepter l’original en coréen",
+    "koreanOriginalSelected": "Vous acceptez l’original en coréen des Conditions.",
     "terms": {
       "serviceTitle": "Service",
       "serviceBody": "Juple vous permet d'enregistrer des liens, de les organiser en collections et de les partager et d'y collaborer avec d'autres personnes.",

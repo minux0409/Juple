@@ -311,6 +311,7 @@ export function RootStack() {
               <TermsAgreementScreen key={termsOnboarding.document ? termsOnboarding.document.version + termsOnboarding.document.contentHash + termsOnboarding.document.requestedLanguage : "unavailable"} document={termsOnboarding.document}
                 isSaving={termsOnboarding.isSaving}
                 onAccept={() => { termsOnboarding.accept().catch(() => undefined); }}
+                onReadKoreanOriginal={termsOnboarding.readKoreanOriginal}
                 saveFailed={termsOnboarding.saveFailed}
               />
             )}
@@ -341,6 +342,7 @@ export function RootStack() {
                 <TermsAgreementScreen key={termsOnboarding.document ? termsOnboarding.document.version + termsOnboarding.document.contentHash + termsOnboarding.document.requestedLanguage : "unavailable"} document={termsOnboarding.document}
                   isSaving={termsOnboarding.isSaving}
                   onAccept={() => { termsOnboarding.accept().catch(() => undefined); }}
+                  onReadKoreanOriginal={termsOnboarding.readKoreanOriginal}
                   saveFailed={termsOnboarding.saveFailed}
                 />
               ) : isBootstrapComplete && termsOnboarding.status === 'error' ? (

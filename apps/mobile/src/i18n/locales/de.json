@@ -1300,6 +1300,8 @@
     "viewDetail": "Details ansehen",
     "loadFailed": "Die Bedingungen konnten nicht geprüft werden. Bitte versuche es gleich noch einmal.",
     "documentUnavailable": "Das Zustimmungsdokument ist in dieser Sprache noch nicht verfügbar. Bestehende Abonnements können weiterhin geprüft, wiederhergestellt und verwaltet werden.",
+    "readKoreanOriginal": "Koreanisches Original lesen und zustimmen",
+    "koreanOriginalSelected": "Sie stimmen dem koreanischen Original der Bedingungen zu.",
     "terms": {
       "serviceTitle": "Dienst",
       "serviceBody": "Mit Juple speicherst du Links, ordnest sie in Sammlungen und teilst und bearbeitest sie gemeinsam mit anderen.",

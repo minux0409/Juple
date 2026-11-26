@@ -25,11 +25,19 @@ export interface TermsOnboarding {
   readonly saveFailed: boolean;
   readonly accept: () => Promise<void>;
   readonly retry: () => void;
+  /**
+   * Only when no approved text exists in the app language: the person explicitly chooses to read - and then agree to - the Korean
+   * original. The Korean document is fetched and shown; the agreement carries its own version, hash and language ('ko').
+   */
+  readonly readKoreanOriginal: () => void;
 }
 
 export function useTermsOnboarding(enabled: boolean): TermsOnboarding {
   const { i18n } = useTranslation();
-  const language = i18n.resolvedLanguage || 'en';
+  const appLanguage = i18n.resolvedLanguage || 'en';
+  // The person's explicit choice of the Korean original (never automatic); a new sign-in or app language starts from the app language again.
+  const [koreanOriginal, setKoreanOriginal] = useState(false);
+  const language = koreanOriginal ? 'ko' : appLanguage;
   const [document, setDocument] = useState<PublishedTermsDocument | null>(null);
   const request = useAuthenticatedApi();
   const [status, setStatus] = useState<TermsOnboardingStatus>('idle');
@@ -51,6 +59,7 @@ export function useTermsOnboarding(enabled: boolean): TermsOnboarding {
       version.current = null;
       setStatus('idle');
       setSaveFailed(false);
+      setKoreanOriginal(false);
       return undefined;
     }
     let active = true;
@@ -121,6 +130,8 @@ export function useTermsOnboarding(enabled: boolean): TermsOnboarding {
   }, [request, document, enabled, language]);
 
   const retry = useCallback(() => setAttempt(value => value + 1), []);
+  const readKoreanOriginal = useCallback(() => setKoreanOriginal(true), []);
+  useEffect(() => setKoreanOriginal(false), [appLanguage]);
 
-  return { status, isSaving, saveFailed, accept, retry, document };
+  return { status, isSaving, saveFailed, accept, retry, readKoreanOriginal, document };
 }

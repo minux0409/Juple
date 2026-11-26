@@ -1300,6 +1300,8 @@
     "viewDetail": "Ver detalhes",
     "loadFailed": "Não foi possível verificar os termos. Tente novamente em instantes.",
     "documentUnavailable": "O documento de consentimento ainda não está disponível neste idioma. Você ainda pode consultar, restaurar e gerenciar suas assinaturas existentes.",
+    "readKoreanOriginal": "Ler e aceitar o original em coreano",
+    "koreanOriginalSelected": "Você está aceitando o original em coreano dos Termos.",
     "terms": {
       "serviceTitle": "Serviço",
       "serviceBody": "O Juple permite salvar links, organizá-los em coleções e compartilhar e colaborar com outras pessoas.",

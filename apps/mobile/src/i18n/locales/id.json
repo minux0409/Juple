@@ -1300,6 +1300,8 @@
     "viewDetail": "Lihat detail",
     "loadFailed": "Tidak dapat memeriksa ketentuan. Coba lagi sebentar lagi.",
     "documentUnavailable": "Dokumen persetujuan belum tersedia dalam bahasa ini. Anda tetap dapat memeriksa, memulihkan, dan mengelola langganan yang sudah ada.",
+    "readKoreanOriginal": "Baca dan setujui teks asli bahasa Korea",
+    "koreanOriginalSelected": "Anda menyetujui teks asli Ketentuan dalam bahasa Korea.",
     "terms": {
       "serviceTitle": "Layanan",
       "serviceBody": "Juple memungkinkan Anda menyimpan tautan, mengaturnya dalam koleksi, serta membagikan dan berkolaborasi dengan orang lain.",

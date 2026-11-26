@@ -180,6 +180,7 @@ describe('Terms onboarding (the Agreement screen)', () => {
             document={onboarding.document}
             isSaving={onboarding.isSaving}
             onAccept={() => { onboarding.accept().catch(() => undefined); }}
+            onReadKoreanOriginal={onboarding.readKoreanOriginal}
             saveFailed={onboarding.saveFailed}
           />
         ) : null}
@@ -210,6 +211,51 @@ describe('Terms onboarding (the Agreement screen)', () => {
       expect(byId(renderer, 'agreement-next').props.disabled).toBe(language !== 'ko');
       expect(acceptTerms).not.toHaveBeenCalled();
       await act(async () => renderer.unmount());
+    } finally { await i18n.changeLanguage('ko'); }
+  });
+
+  it('without an approved text in the app language, the person can CHOOSE the Korean original - never automatically - and agrees to exactly that', async () => {
+    await i18n.changeLanguage('ja');
+    try {
+      jest.mocked(getTermsStatus).mockResolvedValue(status(false));
+      jest.mocked(acceptTerms).mockResolvedValue(status(true));
+      const renderer = await mount();
+      // First the app language: Korean fallback, consent impossible, the choice is offered and nothing is sent.
+      expect(getPublishedTerms).toHaveBeenLastCalledWith(expect.any(Function), '2026-10-14', 'ja');
+      await press(renderer, 'agreement-all');
+      expect(byId(renderer, 'agreement-next').props.disabled).toBe(true);
+      expect(exists(renderer, 'agreement-korean-original-selected')).toBe(false);
+
+      await press(renderer, 'agreement-korean-original');
+      expect(getPublishedTerms).toHaveBeenLastCalledWith(expect.any(Function), '2026-10-14', 'ko');
+      expect(exists(renderer, 'agreement-korean-original')).toBe(false);
+      expect(exists(renderer, 'agreement-korean-original-selected')).toBe(true);
+      // The screen starts over for the Korean text: nothing stays checked from the earlier one.
+      expect(byId(renderer, 'agreement-next').props.disabled).toBe(true);
+      await press(renderer, 'agreement-all');
+      await press(renderer, 'agreement-next');
+      expect(acceptTerms).toHaveBeenCalledWith(expect.any(Function), '2026-10-14', 'a'.repeat(64), 'ko');
+      expect(exists(renderer, 'home')).toBe(true);
+      await act(async () => renderer.unmount());
+    } finally { await i18n.changeLanguage('ko'); }
+  });
+
+  it('a Korean app never offers the choice; an approved app-language text needs none', async () => {
+    jest.mocked(getTermsStatus).mockResolvedValue(status(false));
+    const korean = await mount();
+    expect(exists(korean, 'agreement-korean-original')).toBe(false);
+    await act(async () => korean.unmount());
+
+    await i18n.changeLanguage('en');
+    try {
+      jest.mocked(getPublishedTerms).mockImplementation(async (_request, version, language) => ({
+        version, contentHash: 'b'.repeat(64), language, requestedLanguage: language, canAccept: true,
+        document: { updated: version, title: 'Terms', intro: '', sections: [{ id: 'terms', title: 'Terms', blocks: [{ kind: 'p', text: 'Approved English body' }] }] },
+      }));
+      const english = await mount();
+      expect(exists(english, 'agreement-korean-original')).toBe(false);
+      expect(exists(english, 'agreement-korean-original-selected')).toBe(false);
+      await act(async () => english.unmount());
     } finally { await i18n.changeLanguage('ko'); }
   });
 

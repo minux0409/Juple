@@ -21,6 +21,8 @@ interface TermsAgreementScreenProps {
   readonly saveFailed: boolean;
   /** Both required agreements were given: the screen's 다음. */
   readonly onAccept: () => void;
+  /** No approved text in the app language: the person chooses to read and agree to the Korean original instead (never automatic). */
+  readonly onReadKoreanOriginal?: () => void;
 }
 
 /**
@@ -29,7 +31,7 @@ interface TermsAgreementScreenProps {
  * There is no skip and no way around it (no X, no back to the app): 다음 stays disabled until both are checked. One acceptance (the Terms version) is recorded
  * by the server for the account, so another device or a later sign-in never asks again.
  */
-export function TermsAgreementScreen({ isSaving, saveFailed, onAccept, document }: TermsAgreementScreenProps) {
+export function TermsAgreementScreen({ isSaving, saveFailed, onAccept, onReadKoreanOriginal, document }: TermsAgreementScreenProps) {
   const { t, i18n } = useTranslation();
   const [termsChecked, setTermsChecked] = useState(false);
   const [privacyChecked, setPrivacyChecked] = useState(false);
@@ -57,6 +59,14 @@ export function TermsAgreementScreen({ isSaving, saveFailed, onAccept, document 
         <Text accessibilityRole="header" style={styles.title}>{t('agreement.title')}</Text>
         <Text style={styles.subtitle}>{t('agreement.subtitle')}</Text>
         {document && !document.canAccept ? <Text accessibilityRole="alert" style={styles.subtitle}>{t('agreement.documentUnavailable')}</Text> : null}
+        {document && !document.canAccept && document.requestedLanguage !== 'ko' && onReadKoreanOriginal ? (
+          <Pressable accessibilityRole="button" disabled={isSaving} onPress={onReadKoreanOriginal} style={styles.koreanOriginal} testID="agreement-korean-original">
+            <Text style={styles.fullLinkLabel}>{t('agreement.readKoreanOriginal')}</Text>
+          </Pressable>
+        ) : null}
+        {document && document.canAccept && document.language === 'ko' && i18n.resolvedLanguage !== 'ko' ? (
+          <Text style={styles.subtitle} testID="agreement-korean-original-selected">{t('agreement.koreanOriginalSelected')}</Text>
+        ) : null}
         {document && document.language !== document.requestedLanguage ? <Text style={[styles.subtitle, document.requestedLanguage === 'ar' ? styles.rtlText : styles.ltrText]}>{legalFallbackNotices[legalLanguage(document.requestedLanguage)]}</Text> : null}
 
         <Pressable
@@ -263,5 +273,6 @@ const styles = themedStyles(() => ({
   sectionTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
   sectionBody: { color: colors.textPrimary, fontSize: 14, lineHeight: 21, marginTop: spacing.xs },
   fullLink: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget },
+  koreanOriginal: { alignItems: 'center', borderColor: colors.brandText, borderRadius: radii.md, borderWidth: 1, justifyContent: 'center', marginBottom: spacing.lg, minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   fullLinkLabel: { color: colors.brandText, fontSize: 15, fontWeight: '600' },
 }));
