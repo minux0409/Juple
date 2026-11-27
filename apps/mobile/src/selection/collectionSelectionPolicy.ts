@@ -47,7 +47,7 @@ export interface CollectionSelectionActions {
 }
 
 /**
- * 즐겨찾기, 잠금, 바로가기 (one Collection only), 삭제/나가기, then 더보기 (one Collection's own management only). `shortcutSupported`: the launcher can pin
+ * 잠금, 바로가기 (one Collection only), 삭제/나가기, then 더보기 (one Collection's own management only). `shortcutSupported`: the launcher can pin
  * a Home icon (Android); where it cannot (iOS has no such API) the button is not drawn at all. 잠금 shows for a single Collection (set or
  * remove - its own flow) and for several only while at least one of them can still be locked.
  */
@@ -57,7 +57,7 @@ export function getCollectionSelectionActions(
 ): CollectionSelectionActions {
   const bar: CollectionBarActionKey[] = [];
   if (selected.length > 0) {
-    bar.push('favorite');
+    // 즐겨찾기 is not a selection action (it stays on each Collection's own star / screen); the bar starts with 잠금.
     const single = selected.length === 1;
     const capabilities = single ? getCollectionCapabilities(selected[0]) : null;
     const canLock = single ? capabilities?.canChangeLock === true || capabilities?.canChangeMemberLock === true : lockableCollections(selected).length > 0;

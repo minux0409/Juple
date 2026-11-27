@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "Deleting your account can't be undone",
-    "warningIntro": "All of the following will be permanently deleted:\n\nUninstalling the app or deleting your Juple account does not cancel Google Play or Apple App Store subscriptions. Cancel in the purchasing store subscription settings first.",
+    "warningIntro": "Uninstalling the app or deleting your Juple account does not cancel Google Play or Apple App Store subscriptions. Cancel in the purchasing store subscription settings first.\n\nAll of the following will be permanently deleted:",
     "dataLinks": "Saved links and memos",
     "dataPhotos": "Uploaded photos (link photos, collection photos and your profile photo)",
     "dataCollections": "Your collections and their public links",
@@ -1669,7 +1669,11 @@
     "lockConfirmMessage": "{{count}} collections will be protected with your lock password.",
     "lockConfirmSkipped": "{{count}} that are already locked or can't be locked are skipped. To remove a lock, open that collection.",
     "locked": "Locked {{count}} collections.",
-    "lockedPartial": "Locked {{ok}} of {{total}} collections."
+    "lockedPartial": "Locked {{ok}} of {{total}} collections.",
+    "deleteAndLeaveConfirm": "Delete and leave",
+    "deleteAndLeaveMessage": "Delete the selected personal collections ({{deleted}}) and leave the selected shared collections ({{left}})?",
+    "deletedAndLeft": "Deleted: {{deleted}}. Left: {{left}}.",
+    "deleteAndLeavePartial": "Deleted: {{deleted}}. Left: {{left}}. Not completed and still selected: {{failed}}."
   },
   "membership": {
     "title": "Membership",
@@ -1717,7 +1721,11 @@
   "welcomeTrial": {
     "title": "Welcome to Juple! 🎉",
     "body": "Thank you for signing up.\n\nJuple provides one free trial per user lasting exactly 30 days (720 hours). For existing members it starts when the membership program begins; for members joining afterward it starts at sign-up. It is not a store free trial and does not automatically become a paid subscription. Subscribing now charges you immediately, even if free time remains.\n\nAfter the trial, you can still view existing links and collections, manage your account and subscription, restore purchases and delete your account. Without a valid paid subscription or administrator-granted membership, saving, creating, editing and other main write actions are restricted.\n\nManage membership in {{myPage}}.",
-    "start": "Start using Juple"
+    "start": "Start using Juple",
+    "thanksTitle": "Thanks for joining!",
+    "newMemberBody": "Use Juple free for 30 days from the day you joined!",
+    "existingMemberBody": "Use Juple free for 30 days from the start of Juple membership!",
+    "plansAfterTrial": "If you want to keep using Juple after the free trial, you can choose a monthly or yearly membership."
   },
   "trialEnded": {
     "title": "How was your month with Juple? 💜",

@@ -93,7 +93,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-describe('WelcomeTrialPrompt - once, for a new account the server gave its own 720-hour trial', () => {
+describe('WelcomeTrialPrompt - "가입해 주셔서 감사해요!", once per account, for anyone in a running free trial', () => {
   it('after the first-run tour was finished or skipped, on Home: the welcome with the requested words and one button', async () => {
     mockStore.set(TOUR_DONE, 'true');
     auth({ entitlement: runningTrial, newAccountTrialGranted: true });
@@ -101,17 +101,30 @@ describe('WelcomeTrialPrompt - once, for a new account the server gave its own 7
     await tick();
 
     expect(isShown(renderer, 'welcome-trial')).toBe(true);
-    const texts = visibleTexts(renderer);
-    expect(texts).toContain('Juple에 오신 걸 환영해요! 🎉');
-    expect(texts.join('\n')).toContain('정확히 30일(720시간)');
-    expect(texts.join('\n')).toContain('기존 회원은 멤버십 서비스 시작 시각부터');
-    expect(texts.join('\n')).toContain('이후 가입한 회원은 가입 시각부터');
-    expect(texts.join('\n')).toContain('내 페이지에서 멤버십을 관리할 수 있습니다.');
-    expect(texts.join('\n')).toContain('자동으로 유료 전환되지 않습니다.');
-    expect(texts.join('\n')).toContain('지금 구독하면 무료 기간이 남아 있어도 바로 결제됩니다.');
-    expect(texts.join('\n')).toContain('기존 링크·컬렉션 조회');
-    expect(texts.join('\n')).toContain('관리자 무료 멤버십');
-    expect(texts).toContain('Juple 시작하기');
+    expect(visibleTexts(renderer).join('\n')).toBe([
+      '가입해 주셔서 감사해요!',
+      '가입일로부터 30일간 Juple을 무료로 이용해 보세요!\n\n무료 체험이 끝난 후에도 계속 이용하고 싶다면 월간 또는 연간 멤버십을 선택할 수 있어요.',
+      '닫기',
+    ].join('\n'));
+  });
+
+  it('an existing member in a running trial sees it once too, with the membership-start words', async () => {
+    mockStore.set(TOUR_DONE, 'true');
+    auth({ entitlement: runningTrial, newAccountTrialGranted: false });
+    const renderer = await mount(<WelcomeTrialPrompt />);
+    await tick();
+    expect(isShown(renderer, 'welcome-trial')).toBe(true);
+    const text = visibleTexts(renderer).join('\n');
+    expect(text).toContain('Juple 멤버십 시작일부터 30일간 무료로 이용해 보세요!');
+    expect(text).toContain('월간 또는 연간 멤버십을 선택할 수 있어요.');
+    expect(text).not.toContain('가입일로부터');
+    await pressIn(renderer, 'welcome-trial-primary');
+    expect(mockStore.get('juple.welcomeTrial.JUPLE-1')).toBe('shown');
+    renderer.unmount();
+
+    const relaunch = await mount(<WelcomeTrialPrompt />);
+    await tick(3000);
+    expect(isShown(relaunch, 'welcome-trial')).toBe(false);
   });
 
   it('waits while the first-run tour is still to come or running, then shows', async () => {
@@ -189,12 +202,15 @@ describe('WelcomeTrialPrompt - once, for a new account the server gave its own 7
     expect(isShown(relaunch, 'welcome-trial')).toBe(true);
   });
 
-  it('an existing member, a second device of a new account and a re-created account (server: false) never see it', async () => {
+  it('nobody outside a running trial sees it (a subscriber or an expired account), and nothing is recorded', async () => {
     mockStore.set(TOUR_DONE, 'true');
-    auth({ entitlement: runningTrial, newAccountTrialGranted: false });
-    const renderer = await mount(<WelcomeTrialPrompt />);
-    await tick(3000);
-    expect(isShown(renderer, 'welcome-trial')).toBe(false);
+    for (const entitlement of [{ ...runningTrial, status: 'active' }, endedTrial]) {
+      auth({ entitlement, newAccountTrialGranted: false });
+      const renderer = await mount(<WelcomeTrialPrompt />);
+      await tick(3000);
+      expect(isShown(renderer, 'welcome-trial')).toBe(false);
+      renderer.unmount();
+    }
     expect(mockStore.has('juple.welcomeTrial.JUPLE-1')).toBe(false);
   });
 
@@ -329,7 +345,7 @@ describe('TrialEndedPrompt - "how was your month with Juple?"', () => {
 });
 
 describe('the popups in other languages and with Reduce Motion', () => {
-  it.each(['en', 'ja', 'ar', 'de', 'ru'])('%s: translated words, no Korean left, My Page named in that language', async language => {
+  it.each(['en', 'ja', 'ar', 'de', 'ru'])('%s: translated words, no Korean left', async language => {
     await i18n.changeLanguage(language);
     try {
       mockStore.set(TOUR_DONE, 'true');
@@ -337,8 +353,9 @@ describe('the popups in other languages and with Reduce Motion', () => {
       const renderer = await mount(<WelcomeTrialPrompt />);
       await tick();
       const text = visibleTexts(renderer).join('\n');
-      expect(text).toContain(i18n.t('welcomeTrial.title'));
-      expect(text).toContain(i18n.t('tabs.myPage'));
+      expect(text).toContain(i18n.t('welcomeTrial.thanksTitle'));
+      expect(text).toContain(i18n.t('welcomeTrial.newMemberBody'));
+      expect(text).toContain(i18n.t('welcomeTrial.plansAfterTrial'));
       expect(text).not.toMatch(/[가-힣]/);
     } finally {
       await i18n.changeLanguage('ko');

@@ -180,7 +180,7 @@ describe('Home URL magnifier', () => {
 });
 
 describe('Home collapsing header', () => {
-  it('collapses only the logo; the URL field is pinned (like the search of 보관함), and the 최근 저장 row is list content', async () => {
+  it('collapses only the logo; the URL field stays pinned, and the 최근 저장 row with its switch is list content (no second switch beside the URL field)', async () => {
     serve(ITEMS);
     const renderer = await renderScreen();
     const frame = renderer.root.findAll(node => node.props.testID === 'home-fixed-header' && typeof node.type === 'string')[0];
@@ -188,10 +188,22 @@ describe('Home collapsing header', () => {
     expect(collapsibleWrapper.findAll(node => node.props.testID === 'juple-brand-mark').length).toBeGreaterThan(0);
     expect(collapsibleWrapper.findAllByType(ThemedTextInput)).toHaveLength(0);
     expect(pinnedWrapper.findAllByType(ThemedTextInput)).toHaveLength(1);
-    // The 최근 저장 row and its switch are NOT in the header (they scroll with the links); not collapsed yet, so no second switch there.
+    // The switch is never in the header - not before, and not after the 최근 저장 row has scrolled away.
     expect(frame.findAllByType(ViewModeToggle)).toHaveLength(0);
     const layout = renderer.root.findAll(node => node.props.testID === 'home-fixed-header' && typeof node.type !== 'string')[0];
-    expect(layout.props.collapsedExtra).toBe(56);
+    expect(typeof layout.props.pinned).not.toBe('function');
+    expect(layout.props.collapsedExtra).toBeUndefined();
+  });
+
+  it('a view-mode change resets the header together with the re-created list (no gap above a list that starts at 0)', async () => {
+    serve(ITEMS);
+    const renderer = await renderScreen();
+    const layoutKey = () => renderer.root.findAll(node => node.props.testID === 'home-fixed-header' && typeof node.type !== 'string')[0].props.resetKey;
+    const before = layoutKey();
+    expect(before).toBeDefined();
+    const toggle = renderer.root.findAllByType(ViewModeToggle)[0];
+    await act(async () => toggle.props.onChange(toggle.props.value === 'grid' ? 'list' : 'grid'));
+    expect(layoutKey()).not.toBe(before);
   });
 });
 

@@ -60,7 +60,7 @@ interface UseCollectionSelectionOptions {
 type PendingBulk =
   | { readonly kind: 'favoriteChoice' }
   | { readonly kind: 'lock' }
-  | { readonly kind: 'deleteLeaveChoice' }
+  | { readonly kind: 'deleteAndLeave' }
   | { readonly kind: 'delete' }
   | { readonly kind: 'leave' };
 
@@ -304,6 +304,59 @@ export function useCollectionSelection({ collections, onCollectionUpdated, onCha
     }
   });
 
+  // A mixed selection, confirmed once: my own (unlocked) Collections are deleted, then the ones someone else owns are left - the same
+  // per-item requests as each action alone. Only what succeeded leaves the list; whatever failed (or a locked one, never deleted from
+  // here) stays selected and the message says exactly what happened. Another person's Collection is never deleted, only left.
+  const runDeleteAndLeave = () => guarded(async () => {
+    const deleted = await runBatch(deletableNow.map(collection => collection.id), id => deleteCollection(request, id));
+    const left = await runBatch(leavable.map(collection => collection.id), id => leaveCollection(request, id));
+    const deletedIds = deleted.succeeded.map(entry => entry.id);
+    [...deletedIds, ...left.succeeded.map(entry => entry.id)].forEach(id => collectionShortcutService.unpin(id).catch(() => undefined));
+    if (deletedIds.length + left.succeeded.length > 0) {
+      onChanged();
+    }
+    const remaining = [
+      ...deleted.failed.map(entry => entry.id),
+      ...left.failed.map(entry => entry.id),
+      ...deletable.filter(collection => isCollectionLocked(collection)).map(collection => collection.id),
+    ];
+    if (remaining.length === 0) {
+      exit();
+    } else {
+      selection.replace(remaining);
+    }
+    if (deletedIds.length > 0) {
+      showUndoToast({
+        actionLabel: t('toast.undoAction'),
+        message: left.succeeded.length > 0
+          ? t('selection.deletedAndLeft', { deleted: deletedIds.length, left: left.succeeded.length })
+          : t('selection.collectionsDeleted', { count: deletedIds.length }),
+        noticeTitle: t('common.notice'),
+        confirmLabel: t('common.confirm'),
+        undoErrorMessage: t('toast.undoCollectionDeleteError'),
+        onUndo: async () => {
+          const restored = await runBatch(deletedIds, id => restoreCollection(request, id));
+          onChanged();
+          if (restored.failed.length > 0) {
+            throw restored.failed[0].error;
+          }
+        },
+      });
+    } else if (left.succeeded.length > 0 && remaining.length === 0) {
+      showNotificationToast(t('selection.collectionsLeft', { count: left.succeeded.length }));
+    }
+    if (remaining.length > 0) {
+      setMessage([
+        t('selection.deleteAndLeavePartial', {
+          deleted: deletedIds.length,
+          left: left.succeeded.length,
+          failed: deleted.failed.length + left.failed.length,
+        }),
+        lockedSkipped > 0 ? t('selection.deleteSkippedLocked', { count: lockedSkipped }) : '',
+      ].filter(Boolean).join(' '));
+    }
+  });
+
   const onDeleteOrLeavePress = () => {
     if (single) {
       // ONE Collection: its own screen's flow (password prompt for a locked one, confirmation, undo).
@@ -311,7 +364,7 @@ export function useCollectionSelection({ collections, onCollectionUpdated, onCha
       return;
     }
     if (deletable.length > 0 && leavable.length > 0) {
-      setPending({ kind: 'deleteLeaveChoice' });
+      setPending({ kind: 'deleteAndLeave' });
     } else {
       setPending({ kind: deletable.length > 0 ? 'delete' : 'leave' });
     }
@@ -412,12 +465,10 @@ export function useCollectionSelection({ collections, onCollectionUpdated, onCha
   // ---- dialogs ----
   // The choice menu stays mounted until it has finished closing: on iOS a follow-up dialog (and the chosen action) runs from the Modal's
   // onDismiss, which a Modal that is already unmounted never reports.
-  const choiceOpen = pending?.kind === 'favoriteChoice' || pending?.kind === 'deleteLeaveChoice';
+  const choiceOpen = pending?.kind === 'favoriteChoice';
   const [isChoiceMounted, setIsChoiceMounted] = useState(false);
-  const [lastChoiceKind, setLastChoiceKind] = useState<'favoriteChoice' | 'deleteLeaveChoice'>('favoriteChoice');
   useEffect(() => {
-    if (pending?.kind === 'favoriteChoice' || pending?.kind === 'deleteLeaveChoice') {
-      setLastChoiceKind(pending.kind);
+    if (pending?.kind === 'favoriteChoice') {
       setIsChoiceMounted(true);
     }
   }, [pending]);
@@ -427,18 +478,10 @@ export function useCollectionSelection({ collections, onCollectionUpdated, onCha
       setIsChoiceMounted(false);
     }
   };
-  const choiceActions: ActionMenuDialogAction[] =
-    lastChoiceKind === 'favoriteChoice'
-      ? [
-        { label: t('selection.favoriteAddAll'), icon: FilledStarIcon, onPress: () => afterMenuCloses(closePending, () => { applyFavorite(true).catch(() => undefined); }) },
-        { label: t('selection.favoriteRemoveAll'), icon: StarIcon, onPress: () => afterMenuCloses(closePending, () => { applyFavorite(false).catch(() => undefined); }) },
-      ]
-      : lastChoiceKind === 'deleteLeaveChoice'
-        ? [
-          { label: t('selection.deleteCollectionsAction', { count: deletable.length }), destructive: true, icon: TrashIcon, onPress: () => afterMenuCloses(closePending, () => setPending({ kind: 'delete' })) },
-          { label: t('selection.leaveCollectionsAction', { count: leavable.length }), destructive: true, icon: LogoutIcon, onPress: () => afterMenuCloses(closePending, () => setPending({ kind: 'leave' })) },
-        ]
-        : [];
+  const choiceActions: ActionMenuDialogAction[] = [
+    { label: t('selection.favoriteAddAll'), icon: FilledStarIcon, onPress: () => afterMenuCloses(closePending, () => { applyFavorite(true).catch(() => undefined); }) },
+    { label: t('selection.favoriteRemoveAll'), icon: StarIcon, onPress: () => afterMenuCloses(closePending, () => { applyFavorite(false).catch(() => undefined); }) },
+  ];
 
   const sharedDeletedCount = deletableNow.filter(collection => collection.hasCollaborators === true || collection.isPublicShareActive === true).length;
   const lockTargets = lockableCollections(selected);
@@ -452,7 +495,7 @@ export function useCollectionSelection({ collections, onCollectionUpdated, onCha
           cancelLabel={t('common.cancel')}
           onCancel={closePending}
           onDismiss={() => { setIsChoiceMounted(false); onMenuDismiss(); }}
-          title={lastChoiceKind === 'favoriteChoice' ? t('selection.favoriteMixedTitle') : t('selection.deleteLeaveTitle')}
+          title={t('selection.favoriteMixedTitle')}
           visible={choiceOpen}
         />
       ) : null}
@@ -485,6 +528,22 @@ export function useCollectionSelection({ collections, onCollectionUpdated, onCha
           onCancel={closePending}
           onConfirm={() => { closePending(); runDelete().catch(() => undefined); }}
           title={t('selection.deleteCollectionsTitle', { count: deletableNow.length })}
+          visible
+        />
+      ) : null}
+      {pending?.kind === 'deleteAndLeave' ? (
+        <ConfirmDialog
+          busy={isBusy}
+          cancelLabel={t('common.cancel')}
+          confirmLabel={t('selection.deleteAndLeaveConfirm')}
+          message={[
+            t('selection.deleteAndLeaveMessage', { deleted: deletableNow.length, left: leavable.length }),
+            sharedDeletedCount > 0 ? t('selection.deleteSharedWarning', { count: sharedDeletedCount }) : '',
+            lockedSkipped > 0 ? t('selection.deleteSkippedLocked', { count: lockedSkipped }) : '',
+          ].filter(Boolean).join(' ')}
+          onCancel={closePending}
+          onConfirm={() => { closePending(); runDeleteAndLeave().catch(() => undefined); }}
+          title={t('selection.deleteAndLeaveConfirm')}
           visible
         />
       ) : null}

@@ -885,7 +885,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
                 placeholder={t('item.titlePlaceholder')}
                 placeholderTextColor={colors.textSecondary}
                 scrollEnabled
-                style={styles.titleInput}
+                style={[styles.titleInput, !isSharedView && styles.titleField]}
                 testID="item-details-title"
                 value={title}
               />
@@ -1186,6 +1186,18 @@ const styles = themedStyles(() => ({
     padding: 0,
     paddingVertical: spacing.xs,
     textAlignVertical: 'top',
+  },
+  // An editable title reads as a field you can tap: the memo block's soft fill, hairline edge and radius (a shared, read-only title stays
+  // plain text). Long titles still wrap to three lines, then scroll inside.
+  titleField: {
+    backgroundColor: colors.background,
+    borderColor: colors.inputBorder,
+    borderRadius: radii.md + 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    // Three lines of text plus the box's own vertical padding - longer titles scroll inside it.
+    maxHeight: TITLE_LINE_HEIGHT * 3 + (spacing.xs + 2) * 2,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs + 2,
   },
   // Icon-only, the full touch target around a compact icon (same treatment as the other row actions).
   iconButton: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, minWidth: minTouchTarget },

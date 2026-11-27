@@ -939,14 +939,15 @@ export function CollectionsScreen() {
 
           </View>
         }
-        resetKey="collections"
+        resetKey={`${filter}:${gridListKey(viewMode, viewMode === 'grid', gridColumns)}`}
         testID="collections-fixed-header"
       >
         {list => (
             <AnimatedFlatList
               ref={list.listRef}
               onScroll={list.onScroll}
-              key={gridListKey(viewMode, viewMode === 'grid', gridColumns)}
+              // A new filter or view mode starts the list at its top - and resets the header with the same key (see resetKey above).
+              key={`${filter}:${gridListKey(viewMode, viewMode === 'grid', gridColumns)}`}
               extraData={collectionSelection.selection}
               contentContainerStyle={[styles.content, list.contentInset(listData.length > 0)]}
               // A tap on a card while the keyboard is up opens it at once (and the suggestions step aside as the list is dragged).
@@ -1185,17 +1186,21 @@ function PendingJoinCard({ join, onPress, variant }: { readonly join: MyJoinRequ
   }
   return (
     <View style={[styles.gridCell, { flexBasis: columnBasis(gridColumns) }]}>
-      <Pressable accessibilityLabel={a11yLabel} accessibilityRole="button" onPress={onPress} style={styles.tilePressable} testID={`collection-join-pending-${join.requestId}`}>
-        <View style={styles.tileIconSlot}>
-          <View style={styles.pendingJoinDim}>
-            <CategoryIconTile collectionId={shareEntryTileKey(join.publicId)} color={join.color} icon={join.icon as Collection['icon']} imageUrl={join.iconImageUrl ?? null} imageVersion={join.iconImageVersion ?? null} size={56} />
+      {/* Like every other Collection tile, the press shows on the 56pt icon only - never as a rectangle over the whole cell. */}
+      <Pressable accessibilityLabel={a11yLabel} accessibilityRole="button" onPress={onPress} pressFeedback={false} style={styles.tilePressable} testID={`collection-join-pending-${join.requestId}`}>
+        {({ pressed }) => <>
+          <View style={styles.tileIconSlot}>
+            <View style={styles.pendingJoinDim}>
+              <CategoryIconTile collectionId={shareEntryTileKey(join.publicId)} color={join.color} icon={join.icon as Collection['icon']} imageUrl={join.iconImageUrl ?? null} imageVersion={join.iconImageVersion ?? null} size={56} />
+            </View>
+            <View pointerEvents="none" style={styles.pendingJoinOverlay}>
+              <ActivityIndicator color={colors.textSecondary} />
+            </View>
+            {pressed ? <View pointerEvents="none" style={styles.tilePressedLayer} testID="collection-join-pending-pressed-layer" /> : null}
           </View>
-          <View pointerEvents="none" style={styles.pendingJoinOverlay}>
-            <ActivityIndicator color={colors.textSecondary} />
-          </View>
-        </View>
-        <Text numberOfLines={2} style={[styles.tileLabel, styles.pendingJoinName]}>{join.name}</Text>
-        <Text numberOfLines={2} style={styles.pendingJoinLabel}>{label}</Text>
+          <Text numberOfLines={2} style={[styles.tileLabel, styles.pendingJoinName]}>{join.name}</Text>
+          <Text numberOfLines={2} style={styles.pendingJoinLabel}>{label}</Text>
+        </>}
       </Pressable>
     </View>
   );

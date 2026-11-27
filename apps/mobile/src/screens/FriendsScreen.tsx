@@ -498,7 +498,7 @@ export function FriendsScreen() {
     <StackScreenSafeArea style={styles.safeArea}>
       {tab === 'friends' ? (
         // 친구: the tab menu scrolls away with the friends, the search / view switch stays at the top.
-        <CollapsibleHeaderLayout collapsible={tabBarElement} pinned={friendsSearchRow} resetKey="friends" testID="friends-fixed-header">
+        <CollapsibleHeaderLayout collapsible={tabBarElement} pinned={friendsSearchRow} resetKey={`${tab}:${gridListKey(viewMode, viewMode === 'grid', columns.grid)}`} testID="friends-fixed-header">
           {renderFriendsList}
         </CollapsibleHeaderLayout>
       ) : (

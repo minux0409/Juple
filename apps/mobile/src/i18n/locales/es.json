@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "Eliminar tu cuenta no se puede deshacer",
-    "warningIntro": "Se eliminará para siempre todo lo siguiente:\n\nDesinstalar la aplicación o eliminar la cuenta de Juple no cancela suscripciones de Google Play ni Apple App Store. Cancélalas primero en los ajustes de suscripciones de la tienda de compra.",
+    "warningIntro": "Desinstalar la aplicación o eliminar la cuenta de Juple no cancela suscripciones de Google Play ni Apple App Store. Cancélalas primero en los ajustes de suscripciones de la tienda de compra.\n\nSe eliminará para siempre todo lo siguiente:",
     "dataLinks": "Enlaces guardados y notas",
     "dataPhotos": "Fotos subidas (fotos de enlaces, fotos de colecciones y tu foto de perfil)",
     "dataCollections": "Tus colecciones y sus enlaces públicos",
@@ -1669,7 +1669,11 @@
     "lockConfirmMessage": "{{count}} colecciones se protegerán con tu contraseña de bloqueo.",
     "lockConfirmSkipped": "Se omiten {{count}} que ya están bloqueadas o no se pueden bloquear. Para quitar un bloqueo, abre esa colección.",
     "locked": "Se bloquearon {{count}} colecciones.",
-    "lockedPartial": "Se bloquearon {{ok}} de {{total}} colecciones."
+    "lockedPartial": "Se bloquearon {{ok}} de {{total}} colecciones.",
+    "deleteAndLeaveConfirm": "Eliminar y salir",
+    "deleteAndLeaveMessage": "¿Eliminar las {{deleted}} colecciones personales seleccionadas y salir de {{left}} colecciones compartidas?",
+    "deletedAndLeft": "Se eliminaron {{deleted}} colecciones y saliste de {{left}}.",
+    "deleteAndLeavePartial": "Se eliminaron {{deleted}} y saliste de {{left}}. {{failed}} no se pudieron completar y siguen seleccionadas."
   },
   "membership": {
     "title": "Membresía",
@@ -1717,7 +1721,11 @@
   "welcomeTrial": {
     "title": "¡Te damos la bienvenida a Juple! 🎉",
     "body": "Gracias por registrarte.\n\nCada persona dispone de una prueba de exactamente 30 días (720 horas). Para quienes ya eran miembros comienza al iniciarse el servicio de membresía; para quienes se registren después, en el momento del registro. No es una prueba de la tienda y no se convierte automáticamente en una suscripción de pago. Si te suscribes durante la prueba, se cobra de inmediato aunque quede tiempo gratuito.\n\nDespués podrás consultar enlaces y colecciones existentes, gestionar la cuenta y las suscripciones, restaurar compras y eliminar la cuenta. Sin una suscripción válida o una membresía gratuita otorgada por un administrador, se restringen acciones principales como guardar, crear y editar.\n\nGestiona tu membresía en {{myPage}}.",
-    "start": "Empezar con Juple"
+    "start": "Empezar con Juple",
+    "thanksTitle": "¡Gracias por registrarte!",
+    "newMemberBody": "¡Usa Juple gratis durante 30 días desde el día en que te registraste!",
+    "existingMemberBody": "¡Usa Juple gratis durante 30 días desde el inicio de la membresía de Juple!",
+    "plansAfterTrial": "Si quieres seguir usando Juple después de la prueba gratuita, puedes elegir una membresía mensual o anual."
   },
   "trialEnded": {
     "title": "¿Qué tal tu mes con Juple? 💜",

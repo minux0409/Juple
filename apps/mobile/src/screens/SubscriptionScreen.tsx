@@ -477,7 +477,8 @@ export function SubscriptionScreen() {
         </View>
 
         <Text lineBreakStrategyIOS="hangul-word" accessibilityRole="header" style={styles.sectionTitle}>{t('subscription.infoHeading')}</Text>
-        <View style={[styles.card, styles.infoCard]} testID="subscription-info">
+        {/* Information, not a menu: a flat muted panel (no shadow, no chevron, nothing pressable) so it never reads like the plan cards. */}
+        <View style={styles.infoCard} testID="subscription-info">
           {(['account', 'store', 'data'] as const).map((row, index) => (
             <View key={row} style={[styles.infoRow, index > 0 && styles.infoRowDivider]}>
               <Text lineBreakStrategyIOS="hangul-word" style={styles.infoTitle}>{t(`subscription.info.${row}Title`)}</Text>
@@ -531,7 +532,7 @@ const styles = themedStyles(() => ({
   row: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.md, justifyContent: 'space-between', marginTop: spacing.sm },
   rowLabel: { color: colors.textSecondary, flexShrink: 1, fontSize: 14, lineHeight: 20 },
   rowValue: { color: colors.textPrimary, flexShrink: 1, fontSize: 14, fontWeight: '600', lineHeight: 20, textAlign: 'right' },
-  infoCard: { paddingVertical: spacing.xs },
+  infoCard: { backgroundColor: colors.surfaceMuted, borderRadius: radii.lg, paddingHorizontal: spacing.lg, paddingVertical: spacing.xs },
   infoRow: { paddingVertical: spacing.md },
   infoRowDivider: { borderTopColor: colors.inputBorder, borderTopWidth: StyleSheet.hairlineWidth },
   infoTitle: { color: colors.textPrimary, fontSize: 14, fontWeight: '700' },

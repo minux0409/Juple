@@ -112,6 +112,10 @@ export function SelectionActionBar({ model, leaving = false, onLeft }: { readonl
         style={[styles.card, { opacity: progress, transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [ENTER_OFFSET, 0] }) }] }]}
         testID="selection-action-card"
       >
+        {/* The buttons live in a clip of the bar's own rounded shape, so a held button's press layer never shows outside the bar: the first
+            one fills up to the left rounded corner, the last one up to the right one, the middle ones their rectangle. The shadow stays
+            on the outer card (clipping there would cut the iOS shadow off). */}
+        <View style={styles.cardClip} testID="selection-action-clip">
         {visible.map(action => {
           const color = action.disabled ? colors.textMuted : action.destructive ? colors.destructiveText : colors.textPrimary;
           const Icon = action.icon;
@@ -137,6 +141,7 @@ export function SelectionActionBar({ model, leaving = false, onLeft }: { readonl
             </Pressable>
           );
         })}
+        </View>
       </Animated.View>
       <Modal animationType="fade" onDismiss={onMenuDismiss} onRequestClose={() => setOpenMenu(null)} transparent visible={openMenu !== null}>
         <View style={styles.overlay}>
@@ -198,14 +203,13 @@ const styles = themedStyles(() => ({
     borderRadius: radii.xl,
     borderWidth: StyleSheet.hairlineWidth,
     elevation: 10,
-    flexDirection: 'row',
     minHeight: BAR_CONTENT_HEIGHT,
-    paddingHorizontal: spacing.xs,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.16,
     shadowRadius: 12,
   },
+  cardClip: { borderRadius: radii.xl, flexDirection: 'row', minHeight: BAR_CONTENT_HEIGHT, overflow: 'hidden' },
   button: {
     alignItems: 'center',
     flex: 1,

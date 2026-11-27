@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "Hesabı silme işlemi geri alınamaz",
-    "warningIntro": "Aşağıdakilerin tümü kalıcı olarak silinecek:\n\nUygulamayı veya Juple hesabını silmek Google Play ya da Apple App Store aboneliğini iptal etmez. Önce satın aldığınız mağazanın abonelik ayarlarından iptal edin.",
+    "warningIntro": "Uygulamayı veya Juple hesabını silmek Google Play ya da Apple App Store aboneliğini iptal etmez. Önce satın aldığınız mağazanın abonelik ayarlarından iptal edin.\n\nAşağıdakilerin tümü kalıcı olarak silinecek:",
     "dataLinks": "Kaydedilen bağlantılar ve notlar",
     "dataPhotos": "Yüklenen fotoğraflar (bağlantı fotoğrafları, koleksiyon fotoğrafları ve profil fotoğrafı)",
     "dataCollections": "Koleksiyonlarınız ve herkese açık bağlantıları",
@@ -1669,7 +1669,11 @@
     "lockConfirmMessage": "{{count}} koleksiyon kilit parolanızla korunacak.",
     "lockConfirmSkipped": "Zaten kilitli veya kilitlenemeyen {{count}} koleksiyon atlandı. Kilidi kaldırmak için o koleksiyonu açın.",
     "locked": "{{count}} koleksiyon kilitlendi.",
-    "lockedPartial": "{{total}} koleksiyondan {{ok}} tanesi kilitlendi."
+    "lockedPartial": "{{total}} koleksiyondan {{ok}} tanesi kilitlendi.",
+    "deleteAndLeaveConfirm": "Sil ve ayrıl",
+    "deleteAndLeaveMessage": "Seçtiğin {{deleted}} kişisel koleksiyon silinsin ve {{left}} paylaşılan koleksiyondan ayrılınsın mı?",
+    "deletedAndLeft": "{{deleted}} koleksiyon silindi ve {{left}} koleksiyondan ayrıldın.",
+    "deleteAndLeavePartial": "{{deleted}} silindi ve {{left}} koleksiyondan ayrıldın. {{failed}} tanesi tamamlanamadı ve seçili kaldı."
   },
   "membership": {
     "title": "Üyelik",
@@ -1717,7 +1721,11 @@
   "welcomeTrial": {
     "title": "Juple’a hoş geldin! 🎉",
     "body": "Kaydolduğun için teşekkürler.\n\nHer kişi tam 30 gün (720 saat) süren tek bir deneme alır. Mevcut üyeler için üyelik hizmetinin resmi başlangıç anından, sonradan kaydolanlar için kayıt anından hesaplanır. Bu bir mağaza denemesi değildir ve otomatik olarak ücretliye dönüşmez. Deneme sırasında abone olursanız ücretsiz süre kalsa bile ücret hemen alınır.\n\nSonrasında mevcut bağlantı ve koleksiyonları görüntüleme, hesap ve abonelik yönetimi, satın alımları geri yükleme ve hesap silme kullanılabilir. Geçerli ücretli abonelik veya yönetici tarafından verilen ücretsiz üyelik yoksa kaydetme, oluşturma ve düzenleme gibi temel yazma işlemleri kısıtlanır.\n\nÜyeliğinizi {{myPage}} bölümünden yönetin.",
-    "start": "Juple’ı kullanmaya başla"
+    "start": "Juple’ı kullanmaya başla",
+    "thanksTitle": "Kaydolduğun için teşekkürler!",
+    "newMemberBody": "Kayıt olduğun günden itibaren 30 gün boyunca Juple’ı ücretsiz kullan!",
+    "existingMemberBody": "Juple üyeliğinin başladığı günden itibaren 30 gün boyunca ücretsiz kullan!",
+    "plansAfterTrial": "Ücretsiz deneme bittikten sonra da kullanmaya devam etmek istersen aylık veya yıllık üyelik seçebilirsin."
   },
   "trialEnded": {
     "title": "Juple ile geçen bir ay nasıldı? 💜",

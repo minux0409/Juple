@@ -43,3 +43,17 @@ export async function markWelcomeTrialShown(userKey: string): Promise<void> {
     // Best effort.
   }
 }
+
+/**
+ * What this device knows for the account: 'new' (the server said this account was just created with its own free trial, not shown yet),
+ * 'shown' (the thank-you popup was closed - never again), 'none' (nothing recorded: an existing member, or an account created elsewhere),
+ * or null when storage cannot be read.
+ */
+export async function readWelcomeTrialState(userKey: string): Promise<'new' | 'shown' | 'none' | null> {
+  try {
+    const value = await AsyncStorage.getItem(welcomeTrialKey(userKey));
+    return value === 'pending' ? 'new' : value === 'shown' ? 'shown' : 'none';
+  } catch {
+    return null;
+  }
+}

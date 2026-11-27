@@ -245,7 +245,7 @@ export function CollectionChoiceGrid({
                     </View>
                     <View style={isGrid ? styles.gridText : styles.listText}>
                       {isCollectionLocked(option) ? (
-                        <View accessibilityLabel={`${option.name}, ${t('collections.lockedA11y')}`} style={styles.lockedNameRow}>
+                        <View accessibilityLabel={`${option.name}, ${t('collections.lockedA11y')}`} style={[styles.lockedNameRow, !isGrid && styles.listLockedNameRow]}>
                           <CollectionLockMark size={isGrid ? 11 : 14} />
                           <Text numberOfLines={1} style={[styles.tileLabel, styles.lockedName, !isGrid && styles.listLabel]}>
                             {option.name}
@@ -319,6 +319,8 @@ const styles = themedStyles(() => ({
   // A locked name: the padlock first, then the name taking the rest of the line (same top margin and width as a plain name).
   lockedNameRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', marginTop: spacing.xs + 2, maxWidth: 76, minWidth: 0 },
   lockedName: { flexShrink: 1, marginTop: 0, maxWidth: undefined },
+  // In a List row the padlock sits right before the name at the row's start (not centred in the wide text column).
+  listLockedNameRow: { justifyContent: 'flex-start', maxWidth: undefined },
   listText: { flex: 1, minWidth: 0 },
   disabledCell: { opacity: 0.45 },
   disabledLabel: { color: colors.textSecondary, fontSize: 11, marginTop: 1, maxWidth: 76, textAlign: 'center' },

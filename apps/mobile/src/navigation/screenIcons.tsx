@@ -56,8 +56,8 @@ export const screenIcons = {
  * `title` stays set as well (the back button's label and accessibility name). Android: the native toolbar title (start-aligned
  * after its arrow). iOS: the same row as the bar's leading item next to the arrow - iOS would otherwise center it.
  */
-export function headerTitleWithIcon(icon: ScreenTitleIcon, title: string): NativeStackNavigationOptions {
-  const element = <ScreenTitle icon={icon} title={title} />;
+export function headerTitleWithIcon(icon: ScreenTitleIcon, title: string, tone: 'default' | 'destructive' = 'default'): NativeStackNavigationOptions {
+  const element = <ScreenTitle icon={icon} title={title} tone={tone} />;
   return Platform.OS === 'ios' ? iosLeadingTitleOptions(element) : { headerTitle: () => element };
 }
 

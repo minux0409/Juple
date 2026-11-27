@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "A exclusão da conta não pode ser desfeita",
-    "warningIntro": "Tudo o que está abaixo será excluído permanentemente:\n\nDesinstalar o app ou excluir a conta do Juple não cancela assinaturas do Google Play ou Apple App Store. Cancele primeiro nas configurações de assinaturas da loja onde comprou.",
+    "warningIntro": "Desinstalar o app ou excluir a conta do Juple não cancela assinaturas do Google Play ou Apple App Store. Cancele primeiro nas configurações de assinaturas da loja onde comprou.\n\nTudo o que está abaixo será excluído permanentemente:",
     "dataLinks": "Links salvos e notas",
     "dataPhotos": "Fotos enviadas (fotos de links, fotos de coleções e sua foto de perfil)",
     "dataCollections": "Suas coleções e os links públicos delas",
@@ -1669,7 +1669,11 @@
     "lockConfirmMessage": "{{count}} coleções serão protegidas com a sua senha de bloqueio.",
     "lockConfirmSkipped": "{{count}} já bloqueadas ou que não podem ser bloqueadas serão ignoradas. Para remover um bloqueio, abra essa coleção.",
     "locked": "{{count}} coleções bloqueadas.",
-    "lockedPartial": "{{ok}} de {{total}} coleções bloqueadas."
+    "lockedPartial": "{{ok}} de {{total}} coleções bloqueadas.",
+    "deleteAndLeaveConfirm": "Excluir e sair",
+    "deleteAndLeaveMessage": "Excluir as {{deleted}} coleções pessoais selecionadas e sair de {{left}} coleções compartilhadas?",
+    "deletedAndLeft": "{{deleted}} coleções excluídas e você saiu de {{left}}.",
+    "deleteAndLeavePartial": "{{deleted}} excluídas e você saiu de {{left}}. {{failed}} não puderam ser concluídas e continuam selecionadas."
   },
   "membership": {
     "title": "Assinatura",
@@ -1717,7 +1721,11 @@
   "welcomeTrial": {
     "title": "Boas-vindas ao Juple! 🎉",
     "body": "Obrigado por se cadastrar.\n\nCada pessoa tem um teste de exatamente 30 dias (720 horas), uma única vez. Para membros existentes, começa no início do serviço de assinatura; para quem se cadastrar depois, no instante do cadastro. Não é um teste da loja e não vira uma assinatura paga automaticamente. Ao assinar durante o teste, a cobrança é imediata, mesmo que ainda reste tempo gratuito.\n\nDepois, você ainda pode consultar links e coleções existentes, gerenciar conta e assinaturas, restaurar compras e excluir a conta. Sem assinatura válida ou acesso gratuito concedido por administrador, ações principais de gravação, como salvar, criar e editar, ficam restritas.\n\nGerencie sua assinatura em {{myPage}}.",
-    "start": "Começar a usar o Juple"
+    "start": "Começar a usar o Juple",
+    "thanksTitle": "Obrigado por se cadastrar!",
+    "newMemberBody": "Use o Juple de graça por 30 dias a partir do dia do seu cadastro!",
+    "existingMemberBody": "Use o Juple de graça por 30 dias a partir do início da assinatura Juple!",
+    "plansAfterTrial": "Se quiser continuar usando o Juple depois do teste grátis, você pode escolher uma assinatura mensal ou anual."
   },
   "trialEnded": {
     "title": "Como foi seu mês com o Juple? 💜",

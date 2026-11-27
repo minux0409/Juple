@@ -264,7 +264,7 @@ describe('CollectionLinkShareSheet - the shared handle', () => {
     const dragArea = renderer.root.findAll(node => node.props.testID === 'link-share-drag-area' && typeof node.type === 'string')[0];
     expect(dragArea.props.collapsable).toBe(false);
     expect(dragArea.findAll(node => node.props.testID === 'link-share-close').length).toBeGreaterThan(0);
-    expect(dragArea.findAll(node => typeof node.type === 'string' && node.props.children === i18n.t('shareSheet.shareLink')).length).toBeGreaterThan(0);
+    expect(dragArea.findAll(node => typeof node.type === 'string' && node.props.children === i18n.t('common.share')).length).toBeGreaterThan(0);
     dragSheet(sheetDragArea(renderer, 'link-share-drag-area'), { dy: 160, durationMs: 600 });
     await settleSheet();
     expect(callbacks.onClose).toHaveBeenCalledTimes(1);
@@ -296,7 +296,7 @@ describe('CollectionLinkShareSheet - the shared drag header', () => {
   it('title and X in the header; a drag from the title closes it; from X too; X still taps', async () => {
     const { renderer, callbacks } = await renderSheet();
     const header = renderedSheetHeader(renderer, 'link-share-drag-area');
-    expectOneDragSurface(header, i18n.t('shareSheet.shareLink'));
+    expectOneDragSurface(header, i18n.t('common.share'));
     expect(header.actions.findAll(node => node.props.testID === 'link-share-close').length).toBeGreaterThan(0);
     await act(async () => byId(renderer, 'link-share-close').props.onPress());
     expect(callbacks.onClose).toHaveBeenCalledTimes(1);

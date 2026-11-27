@@ -43,7 +43,6 @@ export function DestinationPickerSheet({ picker, title, submitLabel }: Destinati
       onUnlockGranted={picker.onUnlockGranted}
       onUnlockStateChanged={picker.onUnlockStateChanged}
       selectedIds={picker.selectedIds}
-      sort={{ value: picker.sort, onChange: picker.changeSort }}
       submit={{ label: submitLabel, onSubmit: picker.submit, isSubmitting: picker.isSubmitting }}
       title={title}
       unlockTarget={picker.unlockTarget}

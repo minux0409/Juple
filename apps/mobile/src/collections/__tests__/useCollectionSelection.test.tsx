@@ -127,14 +127,14 @@ describe('the Collections list selection bar', () => {
     expect(hook().selection.isActive).toBe(true);
     expect(hook().cardSelection(list[0])!.selected).toBe(true);
     expect(hook().cardSelection(list[1])!.selected).toBe(false);
-    expect(barKeys()).toEqual(['favorite', 'lock', 'shortcut', 'deleteOrLeave', 'more']);
+    expect(barKeys()).toEqual(['lock', 'shortcut', 'deleteOrLeave', 'more']);
   });
 
   it('several Collections: no 더보기 (rename, share and notifications belong to one Collection)', async () => {
     const list = [owned(1), owned(2)];
     const { hook } = await mount(list);
     await select(hook, list);
-    expect(barKeys()).toEqual(['favorite', 'lock', 'deleteOrLeave']);
+    expect(barKeys()).toEqual(['lock', 'deleteOrLeave']);
   });
 
   it('바로가기 is not drawn where the launcher cannot pin an icon', async () => {
@@ -156,66 +156,16 @@ describe('the Collections list selection bar', () => {
 });
 
 describe('즐겨찾기', () => {
-  it('none favorite: adds all of them, one request each', async () => {
-    jest.mocked(setCollectionFavorite).mockImplementation(async (_request, id, desired) => owned(id, { isFavorite: desired }));
-    const list = [owned(1), owned(2)];
-    const { hook, onCollectionUpdated } = await mount(list);
-    await select(hook, list);
-    expect(barLabel('favorite')).toBe('Add to favorites');
-    await pressBar('favorite');
-    expect(jest.mocked(setCollectionFavorite).mock.calls.map(call => [call[1], call[2]])).toEqual([[1, true], [2, true]]);
-    expect(onCollectionUpdated).toHaveBeenCalledTimes(2);
-    expect(barModel).toBeNull();
-  });
-
-  it('all favorite: removes all of them', async () => {
-    jest.mocked(setCollectionFavorite).mockImplementation(async (_request, id, desired) => owned(id, { isFavorite: desired }));
-    const list = [owned(1, { isFavorite: true }), owned(2, { isFavorite: true })];
+  it('is not a bulk action (the star stays on each Collection) and nothing is changed from the bar', async () => {
+    const list = [owned(1, { isFavorite: true }), owned(2)];
     const { hook } = await mount(list);
     await select(hook, list);
-    expect(barLabel('favorite')).toBe('Remove from favorites');
-    await pressBar('favorite');
-    expect(jest.mocked(setCollectionFavorite).mock.calls.map(call => call[2])).toEqual([false, false]);
-  });
-
-  it('a mix asks which direction; nothing changes until a direction is chosen, and cancelling changes nothing', async () => {
-    jest.mocked(setCollectionFavorite).mockImplementation(async (_request, id, desired) => owned(id, { isFavorite: desired }));
-    const list = [owned(1, { isFavorite: true }), owned(2)];
-    const { renderer, hook } = await mount(list);
-    await select(hook, list);
-    await pressBar('favorite');
-
-    const choice = dialog(renderer, 'Some are favorites, some are not');
-    expect(choice.props.actions.map((action: { label: string }) => action.label)).toEqual(['Add all to favorites', 'Remove all from favorites']);
+    expect(barKeys()).not.toContain('favorite');
     expect(setCollectionFavorite).not.toHaveBeenCalled();
-    await act(async () => choice.props.onCancel());
-    expect(setCollectionFavorite).not.toHaveBeenCalled();
-
-    await pressBar('favorite');
-    const again = dialog(renderer, 'Some are favorites, some are not');
-    await act(async () => again.props.actions[0].onPress());
-    await act(async () => again.props.onDismiss?.());
-    // Only the Collection that was not a favorite needed a request.
-    expect(jest.mocked(setCollectionFavorite).mock.calls.map(call => [call[1], call[2]])).toEqual([[2, true]]);
-  });
-
-  it('a failure keeps the failed Collection selected for a retry and says it was partial', async () => {
-    jest.mocked(setCollectionFavorite).mockImplementation(async (_request, id, desired) => {
-      if (id === 2) {
-        throw new ApiError('unavailable', 503);
-      }
-      return owned(id, { isFavorite: desired });
-    });
-    const list = [owned(1), owned(2)];
-    const { renderer, hook } = await mount(list);
-    await select(hook, list);
-    await pressBar('favorite');
-    expect([...hook().selection.selectedIds]).toEqual([2]);
-    expect(renderer.root.findAll(node => typeof node.props.message === 'string' && String(node.props.message).includes('Updated 1 of 2')).length).toBeGreaterThan(0);
   });
 });
 
-describe('삭제 / 나가기 are never one action', () => {
+describe('삭제 / 나가기', () => {
   it('one Collection keeps its own screen flow (password prompt, confirmation, undo)', async () => {
     const list = [owned(1)];
     const { hook, onManage } = await mount(list);
@@ -279,26 +229,50 @@ describe('삭제 / 나가기 are never one action', () => {
     expect(deleteCollection).not.toHaveBeenCalled();
   });
 
-  it('a mix: the user first chooses, with each count spelled out, and each kind has its own confirmation', async () => {
-    jest.mocked(deleteCollection).mockResolvedValue(undefined);
-    jest.mocked(leaveCollection).mockResolvedValue(undefined);
+  it('a mix: ONE confirmation naming both counts; confirming deletes mine, then leaves the shared ones', async () => {
+    const order: string[] = [];
+    jest.mocked(deleteCollection).mockImplementation(async (_request, id) => { order.push(`delete:${id}`); });
+    jest.mocked(leaveCollection).mockImplementation(async (_request, id) => { order.push(`leave:${id}`); });
     const list = [owned(1), owned(2), shared(5)];
-    const { renderer, hook } = await mount(list);
+    const { renderer, hook, onChanged } = await mount(list);
     await select(hook, list);
     expect(barLabel('deleteOrLeave')).toBe('Delete / Leave');
     await pressBar('deleteOrLeave');
 
-    const choice = dialog(renderer, 'Delete and leave are done separately');
-    expect(choice.props.actions.map((action: { label: string }) => action.label)).toEqual(['Delete 2 collections', 'Leave 1 collections']);
-    // Nothing runs from the choice itself.
+    const confirm = dialog(renderer, 'Delete and leave');
+    expect(confirm.props.confirmLabel).toBe('Delete and leave');
+    expect(confirm.props.message).toContain('Delete the selected personal collections (2) and leave the selected shared collections (1)?');
+    expect(deleteCollection).not.toHaveBeenCalled();
+    expect(leaveCollection).not.toHaveBeenCalled();
+    await act(async () => confirm.props.onCancel());
     expect(deleteCollection).not.toHaveBeenCalled();
     expect(leaveCollection).not.toHaveBeenCalled();
 
-    await act(async () => choice.props.actions[1].onPress());
-    await act(async () => choice.props.onDismiss?.());
-    await act(async () => dialog(renderer, 'Leave 1 collections?').props.onConfirm());
+    await pressBar('deleteOrLeave');
+    await act(async () => dialog(renderer, 'Delete and leave').props.onConfirm());
+    expect(order.filter(step => step.startsWith('delete')).sort()).toEqual(['delete:1', 'delete:2']);
+    // Sequential: every delete has finished before the first leave.
+    expect(order.indexOf('leave:5')).toBe(order.length - 1);
+    expect(order).toHaveLength(3);
+    expect(onChanged).toHaveBeenCalled();
+    expect(barModel).toBeNull();
+  });
+
+  it('a mix with a partial failure keeps only the failed ones selected and says what was done', async () => {
+    jest.mocked(deleteCollection).mockImplementation(async (_request, id) => {
+      if (id === 2) {
+        throw new ApiError('unavailable', 503);
+      }
+    });
+    jest.mocked(leaveCollection).mockResolvedValue(undefined);
+    const list = [owned(1), owned(2), shared(5)];
+    const { renderer, hook } = await mount(list);
+    await select(hook, list);
+    await pressBar('deleteOrLeave');
+    await act(async () => dialog(renderer, 'Delete and leave').props.onConfirm());
     expect(jest.mocked(leaveCollection).mock.calls.map(call => call[1])).toEqual([5]);
-    expect(deleteCollection).not.toHaveBeenCalled();
+    expect([...hook().selection.selectedIds]).toEqual([2]);
+    expect(renderer.root.findAll(node => typeof node.props.message === 'string' && String(node.props.message).includes('Deleted: 1. Left: 1. Not completed and still selected: 1.')).length).toBeGreaterThan(0);
   });
 
   it('a partial failure of a bulk delete keeps only the failed ones selected', async () => {

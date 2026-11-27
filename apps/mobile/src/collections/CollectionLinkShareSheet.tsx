@@ -270,7 +270,7 @@ export function CollectionLinkShareSheet({
               gesture={gesture}
               style={styles.dragArea}
               testID="link-share-drag-area"
-              title={<Text style={styles.title}>{t('shareSheet.shareLink')}</Text>}
+              title={<Text style={styles.title}>{t('common.share')}</Text>}
             />
 
             {/* [친구] [ID] choose who gets it inside Juple; [외부 공유] hands the link to the OS share sheet. */}

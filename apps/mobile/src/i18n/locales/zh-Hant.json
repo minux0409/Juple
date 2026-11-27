@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "刪除帳號後將無法復原",
-    "warningIntro": "以下資料將全部被永久刪除：\n\n移除應用程式或刪除Juple帳戶不會取消Google Play或Apple App Store訂閱。請先在購買商店的訂閱設定中取消。",
+    "warningIntro": "移除應用程式或刪除Juple帳戶不會取消Google Play或Apple App Store訂閱。請先在購買商店的訂閱設定中取消。\n\n以下資料將全部被永久刪除：",
     "dataLinks": "儲存的連結和備忘錄",
     "dataPhotos": "上傳的相片（連結相片、合集相片和大頭貼）",
     "dataCollections": "你的合集及其公開分享連結",
@@ -1669,7 +1669,11 @@
     "lockConfirmMessage": "將以您的鎖定密碼保護 {{count}} 個合集。",
     "lockConfirmSkipped": "已鎖定或無法鎖定的 {{count}} 個將被略過。若要解除鎖定，請開啟該合集。",
     "locked": "已鎖定 {{count}} 個合集。",
-    "lockedPartial": "{{total}} 個合集中已鎖定 {{ok}} 個。"
+    "lockedPartial": "{{total}} 個合集中已鎖定 {{ok}} 個。",
+    "deleteAndLeaveConfirm": "刪除並退出",
+    "deleteAndLeaveMessage": "要刪除所選的 {{deleted}} 個個人收藏集，並退出 {{left}} 個共享收藏集嗎？",
+    "deletedAndLeft": "已刪除 {{deleted}} 個收藏集，並退出了 {{left}} 個。",
+    "deleteAndLeavePartial": "已刪除 {{deleted}} 個，退出 {{left}} 個。{{failed}} 個未能處理，仍保持選取。"
   },
   "membership": {
     "title": "會員",
@@ -1717,7 +1721,11 @@
   "welcomeTrial": {
     "title": "歡迎來到 Juple！🎉",
     "body": "感謝你的註冊。\n\n每位使用者可體驗一次，時長為精確的30天（720小時）。服務開始前已註冊的會員從會員服務正式開始時刻計算，此後註冊的會員從註冊時刻計算。 這不是商店免費試用，不會自動轉為付費訂閱。免費期間購買訂閱會立即扣款，即使仍有剩餘免費時間。\n\n結束後仍可查看既有連結與收藏集、管理帳戶與訂閱、回復購買及刪除帳戶。若沒有有效的付費訂閱或管理員贈送的會員權限，儲存、新增、編輯等主要寫入功能將受限。\n\n會員管理：{{myPage}}。",
-    "start": "開始使用 Juple"
+    "start": "開始使用 Juple",
+    "thanksTitle": "感謝您的註冊！",
+    "newMemberBody": "自註冊之日起 30 天內免費使用 Juple！",
+    "existingMemberBody": "自 Juple 會員服務開始之日起 30 天內免費使用！",
+    "plansAfterTrial": "免費體驗結束後，如果想繼續使用，可以選擇月方案或年方案會員。"
   },
   "trialEnded": {
     "title": "和 Juple 一起的這一個月，覺得如何？💜",

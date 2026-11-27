@@ -39,11 +39,12 @@ describe('Collections list selection', () => {
     expect(lockable.map(entry => entry.id)).toEqual([1, 3]);
   });
 
-  it('offers 즐겨찾기, 잠금 and 삭제/나가기 for several (never 바로가기), and 바로가기 + 더보기 only for one', () => {
+  it('offers 잠금 and 삭제/나가기 for several (never 바로가기), and 바로가기 + 더보기 only for one - never 즐겨찾기 (the star stays on each Collection)', () => {
     const several = getCollectionSelectionActions([owned(1), shared(2)], { shortcutSupported: true }).bar;
-    expect(several).toEqual(['favorite', 'lock', 'deleteOrLeave']);
+    expect(several).toEqual(['lock', 'deleteOrLeave']);
     const one = getCollectionSelectionActions([owned(1)], { shortcutSupported: true }).bar;
-    expect(one).toEqual(['favorite', 'lock', 'shortcut', 'deleteOrLeave', 'more']);
+    expect(one).toEqual(['lock', 'shortcut', 'deleteOrLeave', 'more']);
+    expect(getCollectionSelectionActions([owned(1, { isFavorite: true }), shared(2)], { shortcutSupported: false }).bar).not.toContain('favorite');
   });
 
   it('바로가기 comes back when the selection is exactly one again', () => {

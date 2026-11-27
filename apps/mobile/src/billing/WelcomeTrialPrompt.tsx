@@ -11,16 +11,16 @@ import { describeTrialProgress } from './membershipModel';
 import { MembershipPromptDialog } from './MembershipPromptDialog';
 import { dismissTrialNotice } from './trialNoticeModel';
 import { useQuietHome } from './useQuietHome';
-import { isWelcomeTrialPending, markWelcomeTrialShown, rememberWelcomeTrial } from './welcomeTrialStore';
+import { markWelcomeTrialShown, readWelcomeTrialState, rememberWelcomeTrial } from './welcomeTrialStore';
 
 const DIALOG_ID = 'welcomeTrial';
 
 /**
- * "Juple에 오신 걸 환영해요!" - once, for a NEW account that the server gave its own free month (bootstrap `newAccountTrialGranted`; see
- * welcomeTrialStore for how it survives a closed app and why other devices never see it). It waits for Home to be in front and for the
- * first-run tour to be finished or skipped (or not to apply), then shows; closing it any way - the button, Back, a tap outside - only
- * closes it and records it as shown. Mounted beside the navigator once sign-in and bootstrap are done (navigation/RootStack).
- * It also closes the Home "your free period has started" card for the same period, so the person is not told twice.
+ * "가입해 주셔서 감사해요!" - the free-trial popup, once per account on this device, for anyone the server reports in a running free trial
+ * (it replaced the Home trial card). A NEW account (bootstrap `newAccountTrialGranted`, remembered by welcomeTrialStore until shown) reads
+ * "from the day you joined"; everyone else in a trial is an existing member and reads "from the membership start". It waits for Home to be
+ * in front and for the first-run tour to be finished or skipped (or not to apply), then shows; closing it any way - the button, Back, a tap
+ * outside - only closes it and records it as shown, so it never comes back. Nothing is bought or charged from here.
  */
 export function WelcomeTrialPrompt() {
   const { t } = useTranslation();
@@ -30,6 +30,7 @@ export function WelcomeTrialPrompt() {
   const trial = describeTrialProgress(auth?.entitlement);
   const [userKey, setUserKey] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const [isNewAccount, setIsNewAccount] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   // Closed in this launch: nothing (a re-read, the server's flag still set in memory) may bring it back.
   const closedRef = useRef(false);
@@ -41,11 +42,12 @@ export function WelcomeTrialPrompt() {
         if (grantedNow) {
           await rememberWelcomeTrial(profile.jupleId);
         }
-        // The stored record decides once it exists ('shown' is never pending again); unreadable storage falls back to this launch's answer.
-        const stored = await isWelcomeTrialPending(profile.jupleId);
-        const pending = !closedRef.current && (stored ?? grantedNow);
+        // 'shown' never comes back. Unreadable storage shows it only to an account the server just created (never on every launch).
+        const stored = await readWelcomeTrialState(profile.jupleId);
+        const pending = !closedRef.current && (stored === null ? grantedNow : stored !== 'shown');
         if (mounted) {
           setUserKey(profile.jupleId);
+          setIsNewAccount(stored === 'new' || grantedNow);
           setIsPending(pending);
         }
       })
@@ -89,13 +91,13 @@ export function WelcomeTrialPrompt() {
 
   return (
     <MembershipPromptDialog
-      body={t('welcomeTrial.body', { myPage: t('tabs.myPage') })}
+      body={`${t(isNewAccount ? 'welcomeTrial.newMemberBody' : 'welcomeTrial.existingMemberBody')}\n\n${t('welcomeTrial.plansAfterTrial')}`}
       icon="gift"
       onPrimary={close}
       onRequestClose={close}
-      primaryLabel={t('welcomeTrial.start')}
+      primaryLabel={t('common.close')}
       testID="welcome-trial"
-      title={t('welcomeTrial.title')}
+      title={t('welcomeTrial.thanksTitle')}
       visible={isOpen}
     />
   );

@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "La suppression de votre compte est irréversible",
-    "warningIntro": "Tous les éléments suivants seront définitivement supprimés :\n\nDésinstaller l’application ou supprimer le compte Juple ne résilie pas les abonnements Google Play ou Apple App Store. Résiliez-les d’abord dans les réglages d’abonnement de la boutique d’achat.",
+    "warningIntro": "Désinstaller l’application ou supprimer le compte Juple ne résilie pas les abonnements Google Play ou Apple App Store. Résiliez-les d’abord dans les réglages d’abonnement de la boutique d’achat.\n\nTous les éléments suivants seront définitivement supprimés :",
     "dataLinks": "Liens enregistrés et notes",
     "dataPhotos": "Photos importées (photos de liens, photos de collections et photo de profil)",
     "dataCollections": "Vos collections et leurs liens publics",
@@ -1669,7 +1669,11 @@
     "lockConfirmMessage": "{{count}} collections seront protégées par votre mot de passe de verrouillage.",
     "lockConfirmSkipped": "{{count}} déjà verrouillées ou non verrouillables sont ignorées. Pour retirer un verrou, ouvrez cette collection.",
     "locked": "{{count}} collections verrouillées.",
-    "lockedPartial": "{{ok}} collections verrouillées sur {{total}}."
+    "lockedPartial": "{{ok}} collections verrouillées sur {{total}}.",
+    "deleteAndLeaveConfirm": "Supprimer et quitter",
+    "deleteAndLeaveMessage": "Supprimer les {{deleted}} collections personnelles sélectionnées et quitter {{left}} collections partagées ?",
+    "deletedAndLeft": "{{deleted}} collections supprimées et {{left}} quittées.",
+    "deleteAndLeavePartial": "{{deleted}} supprimées et {{left}} quittées. {{failed}} n’ont pas pu être traitées et restent sélectionnées."
   },
   "membership": {
     "title": "Abonnement",
@@ -1717,7 +1721,11 @@
   "welcomeTrial": {
     "title": "Bienvenue sur Juple ! 🎉",
     "body": "Merci de vous être inscrit.\n\nChaque personne bénéficie d’un essai unique de 30 jours exactement (720 heures). Pour les membres déjà inscrits, il commence au lancement du service d’adhésion ; pour les inscriptions ultérieures, à l’instant de l’inscription. Il ne s’agit pas d’un essai de la boutique et il ne devient pas automatiquement payant. Un abonnement acheté pendant l’essai est facturé immédiatement, même s’il reste du temps gratuit.\n\nEnsuite, vous pouvez toujours consulter les liens et collections existants, gérer votre compte et vos abonnements, restaurer des achats et supprimer le compte. Sans abonnement valide ni accès gratuit accordé par un administrateur, les principales actions d’écriture, dont enregistrer, créer et modifier, sont limitées.\n\nGérez votre adhésion dans {{myPage}}.",
-    "start": "Commencer avec Juple"
+    "start": "Commencer avec Juple",
+    "thanksTitle": "Merci de vous être inscrit !",
+    "newMemberBody": "Utilisez Juple gratuitement pendant 30 jours à partir de votre inscription !",
+    "existingMemberBody": "Utilisez Juple gratuitement pendant 30 jours à partir du lancement de l’abonnement Juple !",
+    "plansAfterTrial": "Pour continuer à utiliser Juple après l’essai gratuit, vous pouvez choisir un abonnement mensuel ou annuel."
   },
   "trialEnded": {
     "title": "Comment s’est passé votre mois avec Juple ? 💜",

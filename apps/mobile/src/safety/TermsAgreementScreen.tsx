@@ -10,7 +10,6 @@ import { CheckIcon } from '../icons/CheckIcon';
 import { colors, minTouchTarget, radii, spacing, themedStyles } from '../theme/tokens';
 import { JupleBrandMark } from '../components/JupleBrandMark';
 import type { PublishedTermsDocument } from './termsDocument';
-import { SubscriptionRights } from './SubscriptionRights';
 import { legalDocumentLink, legalFallbackNotices, legalLanguage } from '../i18n/legalDocumentPolicy';
 
 type Document = 'terms' | 'privacy';
@@ -111,12 +110,10 @@ export function TermsAgreementScreen({ isSaving, saveFailed, onAccept, onReadKor
           onToggle={() => setAgeChecked(value => !value)}
           testID="agreement-age"
         />
-        <Text style={styles.subtitle}>{t('agreement.ageNotice')}</Text>
 
         {saveFailed ? (
           <Text accessibilityLiveRegion="polite" style={styles.error} testID="agreement-error">{t('safety.termsSaveFailed')}</Text>
         ) : null}
-        <SubscriptionRights />
       </ScrollView>
 
       <View style={styles.footer}>

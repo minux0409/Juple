@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "アカウントを削除すると元に戻せません",
-    "warningIntro": "次のデータがすべて完全に削除されます。\n\nアプリやJupleアカウントを削除しても、Google PlayやApple App Storeの購読は解約されません。先に購入したストアの購読設定で解約してください。",
+    "warningIntro": "アプリやJupleアカウントを削除しても、Google PlayやApple App Storeの購読は解約されません。先に購入したストアの購読設定で解約してください。\n\n次のデータがすべて完全に削除されます。",
     "dataLinks": "保存したリンクとメモ",
     "dataPhotos": "アップロードした写真（リンクの写真、コレクションの写真、プロフィール写真）",
     "dataCollections": "自分のコレクションと公開共有リンク",
@@ -1669,7 +1669,11 @@
     "lockConfirmMessage": "コレクション{{count}}件をあなたのロックパスワードで保護します。",
     "lockConfirmSkipped": "すでにロック済み、またはロックできない{{count}}件は対象外です。ロックを解除するには、そのコレクションを開いてください。",
     "locked": "コレクション{{count}}件をロックしました。",
-    "lockedPartial": "コレクション{{total}}件中{{ok}}件をロックしました。"
+    "lockedPartial": "コレクション{{total}}件中{{ok}}件をロックしました。",
+    "deleteAndLeaveConfirm": "削除して退出",
+    "deleteAndLeaveMessage": "選択した個人コレクション{{deleted}}件を削除し、共有コレクション{{left}}件から退出しますか？",
+    "deletedAndLeft": "コレクション{{deleted}}件を削除し、{{left}}件から退出しました。",
+    "deleteAndLeavePartial": "{{deleted}}件を削除し、{{left}}件から退出しました。{{failed}}件は処理できなかったため、選択したままにしています。"
   },
   "membership": {
     "title": "メンバーシップ",
@@ -1717,7 +1721,11 @@
   "welcomeTrial": {
     "title": "Juple へようこそ！🎉",
     "body": "ご登録ありがとうございます。\n\n無料体験は1人1回、正確に30日間（720時間）です。開始前からの会員はメンバーシップサービス開始時刻から、その後に登録した会員は登録時刻から計算します。 ストアの無料トライアルとは別で、自動で有料に切り替わりません。無料期間中に購読すると、残り時間にかかわらず直ちに課金されます。\n\n終了後も既存のリンク・コレクションの閲覧、アカウント・購読の管理、購入の復元、退会は可能です。有効な有料購読や管理者による無料メンバーシップがなければ、保存・作成・編集などの主な書き込み機能が制限されます。\n\nメンバーシップの管理：{{myPage}}。",
-    "start": "Juple を始める"
+    "start": "Juple を始める",
+    "thanksTitle": "ご登録ありがとうございます！",
+    "newMemberBody": "登録日から30日間、Juple を無料でお試しください！",
+    "existingMemberBody": "Juple メンバーシップ開始日から30日間、無料でお試しください！",
+    "plansAfterTrial": "無料体験の終了後も使い続けたい場合は、月額または年額のメンバーシップを選べます。"
   },
   "trialEnded": {
     "title": "Juple との1か月、いかがでしたか？💜",

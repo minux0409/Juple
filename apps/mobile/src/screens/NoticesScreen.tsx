@@ -176,6 +176,9 @@ const styles = themedStyles(() => ({
     padding: spacing.lg,
     borderRadius: radii.lg,
     backgroundColor: colors.surface,
+    // A quiet edge so each notice reads as its own card on the page background (the same soft border as the other cards, light and dark).
+    borderColor: colors.inputBorder,
+    borderWidth: 1,
     minHeight: minTouchTarget,
   },
   secondary: { fontSize: 12, color: colors.textSecondary },

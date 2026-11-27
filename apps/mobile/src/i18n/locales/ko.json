@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "계정을 삭제하면 되돌릴 수 없어요",
-    "warningIntro": "다음 데이터가 모두 영구적으로 삭제돼요.\n\n앱 삭제나 Juple 계정 삭제는 Google Play 또는 Apple App Store 구독을 취소하지 않습니다. 구매한 스토어의 구독 설정에서 먼저 취소해 주세요.",
+    "warningIntro": "앱 삭제나 Juple 계정 삭제는 Google Play 또는 Apple App Store 구독을 취소하지 않습니다. 구매한 스토어의 구독 설정에서 먼저 취소해 주세요.\n\n다음 데이터가 모두 영구적으로 삭제돼요.",
     "dataLinks": "저장한 링크와 메모",
     "dataPhotos": "업로드한 사진 (링크 사진, 컬렉션 사진, 프로필 사진)",
     "dataCollections": "내 컬렉션과 공개 공유 링크",
@@ -1669,7 +1669,11 @@
     "lockConfirmMessage": "컬렉션 {{count}}개를 내 잠금 비밀번호로 보호해요.",
     "lockConfirmSkipped": "이미 잠겼거나 잠글 수 없는 {{count}}개는 제외돼요. 잠금을 해제하려면 해당 컬렉션을 여세요.",
     "locked": "컬렉션 {{count}}개를 잠갔어요.",
-    "lockedPartial": "컬렉션 {{total}}개 중 {{ok}}개를 잠갔어요."
+    "lockedPartial": "컬렉션 {{total}}개 중 {{ok}}개를 잠갔어요.",
+    "deleteAndLeaveConfirm": "삭제 및 나가기",
+    "deleteAndLeaveMessage": "선택한 개인 컬렉션 {{deleted}}개를 삭제하고, 공유 컬렉션 {{left}}개에서 나가시겠습니까?",
+    "deletedAndLeft": "컬렉션 {{deleted}}개를 삭제하고 {{left}}개에서 나갔어요.",
+    "deleteAndLeavePartial": "{{deleted}}개를 삭제하고 {{left}}개에서 나갔어요. {{failed}}개는 처리하지 못해 선택된 상태로 남겨 두었어요."
   },
   "membership": {
     "title": "멤버십",
@@ -1717,7 +1721,11 @@
   "welcomeTrial": {
     "title": "Juple에 오신 걸 환영해요! 🎉",
     "body": "가입해 주셔서 감사합니다.\n\nJuple 무료 체험은 사용자별 1회, 정확히 30일(720시간)입니다. 기존 회원은 멤버십 서비스 시작 시각부터, 이후 가입한 회원은 가입 시각부터 적용됩니다. 스토어 무료 체험이 아니며 자동으로 유료 전환되지 않습니다. 지금 구독하면 무료 기간이 남아 있어도 바로 결제됩니다.\n\n무료 체험 종료 후에도 기존 링크·컬렉션 조회, 계정·구독 관리, 구매 복원 및 탈퇴는 가능합니다. 유효한 유료 구독이나 관리자 무료 멤버십이 없으면 저장·생성·수정 등 주요 쓰기 기능이 제한됩니다.\n\n{{myPage}}에서 멤버십을 관리할 수 있습니다.",
-    "start": "Juple 시작하기"
+    "start": "Juple 시작하기",
+    "thanksTitle": "가입해 주셔서 감사해요!",
+    "newMemberBody": "가입일로부터 30일간 Juple을 무료로 이용해 보세요!",
+    "existingMemberBody": "Juple 멤버십 시작일부터 30일간 무료로 이용해 보세요!",
+    "plansAfterTrial": "무료 체험이 끝난 후에도 계속 이용하고 싶다면 월간 또는 연간 멤버십을 선택할 수 있어요."
   },
   "trialEnded": {
     "title": "Juple과 함께한 한 달, 어떠셨나요? 💜",

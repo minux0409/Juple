@@ -293,7 +293,8 @@ export function DateHistoryScreen() {
   return (
     <TabScreenSafeArea style={styles.safeArea}>
       {linkSelection.topBar}
-      {/* Header: the title + view switch scroll away with the links; the search (with the view switch beside it once the title is gone) stays at the top. */}
+      {/* Header: the title + view switch scroll away together with the links; the search stays at the top on its own (the switch never moves
+          next to it). A view-mode change starts the list at its top and resets the header with the same key, so no gap can open under it. */}
       <CollapsibleHeaderLayout
         collapsible={
           <View style={styles.collapsibleTop}>
@@ -306,7 +307,7 @@ export function DateHistoryScreen() {
             </View>
           </View>
         }
-        pinned={({ isCollapsed }) => (
+        pinned={(
           <View style={styles.pinnedSearch}>
             <View style={styles.searchLine}>
             <View style={styles.searchBox}>
@@ -319,7 +320,6 @@ export function DateHistoryScreen() {
                 value={searchText}
               />
             </View>
-            {isCollapsed ? <ViewModeToggle onChange={changeViewMode} showImage value={viewMode} /> : null}
             </View>
             {/* One character: a small hint right under the field (nothing is searched yet). 0 characters: nothing; 2+: the search runs. */}
             {searchText.trim().length === 1 ? (
@@ -327,10 +327,12 @@ export function DateHistoryScreen() {
             ) : null}
           </View>
         )}
+        resetKey={viewMode}
         testID="history-fixed-header"
       >
         {list => (
             <AnimatedFlatList
+              key={viewMode}
               ref={list.listRef}
               onScroll={list.onScroll}
               scrollEventThrottle={list.scrollEventThrottle}

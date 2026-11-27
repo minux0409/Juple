@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "Không thể hoàn tác việc xóa tài khoản",
-    "warningIntro": "Tất cả dữ liệu sau sẽ bị xóa vĩnh viễn:\n\nGỡ ứng dụng hoặc xóa tài khoản Juple không hủy gói Google Play hay Apple App Store. Hãy hủy trước trong phần quản lý gói đăng ký của cửa hàng đã mua.",
+    "warningIntro": "Gỡ ứng dụng hoặc xóa tài khoản Juple không hủy gói Google Play hay Apple App Store. Hãy hủy trước trong phần quản lý gói đăng ký của cửa hàng đã mua.\n\nTất cả dữ liệu sau sẽ bị xóa vĩnh viễn:",
     "dataLinks": "Liên kết đã lưu và ghi chú",
     "dataPhotos": "Ảnh đã tải lên (ảnh liên kết, ảnh bộ sưu tập và ảnh hồ sơ)",
     "dataCollections": "Bộ sưu tập của bạn và liên kết chia sẻ công khai",
@@ -1669,7 +1669,11 @@
     "lockConfirmMessage": "{{count}} bộ sưu tập sẽ được bảo vệ bằng mật khẩu khóa của bạn.",
     "lockConfirmSkipped": "Bỏ qua {{count}} bộ sưu tập đã khóa hoặc không thể khóa. Để gỡ khóa, hãy mở bộ sưu tập đó.",
     "locked": "Đã khóa {{count}} bộ sưu tập.",
-    "lockedPartial": "Đã khóa {{ok}}/{{total}} bộ sưu tập."
+    "lockedPartial": "Đã khóa {{ok}}/{{total}} bộ sưu tập.",
+    "deleteAndLeaveConfirm": "Xóa và rời",
+    "deleteAndLeaveMessage": "Xóa {{deleted}} bộ sưu tập cá nhân đã chọn và rời {{left}} bộ sưu tập được chia sẻ?",
+    "deletedAndLeft": "Đã xóa {{deleted}} bộ sưu tập và rời {{left}} bộ sưu tập.",
+    "deleteAndLeavePartial": "Đã xóa {{deleted}} và rời {{left}}. {{failed}} mục chưa xử lý được nên vẫn đang được chọn."
   },
   "membership": {
     "title": "Gói thành viên",
@@ -1717,7 +1721,11 @@
   "welcomeTrial": {
     "title": "Chào mừng bạn đến với Juple! 🎉",
     "body": "Cảm ơn bạn đã đăng ký.\n\nMỗi người được dùng thử một lần, đúng 30 ngày (720 giờ). Thành viên đã đăng ký trước bắt đầu từ thời điểm dịch vụ thành viên chính thức mở; người đăng ký sau bắt đầu từ thời điểm đăng ký. Đây không phải dùng thử của cửa hàng và không tự chuyển sang trả phí. Mua gói trong thời gian dùng thử sẽ bị tính phí ngay dù vẫn còn thời gian miễn phí.\n\nSau đó vẫn có thể xem liên kết và bộ sưu tập hiện có, quản lý tài khoản và gói đăng ký, khôi phục giao dịch và xóa tài khoản. Nếu không có gói trả phí hợp lệ hoặc quyền miễn phí do quản trị viên cấp, các thao tác ghi chính như lưu, tạo và chỉnh sửa sẽ bị hạn chế.\n\nQuản lý dịch vụ thành viên tại {{myPage}}.",
-    "start": "Bắt đầu dùng Juple"
+    "start": "Bắt đầu dùng Juple",
+    "thanksTitle": "Cảm ơn bạn đã đăng ký!",
+    "newMemberBody": "Hãy dùng Juple miễn phí 30 ngày kể từ ngày bạn đăng ký!",
+    "existingMemberBody": "Hãy dùng Juple miễn phí 30 ngày kể từ ngày bắt đầu gói thành viên Juple!",
+    "plansAfterTrial": "Nếu muốn tiếp tục dùng Juple sau khi hết dùng thử miễn phí, bạn có thể chọn gói thành viên theo tháng hoặc theo năm."
   },
   "trialEnded": {
     "title": "Một tháng cùng Juple của bạn thế nào? 💜",

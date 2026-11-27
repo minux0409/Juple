@@ -331,7 +331,7 @@ describe('Terms onboarding (the Agreement screen)', () => {
     const pressables = renderer.root
       .findAll(node => typeof node.props.testID === 'string' && typeof node.props.onPress === 'function')
       .map(node => node.props.testID as string);
-    expect(new Set(pressables)).toEqual(new Set(['agreement-all', 'agreement-terms', 'agreement-privacy', 'agreement-age', 'agreement-age-detail', 'agreement-terms-detail', 'agreement-privacy-detail', 'agreement-next', 'terms-subscription-status', 'terms-restore-google', 'terms-restore-apple']));
+    expect(new Set(pressables)).toEqual(new Set(['agreement-all', 'agreement-terms', 'agreement-privacy', 'agreement-age', 'agreement-age-detail', 'agreement-terms-detail', 'agreement-privacy-detail', 'agreement-next']));
     expect(acceptTerms).not.toHaveBeenCalled();
     expect(exists(renderer, 'home')).toBe(false);
   });
@@ -408,7 +408,8 @@ describe('Terms onboarding (the Agreement screen)', () => {
     const renderer = await mount();
     await press(renderer, 'agreement-all');
     expect(byId(renderer, 'agreement-next').props.disabled).toBe(true);
-    expect(exists(renderer, 'terms-subscription-rights')).toBe(true);
+    // The start-up agreement shows only the three agreements: no subscription/restore links, no repeated age notice.
+    expect(exists(renderer, 'terms-subscription-rights')).toBe(false);
     expect(acceptTerms).not.toHaveBeenCalled();
   });
 

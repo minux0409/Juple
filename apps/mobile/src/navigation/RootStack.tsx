@@ -302,7 +302,7 @@ export function RootStack() {
             <Stack.Screen component={themedScreen(TutorialScreen)} name="Tutorial" options={{ animation: 'fade', gestureEnabled: false, headerShown: false, presentation: 'fullScreenModal' }} />
             <Stack.Screen component={themedScreen(ProfileEditScreen)} name="ProfileEdit" options={{ title: t('profile.edit'), ...headerTitleWithIcon(screenIcons.profileEdit, t('profile.edit')) }} />
             <Stack.Screen component={themedScreen(AccountManagementScreen)} name="AccountManagement" options={{ title: t('account.title'), ...headerTitleWithIcon(screenIcons.account, t('account.title')) }} />
-            <Stack.Screen component={themedScreen(DeleteAccountScreen)} name="DeleteAccount" options={{ title: t('account.deleteTitle'), ...headerTitleWithIcon(screenIcons.deleteAccount, t('account.deleteTitle')) }} />
+            <Stack.Screen component={themedScreen(DeleteAccountScreen)} name="DeleteAccount" options={{ title: t('account.deleteTitle'), ...headerTitleWithIcon(screenIcons.deleteAccount, t('account.deleteTitle'), 'destructive') }} />
             <Stack.Screen component={themedScreen(DataExportScreen)} name="DataExport" options={{ title: t('dataExport.title'), ...headerTitleWithIcon(screenIcons.dataExport, t('dataExport.title')) }} />
           </Stack.Group>
         ) : isTermsRequired ? (

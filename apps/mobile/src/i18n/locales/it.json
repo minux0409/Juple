@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "L'eliminazione dell'account non può essere annullata",
-    "warningIntro": "Verrà eliminato definitivamente quanto segue:\n\nDisinstallare l’app o eliminare l’account Juple non annulla gli abbonamenti Google Play o Apple App Store. Annullali prima nelle impostazioni degli abbonamenti dello store di acquisto.",
+    "warningIntro": "Disinstallare l’app o eliminare l’account Juple non annulla gli abbonamenti Google Play o Apple App Store. Annullali prima nelle impostazioni degli abbonamenti dello store di acquisto.\n\nVerrà eliminato definitivamente quanto segue:",
     "dataLinks": "Link salvati e note",
     "dataPhotos": "Foto caricate (foto dei link, foto delle raccolte e foto del profilo)",
     "dataCollections": "Le tue raccolte e i relativi link pubblici",
@@ -1669,7 +1669,11 @@
     "lockConfirmMessage": "{{count}} raccolte saranno protette con la tua password di blocco.",
     "lockConfirmSkipped": "{{count}} già bloccate o non bloccabili vengono saltate. Per rimuovere un blocco, apri quella raccolta.",
     "locked": "{{count}} raccolte bloccate.",
-    "lockedPartial": "{{ok}} raccolte bloccate su {{total}}."
+    "lockedPartial": "{{ok}} raccolte bloccate su {{total}}.",
+    "deleteAndLeaveConfirm": "Elimina ed esci",
+    "deleteAndLeaveMessage": "Eliminare le {{deleted}} raccolte personali selezionate e uscire da {{left}} raccolte condivise?",
+    "deletedAndLeft": "{{deleted}} raccolte eliminate e uscito da {{left}}.",
+    "deleteAndLeavePartial": "{{deleted}} eliminate e uscito da {{left}}. {{failed}} non sono state completate e restano selezionate."
   },
   "membership": {
     "title": "Abbonamento",
@@ -1717,7 +1721,11 @@
   "welcomeTrial": {
     "title": "Benvenuto in Juple! 🎉",
     "body": "Grazie per esserti registrato.\n\nOgni persona ha diritto a una sola prova di esattamente 30 giorni (720 ore). Per i membri già iscritti parte dall’avvio del servizio di abbonamento; per chi si iscrive dopo, dall’istante della registrazione. Non è una prova dello store e non diventa automaticamente a pagamento. Un abbonamento acquistato durante la prova viene addebitato subito, anche se resta tempo gratuito.\n\nIn seguito restano disponibili la consultazione di link e raccolte esistenti, la gestione di account e abbonamenti, il ripristino degli acquisti e l’eliminazione dell’account. Senza un abbonamento valido o un accesso gratuito concesso dall’amministratore, le principali azioni di scrittura, come salvare, creare e modificare, sono limitate.\n\nGestisci la tua iscrizione in {{myPage}}.",
-    "start": "Inizia con Juple"
+    "start": "Inizia con Juple",
+    "thanksTitle": "Grazie per esserti registrato!",
+    "newMemberBody": "Usa Juple gratis per 30 giorni dalla data di registrazione!",
+    "existingMemberBody": "Usa Juple gratis per 30 giorni dall’avvio dell’abbonamento Juple!",
+    "plansAfterTrial": "Se vuoi continuare a usare Juple dopo la prova gratuita, puoi scegliere un abbonamento mensile o annuale."
   },
   "trialEnded": {
     "title": "Com’è andato il tuo mese con Juple? 💜",

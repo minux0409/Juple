@@ -16,16 +16,18 @@ interface ScreenTitleProps {
   readonly testID?: string;
   /** Defaults to 2 (a long translation wraps); a title that shares its row with a control passes 1 to ellipsize instead. */
   readonly numberOfLines?: number;
+  /** 'destructive': a dangerous screen (계정 삭제) shows its icon in the danger colour instead of the brand colour. */
+  readonly tone?: 'default' | 'destructive';
 }
 
 /**
  * The navigation icon of a screen title on its own - for a header whose title text sits in a row of its
  * own (Home's 최근 저장 + count), where it goes before that row. Decoration only.
  */
-export function ScreenTitleGlyph({ icon: Icon }: { readonly icon: ScreenTitleIcon }) {
+export function ScreenTitleGlyph({ icon: Icon, tone = 'default' }: { readonly icon: ScreenTitleIcon; readonly tone?: 'default' | 'destructive' }) {
   return (
     <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.icon}>
-      <Icon color={colors.brandText} size={SCREEN_TITLE_ICON_SIZE} />
+      <Icon color={tone === 'destructive' ? colors.destructiveText : colors.brandText} size={SCREEN_TITLE_ICON_SIZE} />
     </View>
   );
 }
@@ -35,11 +37,11 @@ export function ScreenTitleGlyph({ icon: Icon }: { readonly icon: ScreenTitleIco
  * screen's own header, on a back-button screen as the stack header's title. The icon is decoration
  * (the title is what is announced); a long translation shrinks and wraps the text, never the icon.
  */
-export function ScreenTitle({ icon, title, textStyle, testID, numberOfLines = 2 }: ScreenTitleProps) {
+export function ScreenTitle({ icon, title, textStyle, testID, numberOfLines = 2, tone = 'default' }: ScreenTitleProps) {
   useTheme(); // rendered by the native header, which is not one of the screens' themed wrappers
   return (
     <View style={styles.row} testID={testID}>
-      <ScreenTitleGlyph icon={icon} />
+      <ScreenTitleGlyph icon={icon} tone={tone} />
       <Text accessibilityRole="header" numberOfLines={numberOfLines} style={[styles.title, textStyle]}>{title}</Text>
     </View>
   );

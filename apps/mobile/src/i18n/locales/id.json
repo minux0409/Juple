@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "Penghapusan akun tidak dapat dibatalkan",
-    "warningIntro": "Semua data berikut akan dihapus secara permanen:\n\nMenghapus aplikasi atau akun Juple tidak membatalkan langganan Google Play atau Apple App Store. Batalkan dahulu di pengaturan langganan toko tempat membeli.",
+    "warningIntro": "Menghapus aplikasi atau akun Juple tidak membatalkan langganan Google Play atau Apple App Store. Batalkan dahulu di pengaturan langganan toko tempat membeli.\n\nSemua data berikut akan dihapus secara permanen:",
     "dataLinks": "Tautan yang disimpan dan catatan",
     "dataPhotos": "Foto yang diunggah (foto tautan, foto koleksi, dan foto profil)",
     "dataCollections": "Koleksi Anda dan tautan publiknya",
@@ -1669,7 +1669,11 @@
     "lockConfirmMessage": "{{count}} koleksi akan dilindungi dengan kata sandi kunci Anda.",
     "lockConfirmSkipped": "{{count}} yang sudah terkunci atau tidak dapat dikunci dilewati. Untuk membuka kunci, buka koleksi tersebut.",
     "locked": "{{count}} koleksi dikunci.",
-    "lockedPartial": "{{ok}} dari {{total}} koleksi dikunci."
+    "lockedPartial": "{{ok}} dari {{total}} koleksi dikunci.",
+    "deleteAndLeaveConfirm": "Hapus dan keluar",
+    "deleteAndLeaveMessage": "Hapus {{deleted}} koleksi pribadi yang dipilih dan keluar dari {{left}} koleksi bersama?",
+    "deletedAndLeft": "{{deleted}} koleksi dihapus dan keluar dari {{left}}.",
+    "deleteAndLeavePartial": "{{deleted}} dihapus dan keluar dari {{left}}. {{failed}} tidak dapat diselesaikan dan tetap dipilih."
   },
   "membership": {
     "title": "Keanggotaan",
@@ -1717,7 +1721,11 @@
   "welcomeTrial": {
     "title": "Selamat datang di Juple! 🎉",
     "body": "Terima kasih sudah mendaftar.\n\nSetiap orang mendapat satu uji coba tepat 30 hari (720 jam). Bagi anggota lama, dimulai saat layanan keanggotaan resmi diluncurkan; bagi yang mendaftar sesudahnya, sejak waktu pendaftaran. Ini bukan uji coba toko dan tidak otomatis menjadi langganan berbayar. Membeli langganan saat uji coba langsung dikenakan biaya meskipun waktu gratis masih tersisa.\n\nSetelahnya Anda tetap dapat melihat tautan dan koleksi lama, mengelola akun dan langganan, memulihkan pembelian, serta menghapus akun. Tanpa langganan sah atau keanggotaan gratis dari administrator, tindakan tulis utama seperti menyimpan, membuat dan mengedit dibatasi.\n\nKelola keanggotaan di {{myPage}}.",
-    "start": "Mulai pakai Juple"
+    "start": "Mulai pakai Juple",
+    "thanksTitle": "Terima kasih telah mendaftar!",
+    "newMemberBody": "Gunakan Juple gratis selama 30 hari sejak tanggal pendaftaran!",
+    "existingMemberBody": "Gunakan Juple gratis selama 30 hari sejak dimulainya keanggotaan Juple!",
+    "plansAfterTrial": "Jika ingin terus memakai Juple setelah uji coba gratis, Anda dapat memilih keanggotaan bulanan atau tahunan."
   },
   "trialEnded": {
     "title": "Bagaimana sebulanmu bersama Juple? 💜",

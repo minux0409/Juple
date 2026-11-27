@@ -38,7 +38,6 @@ import { NotificationBellButton } from '../notifications/NotificationBellButton'
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow, subscribeRowOpened, useSwipeAwareScrollEnabled } from '../components/swipeableRowCoordinator';
 import { SubscriptionExpiredNotice } from '../billing/SubscriptionExpiredNotice';
-import { TrialNotice } from '../billing/TrialNotice';
 import { HintBanner } from '../hints/HintBanner';
 import { useOneTimeHint } from '../hints/useOneTimeHint';
 import { getSavedLinkSwipeActions, hasSavedLinkSwipeActions } from '../items/savedLinkSwipeActions';
@@ -143,8 +142,6 @@ function getShareErrorMessage(t: TFunction): string {
   return t('item.shareError');
 }
 
-/** The 최근 저장 row (16dp above, the 40dp view switch) that scrolls away under the pinned URL field: after this much extra scroll it is gone. */
-const HOME_TITLE_ROW_SPACE = 56;
 
 /**
  * Home ("오늘 저장한 링크"): every URL the user saved today (SavedAtUtc, local calendar date),
@@ -543,10 +540,11 @@ export function DailyInboxScreen() {
   return (
     <TabScreenSafeArea style={styles.safeArea}>
       {linkSelection.topBar}
-      {/* Header: the logo + bell scroll away with the links; the URL field stays at the top (like the search field of 보관함 and 컬렉션),
-          with the List / Grid / Image switch beside it once the 최근 저장 row - which scrolls with the links - has gone under it. */}
+      {/* Header: the logo + bell scroll away with the links; the URL field stays at the top. The 최근 저장 row with its List / Grid / Image
+          switch is the list's first row, so it scrolls away too - no second switch is ever drawn beside the URL field. Changing the view
+          mode re-creates the list at its top, so the header is reset with the same key - otherwise it would stay collapsed over a list
+          that starts at 0 (the gap). */}
       <CollapsibleHeaderLayout
-        collapsedExtra={HOME_TITLE_ROW_SPACE}
         collapsible={
           <View style={styles.collapsibleTop}>
             <View style={styles.brandRow}>
@@ -556,7 +554,7 @@ export function DailyInboxScreen() {
             </View>
           </View>
         }
-        pinned={({ isCollapsed }) => (
+        pinned={
           <View style={styles.pinnedInput}>
             <View style={styles.inputLine}>
               <View style={styles.inputFlex}>
@@ -589,10 +587,10 @@ export function DailyInboxScreen() {
                       </Pressable>
                     </View>
               </View>
-              {isCollapsed ? <ViewModeToggle onChange={changeViewMode} showImage value={viewMode} /> : null}
             </View>
           </View>
-        )}
+        }
+        resetKey={gridListKey(viewMode, viewMode === 'grid', columns.grid)}
         testID="home-fixed-header"
       >
         {list => (
@@ -630,7 +628,6 @@ export function DailyInboxScreen() {
                     trailing={<ViewModeToggle onChange={changeViewMode} showImage value={viewMode} />}
                   />
                   <SubscriptionExpiredNotice />
-                  <TrialNotice />
                   {error && items.length > 0 ? (
                     // Rows are shown (a refresh or the next page failed): the failure sits above them, with a retry.
                     <LoadFailureState compact error={error.cause} notice={isDefinitiveLoadError(error.cause) ? error.message : null} onRetry={() => { loadToday('refresh'); }} testID="home-load-error" />

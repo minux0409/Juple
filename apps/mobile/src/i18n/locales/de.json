@@ -434,7 +434,7 @@
   },
   "deleteAccount": {
     "warningTitle": "Das Löschen deines Kontos kann nicht rückgängig gemacht werden",
-    "warningIntro": "Folgendes wird dauerhaft gelöscht:\n\nDas Deinstallieren der App oder Löschen des Juple-Kontos kündigt kein Google Play- oder Apple App Store-Abo. Kündige zuerst in den Aboeinstellungen des Kaufstores.",
+    "warningIntro": "Das Deinstallieren der App oder Löschen des Juple-Kontos kündigt kein Google Play- oder Apple App Store-Abo. Kündige zuerst in den Aboeinstellungen des Kaufstores.\n\nFolgendes wird dauerhaft gelöscht:",
     "dataLinks": "Gespeicherte Links und Notizen",
     "dataPhotos": "Hochgeladene Fotos (Linkfotos, Sammlungsfotos und dein Profilfoto)",
     "dataCollections": "Deine Sammlungen und ihre öffentlichen Links",
@@ -1669,7 +1669,11 @@
     "lockConfirmMessage": "{{count}} Sammlungen werden mit deinem Sperrpasswort geschützt.",
     "lockConfirmSkipped": "{{count}} bereits gesperrte oder nicht sperrbare werden übersprungen. Um eine Sperre aufzuheben, öffne diese Sammlung.",
     "locked": "{{count}} Sammlungen gesperrt.",
-    "lockedPartial": "{{ok}} von {{total}} Sammlungen gesperrt."
+    "lockedPartial": "{{ok}} von {{total}} Sammlungen gesperrt.",
+    "deleteAndLeaveConfirm": "Löschen und verlassen",
+    "deleteAndLeaveMessage": "Die {{deleted}} ausgewählten persönlichen Sammlungen löschen und {{left}} geteilte Sammlungen verlassen?",
+    "deletedAndLeft": "{{deleted}} Sammlungen gelöscht und {{left}} verlassen.",
+    "deleteAndLeavePartial": "{{deleted}} gelöscht und {{left}} verlassen. {{failed}} konnten nicht abgeschlossen werden und bleiben ausgewählt."
   },
   "membership": {
     "title": "Mitgliedschaft",
@@ -1717,7 +1721,11 @@
   "welcomeTrial": {
     "title": "Willkommen bei Juple! 🎉",
     "body": "Danke für deine Anmeldung.\n\nJede Person erhält einmalig genau 30 Tage (720 Stunden) kostenlos. Für bestehende Mitglieder beginnt die Testphase mit dem Start des Mitgliedschaftsdienstes, für spätere Anmeldungen zum Zeitpunkt der Registrierung. Dies ist keine Store-Testphase und wird nicht automatisch kostenpflichtig. Ein währenddessen gekauftes Abo wird sofort berechnet, auch wenn kostenlose Zeit übrig ist.\n\nDanach bleiben vorhandene Links und Sammlungen lesbar. Kontoverwaltung, Aboverwaltung, Kaufwiederherstellung und Kontolöschung bleiben möglich. Ohne gültiges Abo oder vom Administrator gewährte kostenlose Mitgliedschaft werden wesentliche Schreibaktionen wie Speichern, Erstellen und Bearbeiten eingeschränkt.\n\nVerwalte deine Mitgliedschaft unter {{myPage}}.",
-    "start": "Mit Juple loslegen"
+    "start": "Mit Juple loslegen",
+    "thanksTitle": "Danke für deine Registrierung!",
+    "newMemberBody": "Nutze Juple ab deinem Registrierungstag 30 Tage kostenlos!",
+    "existingMemberBody": "Nutze Juple ab dem Start der Juple-Mitgliedschaft 30 Tage kostenlos!",
+    "plansAfterTrial": "Wenn du Juple nach dem kostenlosen Test weiter nutzen möchtest, kannst du eine Monats- oder Jahresmitgliedschaft wählen."
   },
   "trialEnded": {
     "title": "Wie war dein Monat mit Juple? 💜",

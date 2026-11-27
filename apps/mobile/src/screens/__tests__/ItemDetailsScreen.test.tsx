@@ -316,6 +316,10 @@ describe('ItemDetailsScreen', () => {
       expect(titleInput.props.value).toBe(longTitle);
       const titleStyle = StyleSheet.flatten(titleInput.props.style);
       expect(titleStyle.maxHeight).toBeLessThanOrEqual(titleStyle.lineHeight * 3 + 12);
+      // It reads as an editable field, like the memo: a soft rounded, bordered box.
+      expect(titleStyle.borderWidth).toBeGreaterThan(0);
+      expect(titleStyle.borderRadius).toBeGreaterThan(0);
+      expect(titleStyle.paddingHorizontal).toBeGreaterThan(0);
     });
 
     it('B. the memo is its own block; a long memo scrolls inside a bounded field', async () => {
