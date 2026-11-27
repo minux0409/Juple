@@ -9,7 +9,7 @@ public sealed class PublishedTermsLocalizationTests
     [Fact]
     public void All17LanguagesFallbackWithoutCreatingTranslatedConsent()
     {
-        foreach (var version in new[] { "2026-10-14", "2026-10-25" })
+        foreach (var version in new[] { "2026-10-14", "2026-11-27" })
         foreach (var language in new[] { "ko", "en", "ja", "zh-Hans", "zh-Hant", "es", "fr", "de", "it", "pt-BR", "vi", "th", "id", "ru", "tr", "ar", "hi" })
         {
             var doc = JsonSerializer.SerializeToElement(PublishedTerms.GetDocument(version, language));

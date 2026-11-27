@@ -174,7 +174,7 @@ describe('legal text', () => {
 
   it('dates each document on its own: the policy change does not re-date the terms or the deletion page', () => {
     assert.equal(privacyDocument(noOperator).updated, '2026-11-27');
-    assert.equal(termsDocument(noOperator).updated, '2026-10-25');
+    assert.equal(termsDocument(noOperator).updated, '2026-11-27');
     assert.equal(accountDeletionDocument(noOperator).updated, '2026-10-14');
   });
 
@@ -225,5 +225,5 @@ it('discloses both billing stores and makes account deletion distinct from subsc
   assert.match(privacy, /서명된 거래 정보/);
   assert.match(deletion, /Apple 계정 설정 > 구독/);
   assert.match(deletion, /앱 삭제나 계정 삭제만으로 구독이 취소되지는 않습니다/);
-  assert.equal(termsDocument(noOperator).updated, '2026-10-25');
+  assert.equal(termsDocument(noOperator).updated, '2026-11-27');
 });

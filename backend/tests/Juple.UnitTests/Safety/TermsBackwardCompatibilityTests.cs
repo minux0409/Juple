@@ -117,7 +117,7 @@ public sealed class TermsBackwardCompatibilityTests
 
     [Theory]
     [InlineData("2026-10-14")]
-    [InlineData("2026-10-25")]
+    [InlineData("2026-11-27")]
     public async Task ModernRequestUsesTheActualDocumentHashAndApprovedLanguage(string version)
     {
         var body = JsonSerializer.SerializeToElement(PublishedTerms.GetDocument(version, "ko"));

@@ -34,7 +34,7 @@ public sealed class TermsAndSafetyApiTests
     }
 
     [Theory]
-    [InlineData("2026-10-25", true)]
+    [InlineData("2026-11-27", true)]
     public async Task CompatibleClients_CanAcceptTheirCurrentPolicy(string currentVersion, bool? confirmation)
     {
         var controller = new Juple.Api.Controllers.SafetyController(new Identity(), new Users(), new AcceptingTerms(currentVersion), null!, null!);

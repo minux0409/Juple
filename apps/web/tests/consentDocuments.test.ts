@@ -21,7 +21,7 @@ describe('published terms contract shared with native consent', () => {
     assert.equal(createHash('sha256').update(text).digest('hex'), legacy.contentHash);
     assert.equal(legacy.contentHash, '4559616eb6d94d7b9158e1e74f96cb33793394cc3d8b5889468a53c468b824c2');
     assert.equal(doc.updated, '2026-10-14');
-    assert.equal(termsDocument(readLegalOperatorConfig({})).updated, '2026-10-25');
+    assert.equal(termsDocument(readLegalOperatorConfig({})).updated, '2026-11-27');
     assert.equal(publishedTermsForVersion('2099-01-01'), null);
     assert.deepEqual(legacy.consentLanguages, ['ko']);
   });
@@ -31,8 +31,11 @@ describe('published terms contract shared with native consent', () => {
     assert.deepEqual(doc, published.document);
     const text = [doc.title, doc.intro, ...doc.sections.flatMap(section => [section.title, ...section.blocks.flatMap(block => block.kind === 'p' ? [block.text] : block.items)])].join('\n');
     assert.equal(createHash('sha256').update(text).digest('hex'), published.contentHash);
-    assert.equal(published.contentHash, '91017e970bc9e0922161d6bed0b29261c92858a4c01582b46af714d871f3b72b', 'the existing published version must not silently change its body');
-    assert.equal(doc.updated, '2026-10-25');
+    assert.equal(published.contentHash, '2ee08527d387f8b88b32fdf34493b12aa91453d96a628ad5c8dfe3a10381d4d9', 'the published version must not silently change its body');
+    assert.equal(doc.updated, '2026-11-27');
+    // The terms it replaced stay readable, unchanged, as an archived version.
+    const oct25 = publishedTermsForVersion('2026-10-25');
+    assert.equal(oct25?.contentHash, '91017e970bc9e0922161d6bed0b29261c92858a4c01582b46af714d871f3b72b');
     for (const language of APP_LANGUAGES) {
       const payload = { ...published, requestedLanguage: language, canAccept: published.consentLanguages.includes(language) };
       const parsed = parsePublishedTerms(payload, published.version);

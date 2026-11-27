@@ -227,12 +227,15 @@ describe('legal pages: the operator, the privacy officer and the reviewed texts'
     assert.equal(privacyDocument(config).sections.some(section => section.id === 'overseas-transfer'), false);
   });
 
-  it('access before membership launch is free, without promising unlimited free access after launch', () => {
+  it('the terms in force describe the membership that is running: start, the 720-hour trial kept for existing members, no automatic charge', () => {
     const terms = text(termsDocument(config));
-    assert.match(terms, /멤버십 프로그램 시작 전/);
-    assert.match(terms, /시행일은 아직 확정되지 않았으며/);
-    assert.doesNotMatch(terms, /30일 이용 제한은 적용되지 않습니다/);
-    assert.doesNotMatch(terms, /월 단위 자동 갱신 구독/);
+    assert.match(terms, /2026년 11월 27일 오전 10시\(한국 시간\)부터 유료 멤버십을 운영합니다/);
+    assert.match(terms, /월간 또는 연간 자동 갱신 구독/);
+    assert.match(terms, /정확히 720시간\(30일\)/);
+    assert.match(terms, /무료 체험이 끝나도 자동으로 유료 구독으로 바뀌거나 결제되지 않습니다/);
+    assert.match(terms, /이 약관을 시행해도 이미 시작된 무료 체험 기간은 줄어들지 않으며/);
+    assert.match(terms, /2026년 11월 27일 오후 3시\(한국 시간\)부터 시행합니다/);
+    assert.doesNotMatch(terms, /멤버십 프로그램 시작 전|시행일은 아직 확정되지 않았으며|30일 이용 제한은 적용되지 않습니다/);
   });
 
   it('never shows a placeholder, with or without the operator configured', () => {
@@ -256,7 +259,7 @@ describe('legal pages: the operator, the privacy officer and the reviewed texts'
       assert.match(privacy, /Google\(Firebase Cloud Messaging\): Android 푸시 알림 전송/);
       assert.match(privacy, /Google\(Google Play\): 구독 결제, 갱신, 해지, 환불/);
       assert.match(terms, /계정은 이메일 주소와 비밀번호로 만들며/);
-      assert.match(terms, /멤버십 프로그램 시작 전/);
+      assert.match(terms, /유료 멤버십과 무료 체험/);
       assert.match(deletion, /가입과 로그인에 사용한 이메일 주소/);
       assert.match(deletion, /본인 확인을 위해 \*\*다시 로그인\*\*합니다/);
       assert.match(deletion, /계정을 삭제해도 Google Play 또는 Apple App Store 구독은 자동으로 해지되지 않습니다/);

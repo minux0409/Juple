@@ -26,14 +26,22 @@ public sealed class PublishedTermsArchiveTests
     }
 
     [Fact]
-    public void BothExistingDocumentsStayPublishedAndTheArchiveStartsEmpty()
+    public void TheMembershipTermsAreInForceAndBothEarlierDocumentsStayReadable()
     {
-        Assert.Equal("2026-10-25", PublishedTerms.Version);
-        Assert.Equal("91017e970bc9e0922161d6bed0b29261c92858a4c01582b46af714d871f3b72b", PublishedTerms.ContentHash);
+        Assert.Equal("2026-11-27", PublishedTerms.Version);
+        Assert.Equal("2ee08527d387f8b88b32fdf34493b12aa91453d96a628ad5c8dfe3a10381d4d9", PublishedTerms.ContentHash);
         Assert.Equal("4559616eb6d94d7b9158e1e74f96cb33793394cc3d8b5889468a53c468b824c2", Resource("LegacyPublishedTerms.json")["contentHash"]!.GetValue<string>());
-        Assert.Empty(Resource("ArchivedPublishedTerms.json").AsArray());
-        Assert.NotNull(PublishedTerms.GetDocument("2026-10-14", "ko"));
-        Assert.NotNull(PublishedTerms.GetDocument("2026-10-25", "ko"));
+        // The 2026-10-25 public terms were moved to the archive unchanged: same body, same hash.
+        var archived = Resource("ArchivedPublishedTerms.json").AsArray();
+        Assert.Single(archived);
+        Assert.Equal("2026-10-25", archived[0]!["version"]!.GetValue<string>());
+        Assert.Equal("91017e970bc9e0922161d6bed0b29261c92858a4c01582b46af714d871f3b72b", archived[0]!["contentHash"]!.GetValue<string>());
+
+        Assert.True(JsonSerializer.SerializeToElement(PublishedTerms.GetDocument("2026-11-27", "ko")).GetProperty("canAccept").GetBoolean());
+        Assert.True(JsonSerializer.SerializeToElement(PublishedTerms.GetDocument("2026-10-14", "ko")).GetProperty("canAccept").GetBoolean());
+        var oct25 = JsonSerializer.SerializeToElement(PublishedTerms.GetDocument("2026-10-25", "ko"));
+        Assert.False(oct25.GetProperty("canAccept").GetBoolean());
+        Assert.False(PublishedTerms.Matches("2026-10-25", "91017e970bc9e0922161d6bed0b29261c92858a4c01582b46af714d871f3b72b", "ko"));
     }
 
     [Fact]
@@ -49,7 +57,7 @@ public sealed class PublishedTermsArchiveTests
         Assert.False(PublishedTerms.AllowsLegacyRequest("2026-09-01"));
 
         // The documents in force are unaffected by the archive.
-        Assert.True(PublishedTerms.Matches("2026-10-25", PublishedTerms.ContentHash, "ko"));
+        Assert.True(PublishedTerms.Matches(PublishedTerms.Version, PublishedTerms.ContentHash, "ko"));
         Assert.Null(PublishedTerms.GetDocument("2026-09-02", "ko", archived));
     }
 
