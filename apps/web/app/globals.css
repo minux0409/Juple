@@ -397,6 +397,7 @@ main.legalMain {
 }
 
 /* A superseded Terms version says so before its text; the other versions are listed after the article. */
+.legalReferenceNotice,
 .legalSuperseded {
   margin: 0 0 16px;
   padding: 12px 14px;

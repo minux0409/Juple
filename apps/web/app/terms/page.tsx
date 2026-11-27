@@ -8,6 +8,7 @@ import { normalizeHost } from '../../lib/shareLinks';
 import { notFound } from 'next/navigation';
 import publishedTerms from '../../lib/publishedTerms.generated.json';
 import { requestLegalLanguage } from '../_legal/requestLegalLanguage';
+import { selectLegalPage } from '../../lib/legalReferenceTranslations';
 
 // Public, no sign-in. Rendered per request because the operator details and the canonical host are read at runtime.
 export const dynamic = 'force-dynamic';
@@ -20,7 +21,8 @@ async function requestHost(): Promise<string | null> {
 export async function generateMetadata({ searchParams }: { searchParams: Promise<{ version?: string; language?: string }> }): Promise<Metadata> {
   const query = await searchParams;
   if (query.version && !publishedTermsForVersion(query.version)) notFound();
-  return buildLegalMetadata(termsDocument(readLegalOperatorConfig(), query.version), await requestHost());
+  const doc = selectLegalPage(termsDocument(readLegalOperatorConfig(), query.version), await requestLegalLanguage(query.language)).doc;
+  return buildLegalMetadata(doc, await requestHost());
 }
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ version?: string; language?: string }> }) {

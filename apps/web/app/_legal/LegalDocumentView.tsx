@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { type LegalOperatorConfig } from '../../lib/legalConfig';
 import { documentOperatorFacts, type LegalDocument } from '../../lib/legalContent';
-import { selectLegalDocument } from '../../lib/legalLocalization';
+import { legalReferenceNotices, referenceFactLabel, selectLegalPage } from '../../lib/legalReferenceTranslations';
 import { formatLegalPageDate, legalChromeLabels, legalFallbackNotices, legalDocumentLink, legalAccountDeletionLabels, legalLanguage } from '../../lib/legalDocumentPolicy.generated';
 import { APP_LANGUAGES } from '../../lib/appI18n';
 import { getAppDictionary } from '../../lib/appDictionary';
@@ -20,13 +20,15 @@ function Inline({ text }: { text: string }) {
  * one in force; every page lists the other versions, so no published text becomes unreachable when a new version takes effect.
  */
 export function LegalDocumentView({ doc: original, config, requestedLanguage = 'ko', termsVersions }: { doc: LegalDocument; config: LegalOperatorConfig; requestedLanguage?: string; termsVersions?: readonly string[] }) {
-  const selected = selectLegalDocument(original, requestedLanguage);
+  const selected = selectLegalPage(original, requestedLanguage);
   const { doc, language } = selected;
   const dictionary = getAppDictionary(selected.requestedLanguage);
   const link = (path: string) => legalDocumentLink(path, selected.requestedLanguage, path === '/terms' && original.slug === 'terms' ? original.updated : undefined)!;
-  const facts = documentOperatorFacts(config);
-  // The page's own words follow the reader's language; the legal text itself is the approved document (Korean original when no approved
-  // translation exists - said by the fallback notice above it).
+  // Labels follow the shown text (translated with a reference translation); the values stay exactly as registered.
+  const facts = documentOperatorFacts(config).map(fact => (selected.reference ? { ...fact, label: referenceFactLabel(fact.label, selected.requestedLanguage) } : fact));
+  const referenceNotice = selected.reference && selected.requestedLanguage !== 'ko' ? legalReferenceNotices[selected.requestedLanguage] : null;
+  // The page's own words follow the reader's language. The text is the approved document, else a reference translation (under a notice
+  // that the Korean original governs, with a link to it), else the Korean original (said by the fallback notice above it).
   const chrome = legalChromeLabels[legalLanguage(selected.requestedLanguage)];
   const date = (isoDate: string) => formatLegalPageDate(isoDate, selected.requestedLanguage);
   const versionLink = (version: string) => legalDocumentLink('/terms', selected.requestedLanguage, version)!;
@@ -56,6 +58,11 @@ export function LegalDocumentView({ doc: original, config, requestedLanguage = '
         <button type="submit">{dictionary.save}</button>
       </form>
       {selected.fallback ? <p role="status" data-legal-fallback>{legalFallbackNotices[selected.requestedLanguage]}</p> : null}
+      {referenceNotice ? (
+        <p role="note" className="legalReferenceNotice" data-legal-reference>
+          {referenceNotice.notice} <Link href={legalDocumentLink(`/${original.slug}`, 'ko', original.slug === 'terms' ? original.updated : undefined)!} hrefLang="ko">{referenceNotice.viewOriginal}</Link>
+        </p>
+      ) : null}
       <article lang={language} dir={language === 'ar' ? 'rtl' : 'ltr'} data-legal-language={language}>
         <h1 className="legalTitle">{doc.title}</h1>
         <p className="legalDates">
