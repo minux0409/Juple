@@ -47,6 +47,12 @@ export function useTermsOnboarding(enabled: boolean): TermsOnboarding {
   const version = useRef<string | null>(null);
   const saving = useRef(false);
   const lifetime = useRef({ active: false });
+  // Read (not depended on) by the status check: the language only decides which TEXT of a still-required version is shown (the
+  // effect below). Re-running the status check on a language change used to drop an already-accepted account back to 'checking',
+  // which tore down and re-mounted every signed-in screen (RootStack's group) - jumping to Home and crashing Android's native
+  // header (react-native-screens: "The specified child already has a parent") while the open screen's header was being rebuilt.
+  const languageRef = useRef(language);
+  languageRef.current = language;
 
   useEffect(() => {
     const run = { active: enabled };
@@ -76,7 +82,7 @@ export function useTermsOnboarding(enabled: boolean): TermsOnboarding {
         }
         version.current = next.currentVersion;
         if (!next.isAccepted) {
-          const published = await getPublishedTerms(request, next.currentVersion, language);
+          const published = await getPublishedTerms(request, next.currentVersion, languageRef.current);
           if (!active) return;
           setDocument(published);
         }
@@ -91,7 +97,35 @@ export function useTermsOnboarding(enabled: boolean): TermsOnboarding {
       active = false;
       run.active = false;
     };
-  }, [enabled, request, attempt, language]);
+  }, [enabled, request, attempt]);
+
+  // While the current version still has to be agreed to, a different language (or the explicit Korean original) only swaps the
+  // text: the Agreement screen stays, nothing else re-mounts. The old text cannot be agreed to meanwhile (accept() requires the
+  // document of the current language), and a failed fetch is an error exactly like the first one.
+  useEffect(() => {
+    const current = version.current;
+    if (status !== 'required' || !current || document?.requestedLanguage === language) {
+      return undefined;
+    }
+    let active = true;
+    setDocument(null);
+    getPublishedTerms(request, current, language)
+      .then(published => {
+        if (active) {
+          setDocument(published);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setStatus('error');
+        }
+      });
+    return () => {
+      active = false;
+    };
+    // `document` is deliberately left out: setting it here must not start another fetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, request, language]);
 
   const accept = useCallback(async () => {
     const current = version.current;

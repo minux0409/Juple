@@ -177,6 +177,7 @@ describe('Terms onboarding (the Agreement screen)', () => {
         {onboarding.status === 'error' ? <Text testID="unavailable">error</Text> : null}
         {onboarding.status === 'required' ? (
           <TermsAgreementScreen
+            key={onboarding.document ? onboarding.document.version + onboarding.document.contentHash + onboarding.document.requestedLanguage : 'unavailable'}
             document={onboarding.document}
             isSaving={onboarding.isSaving}
             onAccept={() => { onboarding.accept().catch(() => undefined); }}
@@ -342,6 +343,43 @@ describe('Terms onboarding (the Agreement screen)', () => {
     expect(exists(renderer, 'home')).toBe(true);
     expect(exists(renderer, 'terms-agreement-screen')).toBe(false);
     expect(acceptTerms).not.toHaveBeenCalled();
+  });
+
+  it('changing the app language never re-checks an accepted account (the signed-in screens stay mounted - no "checking" in between)', async () => {
+    jest.mocked(getTermsStatus).mockResolvedValue(status(true));
+    const renderer = await mount();
+    const homeNode = () => renderer.root.findAll(node => node.props.testID === 'home' && typeof node.type === 'string')[0];
+    const home = homeNode();
+    expect(home).toBeDefined();
+    try {
+      for (const language of ['en', 'ja', 'ar', 'ko'] as const) {
+        await act(async () => {
+          await i18n.changeLanguage(language);
+        });
+        // The very same element: it was never unmounted and re-created.
+        expect(homeNode() === home).toBe(true);
+      }
+      expect(getTermsStatus).toHaveBeenCalledTimes(1);
+      expect(getPublishedTerms).not.toHaveBeenCalled();
+    } finally { await i18n.changeLanguage('ko'); }
+  });
+
+  it('while consent is still required, a language change only swaps the text - the agreement screen stays and nothing is re-checked', async () => {
+    jest.mocked(getTermsStatus).mockResolvedValue(status(false));
+    jest.mocked(getPublishedTerms).mockImplementation(async (_request, version, language) => ({
+      version, contentHash: 'c'.repeat(64), language, requestedLanguage: language, canAccept: true,
+      title: 'T', effectiveDate: '2026-10-14', updatedDate: '2026-10-14', sections: [],
+    } as never));
+    const renderer = await mount();
+    try {
+      expect(exists(renderer, 'terms-agreement-screen')).toBe(true);
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+      expect(exists(renderer, 'terms-agreement-screen')).toBe(true);
+      expect(getTermsStatus).toHaveBeenCalledTimes(1);
+      expect(jest.mocked(getPublishedTerms).mock.calls.map(call => call[2])).toEqual(['ko', 'en']);
+    } finally { await i18n.changeLanguage('ko'); }
   });
 
   it('asks again when the server has a newer version than the one accepted', async () => {
