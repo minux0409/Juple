@@ -32,3 +32,44 @@ export function legalDocumentLink(url: string | null, language: string, version?
   if (!url) return null;
   return `${url}${url.includes('?') ? '&' : '?'}language=${encodeURIComponent(legalLanguage(language))}${version ? `&version=${encodeURIComponent(version)}` : ''}`;
 }
+
+/** The legal pages' own interface words (not the legal text): dates, contents, version links. Shared with Web by the consent generator. */
+export interface LegalChromeLabels {
+  readonly effective: string;
+  readonly updated: string;
+  readonly contents: string;
+  readonly legalNav: string;
+  readonly previousVersions: string;
+  readonly otherVersions: string;
+  /** "{date}" is the revision date. */
+  readonly revisedOn: string;
+  readonly current: string;
+  /** "{date}" is when the terms in force took effect. */
+  readonly superseded: string;
+  readonly viewCurrent: string;
+}
+export const legalChromeLabels: Record<LegalLanguage, LegalChromeLabels> = {
+  ko: { effective: '시행일', updated: '최종 수정일', contents: '목차', legalNav: '법적 고지', previousVersions: '이전 약관', otherVersions: '다른 버전의 약관', revisedOn: '{date} 개정', current: '현재 약관', superseded: '이 문서는 {date}부터 시행 중인 약관 이전의 약관입니다.', viewCurrent: '현재 약관 보기' },
+  en: { effective: 'Effective', updated: 'Last updated', contents: 'Contents', legalNav: 'Legal', previousVersions: 'Previous versions', otherVersions: 'Other versions', revisedOn: 'Revised {date}', current: 'current', superseded: 'This is an earlier version, replaced by the terms in force since {date}.', viewCurrent: 'View current terms' },
+  ja: { effective: '施行日', updated: '最終更新日', contents: '目次', legalNav: '法的事項', previousVersions: '以前の規約', otherVersions: '他のバージョンの規約', revisedOn: '{date} 改定', current: '現行', superseded: 'これは {date} から施行されている規約より前の規約です。', viewCurrent: '現行の規約を見る' },
+  'zh-Hans': { effective: '生效日期', updated: '最后更新', contents: '目录', legalNav: '法律信息', previousVersions: '以往版本', otherVersions: '其他版本', revisedOn: '{date} 修订', current: '现行', superseded: '这是 {date} 起生效的条款之前的版本。', viewCurrent: '查看现行条款' },
+  'zh-Hant': { effective: '生效日期', updated: '最後更新', contents: '目錄', legalNav: '法律資訊', previousVersions: '以往版本', otherVersions: '其他版本', revisedOn: '{date} 修訂', current: '現行', superseded: '這是 {date} 起生效的條款之前的版本。', viewCurrent: '查看現行條款' },
+  es: { effective: 'Vigencia', updated: 'Última actualización', contents: 'Contenido', legalNav: 'Información legal', previousVersions: 'Versiones anteriores', otherVersions: 'Otras versiones', revisedOn: 'Revisión del {date}', current: 'vigente', superseded: 'Esta es una versión anterior a los términos vigentes desde el {date}.', viewCurrent: 'Ver términos vigentes' },
+  fr: { effective: 'Entrée en vigueur', updated: 'Dernière mise à jour', contents: 'Sommaire', legalNav: 'Mentions légales', previousVersions: 'Versions précédentes', otherVersions: 'Autres versions', revisedOn: 'Révision du {date}', current: 'en vigueur', superseded: 'Ceci est une version antérieure aux conditions en vigueur depuis le {date}.', viewCurrent: 'Voir les conditions en vigueur' },
+  de: { effective: 'Gültig ab', updated: 'Zuletzt aktualisiert', contents: 'Inhalt', legalNav: 'Rechtliches', previousVersions: 'Frühere Fassungen', otherVersions: 'Andere Fassungen', revisedOn: 'Fassung vom {date}', current: 'aktuell', superseded: 'Dies ist eine frühere Fassung; seit {date} gelten die aktuellen Bedingungen.', viewCurrent: 'Aktuelle Bedingungen ansehen' },
+  it: { effective: 'In vigore dal', updated: 'Ultimo aggiornamento', contents: 'Indice', legalNav: 'Note legali', previousVersions: 'Versioni precedenti', otherVersions: 'Altre versioni', revisedOn: 'Revisione del {date}', current: 'in vigore', superseded: 'Questa è una versione precedente ai termini in vigore dal {date}.', viewCurrent: 'Vedi i termini in vigore' },
+  'pt-BR': { effective: 'Vigência', updated: 'Última atualização', contents: 'Sumário', legalNav: 'Informações legais', previousVersions: 'Versões anteriores', otherVersions: 'Outras versões', revisedOn: 'Revisão de {date}', current: 'vigente', superseded: 'Esta é uma versão anterior aos termos vigentes desde {date}.', viewCurrent: 'Ver os termos vigentes' },
+  vi: { effective: 'Ngày hiệu lực', updated: 'Cập nhật lần cuối', contents: 'Mục lục', legalNav: 'Thông tin pháp lý', previousVersions: 'Phiên bản trước', otherVersions: 'Phiên bản khác', revisedOn: 'Sửa đổi ngày {date}', current: 'hiện hành', superseded: 'Đây là phiên bản trước điều khoản có hiệu lực từ {date}.', viewCurrent: 'Xem điều khoản hiện hành' },
+  th: { effective: 'วันที่มีผล', updated: 'อัปเดตล่าสุด', contents: 'สารบัญ', legalNav: 'ข้อมูลทางกฎหมาย', previousVersions: 'ฉบับก่อนหน้า', otherVersions: 'ฉบับอื่น', revisedOn: 'แก้ไขเมื่อ {date}', current: 'ฉบับปัจจุบัน', superseded: 'นี่คือฉบับก่อนข้อกำหนดที่มีผลตั้งแต่ {date}', viewCurrent: 'ดูข้อกำหนดฉบับปัจจุบัน' },
+  id: { effective: 'Berlaku sejak', updated: 'Terakhir diperbarui', contents: 'Daftar isi', legalNav: 'Informasi hukum', previousVersions: 'Versi sebelumnya', otherVersions: 'Versi lain', revisedOn: 'Revisi {date}', current: 'berlaku', superseded: 'Ini adalah versi sebelum ketentuan yang berlaku sejak {date}.', viewCurrent: 'Lihat ketentuan yang berlaku' },
+  ru: { effective: 'Вступает в силу', updated: 'Последнее обновление', contents: 'Содержание', legalNav: 'Правовая информация', previousVersions: 'Предыдущие редакции', otherVersions: 'Другие редакции', revisedOn: 'Редакция от {date}', current: 'действующая', superseded: 'Это прежняя редакция; с {date} действуют новые условия.', viewCurrent: 'Открыть действующие условия' },
+  tr: { effective: 'Yürürlük', updated: 'Son güncelleme', contents: 'İçindekiler', legalNav: 'Yasal bilgiler', previousVersions: 'Önceki sürümler', otherVersions: 'Diğer sürümler', revisedOn: '{date} tarihli sürüm', current: 'geçerli', superseded: 'Bu, {date} tarihinden beri geçerli olan koşullardan önceki sürümdür.', viewCurrent: 'Geçerli koşulları görüntüle' },
+  ar: { effective: 'تاريخ السريان', updated: 'آخر تحديث', contents: 'المحتويات', legalNav: 'معلومات قانونية', previousVersions: 'الإصدارات السابقة', otherVersions: 'إصدارات أخرى', revisedOn: 'مراجعة {date}', current: 'السارية', superseded: 'هذا إصدار سابق للشروط السارية منذ {date}.', viewCurrent: 'عرض الشروط السارية' },
+  hi: { effective: 'लागू होने की तारीख', updated: 'अंतिम अपडेट', contents: 'विषय-सूची', legalNav: 'कानूनी जानकारी', previousVersions: 'पिछले संस्करण', otherVersions: 'अन्य संस्करण', revisedOn: '{date} संशोधन', current: 'वर्तमान', superseded: 'यह {date} से लागू शर्तों से पहले का संस्करण है।', viewCurrent: 'वर्तमान शर्तें देखें' },
+};
+/** A legal page's date (`YYYY-MM-DD`, a calendar date) in the reader's language - never shifted by a time zone. */
+export function formatLegalPageDate(isoDate: string, language: string): string {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  if (!year || !month || !day) return isoDate;
+  return new Intl.DateTimeFormat(legalLanguage(language), { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, day)));
+}

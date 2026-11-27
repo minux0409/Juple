@@ -1,8 +1,8 @@
 import Link from 'next/link';
-import { formatLegalDate, type LegalOperatorConfig } from '../../lib/legalConfig';
+import { type LegalOperatorConfig } from '../../lib/legalConfig';
 import { documentOperatorFacts, type LegalDocument } from '../../lib/legalContent';
 import { selectLegalDocument } from '../../lib/legalLocalization';
-import { legalFallbackNotices, legalDocumentLink, legalAccountDeletionLabels } from '../../lib/legalDocumentPolicy.generated';
+import { formatLegalPageDate, legalChromeLabels, legalFallbackNotices, legalDocumentLink, legalAccountDeletionLabels, legalLanguage } from '../../lib/legalDocumentPolicy.generated';
 import { APP_LANGUAGES } from '../../lib/appI18n';
 import { getAppDictionary } from '../../lib/appDictionary';
 
@@ -25,6 +25,10 @@ export function LegalDocumentView({ doc: original, config, requestedLanguage = '
   const dictionary = getAppDictionary(selected.requestedLanguage);
   const link = (path: string) => legalDocumentLink(path, selected.requestedLanguage, path === '/terms' && original.slug === 'terms' ? original.updated : undefined)!;
   const facts = documentOperatorFacts(config);
+  // The page's own words follow the reader's language; the legal text itself is the approved document (Korean original when no approved
+  // translation exists - said by the fallback notice above it).
+  const chrome = legalChromeLabels[legalLanguage(selected.requestedLanguage)];
+  const date = (isoDate: string) => formatLegalPageDate(isoDate, selected.requestedLanguage);
   const versionLink = (version: string) => legalDocumentLink('/terms', selected.requestedLanguage, version)!;
   const inForce = termsVersions?.[0];
   const otherVersions = termsVersions?.filter(version => version !== original.updated) ?? [];
@@ -35,7 +39,7 @@ export function LegalDocumentView({ doc: original, config, requestedLanguage = '
         <Link className="legalBrand" href="/">
           Juple
         </Link>
-        <nav aria-label="법적 고지" className="legalNav">
+        <nav aria-label={chrome.legalNav} className="legalNav">
           <Link href={link('/privacy')}>{dictionary.customerCenterPrivacy}</Link>
           <Link href={link('/terms')}>{dictionary.customerCenterTerms}</Link>
           <Link href={link('/account-deletion')}>{legalAccountDeletionLabels[selected.requestedLanguage]}</Link>
@@ -55,11 +59,11 @@ export function LegalDocumentView({ doc: original, config, requestedLanguage = '
       <article lang={language} dir={language === 'ar' ? 'rtl' : 'ltr'} data-legal-language={language}>
         <h1 className="legalTitle">{doc.title}</h1>
         <p className="legalDates">
-          {config.effectiveDate ? `시행일 ${formatLegalDate(config.effectiveDate)} · ` : ''}최종 수정일 {formatLegalDate(doc.updated)}
+          {config.effectiveDate ? `${chrome.effective} ${date(config.effectiveDate)} · ` : ''}{chrome.updated} {date(doc.updated)}
         </p>
         {inForce && original.updated !== inForce ? (
           <p className="legalSuperseded" role="note" data-terms-superseded>
-            이 문서는 {formatLegalDate(inForce)}부터 시행 중인 약관 이전의 약관입니다. <Link href={versionLink(inForce)}>현재 약관 보기</Link>
+            {chrome.superseded.replace('{date}', date(inForce))} <Link href={versionLink(inForce)}>{chrome.viewCurrent}</Link>
           </p>
         ) : null}
         <p className="legalIntro">{doc.intro}</p>
@@ -76,7 +80,7 @@ export function LegalDocumentView({ doc: original, config, requestedLanguage = '
         ) : null}
 
         {doc.sections.length > 4 ? (
-          <nav aria-label="목차" className="legalToc">
+          <nav aria-label={chrome.contents} className="legalToc">
             <ol>
               {doc.sections.map(section => (
                 <li key={section.id}>
@@ -113,13 +117,13 @@ export function LegalDocumentView({ doc: original, config, requestedLanguage = '
         ))}
       </article>
       {otherVersions.length > 0 ? (
-        <nav aria-label="다른 버전의 약관" className="legalVersions" data-terms-versions>
-          <h2>{inForce && original.updated !== inForce ? '다른 버전의 약관' : '이전 약관'}</h2>
+        <nav aria-label={chrome.otherVersions} className="legalVersions" data-terms-versions>
+          <h2>{inForce && original.updated !== inForce ? chrome.otherVersions : chrome.previousVersions}</h2>
           <ul>
             {otherVersions.map(version => (
               <li key={version}>
                 <Link href={versionLink(version)}>
-                  {formatLegalDate(version)} 개정{version === inForce ? ' (현재 약관)' : ''}
+                  {chrome.revisedOn.replace('{date}', date(version))}{version === inForce ? ` (${chrome.current})` : ''}
                 </Link>
               </li>
             ))}
