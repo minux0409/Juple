@@ -140,6 +140,9 @@ describe('legal text', () => {
     const deletion = text(accountDeletionDocument(noOperator));
     assert.match(privacy, /로그인 이메일 주소를 정해진 방식으로 정리한 뒤 원래 값으로 되돌릴 수 없게 바꾼 변환값\(해시\)과 이용 기간을 저장합니다\. 이 기록에는 이메일 주소 자체를 저장하지 않습니다/);
     assert.match(deletion, /이메일 주소 자체나 이름은 남지 않습니다\. 이용 기간 종료 후 24개월까지 보관합니다/);
+    // What the trial ledger really is (billing.MembershipTrialLedger / TrialLedger): a keyed HMAC, the window and the creation time - and how it is destroyed.
+    assert.match(privacy, /Juple만 보관하는 비밀 키로 만든 값\(HMAC\)이며, 변환값마다 이용 기간의 시작·종료 시각과 기록을 만든 시각만 함께 저장합니다/);
+    assert.match(privacy, /기간이 지난 기록은 매일 실행되는 정리 작업이 데이터베이스에서 삭제합니다/);
   });
 
   it('makes no "no analytics at all" claim', () => {
@@ -170,7 +173,7 @@ describe('legal text', () => {
   });
 
   it('dates each document on its own: the policy change does not re-date the terms or the deletion page', () => {
-    assert.equal(privacyDocument(noOperator).updated, '2026-10-25');
+    assert.equal(privacyDocument(noOperator).updated, '2026-11-27');
     assert.equal(termsDocument(noOperator).updated, '2026-10-25');
     assert.equal(accountDeletionDocument(noOperator).updated, '2026-10-14');
   });
