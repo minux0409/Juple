@@ -72,7 +72,7 @@ describe('tour strings - every locale', () => {
     }
     const topic = strings.guide.topics.homeShortcut;
     expect(String(topic.title).trim()).not.toBe('');
-    expect(topic.body).toContain(strings.collections.homeShortcutAdd);
+    expect(topic.body).toContain(strings.selection.shortcut);
     expect(JSON.stringify([tour, topic])).not.toMatch(/@@|undefined|\{\{/);
   });
 

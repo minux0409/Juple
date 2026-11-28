@@ -1119,83 +1119,110 @@
         "summary": "Les liens du jour et tout ce qui précède"
       },
       "viewing": {
-        "title": "Recherche, tri et affichages",
-        "summary": "Trouvez vos liens et affichez-les à votre façon"
+        "title": "Recherche et affichage",
+        "summary": "Retrouvez vos liens et changez leur affichage"
+      },
+      "selection": {
+        "title": "Sélection multiple",
+        "summary": "Organisez liens et collections en une fois"
       },
       "collections": {
         "title": "Organiser avec des collections",
         "summary": "Regroupez vos liens à votre manière"
       },
       "sharing": {
-        "title": "Partage et travail d’équipe",
-        "summary": "Partagez une collection et décidez qui peut faire quoi"
+        "title": "Partage et collaboration",
+        "summary": "Partagez des collections et utilisez-les ensemble"
       },
       "protection": {
         "title": "Verrous et mots de passe",
         "summary": "Protégez les collections sensibles"
       },
+      "friends": {
+        "title": "Amis",
+        "summary": "Ajoutez des amis et gérez les demandes"
+      },
       "notifications": {
-        "title": "Notifications",
-        "summary": "Restez informé"
+        "title": "Notifications et annonces",
+        "summary": "Ne manquez rien"
       },
       "trash": {
         "title": "Supprimer et restaurer",
         "summary": "Récupérez les liens supprimés"
       },
+      "membership": {
+        "title": "Abonnement",
+        "summary": "Essai gratuit, abonnement, résiliation et restauration"
+      },
       "account": {
         "title": "Compte et réglages",
-        "summary": "Profil, langue et plus"
+        "summary": "Profil, langue, documents juridiques, suppression du compte"
       }
     },
     "topics": {
       "pasteShare": {
         "title": "Coller ou partager un lien",
-        "body": "Collez une URL dans le champ en haut de l’Accueil. Un texte contenant un lien fonctionne aussi : Juple prend le premier lien trouvé.\n\nSur Android, vous pouvez aussi partager un lien depuis un navigateur ou une autre appli directement vers Juple."
+        "body": "Collez une URL dans le champ en haut de l’Accueil et touchez le bouton à droite. Vous pouvez aussi coller un texte contenant un lien ; le premier lien du texte est utilisé.\n\nVous pouvez aussi envoyer un lien depuis un navigateur ou une autre app : ouvrez son menu de partage et choisissez Juple. Cela fonctionne sur Android ainsi que sur iPhone et iPad."
       },
       "quickSave": {
         "title": "Enregistrement rapide",
-        "body": "Activez l’Enregistrement rapide dans Mon compte pour enregistrer les liens partagés tout de suite, sans écran de vérification.\n\nQuand il est désactivé, Juple affiche d’abord le lien pour que vous puissiez modifier le titre, ajouter une note et choisir des collections avant d’enregistrer."
+        "body": "Activez l’Enregistrement rapide dans Mon compte : les liens partagés depuis d’autres apps sont alors enregistrés immédiatement, sans écran de vérification.\n\nLorsqu’il est désactivé, Juple vous montre d’abord le lien. Modifiez le titre, ajoutez un mémo et choisissez des collections, puis enregistrez."
       },
       "review": {
         "title": "Avant d’enregistrer",
-        "body": "Juple remplit le titre et l’image d’aperçu quand il le peut. S’il ne peut pas les lire, vous pouvez saisir le titre vous-même.\n\nAjoutez une note et choisissez une ou plusieurs collections, ou créez-en une sur place. Si une collection demande une approbation, votre lien est envoyé à son propriétaire sous forme de demande."
+        "body": "Lorsque la page publique du lien peut être lue, Juple remplit automatiquement le titre et l’image d’aperçu. Les informations qui ne peuvent pas être confirmées ne sont jamais devinées : saisissez alors le titre vous-même.\n\nAjoutez un mémo et choisissez une ou plusieurs collections, ou créez-en une sur-le-champ. Pour une collection soumise à approbation, le lien est envoyé au propriétaire sous forme de demande d’approbation."
       },
       "androidShortcuts": {
-        "title": "Raccourcis et partage direct",
-        "body": "Ajoutez une collection à votre écran d’accueil depuis son menu d’appui long pour l’ouvrir d’un geste. Voir « Appuyez longuement sur une collection pour la gérer rapidement » dans Organiser avec des collections.\n\nLes liens partagés peuvent aussi aller directement dans une collection depuis le menu de partage du téléphone. Une collection verrouillée ou protégée par mot de passe, ou dans laquelle vous ne pouvez pas ajouter de liens, n’y est pas proposée.\n\nQuand une collection est proposée comme destination de partage, son menu d’appui long contient « Retirer des destinations de partage ». Cela la retire seulement du menu de partage. La collection, ses liens et tout raccourci d’écran d’accueil que vous avez créé restent en place."
+        "title": "Raccourcis et Partage direct",
+        "body": "Appuyez longuement sur une collection pour la sélectionner, puis touchez Raccourci dans la barre du bas pour créer un raccourci vers cette collection sur l’écran d’accueil. Voir « Raccourci sur l’écran d’accueil » dans Organiser avec des collections.\n\nVous pouvez aussi envoyer un lien directement dans une collection depuis le menu de partage du téléphone. Les collections verrouillées, celles protégées par un mot de passe et celles auxquelles vous ne pouvez pas ajouter de lien n’apparaissent pas comme destinations.\n\nLorsqu’une collection apparaît comme destination de partage, son menu propose « Retirer des destinations de partage ». Cela la retire seulement du menu de partage ; la collection, ses liens et les raccourcis créés restent inchangés."
       },
       "home": {
         "title": "Accueil",
-        "body": "Accueil affiche les liens que vous avez enregistrés aujourd’hui. Touchez un lien pour ouvrir ses détails et utilisez les boutons de tri et le sélecteur d’affichage au-dessus de la liste pour changer leur présentation."
+        "body": "L’Accueil affiche les liens enregistrés aujourd’hui, du plus récent au plus ancien. Le champ du haut reste en place quand vous faites défiler : vous pouvez enregistrer un lien à tout moment.\n\nTouchez un lien pour ouvrir ses détails. Utilisez les boutons à côté de Récents pour passer de l’affichage en liste à la grille ou aux images. Touchez la cloche de l’Accueil pour ouvrir les notifications."
       },
       "archive": {
         "title": "Archives",
-        "body": "Archives contient tous les liens que vous avez enregistrés, classés par date. Touchez une date pour l’ouvrir ou la fermer, et utilisez la recherche pour retrouver un lien plus ancien."
+        "body": "Les Archives réunissent tous les liens que vous avez enregistrés, regroupés par date, du plus récent au plus ancien. Saisissez au moins deux caractères dans le champ de recherche pour retrouver des liens plus anciens."
+      },
+      "linkDetails": {
+        "title": "Détails et modification d’un lien",
+        "body": "Touchez un lien pour ouvrir ses détails. Vous pouvez modifier le titre et le mémo, changer ses collections et sa photo de couverture, puis enregistrer. Le bouton d’ouverture du lien ouvre la page d’origine.\n\nVous ne pouvez pas modifier un lien ajouté par une autre personne dans une collection partagée. Appuyez longuement dessus pour le sélectionner, puis utilisez Plus > Enregistrer le lien pour l’enregistrer comme votre propre lien."
       },
       "swipe": {
-        "title": "Faites glisser pour agir vite",
-        "body": "Faites glisser un lien sur le côté dans Accueil ou Archives pour afficher des actions rapides, comme partager et supprimer. Les actions dépendent du lien : par exemple, un lien d’une collection verrouillée ne peut pas être partagé d’ici."
+        "title": "Balayer pour agir vite",
+        "body": "Dans les affichages en liste et en grille de l’Accueil et des Archives, balayez un lien sur le côté pour faire apparaître des actions rapides comme partager et supprimer. Les actions dépendent du lien. Par exemple, les liens d’une collection verrouillée ne peuvent pas être partagés depuis ici."
       },
       "searchSort": {
-        "title": "Recherche et tri",
-        "body": "Archives et chaque collection ont un champ de recherche. Triez par heure (touchez à nouveau pour alterner entre le plus récent et le plus ancien d’abord) ou par nom.\n\nAccueil sert aux liens du jour : on peut y trier, mais pas y chercher."
+        "title": "Recherche et ordre",
+        "body": "Les Archives, l’onglet Collections et chaque collection disposent d’un champ de recherche. La recherche de liens commence dès que vous saisissez au moins deux caractères. L’Accueil n’a pas de recherche.\n\nLes liens sont toujours affichés du plus récent au plus ancien ; il n’y a pas de bouton de tri."
       },
       "viewModes": {
-        "title": "Vues liste, grille et image",
-        "body": "Utilisez les boutons d’affichage pour voir les liens en liste, en grille ou en vue image, qui montre des images sur trois colonnes. Votre choix est mémorisé séparément pour Accueil, Archives et Collections."
+        "title": "Affichage en liste, grille et images",
+        "body": "Les boutons d’affichage permettent de voir les liens en liste, en grille ou en images. L’affichage en images présente les photos sur 3 colonnes. Dans l’onglet Collections, vous pouvez afficher les collections en liste ou en grille. Chaque écran mémorise son propre affichage.\n\nQuand vous changez d’affichage, la liste repart du haut."
+      },
+      "selectLinks": {
+        "title": "Sélectionner plusieurs liens",
+        "body": "Appuyez longuement sur un lien pour commencer la sélection ; une barre d’actions apparaît en bas. Touchez d’autres liens pour les ajouter, et utilisez Tout sélectionner ou le bouton de fermeture en haut pour modifier ou terminer la sélection.\n\nAccueil et Archives : Changer de collection définit en une fois les collections des liens sélectionnés, et Supprimer les envoie dans Supprimés récemment. Plus propose copier le lien et partager et, pour un seul lien, ouvrir le lien et modifier.\n\nDans une collection : Supprimer (retire de cette collection), Déplacer et Copier. Dans une collection partagée, vous ne pouvez déplacer que les liens que vous avez ajoutés, et vous pouvez signaler les liens des autres. Si seuls certains éléments réussissent, ceux qui ont échoué restent sélectionnés."
+      },
+      "selectCollections": {
+        "title": "Sélectionner plusieurs collections",
+        "body": "Appuyez longuement sur une collection dans l’onglet Collections pour commencer la sélection. La barre du bas propose le verrouillage et la suppression ou le départ. Avec une seule collection, Plus permet d’activer ou de désactiver les notifications, Partager et Modifier. Les boutons affichés dépendent de la collection et de votre rôle.\n\nVos propres collections sont supprimées ; vous quittez celles qu’une autre personne a partagées avec vous. Si vous sélectionnez les deux types, une seule confirmation affiche les nombres et « Supprimer et quitter » fait les deux. Les collections en échec restent sélectionnées.\n\nLorsque plusieurs collections sont sélectionnées, celles qui sont verrouillées sont ignorées. Pour supprimer une collection verrouillée, sélectionnez-la seule et saisissez son mot de passe. Supprimer une collection ne supprime pas les liens qu’elle contenait."
       },
       "createCollection": {
-        "title": "Créer une collection",
-        "body": "Dans l’onglet Collections, touchez Nouvelle collection. Choisissez un nom, une icône et une couleur, ou utilisez votre propre photo. Un lien peut appartenir à plusieurs collections.\n\nMarquez des collections en favoris pour les garder réunies en haut."
+        "title": "Créer et modifier des collections",
+        "body": "Touchez le bouton + dans l’onglet Collections. Choisissez un nom, une icône et une couleur, ou utilisez votre propre photo. Un même lien peut se trouver dans plusieurs collections.\n\nPour changer le nom ou l’apparence, sélectionnez la collection et utilisez Plus > Modifier, ou le menu de l’écran de la collection. Seul le propriétaire peut la modifier."
       },
-      "longPress": {
-        "title": "Appuyez longuement sur une collection pour la gérer rapidement",
-        "body": "Appuyez longuement sur une collection pour voir les actions rapides. Le menu affiché dépend de la collection et de votre rôle.\n\nFavori\nRéunissez les collections que vous ouvrez souvent. Cela ne vous concerne que vous.\n\nActiver/désactiver les notifications\nChoisissez si vous recevez les notifications d’une collection partagée.\n\nModifier\nChangez le nom, l’icône, la couleur ou la photo. Seul le propriétaire de la collection peut le faire.\n\nVerrouillage\nActivez ou retirez votre verrou sur une collection. C’est différent du mot de passe d’accès d’un lien partagé.\n\nSupprimer / Quitter\nLes propriétaires suppriment une collection et les membres la quittent. Supprimer une collection ne supprime pas les liens qu’elle contient.\n\nPartager\nLe propriétaire ouvre l’écran de partage ; un membre ne peut transmettre le lien que tant que le propriétaire l’a activé.\n\nAvec un lecteur d’écran, appuyez longuement sur la collection ou choisissez « Options » dans le menu d’accessibilité.",
-        "shortcut": "Ouvrez une collection que vous utilisez souvent directement depuis votre écran d’accueil. Appuyez longuement dessus et choisissez « Ajouter un raccourci à l’écran d’accueil » pour accéder à cette collection depuis l’écran d’accueil du téléphone.\n\nUne collection verrouillée demande toujours son mot de passe quand on l’ouvre depuis un raccourci.\n\nSupprimez vous-même le raccourci de votre écran d’accueil quand vous n’en avez plus besoin."
+      "favorites": {
+        "title": "Favoris",
+        "body": "Touchez l’étoile d’une collection pour l’ajouter aux Favoris, et touchez-la à nouveau pour la retirer. Les favoris ne s’appliquent qu’à vous.\n\nUtilisez les boutons Favoris, Toutes, Mes collections et Partagées en haut de l’onglet Collections pour choisir les collections affichées."
+      },
+      "homeShortcut": {
+        "title": "Raccourci sur l’écran d’accueil (1×1)",
+        "body": "Appuyez longuement sur une collection, gardez-la seule sélectionnée et touchez Raccourci dans la barre du bas pour créer une icône 1×1 de cette collection sur l’écran d’accueil du téléphone. Toucher l’icône ouvre directement la collection dans Juple.\n\nCette option n’apparaît que si votre lanceur prend en charge les raccourcis sur l’écran d’accueil. Une collection verrouillée demande toujours son mot de passe lorsqu’elle est ouverte depuis l’icône. Pour retirer l’icône, supprimez-la vous-même de l’écran d’accueil."
       },
       "manageLinks": {
         "title": "Copier et déplacer des liens",
-        "body": "Ouvrez une collection et utilisez le menu « plus » d’un lien pour le copier dans d’autres collections, le déplacer ou le retirer de cette collection. Le retirer ne supprime pas le lien.\n\nAprès un déplacement ou une suppression, touchez Annuler dans le message qui apparaît."
+        "body": "Ouvrez une collection, appuyez longuement sur des liens pour les sélectionner, puis utilisez la barre du bas pour les déplacer ou les copier dans une autre collection. Supprimer les retire seulement de cette collection ; vos liens eux-mêmes sont conservés.\n\nDans l’Accueil ou les Archives, Changer de collection modifie en une fois les collections de plusieurs liens.\n\nJuste après un déplacement ou une suppression, vous pouvez annuler depuis le message qui s’affiche."
       },
       "publicLink": {
         "title": "Partager une collection par lien",
@@ -1210,40 +1237,84 @@
         "body": "Lecture seule : peut consulter la collection. Avec approbation : peut proposer des liens, que le propriétaire approuve. Peut ajouter des liens : peut en ajouter directement. Le propriétaire gère la collection, son partage et l’autorisation de chacun.\n\nLe réglage d’un lien public est le niveau le plus bas que chacun peut avoir. Vous pouvez donner un niveau plus élevé aux personnes invitées."
       },
       "joinRequests": {
-        "title": "Demandes de participation",
-        "body": "Quand le réglage public d’une collection est désactivé, une personne qui ouvre son lien peut demander à participer. Le propriétaire voit la demande dans la collection et l’approuve, ce qui ajoute la personne en lecture seule, ou la refuse. Elle pourra redemander plus tard.\n\nAprès avoir demandé à participer, la collection apparaît comme « En attente d’approbation » dans votre onglet Collections jusqu’à la réponse du propriétaire."
+        "title": "Demandes de participation et attente d’approbation",
+        "body": "Lorsque les Paramètres de la collection publique sont sur OFF, les personnes qui ouvrent le lien peuvent demander à rejoindre la collection. Le propriétaire voit les demandes sur l’écran de partage de la collection et les approuve ou les refuse. Une personne approuvée rejoint la collection en lecture seule. Une personne refusée peut redemander plus tard.\n\nLorsque vous demandez à rejoindre une collection, elle apparaît comme « En attente d’approbation » dans votre onglet Collections jusqu’à la réponse du propriétaire. Appuyez longuement dessus pour annuler votre demande."
       },
       "approvals": {
         "title": "Demandes d’approbation de liens",
         "body": "Elles sont différentes des demandes de participation. Ce sont des liens qu’une personne ayant l’autorisation « Avec approbation » propose pour une collection. Le propriétaire les trouve dans Demandes d’approbation reçues et approuve ou refuse chacune.\n\nSi vous avez proposé un lien, retrouvez-le dans Demandes d’approbation envoyées, où vous pouvez l’annuler."
       },
+      "comments": {
+        "title": "Commentaires et réactions",
+        "body": "Ouvrez un lien d’une collection partagée pour laisser des commentaires et des réponses, aimer et réagir avec des emoji avec les autres participants. Vous pouvez modifier ou supprimer vos propres commentaires."
+      },
       "collectionLock": {
         "title": "Verrouiller une collection",
-        "body": "Définissez un mot de passe de verrouillage dans Mon compte > Verrouillage des collections, puis verrouillez une collection depuis son menu d’appui long. Une collection verrouillée masque ses liens, y compris dans Accueil et Archives, jusqu’à ce que vous saisissiez le mot de passe. Le verrou s’applique à vous, pas aux personnes avec qui vous partagez."
+        "body": "Définissez d’abord un mot de passe de verrouillage dans Mon compte > Verrouillage des collections. Ensuite, appuyez longuement sur une collection dans l’onglet Collections pour la sélectionner et touchez Verrouiller la collection dans la barre du bas.\n\nUne collection verrouillée ne peut pas être ouverte avant la saisie du mot de passe, et ses liens sont aussi masqués dans l’Accueil et les Archives. Pour la déverrouiller, sélectionnez-la seule et saisissez le mot de passe.\n\nVous pouvez aussi verrouiller une collection qu’une autre personne a partagée avec vous, pour vous seul. Ce verrouillage ne s’applique qu’à vous et n’affecte ni le propriétaire ni les autres participants."
       },
       "accessPassword": {
         "title": "Mot de passe d’accès pour le partage",
         "body": "Quand vous partagez une collection, vous pouvez aussi définir un mot de passe d’accès. Les personnes qui ouvrent la collection partagée doivent le saisir. Il est distinct de votre propre verrou, et vous pouvez le voir, le modifier ou le retirer dans Partager."
       },
+      "friends": {
+        "title": "Ajouter et gérer des amis",
+        "body": "Mon compte > Amis contient les onglets Amis, Reçues, Envoyées et Utilisateurs bloqués. Les onglets Reçues et Envoyées indiquent combien de demandes sont en attente.\n\nTouchez le bouton + et saisissez le Juple ID de l’autre personne pour lui envoyer une demande d’ami. Une fois qu’elle accepte, vous êtes amis. Acceptez ou refusez les demandes reçues, et annulez celles que vous avez envoyées.\n\nVous pouvez rechercher dans votre liste d’amis. Touchez un ami pour voir les collections que vous partagez, et appuyez longuement ou balayez un ami pour le retirer de vos amis."
+      },
+      "blockReport": {
+        "title": "Bloquer et signaler",
+        "body": "Vous pouvez bloquer les personnes avec lesquelles vous ne souhaitez pas interagir. Une fois bloquées, vous ne pouvez plus échanger de demandes d’ami, d’invitations ni de demandes de participation, et dans les collections partagées vous ne voyez plus les liens ajoutés par l’autre. Les commentaires et réactions de la personne bloquée vous sont aussi masqués. Les données enregistrées ne sont pas supprimées, et vous pouvez débloquer à tout moment depuis l’onglet Utilisateurs bloqués.\n\nSi vous bloquez le propriétaire d’une collection que vous avez rejointe, vous quittez cette collection.\n\nVous pouvez signaler les utilisateurs, collections, liens et commentaires qui posent problème. L’équipe de Juple examine les signalements, et les informations de l’auteur du signalement ne sont jamais montrées à l’autre personne."
+      },
       "notificationCenter": {
         "title": "Notifications",
-        "body": "La cloche d’Accueil ouvre vos notifications, avec le nombre de non lues. Touchez-en une pour accéder à ce qu’elle concerne. Vous pouvez tout marquer comme lu ou supprimer les notifications une par une.\n\nActivez ou désactivez les notifications de chaque collection partagée depuis son menu d’appui long. Désactivées, elles figurent quand même dans la liste, mais vous n’êtes pas alerté."
+        "body": "Touchez la cloche de l’Accueil pour ouvrir les notifications ; le nombre de notifications non lues y est indiqué. Sur le web, ouvrez Notifications depuis le menu. Touchez une notification pour accéder à l’écran concerné. Vous pouvez tout marquer comme lu ou les supprimer une par une.\n\nVous êtes notifié des demandes d’ami et des réponses, des invitations à des collections, des demandes de participation et de leur résultat, des liens ajoutés aux collections partagées, des demandes d’approbation, ainsi que des commentaires, réponses et réactions.\n\nVous pouvez activer ou désactiver les notifications pour chaque collection partagée. Lorsqu’elles sont désactivées, les notifications restent dans la liste, mais aucune notification push n’est envoyée."
+      },
+      "notices": {
+        "title": "Annonces",
+        "body": "Les annonces importantes, comme les changements du service ou des conditions, se trouvent dans Mon compte > Annonces."
       },
       "deleteRestore": {
         "title": "Supprimer et restaurer",
-        "body": "Supprimez un lien en le faisant glisser ou depuis ses détails. Les liens supprimés vont dans Supprimés récemment, dans Mon compte, où vous pouvez les restaurer, les supprimer définitivement ou vider la liste. Un lien supprimé définitivement ne peut pas être récupéré.\n\nRetirer un lien d’une collection ne le supprime pas."
+        "body": "Supprimez un lien en le balayant, en le sélectionnant par un appui long ou depuis ses détails. Les liens supprimés vont dans Supprimés récemment, dans Mon compte, où ils sont conservés jusqu’à 30 jours, dans la limite de 100 liens. Vous pouvez les y restaurer, les supprimer définitivement ou vider la liste. Un lien supprimé définitivement ne peut pas être récupéré.\n\nRetirer un lien d’une collection n’est pas le supprimer. Juste après la suppression d’une collection, vous pouvez annuler depuis le message qui s’affiche."
       },
-      "settings": {
-        "title": "Compte et réglages",
-        "body": "Mon compte regroupe votre profil et ID Juple, la langue, l’Enregistrement rapide, les Amis, le Verrouillage des collections, Supprimés récemment et la gestion du compte. Contactez l’assistance depuis le Centre d'aide.\n\nDans Gérer le compte, vous pouvez voir comment vous vous connectez et supprimer votre compte, ce qui supprime définitivement votre compte et vos données.\n\nChaque personne bénéficie d’un essai unique de 30 jours exactement (720 heures). Pour les membres déjà inscrits, il commence au lancement du service d’adhésion ; pour les inscriptions ultérieures, à l’instant de l’inscription. Ensuite, vous pouvez toujours consulter les liens et collections existants, gérer votre compte et vos abonnements, restaurer des achats et supprimer le compte. Sans abonnement valide ni accès gratuit accordé par un administrateur, les principales actions d’écriture, dont enregistrer, créer et modifier, sont limitées.\n\nRésiliez à tout moment dans Google Play > Paiements et abonnements > Abonnements. Vous conservez l'accès jusqu'à la fin de la période payée. Résiliez à tout moment dans les réglages de l'identifiant Apple > Abonnements. Vous conservez l'accès jusqu'à la fin de la période payée."
+      "trialPeriod": {
+        "title": "Essai gratuit",
+        "body": "L’essai gratuit est accordé une seule fois par personne et dure exactement 720 heures (30 jours). Les membres inscrits avant le 27 novembre 2026 à 10 h peuvent en profiter jusqu’au 27 décembre 2026 à 10 h 00 min 07 s (heure de Corée) ; les membres inscrits ensuite, pendant 720 heures à partir de leur inscription.\n\nL’essai gratuit commence sans moyen de paiement et, à sa fin, rien n’est jamais prélevé et il ne devient jamais un abonnement payant de lui-même. Supprimer votre compte puis vous réinscrire ne démarre pas un nouvel essai. Consultez le temps restant dans Mon compte > Abonnement."
       },
-      "homeShortcut": {
-        "title": "Raccourci sur l’écran d’accueil (1×1)",
-        "body": "Appuyez longuement sur une collection et choisissez « Ajouter un raccourci à l’écran d’accueil ». Une icône 1×1 de cette collection apparaît sur votre écran d’accueil ; la toucher ouvre la collection dans Juple.\n\nCette entrée de menu n’apparaît que si votre lanceur prend en charge les raccourcis de l’écran d’accueil. Une collection verrouillée demande toujours son mot de passe. Pour retirer l’icône, supprimez-la vous-même de l’écran d’accueil."
+      "plansBilling": {
+        "title": "Abonnement mensuel et annuel",
+        "body": "L’abonnement est mensuel ou annuel, avec renouvellement automatique. Il se paie via Google Play sur Android et via l’App Store sur iPhone et iPad ; il n’est pas vendu sur le web. Les prix et devises varient selon le pays et la boutique ; c’est le montant affiché sur l’écran d’abonnement et sur l’écran de paiement de la boutique avant l’achat qui s’applique.\n\nSi vous vous abonnez pendant l’essai gratuit, le paiement est prélevé le jour même et le temps gratuit restant n’est pas ajouté à l’abonnement.\n\nL’abonnement est attaché à votre compte Juple : vous pouvez l’utiliser avec le même compte sur Android, iPhone et iPad, et sur le web. Vous abonner dans les deux boutiques en même temps entraîne deux prélèvements ; résiliez-en un."
+      },
+      "restorePurchases": {
+        "title": "Restaurer les achats",
+        "body": "Si vous avez réinstallé l’app ou changé d’appareil et que votre abonnement n’apparaît pas, touchez Restaurer les achats sur l’écran d’abonnement. L’abonnement acheté avec le compte de la boutique de cet appareil est vérifié à nouveau et appliqué à votre compte Juple.\n\nUn abonnement déjà lié à un autre compte Juple n’est pas transféré."
+      },
+      "cancelSubscription": {
+        "title": "Résilier l’abonnement",
+        "body": "Résiliez dans la boutique où vous avez payé. Sur Android, allez dans Google Play > Paiements et abonnements > Abonnements ; sur iPhone et iPad, allez dans Réglages > Compte Apple > Abonnements, choisissez Juple et résiliez. L’écran d’abonnement peut aussi vous mener à la page de la boutique.\n\nAprès la résiliation, vous pouvez continuer à utiliser l’abonnement jusqu’à la fin de la période déjà payée. Les remboursements suivent la politique de la boutique.\n\nRésilier l’abonnement et supprimer le compte sont deux choses distinctes. Supprimer l’app ou le compte ne résilie pas l’abonnement : résiliez-le d’abord dans la boutique."
+      },
+      "afterTrial": {
+        "title": "Après l’essai",
+        "body": "Lorsque l’essai gratuit est terminé et que vous n’avez pas d’abonnement valide, Juple passe en lecture seule. Vos liens et collections enregistrés ne sont pas supprimés et restent consultables.\n\nToujours disponible : consulter les liens et collections, ouvrir les liens d’origine, exporter et supprimer vos données, quitter des collections, les réglages, acheter et restaurer un abonnement, le Centre d’aide, signaler et bloquer, et supprimer le compte.\n\nRestreint : enregistrer de nouveaux liens, créer et modifier des liens et des collections, ajouter, déplacer et copier des liens dans des collections, réglages de partage et invitations, écrire des commentaires et réactions, demandes d’ami et actions similaires. Pour écrire dans une collection partagée, vous et son propriétaire devez tous deux avoir accès. Abonnez-vous à nouveau et tout refonctionne aussitôt."
       },
       "profilePhoto": {
-        "title": "Changer la photo de profil",
-        "body": "Dans Ma page, touchez le bouton de modification de votre carte de profil. Choisissez une photo, déplacez-la et agrandissez-la pour l’ajuster au cercle, puis enregistrez.\n\nVotre photo de profil est visible par vos amis et dans les collections partagées."
+        "title": "Modifier votre profil",
+        "body": "Touchez le bouton de modification sur la carte de profil de Mon compte pour changer votre pseudo et votre photo de profil. Après avoir choisi une photo, déplacez-la et zoomez avec les doigts pour l’ajuster au cercle, puis enregistrez.\n\nVotre pseudo et votre photo de profil sont visibles dans les collections que vous partagez avec vos amis. Votre Juple ID ne peut pas être modifié."
+      },
+      "settings": {
+        "title": "Langue et affichage",
+        "body": "Dans Mon compte > Langue, choisissez l’une des 17 langues ou Utiliser la langue du système. L’app passe immédiatement à cette langue.\n\nUtilisez l’interrupteur Mode sombre de Mon compte pour activer ou désactiver l’affichage sombre. Sur le web, modifiez-le dans Apparence, dans les réglages.\n\nEnvoyez vos questions depuis Mon compte > Centre d’aide et lisez-y aussi les réponses."
+      },
+      "legalDocs": {
+        "title": "Conditions d’utilisation et Politique de confidentialité",
+        "body": "Ouvrez les Conditions d’utilisation et la Politique de confidentialité depuis Mon compte > Centre d’aide ou l’écran d’abonnement. Elles s’ouvrent comme pages web dans la langue choisie.\n\nL’original coréen est le texte juridiquement contraignant. Les autres langues sont des traductions de référence destinées à faciliter la compréhension ; en cas de divergence, l’original coréen prévaut. Les pages de traduction de référence renvoient directement à l’original coréen."
+      },
+      "deleteAccount": {
+        "title": "Supprimer votre compte",
+        "body": "Dans Mon compte > Gérer le compte > Supprimer le compte, vérifiez les données qui seront supprimées et touchez Continuer la suppression. Reconnectez-vous pour confirmer votre identité, saisissez votre Juple ID exactement comme affiché et touchez Supprimer définitivement le compte.\n\nLa suppression du compte efface définitivement vos liens, collections, photos, amis, notifications et plus encore, et ne peut pas être annulée. Les participants ne peuvent plus voir les collections partagées que vous avez créées.\n\nSupprimer votre compte ne résilie pas l’abonnement de la boutique. Résiliez-le d’abord dans Google Play ou l’App Store."
+      },
+      "useOnWeb": {
+        "title": "Utiliser Juple sur le web",
+        "body": "Connectez-vous à juple.co.kr dans le navigateur d’un ordinateur ou d’une tablette avec le même compte pour y retrouver vos liens et collections.\n\nSur le web, vous pouvez aussi enregistrer des liens et utiliser les Archives, les collections, le partage, les amis, les notifications et les réglages. L’enregistrement depuis le menu de partage des autres apps, les raccourcis sur l’écran d’accueil et l’achat d’un abonnement ne sont possibles que dans l’app mobile. Sur le web, vous pouvez consulter l’état de votre abonnement et accéder à la gestion des abonnements de la boutique."
       }
     }
   },
@@ -1392,8 +1463,8 @@
         "body": "Collez un lien ici et touchez le bouton. Juple remplit le titre et l’image quand c’est possible."
       },
       "share": {
-        "title": "Enregistrer depuis n’importe quelle appli",
-        "body": "Dans une autre appli, touchez Partager et choisissez Juple. Le lien est enregistré aussitôt."
+        "title": "Enregistrer directement depuis d’autres apps",
+        "body": "Dans une autre app, touchez Partager et choisissez Juple pour envoyer le lien. Avec l’Enregistrement rapide activé, il est enregistré aussitôt."
       },
       "collections": {
         "title": "Organiser en collections",
@@ -1428,8 +1499,8 @@
         "body": "Passez de l’affichage en liste à la grille ou aux images."
       },
       "longPress": {
-        "title": "Appui long",
-        "body": "Appuyez longuement sur une collection pour gérer favori, notifications, modification, verrouillage, suppression ou départ."
+        "title": "Appui long pour sélectionner",
+        "body": "Appuyez longuement sur une collection pour en sélectionner plusieurs. Utilisez la barre du bas pour verrouiller, supprimer ou quitter ; avec une seule collection, Plus propose les notifications, Partager et Modifier."
       },
       "shareCollection": {
         "title": "Partager une collection",
@@ -1441,7 +1512,7 @@
       },
       "friendsTabs": {
         "title": "Quatre onglets",
-        "body": "Amis, Demandes reçues et Demandes envoyées ont chacun leur onglet."
+        "body": "Amis, Reçues, Envoyées et Utilisateurs bloqués ont chacun leur propre onglet."
       },
       "friendsShared": {
         "title": "Collections partagées",

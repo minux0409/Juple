@@ -1119,83 +1119,110 @@
         "summary": "Los enlaces de hoy y todo lo anterior"
       },
       "viewing": {
-        "title": "Búsqueda, orden y vistas",
-        "summary": "Encuentra enlaces y míralos a tu manera"
+        "title": "Búsqueda y vistas",
+        "summary": "Encuentra enlaces y cambia cómo se ven"
+      },
+      "selection": {
+        "title": "Seleccionar varios",
+        "summary": "Organiza enlaces y colecciones a la vez"
       },
       "collections": {
         "title": "Organizar con colecciones",
         "summary": "Agrupa los enlaces a tu manera"
       },
       "sharing": {
-        "title": "Compartir y trabajar en equipo",
-        "summary": "Comparte una colección y decide quién puede hacer qué"
+        "title": "Compartir y colaborar",
+        "summary": "Comparte colecciones y úsalas en grupo"
       },
       "protection": {
         "title": "Bloqueos y contraseñas",
         "summary": "Protege las colecciones sensibles"
       },
+      "friends": {
+        "title": "Amigos",
+        "summary": "Añade amigos y gestiona solicitudes"
+      },
       "notifications": {
-        "title": "Notificaciones",
-        "summary": "Mantente al día"
+        "title": "Notificaciones y avisos",
+        "summary": "No te pierdas nada"
       },
       "trash": {
         "title": "Eliminar y restaurar",
         "summary": "Recupera los enlaces eliminados"
       },
+      "membership": {
+        "title": "Membresía",
+        "summary": "Prueba gratuita, suscripción, cancelación y restauración"
+      },
       "account": {
         "title": "Cuenta y ajustes",
-        "summary": "Perfil, idioma y más"
+        "summary": "Perfil, idioma, documentos legales, eliminar la cuenta"
       }
     },
     "topics": {
       "pasteShare": {
         "title": "Pegar o compartir un enlace",
-        "body": "Pega una URL en el campo de la parte superior de Inicio. También sirve un texto que contenga un enlace: Juple usa el primero que encuentre.\n\nEn Android también puedes compartir un enlace desde un navegador u otra app directamente a Juple."
+        "body": "Pega una URL en el campo de la parte superior de Inicio y toca el botón de la derecha. También puedes pegar un texto que contenga un enlace; se usa el primer enlace que aparezca.\n\nTambién puedes enviar un enlace desde el navegador u otra app: abre su menú de compartir y elige Juple. Funciona en Android y en iPhone y iPad."
       },
       "quickSave": {
         "title": "Guardado rápido",
-        "body": "Activa Guardado rápido en Mi página para guardar los enlaces compartidos al instante, sin pantalla de revisión.\n\nSi está desactivado, Juple muestra primero el enlace para que edites el título, añadas una nota y elijas colecciones antes de guardar."
+        "body": "Activa Guardado rápido en Mi página y los enlaces que compartas desde otras apps se guardarán al instante, sin la pantalla de revisión.\n\nSi está desactivado, Juple te muestra primero el enlace. Corrige el título, escribe una nota y elige colecciones antes de guardar."
       },
       "review": {
         "title": "Antes de guardar",
-        "body": "Juple rellena el título y la imagen de vista previa cuando puede. Si no puede leerlos, puedes escribir el título tú mismo.\n\nAñade una nota y elige una o varias colecciones, o crea una nueva en el momento. Si una colección requiere aprobación, tu enlace se envía a su propietario como solicitud."
+        "body": "Cuando se puede leer la página pública del enlace, Juple rellena automáticamente el título y la imagen de vista previa. La información que no se puede confirmar nunca se supone, así que escribe tú el título.\n\nAñade una nota y elige una o más colecciones, o crea una en ese momento. En una colección que requiere aprobación, el enlace llega al propietario como solicitud de aprobación."
       },
       "androidShortcuts": {
-        "title": "Accesos directos y compartir directo",
-        "body": "Añade una colección a tu pantalla de inicio desde su menú de pulsación larga para abrirla con un toque. Consulta «Mantén pulsada una colección para gestionarla rápido» en Organizar con colecciones.\n\nLos enlaces compartidos también pueden ir directamente a una colección desde el menú de compartir del teléfono. Las colecciones bloqueadas o con contraseña, o aquellas en las que no puedes añadir enlaces, no aparecen ahí.\n\nCuando una colección aparece como destino para compartir, su menú de pulsación larga tiene «Quitar de los destinos para compartir». Eso solo la quita del menú de compartir. La colección, sus enlaces y cualquier acceso directo que hayas creado se mantienen."
+        "title": "Accesos directos y Compartir directamente",
+        "body": "Mantén pulsada una colección para seleccionarla y toca Acceso directo en la barra inferior para crear un acceso directo a esa colección en la pantalla de inicio. Consulta «Acceso directo en la pantalla de inicio» en Organizar con colecciones.\n\nTambién puedes enviar un enlace directamente a una colección desde el menú de compartir del teléfono. Las colecciones bloqueadas, las que tienen contraseña y aquellas a las que no puedes añadir enlaces no aparecen como destinos.\n\nCuando una colección aparece como destino para compartir, su menú incluye «Quitar de los destinos para compartir». Solo la quita del menú de compartir; la colección, sus enlaces y los accesos directos que hayas creado siguen igual."
       },
       "home": {
         "title": "Inicio",
-        "body": "Inicio muestra los enlaces que guardaste hoy. Toca un enlace para abrir sus detalles y usa los botones de orden y el selector de vista sobre la lista para cambiar cómo se muestran."
+        "body": "Inicio muestra los enlaces que guardaste hoy, de más reciente a más antiguo. El campo de la parte superior se queda fijo al desplazarte, así que puedes guardar un enlace en cualquier momento.\n\nToca un enlace para abrir sus detalles. Usa los botones junto a Recientes para cambiar entre las vistas de lista, cuadrícula e imagen. Toca la campana de Inicio para abrir las notificaciones."
       },
       "archive": {
         "title": "Archivo",
-        "body": "Archivo reúne todos los enlaces que has guardado, agrupados por fecha. Toca una fecha para abrirla o cerrarla y usa la búsqueda para encontrar un enlace más antiguo."
+        "body": "Archivo reúne todos los enlaces que has guardado, agrupados por fecha y de más reciente a más antiguo. Escribe al menos dos caracteres en el campo de búsqueda para encontrar enlaces antiguos."
+      },
+      "linkDetails": {
+        "title": "Detalles y edición de un enlace",
+        "body": "Toca un enlace para abrir sus detalles. Puedes editar el título y la nota, cambiar sus colecciones y la foto de portada, y guardar. Usa el botón de abrir enlace para ir a la página original.\n\nNo puedes editar un enlace que otra persona añadió a una colección compartida. Mantenlo pulsado para seleccionarlo y usa Más > Guardar enlace para guardarlo como tuyo."
       },
       "swipe": {
         "title": "Desliza para acciones rápidas",
-        "body": "Desliza un enlace hacia un lado en Inicio o Archivo para ver acciones rápidas, como compartir y eliminar. Las acciones dependen del enlace: por ejemplo, un enlace de una colección bloqueada no se puede compartir desde aquí."
+        "body": "En las vistas de lista y cuadrícula de Inicio y Archivo, desliza un enlace hacia un lado para ver acciones rápidas como compartir y eliminar. Las acciones dependen del enlace. Por ejemplo, los enlaces de una colección bloqueada no se pueden compartir desde aquí."
       },
       "searchSort": {
-        "title": "Buscar y ordenar",
-        "body": "Archivo y cada colección tienen un cuadro de búsqueda. Ordena por hora (toca de nuevo para alternar entre más reciente y más antiguo primero) o por nombre.\n\nInicio es para los enlaces de hoy, así que se puede ordenar pero no tiene búsqueda."
+        "title": "Búsqueda y orden",
+        "body": "Archivo, la pestaña Colecciones y cada colección tienen un campo de búsqueda. La búsqueda de enlaces empieza cuando escribes al menos dos caracteres. Inicio no tiene búsqueda.\n\nLos enlaces siempre se muestran del más reciente al más antiguo; no hay un botón para cambiar el orden."
       },
       "viewModes": {
         "title": "Vistas de lista, cuadrícula e imagen",
-        "body": "Usa los botones de vista para mostrar los enlaces como lista, cuadrícula o imagen, que muestra fotos en tres columnas. Tu elección se recuerda por separado para Inicio, Archivo y Colecciones."
+        "body": "Usa los botones de vista para ver los enlaces como lista, cuadrícula o imágenes. La vista de imagen muestra las fotos en 3 columnas. En la pestaña Colecciones puedes ver las colecciones como lista o cuadrícula. Cada pantalla recuerda su propia vista.\n\nAl cambiar de vista, la lista vuelve a empezar desde arriba."
+      },
+      "selectLinks": {
+        "title": "Seleccionar varios enlaces",
+        "body": "Mantén pulsado un enlace para empezar a seleccionar; aparecerá una barra de acciones abajo. Toca otros enlaces para añadirlos, y usa Seleccionar todo o el botón de cerrar de arriba para cambiar o terminar la selección.\n\nInicio y Archivo: Cambiar colección define a la vez las colecciones de los enlaces seleccionados, y Eliminar los envía a Eliminados recientemente. En Más tienes copiar enlace y compartir y, con un solo enlace, también abrir enlace y editar.\n\nDentro de una colección: Eliminar (lo quita de esta colección), Mover y Copiar. En una colección compartida solo puedes mover los enlaces que añadiste tú, y puedes denunciar los de otras personas. Si solo algunos salen bien, los que fallaron siguen seleccionados."
+      },
+      "selectCollections": {
+        "title": "Seleccionar varias colecciones",
+        "body": "Mantén pulsada una colección en la pestaña Colecciones para empezar a seleccionar. La barra inferior ofrece bloquear y eliminar o salir. Con una sola colección, en Más puedes activar o desactivar las notificaciones, Compartir y Editar. Los botones que ves dependen de la colección y de tu rol.\n\nTus colecciones se eliminan; de las que otra persona compartió contigo, sales. Si seleccionas de los dos tipos, una sola confirmación muestra los totales y «Eliminar y salir» hace ambas cosas. Las colecciones que fallen siguen seleccionadas.\n\nCon varias seleccionadas, las colecciones bloqueadas se omiten. Para eliminar una colección bloqueada, selecciónala sola e introduce su contraseña. Eliminar una colección no elimina los enlaces que tenía."
       },
       "createCollection": {
-        "title": "Crear una colección",
-        "body": "En la pestaña Colecciones, toca Nueva colección. Elige un nombre, un icono y un color, o usa una foto tuya. Un enlace puede pertenecer a varias colecciones.\n\nMarca colecciones como favoritas para tenerlas juntas arriba."
+        "title": "Crear y editar colecciones",
+        "body": "Toca el botón + en la pestaña Colecciones. Elige un nombre, un icono y un color, o usa una foto tuya. Un mismo enlace puede estar en varias colecciones.\n\nPara cambiar el nombre o el aspecto, selecciona la colección y usa Más > Editar, o el menú de la pantalla de la colección. Solo el propietario puede editarla."
       },
-      "longPress": {
-        "title": "Mantén pulsada una colección para gestionarla rápido",
-        "body": "Mantén pulsada una colección para ver las acciones rápidas. El menú que ves depende de la colección y de tu rol.\n\nFavorito\nReúne las colecciones que abres a menudo. Solo se aplica a ti.\n\nActivar/desactivar notificaciones\nElige si quieres recibir notificaciones de una colección compartida.\n\nEditar\nCambia el nombre, el icono, el color o la foto. Solo el propietario de la colección puede.\n\nBloqueo\nActiva o quita tu bloqueo de una colección. Es distinto de la contraseña de acceso de un enlace compartido.\n\nEliminar / Salir\nLos propietarios eliminan una colección y los miembros salen de ella. Eliminar una colección no elimina los enlaces que contiene.\n\nCompartir\nEl propietario abre la pantalla de compartir; un miembro solo puede pasar el enlace mientras el propietario lo tenga activado.\n\nCon un lector de pantalla, mantén pulsada la colección o elige «Opciones» en el menú de accesibilidad.",
-        "shortcut": "Abre una colección que usas a menudo directamente desde tu pantalla de inicio. Mantenla pulsada y elige «Añadir acceso directo a la pantalla de inicio» para entrar en esa colección desde la pantalla de inicio del teléfono.\n\nUna colección bloqueada sigue pidiendo su contraseña al abrirla desde un acceso directo.\n\nElimina tú mismo el acceso directo de tu pantalla de inicio cuando ya no lo necesites."
+      "favorites": {
+        "title": "Favoritos",
+        "body": "Toca la estrella de una colección para añadirla a Favoritos y vuelve a tocarla para quitarla. Los favoritos solo te afectan a ti.\n\nUsa los botones Favoritos, Todas, Mis colecciones y Compartidas de la parte superior de la pestaña Colecciones para elegir qué colecciones ver."
+      },
+      "homeShortcut": {
+        "title": "Acceso directo en la pantalla de inicio (1×1)",
+        "body": "Mantén pulsada una colección, deja solo esa seleccionada y toca Acceso directo en la barra inferior para crear un icono 1×1 de ella en la pantalla de inicio del teléfono. Al tocar el icono, la colección se abre directamente en Juple.\n\nSolo aparece si tu launcher admite accesos directos en la pantalla de inicio. Una colección bloqueada pide su contraseña aunque la abras desde el icono. Para quitar el icono, elimínalo tú mismo de la pantalla de inicio."
       },
       "manageLinks": {
         "title": "Copiar y mover enlaces",
-        "body": "Abre una colección y usa el menú de más opciones de un enlace para copiarlo a otras colecciones, moverlo o quitarlo de esta colección. Quitarlo no elimina el enlace.\n\nDespués de mover o eliminar, toca Deshacer en el mensaje que aparece."
+        "body": "Abre una colección, mantén pulsados los enlaces para seleccionarlos y usa la barra inferior para moverlos o copiarlos a otra colección. Eliminar solo los quita de esta colección; tus enlaces se conservan.\n\nEn Inicio o Archivo, Cambiar colección cambia a la vez las colecciones de varios enlaces.\n\nJusto después de mover o eliminar, puedes deshacerlo desde el mensaje que aparece."
       },
       "publicLink": {
         "title": "Compartir una colección con un enlace",
@@ -1210,40 +1237,84 @@
         "body": "Solo lectura: puede ver la colección. Con aprobación: puede proponer enlaces, y el propietario los aprueba. Puede añadir enlaces: puede añadirlos directamente. El propietario gestiona la colección, cómo se comparte y el permiso de todos.\n\nEl ajuste de un enlace público es el nivel más bajo que puede tener cualquiera. Puedes dar un nivel más alto a las personas invitadas."
       },
       "joinRequests": {
-        "title": "Solicitudes para unirse",
-        "body": "Cuando el ajuste público de una colección está desactivado, quien abra su enlace puede pedir unirse. El propietario ve la solicitud en la colección y la aprueba, con lo que la persona se añade como solo lectura, o la rechaza. Puede volver a pedirlo más tarde.\n\nDespués de pedir unirte, la colección aparece como «Pendiente de aprobación» en tu pestaña Colecciones hasta que el propietario responda."
+        "title": "Solicitudes para unirse y aprobación pendiente",
+        "body": "Si los Ajustes de colección pública están en OFF, quien abra el enlace puede pedir unirse. El propietario ve las solicitudes en la pantalla de compartir de la colección y las aprueba o rechaza. Quien es aprobado se une como participante de solo lectura. Quien es rechazado puede volver a pedirlo más tarde.\n\nCuando pides unirte, la colección aparece como «Pendiente de aprobación» en tu pestaña Colecciones hasta que el propietario responda. Mantenla pulsada para cancelar tu solicitud."
       },
       "approvals": {
         "title": "Solicitudes de aprobación de enlaces",
         "body": "Son distintas de las solicitudes para unirse. Son enlaces que alguien con permiso «Con aprobación» propone para una colección. El propietario las encuentra en Solicitudes de aprobación recibidas y aprueba o rechaza cada una.\n\nSi propusiste un enlace, búscalo en Solicitudes de aprobación enviadas, donde puedes cancelarlo."
       },
+      "comments": {
+        "title": "Comentarios y reacciones",
+        "body": "Abre un enlace de una colección compartida para dejar comentarios y respuestas, dar me gusta y reaccionar con emojis junto a los demás participantes. Puedes editar o eliminar tus propios comentarios."
+      },
       "collectionLock": {
         "title": "Bloquear una colección",
-        "body": "Define una contraseña de bloqueo en Mi página > Bloqueo de colecciones y luego bloquea una colección desde su menú de pulsación larga. Una colección bloqueada oculta sus enlaces, también en Inicio y Archivo, hasta que introduzcas la contraseña. El bloqueo se aplica a ti, no a las personas con las que compartes."
+        "body": "Primero define una contraseña de bloqueo en Mi página > Bloqueo de colecciones. Después mantén pulsada una colección en la pestaña Colecciones para seleccionarla y toca Bloquear colección en la barra inferior.\n\nUna colección bloqueada no se puede abrir hasta que introduces la contraseña, y sus enlaces también se ocultan en Inicio y Archivo. Para desbloquearla, selecciónala sola e introduce la contraseña.\n\nTambién puedes bloquear una colección que otra persona compartió contigo para que solo tú la veas bloqueada. Este bloqueo solo te afecta a ti, no al propietario ni a los demás participantes."
       },
       "accessPassword": {
         "title": "Contraseña de acceso para compartir",
         "body": "Al compartir una colección también puedes definir una contraseña de acceso. Quien abra la colección compartida debe introducirla. Es independiente de tu propio bloqueo y puedes verla, cambiarla o quitarla en Compartir."
       },
+      "friends": {
+        "title": "Añadir y gestionar amigos",
+        "body": "En Mi página > Amigos están las pestañas Amigos, Recibidas, Enviadas y Usuarios bloqueados. Las pestañas Recibidas y Enviadas muestran cuántas solicitudes hay pendientes.\n\nToca el botón + e introduce el Juple ID de la otra persona para enviarle una solicitud de amistad. Cuando la acepte, seréis amigos. Acepta o rechaza las solicitudes recibidas y cancela las enviadas.\n\nPuedes buscar en tu lista de amigos. Toca a un amigo para ver las colecciones que compartís, y mantenlo pulsado o deslízalo para quitarlo de tus amigos."
+      },
+      "blockReport": {
+        "title": "Bloquear y denunciar",
+        "body": "Puedes bloquear a las personas con las que no quieras interactuar. Al bloquear, no podéis enviaros solicitudes de amistad, invitaciones ni solicitudes para unirse, y en las colecciones compartidas no veis los enlaces que añadió el otro. Los comentarios y reacciones de quien bloqueaste tampoco se te muestran. Los datos guardados no se eliminan, y puedes desbloquear cuando quieras en la pestaña Usuarios bloqueados.\n\nSi bloqueas al propietario de una colección a la que te uniste, sales de esa colección.\n\nPuedes denunciar usuarios, colecciones, enlaces y comentarios problemáticos. El personal de Juple revisa las denuncias, y los datos de quien denuncia nunca se muestran a la otra persona."
+      },
       "notificationCenter": {
         "title": "Notificaciones",
-        "body": "La campana de Inicio abre tus notificaciones, con el número de no leídas. Toca una para ir a lo que trata. Puedes marcarlas todas como leídas o eliminarlas una a una.\n\nActiva o desactiva las notificaciones de cada colección compartida desde su menú de pulsación larga. Si están desactivadas, los avisos siguen apareciendo en la lista, pero no recibirás alertas."
+        "body": "Toca la campana de Inicio para abrir las notificaciones; muestra cuántas no has leído. En la web, ábrelas desde Notificaciones en el menú. Toca una notificación para ir a la pantalla correspondiente. Puedes marcarlas todas como leídas o eliminarlas una a una.\n\nRecibes notificaciones de solicitudes de amistad y respuestas, invitaciones a colecciones, solicitudes para unirse y su resultado, enlaces añadidos a colecciones compartidas, solicitudes de aprobación, y comentarios, respuestas y reacciones.\n\nPuedes activar o desactivar las notificaciones de cada colección compartida. Si están desactivadas, siguen apareciendo en la lista, pero no llega la notificación push."
+      },
+      "notices": {
+        "title": "Avisos",
+        "body": "Los anuncios importantes, como cambios del servicio o de los términos, están en Mi página > Avisos."
       },
       "deleteRestore": {
         "title": "Eliminar y restaurar",
-        "body": "Elimina un enlace deslizándolo o desde sus detalles. Los enlaces eliminados van a Eliminados recientemente en Mi página, donde puedes restaurarlos, eliminarlos definitivamente o vaciar la lista. Los enlaces eliminados definitivamente no se pueden recuperar.\n\nQuitar un enlace de una colección no lo elimina."
+        "body": "Elimina un enlace deslizándolo, seleccionándolo con una pulsación larga o desde sus detalles. Los enlaces eliminados pasan a Eliminados recientemente en Mi página, donde se guardan hasta 30 días, hasta un máximo de 100. Desde ahí puedes restaurarlos, eliminarlos para siempre o vaciar la lista. Los enlaces eliminados para siempre no se pueden recuperar.\n\nQuitar un enlace de una colección no es eliminarlo. Justo después de eliminar una colección, puedes deshacerlo desde el mensaje que aparece."
       },
-      "settings": {
-        "title": "Cuenta y ajustes",
-        "body": "Mi página tiene tu perfil e ID de Juple, idioma, Guardado rápido, Amigos, Bloqueo de colecciones, Eliminados recientemente y la gestión de la cuenta. Contacta con soporte desde el Centro de ayuda.\n\nEn Gestionar cuenta puedes ver cómo inicias sesión y eliminar tu cuenta, lo que elimina definitivamente tu cuenta y tus datos.\n\nCada persona dispone de una prueba de exactamente 30 días (720 horas). Para quienes ya eran miembros comienza al iniciarse el servicio de membresía; para quienes se registren después, en el momento del registro. Después podrás consultar enlaces y colecciones existentes, gestionar la cuenta y las suscripciones, restaurar compras y eliminar la cuenta. Sin una suscripción válida o una membresía gratuita otorgada por un administrador, se restringen acciones principales como guardar, crear y editar.\n\nPuedes cancelar cuando quieras en Google Play > Pagos y suscripciones > Suscripciones. Seguirás teniendo acceso hasta el final del periodo pagado. Puedes cancelar cuando quieras en Ajustes del ID de Apple > Suscripciones. Seguirás teniendo acceso hasta el final del periodo pagado."
+      "trialPeriod": {
+        "title": "Prueba gratuita",
+        "body": "La prueba gratuita es una sola vez por persona y dura exactamente 720 horas (30 días). Los miembros que se registraron antes de las 10:00 del 27 de noviembre de 2026 pueden usarla hasta las 10:00:07 del 27 de diciembre de 2026 (hora de Corea); quienes se registraron después, durante 720 horas desde el momento de su registro.\n\nLa prueba gratuita empieza sin método de pago y, al terminar, nunca se cobra nada ni se convierte sola en una suscripción de pago. Eliminar la cuenta y volver a registrarse no inicia una nueva prueba. Consulta el tiempo restante en Mi página > Membresía."
       },
-      "homeShortcut": {
-        "title": "Acceso directo en la pantalla de inicio (1×1)",
-        "body": "Mantén pulsada una colección y elige «Añadir acceso directo a la pantalla de inicio». En tu pantalla de inicio aparece un icono de 1×1 de esa colección y, al tocarlo, se abre en Juple.\n\nEsta opción solo aparece si tu launcher admite accesos directos en la pantalla de inicio. Una colección bloqueada sigue pidiendo su contraseña. Para quitar el icono, bórralo tú mismo de la pantalla de inicio."
+      "plansBilling": {
+        "title": "Membresía mensual y anual",
+        "body": "La membresía es una suscripción mensual o anual con renovación automática. Se paga con Google Play en Android y con el App Store en iPhone y iPad; no se vende en la web. Los precios y la moneda varían según el país y la tienda; se aplica el importe que muestran la pantalla de membresía y la pantalla de pago de la tienda antes de comprar.\n\nSi te suscribes durante la prueba gratuita, se te cobra ese mismo día y el tiempo gratuito restante no se suma a la suscripción.\n\nLa membresía pertenece a tu cuenta de Juple, así que puedes usarla con la misma cuenta en Android, iPhone y iPad, y en la web. Si te suscribes en las dos tiendas a la vez, se te cobra dos veces, así que cancela una."
+      },
+      "restorePurchases": {
+        "title": "Restaurar compras",
+        "body": "Si reinstalaste la app o cambiaste de dispositivo y tu suscripción no aparece, toca Restaurar compras en la pantalla de membresía. Se vuelve a comprobar la suscripción comprada con la cuenta de la tienda de este dispositivo y se aplica a tu cuenta de Juple.\n\nUna suscripción ya vinculada a otra cuenta de Juple no se traslada."
+      },
+      "cancelSubscription": {
+        "title": "Cancelar la suscripción",
+        "body": "Cancela en la tienda donde pagaste. En Android, ve a Google Play > Pagos y suscripciones > Suscripciones; en iPhone y iPad, ve a Ajustes > Cuenta de Apple > Suscripciones, elige Juple y cancela. La pantalla de membresía también puede llevarte a la página de la tienda.\n\nTras cancelar, puedes seguir usando la membresía hasta el final del periodo que ya pagaste. Los reembolsos siguen la política de la tienda.\n\nCancelar la suscripción y eliminar la cuenta son cosas distintas. Eliminar la app o la cuenta no cancela la suscripción, así que cancélala primero en la tienda."
+      },
+      "afterTrial": {
+        "title": "Cuando termina la prueba",
+        "body": "Cuando la prueba gratuita ha terminado y no tienes una suscripción válida, Juple pasa a ser de solo lectura. Tus enlaces y colecciones guardados no se eliminan y puedes seguir viéndolos.\n\nSigue disponible: ver enlaces y colecciones, abrir los enlaces originales, exportar y eliminar tus datos, salir de colecciones, los ajustes, comprar y restaurar una suscripción, el Centro de ayuda, denunciar y bloquear, y eliminar la cuenta.\n\nRestringido: guardar enlaces nuevos, crear y editar enlaces y colecciones, añadir, mover y copiar enlaces a colecciones, ajustes de compartir e invitaciones, escribir comentarios y reacciones, solicitudes de amistad y acciones similares. Para escribir en una colección compartida, tanto tú como su propietario necesitáis acceso. Si vuelves a suscribirte, todo funciona como antes al instante."
       },
       "profilePhoto": {
-        "title": "Cambiar la foto de perfil",
-        "body": "En Mi página, toca el botón de editar de tu tarjeta de perfil. Elige una foto, muévela y amplíala para ajustarla al círculo y guarda.\n\nTu foto de perfil se muestra a tus amigos y en las colecciones compartidas."
+        "title": "Editar tu perfil",
+        "body": "Toca el botón de editar en la tarjeta de perfil de Mi página para cambiar tu apodo y tu foto de perfil. Tras elegir una foto, muévela y amplíala con los dedos para encajarla en el círculo, y guarda.\n\nTu apodo y tu foto de perfil se ven en las colecciones que compartes con amigos. Tu Juple ID no se puede cambiar."
+      },
+      "settings": {
+        "title": "Idioma y pantalla",
+        "body": "En Mi página > Idioma, elige uno de los 17 idiomas o Usar idioma del sistema. La app cambia a ese idioma al instante.\n\nUsa el interruptor Modo oscuro de Mi página para activar o desactivar la pantalla oscura. En la web, cámbialo en Apariencia, dentro de los ajustes.\n\nEnvía tus consultas desde Mi página > Centro de ayuda y lee las respuestas allí mismo."
+      },
+      "legalDocs": {
+        "title": "Términos del servicio y Política de privacidad",
+        "body": "Abre los Términos del servicio y la Política de privacidad desde Mi página > Centro de ayuda o desde la pantalla de membresía. Se abren como páginas web en el idioma que hayas elegido.\n\nEl original en coreano es el texto jurídicamente vinculante. Los demás idiomas son traducciones de referencia para ayudarte a entenderlo; si difieren, prevalece el original en coreano. Las páginas de traducción de referencia enlazan directamente al original en coreano."
+      },
+      "deleteAccount": {
+        "title": "Eliminar tu cuenta",
+        "body": "En Mi página > Gestionar cuenta > Eliminar cuenta, revisa los datos que se eliminarán y toca Continuar con la eliminación. Vuelve a iniciar sesión para confirmar que eres tú, introduce tu Juple ID tal como aparece y toca Eliminar cuenta para siempre.\n\nEliminar la cuenta borra para siempre tus enlaces, colecciones, fotos, amigos, notificaciones y más, y no se puede deshacer. Los participantes ya no podrán ver las colecciones compartidas que creaste.\n\nEliminar la cuenta no cancela la suscripción de la tienda. Cancélala primero en Google Play o en el App Store."
+      },
+      "useOnWeb": {
+        "title": "Usar Juple en la web",
+        "body": "Inicia sesión en juple.co.kr desde el navegador de un ordenador o una tableta con la misma cuenta para usar allí tus enlaces y colecciones.\n\nEn la web también puedes guardar enlaces y usar Archivo, colecciones, compartir, amigos, notificaciones y ajustes. Guardar desde el menú de compartir de otras apps, los accesos directos en la pantalla de inicio y comprar la membresía solo funcionan en la app móvil. En la web puedes consultar el estado de tu membresía e ir a la gestión de suscripciones de la tienda."
       }
     }
   },
@@ -1392,8 +1463,8 @@
         "body": "Pega aquí un enlace y toca el botón. Juple completa el título y la imagen cuando puede."
       },
       "share": {
-        "title": "Guardar desde cualquier app",
-        "body": "En otra app, toca Compartir y elige Juple. El enlace se guarda al instante."
+        "title": "Guarda directamente desde otras apps",
+        "body": "En otra app, toca Compartir y elige Juple para enviar el enlace. Con Guardado rápido activado, se guarda al instante."
       },
       "collections": {
         "title": "Organiza en colecciones",
@@ -1428,8 +1499,8 @@
         "body": "Cambia entre vista de lista, cuadrícula e imagen."
       },
       "longPress": {
-        "title": "Mantener pulsado",
-        "body": "Mantén pulsada una colección para marcarla como favorita, ajustar notificaciones, editar, bloquear, eliminar o salir."
+        "title": "Mantén pulsado para seleccionar",
+        "body": "Mantén pulsada una colección para seleccionar varias. Usa la barra inferior para bloquear, eliminar o salir; con una sola colección, en Más tienes notificaciones, Compartir y Editar."
       },
       "shareCollection": {
         "title": "Compartir una colección",
@@ -1441,7 +1512,7 @@
       },
       "friendsTabs": {
         "title": "Cuatro pestañas",
-        "body": "Amigos, Solicitudes recibidas y Solicitudes enviadas tienen cada uno su pestaña."
+        "body": "Amigos, Recibidas, Enviadas y Usuarios bloqueados tienen cada una su propia pestaña."
       },
       "friendsShared": {
         "title": "Colecciones compartidas",

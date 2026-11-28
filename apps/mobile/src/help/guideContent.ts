@@ -1,11 +1,14 @@
 import type { ComponentType } from 'react';
 import { ArchiveIcon } from '../icons/ArchiveIcon';
 import { BellIcon } from '../icons/BellIcon';
+import { CheckIcon } from '../icons/CheckIcon';
+import { CreditCardIcon } from '../icons/CreditCardIcon';
 import { FolderIcon } from '../icons/FolderIcon';
 import { LinkIcon } from '../icons/LinkIcon';
 import { LockIcon } from '../icons/LockIcon';
 import { PeopleIcon } from '../icons/PeopleIcon';
 import { SearchIcon } from '../icons/SearchIcon';
+import { ShareIcon } from '../icons/ShareIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { UserIcon } from '../icons/UserIcon';
 
@@ -46,27 +49,39 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       { id: 'androidShortcuts', requires: 'directShare' },
     ],
   },
-  { id: 'homeArchive', icon: ArchiveIcon, topics: [{ id: 'home' }, { id: 'archive' }, { id: 'swipe' }] },
+  { id: 'homeArchive', icon: ArchiveIcon, topics: [{ id: 'home' }, { id: 'archive' }, { id: 'linkDetails' }, { id: 'swipe' }] },
   { id: 'viewing', icon: SearchIcon, topics: [{ id: 'searchSort' }, { id: 'viewModes' }] },
+  // Long-press starts multi-selection (links and Collections); the bottom bar's actions are explained here once.
+  { id: 'selection', icon: CheckIcon, topics: [{ id: 'selectLinks' }, { id: 'selectCollections' }] },
   {
     id: 'collections',
     icon: FolderIcon,
     topics: [
       { id: 'createCollection' },
-      { id: 'longPress', extra: { key: 'shortcut', requires: 'homePin' } },
+      { id: 'favorites' },
       { id: 'homeShortcut', requires: 'homePin' },
       { id: 'manageLinks' },
     ],
   },
   {
     id: 'sharing',
-    icon: PeopleIcon,
-    topics: [{ id: 'publicLink' }, { id: 'invite' }, { id: 'roles' }, { id: 'joinRequests' }, { id: 'approvals' }],
+    icon: ShareIcon,
+    topics: [{ id: 'publicLink' }, { id: 'invite' }, { id: 'roles' }, { id: 'joinRequests' }, { id: 'approvals' }, { id: 'comments' }],
   },
   { id: 'protection', icon: LockIcon, topics: [{ id: 'collectionLock' }, { id: 'accessPassword' }] },
-  { id: 'notifications', icon: BellIcon, topics: [{ id: 'notificationCenter' }] },
+  { id: 'friends', icon: PeopleIcon, topics: [{ id: 'friends' }, { id: 'blockReport' }] },
+  { id: 'notifications', icon: BellIcon, topics: [{ id: 'notificationCenter' }, { id: 'notices' }] },
   { id: 'trash', icon: TrashIcon, topics: [{ id: 'deleteRestore' }] },
-  { id: 'account', icon: UserIcon, topics: [{ id: 'profilePhoto' }, { id: 'settings' }] },
+  {
+    id: 'membership',
+    icon: CreditCardIcon,
+    topics: [{ id: 'trialPeriod' }, { id: 'plansBilling' }, { id: 'restorePurchases' }, { id: 'cancelSubscription' }, { id: 'afterTrial' }],
+  },
+  {
+    id: 'account',
+    icon: UserIcon,
+    topics: [{ id: 'profilePhoto' }, { id: 'settings' }, { id: 'legalDocs' }, { id: 'deleteAccount' }, { id: 'useOnWeb' }],
+  },
 ];
 
 export function findGuideSection(id: string): GuideSection | undefined {

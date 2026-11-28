@@ -1119,83 +1119,110 @@
         "summary": "Os links de hoje e tudo o que veio antes"
       },
       "viewing": {
-        "title": "Busca, ordem e visualizações",
-        "summary": "Encontre links e veja do seu jeito"
+        "title": "Busca e visualizações",
+        "summary": "Encontre links e mude a forma de vê-los"
+      },
+      "selection": {
+        "title": "Selecionar vários",
+        "summary": "Organize links e coleções de uma vez"
       },
       "collections": {
         "title": "Organizar com coleções",
         "summary": "Agrupe links do seu jeito"
       },
       "sharing": {
-        "title": "Compartilhamento e trabalho em equipe",
-        "summary": "Compartilhe uma coleção e decida quem pode fazer o quê"
+        "title": "Compartilhamento e colaboração",
+        "summary": "Compartilhe coleções e use-as em conjunto"
       },
       "protection": {
         "title": "Bloqueios e senhas",
         "summary": "Proteja coleções sensíveis"
       },
+      "friends": {
+        "title": "Amigos",
+        "summary": "Adicione amigos e gerencie pedidos"
+      },
       "notifications": {
-        "title": "Notificações",
-        "summary": "Fique por dentro"
+        "title": "Notificações e avisos",
+        "summary": "Não perca nada"
       },
       "trash": {
         "title": "Excluir e restaurar",
         "summary": "Recupere links excluídos"
       },
+      "membership": {
+        "title": "Assinatura",
+        "summary": "Teste gratuito, assinatura, cancelamento e restauração"
+      },
       "account": {
         "title": "Conta e configurações",
-        "summary": "Perfil, idioma e mais"
+        "summary": "Perfil, idioma, documentos legais, exclusão da conta"
       }
     },
     "topics": {
       "pasteShare": {
         "title": "Colar ou compartilhar um link",
-        "body": "Cole uma URL no campo no topo do Início. Um texto que contenha um link também funciona: o Juple usa o primeiro que encontrar.\n\nNo Android, você também pode compartilhar um link de um navegador ou de outro app direto para o Juple."
+        "body": "Cole uma URL no campo no topo do Início e toque no botão à direita. Você também pode colar um texto que contenha um link; o primeiro link do texto é usado.\n\nTambém dá para enviar um link de um navegador ou de outro app: abra o menu de compartilhamento e escolha Juple. Funciona no Android e no iPhone e iPad."
       },
       "quickSave": {
         "title": "Salvamento rápido",
-        "body": "Ative o Salvamento rápido em Minha página para salvar links compartilhados na hora, sem tela de revisão.\n\nCom ele desativado, o Juple mostra o link primeiro para você editar o título, adicionar uma nota e escolher coleções antes de salvar."
+        "body": "Ative o Salvamento rápido em Minha página e os links compartilhados de outros apps são salvos na hora, sem a tela de revisão.\n\nQuando está desativado, o Juple mostra o link primeiro. Corrija o título, escreva uma nota e escolha as coleções antes de salvar."
       },
       "review": {
         "title": "Antes de salvar",
-        "body": "O Juple preenche o título e a imagem de prévia quando consegue. Se não conseguir lê-los, você pode digitar o título.\n\nAdicione uma nota e escolha uma ou mais coleções, ou crie uma nova na hora. Se uma coleção exigir aprovação, seu link é enviado ao proprietário como solicitação."
+        "body": "Quando a página pública do link pode ser lida, o Juple preenche automaticamente o título e a imagem de pré-visualização. Informações que não podem ser confirmadas nunca são adivinhadas; nesse caso, digite o título você mesmo.\n\nEscreva uma nota e escolha uma ou mais coleções, ou crie uma na hora. Em uma coleção que exige aprovação, o link chega ao proprietário como pedido de aprovação."
       },
       "androidShortcuts": {
-        "title": "Atalhos e compartilhamento direto",
-        "body": "Adicione uma coleção à tela inicial pelo menu de pressionar e segurar para abri-la com um toque. Veja «Mantenha uma coleção pressionada para gerenciar rápido» em Organizar com coleções.\n\nLinks compartilhados também podem ir direto para uma coleção pelo menu de compartilhar do telefone. Coleções bloqueadas ou com senha, ou nas quais você não pode adicionar links, não aparecem ali.\n\nQuando uma coleção aparece como destino de compartilhamento, o menu de pressionar e segurar tem «Remover dos destinos de compartilhamento». Isso apenas a tira do menu de compartilhar. A coleção, seus links e qualquer atalho da tela inicial que você criou continuam como estão."
+        "title": "Atalhos e Compartilhamento direto",
+        "body": "Toque e segure uma coleção para selecioná-la e toque em Atalho na barra inferior para criar um atalho dessa coleção na tela inicial. Veja «Atalho na tela inicial» em Organizar com coleções.\n\nVocê também pode enviar um link direto para uma coleção pelo menu de compartilhamento do celular. Coleções bloqueadas, com senha ou às quais você não pode adicionar links não aparecem como destinos.\n\nQuando uma coleção aparece como destino de compartilhamento, o menu dela tem «Remover dos destinos de compartilhamento». Isso só a tira do menu de compartilhamento; a coleção, os links e os atalhos criados continuam iguais."
       },
       "home": {
         "title": "Início",
-        "body": "O Início mostra os links que você salvou hoje. Toque em um link para abrir os detalhes e use os botões de ordem e a troca de visualização acima da lista para mudar como eles aparecem."
+        "body": "O Início mostra os links salvos hoje, do mais recente ao mais antigo. O campo do topo fica fixo enquanto você rola a tela, então dá para salvar um link a qualquer momento.\n\nToque em um link para abrir os detalhes. Use os botões ao lado de Recentes para alternar entre as visualizações em lista, grade e imagem. Toque no sino do Início para abrir as notificações."
       },
       "archive": {
         "title": "Arquivo",
-        "body": "O Arquivo reúne todos os links que você salvou, agrupados por data. Toque em uma data para abrir ou fechar e use a busca para achar um link mais antigo."
+        "body": "O Arquivo reúne todos os links que você já salvou, agrupados por data, do mais recente ao mais antigo. Digite pelo menos dois caracteres no campo de busca para encontrar links antigos."
+      },
+      "linkDetails": {
+        "title": "Detalhes e edição do link",
+        "body": "Toque em um link para abrir os detalhes. Você pode editar o título e a nota, trocar as coleções e a foto de capa e salvar. Use o botão de abrir link para ir à página original.\n\nVocê não pode editar um link que outra pessoa adicionou a uma coleção compartilhada. Toque e segure para selecioná-lo e use Mais > Salvar link para salvá-lo como seu."
       },
       "swipe": {
         "title": "Deslize para ações rápidas",
-        "body": "Deslize um link para o lado no Início ou no Arquivo para mostrar ações rápidas, como compartilhar e excluir. As ações dependem do link: por exemplo, um link de uma coleção bloqueada não pode ser compartilhado daqui."
+        "body": "Nas visualizações em lista e em grade do Início e do Arquivo, deslize um link para o lado para ver ações rápidas como compartilhar e excluir. As ações dependem do link. Por exemplo, links de uma coleção bloqueada não podem ser compartilhados por aqui."
       },
       "searchSort": {
-        "title": "Buscar e ordenar",
-        "body": "O Arquivo e cada coleção têm uma caixa de busca. Ordene por horário (toque de novo para alternar entre mais recente e mais antigo primeiro) ou por nome.\n\nO Início é para os links de hoje, então dá para ordenar, mas não há busca."
+        "title": "Busca e ordem",
+        "body": "O Arquivo, a aba Coleções e cada coleção têm um campo de busca. A busca de links começa quando você digita pelo menos dois caracteres. O Início não tem busca.\n\nOs links são sempre mostrados do mais recente ao mais antigo; não há um botão para mudar a ordem."
       },
       "viewModes": {
         "title": "Visualizações em lista, grade e imagem",
-        "body": "Use os botões de visualização para mostrar os links em lista, grade ou imagem, que exibe fotos em três colunas. Sua escolha é lembrada separadamente para Início, Arquivo e Coleções."
+        "body": "Use os botões de visualização para ver os links em lista, grade ou imagens. A visualização em imagem mostra as fotos em 3 colunas. Na aba Coleções, dá para ver as coleções em lista ou grade. Cada tela guarda a própria visualização.\n\nAo trocar de visualização, a lista recomeça do topo."
+      },
+      "selectLinks": {
+        "title": "Selecionar vários links",
+        "body": "Toque e segure um link para começar a selecionar; uma barra de ações aparece embaixo. Toque em outros links para adicioná-los e use Selecionar tudo ou o botão de fechar no topo para mudar ou encerrar a seleção.\n\nInício e Arquivo: Alterar coleção define de uma vez as coleções dos links selecionados, e Excluir os envia para Excluídos recentemente. Em Mais há copiar link e compartilhar e, com um só link, também abrir link e editar.\n\nDentro de uma coleção: Excluir (tira desta coleção), Mover e Copiar. Em uma coleção compartilhada, você só pode mover os links que você adicionou e pode denunciar os de outras pessoas. Se só uma parte der certo, os itens que falharam continuam selecionados."
+      },
+      "selectCollections": {
+        "title": "Selecionar várias coleções",
+        "body": "Toque e segure uma coleção na aba Coleções para começar a selecionar. A barra inferior oferece bloquear e excluir ou sair. Com uma só coleção, Mais permite ativar ou desativar as notificações, Compartilhar e Editar. Os botões que aparecem dependem da coleção e do seu papel.\n\nSuas próprias coleções são excluídas; das coleções que outra pessoa compartilhou com você, você sai. Se selecionar os dois tipos, uma única confirmação mostra as quantidades e «Excluir e sair» faz as duas coisas. As coleções que falharem continuam selecionadas.\n\nCom várias selecionadas, as coleções bloqueadas são ignoradas. Para excluir uma coleção bloqueada, selecione só ela e digite a senha. Excluir uma coleção não exclui os links que estavam nela."
       },
       "createCollection": {
-        "title": "Criar uma coleção",
-        "body": "Na aba Coleções, toque em Nova coleção. Escolha um nome, um ícone e uma cor, ou use uma foto sua. Um link pode pertencer a várias coleções.\n\nMarque coleções como favoritas para mantê-las juntas no topo."
+        "title": "Criar e editar coleções",
+        "body": "Toque no botão + na aba Coleções. Escolha um nome, um ícone e uma cor, ou use uma foto sua. Um mesmo link pode estar em várias coleções.\n\nPara mudar o nome ou a aparência, selecione a coleção e use Mais > Editar, ou o menu da tela da coleção. Só o proprietário pode editá-la."
       },
-      "longPress": {
-        "title": "Mantenha uma coleção pressionada para gerenciar rápido",
-        "body": "Mantenha uma coleção pressionada para ver as ações rápidas. O menu que você vê depende da coleção e do seu papel.\n\nFavorito\nReúna as coleções que você abre com frequência. Vale só para você.\n\nAtivar/desativar notificações\nEscolha se quer receber notificações de uma coleção compartilhada.\n\nEditar\nMude o nome, o ícone, a cor ou a foto. Só o proprietário da coleção pode.\n\nBloqueio\nDefina ou remova o seu bloqueio de uma coleção. É diferente da senha de acesso de um link compartilhado.\n\nExcluir / Sair\nProprietários excluem uma coleção e membros saem dela. Excluir uma coleção não exclui os links que estão nela.\n\nCompartilhar\nO dono abre a tela de compartilhamento; um membro só pode repassar o link enquanto o dono o mantiver ativado.\n\nCom um leitor de tela, mantenha a coleção pressionada ou escolha «Opções» no menu de acessibilidade.",
-        "shortcut": "Abra uma coleção que você usa muito direto da tela inicial. Mantenha-a pressionada e escolha «Adicionar atalho à tela inicial» para entrar nessa coleção pela tela inicial do telefone.\n\nUma coleção bloqueada continua pedindo a senha ao ser aberta por um atalho.\n\nExclua você mesmo o atalho da tela inicial quando não precisar mais dele."
+      "favorites": {
+        "title": "Favoritos",
+        "body": "Toque na estrela de uma coleção para adicioná-la aos Favoritos e toque de novo para remover. Os favoritos valem só para você.\n\nUse os botões Favoritos, Todas, Minhas coleções e Compartilhadas no topo da aba Coleções para escolher quais coleções aparecem."
+      },
+      "homeShortcut": {
+        "title": "Atalho na tela inicial (1×1)",
+        "body": "Toque e segure uma coleção, deixe só ela selecionada e toque em Atalho na barra inferior para criar um ícone 1×1 dessa coleção na tela inicial do celular. Ao tocar no ícone, a coleção abre direto no Juple.\n\nIsso só aparece se o seu launcher suportar atalhos na tela inicial. Uma coleção bloqueada pede a senha mesmo quando aberta pelo ícone. Para remover o ícone, exclua-o você mesmo da tela inicial."
       },
       "manageLinks": {
         "title": "Copiar e mover links",
-        "body": "Abra uma coleção e use o menu «mais» de um link para copiá-lo para outras coleções, movê-lo ou removê-lo desta coleção. Remover não exclui o link.\n\nDepois de mover ou excluir, toque em Desfazer na mensagem exibida."
+        "body": "Abra uma coleção, toque e segure links para selecioná-los e use a barra inferior para movê-los ou copiá-los para outra coleção. Excluir só os tira desta coleção; seus links continuam guardados.\n\nNo Início ou no Arquivo, Alterar coleção muda de uma vez as coleções de vários links.\n\nLogo depois de mover ou excluir, dá para desfazer pela mensagem que aparece."
       },
       "publicLink": {
         "title": "Compartilhar uma coleção por link",
@@ -1210,40 +1237,84 @@
         "body": "Somente leitura: pode ver a coleção. Com aprovação: pode sugerir links, e o proprietário aprova. Pode adicionar links: pode adicioná-los diretamente. O proprietário gerencia a coleção, o compartilhamento e a permissão de todos.\n\nA configuração de um link público é o nível mais baixo que qualquer pessoa pode ter. Você pode dar um nível mais alto às pessoas convidadas."
       },
       "joinRequests": {
-        "title": "Pedidos para participar",
-        "body": "Quando a configuração pública de uma coleção está desativada, quem abrir o link pode pedir para participar. O proprietário vê o pedido na coleção e o aprova, o que adiciona a pessoa como somente leitura, ou o recusa. A pessoa pode pedir de novo mais tarde.\n\nDepois que você pede para participar, a coleção aparece como «Aguardando aprovação» na sua aba Coleções até o proprietário responder."
+        "title": "Pedidos de participação e aguardando aprovação",
+        "body": "Quando as Configurações da coleção pública estão em OFF, quem abre o link pode pedir para participar. O proprietário vê os pedidos na tela de compartilhamento da coleção e os aprova ou recusa. Quem é aprovado entra como participante somente leitura. Quem é recusado pode pedir de novo mais tarde.\n\nQuando você pede para participar, a coleção aparece como «Aguardando aprovação» na sua aba Coleções até o proprietário responder. Toque e segure para cancelar o pedido."
       },
       "approvals": {
         "title": "Solicitações de aprovação de links",
         "body": "São diferentes dos pedidos para participar. São links que alguém com a permissão «Com aprovação» sugere para uma coleção. O proprietário os encontra em Solicitações de aprovação recebidas e aprova ou recusa cada um.\n\nSe você sugeriu um link, encontre-o em Solicitações de aprovação enviadas, onde é possível cancelá-lo."
       },
+      "comments": {
+        "title": "Comentários e reações",
+        "body": "Abra um link de uma coleção compartilhada para deixar comentários e respostas, curtir e reagir com emojis junto com os outros participantes. Você pode editar ou excluir os seus próprios comentários."
+      },
       "collectionLock": {
         "title": "Bloquear uma coleção",
-        "body": "Defina uma senha de bloqueio em Minha página > Bloqueio de coleções e depois bloqueie uma coleção pelo menu de pressionar e segurar. Uma coleção bloqueada oculta seus links, também no Início e no Arquivo, até você digitar a senha. O bloqueio vale para você, não para as pessoas com quem você compartilha."
+        "body": "Primeiro defina uma senha de bloqueio em Minha página > Bloqueio de coleções. Depois toque e segure uma coleção na aba Coleções para selecioná-la e toque em Bloquear coleção na barra inferior.\n\nUma coleção bloqueada não abre até você digitar a senha, e os links dela também ficam ocultos no Início e no Arquivo. Para desbloquear, selecione só essa coleção e digite a senha.\n\nVocê também pode bloquear uma coleção que outra pessoa compartilhou com você, só para você. Esse bloqueio vale apenas para você e não afeta o proprietário nem os outros participantes."
       },
       "accessPassword": {
         "title": "Senha de acesso para compartilhar",
         "body": "Ao compartilhar uma coleção, você também pode definir uma senha de acesso. Quem abrir a coleção compartilhada precisa digitá-la. Ela é separada do seu próprio bloqueio, e você pode vê-la, alterá-la ou removê-la em Compartilhar."
       },
+      "friends": {
+        "title": "Adicionar e gerenciar amigos",
+        "body": "Em Minha página > Amigos ficam as abas Amigos, Recebidos, Enviados e Usuários bloqueados. As abas Recebidos e Enviados mostram quantos pedidos estão aguardando.\n\nToque no botão + e digite o Juple ID da outra pessoa para enviar um pedido de amizade. Quando ela aceitar, vocês viram amigos. Aceite ou recuse os pedidos recebidos e cancele os enviados.\n\nVocê pode buscar na sua lista de amigos. Toque em um amigo para ver as coleções que vocês compartilham, e toque e segure ou deslize um amigo para removê-lo da lista."
+      },
+      "blockReport": {
+        "title": "Bloquear e denunciar",
+        "body": "Você pode bloquear pessoas com quem não quer interagir. Depois do bloqueio, vocês não podem trocar pedidos de amizade, convites nem pedidos de participação, e nas coleções compartilhadas não veem os links que o outro adicionou. Os comentários e reações de quem você bloqueou também não aparecem para você. Os dados salvos não são excluídos, e você pode desbloquear quando quiser na aba Usuários bloqueados.\n\nSe você bloquear o proprietário de uma coleção da qual participa, você sai dessa coleção.\n\nVocê pode denunciar usuários, coleções, links e comentários problemáticos. A equipe do Juple analisa as denúncias, e os dados de quem denuncia nunca são mostrados à outra pessoa."
+      },
       "notificationCenter": {
         "title": "Notificações",
-        "body": "O sino no Início abre suas notificações, com o número de não lidas. Toque em uma para ir ao assunto. Você pode marcar todas como lidas ou excluir uma a uma.\n\nAtive ou desative as notificações de cada coleção compartilhada pelo menu de pressionar e segurar. Com elas desativadas, os itens ainda aparecem na lista, mas você não recebe alertas."
+        "body": "Toque no sino do Início para abrir as notificações; ele mostra quantas não foram lidas. Na web, abra-as em Notificações no menu. Toque em uma notificação para ir à tela relacionada. Você pode marcar todas como lidas ou excluí-las uma a uma.\n\nVocê é notificado sobre pedidos de amizade e respostas, convites para coleções, pedidos de participação e o resultado deles, links adicionados a coleções compartilhadas, pedidos de aprovação, e comentários, respostas e reações.\n\nVocê pode ativar ou desativar as notificações de cada coleção compartilhada. Quando desativadas, elas continuam na lista, mas a notificação push não chega."
+      },
+      "notices": {
+        "title": "Avisos",
+        "body": "Comunicados importantes, como mudanças no serviço ou nos termos, ficam em Minha página > Avisos."
       },
       "deleteRestore": {
         "title": "Excluir e restaurar",
-        "body": "Exclua um link deslizando-o ou pelos detalhes. Links excluídos vão para Excluídos recentemente em Minha página, onde você pode restaurá-los, excluí-los de vez ou esvaziar a lista. Links excluídos de vez não podem ser recuperados.\n\nRemover um link de uma coleção não o exclui."
+        "body": "Exclua um link deslizando, selecionando com um toque longo ou pelos detalhes. Os links excluídos vão para Excluídos recentemente, em Minha página, onde ficam por até 30 dias, até 100 links. De lá você pode restaurá-los, excluí-los permanentemente ou esvaziar a lista. Links excluídos permanentemente não podem ser recuperados.\n\nTirar um link de uma coleção não é excluí-lo. Logo depois de excluir uma coleção, dá para desfazer pela mensagem que aparece."
       },
-      "settings": {
-        "title": "Conta e configurações",
-        "body": "Minha página tem seu perfil e ID Juple, idioma, Salvamento rápido, Amigos, Bloqueio de coleções, Excluídos recentemente e o gerenciamento da conta. Fale com o suporte pela Central de ajuda.\n\nEm Gerenciar conta você vê como faz login e pode excluir sua conta, o que exclui de vez sua conta e seus dados.\n\nCada pessoa tem um teste de exatamente 30 dias (720 horas), uma única vez. Para membros existentes, começa no início do serviço de assinatura; para quem se cadastrar depois, no instante do cadastro. Depois, você ainda pode consultar links e coleções existentes, gerenciar conta e assinaturas, restaurar compras e excluir a conta. Sem assinatura válida ou acesso gratuito concedido por administrador, ações principais de gravação, como salvar, criar e editar, ficam restritas.\n\nCancele quando quiser em Google Play > Pagamentos e assinaturas > Assinaturas. Você mantém o acesso até o fim do período pago. Cancele quando quiser em Ajustes do ID Apple > Assinaturas. Você mantém o acesso até o fim do período pago."
+      "trialPeriod": {
+        "title": "Teste gratuito",
+        "body": "O teste gratuito é concedido uma única vez por pessoa e dura exatamente 720 horas (30 dias). Membros cadastrados antes das 10h de 27 de novembro de 2026 podem usá-lo até as 10h00min07s de 27 de dezembro de 2026 (horário da Coreia); quem se cadastrou depois, por 720 horas a partir do cadastro.\n\nO teste gratuito começa sem forma de pagamento e, ao terminar, nunca é feita uma cobrança nem ele vira sozinho uma assinatura paga. Excluir a conta e se cadastrar de novo não inicia um novo teste. Veja o tempo restante em Minha página > Assinatura."
       },
-      "homeShortcut": {
-        "title": "Atalho na tela inicial (1×1)",
-        "body": "Toque e segure uma coleção e escolha “Adicionar atalho à tela inicial”. Um ícone 1×1 dessa coleção aparece na tela inicial e, ao tocá-lo, a coleção abre no Juple.\n\nEssa opção só aparece quando o seu launcher aceita atalhos na tela inicial. Uma coleção bloqueada continua pedindo a senha. Para remover o ícone, apague-o você mesmo da tela inicial."
+      "plansBilling": {
+        "title": "Assinatura mensal e anual",
+        "body": "A assinatura é mensal ou anual, com renovação automática. O pagamento é feito pelo Google Play no Android e pela App Store no iPhone e iPad; ela não é vendida na web. Preços e moedas variam conforme o país e a loja; vale o valor mostrado na tela de assinatura e na tela de pagamento da loja antes da compra.\n\nSe você assinar durante o teste gratuito, a cobrança é feita no mesmo dia e o tempo gratuito restante não é somado à assinatura.\n\nA assinatura pertence à sua conta Juple, então você pode usá-la com a mesma conta no Android, no iPhone e iPad e na web. Assinar nas duas lojas ao mesmo tempo gera duas cobranças; cancele uma delas."
+      },
+      "restorePurchases": {
+        "title": "Restaurar compras",
+        "body": "Se você reinstalou o app ou trocou de aparelho e a assinatura não aparece, toque em Restaurar compras na tela de assinatura. A assinatura comprada com a conta da loja deste aparelho é verificada de novo e aplicada à sua conta Juple.\n\nUma assinatura já vinculada a outra conta Juple não é transferida."
+      },
+      "cancelSubscription": {
+        "title": "Cancelar a assinatura",
+        "body": "Cancele na loja em que você pagou. No Android, vá em Google Play > Pagamentos e assinaturas > Assinaturas; no iPhone e iPad, vá em Ajustes > Conta Apple > Assinaturas, escolha Juple e cancele. A tela de assinatura também pode levar você à página da loja.\n\nDepois de cancelar, você continua usando a assinatura até o fim do período já pago. Reembolsos seguem a política da loja.\n\nCancelar a assinatura e excluir a conta são coisas diferentes. Excluir o app ou a conta não cancela a assinatura; cancele-a primeiro na loja."
+      },
+      "afterTrial": {
+        "title": "Depois do teste",
+        "body": "Quando o teste gratuito termina e você não tem uma assinatura válida, o Juple passa a ser somente leitura. Seus links e coleções salvos não são excluídos e continuam visíveis.\n\nContinua disponível: ver links e coleções, abrir os links originais, exportar e excluir seus dados, sair de coleções, as configurações, comprar e restaurar uma assinatura, a Central de ajuda, denunciar e bloquear, e excluir a conta.\n\nRestrito: salvar novos links, criar e editar links e coleções, adicionar, mover e copiar links para coleções, configurações de compartilhamento e convites, escrever comentários e reações, pedidos de amizade e ações parecidas. Para escrever em uma coleção compartilhada, você e o proprietário precisam ter acesso. Assine de novo e tudo volta a funcionar como antes na hora."
       },
       "profilePhoto": {
-        "title": "Trocar a foto de perfil",
-        "body": "Em Minha página, toque no botão de editar do cartão de perfil. Escolha uma foto, mova e amplie para ajustar ao círculo e salve.\n\nSua foto de perfil aparece para os amigos e nas coleções compartilhadas."
+        "title": "Editar o perfil",
+        "body": "Toque no botão de editar no cartão de perfil em Minha página para mudar seu apelido e sua foto de perfil. Depois de escolher a foto, mova e amplie com os dedos para encaixá-la no círculo e salve.\n\nSeu apelido e sua foto de perfil aparecem nas coleções que você compartilha com amigos. O Juple ID não pode ser alterado."
+      },
+      "settings": {
+        "title": "Idioma e exibição",
+        "body": "Em Minha página > Idioma, escolha um dos 17 idiomas ou Usar idioma do sistema. O app muda para esse idioma na hora.\n\nUse o botão Modo escuro em Minha página para ativar ou desativar a tela escura. Na web, mude em Aparência, nas configurações.\n\nEnvie suas dúvidas em Minha página > Central de ajuda e veja as respostas lá mesmo."
+      },
+      "legalDocs": {
+        "title": "Termos de Serviço e Política de Privacidade",
+        "body": "Abra os Termos de Serviço e a Política de Privacidade em Minha página > Central de ajuda ou na tela de assinatura. Eles abrem como páginas da web no idioma que você escolheu.\n\nO texto juridicamente vinculante é o original em coreano. Os outros idiomas são traduções de referência para ajudar na compreensão; se houver diferença, prevalece o original em coreano. As páginas com tradução de referência levam direto ao original em coreano."
+      },
+      "deleteAccount": {
+        "title": "Excluir a conta",
+        "body": "Em Minha página > Gerenciar conta > Excluir conta, confira os dados que serão excluídos e toque em Continuar exclusão da conta. Entre novamente para confirmar que é você, digite seu Juple ID exatamente como aparece e toque em Excluir conta permanentemente.\n\nExcluir a conta apaga para sempre seus links, coleções, fotos, amigos, notificações e mais, e não pode ser desfeito. Os participantes não poderão mais ver as coleções compartilhadas que você criou.\n\nExcluir a conta não cancela a assinatura da loja. Cancele-a primeiro no Google Play ou na App Store."
+      },
+      "useOnWeb": {
+        "title": "Usar o Juple na web",
+        "body": "Entre em juple.co.kr pelo navegador de um computador ou tablet com a mesma conta para usar lá seus links e coleções.\n\nNa web também dá para salvar links e usar Arquivo, coleções, compartilhamento, amigos, notificações e configurações. Salvar pelo menu de compartilhamento de outros apps, atalhos na tela inicial e comprar a assinatura só funcionam no app para celular. Na web você pode ver o status da assinatura e ir para o gerenciamento de assinaturas da loja."
       }
     }
   },
@@ -1392,8 +1463,8 @@
         "body": "Cole um link aqui e toque no botão. O Juple preenche o título e a imagem quando possível."
       },
       "share": {
-        "title": "Salvar de qualquer app",
-        "body": "Em outro app, toque em Compartilhar e escolha o Juple. O link é salvo na hora."
+        "title": "Salve direto de outros apps",
+        "body": "Em outro app, toque em Compartilhar e escolha Juple para enviar o link. Com o Salvamento rápido ativado, ele é salvo na hora."
       },
       "collections": {
         "title": "Organize em coleções",
@@ -1428,8 +1499,8 @@
         "body": "Alterne entre lista, grade e imagens."
       },
       "longPress": {
-        "title": "Toque e segure",
-        "body": "Toque e segure uma coleção para favorito, notificações, editar, bloquear, excluir ou sair."
+        "title": "Toque e segure para selecionar",
+        "body": "Toque e segure uma coleção para selecionar várias. Use a barra inferior para bloquear, excluir ou sair; com uma só coleção, Mais tem notificações, Compartilhar e Editar."
       },
       "shareCollection": {
         "title": "Compartilhar uma coleção",
@@ -1441,7 +1512,7 @@
       },
       "friendsTabs": {
         "title": "Quatro abas",
-        "body": "Amigos, Solicitações recebidas e Solicitações enviadas têm cada um a sua aba."
+        "body": "Amigos, Recebidos, Enviados e Usuários bloqueados têm cada um a sua aba."
       },
       "friendsShared": {
         "title": "Coleções compartilhadas",

@@ -1119,8 +1119,12 @@
         "summary": "Today's links and everything before"
       },
       "viewing": {
-        "title": "Search, sort and views",
-        "summary": "Find links and see them your way"
+        "title": "Search and views",
+        "summary": "Find links and change how they look"
+      },
+      "selection": {
+        "title": "Selecting several",
+        "summary": "Organize links and collections at once"
       },
       "collections": {
         "title": "Organizing with Collections",
@@ -1128,74 +1132,97 @@
       },
       "sharing": {
         "title": "Sharing and teamwork",
-        "summary": "Share a Collection and decide who can do what"
+        "summary": "Share collections and use them together"
       },
       "protection": {
         "title": "Locks and passwords",
         "summary": "Protect sensitive Collections"
       },
+      "friends": {
+        "title": "Friends",
+        "summary": "Add friends and manage requests"
+      },
       "notifications": {
-        "title": "Notifications",
-        "summary": "Stay up to date"
+        "title": "Notifications and notices",
+        "summary": "Stay on top of what's new"
       },
       "trash": {
         "title": "Delete and restore",
         "summary": "Bring deleted links back"
       },
+      "membership": {
+        "title": "Membership",
+        "summary": "Free trial, subscription, cancelling and restoring"
+      },
       "account": {
         "title": "Account and settings",
-        "summary": "Profile, language, membership and subscription management"
+        "summary": "Profile, language, legal documents, account deletion"
       }
     },
     "topics": {
       "pasteShare": {
         "title": "Paste or share a link",
-        "body": "Paste a URL into the field at the top of Home. Text that contains a link works too: Juple takes the first link it finds.\n\nOn Android you can also share a link from a browser or another app straight to Juple."
+        "body": "Paste a URL into the field at the top of Home and tap the button on the right. You can also paste text that contains a link; the first link in it is used.\n\nYou can also send a link from a browser or another app: open its share menu and choose Juple. This works on Android and on iPhone and iPad."
       },
       "quickSave": {
         "title": "Quick Save",
-        "body": "Turn on Quick Save in My Page to save shared links right away, without a review screen.\n\nWith it off, Juple shows the link first so you can edit the title, add a memo and choose Collections before saving."
+        "body": "Turn on Quick Save in My Page and links you share from other apps are saved right away, without the review screen.\n\nWhen it's off, Juple shows you the link first. Edit the title, add a memo and choose collections, then save."
       },
       "review": {
         "title": "Before you save",
-        "body": "Juple fills in the title and preview image when it can. If it can't read them, you can type the title yourself.\n\nAdd a memo and choose one or more Collections, or create a new one on the spot. If a Collection needs approval, your link is sent to its owner as a request."
+        "body": "When the link's public page can be read, Juple fills in the title and preview image for you. Information that can't be confirmed is never guessed, so type the title yourself.\n\nAdd a memo and pick one or more collections, or create one on the spot. For a collection that needs approval, the link goes to the owner as an approval request."
       },
       "androidShortcuts": {
         "title": "Shortcuts and Direct Share",
-        "body": "Add a Collection to your Home screen from its long-press menu to open it in one tap. See \"Long-press a Collection for quick management\" under Organizing with Collections.\n\nShared links can also go straight to a Collection from your phone's share sheet. A locked or password-protected Collection, or one where you can't add links, is not offered there.\n\nWhen a Collection is offered as a share target, its long-press menu has \"Remove from share targets\". That only removes it from the share sheet. The Collection, its links and any Home-screen shortcut you made stay as they are."
+        "body": "Long-press a collection to select it, then tap Shortcut in the bar at the bottom to put a shortcut to that collection on your Home screen. See 'Home screen shortcut' under Organizing with collections.\n\nYou can also send a link straight to a collection from your phone's share menu. Locked collections, collections with a password and collections you can't add links to don't appear as share targets.\n\nWhen a collection appears as a share target, its menu has 'Remove from share targets'. This only removes it from the share menu. The collection, its links and any Home screen shortcut you made stay as they are."
       },
       "home": {
         "title": "Home",
-        "body": "Home shows the links you saved today. Tap a link to open its details, and use the sort buttons and view switch above the list to change how they appear."
+        "body": "Home shows the links you saved today, newest first. The field at the top stays in place while you scroll, so you can save a link at any time.\n\nTap a link to open its details. Use the buttons next to Recent to switch between list, grid and image views. Tap the bell on Home to open notifications."
       },
       "archive": {
         "title": "Archive",
-        "body": "Archive holds every link you've saved, grouped by date. Tap a date to open or close it, and search to find an older link."
+        "body": "Archive keeps every link you've ever saved, grouped by date, newest first. Type at least two characters in the search field to find older links."
+      },
+      "linkDetails": {
+        "title": "Link details and editing",
+        "body": "Tap a link to open its details. You can edit the title and memo, change the collections it's in and change the cover photo, then save. Use the open-link button to open the original page.\n\nYou can't edit a link someone else added to a shared collection. Long-press it to select it, then use More > Save link to save it as your own link."
       },
       "swipe": {
         "title": "Swipe for quick actions",
-        "body": "Swipe a link sideways in Home or Archive to reveal quick actions, such as share and delete. The actions depend on the link: for example, a link in a locked Collection can't be shared from here."
+        "body": "In the list and grid views of Home and Archive, swipe a link sideways to reveal quick actions such as share and delete. The actions depend on the link. For example, links in a locked collection can't be shared from here."
       },
       "searchSort": {
-        "title": "Search and sort",
-        "body": "Archive and each Collection have a search box. Sort by time (tap again to switch between newest and oldest first) or by name.\n\nHome is for today's links, so it has sorting but no search."
+        "title": "Search and order",
+        "body": "Archive, the Collections tab and each collection have a search field. A link search starts once you type at least two characters. Home has no search.\n\nLinks are always shown newest first; there is no separate sort button."
       },
       "viewModes": {
-        "title": "List, Grid and Image views",
-        "body": "Use the view buttons to show links as a List, a Grid, or Image view, which shows pictures in three columns. Your choice is remembered separately for Home, Archive and Collections."
+        "title": "List, grid and image views",
+        "body": "Use the view buttons to see links as a list, a grid or images. Image view shows pictures in 3 columns. On the Collections tab you can see collections as a list or a grid. Each screen remembers its own view.\n\nWhen you switch views, the list starts again from the top."
+      },
+      "selectLinks": {
+        "title": "Selecting several links",
+        "body": "Long-press a link to start selecting; an action bar appears at the bottom. Tap other links to add them, and use Select all or the close button at the top to change or end the selection.\n\nHome and Archive: Change collection sets the collections for all selected links at once, and Delete moves them to Recently Deleted. More has copy link and share, and with a single link also open link and edit.\n\nInside a collection: Delete (removes from this collection), Move and Copy. In a shared collection you can move only links you added, and you can report other people's links. If only some succeed, the ones that failed stay selected."
+      },
+      "selectCollections": {
+        "title": "Selecting several collections",
+        "body": "Long-press a collection on the Collections tab to start selecting. The bar at the bottom offers lock and delete or leave. With a single collection, More offers notifications on or off, Share and Edit. The buttons you see depend on the collection and your role.\n\nYour own collections are deleted; collections someone else shared with you are left. If you select both kinds, one confirmation shows the counts and 'Delete and leave' does both. Collections that fail stay selected.\n\nWhen several are selected, locked collections are skipped. To delete a locked collection, select it on its own and enter its password. Deleting a collection doesn't delete the links that were in it."
       },
       "createCollection": {
-        "title": "Create a Collection",
-        "body": "In the Collections tab, tap New collection. Choose a name, an icon and a color, or use a photo of your own. One link can belong to several Collections.\n\nMark Collections as favorites to keep them together at the top."
+        "title": "Creating and editing collections",
+        "body": "Tap the + button on the Collections tab. Choose a name, icon and color, or use your own photo. One link can be in several collections.\n\nTo change the name or look, select the collection and use More > Edit, or the menu on the collection's screen. Only the collection's owner can edit it."
       },
-      "longPress": {
-        "title": "Long-press a Collection for quick management",
-        "body": "Long-press a Collection to see the quick actions. The menu you see depends on the Collection and your role.\n\nFavorite\nGather the Collections you open often. It applies only to you.\n\nTurn notifications on/off\nChoose whether to get notifications for a shared Collection.\n\nEdit\nChange the name, icon, color or photo. Only the Collection's owner can.\n\nLock\nSet or remove your lock on a Collection. It is different from the access password of a shared link.\n\nDelete / Leave\nOwners delete a Collection and members leave it. Deleting a Collection doesn't delete the links in it.\n\nShare\nThe owner opens the Share screen; a member can pass on the link only while the owner has it turned on.\n\nWith a screen reader, long-press the Collection or choose \"Options\" in the accessibility menu.",
-        "shortcut": "Open a frequently used Collection straight from your Home screen. Long-press it and choose \"Add shortcut to Home screen\" to jump into that Collection from your phone's Home screen.\n\nA locked Collection still asks for its password when opened from a shortcut.\n\nDelete a shortcut yourself from your Home screen when you no longer need it."
+      "favorites": {
+        "title": "Favorites",
+        "body": "Tap a collection's star to add it to Favorites, and tap it again to remove it. Favorites apply only to you.\n\nUse the Favorites, All, My collections and Shared buttons at the top of the Collections tab to choose which collections are shown."
+      },
+      "homeShortcut": {
+        "title": "Home screen shortcut (1×1)",
+        "body": "Long-press a collection, keep only that one selected and tap Shortcut in the bar at the bottom to make a 1×1 icon for it on your phone's Home screen. Tapping the icon opens that collection in Juple.\n\nThis appears only when your launcher supports Home screen shortcuts. A locked collection still asks for its password when opened from the icon. To remove the icon, delete it from your Home screen yourself."
       },
       "manageLinks": {
-        "title": "Copy and move links",
-        "body": "Open a Collection and use a link's more menu to copy it into other Collections, move it, or remove it from this Collection. Removing it doesn't delete the link.\n\nAfter moving or deleting, tap Undo in the message that appears."
+        "title": "Copying and moving links",
+        "body": "Open a collection, long-press links to select them, and use the bar at the bottom to move or copy them to another collection. Delete only takes them out of this collection; your links themselves stay.\n\nOn Home or Archive, Change collection changes the collections of several links at once.\n\nRight after moving or deleting, you can undo it from the message that appears."
       },
       "publicLink": {
         "title": "Share a Collection by link",
@@ -1210,40 +1237,84 @@
         "body": "Read-only: can view the Collection. Needs approval: can suggest links, and the owner approves them. Can add links: can add links directly. The owner manages the Collection, its sharing and everyone's permission.\n\nA public link's setting is the lowest level anyone can have. You can give invited people a higher one."
       },
       "joinRequests": {
-        "title": "Join requests",
-        "body": "When a Collection's public setting is OFF, someone who opens its link can ask to join. The owner sees the request in the Collection and approves it, which adds the person as read-only, or declines it. They can ask again later.\n\nAfter you ask to join, the Collection shows as \"Waiting for approval\" in your Collections tab until the owner answers."
+        "title": "Join requests and waiting for approval",
+        "body": "When Public collection settings is OFF, people who open the link can ask to join. The owner sees the requests on the collection's share screen and approves or declines them. An approved person joins as a read-only participant. Someone who was declined can ask again later.\n\nWhen you ask to join, the collection shows as 'Waiting for approval' on your Collections tab until the owner answers. Long-press it to cancel your request."
       },
       "approvals": {
         "title": "Link approval requests",
         "body": "These are different from join requests. They are links that someone with \"Needs approval\" permission suggests for a Collection. The owner finds them under Received approval requests and approves or declines each one.\n\nIf you suggested a link, find it under Sent approval requests, where you can cancel it."
       },
+      "comments": {
+        "title": "Comments and reactions",
+        "body": "Open a link in a shared collection to leave comments and replies, like comments and react with emoji together with other participants. You can edit or delete your own comments."
+      },
       "collectionLock": {
-        "title": "Lock a Collection",
-        "body": "Set a lock password in My Page > Collection lock, then lock a Collection from its long-press menu. A locked Collection hides its links, also in Home and Archive, until you enter the password. The lock applies to you, not to the people you share with."
+        "title": "Locking a collection",
+        "body": "First set a lock password in My Page > Collection lock. Then long-press a collection on the Collections tab to select it and tap Lock collection in the bar at the bottom.\n\nA locked collection can't be opened until you enter the password, and its links are hidden on Home and in Archive too. To unlock, select just that collection and enter the password.\n\nYou can also lock a collection someone else shared with you so that only you see it locked. This lock applies only to you and doesn't affect the owner or other participants."
       },
       "accessPassword": {
         "title": "Access password for sharing",
         "body": "When you share a Collection you can also set an access password. People opening the shared Collection must enter it. It is separate from your own lock, and you can see, change or remove it in Share."
       },
+      "friends": {
+        "title": "Adding and managing friends",
+        "body": "My Page > Friends has the Friends, Received, Sent and Blocked users tabs. The Received and Sent tabs show how many requests are waiting.\n\nTap the + button and enter the other person's Juple ID to send a friend request. Once they accept, you're friends. Accept or decline received requests, and cancel sent ones.\n\nYou can search your friend list. Tap a friend to see the collections you share, and long-press or swipe a friend to remove them."
+      },
+      "blockReport": {
+        "title": "Blocking and reporting",
+        "body": "You can block people you don't want to interact with. Once blocked, you can't exchange friend requests, invitations or join requests, and in shared collections you don't see the links each other added. Comments and reactions of a person you blocked are hidden from you as well. Saved data isn't deleted, and you can unblock at any time from the Blocked users tab.\n\nIf you block the owner of a collection you've joined, you leave that collection.\n\nYou can report users, collections, links and comments that are a problem. Juple staff review reports, and the reporter's information is never shown to the other person."
+      },
       "notificationCenter": {
         "title": "Notifications",
-        "body": "The bell on Home opens your notifications, with the unread count on it. Tap one to go to what it's about. You can mark all as read or delete single ones.\n\nTurn notifications on or off for each shared Collection from its long-press menu. With them off, items still appear in the list, but you won't be alerted."
+        "body": "Tap the bell on Home to open notifications; the number of unread notifications is shown on it. On the web, open Notifications from the menu. Tap a notification to go to the related screen. You can mark all as read or delete them one by one.\n\nYou're notified about things like friend requests and answers, collection invitations, join requests and their results, links added to shared collections, approval requests, and comments, replies and reactions.\n\nYou can turn notifications on or off for each shared collection. When they're off, notifications still appear in the list, but no push notification is sent."
+      },
+      "notices": {
+        "title": "Notices",
+        "body": "Important announcements, such as service changes or updates to the terms, are in My Page > Notices."
       },
       "deleteRestore": {
-        "title": "Delete and restore",
-        "body": "Delete a link by swiping it or from its details. Deleted links go to Recently Deleted in My Page, where you can restore them, delete them permanently, or empty the list. Permanently deleted links can't be brought back.\n\nRemoving a link from a Collection doesn't delete it."
+        "title": "Deleting and restoring",
+        "body": "Delete a link by swiping it, by long-pressing to select it, or from its details. Deleted links move to Recently Deleted in My Page, where they are kept for up to 30 days, up to 100 links. From there you can restore them, delete them permanently or empty the list. Permanently deleted links can't be brought back.\n\nRemoving a link from a collection isn't deleting it. Right after deleting a collection, you can undo it from the message that appears."
       },
-      "settings": {
-        "title": "Account and settings",
-        "body": "My Page has your profile and Juple ID, language, Quick Save, Friends, Collection lock, Recently Deleted and account management. Contact support from Customer Center.\n\nIn Manage account you can see how you sign in and delete your account, which permanently deletes your account and data.\n\nWhen membership begins, existing members receive one 30-day (720-hour) trial from program launch; members joining afterward receive it from sign-up. After the trial, viewing existing links and collections, account and subscription management, purchase restoration and account deletion remain available. Without a valid subscription or administrator-granted membership, main write actions are restricted.\n\nMonthly and yearly subscriptions renew automatically through the purchasing store. Manage or cancel in Google Play or your Apple Account subscription settings. Access normally continues for the paid remaining period after cancellation; refunds or revocations may change access according to the store result. A valid membership verified by the server is shared on Android and iOS when you use the same Juple account."
+      "trialPeriod": {
+        "title": "Free trial",
+        "body": "The free trial is once per person and lasts exactly 720 hours (30 days). Existing members who signed up before 10:00 a.m. on November 27, 2026 can use it until 10:00:07 a.m. on December 27, 2026 (Korea Standard Time); members who signed up after that can use it for 720 hours from the moment they signed up.\n\nThe free trial starts without a payment method and, when it ends, you're never charged and it never turns into a paid subscription by itself. Deleting your account and signing up again doesn't start a new trial. Check the remaining time in My Page > Membership."
       },
-      "homeShortcut": {
-        "title": "Home screen shortcut (1×1)",
-        "body": "Press and hold a collection and choose “Add shortcut to Home screen”. A 1×1 icon of that collection appears on your Home screen, and tapping it opens the collection in Juple.\n\nThe menu entry only appears when your launcher supports Home screen shortcuts. A locked collection still asks for its password. To remove the icon, delete it from your Home screen yourself."
+      "plansBilling": {
+        "title": "Monthly and yearly membership",
+        "body": "Membership is a monthly or yearly auto-renewing subscription. You pay through Google Play on Android and the App Store on iPhone and iPad; it isn't sold on the web. Prices and currencies differ by country and store; the amount shown on the membership screen and the store's payment screen before you buy is what applies.\n\nIf you subscribe during the free trial, you're charged that same day, and the remaining free time isn't added to the subscription.\n\nMembership belongs to your Juple account, so you can use it with the same account on Android, iPhone and iPad, and the web. Subscribing in both stores at the same time charges you twice, so cancel one of them."
+      },
+      "restorePurchases": {
+        "title": "Restoring purchases",
+        "body": "If you reinstalled the app or moved to a new device and your subscription isn't showing, tap Restore purchases on the membership screen. It checks the subscription bought with this device's store account again and applies it to your Juple account.\n\nA subscription already linked to another Juple account isn't moved."
+      },
+      "cancelSubscription": {
+        "title": "Cancelling a subscription",
+        "body": "Cancel in the store you paid through. On Android, go to Google Play > Payments & subscriptions > Subscriptions; on iPhone and iPad, go to Settings > Apple Account > Subscriptions, choose Juple and cancel. The membership screen can also take you to the store's page.\n\nAfter cancelling, you can keep using the membership until the end of the period you already paid for. Refunds follow the store's policy.\n\nCancelling a subscription and deleting your account are separate. Deleting the app or your account doesn't cancel the subscription, so cancel it in the store first."
+      },
+      "afterTrial": {
+        "title": "After the trial ends",
+        "body": "When the free trial has ended and you have no valid subscription, Juple becomes read-only. Your saved links and collections aren't deleted, and you can keep viewing them.\n\nStill available: viewing links and collections, opening original links, exporting and deleting your data, leaving collections, settings, buying and restoring a subscription, the Customer Center, reporting and blocking, and deleting your account.\n\nRestricted: saving new links, creating and editing links and collections, adding, moving and copying links to collections, sharing settings and invitations, writing comments and reactions, friend requests and similar actions. To write to a shared collection, both you and its owner need access. Subscribe again and everything works as before right away."
       },
       "profilePhoto": {
-        "title": "Change your profile photo",
-        "body": "In My Page, tap the edit button on your profile card. Pick a photo, move and zoom it to fit the circle, then save.\n\nYour profile photo is shown to friends and in shared collections."
+        "title": "Editing your profile",
+        "body": "Tap the edit button on the profile card in My Page to change your nickname and profile photo. After choosing a photo, move and zoom it with your fingers to fit the circle, then save.\n\nYour nickname and profile photo are shown in collections you share with friends. Your Juple ID can't be changed."
+      },
+      "settings": {
+        "title": "Language and display",
+        "body": "In My Page > Language, choose one of 17 languages or Use system setting. The app switches to that language right away.\n\nUse the Dark mode switch in My Page to turn the dark screen on or off. On the web, change it under Appearance in settings.\n\nSend inquiries from My Page > Customer Center and read the replies there too."
+      },
+      "legalDocs": {
+        "title": "Terms of Service and Privacy Policy",
+        "body": "Open the Terms of Service and Privacy Policy from My Page > Customer Center or the membership screen. They open as web pages in the language you've set.\n\nThe Korean original is the legally binding text. Other languages are reference translations to help you understand it; if they differ, the Korean original prevails. A reference translation page links straight to the Korean original."
+      },
+      "deleteAccount": {
+        "title": "Deleting your account",
+        "body": "In My Page > Manage account > Delete account, check the data that will be deleted and tap Continue deleting account. Sign in again to confirm it's you, enter your Juple ID exactly as shown and tap Permanently delete account.\n\nDeleting your account permanently deletes your links, collections, photos, friends, notifications and more, and can't be undone. Participants can no longer see the shared collections you created.\n\nDeleting your account doesn't cancel a store subscription. Cancel it in Google Play or the App Store first."
+      },
+      "useOnWeb": {
+        "title": "Using Juple on the web",
+        "body": "Sign in at juple.co.kr in a computer or tablet browser with the same account to use your links and collections there.\n\nOn the web you can also save links and use Archive, collections, sharing, friends, notifications and settings. Saving from other apps' share menus, Home screen shortcuts and buying a membership work only in the mobile app. On the web you can check your membership status and go to the store's subscription management."
       }
     }
   },
@@ -1392,8 +1463,8 @@
         "body": "Paste a link here and tap the button. Juple fills in the title and image when it can."
       },
       "share": {
-        "title": "Save from any app",
-        "body": "In another app, tap Share and choose Juple. The link is saved right away."
+        "title": "Save straight from other apps",
+        "body": "In another app, tap Share and choose Juple to send the link. With Quick Save on, it's saved right away."
       },
       "collections": {
         "title": "Organize in Collections",
@@ -1428,8 +1499,8 @@
         "body": "Switch between list, grid and image views."
       },
       "longPress": {
-        "title": "Press and hold",
-        "body": "Press and hold a collection for favorite, notifications, edit, lock, and delete or leave."
+        "title": "Long-press to select",
+        "body": "Long-press a collection to select several. Use the bar at the bottom to lock, delete or leave; with a single collection, More has notifications, Share and Edit."
       },
       "shareCollection": {
         "title": "Share a collection",
@@ -1441,7 +1512,7 @@
       },
       "friendsTabs": {
         "title": "Four tabs",
-        "body": "Friends, Received requests and Sent requests each have their own tab."
+        "body": "Friends, Received, Sent and Blocked users each have their own tab."
       },
       "friendsShared": {
         "title": "Shared collections",

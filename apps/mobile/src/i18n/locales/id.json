@@ -1119,83 +1119,110 @@
         "summary": "Tautan hari ini dan semua sebelumnya"
       },
       "viewing": {
-        "title": "Pencarian, urutan, dan tampilan",
-        "summary": "Temukan tautan dan lihat sesuka Anda"
+        "title": "Pencarian dan tampilan",
+        "summary": "Cari tautan dan ubah cara tampilannya"
+      },
+      "selection": {
+        "title": "Memilih beberapa",
+        "summary": "Kelola tautan dan koleksi sekaligus"
       },
       "collections": {
         "title": "Mengatur dengan koleksi",
         "summary": "Kelompokkan tautan dengan cara Anda"
       },
       "sharing": {
-        "title": "Berbagi dan kerja tim",
-        "summary": "Bagikan koleksi dan tentukan siapa boleh apa"
+        "title": "Berbagi dan kolaborasi",
+        "summary": "Bagikan koleksi dan gunakan bersama"
       },
       "protection": {
         "title": "Kunci dan kata sandi",
         "summary": "Lindungi koleksi yang sensitif"
       },
+      "friends": {
+        "title": "Teman",
+        "summary": "Tambahkan teman dan kelola permintaan"
+      },
       "notifications": {
-        "title": "Notifikasi",
-        "summary": "Tetap terbarui"
+        "title": "Notifikasi dan pengumuman",
+        "summary": "Jangan lewatkan apa pun"
       },
       "trash": {
         "title": "Hapus dan pulihkan",
         "summary": "Kembalikan tautan yang dihapus"
       },
+      "membership": {
+        "title": "Keanggotaan",
+        "summary": "Uji coba gratis, langganan, pembatalan, pemulihan"
+      },
       "account": {
         "title": "Akun dan pengaturan",
-        "summary": "Profil, bahasa, dan lainnya"
+        "summary": "Profil, bahasa, dokumen hukum, penghapusan akun"
       }
     },
     "topics": {
       "pasteShare": {
         "title": "Tempel atau bagikan tautan",
-        "body": "Tempel URL ke kolom di bagian atas Beranda. Teks yang berisi tautan juga bisa: Juple memakai tautan pertama yang ditemukan.\n\nDi Android, Anda juga bisa membagikan tautan dari browser atau aplikasi lain langsung ke Juple."
+        "body": "Tempel URL ke kolom di bagian atas Beranda, lalu ketuk tombol di sebelah kanan. Anda juga bisa menempel teks yang berisi tautan; tautan pertama di dalamnya akan digunakan.\n\nAnda juga bisa mengirim tautan dari browser atau aplikasi lain dengan membuka menu berbagi dan memilih Juple. Ini berfungsi di Android serta iPhone dan iPad."
       },
       "quickSave": {
         "title": "Simpan cepat",
-        "body": "Aktifkan Simpan cepat di Halaman Saya untuk langsung menyimpan tautan yang dibagikan tanpa layar peninjauan.\n\nJika dimatikan, Juple menampilkan tautan lebih dulu agar Anda bisa mengedit judul, menambah catatan, dan memilih koleksi sebelum menyimpan."
+        "body": "Aktifkan Simpan cepat di Halaman Saya, dan tautan yang dibagikan dari aplikasi lain akan langsung disimpan tanpa layar peninjauan.\n\nJika dinonaktifkan, Juple menampilkan tautan terlebih dahulu agar Anda bisa mengubah judul, menulis memo, dan memilih koleksi sebelum menyimpan."
       },
       "review": {
         "title": "Sebelum menyimpan",
-        "body": "Juple mengisi judul dan gambar pratinjau jika bisa. Jika tidak terbaca, Anda bisa mengetik judulnya sendiri.\n\nTambahkan catatan dan pilih satu atau beberapa koleksi, atau buat yang baru saat itu juga. Jika koleksi memerlukan persetujuan, tautan Anda dikirim ke pemiliknya sebagai permintaan."
+        "body": "Jika halaman publik tautan bisa dibaca, Juple mengisi judul dan gambar pratinjau secara otomatis. Informasi yang tidak bisa dipastikan tidak ditebak, jadi ketik judulnya sendiri.\n\nTulis memo dan pilih satu atau beberapa koleksi, atau buat yang baru di tempat. Untuk koleksi yang memerlukan persetujuan, tautan dikirim ke pemilik sebagai usulan."
       },
       "androidShortcuts": {
         "title": "Pintasan dan berbagi langsung",
-        "body": "Tambahkan koleksi ke layar utama dari menu tekan lama untuk membukanya dengan satu ketukan. Lihat “Tekan lama koleksi untuk mengelola cepat” di Mengatur dengan koleksi.\n\nTautan yang dibagikan juga bisa langsung masuk ke koleksi dari menu berbagi di ponsel. Koleksi yang terkunci atau dilindungi kata sandi, atau yang tidak bisa Anda tambahi tautan, tidak ditawarkan di sana.\n\nSaat koleksi muncul sebagai tujuan berbagi, menu tekan lamanya memiliki “Hapus dari tujuan berbagi”. Itu hanya mengeluarkannya dari menu berbagi. Koleksi, tautannya, dan pintasan layar utama yang Anda buat tetap ada."
+        "body": "Tekan lama koleksi untuk memilihnya, lalu ketuk Pintasan di bilah bawah untuk membuat pintasan koleksi tersebut di layar utama. Lihat “Pintasan layar utama” di bagian Mengatur dengan koleksi.\n\nAnda juga bisa mengirim tautan langsung ke koleksi dari menu berbagi ponsel. Koleksi yang terkunci, memiliki kata sandi, atau tidak bisa ditambahi tautan tidak ditampilkan sebagai tujuan berbagi.\n\nSaat koleksi muncul sebagai tujuan berbagi, menunya berisi “Hapus dari tujuan berbagi”. Ini hanya menghapusnya dari menu berbagi; koleksi, tautan, dan pintasan layar utama yang sudah dibuat tetap tidak berubah."
       },
       "home": {
         "title": "Beranda",
-        "body": "Beranda menampilkan tautan yang Anda simpan hari ini. Ketuk tautan untuk membuka detailnya, dan gunakan tombol urutan serta pengalih tampilan di atas daftar untuk mengubah cara tampilnya."
+        "body": "Beranda menampilkan tautan yang Anda simpan hari ini, dari yang terbaru. Kolom di bagian atas tetap di tempat saat Anda menggulir, jadi Anda bisa menyimpan tautan kapan saja.\n\nKetuk tautan untuk membuka detailnya. Gunakan tombol di samping Terbaru untuk beralih antara tampilan daftar, kisi, dan gambar. Ketuk ikon lonceng di Beranda untuk membuka notifikasi."
       },
       "archive": {
         "title": "Arsip",
-        "body": "Arsip berisi semua tautan yang pernah Anda simpan, dikelompokkan menurut tanggal. Ketuk tanggal untuk membuka atau menutupnya, dan gunakan pencarian untuk menemukan tautan lama."
+        "body": "Arsip mengumpulkan semua tautan yang pernah Anda simpan, dikelompokkan menurut tanggal dan diurutkan dari yang terbaru. Ketik setidaknya dua karakter di kolom pencarian untuk menemukan tautan lama."
+      },
+      "linkDetails": {
+        "title": "Detail dan pengeditan tautan",
+        "body": "Ketuk tautan untuk membuka detailnya. Anda bisa mengedit judul dan memo, mengubah koleksi tempat tautan berada, serta mengganti gambar sampul, lalu menyimpannya. Gunakan tombol buka tautan untuk membuka halaman aslinya.\n\nAnda tidak bisa mengedit tautan yang ditambahkan orang lain ke koleksi bersama. Tekan lama tautan itu untuk memilihnya, lalu gunakan Lainnya > Simpan tautan untuk menyimpannya sebagai tautan Anda sendiri."
       },
       "swipe": {
         "title": "Geser untuk tindakan cepat",
-        "body": "Geser tautan ke samping di Beranda atau Arsip untuk menampilkan tindakan cepat, seperti bagikan dan hapus. Tindakan yang muncul bergantung pada tautan: misalnya, tautan di koleksi terkunci tidak bisa dibagikan dari sini."
+        "body": "Dalam tampilan daftar dan kisi di Beranda dan Arsip, geser tautan ke samping untuk menampilkan tindakan cepat seperti berbagi dan menghapus. Tindakan yang muncul bergantung pada tautannya; misalnya, tautan di koleksi yang terkunci tidak bisa dibagikan dari sini."
       },
       "searchSort": {
-        "title": "Cari dan urutkan",
-        "body": "Arsip dan setiap koleksi punya kotak pencarian. Urutkan menurut waktu (ketuk lagi untuk beralih antara terbaru dulu dan terlama dulu) atau menurut nama.\n\nBeranda untuk tautan hari ini, jadi bisa diurutkan tetapi tidak ada pencarian."
+        "title": "Pencarian dan urutan",
+        "body": "Arsip, tab Koleksi, dan setiap koleksi memiliki kolom pencarian. Pencarian tautan dimulai setelah Anda mengetik setidaknya dua karakter. Beranda tidak memiliki pencarian.\n\nTautan selalu ditampilkan dari yang terbaru. Tidak ada tombol pengurutan terpisah."
       },
       "viewModes": {
         "title": "Tampilan daftar, kisi, dan gambar",
-        "body": "Gunakan tombol tampilan untuk menampilkan tautan sebagai daftar, kisi, atau tampilan gambar yang menunjukkan foto dalam tiga kolom. Pilihan Anda diingat terpisah untuk Beranda, Arsip, dan Koleksi."
+        "body": "Gunakan tombol tampilan untuk melihat tautan sebagai daftar, kisi, atau gambar. Tampilan gambar menampilkan gambar dalam 3 kolom. Di tab Koleksi, Anda bisa melihat koleksi sebagai daftar atau kisi. Setiap layar mengingat tampilannya sendiri.\n\nSaat Anda mengganti tampilan, daftar ditampilkan lagi dari atas."
+      },
+      "selectLinks": {
+        "title": "Memilih beberapa tautan",
+        "body": "Tekan lama tautan untuk mulai memilih; bilah tindakan muncul di bagian bawah. Ketuk tautan lain untuk menambahkannya, dan gunakan Pilih semua atau tombol tutup di bagian atas untuk mengubah atau mengakhiri pilihan.\n\nBeranda dan Arsip: Ubah koleksi menetapkan koleksi untuk tautan yang dipilih sekaligus, dan Hapus memindahkannya ke Baru Dihapus. Lainnya berisi salin tautan dan Bagikan, dan untuk satu tautan juga buka tautan dan Edit.\n\nDi dalam koleksi: Hapus (dikeluarkan dari koleksi ini), Pindahkan, dan Salin. Di koleksi bersama, Anda hanya bisa memindahkan tautan yang Anda tambahkan sendiri, dan Anda bisa melaporkan tautan orang lain. Jika hanya sebagian berhasil, item yang gagal tetap terpilih."
+      },
+      "selectCollections": {
+        "title": "Memilih beberapa koleksi",
+        "body": "Tekan lama koleksi di tab Koleksi untuk mulai memilih. Bilah bawah berisi kunci dan hapus atau keluar. Jika hanya satu koleksi yang dipilih, Lainnya berisi mengaktifkan atau menonaktifkan notifikasi, Bagikan, dan Edit. Tombol yang tampil bergantung pada koleksi dan peran Anda.\n\nKoleksi milik Anda akan dihapus; dari koleksi yang dibagikan orang lain kepada Anda, Anda akan keluar. Jika Anda memilih keduanya, satu konfirmasi menampilkan jumlahnya dan “Hapus dan keluar” melakukan keduanya. Koleksi yang gagal tetap terpilih.\n\nSaat beberapa dipilih, koleksi yang terkunci dilewati. Untuk menghapus koleksi yang terkunci, pilih hanya koleksi itu dan masukkan kata sandinya. Menghapus koleksi tidak menghapus tautan di dalamnya."
       },
       "createCollection": {
-        "title": "Membuat koleksi",
-        "body": "Di tab Koleksi, ketuk Koleksi baru. Pilih nama, ikon, dan warna, atau gunakan foto Anda sendiri. Satu tautan bisa masuk ke beberapa koleksi.\n\nTandai koleksi sebagai favorit agar berkumpul di bagian atas."
+        "title": "Membuat dan mengedit koleksi",
+        "body": "Ketuk tombol + di tab Koleksi. Pilih nama, ikon, dan warna, atau gunakan foto Anda sendiri. Satu tautan bisa berada di beberapa koleksi.\n\nUntuk mengubah nama atau tampilannya, pilih koleksi lalu gunakan Lainnya > Edit, atau menu di layar koleksi. Hanya pemilik koleksi yang bisa mengeditnya."
       },
-      "longPress": {
-        "title": "Tekan lama koleksi untuk mengelola cepat",
-        "body": "Tekan lama sebuah koleksi untuk melihat tindakan cepat. Menu yang Anda lihat bergantung pada koleksi dan peran Anda.\n\nFavorit\nKumpulkan koleksi yang sering Anda buka. Hanya berlaku untuk Anda.\n\nAktifkan/matikan notifikasi\nPilih apakah ingin menerima notifikasi dari koleksi bersama.\n\nEdit\nUbah nama, ikon, warna, atau foto. Hanya pemilik koleksi yang bisa.\n\nKunci\nAtur atau hapus kunci Anda pada koleksi. Berbeda dari kata sandi akses tautan bersama.\n\nHapus / Keluar\nPemilik menghapus koleksi dan anggota keluar darinya. Menghapus koleksi tidak menghapus tautan di dalamnya.\n\nBagikan\nPemilik membuka layar bagikan; anggota hanya dapat meneruskan tautan selama pemilik mengaktifkannya.\n\nDengan pembaca layar, tekan lama koleksi atau pilih “Opsi” di menu aksesibilitas.",
-        "shortcut": "Buka koleksi yang sering dipakai langsung dari layar utama. Tekan lama lalu pilih “Tambahkan pintasan ke layar Utama” untuk masuk ke koleksi itu dari layar utama ponsel.\n\nKoleksi yang terkunci tetap meminta kata sandi saat dibuka dari pintasan.\n\nHapus sendiri pintasan dari layar utama jika sudah tidak diperlukan."
+      "favorites": {
+        "title": "Favorit",
+        "body": "Ketuk bintang pada koleksi untuk menambahkannya ke Favorit; ketuk lagi untuk menghapusnya. Favorit hanya berlaku untuk Anda.\n\nGunakan tombol Favorit, Semua, Koleksi saya, dan Dibagikan di bagian atas tab Koleksi untuk memilih koleksi yang ditampilkan."
+      },
+      "homeShortcut": {
+        "title": "Pintasan layar utama (1×1)",
+        "body": "Tekan lama koleksi, biarkan hanya koleksi itu yang terpilih, lalu ketuk Pintasan di bilah bawah untuk membuat ikon 1×1 koleksi tersebut di layar utama ponsel. Mengetuk ikon langsung membuka koleksi itu di Juple.\n\nFitur ini hanya muncul jika peluncur mendukung pintasan layar utama. Koleksi yang terkunci tetap meminta kata sandi meski dibuka dari ikon. Untuk menghapus ikon, hapus sendiri dari layar utama."
       },
       "manageLinks": {
-        "title": "Salin dan pindahkan tautan",
-        "body": "Buka koleksi dan gunakan menu lainnya pada tautan untuk menyalinnya ke koleksi lain, memindahkannya, atau mengeluarkannya dari koleksi ini. Mengeluarkan tidak menghapus tautan.\n\nSetelah memindahkan atau menghapus, ketuk Urungkan pada pesan yang muncul."
+        "title": "Menyalin dan memindahkan tautan",
+        "body": "Buka koleksi, tekan lama tautan untuk memilihnya, lalu gunakan bilah bawah untuk memindahkan atau menyalinnya ke koleksi lain. Hapus hanya mengeluarkannya dari koleksi ini; tautan Anda sendiri tetap ada.\n\nDi Beranda atau Arsip, Ubah koleksi mengubah koleksi beberapa tautan sekaligus.\n\nTepat setelah memindahkan atau menghapus, Anda bisa membatalkannya dari pesan yang muncul."
       },
       "publicLink": {
         "title": "Bagikan koleksi lewat tautan",
@@ -1210,40 +1237,84 @@
         "body": "Hanya baca: bisa melihat koleksi. Perlu persetujuan: bisa mengusulkan tautan, dan pemilik yang menyetujui. Bisa tambah tautan: bisa menambah tautan langsung. Pemilik mengelola koleksi, pembagiannya, dan izin semua orang.\n\nPengaturan tautan publik adalah tingkat terendah yang bisa dimiliki siapa saja. Anda bisa memberi tingkat lebih tinggi kepada orang yang diundang."
       },
       "joinRequests": {
-        "title": "Permintaan bergabung",
-        "body": "Saat pengaturan publik koleksi dimatikan, orang yang membuka tautannya bisa meminta bergabung. Pemilik melihat permintaan di koleksi dan menyetujuinya, sehingga orang itu menjadi anggota hanya baca, atau menolaknya. Orang itu bisa meminta lagi nanti.\n\nSetelah Anda meminta bergabung, koleksi tampil sebagai “Menunggu persetujuan” di tab Koleksi sampai pemilik menjawab."
+        "title": "Permintaan bergabung dan menunggu persetujuan",
+        "body": "Jika Pengaturan koleksi publik dalam posisi OFF, orang yang membuka tautan bisa meminta untuk bergabung. Pemilik melihat permintaan di layar berbagi koleksi lalu menyetujui atau menolaknya. Orang yang disetujui bergabung sebagai peserta baca saja; orang yang ditolak bisa meminta lagi nanti.\n\nSaat Anda meminta bergabung, koleksi tampil sebagai “Menunggu persetujuan” di tab Koleksi sampai pemilik menjawab. Tekan lama item itu untuk membatalkan permintaan."
       },
       "approvals": {
         "title": "Permintaan persetujuan tautan",
         "body": "Ini berbeda dari permintaan bergabung. Ini adalah tautan yang diusulkan seseorang dengan izin “Perlu persetujuan” untuk sebuah koleksi. Pemilik menemukannya di Permintaan persetujuan diterima dan menyetujui atau menolak satu per satu.\n\nJika Anda mengusulkan tautan, temukan di Permintaan persetujuan terkirim, tempat Anda bisa membatalkannya."
       },
+      "comments": {
+        "title": "Komentar dan reaksi",
+        "body": "Buka tautan di koleksi bersama untuk menulis komentar dan balasan, memberi suka, dan bereaksi dengan emoji bersama peserta lain. Anda bisa mengedit atau menghapus komentar Anda sendiri."
+      },
       "collectionLock": {
         "title": "Kunci koleksi",
-        "body": "Atur kata sandi kunci di Halaman Saya > Kunci koleksi, lalu kunci koleksi dari menu tekan lamanya. Koleksi terkunci menyembunyikan tautannya, juga di Beranda dan Arsip, sampai Anda memasukkan kata sandi. Kunci berlaku untuk Anda, bukan untuk orang yang Anda ajak berbagi."
+        "body": "Pertama, atur kata sandi kunci di Halaman Saya > Kunci koleksi. Lalu tekan lama koleksi di tab Koleksi untuk memilihnya dan ketuk Kunci koleksi di bilah bawah.\n\nKoleksi yang terkunci tidak bisa dibuka sampai kata sandi dimasukkan, dan tautannya juga disembunyikan di Beranda dan Arsip. Untuk membuka kunci, pilih hanya koleksi itu dan masukkan kata sandi.\n\nAnda juga bisa mengunci koleksi yang dibagikan orang lain kepada Anda, khusus untuk Anda sendiri. Kunci ini hanya berlaku untuk Anda dan tidak memengaruhi pemilik atau peserta lain."
       },
       "accessPassword": {
         "title": "Kata sandi akses untuk berbagi",
         "body": "Saat membagikan koleksi, Anda juga bisa mengatur kata sandi akses. Orang yang membuka koleksi bersama harus memasukkannya. Ini terpisah dari kunci Anda sendiri, dan Anda bisa melihat, mengubah, atau menghapusnya di Bagikan."
       },
+      "friends": {
+        "title": "Menambah dan mengelola teman",
+        "body": "Halaman Saya > Teman memiliki tab Teman, Diterima, Terkirim, dan Pengguna yang diblokir. Tab Diterima dan Terkirim menampilkan jumlah permintaan yang menunggu.\n\nKetuk tombol + dan masukkan Juple ID orang lain untuk mengirim permintaan pertemanan. Setelah mereka menerima, kalian berteman. Permintaan yang diterima bisa diterima atau ditolak, dan permintaan yang terkirim bisa dibatalkan.\n\nAnda bisa mencari di daftar teman, mengetuk teman untuk melihat koleksi yang kalian bagikan, dan menekan lama atau menggeser teman untuk menghapusnya dari pertemanan."
+      },
+      "blockReport": {
+        "title": "Memblokir dan melaporkan",
+        "body": "Anda bisa memblokir pengguna yang tidak ingin Anda hubungi. Setelah diblokir, kalian berdua tidak bisa saling mengirim permintaan pertemanan, undangan, atau permintaan bergabung, dan di koleksi bersama kalian tidak melihat tautan yang ditambahkan pihak lain. Komentar dan reaksi orang yang Anda blokir juga disembunyikan dari Anda. Data yang tersimpan tidak dihapus, dan Anda bisa membuka blokir kapan saja di tab Pengguna yang diblokir.\n\nJika Anda memblokir pemilik koleksi yang Anda ikuti, Anda akan keluar dari koleksi itu.\n\nAnda bisa melaporkan pengguna, koleksi, tautan, dan komentar yang bermasalah. Tim operasional Juple meninjau laporan, dan identitas pelapor tidak diberitahukan kepada pihak lain."
+      },
       "notificationCenter": {
         "title": "Notifikasi",
-        "body": "Lonceng di Beranda membuka notifikasi Anda, dengan jumlah yang belum dibaca. Ketuk satu untuk menuju hal yang dimaksud. Anda bisa menandai semuanya telah dibaca atau menghapusnya satu per satu.\n\nAktifkan atau matikan notifikasi tiap koleksi bersama dari menu tekan lamanya. Saat dimatikan, item tetap muncul di daftar, tetapi Anda tidak diberi peringatan."
+        "body": "Ketuk ikon lonceng di Beranda untuk membuka notifikasi; ikon ini menampilkan jumlah yang belum dibaca. Di web, buka dari Notifikasi di menu. Ketuk notifikasi untuk menuju layar terkait; Anda bisa menandai semua sudah dibaca atau menghapus satu per satu.\n\nAnda menerima notifikasi tentang permintaan pertemanan dan jawabannya, undangan koleksi, permintaan bergabung dan hasilnya, tautan yang ditambahkan ke koleksi bersama, usulan, serta komentar, balasan, dan reaksi.\n\nAnda bisa mengaktifkan atau menonaktifkan notifikasi untuk setiap koleksi bersama. Saat dinonaktifkan, notifikasi tetap ada di daftar tetapi notifikasi push tidak dikirim."
+      },
+      "notices": {
+        "title": "Pengumuman",
+        "body": "Pengumuman penting seperti perubahan layanan atau pembaruan ketentuan ada di Halaman Saya > Pengumuman."
       },
       "deleteRestore": {
-        "title": "Hapus dan pulihkan",
-        "body": "Hapus tautan dengan menggesernya atau dari detailnya. Tautan yang dihapus masuk ke Baru Dihapus di Halaman Saya, tempat Anda bisa memulihkannya, menghapusnya permanen, atau mengosongkan daftar. Tautan yang dihapus permanen tidak bisa dikembalikan.\n\nMengeluarkan tautan dari koleksi tidak menghapusnya."
+        "title": "Menghapus dan memulihkan",
+        "body": "Hapus tautan dengan menggeser, menekan lama untuk memilih, atau dari layar detail. Tautan yang dihapus dipindahkan ke Baru Dihapus di Halaman Saya dan disimpan hingga 30 hari, maksimal 100 tautan. Di sana Anda bisa memulihkan, menghapus permanen, atau mengosongkan semuanya. Tautan yang dihapus permanen tidak bisa dipulihkan.\n\nMengeluarkan tautan dari koleksi tidak sama dengan menghapusnya. Tepat setelah menghapus koleksi, Anda bisa membatalkannya dari pesan yang muncul."
       },
-      "settings": {
-        "title": "Akun dan pengaturan",
-        "body": "Halaman Saya berisi profil dan Juple ID, bahasa, Simpan cepat, Teman, Kunci koleksi, Baru Dihapus, dan pengelolaan akun. Hubungi dukungan dari Pusat Bantuan.\n\nDi Kelola akun, Anda bisa melihat cara masuk dan menghapus akun; menghapus akun menghapus permanen akun dan data Anda.\n\nSetiap orang mendapat satu uji coba tepat 30 hari (720 jam). Bagi anggota lama, dimulai saat layanan keanggotaan resmi diluncurkan; bagi yang mendaftar sesudahnya, sejak waktu pendaftaran. Setelahnya Anda tetap dapat melihat tautan dan koleksi lama, mengelola akun dan langganan, memulihkan pembelian, serta menghapus akun. Tanpa langganan sah atau keanggotaan gratis dari administrator, tindakan tulis utama seperti menyimpan, membuat dan mengedit dibatasi.\n\nBatalkan kapan saja di Google Play > Pembayaran & langganan > Langganan. Anda tetap bisa mengakses sampai akhir periode yang sudah dibayar. Batalkan kapan saja di pengaturan ID Apple > Langganan. Anda tetap bisa mengakses sampai akhir periode yang sudah dibayar."
+      "trialPeriod": {
+        "title": "Uji coba gratis",
+        "body": "Uji coba gratis diberikan sekali per orang, tepat 720 jam (30 hari). Anggota lama yang mendaftar sebelum pukul 10.00 tanggal 27 November 2026 bisa menggunakannya hingga pukul 10.00.07 tanggal 27 Desember 2026 (waktu Korea); anggota yang mendaftar setelahnya mendapat 720 jam sejak waktu pendaftaran.\n\nUji coba gratis dimulai tanpa metode pembayaran, dan saat berakhir tidak ada tagihan atau peralihan otomatis ke langganan berbayar. Menghapus akun lalu mendaftar lagi tidak memulai uji coba baru. Sisa waktu bisa dilihat di Halaman Saya > Keanggotaan."
       },
-      "homeShortcut": {
-        "title": "Pintasan layar utama (1×1)",
-        "body": "Tekan lama koleksi lalu pilih “Tambahkan pintasan ke layar Utama”. Ikon 1×1 koleksi itu muncul di layar utama, dan mengetuknya membuka koleksi di Juple.\n\nMenu ini hanya muncul jika launcher Anda mendukung pintasan layar utama. Koleksi yang dikunci tetap meminta kata sandi. Untuk menghapus ikon, hapus sendiri dari layar utama."
+      "plansBilling": {
+        "title": "Langganan bulanan dan tahunan",
+        "body": "Keanggotaan adalah langganan bulanan atau tahunan yang diperpanjang otomatis, dibayar melalui Google Play di Android dan App Store di iPhone dan iPad. Tidak dijual di web. Harga dan mata uang berbeda menurut negara dan toko; yang berlaku adalah jumlah yang ditampilkan di layar Keanggotaan dan layar pembayaran toko sebelum membeli.\n\nJika Anda berlangganan selama uji coba gratis, tagihan langsung dikenakan hari itu juga, dan sisa waktu uji coba tidak ditambahkan ke langganan.\n\nKeanggotaan terikat pada akun Juple Anda, jadi akun yang sama berlaku di Android, iPhone, iPad, dan web. Jika berlangganan di kedua toko sekaligus, Anda ditagih dua kali; batalkan salah satunya."
+      },
+      "restorePurchases": {
+        "title": "Pulihkan pembelian",
+        "body": "Jika Anda memasang ulang aplikasi atau mengganti perangkat dan langganan tidak muncul, ketuk Pulihkan pembelian di layar Keanggotaan. Langganan yang dibeli dengan akun toko di perangkat ini diperiksa lagi dan diterapkan ke akun Juple Anda.\n\nLangganan yang sudah terhubung ke akun Juple lain tidak dipindahkan."
+      },
+      "cancelSubscription": {
+        "title": "Membatalkan langganan",
+        "body": "Batalkan di toko tempat Anda membayar. Di Android: Google Play > Pembayaran & langganan > Langganan. Di iPhone dan iPad: Pengaturan > Akun Apple > Langganan, lalu pilih Juple dan batalkan. Layar Keanggotaan juga bisa membawa Anda ke halaman toko.\n\nSetelah dibatalkan, Anda tetap bisa menggunakannya hingga akhir periode yang sudah dibayar. Pengembalian dana mengikuti kebijakan toko.\n\nMembatalkan langganan dan menghapus akun adalah hal yang berbeda. Menghapus aplikasi atau akun tidak membatalkan langganan; batalkan dulu di toko."
+      },
+      "afterTrial": {
+        "title": "Setelah uji coba berakhir",
+        "body": "Saat uji coba gratis berakhir dan tidak ada langganan aktif, Juple menjadi baca saja. Tautan dan koleksi yang tersimpan tidak dihapus dan tetap bisa dilihat.\n\nTetap tersedia: melihat tautan dan koleksi, membuka tautan asli, mengekspor dan menghapus data Anda, keluar dari koleksi, pengaturan, membeli dan memulihkan langganan, Pusat Bantuan, melaporkan dan memblokir, serta menghapus akun.\n\nDibatasi: menyimpan tautan baru, membuat dan mengedit tautan dan koleksi, menambah, memindahkan, dan menyalin tautan ke koleksi, pengaturan berbagi dan undangan, menulis komentar dan reaksi, permintaan pertemanan, dan tindakan serupa. Menulis di koleksi bersama memerlukan akses aktif bagi Anda dan pemiliknya. Setelah berlangganan lagi, semuanya langsung bisa digunakan seperti biasa."
       },
       "profilePhoto": {
-        "title": "Ganti foto profil",
-        "body": "Di Halaman Saya, ketuk tombol ubah pada kartu profil. Pilih foto, geser dan perbesar agar pas dengan lingkaran, lalu simpan.\n\nFoto profil Anda terlihat oleh teman dan di koleksi bersama."
+        "title": "Mengedit profil",
+        "body": "Ketuk tombol edit pada kartu profil di Halaman Saya untuk mengubah nama panggilan dan foto profil. Setelah memilih foto, geser dan perbesar dengan jari agar pas di lingkaran, lalu simpan.\n\nNama panggilan dan foto profil ditampilkan di koleksi yang Anda bagikan dengan teman. Juple ID tidak bisa diubah."
+      },
+      "settings": {
+        "title": "Bahasa dan tampilan",
+        "body": "Di Halaman Saya > Bahasa, pilih salah satu dari 17 bahasa atau Gunakan pengaturan sistem. Aplikasi langsung berganti ke bahasa itu.\n\nGunakan sakelar Mode gelap di Halaman Saya untuk mengaktifkan atau menonaktifkan layar gelap. Di web, ubah di Tampilan di pengaturan.\n\nKirim pertanyaan di Halaman Saya > Pusat Bantuan dan lihat jawabannya di sana."
+      },
+      "legalDocs": {
+        "title": "Ketentuan Layanan dan Kebijakan Privasi",
+        "body": "Buka Ketentuan Layanan dan Kebijakan Privasi dari Halaman Saya > Pusat Bantuan dan dari layar Keanggotaan. Dokumen dibuka sebagai halaman web dalam bahasa yang Anda atur.\n\nNaskah asli berbahasa Korea adalah versi yang mengikat secara hukum; bahasa lain adalah terjemahan referensi untuk membantu pemahaman. Jika ada perbedaan, naskah Korea yang berlaku. Halaman terjemahan referensi menautkan langsung ke naskah asli berbahasa Korea."
+      },
+      "deleteAccount": {
+        "title": "Menghapus akun",
+        "body": "Di Halaman Saya > Kelola akun > Hapus akun, periksa data yang akan dihapus lalu ketuk Lanjutkan menghapus akun. Masuk lagi untuk memastikan identitas Anda, masukkan Juple ID persis seperti yang ditampilkan, lalu ketuk Hapus akun secara permanen.\n\nMenghapus akun menghapus permanen tautan, koleksi, foto, teman, notifikasi, dan lainnya, dan tidak bisa dibatalkan. Peserta tidak bisa lagi melihat koleksi bersama yang Anda buat.\n\nMenghapus akun tidak membatalkan langganan di toko. Batalkan dulu di Google Play atau App Store."
+      },
+      "useOnWeb": {
+        "title": "Menggunakan Juple di web",
+        "body": "Masuk ke juple.co.kr dengan akun yang sama di browser komputer atau tablet untuk menggunakan tautan dan koleksi Anda di sana.\n\nDi web Anda juga bisa menyimpan tautan dan menggunakan Arsip, koleksi, berbagi, teman, notifikasi, dan pengaturan. Menyimpan dari menu berbagi aplikasi lain, pintasan layar utama, dan pembelian keanggotaan hanya tersedia di aplikasi seluler. Di web Anda bisa melihat status keanggotaan dan membuka halaman pengelolaan langganan toko."
       }
     }
   },
@@ -1392,8 +1463,8 @@
         "body": "Tempel tautan di sini lalu ketuk tombol. Juple mengisi judul dan gambar jika bisa."
       },
       "share": {
-        "title": "Simpan dari aplikasi apa pun",
-        "body": "Di aplikasi lain, ketuk Bagikan lalu pilih Juple. Tautan langsung tersimpan."
+        "title": "Simpan langsung dari aplikasi lain",
+        "body": "Di aplikasi lain, ketuk Bagikan dan pilih Juple untuk mengirim tautan. Jika Simpan cepat aktif, tautan langsung disimpan."
       },
       "collections": {
         "title": "Atur dengan Koleksi",
@@ -1428,8 +1499,8 @@
         "body": "Beralih antara tampilan daftar, kisi, dan gambar."
       },
       "longPress": {
-        "title": "Tekan lama",
-        "body": "Tekan lama koleksi untuk favorit, notifikasi, ubah, kunci, hapus, atau keluar."
+        "title": "Tekan lama untuk memilih",
+        "body": "Tekan lama koleksi untuk memilih beberapa. Gunakan bilah bawah untuk mengunci, menghapus, atau keluar; jika hanya satu yang dipilih, Lainnya berisi notifikasi, berbagi, dan edit."
       },
       "shareCollection": {
         "title": "Bagikan koleksi",
@@ -1441,7 +1512,7 @@
       },
       "friendsTabs": {
         "title": "Empat tab",
-        "body": "Teman, Permintaan masuk, dan Permintaan terkirim masing-masing punya tab sendiri."
+        "body": "Teman, Diterima, Terkirim, dan Pengguna yang diblokir masing-masing punya tab sendiri."
       },
       "friendsShared": {
         "title": "Koleksi bersama",

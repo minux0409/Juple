@@ -1119,83 +1119,110 @@
         "summary": "I link di oggi e tutto il resto"
       },
       "viewing": {
-        "title": "Ricerca, ordinamento e viste",
-        "summary": "Trova i link e guardali a modo tuo"
+        "title": "Ricerca e visualizzazioni",
+        "summary": "Trova i link e cambia il modo di vederli"
+      },
+      "selection": {
+        "title": "Selezione multipla",
+        "summary": "Organizza link e raccolte in una volta"
       },
       "collections": {
         "title": "Organizzare con le raccolte",
         "summary": "Raggruppa i link a modo tuo"
       },
       "sharing": {
-        "title": "Condivisione e lavoro di squadra",
-        "summary": "Condividi una raccolta e decidi chi può fare cosa"
+        "title": "Condivisione e collaborazione",
+        "summary": "Condividi raccolte e usale insieme"
       },
       "protection": {
         "title": "Blocchi e password",
         "summary": "Proteggi le raccolte sensibili"
       },
+      "friends": {
+        "title": "Amici",
+        "summary": "Aggiungi amici e gestisci le richieste"
+      },
       "notifications": {
-        "title": "Notifiche",
-        "summary": "Resta aggiornato"
+        "title": "Notifiche e avvisi",
+        "summary": "Non perderti nulla"
       },
       "trash": {
         "title": "Eliminare e ripristinare",
         "summary": "Recupera i link eliminati"
       },
+      "membership": {
+        "title": "Abbonamento",
+        "summary": "Prova gratuita, abbonamento, disdetta e ripristino"
+      },
       "account": {
         "title": "Account e impostazioni",
-        "summary": "Profilo, lingua e altro"
+        "summary": "Profilo, lingua, documenti legali, eliminazione dell’account"
       }
     },
     "topics": {
       "pasteShare": {
         "title": "Incollare o condividere un link",
-        "body": "Incolla un URL nel campo in alto in Home. Funziona anche un testo che contiene un link: Juple usa il primo che trova.\n\nSu Android puoi anche condividere un link da un browser o da un’altra app direttamente a Juple."
+        "body": "Incolla un URL nel campo in alto in Home e tocca il pulsante a destra. Puoi anche incollare un testo che contiene un link: viene usato il primo link presente.\n\nPuoi anche inviare un link da un browser o da un’altra app: apri il suo menu di condivisione e scegli Juple. Funziona su Android e su iPhone e iPad."
       },
       "quickSave": {
         "title": "Salvataggio rapido",
-        "body": "Attiva il Salvataggio rapido in Il mio profilo per salvare subito i link condivisi, senza schermata di verifica.\n\nSe è disattivato, Juple mostra prima il link così puoi modificare il titolo, aggiungere una nota e scegliere le raccolte prima di salvare."
+        "body": "Attiva il Salvataggio rapido in Il mio profilo e i link condivisi da altre app vengono salvati subito, senza la schermata di revisione.\n\nQuando è disattivato, Juple ti mostra prima il link. Modifica il titolo, scrivi una nota e scegli le raccolte, poi salva."
       },
       "review": {
         "title": "Prima di salvare",
-        "body": "Juple compila titolo e immagine di anteprima quando può. Se non riesce a leggerli, puoi scrivere tu il titolo.\n\nAggiungi una nota e scegli una o più raccolte, oppure creane una al volo. Se una raccolta richiede approvazione, il tuo link viene inviato al proprietario come richiesta."
+        "body": "Quando la pagina pubblica del link può essere letta, Juple compila automaticamente il titolo e l’immagine di anteprima. Le informazioni che non si possono confermare non vengono mai indovinate: in quel caso scrivi tu il titolo.\n\nAggiungi una nota e scegli una o più raccolte, oppure creane una sul momento. In una raccolta che richiede approvazione, il link arriva al proprietario come richiesta di approvazione."
       },
       "androidShortcuts": {
-        "title": "Scorciatoie e condivisione diretta",
-        "body": "Aggiungi una raccolta alla schermata Home dal suo menu a pressione prolungata per aprirla con un tocco. Vedi «Tieni premuta una raccolta per gestirla velocemente» in Organizzare con le raccolte.\n\nI link condivisi possono anche andare direttamente in una raccolta dal menu di condivisione del telefono. Le raccolte bloccate o protette da password, o in cui non puoi aggiungere link, non vengono proposte.\n\nQuando una raccolta è proposta come destinazione di condivisione, il suo menu a pressione prolungata ha «Rimuovi dalle destinazioni di condivisione». Questo la toglie solo dal menu di condivisione. La raccolta, i suoi link e le scorciatoie sulla schermata Home che hai creato restano."
+        "title": "Scorciatoie e Condivisione diretta",
+        "body": "Tieni premuta una raccolta per selezionarla, poi tocca Scorciatoia nella barra in basso per creare una scorciatoia a quella raccolta nella schermata Home. Vedi «Scorciatoia nella schermata Home» in Organizzare con le raccolte.\n\nPuoi anche inviare un link direttamente a una raccolta dal menu di condivisione del telefono. Le raccolte bloccate, quelle con password e quelle a cui non puoi aggiungere link non compaiono come destinazioni.\n\nQuando una raccolta compare come destinazione di condivisione, il suo menu include «Rimuovi dalle destinazioni di condivisione». La toglie solo dal menu di condivisione; la raccolta, i suoi link e le scorciatoie create restano invariati."
       },
       "home": {
         "title": "Home",
-        "body": "Home mostra i link che hai salvato oggi. Tocca un link per aprirne i dettagli e usa i pulsanti di ordinamento e il selettore di vista sopra l’elenco per cambiare come vengono mostrati."
+        "body": "Home mostra i link salvati oggi, dal più recente. Il campo in alto resta fisso mentre scorri, così puoi salvare un link in qualsiasi momento.\n\nTocca un link per aprirne i dettagli. Usa i pulsanti accanto a Recenti per passare dalla vista elenco a quella a griglia o a immagini. Tocca la campanella in Home per aprire le notifiche."
       },
       "archive": {
         "title": "Archivio",
-        "body": "Archivio contiene tutti i link che hai salvato, raggruppati per data. Tocca una data per aprirla o chiuderla e usa la ricerca per trovare un link più vecchio."
+        "body": "L’Archivio raccoglie tutti i link che hai salvato, raggruppati per data e dal più recente. Digita almeno due caratteri nel campo di ricerca per trovare i link più vecchi."
+      },
+      "linkDetails": {
+        "title": "Dettagli e modifica di un link",
+        "body": "Tocca un link per aprirne i dettagli. Puoi modificare il titolo e la nota, cambiare le raccolte e la foto di copertina, poi salvare. Usa il pulsante di apertura del link per aprire la pagina originale.\n\nNon puoi modificare un link che un’altra persona ha aggiunto a una raccolta condivisa. Tienilo premuto per selezionarlo e usa Altro > Salva link per salvarlo come tuo."
       },
       "swipe": {
-        "title": "Scorri per le azioni rapide",
-        "body": "Scorri un link di lato in Home o Archivio per mostrare azioni rapide, come condividi ed elimina. Le azioni dipendono dal link: per esempio, un link di una raccolta bloccata non si può condividere da qui."
+        "title": "Scorri per azioni rapide",
+        "body": "Nelle viste a elenco e a griglia di Home e Archivio, scorri un link di lato per far comparire azioni rapide come condividere ed eliminare. Le azioni dipendono dal link. Ad esempio, i link di una raccolta bloccata non si possono condividere da qui."
       },
       "searchSort": {
-        "title": "Cerca e ordina",
-        "body": "Archivio e ogni raccolta hanno una casella di ricerca. Ordina per ora (tocca di nuovo per alternare tra più recente e più vecchio prima) o per nome.\n\nHome è per i link di oggi, quindi si può ordinare ma non cercare."
+        "title": "Ricerca e ordine",
+        "body": "Archivio, la scheda Raccolte e ogni raccolta hanno un campo di ricerca. La ricerca dei link parte quando digiti almeno due caratteri. Home non ha la ricerca.\n\nI link sono sempre mostrati dal più recente; non c’è un pulsante per cambiare l’ordine."
       },
       "viewModes": {
         "title": "Viste elenco, griglia e immagini",
-        "body": "Usa i pulsanti di vista per mostrare i link come elenco, griglia o vista immagini, che mostra le immagini su tre colonne. La tua scelta viene ricordata separatamente per Home, Archivio e Raccolte."
+        "body": "Con i pulsanti di visualizzazione vedi i link come elenco, griglia o immagini. La vista a immagini mostra le foto su 3 colonne. Nella scheda Raccolte puoi vedere le raccolte come elenco o griglia. Ogni schermata ricorda la propria vista.\n\nQuando cambi vista, l’elenco riparte dall’inizio."
+      },
+      "selectLinks": {
+        "title": "Selezionare più link",
+        "body": "Tieni premuto un link per iniziare a selezionare; in basso compare una barra delle azioni. Tocca altri link per aggiungerli e usa Seleziona tutto o il pulsante di chiusura in alto per cambiare o terminare la selezione.\n\nHome e Archivio: Cambia raccolta imposta in una volta le raccolte dei link selezionati, ed Elimina li sposta in Eliminati di recente. In Altro trovi copia link e condividi e, con un solo link, anche apri link e modifica.\n\nDentro una raccolta: Elimina (rimuove da questa raccolta), Sposta e Copia. In una raccolta condivisa puoi spostare solo i link che hai aggiunto tu, e puoi segnalare quelli degli altri. Se solo alcuni riescono, quelli non riusciti restano selezionati."
+      },
+      "selectCollections": {
+        "title": "Selezionare più raccolte",
+        "body": "Tieni premuta una raccolta nella scheda Raccolte per iniziare a selezionare. La barra in basso offre il blocco ed elimina o esci. Con una sola raccolta, in Altro puoi attivare o disattivare le notifiche, Condividi e Modifica. I pulsanti visibili dipendono dalla raccolta e dal tuo ruolo.\n\nLe tue raccolte vengono eliminate; da quelle che un’altra persona ha condiviso con te esci. Se selezioni entrambi i tipi, un’unica conferma mostra i numeri e «Elimina ed esci» fa entrambe le cose. Le raccolte non riuscite restano selezionate.\n\nCon più raccolte selezionate, quelle bloccate vengono saltate. Per eliminare una raccolta bloccata, selezionala da sola e inserisci la password. Eliminare una raccolta non elimina i link che conteneva."
       },
       "createCollection": {
-        "title": "Creare una raccolta",
-        "body": "Nella scheda Raccolte tocca Nuova raccolta. Scegli un nome, un’icona e un colore, oppure usa una tua foto. Un link può appartenere a più raccolte.\n\nSegna le raccolte come preferite per tenerle insieme in alto."
+        "title": "Creare e modificare raccolte",
+        "body": "Tocca il pulsante + nella scheda Raccolte. Scegli nome, icona e colore, oppure usa una tua foto. Uno stesso link può stare in più raccolte.\n\nPer cambiare nome o aspetto, seleziona la raccolta e usa Altro > Modifica, oppure il menu nella schermata della raccolta. Solo il proprietario può modificarla."
       },
-      "longPress": {
-        "title": "Tieni premuta una raccolta per gestirla velocemente",
-        "body": "Tieni premuta una raccolta per vedere le azioni rapide. Il menu che vedi dipende dalla raccolta e dal tuo ruolo.\n\nPreferito\nRaccogli le raccolte che apri spesso. Vale solo per te.\n\nAttiva/disattiva notifiche\nScegli se ricevere le notifiche di una raccolta condivisa.\n\nModifica\nCambia nome, icona, colore o foto. Può farlo solo il proprietario della raccolta.\n\nBlocco\nImposta o rimuovi il tuo blocco su una raccolta. È diverso dalla password di accesso di un link condiviso.\n\nElimina / Esci\nI proprietari eliminano una raccolta e i membri escono. Eliminare una raccolta non elimina i link al suo interno.\n\nCondividi\nIl proprietario apre la schermata di condivisione; un membro può inoltrare il link solo finché il proprietario lo mantiene attivo.\n\nCon uno screen reader, tieni premuta la raccolta o scegli «Opzioni» nel menu di accessibilità.",
-        "shortcut": "Apri una raccolta che usi spesso direttamente dalla schermata Home. Tienila premuta e scegli «Aggiungi scorciatoia alla schermata Home» per entrare in quella raccolta dalla schermata Home del telefono.\n\nUna raccolta bloccata chiede comunque la password quando la apri da una scorciatoia.\n\nElimina tu stesso la scorciatoia dalla schermata Home quando non ti serve più."
+      "favorites": {
+        "title": "Preferiti",
+        "body": "Tocca la stella di una raccolta per aggiungerla ai Preferiti e toccala di nuovo per toglierla. I preferiti valgono solo per te.\n\nUsa i pulsanti Preferiti, Tutte, Le mie raccolte e Condivise in cima alla scheda Raccolte per scegliere quali raccolte vedere."
+      },
+      "homeShortcut": {
+        "title": "Scorciatoia nella schermata Home (1×1)",
+        "body": "Tieni premuta una raccolta, lasciala selezionata da sola e tocca Scorciatoia nella barra in basso per creare un’icona 1×1 di quella raccolta nella schermata Home del telefono. Toccando l’icona, la raccolta si apre direttamente in Juple.\n\nCompare solo se il launcher supporta le scorciatoie nella schermata Home. Una raccolta bloccata chiede comunque la password anche se aperta dall’icona. Per togliere l’icona, eliminala tu dalla schermata Home."
       },
       "manageLinks": {
         "title": "Copiare e spostare link",
-        "body": "Apri una raccolta e usa il menu «altro» di un link per copiarlo in altre raccolte, spostarlo o rimuoverlo da questa raccolta. Rimuoverlo non elimina il link.\n\nDopo uno spostamento o un’eliminazione, tocca Annulla nel messaggio che appare."
+        "body": "Apri una raccolta, tieni premuti i link per selezionarli e usa la barra in basso per spostarli o copiarli in un’altra raccolta. Elimina li toglie solo da questa raccolta; i tuoi link restano.\n\nIn Home o in Archivio, Cambia raccolta cambia in una volta le raccolte di più link.\n\nSubito dopo uno spostamento o un’eliminazione, puoi annullare dal messaggio che compare."
       },
       "publicLink": {
         "title": "Condividere una raccolta con un link",
@@ -1210,40 +1237,84 @@
         "body": "Sola lettura: può vedere la raccolta. Con approvazione: può proporre link, che il proprietario approva. Può aggiungere link: può aggiungerli direttamente. Il proprietario gestisce la raccolta, la condivisione e il permesso di tutti.\n\nL’impostazione di un link pubblico è il livello più basso che chiunque può avere. Alle persone invitate puoi darne uno più alto."
       },
       "joinRequests": {
-        "title": "Richieste di partecipazione",
-        "body": "Quando l’impostazione pubblica di una raccolta è disattivata, chi apre il suo link può chiedere di partecipare. Il proprietario vede la richiesta nella raccolta e la approva, aggiungendo la persona in sola lettura, oppure la rifiuta. La persona potrà chiedere di nuovo più avanti.\n\nDopo che hai chiesto di partecipare, la raccolta compare come «In attesa di approvazione» nella scheda Raccolte finché il proprietario non risponde."
+        "title": "Richieste di partecipazione e attesa di approvazione",
+        "body": "Quando le Impostazioni raccolta pubblica sono su OFF, chi apre il link può chiedere di partecipare. Il proprietario vede le richieste nella schermata di condivisione della raccolta e le approva o le rifiuta. Chi viene approvato partecipa in sola lettura. Chi viene rifiutato può chiedere di nuovo più tardi.\n\nQuando chiedi di partecipare, la raccolta compare come «In attesa di approvazione» nella tua scheda Raccolte finché il proprietario non risponde. Tienila premuta per annullare la richiesta."
       },
       "approvals": {
         "title": "Richieste di approvazione dei link",
         "body": "Sono diverse dalle richieste di partecipazione. Sono link che qualcuno con il permesso «Con approvazione» propone per una raccolta. Il proprietario le trova in Richieste di approvazione ricevute e approva o rifiuta ciascuna.\n\nSe hai proposto un link, trovalo in Richieste di approvazione inviate, dove puoi annullarlo."
       },
+      "comments": {
+        "title": "Commenti e reazioni",
+        "body": "Apri un link di una raccolta condivisa per lasciare commenti e risposte, mettere Mi piace e reagire con le emoji insieme agli altri partecipanti. Puoi modificare o eliminare i tuoi commenti."
+      },
       "collectionLock": {
         "title": "Bloccare una raccolta",
-        "body": "Imposta una password di blocco in Il mio profilo > Blocco raccolte, poi blocca una raccolta dal suo menu a pressione prolungata. Una raccolta bloccata nasconde i suoi link, anche in Home e Archivio, finché non inserisci la password. Il blocco vale per te, non per le persone con cui condividi."
+        "body": "Prima imposta una password di blocco in Il mio profilo > Blocco raccolte. Poi tieni premuta una raccolta nella scheda Raccolte per selezionarla e tocca Blocca raccolta nella barra in basso.\n\nUna raccolta bloccata non si apre finché non inserisci la password, e i suoi link sono nascosti anche in Home e in Archivio. Per sbloccarla, selezionala da sola e inserisci la password.\n\nPuoi bloccare anche una raccolta che un’altra persona ha condiviso con te, solo per te. Questo blocco vale solo per te e non influisce sul proprietario né sugli altri partecipanti."
       },
       "accessPassword": {
         "title": "Password di accesso per la condivisione",
         "body": "Quando condividi una raccolta puoi anche impostare una password di accesso. Chi apre la raccolta condivisa deve inserirla. È separata dal tuo blocco e puoi vederla, cambiarla o rimuoverla in Condividi."
       },
+      "friends": {
+        "title": "Aggiungere e gestire amici",
+        "body": "In Il mio profilo > Amici ci sono le schede Amici, Ricevute, Inviate e Utenti bloccati. Le schede Ricevute e Inviate mostrano quante richieste sono in attesa.\n\nTocca il pulsante + e inserisci il Juple ID dell’altra persona per inviarle una richiesta di amicizia. Quando accetta, siete amici. Accetta o rifiuta le richieste ricevute e annulla quelle inviate.\n\nPuoi cercare nella lista degli amici. Tocca un amico per vedere le raccolte che condividete, e tienilo premuto o fallo scorrere per toglierlo dagli amici."
+      },
+      "blockReport": {
+        "title": "Bloccare e segnalare",
+        "body": "Puoi bloccare le persone con cui non vuoi interagire. Una volta bloccate, non potete scambiarvi richieste di amicizia, inviti o richieste di partecipazione, e nelle raccolte condivise non vedete i link aggiunti dall’altro. Anche i commenti e le reazioni della persona bloccata non ti vengono mostrati. I dati salvati non vengono eliminati, e puoi sbloccare in qualsiasi momento dalla scheda Utenti bloccati.\n\nSe blocchi il proprietario di una raccolta a cui partecipi, esci da quella raccolta.\n\nPuoi segnalare utenti, raccolte, link e commenti problematici. Il team di Juple esamina le segnalazioni, e i dati di chi segnala non vengono mai mostrati all’altra persona."
+      },
       "notificationCenter": {
         "title": "Notifiche",
-        "body": "La campanella in Home apre le tue notifiche, con il numero di quelle non lette. Toccane una per andare a ciò che riguarda. Puoi segnare tutto come letto o eliminarle una per una.\n\nAttiva o disattiva le notifiche di ogni raccolta condivisa dal suo menu a pressione prolungata. Se sono disattivate, gli elementi compaiono comunque nell’elenco, ma non ricevi avvisi."
+        "body": "Tocca la campanella in Home per aprire le notifiche; indica quante non sono ancora lette. Sul web, aprile da Notifiche nel menu. Tocca una notifica per andare alla schermata relativa. Puoi segnarle tutte come lette o eliminarle una alla volta.\n\nRicevi notifiche per richieste di amicizia e risposte, inviti alle raccolte, richieste di partecipazione e il loro esito, link aggiunti alle raccolte condivise, richieste di approvazione, e commenti, risposte e reazioni.\n\nPuoi attivare o disattivare le notifiche di ogni raccolta condivisa. Se sono disattivate restano comunque nell’elenco, ma non arriva la notifica push."
+      },
+      "notices": {
+        "title": "Avvisi",
+        "body": "Gli annunci importanti, come modifiche al servizio o ai termini, si trovano in Il mio profilo > Avvisi."
       },
       "deleteRestore": {
         "title": "Eliminare e ripristinare",
-        "body": "Elimina un link scorrendolo o dai suoi dettagli. I link eliminati vanno in Eliminati di recente in Il mio profilo, dove puoi ripristinarli, eliminarli definitivamente o svuotare l’elenco. I link eliminati definitivamente non si possono recuperare.\n\nRimuovere un link da una raccolta non lo elimina."
+        "body": "Elimina un link facendolo scorrere, selezionandolo con una pressione prolungata o dai suoi dettagli. I link eliminati finiscono in Eliminati di recente, in Il mio profilo, dove restano fino a 30 giorni, al massimo 100 link. Da lì puoi ripristinarli, eliminarli definitivamente o svuotare l’elenco. I link eliminati definitivamente non si possono recuperare.\n\nTogliere un link da una raccolta non significa eliminarlo. Subito dopo aver eliminato una raccolta, puoi annullare dal messaggio che compare."
       },
-      "settings": {
-        "title": "Account e impostazioni",
-        "body": "Il mio profilo contiene il tuo profilo e ID Juple, lingua, Salvataggio rapido, Amici, Blocco raccolte, Eliminati di recente e gestione dell’account. Contatta l’assistenza dal Centro assistenza.\n\nIn Gestisci account puoi vedere come accedi ed eliminare il tuo account, il che elimina definitivamente account e dati.\n\nOgni persona ha diritto a una sola prova di esattamente 30 giorni (720 ore). Per i membri già iscritti parte dall’avvio del servizio di abbonamento; per chi si iscrive dopo, dall’istante della registrazione. In seguito restano disponibili la consultazione di link e raccolte esistenti, la gestione di account e abbonamenti, il ripristino degli acquisti e l’eliminazione dell’account. Senza un abbonamento valido o un accesso gratuito concesso dall’amministratore, le principali azioni di scrittura, come salvare, creare e modificare, sono limitate.\n\nPuoi disdire in qualsiasi momento da Google Play > Pagamenti e abbonamenti > Abbonamenti. Mantieni l'accesso fino alla fine del periodo pagato. Puoi disdire in qualsiasi momento da Impostazioni ID Apple > Abbonamenti. Mantieni l'accesso fino alla fine del periodo pagato."
+      "trialPeriod": {
+        "title": "Prova gratuita",
+        "body": "La prova gratuita spetta una sola volta a persona e dura esattamente 720 ore (30 giorni). I membri registrati prima delle 10:00 del 27 novembre 2026 possono usarla fino alle 10:00:07 del 27 dicembre 2026 (ora della Corea); chi si è registrato dopo, per 720 ore dal momento della registrazione.\n\nLa prova gratuita parte senza metodo di pagamento e, al termine, non viene mai addebitato nulla né diventa da sola un abbonamento a pagamento. Eliminare l’account e registrarsi di nuovo non avvia una nuova prova. Controlla il tempo rimanente in Il mio profilo > Abbonamento."
       },
-      "homeShortcut": {
-        "title": "Scorciatoia nella schermata Home (1×1)",
-        "body": "Tieni premuta una raccolta e scegli “Aggiungi scorciatoia alla schermata Home”. Nella schermata Home compare un’icona 1×1 di quella raccolta e toccandola si apre in Juple.\n\nLa voce di menu compare solo se il launcher supporta le scorciatoie nella schermata Home. Una raccolta bloccata chiede comunque la password. Per rimuovere l’icona, eliminala tu stesso dalla schermata Home."
+      "plansBilling": {
+        "title": "Abbonamento mensile e annuale",
+        "body": "L’abbonamento è mensile o annuale con rinnovo automatico. Si paga con Google Play su Android e con l’App Store su iPhone e iPad; sul web non è in vendita. Prezzi e valute variano in base al paese e allo store; vale l’importo mostrato prima dell’acquisto nella schermata dell’abbonamento e in quella di pagamento dello store.\n\nSe ti abboni durante la prova gratuita, l’addebito avviene quel giorno stesso e il tempo gratuito rimanente non si aggiunge all’abbonamento.\n\nL’abbonamento appartiene al tuo account Juple, quindi puoi usarlo con lo stesso account su Android, iPhone e iPad e sul web. Abbonarsi in entrambi gli store contemporaneamente comporta due addebiti: disdicine uno."
+      },
+      "restorePurchases": {
+        "title": "Ripristinare gli acquisti",
+        "body": "Se hai reinstallato l’app o cambiato dispositivo e il tuo abbonamento non compare, tocca Ripristina acquisti nella schermata dell’abbonamento. L’abbonamento acquistato con l’account dello store di questo dispositivo viene verificato di nuovo e applicato al tuo account Juple.\n\nUn abbonamento già collegato a un altro account Juple non viene trasferito."
+      },
+      "cancelSubscription": {
+        "title": "Disdire l’abbonamento",
+        "body": "Disdici nello store in cui hai pagato. Su Android vai in Google Play > Pagamenti e abbonamenti > Abbonamenti; su iPhone e iPad vai in Impostazioni > Account Apple > Abbonamenti, scegli Juple e disdici. La schermata dell’abbonamento può anche portarti alla pagina dello store.\n\nDopo la disdetta puoi continuare a usare l’abbonamento fino alla fine del periodo già pagato. I rimborsi seguono le regole dello store.\n\nDisdire l’abbonamento ed eliminare l’account sono cose diverse. Eliminare l’app o l’account non disdice l’abbonamento: disdicilo prima nello store."
+      },
+      "afterTrial": {
+        "title": "Dopo la prova",
+        "body": "Quando la prova gratuita è finita e non hai un abbonamento valido, Juple passa alla sola lettura. I link e le raccolte salvati non vengono eliminati e restano visibili.\n\nAncora disponibile: vedere link e raccolte, aprire i link originali, esportare ed eliminare i tuoi dati, uscire dalle raccolte, le impostazioni, acquistare e ripristinare un abbonamento, il Centro assistenza, segnalare e bloccare, ed eliminare l’account.\n\nLimitato: salvare nuovi link, creare e modificare link e raccolte, aggiungere, spostare e copiare link nelle raccolte, impostazioni di condivisione e inviti, scrivere commenti e reazioni, richieste di amicizia e simili. Per scrivere in una raccolta condivisa servono l’accesso tuo e quello del proprietario. Abbonandoti di nuovo, tutto torna subito come prima."
       },
       "profilePhoto": {
-        "title": "Cambiare la foto del profilo",
-        "body": "In La mia pagina tocca il pulsante di modifica sulla scheda del profilo. Scegli una foto, spostala e ingrandiscila per adattarla al cerchio, poi salva.\n\nLa foto del profilo è visibile agli amici e nelle raccolte condivise."
+        "title": "Modificare il profilo",
+        "body": "Tocca il pulsante di modifica sulla scheda del profilo in Il mio profilo per cambiare nickname e foto del profilo. Dopo aver scelto una foto, spostala e ingrandiscila con le dita per adattarla al cerchio, poi salva.\n\nNickname e foto del profilo sono visibili nelle raccolte che condividi con gli amici. Il Juple ID non si può cambiare."
+      },
+      "settings": {
+        "title": "Lingua e visualizzazione",
+        "body": "In Il mio profilo > Lingua scegli una delle 17 lingue oppure Usa le impostazioni di sistema. L’app passa subito a quella lingua.\n\nUsa l’interruttore Modalità scura in Il mio profilo per attivare o disattivare lo schermo scuro. Sul web, cambiala in Aspetto nelle impostazioni.\n\nInvia le tue domande da Il mio profilo > Centro assistenza e leggi lì anche le risposte."
+      },
+      "legalDocs": {
+        "title": "Termini di servizio e Informativa sulla privacy",
+        "body": "Apri i Termini di servizio e l’Informativa sulla privacy da Il mio profilo > Centro assistenza o dalla schermata dell’abbonamento. Si aprono come pagine web nella lingua impostata.\n\nIl testo giuridicamente vincolante è l’originale coreano. Le altre lingue sono traduzioni di riferimento per aiutarti a capire; in caso di differenze prevale l’originale coreano. Le pagine con la traduzione di riferimento rimandano direttamente all’originale coreano."
+      },
+      "deleteAccount": {
+        "title": "Eliminare l’account",
+        "body": "In Il mio profilo > Gestisci account > Elimina account, controlla i dati che verranno eliminati e tocca Continua con l’eliminazione. Accedi di nuovo per confermare la tua identità, inserisci il Juple ID esattamente come mostrato e tocca Elimina account definitivamente.\n\nEliminare l’account cancella definitivamente link, raccolte, foto, amici, notifiche e altro, e non si può annullare. I partecipanti non potranno più vedere le raccolte condivise che hai creato.\n\nEliminare l’account non disdice l’abbonamento dello store. Disdicilo prima in Google Play o nell’App Store."
+      },
+      "useOnWeb": {
+        "title": "Usare Juple sul web",
+        "body": "Accedi a juple.co.kr dal browser di un computer o di un tablet con lo stesso account per usare lì i tuoi link e le tue raccolte.\n\nSul web puoi anche salvare link e usare Archivio, raccolte, condivisione, amici, notifiche e impostazioni. Il salvataggio dal menu di condivisione di altre app, le scorciatoie nella schermata Home e l’acquisto dell’abbonamento funzionano solo nell’app mobile. Sul web puoi verificare lo stato dell’abbonamento e andare alla gestione degli abbonamenti dello store."
       }
     }
   },
@@ -1392,8 +1463,8 @@
         "body": "Incolla qui un link e tocca il pulsante. Juple compila titolo e immagine quando può."
       },
       "share": {
-        "title": "Salva da qualsiasi app",
-        "body": "In un’altra app tocca Condividi e scegli Juple. Il link viene salvato subito."
+        "title": "Salva direttamente da altre app",
+        "body": "In un’altra app tocca Condividi e scegli Juple per inviare il link. Con il Salvataggio rapido attivo, viene salvato subito."
       },
       "collections": {
         "title": "Organizza con le raccolte",
@@ -1428,8 +1499,8 @@
         "body": "Passa tra visualizzazione a elenco, griglia e immagini."
       },
       "longPress": {
-        "title": "Tieni premuto",
-        "body": "Tieni premuta una raccolta per preferiti, notifiche, modifica, blocco, eliminazione o uscita."
+        "title": "Tieni premuto per selezionare",
+        "body": "Tieni premuta una raccolta per selezionarne più di una. Usa la barra in basso per bloccare, eliminare o uscire; con una sola raccolta, Altro offre notifiche, Condividi e Modifica."
       },
       "shareCollection": {
         "title": "Condividi una raccolta",
@@ -1441,7 +1512,7 @@
       },
       "friendsTabs": {
         "title": "Quattro schede",
-        "body": "Amici, Richieste ricevute e Richieste inviate hanno ciascuno la propria scheda."
+        "body": "Amici, Ricevute, Inviate e Utenti bloccati hanno ciascuna la propria scheda."
       },
       "friendsShared": {
         "title": "Raccolte condivise",

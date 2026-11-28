@@ -1119,83 +1119,110 @@
         "summary": "Bugünün bağlantıları ve öncesi"
       },
       "viewing": {
-        "title": "Arama, sıralama ve görünümler",
-        "summary": "Bağlantıları bulun ve kendi tarzınızda görün"
+        "title": "Arama ve görünüm",
+        "summary": "Bağlantıları bulun ve nasıl görüneceklerini değiştirin"
+      },
+      "selection": {
+        "title": "Birden çok seçme",
+        "summary": "Bağlantıları ve koleksiyonları birlikte yönetin"
       },
       "collections": {
         "title": "Koleksiyonlarla düzenleme",
         "summary": "Bağlantıları kendi yolunuzla gruplayın"
       },
       "sharing": {
-        "title": "Paylaşım ve ekip çalışması",
-        "summary": "Bir koleksiyonu paylaşın ve kimin ne yapabileceğine karar verin"
+        "title": "Paylaşma ve birlikte çalışma",
+        "summary": "Koleksiyonları paylaşın ve birlikte kullanın"
       },
       "protection": {
         "title": "Kilitler ve şifreler",
         "summary": "Hassas koleksiyonları koruyun"
       },
+      "friends": {
+        "title": "Arkadaşlar",
+        "summary": "Arkadaş ekleyin ve istekleri yönetin"
+      },
       "notifications": {
-        "title": "Bildirimler",
-        "summary": "Gelişmelerden haberdar olun"
+        "title": "Bildirimler ve duyurular",
+        "summary": "Hiçbir şeyi kaçırmayın"
       },
       "trash": {
         "title": "Silme ve geri yükleme",
         "summary": "Silinen bağlantıları geri getirin"
       },
+      "membership": {
+        "title": "Üyelik",
+        "summary": "Ücretsiz deneme, abonelik, iptal, geri yükleme"
+      },
       "account": {
         "title": "Hesap ve ayarlar",
-        "summary": "Profil, dil ve daha fazlası"
+        "summary": "Profil, dil, yasal belgeler, hesap silme"
       }
     },
     "topics": {
       "pasteShare": {
-        "title": "Bağlantı yapıştırma veya paylaşma",
-        "body": "Ana Sayfa'nın üstündeki alana bir URL yapıştırın. Bağlantı içeren bir metin de olur: Juple bulduğu ilk bağlantıyı kullanır.\n\nAndroid'de bir tarayıcıdan veya başka bir uygulamadan doğrudan Juple'a bağlantı da paylaşabilirsiniz."
+        "title": "Bağlantı yapıştırın veya paylaşın",
+        "body": "Ana Sayfa'nın üstündeki alana bir URL yapıştırın ve sağdaki düğmeye dokunun. Bağlantı içeren bir metin de yapıştırabilirsiniz; içindeki ilk bağlantı kullanılır.\n\nTarayıcıdan veya başka bir uygulamadan da paylaş menüsünü açıp Juple'ı seçerek bağlantı gönderebilirsiniz. Android'de, iPhone'da ve iPad'de çalışır."
       },
       "quickSave": {
         "title": "Hızlı kaydet",
-        "body": "Paylaşılan bağlantıları inceleme ekranı olmadan hemen kaydetmek için Sayfam'da Hızlı kaydet'i açın.\n\nKapalıyken Juple önce bağlantıyı gösterir; kaydetmeden önce başlığı düzenleyebilir, not ekleyebilir ve koleksiyonları seçebilirsiniz."
+        "body": "Sayfam'da Hızlı kaydet'i açın; diğer uygulamalardan paylaşılan bağlantılar inceleme ekranı olmadan hemen kaydedilir.\n\nKapalıyken Juple bağlantıyı önce gösterir; kaydetmeden önce başlığı değiştirebilir, not yazabilir ve koleksiyon seçebilirsiniz."
       },
       "review": {
         "title": "Kaydetmeden önce",
-        "body": "Juple mümkün olduğunda başlığı ve önizleme görselini doldurur. Okuyamazsa başlığı kendiniz yazabilirsiniz.\n\nBir not ekleyin ve bir veya daha fazla koleksiyon seçin ya da orada yenisini oluşturun. Bir koleksiyon onay gerektiriyorsa bağlantınız sahibine istek olarak gönderilir."
+        "body": "Bağlantının herkese açık sayfası okunabiliyorsa Juple başlığı ve önizleme görselini otomatik doldurur. Doğrulanamayan bilgiler tahmin edilmez; başlığı kendiniz yazın.\n\nBir not yazın ve bir ya da daha fazla koleksiyon seçin veya yerinde yeni bir koleksiyon oluşturun. Onay gerektiren koleksiyonlarda bağlantı sahibine öneri olarak gönderilir."
       },
       "androidShortcuts": {
         "title": "Kısayollar ve doğrudan paylaşım",
-        "body": "Bir koleksiyonu uzun basma menüsünden ana ekranınıza ekleyerek tek dokunuşla açın. Koleksiyonlarla düzenleme bölümündeki «Hızlı yönetim için koleksiyona uzun basın» konusuna bakın.\n\nPaylaşılan bağlantılar telefonunuzun paylaşım menüsünden doğrudan bir koleksiyona da gidebilir. Kilitli veya şifreli koleksiyonlar ile bağlantı ekleyemediğiniz koleksiyonlar orada sunulmaz.\n\nBir koleksiyon paylaşım hedefi olarak sunulduğunda uzun basma menüsünde «Paylaşım hedeflerinden kaldır» bulunur. Bu yalnızca onu paylaşım menüsünden çıkarır. Koleksiyon, bağlantıları ve oluşturduğunuz ana ekran kısayolları olduğu gibi kalır."
+        "body": "Seçmek için bir koleksiyona uzun basın, ardından o koleksiyonun ana ekran kısayolunu oluşturmak için alt çubuktaki Kısayol'a dokunun. Koleksiyonlarla düzenleme bölümündeki “Ana ekran kısayolu” konusuna bakın.\n\nTelefonun paylaş menüsünden bağlantıları doğrudan bir koleksiyona da gönderebilirsiniz. Kilitli, parolalı veya bağlantı eklenemeyen koleksiyonlar paylaşım hedefi olarak gösterilmez.\n\nBir koleksiyon paylaşım hedefi olarak göründüğünde menüsünde “Paylaşım hedeflerinden kaldır” bulunur. Bu yalnızca paylaş menüsünden kaldırır; koleksiyon, bağlantılar ve oluşturulmuş ana ekran kısayolu değişmez."
       },
       "home": {
         "title": "Ana Sayfa",
-        "body": "Ana Sayfa bugün kaydettiğiniz bağlantıları gösterir. Ayrıntıları açmak için bir bağlantıya dokunun; nasıl görüneceğini değiştirmek için listenin üstündeki sıralama düğmelerini ve görünüm anahtarını kullanın."
+        "body": "Ana Sayfa bugün kaydettiğiniz bağlantıları en yeniden başlayarak gösterir. Üstteki alan kaydırırken yerinde kalır; böylece istediğiniz zaman bağlantı kaydedebilirsiniz.\n\nAyrıntıları açmak için bir bağlantıya dokunun. Liste, ızgara ve görsel görünümü arasında geçmek için Son'un yanındaki düğmeyi kullanın. Bildirimleri açmak için Ana Sayfa'daki zil simgesine dokunun."
       },
       "archive": {
         "title": "Arşiv",
-        "body": "Arşiv, kaydettiğiniz tüm bağlantıları tarihe göre gruplanmış olarak içerir. Bir tarihi açıp kapatmak için dokunun; daha eski bir bağlantıyı bulmak için aramayı kullanın."
+        "body": "Arşiv, kaydettiğiniz tüm bağlantıları tarihe göre gruplanmış ve en yeniden başlayarak sıralanmış şekilde toplar. Eski bir bağlantıyı bulmak için arama alanına en az iki karakter yazın."
+      },
+      "linkDetails": {
+        "title": "Bağlantı ayrıntıları ve düzenleme",
+        "body": "Ayrıntıları açmak için bir bağlantıya dokunun. Başlığı ve notu, bağlantının bulunduğu koleksiyonları ve kapak görselini değiştirip kaydedebilirsiniz. Asıl sayfayı açmak için bağlantıyı aç düğmesini kullanın.\n\nBaşkalarının paylaşılan bir koleksiyona eklediği bağlantıları düzenleyemezsiniz. Seçmek için o bağlantıya uzun basın, ardından kendi bağlantınız olarak kaydetmek için Daha fazla > Bağlantıyı kaydet'i kullanın."
       },
       "swipe": {
-        "title": "Hızlı işlemler için kaydırın",
-        "body": "Paylaş ve sil gibi hızlı işlemleri görmek için Ana Sayfa veya Arşiv'de bir bağlantıyı yana kaydırın. Görünen işlemler bağlantıya göre değişir: örneğin kilitli bir koleksiyondaki bağlantı buradan paylaşılamaz."
+        "title": "Hızlı işlemler için kaydırma",
+        "body": "Ana Sayfa ve Arşiv'in liste ve ızgara görünümünde, paylaşma ve silme gibi hızlı işlemleri göstermek için bir bağlantıyı yana kaydırın. Görünen işlemler bağlantıya bağlıdır; örneğin kilitli bir koleksiyondaki bağlantı buradan paylaşılamaz."
       },
       "searchSort": {
         "title": "Arama ve sıralama",
-        "body": "Arşiv'de ve her koleksiyonda bir arama kutusu vardır. Zamana göre (en yeni önce ile en eski önce arasında geçiş için tekrar dokunun) veya ada göre sıralayın.\n\nAna Sayfa bugünün bağlantıları içindir; bu yüzden sıralama yapılabilir ama arama yoktur."
+        "body": "Arşiv'de, Koleksiyonlar sekmesinde ve her koleksiyonun içinde bir arama alanı vardır. Bağlantı araması en az iki karakter yazdığınızda başlar. Ana Sayfa'da arama yoktur.\n\nBağlantılar her zaman en yeniden başlayarak gösterilir. Ayrı bir sıralama düğmesi yoktur."
       },
       "viewModes": {
-        "title": "Liste, ızgara ve görsel görünümleri",
-        "body": "Bağlantıları liste, ızgara veya fotoğrafları üç sütunda gösteren görsel görünümünde göstermek için görünüm düğmelerini kullanın. Seçiminiz Ana Sayfa, Arşiv ve Koleksiyonlar için ayrı ayrı hatırlanır."
+        "title": "Liste, ızgara ve görsel görünümü",
+        "body": "Bağlantıları liste, ızgara veya görsel olarak görmek için görünüm düğmesini kullanın. Görsel görünümü resimleri 3 sütunda gösterir. Koleksiyonlar sekmesinde koleksiyonları liste veya ızgara olarak görebilirsiniz. Her ekran kendi görünümünü hatırlar.\n\nGörünümü değiştirdiğinizde liste yeniden en baştan gösterilir."
+      },
+      "selectLinks": {
+        "title": "Birden çok bağlantı seçme",
+        "body": "Seçmeye başlamak için bir bağlantıya uzun basın; altta bir işlem çubuğu görünür. Eklemek için diğer bağlantılara dokunun; seçimi değiştirmek veya bitirmek için üstteki Tümünü seç'i ya da kapat düğmesini kullanın.\n\nAna Sayfa ve Arşiv: Koleksiyonu değiştir seçili bağlantıların koleksiyonlarını tek seferde belirler, Sil ise onları Son Silinenler'e taşır. Daha fazla'da bağlantıyı kopyalama ve Paylaş, tek bir bağlantı için ayrıca bağlantıyı açma ve Düzenle bulunur.\n\nKoleksiyonun içinde: Sil (bu koleksiyondan çıkarır), Taşı ve Kopyala. Paylaşılan bir koleksiyonda yalnızca kendi eklediğiniz bağlantıları taşıyabilir, başkalarının bağlantılarını şikâyet edebilirsiniz. Yalnızca bir kısmı başarılı olursa başarısız öğeler seçili kalır."
+      },
+      "selectCollections": {
+        "title": "Birden çok koleksiyon seçme",
+        "body": "Seçmeye başlamak için Koleksiyonlar sekmesinde bir koleksiyona uzun basın. Alt çubukta kilitleme ve silme ya da ayrılma bulunur. Yalnızca bir koleksiyon seçiliyse Daha fazla'da bildirimleri açma veya kapatma, Paylaş ve Düzenle bulunur. Görünen düğmeler koleksiyona ve rolünüze bağlıdır.\n\nKendi koleksiyonlarınız silinir; başkalarının sizinle paylaştığı koleksiyonlardan ayrılırsınız. İkisini birden seçerseniz tek bir onay sayıları gösterir ve “Sil ve ayrıl” ikisini birden yapar. Başarısız koleksiyonlar seçili kalır.\n\nBirden çok seçildiğinde kilitli koleksiyonlar atlanır. Kilitli bir koleksiyonu silmek için yalnızca onu seçin ve parolasını girin. Bir koleksiyonu silmek içindeki bağlantıları silmez."
       },
       "createCollection": {
-        "title": "Koleksiyon oluşturma",
-        "body": "Koleksiyonlar sekmesinde Yeni koleksiyon'a dokunun. Bir ad, simge ve renk seçin ya da kendi fotoğrafınızı kullanın. Bir bağlantı birden fazla koleksiyona ait olabilir.\n\nKoleksiyonları favori olarak işaretleyip üstte bir arada tutun."
+        "title": "Koleksiyon oluşturma ve düzenleme",
+        "body": "Koleksiyonlar sekmesindeki + düğmesine dokunun. Bir ad, simge ve renk seçin ya da kendi fotoğrafınızı kullanın. Bir bağlantı birden çok koleksiyonda olabilir.\n\nAdı veya görünümü değiştirmek için koleksiyonu seçip Daha fazla > Düzenle'yi ya da koleksiyon ekranındaki menüyü kullanın. Yalnızca koleksiyonun sahibi düzenleyebilir."
       },
-      "longPress": {
-        "title": "Hızlı yönetim için koleksiyona uzun basın",
-        "body": "Hızlı işlemleri görmek için bir koleksiyona uzun basın. Gördüğünüz menü koleksiyona ve rolünüze bağlıdır.\n\nFavori\nSık açtığınız koleksiyonları toplayın. Yalnızca sizin için geçerlidir.\n\nBildirimleri aç/kapat\nPaylaşılan bir koleksiyonun bildirimlerini alıp almayacağınızı seçin.\n\nDüzenle\nAdı, simgeyi, rengi veya fotoğrafı değiştirin. Yalnızca koleksiyonun sahibi yapabilir.\n\nKilit\nBir koleksiyondaki kendi kilidinizi ayarlayın veya kaldırın. Paylaşılan bağlantının erişim şifresinden farklıdır.\n\nSil / Ayrıl\nSahipler koleksiyonu siler, üyeler ayrılır. Bir koleksiyonu silmek içindeki bağlantıları silmez.\n\nPaylaş\nSahip paylaşım ekranını açar; üye, bağlantıyı yalnızca sahip açık tuttuğu sürece iletebilir.\n\nEkran okuyucu kullanıyorsanız koleksiyona uzun basın veya erişilebilirlik menüsünde «Seçenekler»i seçin.",
-        "shortcut": "Sık kullandığınız bir koleksiyonu doğrudan ana ekranınızdan açın. Uzun basıp «Ana ekrana kısayol ekle»yi seçin; telefonunuzun ana ekranından o koleksiyona girebilirsiniz.\n\nKilitli bir koleksiyon kısayoldan açıldığında da şifre ister.\n\nİhtiyacınız kalmadığında kısayolu ana ekranınızdan kendiniz silin."
+      "favorites": {
+        "title": "Favoriler",
+        "body": "Bir koleksiyonu Favoriler'e eklemek için yıldızına dokunun; kaldırmak için tekrar dokunun. Favoriler yalnızca sizin için geçerlidir.\n\nHangi koleksiyonların gösterileceğini seçmek için Koleksiyonlar sekmesinin üstündeki Favoriler, Tümü, Koleksiyonlarım ve Paylaşılanlar düğmelerini kullanın."
+      },
+      "homeShortcut": {
+        "title": "Ana ekran kısayolu (1×1)",
+        "body": "Bir koleksiyona uzun basın, yalnızca onu seçili bırakın ve telefonun ana ekranında o koleksiyonun 1×1 simgesini oluşturmak için alt çubuktaki Kısayol'a dokunun. Simgeye dokunmak koleksiyonu Juple'da hemen açar.\n\nBu özellik yalnızca başlatıcı ana ekran kısayollarını destekliyorsa görünür. Kilitli bir koleksiyon simgeden açılsa bile parola ister. Simgeyi kaldırmak için ana ekrandan kendiniz silin."
       },
       "manageLinks": {
         "title": "Bağlantıları kopyalama ve taşıma",
-        "body": "Bir koleksiyonu açın ve bir bağlantının daha fazla menüsünden onu başka koleksiyonlara kopyalayın, taşıyın veya bu koleksiyondan çıkarın. Çıkarmak bağlantıyı silmez.\n\nTaşıdıktan veya sildikten sonra çıkan mesajda Geri al’a dokunun."
+        "body": "Bir koleksiyonu açın, seçmek için bir bağlantıya uzun basın ve alt çubukla onu başka bir koleksiyona taşıyın veya kopyalayın. Sil yalnızca bu koleksiyondan çıkarır; kendi bağlantınız kalır.\n\nAna Sayfa veya Arşiv'de Koleksiyonu değiştir, birkaç bağlantının koleksiyonlarını aynı anda değiştirir.\n\nTaşıma veya silmeden hemen sonra görünen mesajdan geri alabilirsiniz."
       },
       "publicLink": {
         "title": "Koleksiyonu bağlantıyla paylaşma",
@@ -1210,40 +1237,84 @@
         "body": "Salt okunur: koleksiyonu görüntüleyebilir. Onayla eklenir: bağlantı önerebilir, sahibi onaylar. Bağlantı ekleyebilir: doğrudan bağlantı ekleyebilir. Sahip koleksiyonu, paylaşımı ve herkesin iznini yönetir.\n\nHerkese açık bağlantının ayarı, herkesin sahip olabileceği en düşük düzeydir. Davet ettiğiniz kişilere daha yüksek bir düzey verebilirsiniz."
       },
       "joinRequests": {
-        "title": "Katılma istekleri",
-        "body": "Bir koleksiyonun herkese açık ayarı kapalıyken bağlantısını açan biri katılmayı isteyebilir. Sahip isteği koleksiyonda görür ve onaylar (kişi salt okunur üye olarak eklenir) ya da reddeder. Kişi daha sonra yeniden isteyebilir.\n\nKatılma isteği gönderdikten sonra, sahibi yanıt verene kadar koleksiyon Koleksiyonlar sekmenizde «Onay bekliyor» olarak görünür."
+        "title": "Katılma istekleri ve onay bekleme",
+        "body": "Herkese açık koleksiyon ayarları OFF olduğunda, bağlantıyı açan kişi katılmak için istekte bulunabilir. Sahip, istekleri koleksiyonun paylaşım ekranında görür ve onaylar veya reddeder. Onaylananlar salt okunur katılımcı olarak katılır; reddedilenler daha sonra yeniden isteyebilir.\n\nKatılma isteği gönderdiğinizde koleksiyon, sahip yanıt verene kadar Koleksiyonlar sekmesinde “Onay bekliyor” olarak görünür. İsteği iptal etmek için o öğeye uzun basın."
       },
       "approvals": {
         "title": "Bağlantı onay istekleri",
         "body": "Bunlar katılma isteklerinden farklıdır. «Onayla eklenir» iznine sahip birinin bir koleksiyon için önerdiği bağlantılardır. Sahip bunları Alınan onay istekleri bölümünde bulur ve her birini onaylar ya da reddeder.\n\nBir bağlantı önerdiyseniz onu, iptal edebileceğiniz Gönderilen onay istekleri bölümünde bulabilirsiniz."
       },
+      "comments": {
+        "title": "Yorumlar ve tepkiler",
+        "body": "Paylaşılan bir koleksiyondaki bağlantıyı açarak diğer katılımcılarla birlikte yorum ve yanıt yazabilir, beğenebilir ve emoji ile tepki verebilirsiniz. Kendi yorumlarınızı düzenleyebilir veya silebilirsiniz."
+      },
       "collectionLock": {
-        "title": "Koleksiyonu kilitleme",
-        "body": "Sayfam > Koleksiyon kilidi'nde bir kilit şifresi belirleyin, ardından bir koleksiyonu uzun basma menüsünden kilitleyin. Kilitli koleksiyon, şifreyi girene kadar bağlantılarını Ana Sayfa ve Arşiv'de de gizler. Kilit sizin için geçerlidir, paylaştığınız kişiler için değil."
+        "title": "Koleksiyon kilidi",
+        "body": "Önce Sayfam > Koleksiyon kilidi'nde bir kilit parolası belirleyin. Ardından Koleksiyonlar sekmesinde bir koleksiyona uzun basarak seçin ve alt çubuktaki Koleksiyonu kilitle'ye dokunun.\n\nKilitli bir koleksiyon parola girilene kadar açılamaz ve bağlantıları Ana Sayfa ile Arşiv'de de gizlenir. Kilidi kaldırmak için yalnızca o koleksiyonu seçin ve parolayı girin.\n\nBaşkalarının sizinle paylaştığı bir koleksiyonu yalnızca kendiniz için de kilitleyebilirsiniz. Bu kilit yalnızca size uygulanır; sahibi ve diğer katılımcıları etkilemez."
       },
       "accessPassword": {
         "title": "Paylaşım için erişim şifresi",
         "body": "Bir koleksiyonu paylaşırken ayrıca erişim şifresi belirleyebilirsiniz. Paylaşılan koleksiyonu açanların bunu girmesi gerekir. Kendi kilidinizden ayrıdır; Paylaş bölümünde görüntüleyebilir, değiştirebilir veya kaldırabilirsiniz."
       },
+      "friends": {
+        "title": "Arkadaş ekleme ve yönetme",
+        "body": "Sayfam > Arkadaşlar'da Arkadaşlar, Gelen, Giden ve Engellenen kullanıcılar sekmeleri vardır. Gelen ve Giden sekmeleri bekleyen isteklerin sayısını gösterir.\n\nArkadaşlık isteği göndermek için + düğmesine dokunun ve kişinin Juple ID'sini girin. Kabul ettiğinde arkadaş olursunuz. Gelen istekleri kabul edebilir veya reddedebilir, giden istekleri iptal edebilirsiniz.\n\nArkadaş listesinde arama yapabilir, ortak koleksiyonlarınızı görmek için bir arkadaşa dokunabilir ve arkadaşlıktan çıkarmak için uzun basabilir veya kaydırabilirsiniz."
+      },
+      "blockReport": {
+        "title": "Engelleme ve şikâyet",
+        "body": "Etkileşimde bulunmak istemediğiniz bir kullanıcıyı engelleyebilirsiniz. Engellendikten sonra ikiniz de birbirinize arkadaşlık isteği, davet veya katılma isteği gönderemezsiniz ve paylaşılan koleksiyonlarda diğerinin eklediği bağlantıları görmezsiniz. Engellediğiniz kişinin yorumları ve tepkileri de sizden gizlenir. Kaydedilmiş veriler silinmez ve Engellenen kullanıcılar sekmesinden istediğiniz zaman engeli kaldırabilirsiniz.\n\nKatıldığınız bir koleksiyonun sahibini engellerseniz o koleksiyondan ayrılırsınız.\n\nSorunlu kullanıcıları, koleksiyonları, bağlantıları ve yorumları şikâyet edebilirsiniz. Juple operasyon ekibi şikâyetleri inceler ve şikâyet edenin bilgileri karşı tarafa iletilmez."
+      },
       "notificationCenter": {
         "title": "Bildirimler",
-        "body": "Ana Sayfa'daki zil bildirimlerinizi okunmamış sayısıyla açar. İlgili yere gitmek için bir bildirime dokunun. Hepsini okundu işaretleyebilir veya tek tek silebilirsiniz.\n\nHer paylaşılan koleksiyon için bildirimleri uzun basma menüsünden açıp kapatın. Kapalıyken öğeler yine listede görünür, ancak uyarı almazsınız."
+        "body": "Bildirimleri açmak için Ana Sayfa'daki zil simgesine dokunun; okunmamış sayısını gösterir. Web'de menüdeki Bildirimler'den açın. Bir bildirime dokunmak ilgili ekrana götürür; tümünü okundu olarak işaretleyebilir veya tek tek silebilirsiniz.\n\nArkadaşlık istekleri ve yanıtları, koleksiyon davetleri, katılma istekleri ve sonuçları, paylaşılan koleksiyonlara eklenen bağlantılar, öneriler ile yorumlar, yanıtlar ve tepkiler hakkında bildirim alırsınız.\n\nHer paylaşılan koleksiyon için bildirimleri açıp kapatabilirsiniz. Kapalıyken bildirimler listede kalır ancak anlık bildirim gönderilmez."
+      },
+      "notices": {
+        "title": "Duyurular",
+        "body": "Hizmet değişiklikleri veya koşul güncellemeleri gibi önemli duyurular Sayfam > Duyurular'dadır."
       },
       "deleteRestore": {
         "title": "Silme ve geri yükleme",
-        "body": "Bir bağlantıyı kaydırarak veya ayrıntılarından silin. Silinen bağlantılar Sayfam'daki Son Silinenler'e gider; orada geri yükleyebilir, kalıcı olarak silebilir veya listeyi boşaltabilirsiniz. Kalıcı olarak silinen bağlantılar geri getirilemez.\n\nBir bağlantıyı koleksiyondan çıkarmak onu silmez."
+        "body": "Bağlantıları kaydırarak, uzun basıp seçerek veya ayrıntılar ekranından silin. Silinen bağlantılar Sayfam'daki Son Silinenler'e taşınır ve en fazla 100 bağlantıya kadar 30 gün saklanır. Orada geri yükleyebilir, kalıcı olarak silebilir veya tümünü boşaltabilirsiniz. Kalıcı olarak silinen bağlantılar geri yüklenemez.\n\nBir bağlantıyı koleksiyondan çıkarmak onu silmek değildir. Bir koleksiyonu sildikten hemen sonra görünen mesajdan geri alabilirsiniz."
       },
-      "settings": {
-        "title": "Hesap ve ayarlar",
-        "body": "Sayfam'da profiliniz ve Juple ID, dil, Hızlı kaydet, Arkadaşlar, Koleksiyon kilidi, Son Silinenler ve hesap yönetimi yer alır. Destek için Müşteri Merkezi'ni kullanın.\n\nHesabı yönet bölümünde nasıl giriş yaptığınızı görebilir ve hesabınızı silebilirsiniz; hesap silmek hesabınızı ve verilerinizi kalıcı olarak siler.\n\nHer kişi tam 30 gün (720 saat) süren tek bir deneme alır. Mevcut üyeler için üyelik hizmetinin resmi başlangıç anından, sonradan kaydolanlar için kayıt anından hesaplanır. Sonrasında mevcut bağlantı ve koleksiyonları görüntüleme, hesap ve abonelik yönetimi, satın alımları geri yükleme ve hesap silme kullanılabilir. Geçerli ücretli abonelik veya yönetici tarafından verilen ücretsiz üyelik yoksa kaydetme, oluşturma ve düzenleme gibi temel yazma işlemleri kısıtlanır.\n\nGoogle Play > Ödemeler ve abonelikler > Abonelikler bölümünden istediğiniz zaman iptal edebilirsiniz. Ödediğiniz dönemin sonuna kadar erişiminiz sürer. Apple Kimliği ayarları > Abonelikler bölümünden istediğiniz zaman iptal edebilirsiniz. Ödediğiniz dönemin sonuna kadar erişiminiz sürer."
+      "trialPeriod": {
+        "title": "Ücretsiz deneme",
+        "body": "Ücretsiz deneme kişi başına bir kez ve tam 720 saat (30 gün) sürer. 27 Kasım 2026 saat 10:00'dan önce kaydolan mevcut üyeler 27 Aralık 2026 saat 10:00:07'ye (Kore saati) kadar kullanabilir; daha sonra kaydolan üyeler kayıt anından itibaren 720 saat alır.\n\nÜcretsiz deneme ödeme yöntemi olmadan başlar ve sona erdiğinde ücret alınmaz, ücretli aboneliğe otomatik geçiş olmaz. Hesabı silip yeniden kaydolmak yeni bir deneme başlatmaz. Kalan süreyi Sayfam > Üyelik'te görebilirsiniz."
       },
-      "homeShortcut": {
-        "title": "Ana ekran kısayolu (1×1)",
-        "body": "Bir koleksiyona basılı tutup “Ana ekrana kısayol ekle” seçeneğini seçin. Ana ekranınızda o koleksiyonun 1×1 simgesi belirir; dokunmak koleksiyonu Juple’da açar.\n\nBu menü öğesi yalnızca başlatıcınız ana ekran kısayollarını destekliyorsa görünür. Kilitli bir koleksiyon yine parola ister. Simgeyi kaldırmak için ana ekrandan kendiniz silin."
+      "plansBilling": {
+        "title": "Aylık ve yıllık üyelik",
+        "body": "Üyelik, Android'de Google Play, iPhone ve iPad'de App Store üzerinden ödenen, aylık veya yıllık otomatik yenilenen bir aboneliktir. Web'de satılmaz. Fiyat ve para birimi ülkeye ve mağazaya göre değişir; satın almadan önce Üyelik ekranında ve mağazanın ödeme ekranında gösterilen tutar geçerlidir.\n\nÜcretsiz deneme sırasında abone olursanız ücret o gün hemen alınır ve kalan deneme süresi aboneliğe eklenmez.\n\nÜyelik Juple hesabınıza bağlıdır; aynı hesap Android, iPhone, iPad ve web'de geçerlidir. Her iki mağazada da abone olursanız iki kez ücret alınır; birini iptal edin."
+      },
+      "restorePurchases": {
+        "title": "Satın alımları geri yükle",
+        "body": "Uygulamayı yeniden yükledikten veya cihaz değiştirdikten sonra aboneliğiniz görünmüyorsa Üyelik ekranında Satın alımları geri yükle'ye dokunun. Bu cihazın mağaza hesabıyla satın alınan abonelikler yeniden kontrol edilir ve Juple hesabınıza uygulanır.\n\nBaşka bir Juple hesabına zaten bağlı olan abonelik taşınmaz."
+      },
+      "cancelSubscription": {
+        "title": "Aboneliği iptal etme",
+        "body": "Ödeme yaptığınız mağazada iptal edin. Android'de: Google Play > Ödemeler ve abonelikler > Abonelikler. iPhone ve iPad'de: Ayarlar > Apple Hesabı > Abonelikler, ardından Juple'ı seçip iptal edin. Üyelik ekranı da sizi mağaza sayfasına götürebilir.\n\nİptalden sonra ödenmiş dönemin sonuna kadar kullanmaya devam edersiniz. İadeler mağazanın politikasına tabidir.\n\nAboneliği iptal etmek ve hesabı silmek ayrı işlemlerdir. Uygulamayı veya hesabı silmek aboneliği iptal etmez; önce mağazada iptal edin."
+      },
+      "afterTrial": {
+        "title": "Deneme bittikten sonra",
+        "body": "Ücretsiz deneme sona erdiğinde ve etkin bir abonelik yoksa Juple salt okunur olur. Kaydedilmiş bağlantılar ve koleksiyonlar silinmez, görüntülenmeye devam eder.\n\nKullanılabilir olanlar: bağlantıları ve koleksiyonları görüntüleme, asıl bağlantıları açma, verilerinizi dışa aktarma ve silme, koleksiyonlardan ayrılma, ayarlar, abonelik satın alma ve geri yükleme, Müşteri Merkezi, şikâyet ve engelleme, hesap silme.\n\nKısıtlananlar: yeni bağlantı kaydetme, bağlantı ve koleksiyon oluşturma ve düzenleme, koleksiyonlara bağlantı ekleme, taşıma ve kopyalama, paylaşım ayarları ve davetler, yorum ve tepki yazma, arkadaşlık istekleri ve benzeri işlemler. Paylaşılan bir koleksiyona yazmak hem sizin hem de sahibinin etkin erişime sahip olmasını gerektirir. Yeniden abone olduğunuzda her şey hemen eskisi gibi çalışır."
       },
       "profilePhoto": {
-        "title": "Profil fotoğrafını değiştir",
-        "body": "Sayfam’da profil kartındaki düzenle düğmesine dokunun. Bir fotoğraf seçin, daireye sığacak şekilde kaydırıp büyütün ve kaydedin.\n\nProfil fotoğrafınız arkadaşlarınıza ve ortak koleksiyonlarda görünür."
+        "title": "Profili düzenleme",
+        "body": "Takma adınızı ve profil fotoğrafınızı değiştirmek için Sayfam'daki profil kartında düzenle düğmesine dokunun. Fotoğrafı seçtikten sonra parmaklarınızla kaydırıp yakınlaştırarak daireye sığdırın ve kaydedin.\n\nTakma ad ve profil fotoğrafı arkadaşlarla paylaştığınız koleksiyonlarda gösterilir. Juple ID değiştirilemez."
+      },
+      "settings": {
+        "title": "Dil ve görünüm",
+        "body": "Sayfam > Dil'de 17 dilden birini veya Sistem ayarını kullan'ı seçin. Uygulama hemen o dile geçer.\n\nKaranlık ekranı açıp kapatmak için Sayfam'daki Karanlık mod anahtarını kullanın. Web'de ayarlardaki Görünüm'den değiştirin.\n\nSorularınızı Sayfam > Müşteri Merkezi'nden gönderin ve yanıtları orada görün."
+      },
+      "legalDocs": {
+        "title": "Kullanım Koşulları ve Gizlilik Politikası",
+        "body": "Kullanım Koşulları ve Gizlilik Politikası'nı Sayfam > Müşteri Merkezi'nden ve Üyelik ekranından açın. Belgeler, ayarladığınız dilde web sayfası olarak açılır.\n\nHukuken bağlayıcı olan Korece asıl metindir; diğer diller anlamayı kolaylaştırmak için referans çevirilerdir. Bir fark olursa Korece asıl metin geçerlidir. Referans çeviri sayfası doğrudan Korece asıl metne bağlantı verir."
+      },
+      "deleteAccount": {
+        "title": "Hesap silme",
+        "body": "Sayfam > Hesabı yönet > Hesabı sil'de silinecek verileri kontrol edin ve Hesabı silmeye devam et'e dokunun. Kimliğinizi doğrulamak için Yeniden giriş yap'a dokunun, Juple ID'nizi gösterildiği gibi girin ve Hesabı kalıcı olarak sil'e dokunun.\n\nHesabı silmek bağlantıları, koleksiyonları, fotoğrafları, arkadaşları, bildirimleri ve diğerlerini kalıcı olarak siler ve geri alınamaz. Katılımcılar oluşturduğunuz paylaşılan koleksiyonları artık göremez.\n\nHesabı silmek mağazadaki aboneliği iptal etmez. Önce Google Play'de veya App Store'da iptal edin."
+      },
+      "useOnWeb": {
+        "title": "Juple'ı web'de kullanma",
+        "body": "Bağlantılarınızı ve koleksiyonlarınızı orada kullanmak için bilgisayar veya tablet tarayıcısında aynı hesapla juple.co.kr'ye giriş yapın.\n\nWeb'de de bağlantı kaydedebilir, Arşiv'i, koleksiyonları, paylaşımı, arkadaşları, bildirimleri ve ayarları kullanabilirsiniz. Diğer uygulamaların paylaş menüsünden kaydetme, ana ekran kısayolları ve üyelik satın alma yalnızca mobil uygulamada vardır. Web'de üyelik durumunu görebilir ve mağazanın abonelik yönetimi sayfasına gidebilirsiniz."
       }
     }
   },
@@ -1392,8 +1463,8 @@
         "body": "Buraya bir bağlantı yapıştırıp düğmeye dokunun. Juple mümkünse başlığı ve görseli doldurur."
       },
       "share": {
-        "title": "Her uygulamadan kaydet",
-        "body": "Başka bir uygulamada Paylaş’a dokunup Juple’ı seçin. Bağlantı hemen kaydedilir."
+        "title": "Diğer uygulamalardan hemen kaydedin",
+        "body": "Başka bir uygulamada Paylaş'a dokunun ve bağlantıyı göndermek için Juple'ı seçin. Hızlı kaydet açıksa bağlantı hemen kaydedilir."
       },
       "collections": {
         "title": "Koleksiyonlarla düzenle",
@@ -1428,8 +1499,8 @@
         "body": "Liste, ızgara ve görsel görünümleri arasında geçiş yapın."
       },
       "longPress": {
-        "title": "Basılı tut",
-        "body": "Favori, bildirimler, düzenleme, kilit, silme veya ayrılma için bir koleksiyona basılı tutun."
+        "title": "Seçmek için uzun basın",
+        "body": "Birden çok seçmek için bir koleksiyona uzun basın. Alt çubukla kilitleyin, silin veya ayrılın; yalnızca biri seçiliyse Daha fazla'da bildirimler, paylaşma ve düzenleme bulunur."
       },
       "shareCollection": {
         "title": "Koleksiyonu paylaş",
@@ -1441,7 +1512,7 @@
       },
       "friendsTabs": {
         "title": "Dört sekme",
-        "body": "Arkadaşlar, Gelen istekler ve Giden istekler için ayrı sekmeler vardır."
+        "body": "Arkadaşlar, Gelen, Giden ve Engellenen kullanıcıların her birinin kendi sekmesi vardır."
       },
       "friendsShared": {
         "title": "Ortak koleksiyonlar",

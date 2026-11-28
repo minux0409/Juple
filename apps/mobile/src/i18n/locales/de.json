@@ -1119,83 +1119,110 @@
         "summary": "Die Links von heute und alles davor"
       },
       "viewing": {
-        "title": "Suchen, Sortieren und Ansichten",
-        "summary": "Links finden und so ansehen, wie du willst"
+        "title": "Suche und Ansichten",
+        "summary": "Links finden und die Ansicht wechseln"
+      },
+      "selection": {
+        "title": "Mehrere auswählen",
+        "summary": "Links und Sammlungen auf einmal ordnen"
       },
       "collections": {
         "title": "Mit Sammlungen ordnen",
         "summary": "Links auf deine Art gruppieren"
       },
       "sharing": {
-        "title": "Sammlungen teilen und zusammenarbeiten",
-        "summary": "Eine Sammlung teilen und festlegen, wer was darf"
+        "title": "Teilen und Zusammenarbeit",
+        "summary": "Sammlungen teilen und gemeinsam nutzen"
       },
       "protection": {
         "title": "Sperren und Passwörter",
         "summary": "Sensible Sammlungen schützen"
       },
+      "friends": {
+        "title": "Freunde",
+        "summary": "Freunde hinzufügen und Anfragen verwalten"
+      },
       "notifications": {
-        "title": "Benachrichtigungen",
-        "summary": "Immer auf dem Laufenden"
+        "title": "Benachrichtigungen und Mitteilungen",
+        "summary": "Nichts verpassen"
       },
       "trash": {
         "title": "Löschen und wiederherstellen",
         "summary": "Gelöschte Links zurückholen"
       },
+      "membership": {
+        "title": "Mitgliedschaft",
+        "summary": "Kostenlose Testphase, Abo, Kündigung und Wiederherstellung"
+      },
       "account": {
         "title": "Konto und Einstellungen",
-        "summary": "Profil, Sprache und mehr"
+        "summary": "Profil, Sprache, rechtliche Dokumente, Konto löschen"
       }
     },
     "topics": {
       "pasteShare": {
         "title": "Link einfügen oder teilen",
-        "body": "Füge eine URL in das Feld oben im Start ein. Auch ein Text mit einem Link funktioniert: Juple nimmt den ersten gefundenen Link.\n\nUnter Android kannst du einen Link auch direkt aus einem Browser oder einer anderen App an Juple teilen."
+        "body": "Füge oben auf Start eine URL in das Feld ein und tippe auf die Schaltfläche rechts. Du kannst auch einen Text mit einem Link einfügen; verwendet wird der erste Link darin.\n\nDu kannst einen Link auch aus einem Browser oder einer anderen App senden: Öffne das Teilen-Menü und wähle Juple. Das funktioniert auf Android sowie auf iPhone und iPad."
       },
       "quickSave": {
         "title": "Schnellspeichern",
-        "body": "Schalte Schnellspeichern in Mein Bereich ein, um geteilte Links sofort und ohne Prüfbildschirm zu speichern.\n\nIst es aus, zeigt Juple den Link zuerst an, damit du den Titel bearbeiten, eine Notiz hinzufügen und Sammlungen wählen kannst, bevor du speicherst."
+        "body": "Schalte in Mein Bereich Schnellspeichern ein, dann werden Links, die du aus anderen Apps teilst, sofort ohne Prüfbildschirm gespeichert.\n\nIst es aus, zeigt dir Juple den Link zuerst. Ändere den Titel, schreibe eine Notiz und wähle Sammlungen, dann speichere."
       },
       "review": {
         "title": "Vor dem Speichern",
-        "body": "Juple füllt Titel und Vorschaubild aus, wenn es kann. Falls es sie nicht lesen kann, kannst du den Titel selbst eingeben.\n\nFüge eine Notiz hinzu und wähle eine oder mehrere Sammlungen oder lege direkt eine neue an. Braucht eine Sammlung Freigabe, wird dein Link als Anfrage an die Eigentümerin oder den Eigentümer gesendet."
+        "body": "Wenn die öffentliche Seite des Links gelesen werden kann, füllt Juple Titel und Vorschaubild automatisch aus. Angaben, die sich nicht bestätigen lassen, werden nie geraten – gib den Titel dann selbst ein.\n\nSchreibe eine Notiz und wähle eine oder mehrere Sammlungen oder lege direkt eine neue an. Bei einer Sammlung mit Freigabe geht der Link als Freigabeanfrage an die Eigentümerin oder den Eigentümer."
       },
       "androidShortcuts": {
-        "title": "Verknüpfungen und direktes Teilen",
-        "body": "Füge eine Sammlung über ihr Menü bei langem Drücken zum Startbildschirm hinzu, um sie mit einem Tipp zu öffnen. Siehe „Sammlung gedrückt halten für schnelle Verwaltung“ unter Mit Sammlungen ordnen.\n\nGeteilte Links können auch direkt aus dem Teilen-Menü deines Telefons in eine Sammlung gehen. Gesperrte oder passwortgeschützte Sammlungen sowie Sammlungen, in denen du keine Links hinzufügen kannst, werden dort nicht angeboten.\n\nWird eine Sammlung als Teilen-Ziel angeboten, enthält ihr Menü bei langem Drücken „Aus den Teilen-Zielen entfernen“. Das entfernt sie nur aus dem Teilen-Menü. Die Sammlung, ihre Links und jede von dir erstellte Verknüpfung auf dem Startbildschirm bleiben bestehen."
+        "title": "Verknüpfungen und Direktes Teilen",
+        "body": "Halte eine Sammlung gedrückt, um sie auszuwählen, und tippe in der Leiste unten auf Verknüpfung, um eine Verknüpfung zu dieser Sammlung auf dem Startbildschirm anzulegen. Siehe „Startbildschirm-Verknüpfung“ unter Mit Sammlungen ordnen.\n\nDu kannst einen Link auch direkt aus dem Teilen-Menü des Telefons in eine Sammlung senden. Gesperrte Sammlungen, Sammlungen mit Passwort und Sammlungen, denen du keine Links hinzufügen kannst, erscheinen nicht als Teilen-Ziel.\n\nErscheint eine Sammlung als Teilen-Ziel, enthält ihr Menü „Aus den Teilen-Zielen entfernen“. Das entfernt sie nur aus dem Teilen-Menü; die Sammlung, ihre Links und angelegte Startbildschirm-Verknüpfungen bleiben unverändert."
       },
       "home": {
         "title": "Start",
-        "body": "Der Start zeigt die Links, die du heute gespeichert hast. Tippe auf einen Link, um seine Details zu öffnen, und ändere mit den Sortierschaltflächen und dem Ansichtswechsel über der Liste die Darstellung."
+        "body": "Start zeigt die Links, die du heute gespeichert hast, die neuesten zuerst. Das Feld oben bleibt beim Scrollen stehen, sodass du jederzeit einen Link speichern kannst.\n\nTippe auf einen Link, um die Details zu öffnen. Mit den Schaltflächen neben Zuletzt wechselst du zwischen Listen-, Raster- und Bildansicht. Tippe auf die Glocke auf Start, um die Benachrichtigungen zu öffnen."
       },
       "archive": {
         "title": "Archiv",
-        "body": "Das Archiv enthält alle Links, die du gespeichert hast, nach Datum gruppiert. Tippe auf ein Datum, um es zu öffnen oder zu schließen, und nutze die Suche, um einen älteren Link zu finden."
+        "body": "Im Archiv findest du alle Links, die du je gespeichert hast, nach Datum gruppiert, die neuesten zuerst. Gib mindestens zwei Zeichen in das Suchfeld ein, um ältere Links zu finden."
+      },
+      "linkDetails": {
+        "title": "Link-Details und Bearbeiten",
+        "body": "Tippe auf einen Link, um die Details zu öffnen. Du kannst Titel und Notiz bearbeiten, die Sammlungen und das Titelbild ändern und dann speichern. Mit der Schaltfläche zum Öffnen des Links gelangst du zur Originalseite.\n\nEinen Link, den eine andere Person zu einer geteilten Sammlung hinzugefügt hat, kannst du nicht bearbeiten. Halte ihn gedrückt, um ihn auszuwählen, und speichere ihn mit Mehr > Link speichern als deinen eigenen Link."
       },
       "swipe": {
         "title": "Wischen für schnelle Aktionen",
-        "body": "Wische im Start oder im Archiv einen Link zur Seite, um schnelle Aktionen wie Teilen und Löschen anzuzeigen. Welche Aktionen erscheinen, hängt vom Link ab: Ein Link aus einer gesperrten Sammlung lässt sich zum Beispiel von hier aus nicht teilen."
+        "body": "Wische in der Listen- und Rasteransicht von Start und Archiv einen Link zur Seite, um schnelle Aktionen wie Teilen und Löschen anzuzeigen. Welche Aktionen erscheinen, hängt vom Link ab. Links in einer gesperrten Sammlung können hier zum Beispiel nicht geteilt werden."
       },
       "searchSort": {
-        "title": "Suchen und Sortieren",
-        "body": "Archiv und jede Sammlung haben ein Suchfeld. Sortiere nach Zeit (erneut tippen, um zwischen neueste und älteste zuerst zu wechseln) oder nach Name.\n\nDer Start ist für die Links von heute, daher kannst du dort sortieren, aber nicht suchen."
+        "title": "Suche und Reihenfolge",
+        "body": "Archiv, der Tab Sammlungen und jede Sammlung haben ein Suchfeld. Die Linksuche beginnt, sobald du mindestens zwei Zeichen eingibst. Start hat keine Suche.\n\nLinks werden immer mit den neuesten zuerst angezeigt; eine eigene Sortier-Schaltfläche gibt es nicht."
       },
       "viewModes": {
         "title": "Listen-, Raster- und Bildansicht",
-        "body": "Mit den Ansichtsschaltflächen zeigst du Links als Liste, Raster oder in der Bildansicht an, die Bilder in drei Spalten zeigt. Deine Wahl wird für Start, Archiv und Sammlungen getrennt gemerkt."
+        "body": "Mit den Ansichtsschaltflächen siehst du Links als Liste, Raster oder Bilder. Die Bildansicht zeigt Fotos in 3 Spalten. Im Tab Sammlungen kannst du Sammlungen als Liste oder Raster anzeigen. Jeder Bildschirm merkt sich seine eigene Ansicht.\n\nWenn du die Ansicht wechselst, beginnt die Liste wieder oben."
+      },
+      "selectLinks": {
+        "title": "Mehrere Links auswählen",
+        "body": "Halte einen Link gedrückt, um die Auswahl zu starten; unten erscheint eine Aktionsleiste. Tippe auf weitere Links, um sie hinzuzufügen, und ändere oder beende die Auswahl mit Alle auswählen oder der Schließen-Schaltfläche oben.\n\nStart und Archiv: Sammlung ändern legt die Sammlungen aller ausgewählten Links auf einmal fest, und Löschen verschiebt sie nach Kürzlich gelöscht. Unter Mehr findest du Link kopieren und Teilen, bei einem einzelnen Link auch Link öffnen und Bearbeiten.\n\nIn einer Sammlung: Löschen (aus dieser Sammlung entfernen), Verschieben und Kopieren. In einer geteilten Sammlung kannst du nur Links verschieben, die du selbst hinzugefügt hast, und Links anderer Personen melden. Wenn nur ein Teil gelingt, bleiben die fehlgeschlagenen Einträge ausgewählt."
+      },
+      "selectCollections": {
+        "title": "Mehrere Sammlungen auswählen",
+        "body": "Halte im Tab Sammlungen eine Sammlung gedrückt, um die Auswahl zu starten. Die Leiste unten bietet Sperren sowie Löschen oder Verlassen. Bei einer einzelnen Sammlung findest du unter Mehr Benachrichtigungen ein oder aus, Teilen und Bearbeiten. Welche Schaltflächen erscheinen, hängt von der Sammlung und deiner Rolle ab.\n\nEigene Sammlungen werden gelöscht, Sammlungen, die jemand mit dir geteilt hat, verlässt du. Wählst du beide Arten aus, zeigt eine einzige Bestätigung die Anzahl, und „Löschen und verlassen“ erledigt beides. Sammlungen, bei denen es fehlschlägt, bleiben ausgewählt.\n\nSind mehrere ausgewählt, werden gesperrte Sammlungen übersprungen. Um eine gesperrte Sammlung zu löschen, wähle nur sie aus und gib ihr Passwort ein. Das Löschen einer Sammlung löscht nicht die Links darin."
       },
       "createCollection": {
-        "title": "Sammlung erstellen",
-        "body": "Tippe im Tab Sammlungen auf Neue Sammlung. Wähle einen Namen, ein Symbol und eine Farbe oder nutze ein eigenes Foto. Ein Link kann zu mehreren Sammlungen gehören.\n\nMarkiere Sammlungen als Favoriten, um sie oben beisammen zu halten."
+        "title": "Sammlungen erstellen und bearbeiten",
+        "body": "Tippe im Tab Sammlungen auf die Schaltfläche +. Wähle Namen, Symbol und Farbe oder verwende ein eigenes Foto. Ein Link kann in mehreren Sammlungen sein.\n\nUm Namen oder Aussehen zu ändern, wähle die Sammlung aus und nutze Mehr > Bearbeiten oder das Menü auf dem Bildschirm der Sammlung. Nur die Eigentümerin oder der Eigentümer kann sie bearbeiten."
       },
-      "longPress": {
-        "title": "Sammlung gedrückt halten für schnelle Verwaltung",
-        "body": "Halte eine Sammlung gedrückt, um die schnellen Aktionen zu sehen. Welches Menü du siehst, hängt von der Sammlung und deiner Rolle ab.\n\nFavorit\nSammle die Sammlungen, die du oft öffnest. Das gilt nur für dich.\n\nBenachrichtigungen ein/aus\nLege fest, ob du Benachrichtigungen für eine geteilte Sammlung erhältst.\n\nBearbeiten\nÄndere Name, Symbol, Farbe oder Foto. Das kann nur der Eigentümer der Sammlung.\n\nSperre\nRichte deine Sperre für eine Sammlung ein oder entferne sie. Sie ist etwas anderes als das Zugangspasswort eines geteilten Links.\n\nLöschen / Verlassen\nEigentümer löschen eine Sammlung, Mitglieder verlassen sie. Beim Löschen einer Sammlung werden die darin enthaltenen Links nicht gelöscht.\n\nTeilen\nDer Besitzer öffnet den Teilen-Bildschirm; ein Mitglied kann den Link nur weitergeben, solange der Besitzer ihn eingeschaltet hat.\n\nMit einem Screenreader hältst du die Sammlung gedrückt oder wählst im Bedienungshilfen-Menü „Optionen“.",
-        "shortcut": "Öffne eine oft genutzte Sammlung direkt von deinem Startbildschirm. Halte sie gedrückt und wähle „Verknüpfung zum Startbildschirm hinzufügen“, um vom Startbildschirm deines Telefons direkt in diese Sammlung zu springen.\n\nEine gesperrte Sammlung fragt auch beim Öffnen über eine Verknüpfung nach ihrem Passwort.\n\nLösche die Verknüpfung selbst von deinem Startbildschirm, wenn du sie nicht mehr brauchst."
+      "favorites": {
+        "title": "Favoriten",
+        "body": "Tippe auf den Stern einer Sammlung, um sie zu den Favoriten hinzuzufügen, und tippe erneut, um sie zu entfernen. Favoriten gelten nur für dich.\n\nMit den Schaltflächen Favoriten, Alle, Meine Sammlungen und Geteilt oben im Tab Sammlungen wählst du, welche Sammlungen angezeigt werden."
+      },
+      "homeShortcut": {
+        "title": "Startbildschirm-Verknüpfung (1×1)",
+        "body": "Halte eine Sammlung gedrückt, lass nur sie ausgewählt und tippe in der Leiste unten auf Verknüpfung, um ein 1×1-Symbol dieser Sammlung auf dem Startbildschirm deines Telefons anzulegen. Ein Tipp auf das Symbol öffnet die Sammlung direkt in Juple.\n\nDiese Funktion erscheint nur, wenn dein Launcher Startbildschirm-Verknüpfungen unterstützt. Eine gesperrte Sammlung fragt auch beim Öffnen über das Symbol nach ihrem Passwort. Um das Symbol zu entfernen, lösche es selbst vom Startbildschirm."
       },
       "manageLinks": {
         "title": "Links kopieren und verschieben",
-        "body": "Öffne eine Sammlung und nutze das Menü „Mehr“ eines Links, um ihn in andere Sammlungen zu kopieren, zu verschieben oder aus dieser Sammlung zu entfernen. Entfernen löscht den Link nicht.\n\nTippe nach dem Verschieben oder Löschen in der Meldung auf Rückgängig."
+        "body": "Öffne eine Sammlung, halte Links gedrückt, um sie auszuwählen, und verschiebe oder kopiere sie über die Leiste unten in eine andere Sammlung. Löschen entfernt sie nur aus dieser Sammlung; deine Links selbst bleiben erhalten.\n\nAuf Start oder im Archiv ändert Sammlung ändern die Sammlungen mehrerer Links auf einmal.\n\nDirekt nach dem Verschieben oder Löschen kannst du es über die angezeigte Meldung rückgängig machen."
       },
       "publicLink": {
         "title": "Sammlung per Link teilen",
@@ -1210,40 +1237,84 @@
         "body": "Nur lesen: kann die Sammlung ansehen. Mit Freigabe: kann Links vorschlagen, die der Eigentümer freigibt. Darf Links hinzufügen: kann Links direkt hinzufügen. Der Eigentümer verwaltet die Sammlung, das Teilen und die Berechtigung aller.\n\nDie Einstellung eines öffentlichen Links ist die niedrigste Stufe, die jeder haben kann. Eingeladenen Personen kannst du eine höhere geben."
       },
       "joinRequests": {
-        "title": "Beitrittsanfragen",
-        "body": "Ist die öffentliche Einstellung einer Sammlung AUS, kann jemand, der ihren Link öffnet, um Beitritt bitten. Der Eigentümer sieht die Anfrage in der Sammlung und genehmigt sie, wodurch die Person als Nur-Lesen-Mitglied hinzukommt, oder lehnt sie ab. Die Person kann später erneut anfragen.\n\nNachdem du um Beitritt gebeten hast, erscheint die Sammlung im Tab Sammlungen als „Wartet auf Genehmigung“, bis der Eigentümer antwortet."
+        "title": "Beitrittsanfragen und Warten auf Genehmigung",
+        "body": "Ist die Einstellung für öffentliche Sammlung auf OFF, können Personen, die den Link öffnen, um Beitritt bitten. Die Eigentümerin oder der Eigentümer sieht die Anfragen auf dem Teilen-Bildschirm der Sammlung und genehmigt oder lehnt sie ab. Genehmigte Personen treten mit Nur-Lesen-Rechten bei. Wer abgelehnt wurde, kann später erneut anfragen.\n\nWenn du um Beitritt bittest, erscheint die Sammlung in deinem Tab Sammlungen als „Wartet auf Genehmigung“, bis eine Antwort kommt. Halte sie gedrückt, um deine Anfrage zurückzuziehen."
       },
       "approvals": {
         "title": "Anfragen zur Link-Freigabe",
         "body": "Diese sind etwas anderes als Beitrittsanfragen. Es sind Links, die jemand mit der Berechtigung „Mit Freigabe“ für eine Sammlung vorschlägt. Der Eigentümer findet sie unter Erhaltene Freigabeanfragen und genehmigt oder lehnt jede einzelne ab.\n\nHast du einen Link vorgeschlagen, findest du ihn unter Gesendete Freigabeanfragen und kannst ihn dort zurückziehen."
       },
+      "comments": {
+        "title": "Kommentare und Reaktionen",
+        "body": "Öffne einen Link in einer geteilten Sammlung, um mit den anderen Teilnehmenden Kommentare und Antworten zu schreiben, Likes zu geben und mit Emojis zu reagieren. Eigene Kommentare kannst du bearbeiten oder löschen."
+      },
       "collectionLock": {
-        "title": "Sammlung sperren",
-        "body": "Lege unter Mein Bereich > Sammlungssperre ein Sperrpasswort fest und sperre dann eine Sammlung über ihr Menü bei langem Drücken. Eine gesperrte Sammlung verbirgt ihre Links, auch im Start und im Archiv, bis du das Passwort eingibst. Die Sperre gilt für dich, nicht für die Personen, mit denen du teilst."
+        "title": "Eine Sammlung sperren",
+        "body": "Lege zuerst in Mein Bereich > Sammlungssperre ein Sperrpasswort fest. Halte dann im Tab Sammlungen eine Sammlung gedrückt, um sie auszuwählen, und tippe in der Leiste unten auf Sammlung sperren.\n\nEine gesperrte Sammlung lässt sich erst nach Eingabe des Passworts öffnen, und ihre Links werden auch auf Start und im Archiv ausgeblendet. Zum Entsperren wählst du nur diese Sammlung aus und gibst das Passwort ein.\n\nDu kannst auch eine Sammlung, die jemand mit dir geteilt hat, nur für dich sperren. Diese Sperre gilt nur für dich und wirkt sich nicht auf die Eigentümerin oder den Eigentümer und andere Teilnehmende aus."
       },
       "accessPassword": {
         "title": "Zugangspasswort zum Teilen",
         "body": "Beim Teilen einer Sammlung kannst du außerdem ein Zugangspasswort festlegen. Wer die geteilte Sammlung öffnet, muss es eingeben. Es ist von deiner eigenen Sperre getrennt, und du kannst es unter Teilen ansehen, ändern oder entfernen."
       },
+      "friends": {
+        "title": "Freunde hinzufügen und verwalten",
+        "body": "Unter Mein Bereich > Freunde gibt es die Tabs Freunde, Erhalten, Gesendet und Blockierte Personen. Die Tabs Erhalten und Gesendet zeigen, wie viele Anfragen offen sind.\n\nTippe auf die Schaltfläche + und gib die Juple ID der anderen Person ein, um eine Freundschaftsanfrage zu senden. Sobald sie annimmt, seid ihr befreundet. Erhaltene Anfragen nimmst du an oder lehnst sie ab, gesendete kannst du zurückziehen.\n\nDu kannst deine Freundesliste durchsuchen. Tippe auf einen Freund, um die gemeinsamen Sammlungen zu sehen, und halte ihn gedrückt oder wische ihn zur Seite, um ihn aus deinen Freunden zu entfernen."
+      },
+      "blockReport": {
+        "title": "Blockieren und Melden",
+        "body": "Du kannst Personen blockieren, mit denen du keinen Kontakt möchtest. Nach dem Blockieren könnt ihr euch keine Freundschaftsanfragen, Einladungen oder Beitrittsanfragen mehr senden, und in geteilten Sammlungen seht ihr die Links nicht, die die andere Person hinzugefügt hat. Kommentare und Reaktionen der blockierten Person werden dir ebenfalls nicht angezeigt. Gespeicherte Daten werden nicht gelöscht, und du kannst die Blockierung jederzeit im Tab Blockierte Personen aufheben.\n\nBlockierst du die Eigentümerin oder den Eigentümer einer Sammlung, der du beigetreten bist, verlässt du diese Sammlung.\n\nDu kannst problematische Personen, Sammlungen, Links und Kommentare melden. Das Juple-Team prüft Meldungen, und die Angaben der meldenden Person werden der anderen Person nie angezeigt."
+      },
       "notificationCenter": {
         "title": "Benachrichtigungen",
-        "body": "Die Glocke im Start öffnet deine Benachrichtigungen, mit der Zahl der ungelesenen. Tippe auf eine, um zu dem Thema zu gelangen. Du kannst alle als gelesen markieren oder einzelne löschen.\n\nSchalte Benachrichtigungen für jede geteilte Sammlung über ihr Menü bei langem Drücken ein oder aus. Sind sie aus, erscheinen die Einträge weiterhin in der Liste, aber du wirst nicht benachrichtigt."
+        "body": "Tippe auf die Glocke auf Start, um die Benachrichtigungen zu öffnen; dort steht die Anzahl der ungelesenen. Im Web öffnest du sie über Benachrichtigungen im Menü. Tippe auf eine Benachrichtigung, um zum passenden Bildschirm zu gelangen. Du kannst alle als gelesen markieren oder einzeln löschen.\n\nDu wirst über Freundschaftsanfragen und Antworten, Einladungen zu Sammlungen, Beitrittsanfragen und ihr Ergebnis, Links in geteilten Sammlungen, Freigabeanfragen sowie Kommentare, Antworten und Reaktionen benachrichtigt.\n\nFür jede geteilte Sammlung kannst du die Benachrichtigungen ein- oder ausschalten. Sind sie aus, erscheinen sie weiterhin in der Liste, aber es kommt keine Push-Benachrichtigung."
+      },
+      "notices": {
+        "title": "Mitteilungen",
+        "body": "Wichtige Hinweise, etwa zu Änderungen am Dienst oder an den Bedingungen, findest du unter Mein Bereich > Mitteilungen."
       },
       "deleteRestore": {
-        "title": "Löschen und wiederherstellen",
-        "body": "Lösche einen Link durch Wischen oder in seinen Details. Gelöschte Links landen unter Kürzlich gelöscht in Mein Bereich, wo du sie wiederherstellen, endgültig löschen oder die Liste leeren kannst. Endgültig gelöschte Links lassen sich nicht zurückholen.\n\nEinen Link aus einer Sammlung zu entfernen, löscht ihn nicht."
+        "title": "Löschen und Wiederherstellen",
+        "body": "Lösche einen Link per Wischen, durch Auswählen mit langem Drücken oder in den Details. Gelöschte Links landen in Mein Bereich unter Kürzlich gelöscht und bleiben dort bis zu 30 Tage, höchstens 100 Links. Dort kannst du sie wiederherstellen, endgültig löschen oder die Liste leeren. Endgültig gelöschte Links lassen sich nicht zurückholen.\n\nEinen Link aus einer Sammlung zu entfernen, ist kein Löschen. Direkt nach dem Löschen einer Sammlung kannst du es über die angezeigte Meldung rückgängig machen."
       },
-      "settings": {
-        "title": "Konto und Einstellungen",
-        "body": "Mein Bereich enthält dein Profil und deine Juple-ID, Sprache, Schnellspeichern, Freunde, Sammlungssperre, Kürzlich gelöscht und die Kontoverwaltung. Den Support erreichst du über das Kundencenter.\n\nUnter Konto verwalten siehst du, wie du dich anmeldest, und kannst dein Konto löschen. Das löscht dein Konto und deine Daten endgültig.\n\nJede Person erhält einmalig genau 30 Tage (720 Stunden) kostenlos. Für bestehende Mitglieder beginnt die Testphase mit dem Start des Mitgliedschaftsdienstes, für spätere Anmeldungen zum Zeitpunkt der Registrierung. Danach bleiben vorhandene Links und Sammlungen lesbar. Kontoverwaltung, Aboverwaltung, Kaufwiederherstellung und Kontolöschung bleiben möglich. Ohne gültiges Abo oder vom Administrator gewährte kostenlose Mitgliedschaft werden wesentliche Schreibaktionen wie Speichern, Erstellen und Bearbeiten eingeschränkt.\n\nJederzeit kündbar unter Google Play > Zahlungen & Abos > Abos. Du behältst den Zugang bis zum Ende des bezahlten Zeitraums. Jederzeit kündbar in den Apple-ID-Einstellungen > Abonnements. Du behältst den Zugang bis zum Ende des bezahlten Zeitraums."
+      "trialPeriod": {
+        "title": "Kostenlose Testphase",
+        "body": "Die kostenlose Testphase gibt es einmal pro Person; sie dauert genau 720 Stunden (30 Tage). Mitglieder, die sich vor dem 27. November 2026, 10:00 Uhr, registriert haben, können sie bis zum 27. Dezember 2026, 10:00:07 Uhr (koreanische Zeit), nutzen; später registrierte Mitglieder 720 Stunden ab ihrer Registrierung.\n\nDie Testphase beginnt ohne Zahlungsmethode, und an ihrem Ende wird nie etwas abgebucht und sie wird nie von selbst zu einem kostenpflichtigen Abo. Wenn du dein Konto löschst und dich neu registrierst, beginnt keine neue Testphase. Die verbleibende Zeit siehst du unter Mein Bereich > Mitgliedschaft."
       },
-      "homeShortcut": {
-        "title": "Startbildschirm-Verknüpfung (1×1)",
-        "body": "Halte eine Sammlung gedrückt und wähle „Verknüpfung zum Startbildschirm hinzufügen“. Auf deinem Startbildschirm erscheint ein 1×1-Symbol dieser Sammlung; ein Tipp darauf öffnet sie in Juple.\n\nDer Menüeintrag erscheint nur, wenn dein Launcher Verknüpfungen auf dem Startbildschirm unterstützt. Eine gesperrte Sammlung verlangt weiterhin ihr Passwort. Um das Symbol zu entfernen, lösche es selbst vom Startbildschirm."
+      "plansBilling": {
+        "title": "Monatliche und jährliche Mitgliedschaft",
+        "body": "Die Mitgliedschaft ist ein sich automatisch verlängerndes Monats- oder Jahresabo. Bezahlt wird über Google Play auf Android und über den App Store auf iPhone und iPad; im Web wird sie nicht verkauft. Preise und Währungen unterscheiden sich je nach Land und Store; maßgeblich ist der Betrag, der vor dem Kauf auf dem Mitgliedschaftsbildschirm und dem Zahlungsbildschirm des Stores angezeigt wird.\n\nSchließt du während der Testphase ein Abo ab, wird noch am selben Tag abgebucht, und die verbleibende kostenlose Zeit wird nicht zum Abo hinzugerechnet.\n\nDie Mitgliedschaft gehört zu deinem Juple-Konto, du kannst sie also mit demselben Konto auf Android, iPhone und iPad sowie im Web nutzen. Ein gleichzeitiges Abo in beiden Stores wird doppelt berechnet – kündige eines davon."
+      },
+      "restorePurchases": {
+        "title": "Käufe wiederherstellen",
+        "body": "Wenn du die App neu installiert oder ein neues Gerät hast und dein Abo nicht erscheint, tippe auf dem Mitgliedschaftsbildschirm auf Käufe wiederherstellen. Das mit dem Store-Konto dieses Geräts gekaufte Abo wird erneut geprüft und deinem Juple-Konto zugeordnet.\n\nEin Abo, das bereits mit einem anderen Juple-Konto verknüpft ist, wird nicht übertragen."
+      },
+      "cancelSubscription": {
+        "title": "Abo kündigen",
+        "body": "Kündige in dem Store, über den du bezahlt hast. Auf Android unter Google Play > Zahlungen & Abos > Abos, auf iPhone und iPad unter Einstellungen > Apple Account > Abonnements – wähle Juple und kündige. Der Mitgliedschaftsbildschirm kann dich auch zur Seite des Stores bringen.\n\nNach der Kündigung kannst du die Mitgliedschaft bis zum Ende des bereits bezahlten Zeitraums nutzen. Erstattungen richten sich nach den Regeln des Stores.\n\nAbo kündigen und Konto löschen sind zwei verschiedene Dinge. Das Löschen der App oder des Kontos kündigt das Abo nicht – kündige es zuerst im Store."
+      },
+      "afterTrial": {
+        "title": "Nach der Testphase",
+        "body": "Ist die Testphase vorbei und hast du kein gültiges Abo, wechselt Juple in den Nur-Lesen-Modus. Gespeicherte Links und Sammlungen werden nicht gelöscht und bleiben sichtbar.\n\nWeiterhin verfügbar: Links und Sammlungen ansehen, Originallinks öffnen, eigene Daten exportieren und löschen, Sammlungen verlassen, Einstellungen, ein Abo kaufen und wiederherstellen, das Kundencenter, Melden und Blockieren sowie das Konto löschen.\n\nEingeschränkt: neue Links speichern, Links und Sammlungen erstellen und bearbeiten, Links zu Sammlungen hinzufügen, verschieben und kopieren, Freigabeeinstellungen und Einladungen, Kommentare und Reaktionen schreiben, Freundschaftsanfragen und Ähnliches. Um in eine geteilte Sammlung zu schreiben, brauchen sowohl du als auch die Eigentümerin oder der Eigentümer Zugang. Mit einem neuen Abo funktioniert alles sofort wieder wie zuvor."
       },
       "profilePhoto": {
-        "title": "Profilfoto ändern",
-        "body": "Tippe in „Mein Bereich“ auf der Profilkarte auf die Bearbeiten-Schaltfläche. Wähle ein Foto, verschiebe und vergrößere es passend zum Kreis und speichere.\n\nDein Profilfoto sehen Freunde und es erscheint in gemeinsamen Sammlungen."
+        "title": "Profil bearbeiten",
+        "body": "Tippe auf der Profilkarte in Mein Bereich auf die Bearbeiten-Schaltfläche, um deinen Spitznamen und dein Profilfoto zu ändern. Nach der Auswahl eines Fotos verschiebst und vergrößerst du es mit den Fingern, bis es in den Kreis passt, und speicherst.\n\nSpitzname und Profilfoto sind in Sammlungen sichtbar, die du mit Freunden teilst. Deine Juple ID lässt sich nicht ändern."
+      },
+      "settings": {
+        "title": "Sprache und Anzeige",
+        "body": "Wähle unter Mein Bereich > Sprache eine der 17 Sprachen oder Systemeinstellung verwenden. Die App wechselt sofort in diese Sprache.\n\nMit dem Schalter Dunkelmodus in Mein Bereich schaltest du die dunkle Darstellung ein oder aus. Im Web änderst du das unter Darstellung in den Einstellungen.\n\nFragen sendest du über Mein Bereich > Kundencenter; dort liest du auch die Antworten."
+      },
+      "legalDocs": {
+        "title": "Nutzungsbedingungen und Datenschutzerklärung",
+        "body": "Öffne die Nutzungsbedingungen und die Datenschutzerklärung über Mein Bereich > Kundencenter oder den Mitgliedschaftsbildschirm. Sie öffnen sich als Webseiten in der eingestellten Sprache.\n\nRechtlich verbindlich ist das koreanische Original. Andere Sprachen sind Referenzübersetzungen zum besseren Verständnis; bei Abweichungen hat das koreanische Original Vorrang. Seiten mit einer Referenzübersetzung verlinken direkt auf das koreanische Original."
+      },
+      "deleteAccount": {
+        "title": "Konto löschen",
+        "body": "Prüfe unter Mein Bereich > Konto verwalten > Konto löschen, welche Daten gelöscht werden, und tippe auf Konto weiter löschen. Melde dich zur Bestätigung erneut an, gib deine Juple ID genau wie angezeigt ein und tippe auf Konto endgültig löschen.\n\nDas Löschen des Kontos entfernt deine Links, Sammlungen, Fotos, Freunde, Benachrichtigungen und mehr endgültig und kann nicht rückgängig gemacht werden. Teilnehmende sehen die geteilten Sammlungen, die du erstellt hast, nicht mehr.\n\nDas Löschen des Kontos kündigt kein Store-Abo. Kündige es zuerst bei Google Play oder im App Store."
+      },
+      "useOnWeb": {
+        "title": "Juple im Web nutzen",
+        "body": "Melde dich im Browser eines Computers oder Tablets mit demselben Konto auf juple.co.kr an, um deine Links und Sammlungen dort zu nutzen.\n\nIm Web kannst du ebenfalls Links speichern und Archiv, Sammlungen, Teilen, Freunde, Benachrichtigungen und Einstellungen nutzen. Speichern über das Teilen-Menü anderer Apps, Startbildschirm-Verknüpfungen und der Kauf einer Mitgliedschaft funktionieren nur in der mobilen App. Im Web kannst du deinen Mitgliedschaftsstatus prüfen und zur Abo-Verwaltung des Stores wechseln."
       }
     }
   },
@@ -1392,8 +1463,8 @@
         "body": "Füge hier einen Link ein und tippe auf die Schaltfläche. Juple ergänzt Titel und Bild, wenn möglich."
       },
       "share": {
-        "title": "Aus jeder App speichern",
-        "body": "Tippe in einer anderen App auf Teilen und wähle Juple. Der Link wird sofort gespeichert."
+        "title": "Direkt aus anderen Apps speichern",
+        "body": "Tippe in einer anderen App auf Teilen und wähle Juple, um den Link zu senden. Mit Schnellspeichern wird er sofort gespeichert."
       },
       "collections": {
         "title": "In Sammlungen ordnen",
@@ -1428,8 +1499,8 @@
         "body": "Wechsle zwischen Listen-, Raster- und Bildansicht."
       },
       "longPress": {
-        "title": "Gedrückt halten",
-        "body": "Halte eine Sammlung gedrückt für Favorit, Benachrichtigungen, Bearbeiten, Sperren sowie Löschen oder Verlassen."
+        "title": "Lange drücken zum Auswählen",
+        "body": "Halte eine Sammlung gedrückt, um mehrere auszuwählen. In der Leiste unten sperrst, löschst oder verlässt du sie; bei einer einzelnen Sammlung findest du unter Mehr Benachrichtigungen, Teilen und Bearbeiten."
       },
       "shareCollection": {
         "title": "Sammlung teilen",
@@ -1441,7 +1512,7 @@
       },
       "friendsTabs": {
         "title": "Vier Tabs",
-        "body": "Freunde, Erhaltene Anfragen und Gesendete Anfragen haben jeweils einen eigenen Tab."
+        "body": "Freunde, Erhalten, Gesendet und Blockierte Personen haben jeweils einen eigenen Tab."
       },
       "friendsShared": {
         "title": "Gemeinsame Sammlungen",

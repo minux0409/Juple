@@ -48,8 +48,6 @@ const byId = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
 const topicIds = (renderer: ReactTestRenderer.ReactTestRenderer) =>
   renderer.root.findAll(node => typeof node.type === 'string' && String(node.props.testID ?? '').startsWith('guide-topic-')).map(node => String(node.props.testID).replace('guide-topic-', ''));
 
-const SHORTCUT_PARAGRAPH = "'홈 화면에 바로가기 추가'를 선택하면";
-
 describe('Help Guide - the list', () => {
   it('lists every goal-based section with its title and summary, and opens a section', async () => {
     const renderer = await render(<HelpGuideScreen />);
@@ -73,50 +71,57 @@ describe('Help Guide - the list', () => {
   });
 });
 
-describe('Help Guide - the long-press topic', () => {
-  it('exists under 컬렉션으로 정리하기 with the approved title', async () => {
-    const renderer = await render(<HelpGuideSectionScreen />);
-    expect(topicIds(renderer)).toContain('longPress');
-    expect(texts(renderer)).toContain('컬렉션을 길게 눌러 빠르게 관리하기');
+describe('Help Guide - selecting several (long-press starts multi-selection)', () => {
+  beforeEach(() => {
+    mockRouteParams = { sectionId: 'selection' };
   });
 
-  it('says the menu depends on the Collection and the role - never a fixed list', async () => {
+  it('has its own section with one topic for links and one for Collections', async () => {
     const renderer = await render(<HelpGuideSectionScreen />);
-    const text = joined(renderer);
-    expect(text).toContain('컬렉션을 길게 누르면 자주 쓰는 기능이 바로 나와요.');
-    expect(text).toContain('컬렉션과 내 권한에 따라 보이는 메뉴가 달라질 수 있어요.');
-    expect(text).not.toMatch(/항상|모든 컬렉션에서/);
+    expect(topicIds(renderer)).toEqual(['selectLinks', 'selectCollections']);
   });
 
-  it('describes favorite, notifications, edit, lock and delete/leave with the approved copy', async () => {
+  it('describes the real bottom-bar actions: Home/Archive vs inside a Collection, and the Collection bar (no favorite on it)', async () => {
     const text = joined(await render(<HelpGuideSectionScreen />));
-    expect(text).toContain('자주 보는 컬렉션을 즐겨찾기에 모아요. 나에게만 적용돼요.');
-    expect(text).toContain('함께 쓰는 컬렉션의 알림을 받을지 정해요.');
-    expect(text).toContain('컬렉션 소유자만 사용할 수 있어요.');
-    expect(text).toContain('공유 링크의 접근 비밀번호와는 다른 기능이에요.');
+    expect(text).toContain('링크를 길게 누르면 선택 모드가 시작되고');
+    expect(text).toContain('컬렉션 변경으로 선택한 링크가 담길 컬렉션을 한 번에 정하고');
+    expect(text).toContain('공유 컬렉션에서는 내가 추가한 링크만 이동할 수 있고');
+    expect(text).toContain('아래 막대에서 잠금과 삭제 또는 나가기를 쓸 수 있어요.');
+    expect(text).toContain('더보기에서 알림 켜기·끄기, 공유, 수정을 쓸 수 있어요.');
+    expect(text).not.toMatch(/막대[^.]*즐겨찾기/);
+  });
+
+  it('explains the mixed delete-and-leave confirmation with the real button name, and that links survive a deleted Collection', async () => {
+    const text = joined(await render(<HelpGuideSectionScreen />));
+    expect(text).toContain(`'${i18n.t('selection.deleteAndLeaveConfirm')}'`);
     expect(text).toContain('컬렉션을 삭제해도 안에 있던 링크는 삭제되지 않아요.');
   });
 
-  it('describes the accessibility alternative to a long press', async () => {
+  it('says the buttons depend on the Collection and the role - never a fixed list', async () => {
     const text = joined(await render(<HelpGuideSectionScreen />));
-    expect(text).toContain("컬렉션을 길게 누르거나 접근성 메뉴에서 '옵션'을 선택하세요.");
+    expect(text).toContain('보이는 버튼은 컬렉션과 내 권한에 따라 달라요.');
+    expect(text).not.toMatch(/항상|모든 컬렉션에서/);
+  });
+});
+
+describe('Help Guide - Collections', () => {
+  it('favorites are the star on each Collection, plus the filter buttons', async () => {
+    const text = joined(await render(<HelpGuideSectionScreen />));
+    expect(text).toContain('컬렉션의 별을 누르면 즐겨찾기에 추가되고');
+    expect(text).toContain('나에게만 적용돼요.');
   });
 
-  it('shows the Home-screen shortcut paragraph - with the locked note and the "delete it yourself" note - when the launcher supports it', async () => {
+  it('shows the Home-screen shortcut topic - with the locked note and the "delete it yourself" note - only when the launcher supports it', async () => {
     mockSupport = { directShareSupported: true, homePinSupport: 'supported' };
-    const text = joined(await render(<HelpGuideSectionScreen />));
-    expect(text).toContain(SHORTCUT_PARAGRAPH);
-    expect(text).toContain('잠긴 컬렉션은 바로가기로 열어도 비밀번호가 필요해요.');
-    expect(text).toContain('만든 바로가기는 홈 화면에서 직접 삭제해야 해요.');
-  });
-
-  it.each(['unsupported', 'unknown'] as const)('omits the shortcut paragraph while support is %s', async homePinSupport => {
-    mockSupport = { directShareSupported: true, homePinSupport };
-    const text = joined(await render(<HelpGuideSectionScreen />));
-    expect(text).not.toContain(SHORTCUT_PARAGRAPH);
-    expect(text).not.toContain('만든 바로가기는');
-    // the rest of the topic is still there
-    expect(text).toContain('컬렉션을 길게 누르면 자주 쓰는 기능이 바로 나와요.');
+    const supported = joined(await render(<HelpGuideSectionScreen />));
+    expect(supported).toContain('잠긴 컬렉션은 아이콘으로 열어도 비밀번호를 입력해야 해요.');
+    expect(supported).toContain('아이콘을 없애려면 홈 화면에서 직접 삭제해야 해요.');
+    for (const homePinSupport of ['unsupported', 'unknown'] as const) {
+      mockSupport = { directShareSupported: true, homePinSupport };
+      const text = joined(await render(<HelpGuideSectionScreen />));
+      expect(text).not.toContain('1×1');
+      expect(text).toContain('컬렉션 탭의 + 버튼을 누르세요.');
+    }
   });
 
   it('never advertises the shortcut where the native module is absent (iOS and other platforms)', async () => {
@@ -125,11 +130,10 @@ describe('Help Guide - the long-press topic', () => {
     expect(text).not.toContain('바로가기');
   });
 
-  it('does not put 공유 대상에서 제거 in the general long-press topic', async () => {
-    const renderer = await render(<HelpGuideSectionScreen />);
-    const longPress = renderer.root.find(node => node.props.testID === 'guide-topic-longPress' && typeof node.type === 'string');
-    const topicText = longPress.findAllByType(Text).map(node => String(node.props.children)).join('\n');
-    expect(topicText).not.toContain(i18n.t('collections.shortcutRemove'));
+  it('copy/move is the selection bar inside a Collection, and removing is not deleting', async () => {
+    const text = joined(await render(<HelpGuideSectionScreen />));
+    expect(text).toContain('링크를 길게 눌러 선택한 뒤 아래 막대에서 다른 컬렉션으로 이동하거나 복사할 수 있어요.');
+    expect(text).toContain('이 컬렉션에서만 빠지고 내 링크는 그대로 남아요.');
   });
 });
 
@@ -148,10 +152,10 @@ describe('Help Guide - Android shortcuts and Direct Share', () => {
     expect(text).not.toMatch(/홈 화면(의)? 아이콘(을|도)? (제거|삭제)/);
   });
 
-  it('cross-references the long-press topic instead of repeating it', async () => {
+  it('cross-references the Home screen shortcut topic instead of repeating it', async () => {
     const text = joined(await render(<HelpGuideSectionScreen />));
-    expect(text).toContain('컬렉션을 길게 눌러 빠르게 관리하기');
-    expect(text).not.toContain('만든 바로가기는 홈 화면에서 직접 삭제해야 해요.');
+    expect(text).toContain(`'${i18n.t('guide.topics.homeShortcut.title').replace(' (1×1)', '')}'`);
+    expect(text).not.toContain('아이콘을 없애려면 홈 화면에서 직접 삭제해야 해요.');
   });
 
   it('is omitted entirely where there is no native shortcut support', async () => {
@@ -240,7 +244,7 @@ describe('Help Guide - 기능 가이드 (guided tours)', () => {
   it('explains the 1x1 shortcut as a Help topic with the real menu entry, only where supported', async () => {
     const supported = await render(<HelpGuideSectionScreen />);
     expect(topicIds(supported)).toContain('homeShortcut');
-    expect(joined(supported)).toContain(i18n.t('collections.homeShortcutAdd'));
+    expect(joined(supported)).toContain(i18n.t('selection.shortcut'));
     expect(joined(supported)).toContain('1×1');
     mockSupport = { directShareSupported: false, homePinSupport: 'unsupported' };
     const unsupported = await render(<HelpGuideSectionScreen />);
@@ -272,17 +276,18 @@ describe('Help Guide - features without a spotlight tour are still findable', ()
   });
 });
 
-describe('Help Guide - long-press menu includes 공유', () => {
-  it('describes 공유 in every language (with that language own menu word) and the friend tour no longer offers 신고 / 차단 as friend actions', () => {
+describe('Help Guide - the selection topic in every language', () => {
+  it('names 공유 and the mixed delete-and-leave button in each language own words; the friend tour offers no 신고 / 차단 as friend actions', () => {
     for (const language of SUPPORTED_LANGUAGES) {
-      const body = String(i18n.getResource(language, 'translation', 'guide.topics.longPress.body'));
-      const word = String(i18n.getResource(language, 'translation', 'collections.shareAction'));
-      expect(body).toContain(`${word}\n`);
+      const body = String(i18n.getResource(language, 'translation', 'guide.topics.selectCollections.body'));
+      expect(body).toContain(String(i18n.getResource(language, 'translation', 'common.share')));
+      expect(body).toContain(String(i18n.getResource(language, 'translation', 'selection.deleteAndLeaveConfirm')));
     }
     const ko = (key: string) => String(i18n.getResource('ko', 'translation', key));
     for (const key of ['tour.steps.friendsEntry.body', 'tour.steps.friendsTabs.body', 'tour.guides.friends.summary']) {
-      // 차단한 사용자 is still a tab (to release an existing block); nothing says a friend can be reported or newly blocked.
+      // 차단한 사용자 is a tab (to release an existing block); nothing says a friend can be reported or newly blocked.
       expect(ko(key)).not.toMatch(/신고|친구를 차단|차단하/);
     }
+    expect(ko('tour.steps.friendsTabs.body')).toContain(ko('safety.blockedUsers'));
   });
 });

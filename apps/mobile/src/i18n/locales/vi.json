@@ -1119,83 +1119,110 @@
         "summary": "Liên kết hôm nay và mọi thứ trước đó"
       },
       "viewing": {
-        "title": "Tìm kiếm, sắp xếp và kiểu xem",
-        "summary": "Tìm liên kết và xem theo cách của bạn"
+        "title": "Tìm kiếm và cách xem",
+        "summary": "Tìm liên kết và đổi cách hiển thị"
+      },
+      "selection": {
+        "title": "Chọn nhiều mục",
+        "summary": "Sắp xếp liên kết và bộ sưu tập cùng lúc"
       },
       "collections": {
         "title": "Sắp xếp bằng bộ sưu tập",
         "summary": "Nhóm liên kết theo cách riêng của bạn"
       },
       "sharing": {
-        "title": "Chia sẻ và làm việc nhóm",
-        "summary": "Chia sẻ bộ sưu tập và quyết định ai được làm gì"
+        "title": "Chia sẻ và cộng tác",
+        "summary": "Chia sẻ bộ sưu tập và dùng chung"
       },
       "protection": {
         "title": "Khóa và mật khẩu",
         "summary": "Bảo vệ các bộ sưu tập nhạy cảm"
       },
+      "friends": {
+        "title": "Bạn bè",
+        "summary": "Thêm bạn và quản lý lời mời"
+      },
       "notifications": {
         "title": "Thông báo",
-        "summary": "Luôn cập nhật"
+        "summary": "Không bỏ lỡ điều gì"
       },
       "trash": {
         "title": "Xóa và khôi phục",
         "summary": "Lấy lại liên kết đã xóa"
       },
+      "membership": {
+        "title": "Gói thành viên",
+        "summary": "Dùng thử miễn phí, đăng ký, hủy và khôi phục"
+      },
       "account": {
         "title": "Tài khoản và cài đặt",
-        "summary": "Hồ sơ, ngôn ngữ và hơn thế nữa"
+        "summary": "Hồ sơ, ngôn ngữ, văn bản pháp lý, xóa tài khoản"
       }
     },
     "topics": {
       "pasteShare": {
         "title": "Dán hoặc chia sẻ liên kết",
-        "body": "Dán URL vào ô ở đầu Trang chủ. Đoạn văn bản có chứa liên kết cũng được: Juple dùng liên kết đầu tiên tìm thấy.\n\nTrên Android, bạn cũng có thể chia sẻ liên kết từ trình duyệt hoặc ứng dụng khác thẳng vào Juple."
+        "body": "Dán URL vào ô ở trên cùng của Trang chủ rồi nhấn nút bên phải. Bạn cũng có thể dán đoạn văn bản có chứa liên kết; liên kết đầu tiên trong đó sẽ được dùng.\n\nBạn cũng có thể gửi liên kết từ trình duyệt hoặc ứng dụng khác: mở menu chia sẻ và chọn Juple. Hỗ trợ cả Android lẫn iPhone, iPad."
       },
       "quickSave": {
         "title": "Lưu nhanh",
-        "body": "Bật Lưu nhanh trong Trang của tôi để lưu ngay các liên kết được chia sẻ, không qua màn hình xem lại.\n\nKhi tắt, Juple hiện liên kết trước để bạn sửa tiêu đề, thêm ghi chú và chọn bộ sưu tập rồi mới lưu."
+        "body": "Bật Lưu nhanh trong Trang của tôi thì liên kết bạn chia sẻ từ ứng dụng khác sẽ được lưu ngay mà không qua màn hình xem lại.\n\nKhi tắt, Juple sẽ cho bạn xem liên kết trước. Sửa tiêu đề, viết ghi chú và chọn bộ sưu tập rồi lưu."
       },
       "review": {
         "title": "Trước khi lưu",
-        "body": "Juple tự điền tiêu đề và ảnh xem trước khi có thể. Nếu không đọc được, bạn có thể tự nhập tiêu đề.\n\nThêm ghi chú và chọn một hoặc nhiều bộ sưu tập, hoặc tạo mới ngay tại chỗ. Nếu bộ sưu tập cần phê duyệt, liên kết của bạn được gửi cho chủ sở hữu dưới dạng yêu cầu."
+        "body": "Khi đọc được trang công khai của liên kết, Juple sẽ tự điền tiêu đề và ảnh xem trước. Thông tin không xác nhận được sẽ không bao giờ bị đoán, vì vậy hãy tự nhập tiêu đề.\n\nViết ghi chú và chọn một hoặc nhiều bộ sưu tập, hoặc tạo mới ngay tại chỗ. Với bộ sưu tập cần phê duyệt, liên kết sẽ được gửi đến chủ sở hữu dưới dạng yêu cầu phê duyệt."
       },
       "androidShortcuts": {
         "title": "Lối tắt và chia sẻ trực tiếp",
-        "body": "Thêm bộ sưu tập vào màn hình chính từ menu nhấn giữ để mở bằng một chạm. Xem “Nhấn giữ bộ sưu tập để quản lý nhanh” trong Sắp xếp bằng bộ sưu tập.\n\nLiên kết được chia sẻ cũng có thể đi thẳng vào một bộ sưu tập từ bảng chia sẻ của điện thoại. Bộ sưu tập bị khóa hoặc có mật khẩu, hay bộ sưu tập bạn không thể thêm liên kết, sẽ không xuất hiện ở đó.\n\nKhi một bộ sưu tập xuất hiện làm đích chia sẻ, menu nhấn giữ của nó có “Xóa khỏi đích chia sẻ”. Việc này chỉ bỏ nó khỏi bảng chia sẻ. Bộ sưu tập, các liên kết của nó và lối tắt màn hình chính bạn đã tạo vẫn được giữ nguyên."
+        "body": "Nhấn giữ một bộ sưu tập để chọn, rồi nhấn Lối tắt ở thanh bên dưới để tạo lối tắt đến bộ sưu tập đó trên màn hình chính. Xem mục “Lối tắt trên màn hình chính” trong Sắp xếp bằng bộ sưu tập.\n\nBạn cũng có thể gửi liên kết thẳng vào bộ sưu tập từ menu chia sẻ của điện thoại. Bộ sưu tập đang khóa, có mật khẩu hoặc bạn không thể thêm liên kết sẽ không xuất hiện làm đích chia sẻ.\n\nKhi bộ sưu tập xuất hiện làm đích chia sẻ, menu của nó có “Xóa khỏi đích chia sẻ”. Tính năng này chỉ gỡ nó khỏi menu chia sẻ; bộ sưu tập, liên kết và lối tắt đã tạo vẫn giữ nguyên."
       },
       "home": {
         "title": "Trang chủ",
-        "body": "Trang chủ hiển thị các liên kết bạn đã lưu hôm nay. Chạm vào một liên kết để mở chi tiết, và dùng nút sắp xếp cùng nút chuyển kiểu xem phía trên danh sách để đổi cách hiển thị."
+        "body": "Trang chủ hiển thị các liên kết bạn đã lưu hôm nay, mới nhất ở trên. Ô nhập ở trên cùng vẫn giữ nguyên khi cuộn, nên bạn có thể lưu liên kết bất cứ lúc nào.\n\nNhấn vào liên kết để mở chi tiết. Dùng các nút cạnh Gần đây để chuyển giữa chế độ danh sách, lưới và hình ảnh. Nhấn biểu tượng chuông ở Trang chủ để mở thông báo."
       },
       "archive": {
         "title": "Kho lưu trữ",
-        "body": "Kho lưu trữ chứa mọi liên kết bạn đã lưu, nhóm theo ngày. Chạm vào một ngày để mở hoặc đóng, và dùng tìm kiếm để tìm liên kết cũ hơn."
+        "body": "Kho lưu trữ gom tất cả liên kết bạn từng lưu, theo ngày, mới nhất ở trên. Nhập ít nhất hai ký tự vào ô tìm kiếm để tìm liên kết cũ."
+      },
+      "linkDetails": {
+        "title": "Chi tiết và chỉnh sửa liên kết",
+        "body": "Nhấn vào liên kết để mở chi tiết. Bạn có thể sửa tiêu đề và ghi chú, đổi bộ sưu tập chứa liên kết và ảnh bìa, rồi lưu. Dùng nút mở liên kết để mở trang gốc.\n\nBạn không thể sửa liên kết do người khác thêm vào bộ sưu tập dùng chung. Nhấn giữ liên kết đó để chọn rồi dùng Thêm > Lưu liên kết để lưu thành liên kết của bạn."
       },
       "swipe": {
         "title": "Vuốt để thao tác nhanh",
-        "body": "Vuốt một liên kết sang bên trong Trang chủ hoặc Kho lưu trữ để hiện các thao tác nhanh như chia sẻ và xóa. Thao tác hiện ra tùy theo liên kết: ví dụ, liên kết trong bộ sưu tập bị khóa không thể chia sẻ từ đây."
+        "body": "Ở chế độ danh sách và lưới của Trang chủ và Kho lưu trữ, vuốt ngang một liên kết để hiện các thao tác nhanh như chia sẻ và xóa. Thao tác hiển thị tùy theo liên kết. Ví dụ, liên kết trong bộ sưu tập đang khóa không thể chia sẻ từ đây."
       },
       "searchSort": {
-        "title": "Tìm kiếm và sắp xếp",
-        "body": "Kho lưu trữ và từng bộ sưu tập đều có ô tìm kiếm. Sắp xếp theo thời gian (chạm lại để chuyển giữa mới nhất trước và cũ nhất trước) hoặc theo tên.\n\nTrang chủ dành cho liên kết hôm nay nên có sắp xếp nhưng không có tìm kiếm."
+        "title": "Tìm kiếm và thứ tự",
+        "body": "Kho lưu trữ, thẻ Bộ sưu tập và từng bộ sưu tập đều có ô tìm kiếm. Việc tìm liên kết bắt đầu khi bạn nhập ít nhất hai ký tự. Trang chủ không có tìm kiếm.\n\nLiên kết luôn hiển thị mới nhất ở trên; không có nút sắp xếp riêng."
       },
       "viewModes": {
-        "title": "Kiểu xem danh sách, lưới và hình ảnh",
-        "body": "Dùng các nút kiểu xem để hiển thị liên kết dạng danh sách, lưới hoặc hình ảnh, kiểu này hiện ảnh thành ba cột. Lựa chọn của bạn được nhớ riêng cho Trang chủ, Kho lưu trữ và Bộ sưu tập."
+        "title": "Xem dạng danh sách, lưới và hình ảnh",
+        "body": "Dùng các nút xem để hiển thị liên kết dạng danh sách, lưới hoặc hình ảnh. Chế độ hình ảnh hiển thị ảnh thành 3 cột. Ở thẻ Bộ sưu tập, bạn có thể xem bộ sưu tập dạng danh sách hoặc lưới. Mỗi màn hình ghi nhớ cách xem riêng.\n\nKhi đổi cách xem, danh sách sẽ hiển thị lại từ đầu."
+      },
+      "selectLinks": {
+        "title": "Chọn nhiều liên kết",
+        "body": "Nhấn giữ một liên kết để bắt đầu chọn; thanh thao tác sẽ xuất hiện bên dưới. Nhấn các liên kết khác để chọn thêm, và dùng Chọn tất cả hoặc nút đóng ở trên để thay đổi hoặc kết thúc.\n\nTrang chủ và Kho lưu trữ: Đổi bộ sưu tập để đặt bộ sưu tập cho các liên kết đã chọn cùng lúc, và Xóa để chuyển chúng vào Đã xóa gần đây. Trong Thêm có sao chép liên kết và chia sẻ; khi chỉ chọn một liên kết còn có mở liên kết và chỉnh sửa.\n\nTrong bộ sưu tập: Xóa (gỡ khỏi bộ sưu tập này), Chuyển và Sao chép. Trong bộ sưu tập dùng chung, bạn chỉ có thể chuyển liên kết do mình thêm và có thể báo cáo liên kết của người khác. Nếu chỉ một phần thành công, các mục thất bại vẫn được chọn."
+      },
+      "selectCollections": {
+        "title": "Chọn nhiều bộ sưu tập",
+        "body": "Nhấn giữ một bộ sưu tập ở thẻ Bộ sưu tập để bắt đầu chọn. Thanh bên dưới có khóa và xóa hoặc rời. Khi chỉ chọn một bộ sưu tập, trong Thêm có bật hoặc tắt thông báo, Chia sẻ và Chỉnh sửa. Các nút hiển thị tùy theo bộ sưu tập và vai trò của bạn.\n\nBộ sưu tập của bạn sẽ bị xóa; với bộ sưu tập người khác chia sẻ cho bạn, bạn sẽ rời. Nếu chọn cả hai loại, một hộp xác nhận duy nhất cho biết số lượng và “Xóa và rời” làm cả hai việc. Các bộ sưu tập thất bại vẫn được chọn.\n\nKhi chọn nhiều mục, bộ sưu tập đang khóa sẽ bị bỏ qua. Để xóa bộ sưu tập đang khóa, hãy chỉ chọn nó và nhập mật khẩu. Xóa bộ sưu tập không xóa các liên kết bên trong."
       },
       "createCollection": {
-        "title": "Tạo bộ sưu tập",
-        "body": "Trong thẻ Bộ sưu tập, chạm Bộ sưu tập mới. Chọn tên, biểu tượng và màu, hoặc dùng ảnh của riêng bạn. Một liên kết có thể thuộc nhiều bộ sưu tập.\n\nĐánh dấu yêu thích cho các bộ sưu tập để giữ chúng cùng nhau ở trên cùng."
+        "title": "Tạo và chỉnh sửa bộ sưu tập",
+        "body": "Nhấn nút + ở thẻ Bộ sưu tập. Chọn tên, biểu tượng, màu hoặc dùng ảnh của bạn. Một liên kết có thể nằm trong nhiều bộ sưu tập.\n\nĐể đổi tên hoặc giao diện, hãy chọn bộ sưu tập rồi dùng Thêm > Chỉnh sửa, hoặc menu trên màn hình bộ sưu tập. Chỉ chủ sở hữu mới có thể chỉnh sửa."
       },
-      "longPress": {
-        "title": "Nhấn giữ bộ sưu tập để quản lý nhanh",
-        "body": "Nhấn giữ một bộ sưu tập để xem các thao tác nhanh. Menu bạn thấy phụ thuộc vào bộ sưu tập và vai trò của bạn.\n\nYêu thích\nGom các bộ sưu tập bạn hay mở. Chỉ áp dụng cho bạn.\n\nBật/tắt thông báo\nChọn có nhận thông báo từ bộ sưu tập chia sẻ hay không.\n\nChỉnh sửa\nĐổi tên, biểu tượng, màu hoặc ảnh. Chỉ chủ sở hữu bộ sưu tập mới làm được.\n\nKhóa\nĐặt hoặc gỡ khóa của bạn cho bộ sưu tập. Khác với mật khẩu truy cập của liên kết chia sẻ.\n\nXóa / Rời khỏi\nChủ sở hữu xóa bộ sưu tập, thành viên rời khỏi bộ sưu tập. Xóa bộ sưu tập không xóa các liên kết bên trong.\n\nChia sẻ\nChủ sở hữu mở màn hình chia sẻ; thành viên chỉ có thể chuyển tiếp liên kết khi chủ sở hữu đang bật nó.\n\nVới trình đọc màn hình, hãy nhấn giữ bộ sưu tập hoặc chọn “Tùy chọn” trong menu trợ năng.",
-        "shortcut": "Mở nhanh bộ sưu tập hay dùng ngay từ màn hình chính. Nhấn giữ nó và chọn “Thêm lối tắt vào màn hình chính” để vào thẳng bộ sưu tập đó từ màn hình chính của điện thoại.\n\nBộ sưu tập bị khóa vẫn yêu cầu mật khẩu khi mở từ lối tắt.\n\nHãy tự xóa lối tắt khỏi màn hình chính khi không cần nữa."
+      "favorites": {
+        "title": "Yêu thích",
+        "body": "Nhấn ngôi sao của bộ sưu tập để thêm vào Yêu thích, nhấn lại để bỏ. Yêu thích chỉ áp dụng cho bạn.\n\nDùng các nút Yêu thích, Tất cả, Bộ sưu tập của tôi và Đã chia sẻ ở trên cùng thẻ Bộ sưu tập để chọn bộ sưu tập hiển thị."
+      },
+      "homeShortcut": {
+        "title": "Lối tắt trên màn hình chính (1×1)",
+        "body": "Nhấn giữ một bộ sưu tập, chỉ giữ lại một mục được chọn rồi nhấn Lối tắt ở thanh bên dưới để tạo biểu tượng 1×1 của bộ sưu tập đó trên màn hình chính điện thoại. Nhấn biểu tượng sẽ mở thẳng bộ sưu tập trong Juple.\n\nTính năng này chỉ hiện khi trình khởi chạy hỗ trợ lối tắt trên màn hình chính. Bộ sưu tập đang khóa vẫn yêu cầu mật khẩu khi mở từ biểu tượng. Để gỡ biểu tượng, hãy tự xóa nó trên màn hình chính."
       },
       "manageLinks": {
-        "title": "Sao chép và di chuyển liên kết",
-        "body": "Mở một bộ sưu tập và dùng menu thêm của liên kết để sao chép sang bộ sưu tập khác, di chuyển, hoặc gỡ khỏi bộ sưu tập này. Gỡ ra không xóa liên kết.\n\nSau khi di chuyển hoặc xóa, hãy nhấn Hoàn tác trong thông báo hiện ra."
+        "title": "Sao chép và chuyển liên kết",
+        "body": "Mở bộ sưu tập, nhấn giữ liên kết để chọn rồi dùng thanh bên dưới để chuyển hoặc sao chép sang bộ sưu tập khác. Xóa chỉ gỡ liên kết khỏi bộ sưu tập này; liên kết của bạn vẫn còn.\n\nỞ Trang chủ hoặc Kho lưu trữ, Đổi bộ sưu tập giúp đổi bộ sưu tập của nhiều liên kết cùng lúc.\n\nNgay sau khi chuyển hoặc xóa, bạn có thể hoàn tác trong thông báo hiện ra."
       },
       "publicLink": {
         "title": "Chia sẻ bộ sưu tập bằng liên kết",
@@ -1210,40 +1237,84 @@
         "body": "Chỉ đọc: xem được bộ sưu tập. Cần phê duyệt: có thể đề xuất liên kết, và chủ sở hữu phê duyệt. Được thêm liên kết: thêm liên kết trực tiếp. Chủ sở hữu quản lý bộ sưu tập, việc chia sẻ và quyền của mọi người.\n\nCài đặt của liên kết công khai là mức thấp nhất mà ai cũng có. Bạn có thể cấp mức cao hơn cho người được mời."
       },
       "joinRequests": {
-        "title": "Yêu cầu tham gia",
-        "body": "Khi cài đặt công khai của bộ sưu tập đang tắt, người mở liên kết có thể yêu cầu tham gia. Chủ sở hữu thấy yêu cầu trong bộ sưu tập và phê duyệt, khi đó người đó trở thành thành viên chỉ đọc, hoặc từ chối. Họ có thể yêu cầu lại sau.\n\nSau khi bạn yêu cầu tham gia, bộ sưu tập hiện là “Đang chờ phê duyệt” trong thẻ Bộ sưu tập cho đến khi chủ sở hữu trả lời."
+        "title": "Yêu cầu tham gia và đang chờ phê duyệt",
+        "body": "Khi Cài đặt bộ sưu tập công khai ở trạng thái OFF, người mở liên kết có thể yêu cầu tham gia. Chủ sở hữu xem các yêu cầu trên màn hình chia sẻ của bộ sưu tập rồi phê duyệt hoặc từ chối. Người được phê duyệt sẽ tham gia với quyền chỉ xem. Người bị từ chối có thể yêu cầu lại sau.\n\nKhi bạn yêu cầu tham gia, bộ sưu tập sẽ hiển thị “Đang chờ phê duyệt” ở thẻ Bộ sưu tập cho đến khi chủ sở hữu trả lời. Nhấn giữ mục đó để hủy yêu cầu."
       },
       "approvals": {
         "title": "Yêu cầu phê duyệt liên kết",
         "body": "Khác với yêu cầu tham gia. Đây là những liên kết mà người có quyền “Cần phê duyệt” đề xuất cho bộ sưu tập. Chủ sở hữu thấy chúng trong Yêu cầu duyệt đã nhận và phê duyệt hoặc từ chối từng cái.\n\nNếu bạn đã đề xuất một liên kết, hãy tìm trong Yêu cầu duyệt đã gửi, nơi bạn có thể hủy nó."
       },
+      "comments": {
+        "title": "Bình luận và phản hồi",
+        "body": "Mở một liên kết trong bộ sưu tập dùng chung để cùng những người tham gia viết bình luận, trả lời, thích và phản hồi bằng biểu tượng cảm xúc. Bạn có thể sửa hoặc xóa bình luận của mình."
+      },
       "collectionLock": {
         "title": "Khóa bộ sưu tập",
-        "body": "Đặt mật khẩu khóa trong Trang của tôi > Khóa bộ sưu tập, rồi khóa bộ sưu tập từ menu nhấn giữ. Bộ sưu tập bị khóa ẩn các liên kết của nó, cả ở Trang chủ và Kho lưu trữ, cho đến khi bạn nhập mật khẩu. Khóa chỉ áp dụng cho bạn, không áp dụng cho những người bạn chia sẻ."
+        "body": "Trước tiên, đặt mật khẩu khóa trong Trang của tôi > Khóa bộ sưu tập. Sau đó nhấn giữ một bộ sưu tập ở thẻ Bộ sưu tập để chọn và nhấn Khóa bộ sưu tập ở thanh bên dưới.\n\nBộ sưu tập đang khóa không mở được cho đến khi bạn nhập mật khẩu, và liên kết của nó cũng bị ẩn ở Trang chủ và Kho lưu trữ. Để mở khóa, hãy chỉ chọn bộ sưu tập đó và nhập mật khẩu.\n\nBạn cũng có thể khóa bộ sưu tập do người khác chia sẻ cho riêng mình. Khóa này chỉ áp dụng cho bạn và không ảnh hưởng đến chủ sở hữu hay người tham gia khác."
       },
       "accessPassword": {
         "title": "Mật khẩu truy cập khi chia sẻ",
         "body": "Khi chia sẻ bộ sưu tập, bạn cũng có thể đặt mật khẩu truy cập. Người mở bộ sưu tập được chia sẻ phải nhập mật khẩu này. Nó tách biệt với khóa của riêng bạn, và bạn có thể xem, đổi hoặc gỡ trong Chia sẻ."
       },
+      "friends": {
+        "title": "Thêm và quản lý bạn bè",
+        "body": "Trong Trang của tôi > Bạn bè có các thẻ Bạn bè, Đã nhận, Đã gửi và Người dùng đã chặn. Thẻ Đã nhận và Đã gửi hiển thị số lời mời đang chờ.\n\nNhấn nút + và nhập Juple ID của người kia để gửi lời mời kết bạn. Khi họ chấp nhận, hai bạn sẽ thành bạn bè. Lời mời đã nhận có thể chấp nhận hoặc từ chối, lời mời đã gửi có thể hủy.\n\nBạn có thể tìm kiếm trong danh sách bạn bè. Nhấn vào một người bạn để xem các bộ sưu tập dùng chung, nhấn giữ hoặc vuốt ngang để xóa khỏi bạn bè."
+      },
+      "blockReport": {
+        "title": "Chặn và báo cáo",
+        "body": "Bạn có thể chặn người mình không muốn tương tác. Sau khi chặn, hai bên không thể gửi cho nhau lời mời kết bạn, lời mời tham gia hay yêu cầu tham gia, và trong bộ sưu tập dùng chung sẽ không thấy liên kết do người kia thêm. Bình luận và phản hồi của người bạn đã chặn cũng không hiển thị với bạn. Dữ liệu đã lưu không bị xóa, và bạn có thể bỏ chặn bất cứ lúc nào ở thẻ Người dùng đã chặn.\n\nNếu bạn chặn chủ sở hữu của bộ sưu tập mà bạn đang tham gia, bạn sẽ rời khỏi bộ sưu tập đó.\n\nBạn có thể báo cáo người dùng, bộ sưu tập, liên kết và bình luận có vấn đề. Nhân viên Juple sẽ xem xét báo cáo, và thông tin của người báo cáo không bao giờ được cho người kia biết."
+      },
       "notificationCenter": {
         "title": "Thông báo",
-        "body": "Chuông ở Trang chủ mở thông báo của bạn, kèm số chưa đọc. Chạm vào một thông báo để đến nội dung liên quan. Bạn có thể đánh dấu tất cả đã đọc hoặc xóa từng cái.\n\nBật hoặc tắt thông báo cho từng bộ sưu tập chia sẻ từ menu nhấn giữ. Khi tắt, các mục vẫn hiện trong danh sách nhưng bạn sẽ không bị nhắc."
+        "body": "Nhấn biểu tượng chuông ở Trang chủ để mở thông báo; số thông báo chưa đọc sẽ hiển thị trên đó. Trên web, mở mục Thông báo trong menu. Nhấn vào một thông báo để chuyển đến màn hình liên quan. Bạn có thể đánh dấu tất cả là đã đọc hoặc xóa từng thông báo.\n\nBạn sẽ nhận thông báo về lời mời kết bạn và phản hồi, lời mời vào bộ sưu tập, yêu cầu tham gia và kết quả, liên kết được thêm vào bộ sưu tập dùng chung, yêu cầu phê duyệt, cùng bình luận, trả lời và phản hồi.\n\nBạn có thể bật hoặc tắt thông báo cho từng bộ sưu tập dùng chung. Khi tắt, thông báo vẫn có trong danh sách nhưng không có thông báo đẩy."
+      },
+      "notices": {
+        "title": "Thông báo từ Juple",
+        "body": "Các thông báo quan trọng như thay đổi dịch vụ hay sửa đổi điều khoản có ở Trang của tôi > Thông báo."
       },
       "deleteRestore": {
         "title": "Xóa và khôi phục",
-        "body": "Xóa liên kết bằng cách vuốt hoặc từ phần chi tiết. Liên kết đã xóa chuyển đến Đã xóa gần đây trong Trang của tôi, nơi bạn có thể khôi phục, xóa vĩnh viễn hoặc dọn sạch danh sách. Liên kết đã xóa vĩnh viễn không thể lấy lại.\n\nGỡ một liên kết khỏi bộ sưu tập không xóa nó."
+        "body": "Xóa liên kết bằng cách vuốt, nhấn giữ để chọn hoặc từ màn hình chi tiết. Liên kết đã xóa được chuyển vào Đã xóa gần đây trong Trang của tôi và được giữ tối đa 30 ngày, tối đa 100 liên kết. Tại đó bạn có thể khôi phục, xóa vĩnh viễn hoặc làm trống. Liên kết đã xóa vĩnh viễn không thể khôi phục.\n\nGỡ liên kết khỏi bộ sưu tập không phải là xóa. Ngay sau khi xóa bộ sưu tập, bạn có thể hoàn tác trong thông báo hiện ra."
       },
-      "settings": {
-        "title": "Tài khoản và cài đặt",
-        "body": "Trang của tôi có hồ sơ và Juple ID, ngôn ngữ, Lưu nhanh, Bạn bè, Khóa bộ sưu tập, Đã xóa gần đây và quản lý tài khoản. Liên hệ hỗ trợ từ Trung tâm hỗ trợ.\n\nTrong Quản lý tài khoản, bạn xem cách đăng nhập và xóa tài khoản; xóa tài khoản sẽ xóa vĩnh viễn tài khoản và dữ liệu của bạn.\n\nMỗi người được dùng thử một lần, đúng 30 ngày (720 giờ). Thành viên đã đăng ký trước bắt đầu từ thời điểm dịch vụ thành viên chính thức mở; người đăng ký sau bắt đầu từ thời điểm đăng ký. Sau đó vẫn có thể xem liên kết và bộ sưu tập hiện có, quản lý tài khoản và gói đăng ký, khôi phục giao dịch và xóa tài khoản. Nếu không có gói trả phí hợp lệ hoặc quyền miễn phí do quản trị viên cấp, các thao tác ghi chính như lưu, tạo và chỉnh sửa sẽ bị hạn chế.\n\nBạn có thể hủy bất cứ lúc nào tại Google Play > Thanh toán và gói đăng ký > Gói đăng ký. Bạn vẫn dùng được đến hết kỳ đã thanh toán. Bạn có thể hủy bất cứ lúc nào tại cài đặt ID Apple > Đăng ký. Bạn vẫn dùng được đến hết kỳ đã thanh toán."
+      "trialPeriod": {
+        "title": "Dùng thử miễn phí",
+        "body": "Dùng thử miễn phí được áp dụng một lần cho mỗi người, kéo dài đúng 720 giờ (30 ngày). Thành viên hiện có đã đăng ký trước 10 giờ sáng ngày 27 tháng 11 năm 2026 có thể dùng đến 10 giờ 00 phút 07 giây sáng ngày 27 tháng 12 năm 2026 (giờ Hàn Quốc); thành viên đăng ký sau đó được dùng 720 giờ kể từ lúc đăng ký.\n\nDùng thử miễn phí bắt đầu mà không cần phương thức thanh toán, và khi kết thúc sẽ không bao giờ tự tính phí hay tự chuyển thành gói trả phí. Xóa tài khoản rồi đăng ký lại cũng không bắt đầu lượt dùng thử mới. Xem thời gian còn lại trong Trang của tôi > Gói thành viên."
       },
-      "homeShortcut": {
-        "title": "Lối tắt màn hình chính (1×1)",
-        "body": "Nhấn giữ một bộ sưu tập rồi chọn “Thêm lối tắt vào màn hình chính”. Biểu tượng 1×1 của bộ sưu tập đó xuất hiện trên màn hình chính, và chạm vào sẽ mở bộ sưu tập trong Juple.\n\nMục menu này chỉ hiện khi launcher của bạn hỗ trợ lối tắt màn hình chính. Bộ sưu tập bị khóa vẫn yêu cầu mật khẩu. Để gỡ biểu tượng, hãy tự xóa nó khỏi màn hình chính."
+      "plansBilling": {
+        "title": "Gói thành viên theo tháng và theo năm",
+        "body": "Gói thành viên là gói đăng ký tự động gia hạn theo tháng hoặc theo năm. Thanh toán qua Google Play trên Android và App Store trên iPhone, iPad; không bán trên web. Giá và đơn vị tiền tệ khác nhau tùy quốc gia và cửa hàng; số tiền áp dụng là số hiển thị trên màn hình gói thành viên và màn hình thanh toán của cửa hàng trước khi mua.\n\nNếu đăng ký trong thời gian dùng thử, bạn sẽ bị tính phí ngay trong ngày và thời gian miễn phí còn lại không được cộng vào gói đăng ký.\n\nGói thành viên thuộc về tài khoản Juple, nên bạn có thể dùng cùng một tài khoản trên Android, iPhone, iPad và web. Đăng ký ở cả hai cửa hàng cùng lúc sẽ bị tính phí hai lần, vì vậy hãy hủy một gói."
+      },
+      "restorePurchases": {
+        "title": "Khôi phục giao dịch mua",
+        "body": "Nếu bạn cài lại ứng dụng hoặc đổi sang thiết bị mới mà gói đăng ký không hiển thị, hãy nhấn Khôi phục giao dịch mua trên màn hình gói thành viên. Gói đăng ký đã mua bằng tài khoản cửa hàng trên thiết bị này sẽ được kiểm tra lại và áp dụng cho tài khoản Juple của bạn.\n\nGói đăng ký đã liên kết với tài khoản Juple khác sẽ không được chuyển sang."
+      },
+      "cancelSubscription": {
+        "title": "Hủy gói đăng ký",
+        "body": "Hủy tại cửa hàng nơi bạn đã thanh toán. Trên Android, vào Google Play > Thanh toán và gói đăng ký > Gói đăng ký; trên iPhone, iPad, vào Cài đặt > Tài khoản Apple > Đăng ký, chọn Juple rồi hủy. Màn hình gói thành viên cũng có thể đưa bạn đến trang của cửa hàng.\n\nSau khi hủy, bạn vẫn dùng được đến hết kỳ đã thanh toán. Việc hoàn tiền tuân theo chính sách của cửa hàng.\n\nHủy gói đăng ký và xóa tài khoản là hai việc riêng. Xóa ứng dụng hay tài khoản không hủy gói đăng ký, vì vậy hãy hủy tại cửa hàng trước."
+      },
+      "afterTrial": {
+        "title": "Sau khi hết dùng thử",
+        "body": "Khi dùng thử miễn phí đã kết thúc và bạn không có gói đăng ký hợp lệ, Juple chuyển sang chế độ chỉ xem. Liên kết và bộ sưu tập đã lưu không bị xóa và vẫn xem được.\n\nVẫn dùng được: xem liên kết và bộ sưu tập, mở liên kết gốc, xuất và xóa dữ liệu của bạn, rời bộ sưu tập, cài đặt, mua và khôi phục gói đăng ký, Trung tâm hỗ trợ, báo cáo và chặn, xóa tài khoản.\n\nBị hạn chế: lưu liên kết mới, tạo và chỉnh sửa liên kết, bộ sưu tập, thêm, chuyển và sao chép liên kết vào bộ sưu tập, cài đặt chia sẻ và lời mời, viết bình luận và phản hồi, lời mời kết bạn và các thao tác tương tự. Để ghi vào bộ sưu tập dùng chung, cả bạn và chủ sở hữu đều cần có quyền sử dụng. Đăng ký lại là mọi thứ hoạt động như trước ngay lập tức."
       },
       "profilePhoto": {
-        "title": "Đổi ảnh hồ sơ",
-        "body": "Trong Trang của tôi, chạm nút chỉnh sửa trên thẻ hồ sơ. Chọn ảnh, di chuyển và phóng to cho vừa khung tròn rồi lưu.\n\nẢnh hồ sơ hiển thị với bạn bè và trong các bộ sưu tập chung."
+        "title": "Chỉnh sửa hồ sơ",
+        "body": "Nhấn nút chỉnh sửa trên thẻ hồ sơ trong Trang của tôi để đổi biệt danh và ảnh hồ sơ. Sau khi chọn ảnh, dùng ngón tay di chuyển và phóng to cho vừa vòng tròn rồi lưu.\n\nBiệt danh và ảnh hồ sơ hiển thị trong các bộ sưu tập bạn dùng chung với bạn bè. Không thể đổi Juple ID."
+      },
+      "settings": {
+        "title": "Ngôn ngữ và hiển thị",
+        "body": "Trong Trang của tôi > Ngôn ngữ, chọn một trong 17 ngôn ngữ hoặc Dùng ngôn ngữ hệ thống. Ứng dụng sẽ đổi sang ngôn ngữ đó ngay.\n\nDùng công tắc Chế độ tối trong Trang của tôi để bật hoặc tắt giao diện tối. Trên web, đổi trong mục Giao diện của phần cài đặt.\n\nGửi câu hỏi tại Trang của tôi > Trung tâm hỗ trợ và xem câu trả lời ở cùng chỗ."
+      },
+      "legalDocs": {
+        "title": "Điều khoản dịch vụ và Chính sách quyền riêng tư",
+        "body": "Mở Điều khoản dịch vụ và Chính sách quyền riêng tư từ Trang của tôi > Trung tâm hỗ trợ hoặc màn hình gói thành viên. Văn bản mở dưới dạng trang web theo ngôn ngữ bạn đã chọn.\n\nBản gốc tiếng Hàn là văn bản có giá trị pháp lý. Các ngôn ngữ khác là bản dịch tham khảo để giúp bạn hiểu; nếu có khác biệt, bản gốc tiếng Hàn được ưu tiên. Trang bản dịch tham khảo có liên kết thẳng đến bản gốc tiếng Hàn."
+      },
+      "deleteAccount": {
+        "title": "Xóa tài khoản",
+        "body": "Trong Trang của tôi > Quản lý tài khoản > Xóa tài khoản, kiểm tra dữ liệu sẽ bị xóa rồi nhấn Tiếp tục xóa tài khoản. Đăng nhập lại để xác minh danh tính, nhập chính xác Juple ID được hiển thị và nhấn Xóa vĩnh viễn tài khoản.\n\nXóa tài khoản sẽ xóa vĩnh viễn liên kết, bộ sưu tập, ảnh, bạn bè, thông báo và nhiều thứ khác, không thể hoàn tác. Người tham gia cũng không thể xem các bộ sưu tập dùng chung do bạn tạo nữa.\n\nXóa tài khoản không hủy gói đăng ký tại cửa hàng. Hãy hủy trên Google Play hoặc App Store trước."
+      },
+      "useOnWeb": {
+        "title": "Dùng Juple trên web",
+        "body": "Đăng nhập juple.co.kr bằng cùng tài khoản trên trình duyệt máy tính hoặc máy tính bảng để dùng liên kết và bộ sưu tập của bạn.\n\nTrên web bạn cũng có thể lưu liên kết và dùng Kho lưu trữ, bộ sưu tập, chia sẻ, bạn bè, thông báo và cài đặt. Lưu từ menu chia sẻ của ứng dụng khác, lối tắt trên màn hình chính và mua gói thành viên chỉ dùng được trên ứng dụng di động. Trên web, bạn có thể xem trạng thái gói thành viên và chuyển đến trang quản lý gói đăng ký của cửa hàng."
       }
     }
   },
@@ -1392,8 +1463,8 @@
         "body": "Dán liên kết vào đây rồi chạm nút. Juple tự điền tiêu đề và hình ảnh khi có thể."
       },
       "share": {
-        "title": "Lưu từ mọi ứng dụng",
-        "body": "Trong ứng dụng khác, chạm Chia sẻ rồi chọn Juple. Liên kết được lưu ngay."
+        "title": "Lưu thẳng từ ứng dụng khác",
+        "body": "Trong ứng dụng khác, nhấn Chia sẻ và chọn Juple để gửi liên kết. Khi bật Lưu nhanh, liên kết được lưu ngay."
       },
       "collections": {
         "title": "Sắp xếp bằng Bộ sưu tập",
@@ -1428,8 +1499,8 @@
         "body": "Chuyển giữa dạng danh sách, lưới và hình ảnh."
       },
       "longPress": {
-        "title": "Nhấn giữ",
-        "body": "Nhấn giữ một bộ sưu tập để yêu thích, thông báo, chỉnh sửa, khóa, xóa hoặc rời đi."
+        "title": "Nhấn giữ để chọn",
+        "body": "Nhấn giữ một bộ sưu tập để chọn nhiều mục. Dùng thanh bên dưới để khóa, xóa hoặc rời; khi chỉ chọn một mục, trong Thêm có thông báo, Chia sẻ và Chỉnh sửa."
       },
       "shareCollection": {
         "title": "Chia sẻ bộ sưu tập",
@@ -1440,8 +1511,8 @@
         "body": "Tại đây bạn thêm bạn bè và trả lời lời mời."
       },
       "friendsTabs": {
-        "title": "Bốn tab",
-        "body": "Bạn bè, Lời mời nhận được và Lời mời đã gửi mỗi mục có một tab riêng."
+        "title": "Bốn thẻ",
+        "body": "Bạn bè, Đã nhận, Đã gửi và Người dùng đã chặn mỗi mục có một thẻ riêng."
       },
       "friendsShared": {
         "title": "Bộ sưu tập chung",
